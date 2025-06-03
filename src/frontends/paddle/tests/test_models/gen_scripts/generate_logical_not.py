@@ -37,7 +37,6 @@ def equal_logical_not(name : str, x, y):
 
 
 def main():
-    import paddle
     data_x = np.array([[[[-1, 0, 1]], [[2, 3, 4]]]]).astype(np.float32)
     data_y = np.array([[[[2, 0, 3]], [[3, 1, 4]]]]).astype(np.float32)
 

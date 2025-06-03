@@ -5,7 +5,7 @@
 """Helper functions for validating user input."""
 
 import logging
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
+from typing import Iterable
 
 import numpy as np
 

@@ -64,7 +64,7 @@ class ONNXRuntimeRunner(ClassProvider):
         if len(output_names) > 1:
             log.warning("ONNX Runtime runner is not properly tested to work with multi-output topologies. "
                         "Please, contact QA.")
-        log.info("Starting inference with ONNX Runtime ...".format(self.model))
+        log.info("Starting inference with ONNX Runtime ...")
         out = sess.run(output_names, input_data)
         res = {output_names[i]: out[i] for i in range(len(output_names))}
         return res

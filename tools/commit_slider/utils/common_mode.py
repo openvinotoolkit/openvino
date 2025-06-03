@@ -110,7 +110,7 @@ class Mode(ABC):
         raise NotImplementedError("compareCommits() is not implemented")
 
     def checkCfg(self, cfg):
-        if not ("traversal" in cfg["runConfig"]):
+        if "traversal" not in cfg["runConfig"]:
             raise util.CfgError("traversal is not configured")
 
     def preliminaryCheck(self, list, cfg):

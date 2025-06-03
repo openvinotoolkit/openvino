@@ -10,9 +10,9 @@ import paddle
 import sys
 
 if paddle.__version__ >= '2.6.0':
-    from paddle.base import param_attr
+    pass
 else:
-    from paddle.fluid import param_attr
+    pass
 
 data_type = 'float32'
 

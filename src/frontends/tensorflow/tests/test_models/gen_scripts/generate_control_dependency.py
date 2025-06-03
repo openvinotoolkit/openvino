@@ -4,7 +4,6 @@
 import os
 import sys
 
-import numpy as np
 import tensorflow as tf
 
 tf.compat.v1.reset_default_graph()

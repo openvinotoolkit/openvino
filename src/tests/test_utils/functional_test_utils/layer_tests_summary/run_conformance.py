@@ -260,7 +260,7 @@ class Conformance:
 
         command_line_args = [f"--device={self._device}",
                              f'--input_folders="{self._model_path}"' if self._type == constants.OP_CONFORMANCE else '',
-                             f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
+                             "--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter=\"{self._gtest_filter}\"', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._special_mode}']
         conformance = TestParallelRunner(exec_file_path=f"{conformance_path}",
@@ -302,7 +302,7 @@ class Conformance:
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:
-            if not out is None:
+            if out is not None:
                 for line in str(out).split('\n'):
                     logger.info(line)
         else:

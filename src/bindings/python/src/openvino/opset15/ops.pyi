@@ -6,7 +6,6 @@ from openvino._pyopenvino import Type
 from openvino.opset1.ops import convert_like
 from openvino.utils.decorators import binary_op
 from openvino.utils.decorators import nameable_op
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_nodes
 import functools
 import numpy as np

@@ -80,7 +80,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
             for xml_results_entry in xml_device_entry:
                 if report_type == OP_CONFORMANCE or report_type == OP_CONFORMANCE.lower():
                     aggregated_results_entry = None
-                    if not aggregated_device_results is None:
+                    if aggregated_device_results is not None:
                         aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
                     if aggregated_results_entry is None:
                         stat_update_utils.update_rel_values(xml_results_entry)
@@ -116,7 +116,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list,
 
 def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filename: str,
               report_type: str, merge_device_suffix=False):
-    logger.info(f" Processing is finished")
+    logger.info(" Processing is finished")
 
     summary = Element("report")
     results = SubElement(summary, "results")
@@ -166,7 +166,7 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
             for sub_result in results:
                 stat_update_utils.update_passrates(sub_result)
         summary.set("timestamp", timestamp)
-        logger.info(f" Processing is finished")
+        logger.info(" Processing is finished")
 
         if not os.path.exists(output_folder_paths):
             os.mkdir(output_folder_paths)

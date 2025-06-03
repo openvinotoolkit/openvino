@@ -8,14 +8,11 @@ See ONNX documentation for details:
 https://github.com/onnx/onnx/blob/master/docs/Implementing%20an%20ONNX%20backend.md
 """
 
-from typing import Any, Dict, List, Optional, Sequence, Text, Tuple
 
-import numpy
 import onnx
 from onnx.backend.base import Backend, BackendRep
 from onnx.helper import make_graph, make_model, make_tensor_value_info, np_dtype_to_tensor_dtype
 
-from openvino.runtime import Model
 from tests.runtime import get_runtime
 from tests.tests_python.utils.onnx_helpers import import_onnx_model
 

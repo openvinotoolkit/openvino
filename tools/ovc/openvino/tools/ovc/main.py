@@ -7,7 +7,7 @@ try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
 except ImportError:
-    import openvino.tools.ovc.telemetry_stub as tm
+    pass
 from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.cli_parser import get_model_name_from_args
 from openvino.tools.ovc.utils import import_openvino_tokenizers

@@ -1,8 +1,6 @@
-import os
 import re
 import argparse
 import subprocess
-import sys
 from colorama import Fore
 
 def addr2line(exefile, addrs, addr2line_path):
@@ -21,7 +19,7 @@ def addr2line(exefile, addrs, addr2line_path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=f"jit dump disassmbler")
+    parser = argparse.ArgumentParser(description="jit dump disassmbler")
     parser.add_argument("--filter", type=list, default=["xbyak.h","jit_generator.hpp","primitive.hpp","xbyak_mnemonic.h"])
     parser.add_argument("--maxcnt", type=int, help="Maximum number of entries from call stack to show", default=3)
     parser.add_argument("--addr2line", type=str, help="path to addr2line tool", default="addr2line")
@@ -52,14 +50,14 @@ if __name__ == "__main__":
                 if (m):
                     exefile=m.group(1)
                     addr=m.group(2)
-                    if not exefile in addr2check:
+                    if exefile not in addr2check:
                         addr2check[exefile] = set()
-                    if not offset in offset2addr:
+                    if offset not in offset2addr:
                         offset2addr[offset] = []
                     addr2check[exefile].add(addr)
                     offset2addr[offset].append([exefile, addr])
 
-    print(f"extract debug info with addr2line...")
+    print("extract debug info with addr2line...")
     traces={}
     for exefile, addrs in addr2check.items():
         traces[exefile] = addr2line(exefile, addrs, args.addr2line)

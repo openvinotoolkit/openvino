@@ -3,7 +3,6 @@
 
 from collections import defaultdict
 from datetime import timedelta
-import enum
 from openvino import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties, OVAny
 from openvino.preprocess import PrePostProcessor
 
@@ -509,7 +508,7 @@ def get_data_shapes_map(data_shape_string, input_names):
                     data_shapes = list(PartialShape(shape_str) for shape_str in shapes)
                     num_inputs, num_shapes = len(input_names), len(data_shapes)
                     if num_shapes != 1 and num_shapes % num_inputs != 0:
-                        raise Exception(f"Number of provided data_shapes is not a multiple of the number of model inputs!")
+                        raise Exception("Number of provided data_shapes is not a multiple of the number of model inputs!")
                     return_value = defaultdict(list)
                     for i in range(max(num_shapes, num_inputs)):
                         return_value[input_names[i % num_inputs]].append(data_shapes[i % num_shapes])
@@ -685,7 +684,7 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
         # Update shape with batch if needed
         if batch_size != 0:
             if batch_size.is_static and data_shape_map:
-                 logger.warning(f"Batch size will be ignored. Provide batch deminsion in data_shape parameter.")
+                 logger.warning("Batch size will be ignored. Provide batch deminsion in data_shape parameter.")
             else:
                 batch_index = -1
                 if info.layout.has_name('N'):

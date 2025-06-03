@@ -60,7 +60,7 @@ def test_pickle():
 
 def test_load_by_unknown_framework():
     frontends = fem.get_available_front_ends()
-    assert not ("UnknownFramework" in frontends)
+    assert "UnknownFramework" not in frontends
     try:
         fem.load_by_framework("UnknownFramework")
     except InitializationFailure as exc:

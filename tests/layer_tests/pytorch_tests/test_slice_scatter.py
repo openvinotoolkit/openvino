@@ -25,7 +25,7 @@ class TestSliceScatter(PytorchLayerTest):
                 self.step = step
 
             def forward(self, x):
-                return torch.slice_scatter(x, src=self.src, dim=self.dim, start=self.start, end=self.end, step=self.step);
+                return torch.slice_scatter(x, src=self.src, dim=self.dim, start=self.start, end=self.end, step=self.step)
 
 
         ref_net = None

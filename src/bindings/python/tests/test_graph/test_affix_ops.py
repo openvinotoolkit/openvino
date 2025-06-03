@@ -4,10 +4,8 @@
 
 import numpy as np
 import pytest
-import re
 
 import openvino.opset13 as ov
-from openvino import Type
 
 
 @pytest.mark.parametrize("op_name", [

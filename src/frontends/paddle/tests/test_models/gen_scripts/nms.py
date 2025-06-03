@@ -3,13 +3,11 @@
 #
 # helper for multiclass/matrix_nms paddle model generator
 #
-import os
 import numpy as np
-import copy  # deepcopy
 import sys
 import paddle
 
-from save_model import saveModel, exportModel, print_alike
+from save_model import saveModel, print_alike
 
 if paddle.__version__ >= '2.6.0':
     from paddle.base import data_feeder
@@ -44,7 +42,7 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
                                         dtype=rois_num.dtype,
                                         lod_level=1)
 
-        if attrs['nms_type'] is 'multiclass_nms3':
+        if attrs['nms_type'] == 'multiclass_nms3':
             nms_outputs = multiclass_nms(bboxes=node_boxes,
                                              scores=node_scores,
                                              background_label=attrs['background_label'],

@@ -8,7 +8,7 @@ def parse_args():
     parser.add_argument('--format', '-f', choices=['no', 'csv', 'md'], default='no', required=False, help="print data using format")
     parser.add_argument('--group_by', '-g', choices=['layerName', 'layerType', 'execType'], default=['layerType'], required=False, help="group data by column", nargs='+')
     parser.add_argument('benchmark_average_counters_file', type=str, action='store')
-    return parser.parse_args();
+    return parser.parse_args()
 
 def get_dataframe(path):
     with open(path, 'r', newline='') as csvfile:
@@ -45,8 +45,8 @@ def print_df(df, format):
         print(df.to_string(index=False))
 
 if __name__ == "__main__":
-    args = parse_args();
+    args = parse_args()
 
-    df = get_dataframe(args.benchmark_average_counters_file);
+    df = get_dataframe(args.benchmark_average_counters_file)
     df = aggregate(df, args.group_by)
     print_df(df, args.format)

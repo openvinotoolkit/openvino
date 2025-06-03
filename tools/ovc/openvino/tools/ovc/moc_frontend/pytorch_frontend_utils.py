@@ -25,7 +25,6 @@ def get_pytorch_decoder(model, example_inputs, args):
     try:
         from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
         from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-        from openvino.frontend.pytorch.module_extension import ModuleExtension
         import torch
     except Exception as e:
         log.error("PyTorch frontend loading failed")

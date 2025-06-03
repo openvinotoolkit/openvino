@@ -170,7 +170,7 @@ def getBlobMatch(fileList1, fileList2, leftCommit = None, rightCommit = None):
     trimmedFileList1 = [x for x in fileList1]
     trimmedFileList2 = [x for x in fileList2]
 
-    if not leftCommit is None or not rightCommit is None:
+    if leftCommit is not None or rightCommit is not None:
         trimmedFileList1 = trimFileNameByCommitHash(fileList1, leftCommit)
         trimmedFileList2 = trimFileNameByCommitHash(fileList2, rightCommit)
 
@@ -646,7 +646,7 @@ def runUtility(cfg, args):
         utilName = checkAndGetUtilityByName(cfg, modName)
         utility = getattr(mod, utilName)
         utility(args)
-    except ModuleNotFoundError as e:
+    except ModuleNotFoundError:
         raise CfgError("No utility {} found".format(modName))
 
 
@@ -699,7 +699,7 @@ class BuildError(Exception):
 def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
     keyName = cfg["runConfig"][specialCfg]
     map = cfg[mapName]
-    if not (keyName in map):
+    if keyName not in map:
         raise CfgError(
             "{keyName} is not registered in {mapName}".format(
                 keyName=keyName, mapName=mapName
@@ -710,7 +710,7 @@ def checkAndGetClassnameByConfig(cfg, mapName, specialCfg):
 
 
 def checkAndGetUtilityByName(cfg, utilName):
-    if not (utilName in cfg["utilMap"]):
+    if utilName not in cfg["utilMap"]:
         raise CfgError(
             "{utilName} is not registered in config".format(
                 utilName=utilName

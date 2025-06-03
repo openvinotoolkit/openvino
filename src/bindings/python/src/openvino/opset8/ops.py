@@ -4,11 +4,10 @@
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import numpy as np
 from openvino.exceptions import UserInputError
-from openvino.op import Constant, Parameter, if_op
 from openvino import Node
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.decorators import nameable_op

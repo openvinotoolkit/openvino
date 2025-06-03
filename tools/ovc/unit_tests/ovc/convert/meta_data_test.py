@@ -4,7 +4,6 @@
 import os
 import tempfile
 from openvino import get_version as get_rt_version
-from openvino import serialize
 from openvino.tools.ovc import convert_model
 from pathlib import Path
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry

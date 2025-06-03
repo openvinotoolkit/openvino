@@ -10,12 +10,10 @@ from openvino._pyopenvino import Type
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import Parameter
 from openvino._pyopenvino.op import assign
-from openvino._pyopenvino.op import read_value as _read_value
 from openvino._pyopenvino.op.util import Variable
 from openvino._pyopenvino.op.util import VariableInfo
 from openvino.utils.decorators import nameable_op
 from openvino.utils.decorators import overloading
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 from openvino.utils.types import get_element_type

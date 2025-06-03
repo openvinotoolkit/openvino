@@ -21,7 +21,7 @@ class TestConstantPadND(PytorchLayerTest):
                 self.value = value
 
             def forward(self, x):
-                return torch.constant_pad_nd(x, self.pad, self.value);
+                return torch.constant_pad_nd(x, self.pad, self.value)
 
 
         ref_net = None

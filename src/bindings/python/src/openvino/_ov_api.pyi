@@ -9,9 +9,7 @@ from openvino._pyopenvino import Node
 from openvino._pyopenvino import Tensor
 from openvino._pyopenvino import Type
 from openvino.package_utils import deprecatedclassproperty
-from openvino.utils.data_helpers.data_dispatcher import _data_dispatch
 from openvino.utils.data_helpers.wrappers import OVDict
-from openvino.utils.data_helpers.wrappers import _InferRequestWrapper
 from openvino.utils.data_helpers.wrappers import tensor_from_file
 from pathlib import Path
 from typing import Any

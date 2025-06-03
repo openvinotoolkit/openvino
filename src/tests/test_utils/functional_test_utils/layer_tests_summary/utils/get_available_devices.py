@@ -28,7 +28,7 @@ except:
         logger.warning(f'{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}')
         exit(0)
     else:
-        logger.error(f'Impossible to run the tool! PyOpenVINO was not built!')
+        logger.error('Impossible to run the tool! PyOpenVINO was not built!')
         exit(-1)
 
 def get_available_devices(target_device = None, exclude_device = None):

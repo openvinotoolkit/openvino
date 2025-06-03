@@ -150,7 +150,7 @@ def main():
             with open(latest_artifacts_for_branch, 'w') as file:
                 file.write(str(storage.relative_to(storage_root)))
 
-    logger.debug(f"Copying finished")
+    logger.debug("Copying finished")
     (storage / 'copying_finished').touch()
     if error_found:
         sys.exit(1)

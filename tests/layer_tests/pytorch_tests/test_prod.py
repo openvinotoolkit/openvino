@@ -52,7 +52,6 @@ class aten_prod_dim_dtype(torch.nn.Module):
 
 class TestProd(PytorchLayerTest):
     def _prepare_input(self, input_shape=(2), dtype=torch.float32):
-        import numpy as np
         return (torch.randn(*input_shape).to(dtype).numpy(),)
 
     @pytest.mark.parametrize("shape", [(1,),

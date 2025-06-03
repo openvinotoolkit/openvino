@@ -4,7 +4,6 @@
 import paddle
 import numpy as np
 import sys
-import os
 
 from save_model import saveModel
 

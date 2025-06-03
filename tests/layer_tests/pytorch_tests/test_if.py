@@ -14,7 +14,6 @@ class TestIf(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        import torch.nn.functional as F
 
         class prim_if(torch.nn.Module):
             def __init__(self):

@@ -17,7 +17,7 @@ class CommonTFLayerTest:
         input = dict()
         for key in inputs_dict.keys():
             data = inputs_dict.get(key)
-            if not ':' in key:
+            if ':' not in key:
                 key += ':0'
             input[key] = data
 

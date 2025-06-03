@@ -80,7 +80,7 @@ class TestBatchNormalization(OnnxRuntimeLayerTest):
 
         args = dict(epsilon=epsilon)
         if opset == 6:
-            args['is_test'] = 1;
+            args['is_test'] = 1
         node_def = helper.make_node(
             'BatchNormalization',
             inputs=['input', 'scale_const', 'bias', 'mean', 'var'],

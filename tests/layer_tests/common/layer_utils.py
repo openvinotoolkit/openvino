@@ -1,6 +1,5 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import platform
 import subprocess
 import sys
 
@@ -10,7 +9,7 @@ from openvino import Core, get_version as ie2_get_version
 # Not all layer tests use openvino_tokenizers
 try:
     # noinspection PyUnresolvedReferences
-    import openvino_tokenizers  # do not delete, needed for validation of OpenVINO tokenizers extensions
+    pass  # do not delete, needed for validation of OpenVINO tokenizers extensions
 except:
     # TODO 132909: add build OpenVINO Tokenizers in Jenkins for layer_ubuntu20_release tests
     pass

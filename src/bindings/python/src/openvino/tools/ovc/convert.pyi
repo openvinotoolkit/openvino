@@ -2,7 +2,6 @@
 from __future__ import annotations
 from openvino._ov_api import Model
 from openvino.tools.ovc.cli_parser import get_all_cli_parser
-from openvino.tools.ovc.convert_impl import _convert
 from openvino.tools.ovc.logger import get_logger_state
 from openvino.tools.ovc.logger import restore_logger_state
 from typing import Any

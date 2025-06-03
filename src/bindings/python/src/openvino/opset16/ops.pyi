@@ -3,7 +3,6 @@ from __future__ import annotations
 from functools import partial
 from openvino._pyopenvino import Node
 from openvino.utils.decorators import nameable_op
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino

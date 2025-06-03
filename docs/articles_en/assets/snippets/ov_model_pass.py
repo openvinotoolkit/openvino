@@ -26,10 +26,8 @@ You create ``Model`` with ``Relu``, ``Parameter`` and ``Result`` nodes. After ru
 In order to run this script, you need to export PYTHONPATH as the path to binary OpenVINO python models.
 '''
 
-from openvino.runtime.passes import Manager, GraphRewrite, BackwardGraphRewrite, Serialize
-from openvino import Model, PartialShape
-from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
+from openvino.runtime.passes import Manager
+from openvino.runtime.passes import ModelPass
 
 
 class MyModelPass(ModelPass):

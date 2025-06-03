@@ -56,7 +56,7 @@ def main():
     skip_workflow = False
     missing_only = False
 
-    merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', args.ref_name)), None)
+    merge_queue_target_branch = next(iter(re.findall('^gh-readonly-queue/(.*)/', args.ref_name)), None)
 
     if args.pr:
         environment_affected = args.docker_env_changed or args.dockerfiles_changed
@@ -73,7 +73,7 @@ def main():
     elif merge_queue_target_branch:
         environment_affected = head_tag != base_tag
         if environment_affected:
-            logger.info(f"Environment is affected by PR(s) in merge group")
+            logger.info("Environment is affected by PR(s) in merge group")
     else:
         environment_affected = False
 
@@ -82,10 +82,10 @@ def main():
         changed_dockerfiles = [p for p in changeset if p.startswith(args.dockerfiles_root) and p.endswith('Dockerfile')]
 
         if args.docker_env_changed:
-            logger.info(f"Common docker environment is modified, will build all requested images")
+            logger.info("Common docker environment is modified, will build all requested images")
             changed_images = requested_images
         else:
-            logger.info(f"Common docker environment is not modified, will build only changed and missing images")
+            logger.info("Common docker environment is not modified, will build only changed and missing images")
             changed_images = set([name_from_dockerfile(d, args.dockerfiles_root) for d in changed_dockerfiles])
 
         unchanged_images = requested_images - changed_images
@@ -102,17 +102,17 @@ def main():
         if only_dockerfiles_changed and not images_to_build:
             skip_workflow = True
     else:
-        logger.info(f"Environment is not affected, will build only missing images, if any")
+        logger.info("Environment is not affected, will build only missing images, if any")
         images_to_build = requested_images
         images_to_tag = []
         missing_only = True
 
     if not images_to_build:
-        logger.info(f"No images to build, will return the list of pre-built images with a new tag")
+        logger.info("No images to build, will return the list of pre-built images with a new tag")
 
     built_images = images.build(images_to_build, missing_only, args.push, args.docker_builder)
     if not built_images:
-        logger.info(f"No images were built, a new tag will be applied to a pre-built base image if needed")
+        logger.info("No images were built, a new tag will be applied to a pre-built base image if needed")
 
     # When a custom builder is used, it allows to push the image automatically once built. Otherwise, pushing manually
     if args.push and not args.docker_builder:
@@ -125,7 +125,7 @@ def main():
     set_github_output("images", json.dumps(images_output))
 
     if skip_workflow:
-        logger.info(f"Docker image changes are irrelevant for current workflow, workflow may be skipped")
+        logger.info("Docker image changes are irrelevant for current workflow, workflow may be skipped")
         set_github_output("skip_workflow", str(skip_workflow))
 
 

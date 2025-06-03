@@ -5,7 +5,6 @@ from pathlib import Path
 import os
 import glob
 import re
-import sys
 
 # ticket 95904
 #import paddle

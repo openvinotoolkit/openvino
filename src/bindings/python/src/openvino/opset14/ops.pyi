@@ -4,7 +4,6 @@ from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Type
 from openvino.utils.decorators import nameable_op
-from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 import functools

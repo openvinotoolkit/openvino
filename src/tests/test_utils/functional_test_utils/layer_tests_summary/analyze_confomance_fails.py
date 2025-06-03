@@ -68,7 +68,7 @@ class AnalyzerConformanceLog:
                     logger.error(f'FAIL {e}')
                     return 1
                 else:
-                    logger.info(f'DONE')
+                    logger.info('DONE')
 
                 logger.info(f'Unziping {dest_path}')
                 extended_path = os.path.join(dest_path, LOGS_ZIP_NAME)
@@ -78,7 +78,7 @@ class AnalyzerConformanceLog:
                     for name in zipObj.namelist():
                         if API_CONFORMANCE_SUFFIX in name and 'logs' in name and self.status_folder_exists(name):
                             zipObj.extract(name, dest_path)
-                logger.info(f'DONE')
+                logger.info('DONE')
 
     def get_real_device(self, device):
         real_device = device.upper()
@@ -90,9 +90,9 @@ class AnalyzerConformanceLog:
         return real_device
 
     def collect_tests_result(self, exclude_from_log):
-        logger.info(f'Collecting results')
+        logger.info('Collecting results')
         for root, dirs, files in os.walk(self.local_log_dir, topdown=False):
-            if not API_CONFORMANCE_SUFFIX in root or not 'logs' in root or\
+            if API_CONFORMANCE_SUFFIX not in root or 'logs' not in root or\
                not self.status_folder_exists(root):
                 continue
 
@@ -118,7 +118,7 @@ class AnalyzerConformanceLog:
 
                     for line in lines:
                         if constants.RUN in line:
-                            test_name_match = re.match(f'.*\[\s*RUN\s*\] (.*)', line)
+                            test_name_match = re.match('.*\[\s*RUN\s*\] (.*)', line)
                             if test_name_match:
                                 test_name = test_name_match.group(1)
                             continue
@@ -137,7 +137,7 @@ class AnalyzerConformanceLog:
                     real_device = self.get_real_device(device)
                     test_name = re.sub(f'^(.+/.+\..+/.*?){real_device}(.*)$', r'\1[HWDevice]\2', test_name, count=1)
                     if real_device in SW_PLUGINS:
-                        test_name = re.sub(f'(configItem|config)=.*$', '', test_name)
+                        test_name = re.sub('(configItem|config)=.*$', '', test_name)
 
                     test_group = test_name.split('/')[0] if len(test_name.split('/')) > 1 else test_name.split('.')[0]
                     # cover case ov_infer_request_1/2/...
@@ -155,7 +155,7 @@ class AnalyzerConformanceLog:
                     logger.error(f'Analyzing of {extended_path} FAIL: {e}')
 
     def create_exel(self, expected_devices):
-        logger.info(f'Creating exel file with results')
+        logger.info('Creating exel file with results')
 
         if not expected_devices:
             expected_devices = self.analyzed_hw_devices
@@ -246,7 +246,7 @@ class AnalyzerConformanceLog:
             workbook.save(os.path.join(self.output_path, self.output_file_name))
             logger.info(f'Exel file with results is created: {self.output_file_name}')
         else:
-            logger.info(f'Excel file hasn`t created because there is no content. This means that no errors were detected or something went wrong during the analysis')
+            logger.info('Excel file hasn`t created because there is no content. This means that no errors were detected or something went wrong during the analysis')
 
 
 if __name__ == '__main__':

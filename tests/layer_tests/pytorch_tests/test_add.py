@@ -246,7 +246,7 @@ class TestAddWithRhsComplex(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_add(alpha), ref_net, f"aten::add"
+        return aten_add(alpha), ref_net, "aten::add"
 
     @pytest.mark.parametrize('alpha', (0, 0.5))
     @pytest.mark.parametrize("rhs_type",

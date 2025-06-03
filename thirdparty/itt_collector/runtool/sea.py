@@ -17,10 +17,7 @@
 from __future__ import print_function
 import os
 import sys
-import json
-import time
 import platform
-import threading
 from ctypes import cdll, c_char_p, c_void_p, c_ulonglong, c_int, c_double, c_long, c_bool, c_short, c_wchar_p, c_uint32, POINTER, CFUNCTYPE
 from sea_runtool import reset_global, global_storage
 

@@ -1,10 +1,8 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import sys
 
-import numpy as np
 import paddle
 
 from save_model import exportModel

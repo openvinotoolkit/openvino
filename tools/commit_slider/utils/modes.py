@@ -6,7 +6,7 @@ from utils.helpers import CfgManager, fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfullCommitTail, extractModelPath
 from utils.helpers import handleCommit, getBlobDiff
 from utils.helpers import getCommitLogger, CashError, CfgError,\
-CmdError, PreliminaryAnalysisError
+PreliminaryAnalysisError
 from utils.break_validator import checkStability
 import re
 import shutil
@@ -47,7 +47,7 @@ class CheckOutputMode(Mode):
 
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
-        if not ("stopPattern" in cfg["runConfig"]):
+        if "stopPattern" not in cfg["runConfig"]:
             raise CfgError("stopPattern is not configured")
 
     def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
@@ -130,7 +130,7 @@ class BenchmarkAppPerformanceMode(Mode):
 
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
-        if not ("perfAppropriateDeviation" in cfg["runConfig"]):
+        if "perfAppropriateDeviation" not in cfg["runConfig"]:
             raise CfgError("Appropriate deviation is not configured")
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
@@ -322,7 +322,7 @@ class LLMBenchMode(Mode):
 
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
-        if not ("perfAppropriateDeviation" in cfg["runConfig"]):
+        if "perfAppropriateDeviation" not in cfg["runConfig"]:
             raise CfgError("Appropriate deviation is not configured")
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
@@ -609,9 +609,9 @@ class CompareBlobsMode(Mode):
         super().checkCfg(cfg)
         isAutoMatch = "autoMatch" in cfg["runConfig"] and \
             cfg["runConfig"]["autoMatch"] is True
-        if not ("outputFileNamePattern" in cfg["runConfig"]) and not isAutoMatch:
+        if "outputFileNamePattern" not in cfg["runConfig"] and not isAutoMatch:
             raise CfgError("Output pattern OR automatch is not configured")
-        elif not ("outputDirectory" in cfg["runConfig"]) and not isAutoMatch:
+        elif "outputDirectory" not in cfg["runConfig"] and not isAutoMatch:
             raise CfgError("Output directory pattern is not configured")
         else:
             if isAutoMatch:

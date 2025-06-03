@@ -72,7 +72,6 @@ def batch_norm2(name : str, x, scale, bias, mean, var, data_layout):
     return outs[0]
 
 def main():
-    import paddle
     data = np.array([[[[-1, 0, 1]], [[2, 3, 4]]]]).astype(np.float32)
     # data layout is NCHW
     scale = np.array([1.0, 1.5]).astype(np.float32)

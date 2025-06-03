@@ -60,7 +60,7 @@ class TestExpandCopy(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_expand_copy(dim), ref_net, f"aten::expand_copy"
+        return aten_expand_copy(dim), ref_net, "aten::expand_copy"
 
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.precommit_fx_backend
@@ -162,7 +162,7 @@ class TestDynamicExpand(PytorchLayerTest):
 
         ref_net = None
 
-        return aten_expand(dim), ref_net, f"aten::expand"
+        return aten_expand(dim), ref_net, "aten::expand"
 
     @pytest.mark.parametrize("dims", [(4, 3), (-1, -1)])
     @pytest.mark.precommit_fx_backend

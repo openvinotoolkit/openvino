@@ -3,32 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import List, Optional
 
 import numpy as np
 from functools import partial
 
-from openvino import Node, Shape
-from openvino.op import Constant, Parameter
-from openvino.utils.decorators import binary_op, nameable_op, unary_op
+from openvino import Node
+from openvino.utils.decorators import nameable_op
 from openvino.utils.input_validation import (
-    assert_list_of_ints,
     check_valid_attributes,
-    is_non_negative_value,
     is_positive_value,
 )
-from openvino.utils.node_factory import NodeFactory, _get_node_factory
+from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.types import (
     NodeInput,
-    NumericData,
-    NumericType,
-    ScalarData,
-    TensorShape,
     as_node,
     as_nodes,
-    get_dtype,
-    get_element_type,
-    get_element_type_str,
     make_constant_node,
 )
 

@@ -71,7 +71,6 @@ compiled_model = core.compile_model(model=model, device_name=device_name, config
 # ! [ov:caching:part5]
 
 # ! [ov:caching:part6]
-import base64
 
 def encrypt_base64(src: bytes):
     return base64.b64encode(src)

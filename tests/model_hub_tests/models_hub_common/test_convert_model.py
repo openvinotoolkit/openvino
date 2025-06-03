@@ -5,7 +5,7 @@ import gc
 import numpy as np
 # noinspection PyUnresolvedReferences
 try:
-    import openvino_tokenizers  # do not delete, needed for text models
+    pass  # do not delete, needed for text models
 except:
     pass
 from models_hub_common.multiprocessing_utils import multiprocessing_run

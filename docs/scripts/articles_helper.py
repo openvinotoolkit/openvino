@@ -16,7 +16,7 @@ def copy_directory_structure(input_dir, output_dir):
     try:
         shutil.copytree(input_dir, output_dir)
     except FileExistsError:
-        print(f"Destination directory already exists.")
+        print("Destination directory already exists.")
     files = os.listdir(input_dir)
     for file in files:
         source_path = os.path.join(input_dir, file)

@@ -5,7 +5,6 @@ import argparse
 import os
 from pathlib import Path
 
-from openvino.tools.ovc.error import Error
 
 
 def default_path():

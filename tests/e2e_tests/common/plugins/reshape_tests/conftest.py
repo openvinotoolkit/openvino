@@ -8,7 +8,6 @@ from contextlib import contextmanager
 from copy import copy, deepcopy
 from types import SimpleNamespace
 
-import pytest
 import yaml
 
 import e2e_tests.common.plugins.common.base_conftest as base
@@ -211,6 +210,6 @@ def pytest_collection_modifyitems(items):
                     current_group_idx += 1
 
             base.set_pytest_marks(_test=test, _object=instance, _runner=target_test_runner, log=log)
-        except BrokenTestException as e:
+        except BrokenTestException:
             test.add_marker("broken_test")
             continue

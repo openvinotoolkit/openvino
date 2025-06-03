@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
 import subprocess
 from pathlib import Path
 from typing import Iterable
@@ -57,7 +56,7 @@ class Image:
             cache_cmd += f"--cache-to type=registry,ref={self.ref()}-cache,mode=max "
 
         build_cmd = f"docker buildx build --builder={docker_builder}" if docker_builder else "docker build"
-        push_cmd = f"--push" if push else ""
+        push_cmd = "--push" if push else ""
 
         cmd = f"{build_cmd} " \
               f"--file {self.dockerfile} " \

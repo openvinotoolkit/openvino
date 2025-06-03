@@ -14,8 +14,6 @@ from filelock import FileLock
 from contextlib import contextmanager
 from datetime import datetime
 import copy
-import numpy as np
-import tensorflow as tf
 import subprocess
 
 

@@ -1,14 +1,6 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import e2e_tests.common.readers
-import e2e_tests.common.preprocessors
-import e2e_tests.common.preprocessors_tf_hub
-import e2e_tests.common.ir_provider
-import e2e_tests.common.infer
-import e2e_tests.common.postprocessors
-import e2e_tests.common.ref_collector
-import e2e_tests.common.model_loader
 from e2e_tests.common.common.base_provider import BaseStepProvider
 from types import SimpleNamespace
 

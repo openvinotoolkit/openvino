@@ -76,9 +76,9 @@ def parse_rel_weights(rel_weights_path: os.path):
                     op_weight = float(line[sep_pos+1::].replace('\n', ''))
                     rel_weights.update({op_name: op_weight})
         else:
-            logger.warning(f"Rel weights file does not exist! The expected passrates will be taken from runtime")
+            logger.warning("Rel weights file does not exist! The expected passrates will be taken from runtime")
     else:
-        logger.warning(f"Rel weights file is not specified! The expected passrates will be taken from runtime")
+        logger.warning("Rel weights file is not specified! The expected passrates will be taken from runtime")
 
     return rel_weights
 

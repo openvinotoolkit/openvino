@@ -7,8 +7,6 @@ import pytest
 import numpy as np
 import torch
 
-from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
 
 

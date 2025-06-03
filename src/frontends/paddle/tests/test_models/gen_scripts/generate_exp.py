@@ -12,7 +12,6 @@ import sys
 
 
 def exp(name: str, x):
-    import paddle
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):

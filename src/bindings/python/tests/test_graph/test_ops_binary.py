@@ -6,7 +6,6 @@ import operator
 
 import numpy as np
 import pytest
-import warnings
 
 from openvino import Type
 import openvino.opset13 as ov

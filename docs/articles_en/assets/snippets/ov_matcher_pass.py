@@ -51,9 +51,8 @@ new_relu
 In order to run this script, you need to export PYTHONPATH as the path to binary OpenVINO python models.
 '''
 from openvino.runtime.passes import Manager
-from openvino import Model, PartialShape
 from openvino.runtime import opset13 as ops
-from openvino.runtime.passes import ModelPass, Matcher, MatcherPass, WrapType
+from openvino.runtime.passes import Matcher, MatcherPass, WrapType
 
 class PatternReplacement(MatcherPass):
     def __init__(self):

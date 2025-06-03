@@ -16,7 +16,6 @@ from openvino.utils.types import get_element_type
 from openvino.utils.types import get_numpy_ctype
 import argparse as argparse
 import logging as log
-import numpy
 import numpy as np
 import openvino.frontend.frontend
 import os as os

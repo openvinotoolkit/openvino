@@ -7,17 +7,15 @@ import numpy as np
 """Factory functions for all openvino ops."""
 from typing import Optional, Union
 
-from functools import partial, singledispatch
+from functools import partial
 
 from openvino import Node, Type, PartialShape, Output, Shape
-from openvino.op import assign, Constant, Parameter
 from openvino.op import read_value as _read_value
 from openvino.op.util import VariableInfo, Variable
 from openvino.utils.node_factory import _get_node_factory
 from openvino.utils.decorators import nameable_op, overloading
 from openvino.utils.types import (
     NodeInput,
-    NumericType,
     TensorShape,
     as_node,
     as_nodes,

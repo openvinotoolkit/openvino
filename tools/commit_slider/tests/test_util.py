@@ -249,7 +249,7 @@ def requireBinarySearchData(td: TestData, rsc: map):
         ]]
     )
     [setattr(td, key, td.commonRsc[key] \
-            if not key in td.testCfg or \
+            if key not in td.testCfg or \
             not (isinstance(td.testCfg[key], str) or \
                  isinstance(td.testCfg[key], bool)) \
             else td.testCfg[key]) for key in [

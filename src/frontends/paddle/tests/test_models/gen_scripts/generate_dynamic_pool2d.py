@@ -8,7 +8,6 @@
 import paddle
 import numpy as np
 import sys
-import os
 from save_model import saveModel
 
 if paddle.__version__ >= '2.6.0':

@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import numpy as np
-import pytest
 
 from openvino import PartialShape, Symbol, Dimension
 from openvino import opset13 as ops

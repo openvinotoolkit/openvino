@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 
 import pytest
 import random
@@ -10,7 +9,7 @@ from models_hub_common.constants import hf_cache_dir, clean_hf_cache_dir
 from models_hub_common.utils import cleanup_dir
 
 from torch_utils import TestTorchConvertModel
-from super_image import ImageLoader, EdsrModel, MsrnModel, A2nModel, PanModel, CarnModel, DrlnModel, MdsrModel, HanModel, AwsrnModel, RnanModel, MasaModel, JiifModel, LiifModel, SmsrModel, RcanModel, DrnModel, PhysicssrModel, DdbpnModel
+from super_image import ImageLoader, EdsrModel, MsrnModel, A2nModel, PanModel, CarnModel, DrlnModel, MdsrModel, HanModel, AwsrnModel, RcanModel
 from PIL import Image
 import requests
 

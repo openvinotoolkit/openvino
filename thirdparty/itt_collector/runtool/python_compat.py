@@ -29,7 +29,6 @@ if sys.version_info[0] > 2:
 
     raw_input = input
 else:
-    import Queue as queue
     basestring = basestring
     unicode = unicode
 

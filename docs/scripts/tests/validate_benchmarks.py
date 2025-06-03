@@ -1,6 +1,5 @@
 import os
 import json
-import requests
 import argparse
 from jsonschema import Draft7Validator
 import sys

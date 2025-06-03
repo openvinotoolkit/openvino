@@ -41,7 +41,6 @@ import sys
 from pathlib import Path
 import models_hub_common.utils as utils
 from openvino._offline_transformations import paged_attention_transformation
-from openvino._pyopenvino.op import _PagedAttentionExtension, Parameter, Result
 from optimum.intel import OVModelForCausalLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
 from typing import Type, Union

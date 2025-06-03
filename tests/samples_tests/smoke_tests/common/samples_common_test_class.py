@@ -114,7 +114,7 @@ def get_tests(cmd_params, use_device=True, use_batch=False):
         for dev_key in use_device:
             dev_list = np.array(cmd_params[dev_key])
             for _dev in dev_list:
-                if not _dev in devices and _dev in cmd_params[dev_key]:
+                if _dev not in devices and _dev in cmd_params[dev_key]:
                     cmd_params[dev_key].remove(_dev)
         use_device = False
 
@@ -171,9 +171,9 @@ class SamplesCommonTestClass():
                 executable_path = 'python ' + executable_path
             else:
                 executable_path = 'python3 ' + executable_path
-        elif 'c' in sample_type.lower() and not 'c++' in sample_type.lower():
+        elif 'c' in sample_type.lower() and 'c++' not in sample_type.lower():
             executable_path += '_c'
-        if is_windows and not 'python' in sample_type.lower():
+        if is_windows and 'python' not in sample_type.lower():
             executable_path += '.exe'
 
         # This exeption is made for benchmark_app, because it locates in another place.

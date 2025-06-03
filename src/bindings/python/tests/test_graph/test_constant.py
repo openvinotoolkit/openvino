@@ -8,7 +8,7 @@ import openvino as ov
 import openvino.opset13 as ops
 from openvino import Type, PartialShape, Model, Strides, Tensor, compile_model
 from openvino.op import Constant
-from openvino.helpers import pack_data, unpack_data
+from openvino.helpers import unpack_data
 
 import pytest
 from enum import Enum

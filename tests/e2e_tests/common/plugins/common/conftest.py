@@ -23,13 +23,11 @@ This plugin adds the following command-line options:
 import json
 import logging as log
 import os
-import platform
 import re
 import time
 from contextlib import contextmanager
 from inspect import getsourcefile
 from pathlib import Path
-import shutil
 
 # pylint:disable=import-error
 import pytest

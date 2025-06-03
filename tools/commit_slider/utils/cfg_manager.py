@@ -23,7 +23,7 @@ class CfgManager():
         return input
 
     def applyTemplate(self):
-        if not "template" in self.cfg:
+        if "template" not in self.cfg:
             return self.cfg
         tmplName = self.cfg["template"]["name"]
         fullCfg = {}

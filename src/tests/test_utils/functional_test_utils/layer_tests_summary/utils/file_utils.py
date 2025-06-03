@@ -4,7 +4,7 @@
 import os
 import tarfile
 
-from pathlib import Path, PurePath
+from pathlib import Path
 from shutil import copyfile
 from zipfile import ZipFile, is_zipfile
 from urllib.parse import urlparse

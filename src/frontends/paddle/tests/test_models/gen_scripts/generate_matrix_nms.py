@@ -3,10 +3,8 @@
 #
 # matrix_nms paddle model generator
 #
-import os
 import numpy as np
 import copy  # deepcopy
-import sys
 
 from nms import NMS
 

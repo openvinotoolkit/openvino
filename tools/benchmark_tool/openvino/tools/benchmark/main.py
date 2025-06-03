@@ -47,7 +47,7 @@ def log_memory_usage(logger, start_mem_usage, end_mem_usage, action_name):
 
 def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
-        return not arg_value is None and not arg_value == empty_value
+        return arg_value is not None and not arg_value == empty_value
 
     parser = parse_args()
     args = parser.parse_args()
@@ -155,7 +155,7 @@ def main():
                             "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
                 else:
                     perf_hint = properties.hint.PerformanceMode.LATENCY if benchmark.api_type == "sync" else properties.hint.PerformanceMode.THROUGHPUT
-                    logger.warning(f"Performance hint was not explicitly specified in command line. " +
+                    logger.warning("Performance hint was not explicitly specified in command line. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
                 config[device][properties.hint.performance_mode()] = perf_hint
             else:

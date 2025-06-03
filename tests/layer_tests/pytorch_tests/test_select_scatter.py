@@ -21,7 +21,7 @@ class TestSelectScatter(PytorchLayerTest):
                 self.index = index
 
             def forward(self, x):
-                return torch.select_scatter(x, self.src, self.dim, self.index);
+                return torch.select_scatter(x, self.src, self.dim, self.index)
 
 
         ref_net = None
