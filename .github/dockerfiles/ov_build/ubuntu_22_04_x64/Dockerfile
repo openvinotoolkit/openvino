@@ -45,6 +45,12 @@ RUN apt-get update && \
         graphviz \
         texlive \
         liblua5.2-0 \
+        # JS API
+        xvfb \
+        libgtk-3-0 \
+        libgbm1 \
+        # ONNX Runtime
+        language-pack-en \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -82,6 +88,9 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+
+# ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Install Node
 ENV NODE_VERSION=21.7.3
