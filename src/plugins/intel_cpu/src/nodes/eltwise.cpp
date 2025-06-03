@@ -883,6 +883,7 @@ public:
         if (!one_of(algorithm,
                     Algorithm::EltwiseAbs,
                     Algorithm::EltwiseAdd,
+                    Algorithm::EltwiseLogicalAnd,
                     Algorithm::EltwiseClamp,
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
