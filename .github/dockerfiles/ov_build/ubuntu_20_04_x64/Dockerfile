@@ -74,8 +74,10 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 # Use Python 3.9 as default instead of Python 3.8
-# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
-RUN python3.9 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+RUN ln -sf /usr/bin/python3.9 /usr/bin/python && \
+    ln -sf /usr/bin/python3.9 /usr/bin/python3
+
+# Confirm versions
+RUN python --version && pip --version
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
