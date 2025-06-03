@@ -119,7 +119,7 @@ public:
         return;
     }
 
-    static bool find_implementation(dnnl::primitive_desc& desc, impl_desc_type implType);
+    static bool find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type);
     static dnnl_primitive_desc_t clone_primitive_desc(const_dnnl_primitive_desc_t cprim_desc);
     static dnnl_memory_desc_t clone_desc(const_dnnl_memory_desc_t cdesc);
     static const char* query_pd_info(const_dnnl_primitive_desc_t pd);
