@@ -193,8 +193,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                 int32_t runtime_offset) {
         if (is_dynamic) {
             h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
-            h->ldr(reg_increments,
-                   ptr(reg_increments, static_cast<int32_t>(loop_id_offset + runtime_offset)));
+            h->ldr(reg_increments, ptr(reg_increments, static_cast<int32_t>(loop_id_offset + runtime_offset)));
         }
         for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
             if (!incremented_vec[idx] || increments_vec[idx] == 0) {
@@ -216,14 +215,22 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     };
 
     if (!evaluate_once) {
-        apply_increments(ptr_increments, is_incremented, data_sizes, is_work_amount_dynamic, wa_increment,
+        apply_increments(ptr_increments,
+                         is_incremented,
+                         data_sizes,
+                         is_work_amount_dynamic,
+                         wa_increment,
                          GET_OFF_LOOP_ARGS(m_ptr_increments));
         h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
         h->cmp(reg_work_amount, wa_increment);
         h->b(GE, *loop_begin_label);
     }
 
-    apply_increments(finalization_offsets, is_incremented, data_sizes, is_work_amount_dynamic, 1,
+    apply_increments(finalization_offsets,
+                     is_incremented,
+                     data_sizes,
+                     is_work_amount_dynamic,
+                     1,
                      GET_OFF_LOOP_ARGS(m_finalization_offsets));
 
     h->L(*loop_end_label);
