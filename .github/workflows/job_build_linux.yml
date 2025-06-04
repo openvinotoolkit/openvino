@@ -248,20 +248,20 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
+          $(poetry env activate)
           # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
-          [[ "${OS}" == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
-          $python_exec -m pip install -U pip
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=$python_exec \
+                -DPython3_EXECUTABLE=$(poetry env info --executable) \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package
+        working-directory: ${{ env.OPENVINO_REPO }}
 
       - name: Cmake & Build - OpenVINO Contrib
         if: ${{ inputs.build-contrib }}
