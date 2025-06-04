@@ -420,10 +420,10 @@ struct convert<ONNXRTParams::OpenVINO> {
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
-        const std::set<std::string> parameters = { "name" };
-        validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: onnxrt\" and \"attribute: ep\"");
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
+            const std::set<std::string> parameters = { "name", "params", "device_type"};
+            validateNodeKeys(node, parameters, std::string("node with \"name: ") + ep_name + "\"");
             ep = node.as<ONNXRTParams::OpenVINO>();
         } else {
             THROW_ERROR("Unsupported \"ep name\" value: " << ep_name);
