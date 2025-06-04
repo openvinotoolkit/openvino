@@ -255,7 +255,7 @@ public:
                 x = idx[7];
                 break;
             default:
-                throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
+                throw std::runtime_error("More than 8 dimensions is not supported in fused op generator");
             }
 
             const std::map<ChannelName, std::string*> channels_map{

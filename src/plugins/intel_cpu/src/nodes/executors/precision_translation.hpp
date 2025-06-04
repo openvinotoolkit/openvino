@@ -5,7 +5,9 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <functional>
+#include <utility>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"

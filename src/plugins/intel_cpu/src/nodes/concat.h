@@ -4,8 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
+#include "edge.h"
 #include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -41,7 +53,7 @@ private:
     bool canOptimizeNspc = false;
     bool canOptimize1DCase = false;
     void execRef();
-    size_t inverseOrder(const VectorDims& order, size_t axis);
+    static size_t inverseOrder(const VectorDims& order, size_t axis);
     void execNspcSpecCase();
     void exec1DCase();
     std::vector<VectorDims> inputStrides;

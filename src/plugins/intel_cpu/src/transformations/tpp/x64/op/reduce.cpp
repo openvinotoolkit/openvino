@@ -4,6 +4,18 @@
 
 #include "reduce.hpp"
 
+#include <libxsmm_typedefs.h>
+
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "snippets/op/reduce.hpp"
+#include "transformations/tpp/x64/op/eltwise.hpp"
+
 namespace ov::intel_cpu::tpp::op {
 
 ReduceMax::ReduceMax(const Output<Node>& arg, size_t axis)

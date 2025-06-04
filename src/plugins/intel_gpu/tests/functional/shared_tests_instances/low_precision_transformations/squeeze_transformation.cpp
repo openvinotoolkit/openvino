@@ -17,12 +17,6 @@ namespace {
     };
 
 
-    const std::vector<LayerTransformation::Params> trasformationParamValues = {
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
-        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
-        // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
-    };
-
     const std::vector<LayerTestsDefinitions::SqueezeTransformationParam> params = {
         {
             { 256ul, ov::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
@@ -50,7 +44,6 @@ namespace {
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(ov::test::utils::DEVICE_GPU),
-            ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn(params)),
         SqueezeTransformation::getTestCaseName);
 }  // namespace

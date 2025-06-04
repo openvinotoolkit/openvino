@@ -43,7 +43,6 @@ public:
 typedef std::tuple<
     ov::element::Type,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     std::pair<ov::PartialShape, ov::Shape>,
     GroupConvolutionTransformationParam,
     bool // add precision preserved operation

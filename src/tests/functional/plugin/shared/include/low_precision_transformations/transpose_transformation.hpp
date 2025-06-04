@@ -16,7 +16,6 @@ class TransposeTransformationTestValues {
 public:
     ov::PartialShape inputShape;
     std::vector<int> transposeConstValues;
-    ov::pass::low_precision::LayerTransformation::Params params;
     ov::element::Type precisionBeforeFq;
     ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };

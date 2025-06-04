@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "cpu_shape.h"
 #include "cpu_types.h"

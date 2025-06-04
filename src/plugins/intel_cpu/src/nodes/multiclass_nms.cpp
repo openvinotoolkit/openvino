@@ -6,14 +6,31 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <queue>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/multiclass_nms.hpp"
+#include "openvino/op/util/multiclass_nms_base.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
@@ -63,7 +80,7 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (nmsBase == nullptr) {
         THROW_CPU_NODE_ERR("is not an instance of MulticlassNmsBase.");
     }
-    auto& atrri = nmsBase->get_attrs();
+    const auto& atrri = nmsBase->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopK = atrri.nms_top_k;
     m_iouThreshold = atrri.iou_threshold;
@@ -378,7 +395,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const size_t selectedBoxesNum_perBatch = m_maxBoxesPerBatch;
 
-    for (size_t idx = 0lu; idx < validOutputs; idx++) {
+    for (size_t idx = 0LU; idx < validOutputs; idx++) {
         m_selected_num[m_filtBoxes[idx].batch_index]++;
     }
 
@@ -404,7 +421,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto original_index = original_offset + j;
             const auto& box_info = m_filtBoxes[original_index];
 
-            auto selected_base = selected_outputs + (output_offset + j) * 6;
+            auto* selected_base = selected_outputs + (output_offset + j) * 6;
             selected_base[0] = box_info.class_index;
             selected_base[1] = box_info.score;
 
@@ -434,7 +451,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         if (m_outStaticShape) {
             std::fill_n(selected_outputs + (output_offset + real_boxes) * 6,
                         (selectedBoxesNum_perBatch - real_boxes) * 6,
-                        -1.f);
+                        -1.F);
             std::fill_n(selected_indices + (output_offset + real_boxes), selectedBoxesNum_perBatch - real_boxes, -1);
             output_offset += selectedBoxesNum_perBatch;
             original_offset += real_boxes;
@@ -450,8 +467,15 @@ bool MultiClassNms::created() const {
 }
 
 float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
-    float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
-    const auto norm = static_cast<float>(normalized == false);
+    float yminI;
+    float xminI;
+    float ymaxI;
+    float xmaxI;
+    float yminJ;
+    float xminJ;
+    float ymaxJ;
+    float xmaxJ;
+    const auto norm = static_cast<float>(!normalized);
 
     // to align with reference
     yminI = boxesI[0];
@@ -465,12 +489,12 @@ float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* box
 
     float areaI = (ymaxI - yminI + norm) * (xmaxI - xminI + norm);
     float areaJ = (ymaxJ - yminJ + norm) * (xmaxJ - xminJ + norm);
-    if (areaI <= 0.f || areaJ <= 0.f) {
-        return 0.f;
+    if (areaI <= 0.F || areaJ <= 0.F) {
+        return 0.F;
     }
 
-    float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ) + norm, 0.f) *
-                              (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ) + norm, 0.f);
+    float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ) + norm, 0.F) *
+                              (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ) + norm, 0.F);
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
@@ -486,7 +510,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
     };
 
     auto func = [](float iou, float adaptive_threshold) {
-        return iou <= adaptive_threshold ? 1.0f : 0.0f;
+        return iou <= adaptive_threshold ? 1.0F : 0.0F;
     };
 
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {

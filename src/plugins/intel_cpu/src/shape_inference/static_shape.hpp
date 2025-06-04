@@ -5,15 +5,19 @@
 #pragma once
 
 #include <cstddef>
+#include <initializer_list>
+#include <iterator>
+#include <ostream>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "cpu_types.h"
-#include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
-#include "shape_infer_type_utils.hpp"
 #include "static_dimension.hpp"
 
 namespace ov {
@@ -112,7 +116,7 @@ public:
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
+    bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;
@@ -260,7 +264,7 @@ public:
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
+    bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;

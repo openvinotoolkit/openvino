@@ -16,15 +16,10 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionWIthIncorrectWeightsParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionWIthIncorrectWeightsParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
+    auto [netPrecision, inputShape, device, param] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) <<
            (param.isCorrect ? "_correct_weights" : "_incorrect_weights") <<
         (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
         (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
@@ -32,11 +27,8 @@ std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(const
 }
 
 void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionWIthIncorrectWeightsParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

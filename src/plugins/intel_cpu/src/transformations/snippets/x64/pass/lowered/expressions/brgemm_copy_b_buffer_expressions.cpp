@@ -4,12 +4,20 @@
 
 #include "brgemm_copy_b_buffer_expressions.hpp"
 
+#include <cstddef>
 #include <memory>
+#include <numeric>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "utils/general_utils.h"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 using namespace ov::intel_cpu::brgemm_utils::repacking;
 using namespace ov::snippets::lowered;

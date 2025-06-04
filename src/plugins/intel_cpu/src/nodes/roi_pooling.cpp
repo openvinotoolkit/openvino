@@ -4,21 +4,40 @@
 
 #include "roi_pooling.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <algorithm>
 #include <cmath>
+#include <common/float16.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/roi_pooling.hpp"
 #include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -348,7 +367,6 @@ struct RoiPoolingKey {
 
 size_t RoiPoolingKey::hash() const {
     using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
 
@@ -385,9 +403,9 @@ bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params& rhs) const
 
 bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
+        auto roiPooling = ov::as_type_ptr<const ov::op::v0::ROIPooling>(op);
         if (!roiPooling) {
-            errorMessage = "Only opset2 ROIPooling operation is supported";
+            errorMessage = "Only v0 ROIPooling operation is supported";
             return false;
         }
         const std::string mode = roiPooling->get_method();
@@ -408,7 +426,7 @@ ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
+    auto roiPooling = ov::as_type_ptr<const ov::op::v0::ROIPooling>(op);
     refParams.pooled_h = roiPooling->get_output_roi()[0];
     refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();
@@ -481,7 +499,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIPooling::createPrimitive() {
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -634,7 +652,10 @@ private:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart, hend, wstart, wend;
+                    int hstart;
+                    int hend;
+                    int wstart;
+                    int wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
                                                                                 roi_end_h,
                                                                                 roi_start_w,
@@ -660,7 +681,8 @@ private:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x, in_y;
+                    float in_x;
+                    float in_y;
                     std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
                                                                 roi_end_h_,
                                                                 roi_start_w_,
@@ -775,7 +797,10 @@ public:
                     auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
                     auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart, hend, wstart, wend;
+                    int hstart;
+                    int hend;
+                    int wstart;
+                    int wend;
                     std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
                                                                                 roi_end_h,
                                                                                 roi_start_w,
@@ -818,7 +843,8 @@ public:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x, in_y;
+                    float in_x;
+                    float in_y;
                     std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
                                                                 roi_end_h_,
                                                                 roi_start_w_,
@@ -959,7 +985,8 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
     float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
     float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
 
-    float in_y, in_x;
+    float in_y;
+    float in_x;
     // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
     // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
     // and as result excess of right limit for proposal value,

@@ -10,8 +10,7 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/reference/reduce_sum.hpp"
 
-namespace ov {
-namespace reference {
+namespace ov::reference {
 
 /**
  * @brief Reference implementation of ReduceMean operator.
@@ -25,16 +24,13 @@ template <class T>
 void reduce_mean(const T* in, T* out, const Shape& in_shape, const AxisSet& reduction_axes) {
     reduce_sum(in, out, in_shape, reduction_axes);
 
-    const auto out_shape = util::reduce(in_shape, reduction_axes);
-    if (shape_size(in_shape) == 0) {
-        return;
+    if (const auto input_size = shape_size(in_shape); input_size != 0) {
+        const auto out_shape = util::reduce(in_shape, reduction_axes);
+        const auto out_size = shape_size(out_shape);
+        const auto count = input_size / out_size;
+        std::transform(out, std::next(out, out_size), out, [count = static_cast<T>(count)](auto&& value) -> T {
+            return value / count;
+        });
     }
-
-    const auto out_size = shape_size(out_shape);
-    const auto count = static_cast<T>(shape_size(in_shape) / out_size);
-    std::transform(out, std::next(out, out_size), out, [count](const T value) {
-        return value / count;
-    });
 }
-}  // namespace reference
-}  // namespace ov
+}  // namespace ov::reference

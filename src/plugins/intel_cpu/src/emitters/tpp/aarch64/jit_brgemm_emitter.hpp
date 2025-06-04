@@ -32,8 +32,8 @@ protected:
                         const std::vector<size_t>& pool_vec_idxs = {},
                         const std::vector<size_t>& pool_gpr_idxs = {}) const override;
 
-    const uintptr_t get_execute_function_ptr() const;
-    const uintptr_t get_compiled_kernel_ptr() const;
+    static uintptr_t get_execute_function_ptr();
+    uintptr_t get_compiled_kernel_ptr() const;
 
     std::shared_ptr<ov::intel_cpu::tpp::BrgemmKernelExecutor> m_kernel_executor = nullptr;
 };

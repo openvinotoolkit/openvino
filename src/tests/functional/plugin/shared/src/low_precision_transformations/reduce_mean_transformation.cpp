@@ -20,15 +20,10 @@ ReduceMeanOperation::ReduceMeanOperation(const std::vector<int64_t>& constantVal
 }
 
 std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMeanTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ReduceMeanTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
+    auto [netPrecision, inputShape, device, param] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            param.fakeQuantize <<
         param.convert <<
         param.dequantizationBefore <<
@@ -43,11 +38,8 @@ std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamIn
 }
 
 void ReduceMeanTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ReduceMeanTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
+    auto [netPrecision, inputShape, device, param] = GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -65,7 +57,7 @@ void ReduceMeanTransformation::SetUp() {
 void ReduceMeanTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }

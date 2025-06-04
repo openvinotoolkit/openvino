@@ -4,11 +4,23 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/dft_uni_kernel.hpp"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
+
 namespace node {
 
 class DFT : public Node {
@@ -44,7 +56,7 @@ private:
              const float** resultBuf) const;
     void naiveDFT(float* data, size_t dataLength, bool inverse) const;
 
-    std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse) const;
+    static std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse);
     void updateTwiddlesFFT(size_t n_complex, bool inverse);
 
     std::unique_ptr<jit_uni_dft_kernel> dftKernel = nullptr;

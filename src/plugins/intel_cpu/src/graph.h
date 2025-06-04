@@ -4,23 +4,29 @@
 
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "allocation_context.hpp"
 #include "config.h"
-#include "cpu_memory.h"
 #include "edge.h"
 #include "graph_context.h"
-#include "memory_control.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_state.h"
 #include "node.h"
 #include "nodes/input.h"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "proxy_mem_blk.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -304,7 +310,7 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model>& subgraph,
+    void Replicate(const std::shared_ptr<const ov::Model>& model,
                    const std::vector<node::Input::InputConfig>& inputConfigs = {},
                    const std::vector<node::Input::OutputConfig>& outputConfigs = {});
 

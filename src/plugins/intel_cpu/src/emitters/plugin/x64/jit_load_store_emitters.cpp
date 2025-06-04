@@ -4,10 +4,24 @@
 
 #include "jit_load_store_emitters.hpp"
 
-#include <memory>
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
 
-#include "utils/bfloat16.hpp"
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -1279,7 +1293,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);
             } else {
-                data_idx = static_cast<int>(ymm.getIdx());
+                data_idx = ymm.getIdx();
                 store_bytes<Vmm>(reg, offset, store_num * 2);
             }
         } else {
@@ -1300,7 +1314,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
                 uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(xmm.getIdx())});
             }
 
-            data_idx = static_cast<int>(xmm.getIdx());
+            data_idx = xmm.getIdx();
             store_bytes<Vmm>(reg, offset, store_num * 2);
         }
     } else if (is_f16) {
@@ -1315,7 +1329,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);
             } else {
-                data_idx = static_cast<int>(ymm.getIdx());
+                data_idx = ymm.getIdx();
                 store_bytes<Vmm>(reg, offset, store_num * 2);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
@@ -1327,7 +1341,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (store_num == 8) {
                 h->uni_vmovdqu16(ptr[reg + offset], xmm);
             } else {
-                data_idx = static_cast<int>(xmm.getIdx());
+                data_idx = xmm.getIdx();
                 store_bytes<Vmm>(reg, offset, store_num * 2);
             }
         } else {

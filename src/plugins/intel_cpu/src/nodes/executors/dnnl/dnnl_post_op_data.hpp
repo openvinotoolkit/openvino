@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl.hpp>
+
 #include "dnnl_aliases.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 

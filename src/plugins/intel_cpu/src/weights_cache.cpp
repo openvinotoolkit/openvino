@@ -4,9 +4,16 @@
 
 #include "weights_cache.hpp"
 
+#include <atomic>
+#include <functional>
 #include <memory>
+#include <mutex>
+#include <string>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
 namespace ov::intel_cpu {
@@ -48,10 +55,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(const std::string
                 return false;
             }
             newPtr = ptr->sharedMemory.lock();
-            if (!newPtr) {
-                return false;
-            }
-            return true;
+            return static_cast<bool>(newPtr);
         };
 
         if (!isCached()) {

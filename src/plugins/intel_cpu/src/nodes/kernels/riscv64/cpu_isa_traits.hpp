@@ -22,12 +22,12 @@ enum cpu_isa_bit_t : unsigned {
     c_bit = 1u << 5,
     v_bit = 1u << 6,  // rvv 1.0
 
-    last_bit = 1u << (cpu_isa_total_bits - 1),    
+    last_bit = 1u << (cpu_isa_total_bits - 1),
 };
 
 enum cpu_isa_t : unsigned {
     isa_undef = 0u,
-    g = i_bit | m_bit | a_bit | f_bit | d_bit, // G = IMAFD
+    g = i_bit | m_bit | a_bit | f_bit | d_bit,  // G = IMAFD
     gv = g | v_bit,
     isa_all = ~0u & ~last_bit
 };
@@ -36,6 +36,6 @@ std::string isa2str(cpu_isa_t isa);
 
 bool mayiuse(const cpu_isa_t cpu_isa);
 
-}   // namespace riscv64
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace riscv64
+}  // namespace intel_cpu
+}  // namespace ov

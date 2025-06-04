@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <cassert>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
 #include "executors/interpolate.hpp"
-#include "executors/interpolate_list.hpp"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #define MAX_INPUT_INTERPOLATE 8
 
@@ -141,7 +154,7 @@ private:
                             InterpolateLayoutType layout);
 
         float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-        int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+        static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
         void linearOnnxCF(int outCoord,
                           float scale,
                           int inShape,
@@ -150,7 +163,7 @@ private:
                           int& index1,
                           float& weight0,
                           float& weight1);
-        std::vector<float> getCubicCoeffs(float mantissa, float a);
+        static std::vector<float> getCubicCoeffs(float mantissa, float a);
         static float getPillowBilinearCoeffs(float m);
         static float getPillowBicubicCoeffs(float m);
         inline void create_pillow_working_buf(InterpolateLayoutType layout);

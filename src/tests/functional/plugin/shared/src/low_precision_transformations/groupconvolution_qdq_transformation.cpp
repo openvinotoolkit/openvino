@@ -16,24 +16,15 @@
 namespace LayerTestsDefinitions {
 
 std::string GroupConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionQDqTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    GroupConvolutionQDqTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShape, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << param;
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << param;
     return result.str();
 }
 
 void GroupConvolutionQDqTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    GroupConvolutionQDqTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -53,7 +44,7 @@ void GroupConvolutionQDqTransformation::SetUp() {
 void GroupConvolutionQDqTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }

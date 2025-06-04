@@ -15,10 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
-};
-
 const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params = {
     {
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -162,7 +158,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ConvolutionTransformation::getTestCaseName);
 
@@ -186,7 +181,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionWIthIncorrectWeightsTransformatio
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(incorrectWeightsParams)),
     ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
 
@@ -212,7 +206,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionTransformation,
              ::testing::ValuesIn(netPrecisions),
              ::testing::ValuesIn(shapes),
              ::testing::Values(ov::test::utils::DEVICE_CPU),
-             ::testing::ValuesIn(trasformationParamValues),
              ::testing::ValuesIn(params)),
              ConvolutionTransformation::getTestCaseName);
 }  // namespace convolution3D

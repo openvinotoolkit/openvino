@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
+#include <vector>
+
 #include "jit_kernel_base.hpp"
+#include "nodes/kernels/x64/registers_pool.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -92,7 +102,7 @@ private:
 
     void process();
 
-    void runPhilox(const std::vector<Vmm>& vmm_res, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n);
+    void runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n);
 
     void calculateRound(const Vmm& vmm_k_0,
                         const Vmm& vmm_k_1,
@@ -105,7 +115,7 @@ private:
 
     void raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1);
 
-    void convert(const std::vector<Vmm>& vmm_dst, const std::vector<Vmm>& vmm_src);
+    void convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src);
 
     void tail(const std::vector<Vmm>& vmm_dst);
 

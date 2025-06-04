@@ -6,7 +6,10 @@
 
 #include <memory>
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 

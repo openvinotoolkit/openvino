@@ -3,6 +3,11 @@
 //
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
 #ifdef CPU_DEBUG_CAPS
 
 #    include <bitset>

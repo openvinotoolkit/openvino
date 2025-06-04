@@ -121,6 +121,7 @@ jobs:
             -DENABLE_CLANG_TIDY=ON \
             -DCMAKE_CXX_FLAGS="-O0" \
             -DENABLE_PROFILING_ITT=ON \
+            -DENABLE_DEBUG_CAPS=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=OFF \

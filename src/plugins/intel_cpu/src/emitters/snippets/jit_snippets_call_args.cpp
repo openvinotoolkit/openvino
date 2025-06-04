@@ -4,21 +4,41 @@
 
 #include "jit_snippets_call_args.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <utility>
+#include <vector>
 
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
 jit_snippets_call_args::~jit_snippets_call_args() {
     delete[] loop_args;
+    delete[] external_ptrs;
 }
 
 void jit_snippets_call_args::register_loops(const std::vector<loop_args_t>& loops) {
+    if (loops.empty()) {
+        return;
+    }
     const auto num_loops = loops.size();
     OPENVINO_ASSERT(num_loops <= PTRDIFF_MAX, "Requested allocation size { ", num_loops, " } exceeds PTRDIFF_MAX.");
+    OPENVINO_ASSERT(loop_args == nullptr, "Loop args are already initialized");
     loop_args = new loop_args_t[static_cast<ptrdiff_t>(num_loops)];
     std::copy(loops.begin(), loops.end(), loop_args);
+}
+
+void jit_snippets_call_args::init_external_ptrs(const size_t size) {
+    if (size == 0) {
+        return;
+    }
+    OPENVINO_ASSERT(size <= PTRDIFF_MAX, "Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
+    OPENVINO_ASSERT(external_ptrs == nullptr, "External pointers are already initialized");
+    external_ptrs = new const void*[static_cast<ptrdiff_t>(size)];
 }
 
 jit_snippets_call_args::loop_args_t::loop_args_t(int64_t work_amount,
@@ -51,6 +71,8 @@ void jit_snippets_call_args::loop_args_t::init_pointers_and_copy_data(const int6
                                                                       const int64_t* ptr_increments,
                                                                       const int64_t* finalization_offsets) {
     const size_t chunk_size = num_elements * sizeof(int64_t);
+    OPENVINO_ASSERT(m_ptr_increments == nullptr, "Ptr increments already initialized");
+    OPENVINO_ASSERT(m_finalization_offsets == nullptr, "Finalization offsets already initialized");
     m_ptr_increments = new int64_t[num_elements];
     m_finalization_offsets = new int64_t[num_elements];
     std::memcpy(m_ptr_increments, ptr_increments, chunk_size);

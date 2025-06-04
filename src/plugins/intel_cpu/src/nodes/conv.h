@@ -3,12 +3,29 @@
 //
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
+
+#include "allocation_context.hpp"
 #include "common/dnnl_executor.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "oneapi/dnnl/dnnl.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::node {
