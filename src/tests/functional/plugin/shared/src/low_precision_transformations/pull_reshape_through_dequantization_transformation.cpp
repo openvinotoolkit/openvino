@@ -16,16 +16,10 @@
 namespace LayerTestsDefinitions {
 
 std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ov::Shape elementwiseConstantShapes;
-    PullReshapeThroughDequantizationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = obj.param;
+    auto [netPrecision, inputShape, device, elementwiseConstantShapes, testValues] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            inputShape << "_" <<
         elementwiseConstantShapes << "_" <<
         testValues.precisionBeforeDequantization << "_" <<
@@ -37,12 +31,8 @@ std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(cons
 }
 
 void PullReshapeThroughDequantizationTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ov::Shape elementwiseConstantShapes;
-    PullReshapeThroughDequantizationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, elementwiseConstantShapes, testValues) = this->GetParam();
+    auto [netPrecision, inputShape, device, elementwiseConstantShapes, testValues] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -77,7 +67,7 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
 void PullReshapeThroughDequantizationTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<5>(GetParam());
+    const auto params = std::get<4>(GetParam());
     const auto actualType = get_runtime_precision(params.operationName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
