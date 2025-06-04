@@ -90,7 +90,6 @@ protected:
     std::vector<int64_t> data_sizes = {};
     bool evaluate_once = false;
     size_t loop_id = 0;
-    bool is_work_amount_dynamic = false;
 };
 
 /* ============================================================== */
