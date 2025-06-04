@@ -253,10 +253,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
-                                                     std::vector<ov::Tensor> initBlobs,
                                                      const bool blobAllocatedByPlugin,
                                                      const Config& config,
-                                                     const std::shared_ptr<ov::Model>& model) const {
+                                                     std::optional<std::vector<ov::Tensor>> initBlobs,
+                                                     const std::optional<std::shared_ptr<ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -276,7 +276,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
 
     _logger.debug("main schedule parse end");
 
-    if (initBlobs.empty()) {
+    if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        graphHandle,
@@ -291,7 +291,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
     // "Graph" object as wrapper over all L0 handles.
     std::vector<ze_graph_handle_t> initGraphHandles;
     std::vector<NetworkMetadata> initMetadata;
-    for (const auto& initBlob : initBlobs) {
+    for (const auto& initBlob : initBlobs.value()) {
         network.reserve(initBlob.get_byte_size());
         network.assign(reinterpret_cast<const uint8_t*>(initBlob.data()),
                        reinterpret_cast<const uint8_t*>(initBlob.data()) + initBlob.get_byte_size());
@@ -315,7 +315,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
                                              initGraphHandles,
                                              std::move(initMetadata),
                                              std::move(initBlobs),
-                                             model,
+                                             model.value(),
                                              config,
                                              _compiler);
 }

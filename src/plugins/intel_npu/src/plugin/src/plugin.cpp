@@ -13,9 +13,9 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/passes.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/passes.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "metadata.hpp"
 #include "npuw/compiled_model.hpp"
@@ -171,7 +171,6 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base
 
 std::shared_ptr<ov::Model> store_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
     auto clonedModel = model->clone();
-    ov::RTMap& runtimeInfoMap = clonedModel->get_rt_info();
 
     for (auto&& ov_node : clonedModel->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(ov_node)) {
@@ -740,8 +739,9 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
 
     std::shared_ptr<ov::Model> originalModel;
     std::vector<ov::Tensor> tensorsInits;
+    const bool weightsSeparationEnabled = !initSizes.empty();
 
-    if (!initSizes.empty()) {
+    if (weightsSeparationEnabled) {
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
         ov::Tensor tensorInit;
@@ -801,8 +801,11 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
         }
     }
 
-    auto graph =
-        compiler->parse(std::move(tensorMain), std::move(tensorsInits), !tensorFromProperty, config, originalModel);
+    auto graph = compiler->parse(std::move(tensorMain),
+                                 !tensorFromProperty,
+                                 config,
+                                 weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
+                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
     return graph;
 }

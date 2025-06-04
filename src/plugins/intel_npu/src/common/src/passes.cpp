@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_npu/passes.hpp"
+#include "intel_npu/common/passes.hpp"
 
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/batch_to_space_fusion.hpp"

@@ -26,10 +26,10 @@ public:
     std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model, const Config& config) const override;
 
     std::shared_ptr<IGraph> parse(ov::Tensor mainBlob,
-                                  std::vector<ov::Tensor> initBlobs,
                                   const bool blobAllocatedByPlugin,
                                   const Config& config,
-                                  const std::shared_ptr<ov::Model>& model) const override;
+                                  std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
+                                  const std::optional<std::shared_ptr<ov::Model>>& model = std::nullopt) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

@@ -11,8 +11,8 @@
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/passes.hpp"
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/passes.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -350,10 +350,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
-                                                     std::vector<ov::Tensor> initBlobs,
                                                      const bool blobAllocatedByPlugin,
                                                      const Config& config,
-                                                     const std::shared_ptr<ov::Model>& model) const {
+                                                     std::optional<std::vector<ov::Tensor>> initBlobs,
+                                                     const std::optional<std::shared_ptr<ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
@@ -364,7 +364,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
 
-    if (initBlobs.empty()) {
+    if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        graphHandle,
@@ -378,7 +378,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
     // "Graph" object as wrapper over all L0 handles.
     std::vector<ze_graph_handle_t> initGraphHandles;
     std::vector<NetworkMetadata> initMetadata;
-    for (const auto& initBlob : initBlobs) {
+    for (const auto& initBlob : initBlobs.value()) {
         ze_graph_handle_t initGraphHandle =
             _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlob.data()), initBlob.get_byte_size());
         initGraphHandles.push_back(initGraphHandle);
@@ -394,7 +394,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
                                              initGraphHandles,
                                              std::move(initMetadata),
                                              std::move(initBlobs),
-                                             model,
+                                             model.value(),
                                              config);
 }
 
