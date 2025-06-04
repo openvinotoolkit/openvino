@@ -83,7 +83,12 @@ public:
      */
     std::shared_ptr<ov::Model> read_model(const std::wstring& model_path,
                                           const std::wstring& bin_path = {},
-                                          const ov::AnyMap& properties = {}) const;
+					  const ov::AnyMap& properties = {}) const;
+    
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
+    auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
+        return read_model(model_path.wsring(), bin_path.wsring(), properties);
+    }
 #endif
 
     /**
