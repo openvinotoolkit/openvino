@@ -945,112 +945,90 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFoldingWith
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-inline std::shared_ptr<ov::Model> make_gather_model(
-    ov::element::Type data_type,
-    ov::element::Type indices_type,
-    bool use_data_convert,
-    bool use_indices_convert,
-    bool indices_as_param = false)
-{
-    using ov::op::v0::Parameter;
-    using ov::op::v0::Constant;
-    using ov::op::v0::Convert;
-    using ov::op::v8::Gather;
+inline std::shared_ptr<Model> make_gather_model(element::Type data_type,
+                                                element::Type indices_type,
+                                                bool use_data_convert,
+                                                bool use_indices_convert,
+                                                bool indices_as_param,
+                                                bool reference_model = false) {
+    using op::v0::Constant;
+    using op::v0::Convert;
+    using op::v0::Parameter;
+    using op::v8::Gather;
 
-    ov::ParameterVector params;
+    ParameterVector params;
 
-    std::shared_ptr<ov::Node> data = std::make_shared<Constant>(data_type, ov::Shape{4}, 2);
-    if (use_data_convert)
-        data = std::make_shared<Convert>(data, ov::element::f32);
-
-    std::shared_ptr<ov::Node> indices;
-    if (indices_as_param) {
-        auto param = std::make_shared<Parameter>(indices_type, ov::Shape{3});
-        params.push_back(param);
-        indices = param;
-    } else {
-        indices = std::make_shared<Constant>(indices_type, ov::Shape{3}, 1);
+    std::shared_ptr<Node> data = std::make_shared<Constant>(data_type, Shape{4}, 2);
+    if (reference_model)
+        enable_keep_const_precision(data);
+    if (use_data_convert) {
+        data = std::make_shared<Convert>(data, element::f32);
+        if (reference_model)
+            disable_constant_folding(data);
     }
 
-    if (use_indices_convert)
-        indices = std::make_shared<Convert>(indices, ov::element::i32);
+    std::shared_ptr<Node> indices;
+    if (indices_as_param) {
+        params.push_back(std::make_shared<Parameter>(indices_type, Shape{3}));
+        indices = params.back();
+    } else {
+        indices = std::make_shared<Constant>(indices_type, Shape{3}, 1);
+    }
+    if (reference_model)
+        enable_keep_const_precision(indices);
 
-    auto axis = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0);
+    if (use_indices_convert) {
+        indices = std::make_shared<Convert>(indices, element::i32);
+        if (reference_model)
+            disable_constant_folding(indices);
+    }
+
+    auto axis = std::make_shared<Constant>(element::i64, Shape{1}, 0);
     auto gather = std::make_shared<Gather>(data, indices, axis);
+    if (reference_model)
+        disable_constant_folding(gather);
 
-   return std::make_shared<ov::Model>(OutputVector{gather}, params);
+    return std::make_shared<Model>(OutputVector{gather}, params);
 }
 
 TEST_F(TransformationTestsF, MarkGatherSubgraph) {
-    auto data_type = ov::element::f8e4m3;
-    auto indices_type = ov::element::i8;
+    auto data_type = element::f8e4m3;
+    auto indices_type = element::u4;
 
-    // the model remains the same, no ref model provided, compare with cloned.
-    model = make_gather_model(data_type, indices_type, true, true);
-    manager.register_pass<ov::pass::MarkGatherSubgraph>(
-        ov::element::TypeVector{ov::element::f8e4m3, ov::element::f8e5m2},
-        ov::element::TypeVector{ov::element::i8, ov::element::u8}
+    model = make_gather_model(data_type, indices_type, true, true, false);
+    model_ref = make_gather_model(data_type, indices_type, true, true, false, true);
+
+    manager.register_pass<pass::MarkGatherSubgraph>(
+        element::TypeVector{element::f8e4m3, element::f16},
+        element::TypeVector{element::u4, element::u8}
     );
 
-    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<pass::ConstantFolding>();
     precisions_map map = {
-        {data_type, ov::element::f32},
-        {indices_type, ov::element::i32},
+        {data_type, element::f32},
+        {indices_type, element::i32},
     };
-    manager.register_pass<ov::pass::ConvertPrecision>(map);
-}
-
-TEST(RTInfoCheck, MarkGatherSubgraph) {
-    auto data_type = ov::element::f8e4m3;
-    auto indices_type = ov::element::i8;
-
-    // the model remains the same, no ref model provided, compare with cloned.
-    auto model = make_gather_model(data_type, indices_type, true, true);
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::MarkGatherSubgraph>(
-        ov::element::TypeVector{ov::element::f8e4m3, ov::element::f8e5m2},
-        ov::element::TypeVector{ov::element::i8, ov::element::u8}
-    );
-
-    manager.register_pass<ov::pass::ConstantFolding>();
-    precisions_map map = {
-        {data_type, ov::element::f32},
-        {indices_type, ov::element::i32},
-    };
-    manager.register_pass<ov::pass::ConvertPrecision>(map);
-    manager.run_passes(model);
-
-    // Expect Convert ops have CF disabled, Consts have keep_const_precision
-    int convert_cf_disabled = 0, const_keep_precision = 0;
-    for (const auto& node : model->get_ops()) {
-        if (auto conv = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
-            convert_cf_disabled += ov::pass::constant_folding_is_disabled(conv);
-        }
-
-        if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-            const_keep_precision += ov::is_keep_const_precision(c);
-        }
-    }
-
-    EXPECT_EQ(convert_cf_disabled, 2);
-    EXPECT_EQ(const_keep_precision, 2);
+    manager.register_pass<pass::ConvertPrecision>(map);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
 TEST_F(TransformationTestsF, MarkGatherSubgraph_IndicesAsParam) {
-    auto data_type = ov::element::f8e4m3;
-    auto indices_type = ov::element::i8;
+    auto data_type = element::f8e4m3;
+    auto indices_type = element::u4;
 
-    // the model remains the same, no ref model provided, compare with cloned.
     model = make_gather_model(data_type, indices_type, true, true, true);
-    manager.register_pass<ov::pass::MarkGatherSubgraph>(
-        ov::element::TypeVector{ov::element::f8e4m3, ov::element::f8e5m2},
-        ov::element::TypeVector{ov::element::i8, ov::element::u8}
+    model_ref = make_gather_model(data_type, indices_type, true, true, true, true);
+
+    manager.register_pass<pass::MarkGatherSubgraph>(
+        element::TypeVector{element::f8e4m3, element::f16},
+        element::TypeVector{element::u4, element::u8}
     );
 
-    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<pass::ConstantFolding>();
     precisions_map map = {
-        {data_type, ov::element::f32},
-        {indices_type, ov::element::i32},
+        {data_type, element::f32},
+        {indices_type, element::i32},
     };
-    manager.register_pass<ov::pass::ConvertPrecision>(map);
+    manager.register_pass<pass::ConvertPrecision>(map);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }

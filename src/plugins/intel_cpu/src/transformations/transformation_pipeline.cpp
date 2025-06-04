@@ -419,13 +419,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
     const auto& decompression_precisions =
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
-
-    // Transformation call example, to check with the real model
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
-                             ov::pass::MarkGatherSubgraph,
-                             element::TypeVector{element::f8e4m3},
-                             element::TypeVector{element::u4});
-
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
@@ -462,11 +455,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
     if (useLpt) {
-        // Transformation call example, to check with the real model
-        CPU_REGISTER_PASS_COMMON(manager,
-                                 ov::pass::MarkGatherSubgraph,
-                                 element::TypeVector{element::f8e4m3},
-                                 element::TypeVector{element::u4});
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantization, defaultPrecisions);
     }
 

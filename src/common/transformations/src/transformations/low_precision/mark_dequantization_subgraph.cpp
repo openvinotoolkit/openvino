@@ -374,27 +374,20 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     this->register_matcher(m, callback);
 }
 
-ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& fp_precisions_to_mark,
-                                                 const element::TypeVector& int_precisions_to_mark) {
+ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& table_values_precisions,
+                                                 const element::TypeVector& indices_precisions) {
     MATCHER_SCOPE(MarkGatherSubgraph);
 
-    // 1. Data input: FP → (optional Convert) → (input to Gather[0])
-    auto is_fp = [](const Output<Node>& out) {
-        return out.get_element_type().is_real();
-    };
-    auto data_input = wrap_type<op::v0::Constant>(is_fp && check_precision(fp_precisions_to_mark));
+    // 1. Data input → (optional Convert) → (input to Gather[0])
+    auto data_input = wrap_type<op::v0::Constant>(check_precision(table_values_precisions));
     auto data_convert = pattern::optional<op::v0::Convert>({data_input});
 
-    // 2. Indices input: int/uint → (optional Convert) → (input to Gather[1])
-    auto is_integral = [](const Output<Node>& out) {
-        return out.get_element_type().is_integral();
-    };
-    auto indices_pred = is_integral && check_precision(int_precisions_to_mark);
-    auto indices_input = wrap_type<op::v0::Constant, op::v0::Parameter>(indices_pred);
+    // 2. Indices input → (optional Convert) → (input to Gather[1])
+    auto indices_input = wrap_type<op::v0::Constant, op::v0::Parameter>(check_precision(indices_precisions));
     auto indices_convert = pattern::optional<op::v0::Convert>({indices_input});
 
     // Gather (fp, integral, any)
-    auto axis = any_input();
+    auto axis = any_input(value_matches("0"));
     auto gather = wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
 
     matcher_pass_callback callback = [=](Matcher& m) {
