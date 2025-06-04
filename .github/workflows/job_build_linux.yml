@@ -213,7 +213,7 @@ jobs:
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")          
   
             poetry env use $python_exec_path -C ${{ env.OPENVINO_REPO }}
-            poetry install --with build
+            poetry install --with build -C ${{ env.OPENVINO_REPO }}
             
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
