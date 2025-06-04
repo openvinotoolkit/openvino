@@ -105,7 +105,6 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
-    static size_t compute_gemm_inputs_count(const BrgemmConfig config);
     void validate_with_scratchpad() const;
     void validate_inputs_size() const;
     void validate_postop_inputs() const;

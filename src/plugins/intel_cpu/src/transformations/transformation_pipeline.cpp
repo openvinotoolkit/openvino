@@ -210,8 +210,10 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#else
-#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
@@ -235,10 +237,8 @@
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
-#endif
-
-#if defined(OPENVINO_ARCH_X86_64)
-#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#else
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -1157,7 +1157,7 @@ void Transformations::MainSnippets() {
     // ARM doesn't even support MHA yet
     is_dynamic_mha_token_enabled = false;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
-#else
+#elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
@@ -1174,6 +1174,9 @@ void Transformations::MainSnippets() {
         }
         return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(matmul->get_input_element_type(0));
     };
+#else
+    size_t data_ptr_gpr_count = 0;
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is

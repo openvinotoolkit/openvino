@@ -36,10 +36,6 @@
 namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
-size_t BrgemmCPU::compute_gemm_inputs_count(const BrgemmConfig config) {
-    return config.with_scratchpad() ? 3 : 2;
-}
-
 BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      BrgemmConfig config,
                      const std::vector<PortDescriptor>& input_descs,
@@ -50,7 +46,7 @@ BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      PostopsConfig post_ops)
     : m_config(config),
       m_post_ops_config(std::move(post_ops)),
-      m_gemm_inputs_count(compute_gemm_inputs_count(m_config)) {
+      m_gemm_inputs_count(m_config.with_scratchpad() ? 3 : 2) {
     set_arguments(inputs);
     set_output_size(1);
 
