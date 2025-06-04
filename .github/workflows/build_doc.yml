@@ -76,9 +76,6 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -v ${{ github.workspace }}:${{ github.workspace }}
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
-      INSTALL_DIR: ${{ github.workspace }}/install/openvino
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
