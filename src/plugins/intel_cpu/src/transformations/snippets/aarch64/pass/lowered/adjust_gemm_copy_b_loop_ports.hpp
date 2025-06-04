@@ -11,9 +11,9 @@ namespace ov::intel_cpu::pass::aarch64 {
 
 /**
  * @interface AdjustGemmCopyBLoopPorts
- * @brief BrgemmCopyB is located outside of blocking loops and repacks input data into a blocked layout.
- *        This layout should be accounted for when we increment BrgemmCopyB data pointers. This pass
- *        Finds loop ports connected to BrgemmCopyB and sets appropriate pointer increments.
+ * @brief GemmCopyB is located outside of blocking loops and repacks input data into a blocked layout.
+ *        This layout should be accounted for when we increment GemmCopyB data pointers. This pass
+ *        Finds loop ports connected to GemmCopyB and sets appropriate pointer increments.
  * @ingroup snippets
  */
 class AdjustGemmCopyBLoopPorts : public snippets::lowered::pass::ConstPass {

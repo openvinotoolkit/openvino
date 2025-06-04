@@ -65,7 +65,7 @@ public:
     GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config);
 
     void update_kernel(const GemmCopyBKernelKaiConfig& config,
-                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {}
+                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final;
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const GemmCopyBKaiKernelExecutor* executor, void* in0, void* out0);

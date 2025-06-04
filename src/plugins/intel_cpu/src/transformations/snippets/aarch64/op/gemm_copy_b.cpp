@@ -36,7 +36,7 @@ void GemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<si
     INTERNAL_OP_SCOPE(GemmRepack_ctor_validate_and_infer_types);
     // During ctor call, GemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
-    const auto element_type = get_input_element_type(0);
+    const auto& element_type = get_input_element_type(0);
     validate_element_type(element_type);
     // The data always store in planar shape after repacking
     const auto planar_pshape = snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_input);
