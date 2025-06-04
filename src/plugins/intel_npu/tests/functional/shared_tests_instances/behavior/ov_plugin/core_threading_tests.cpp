@@ -23,12 +23,21 @@ const Params params_disable_umd_cache[] = {std::tuple<Device, Config>{
 
 const Params params_cached[] = {std::tuple<Device, Config>{ov::test::utils::DEVICE_NPU, {}}};
 
+template <typename T>
+std::string appendDriverVestionTestName(testing::TestParamInfo<typename T::ParamType> obj) {
+    const auto& pluginCacheCore = ov::test::utils::PluginCache::get().core(ov::test::utils::DEVICE_NPU);
+    auto driverVersion =
+        pluginCacheCore->get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name());
+    return ov::test::utils::appendPlatformTypeTestName<T>(obj) + "_driverVersion=" + driverVersion.as<std::string>();
+}
+
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_CoreThreadingTest_NPU,
                          CoreThreadingTest,
                          testing::ValuesIn(params),
-                         (ov::test::utils::appendPlatformTypeTestName<CoreThreadingTest>));
+                         (appendDriverVestionTestName<CoreThreadingTest>));  // need to get also driver version to skip
+                                                                             // failing tests with PV driver
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_CoreThreadingTest_NPU,
                          CoreThreadingTestsWithIter,
