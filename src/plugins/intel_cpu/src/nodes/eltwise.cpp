@@ -883,10 +883,12 @@ public:
         if (!one_of(algorithm,
                     Algorithm::EltwiseAbs,
                     Algorithm::EltwiseAdd,
+                    Algorithm::EltwiseLogicalAnd,
                     Algorithm::EltwiseClamp,
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
                     Algorithm::EltwiseFloor,
+                    Algorithm::EltwiseGreaterEqual,
                     Algorithm::EltwiseMaximum,
                     Algorithm::EltwiseMinimum,
                     Algorithm::EltwiseMod,
@@ -2453,17 +2455,14 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
                 ov::element::f32)) {
         return false;
     }
-// Convert can be fused into Eltwise only if jit implementation is supported
-#if defined(OPENVINO_ARCH_ARM64)
+    // Convert can be fused into Eltwise only if jit implementation is supported
     return EltwiseJitExecutor::isSupportedOp(this,
                                              getAlpha(),
                                              getBeta(),
                                              getGamma(),
                                              {},
                                              {convertNode->getOriginalOutputPrecisionAtPort(0)});
-#else
     return false;
-#endif
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
@@ -2478,10 +2477,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        for (const auto& originalInputPrecision : node->getOriginalInputPrecisions()) {
-            if (originalInputPrecision != ov::element::i32) {
-                return false;
-            }
+        if (!all_of_values(node->getOriginalInputPrecisions(), ov::element::i32)) {
+            return false;
         }
 
         return true;

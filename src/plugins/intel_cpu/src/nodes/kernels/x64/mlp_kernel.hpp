@@ -157,14 +157,24 @@ public:
 
         // convert
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight, int stride, int N, int K);
+        void setup(Tdst* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight, int stride, int N, int K);
+        void setup(int8_t* ext_buff, int8_t* p_weight, int weight_stride_in_bytes, int N, int K);
         // two B tiles in each pair (B0 & B1) comes from different raw weight matrix
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight_B0, ov::float16* p_weight_B1, int stride, int N, int K);
+        void setup(Tdst* ext_buff,
+                   ov::float16* p_weight_B0,
+                   ov::float16* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight_B0, int8_t* p_weight_B1, int stride, int N, int K);
+        void setup(int8_t* ext_buff,
+                   int8_t* p_weight_B0,
+                   int8_t* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
     };
 
     // run L2 cache blocking kernel with size:

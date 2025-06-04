@@ -51,7 +51,7 @@ private:
     template <typename T>
     struct NonZeroExecute;
     template <typename T>
-    std::vector<size_t> getNonZeroElementsCount(const T* arg, const Shape& arg_shape);
+    std::vector<size_t> getNonZeroElementsCount(const T* src, const Shape& inShape);
 };
 
 }  // namespace node
