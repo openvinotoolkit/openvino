@@ -95,7 +95,6 @@ endif()
 add_custom_command(TARGET ${PROJECT_NAME}
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINOPython_SOURCE_DIR}/src/openvino ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-        COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/requirements.txt ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../requirements.txt
         )
 
 ov_python_minimal_api(${PROJECT_NAME})
@@ -129,11 +128,6 @@ ov_set_install_rpath(${PROJECT_NAME} ${OV_CPACK_PYTHONDIR}/openvino
                      ${TBB_LIB_INSTALL_DIR})
 
 ov_cpack_add_component(${OV_CPACK_COMP_OPENVINO_REQ_FILES} HIDDEN)
-
-install(FILES ${OpenVINOPython_SOURCE_DIR}/requirements.txt
-        DESTINATION ${OV_CPACK_PYTHONDIR}
-        COMPONENT ${OV_CPACK_COMP_OPENVINO_REQ_FILES}
-        ${OV_CPACK_COMP_OPENVINO_REQ_FILES_EXCLUDE_ALL})
 
 install(FILES ${OpenVINOPython_SOURCE_DIR}/src/openvino/preprocess/torchvision/requirements.txt
         DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/preprocess/torchvision
