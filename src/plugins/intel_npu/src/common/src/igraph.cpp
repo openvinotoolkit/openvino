@@ -47,9 +47,8 @@ uint32_t IGraph::get_command_queue_group_ordinal() const {
     return _command_queue_group_ordinal;
 }
 
-void IGraph::set_workload_type(const ov::WorkloadType workloadType,
-                               const std::shared_ptr<CommandQueue>& commandQueue) const {
-    if (commandQueue == nullptr) {
+void IGraph::set_workload_type(const ov::WorkloadType workloadType) const {
+    if (_command_queue == nullptr) {
         return;
     }
 
@@ -65,7 +64,7 @@ void IGraph::set_workload_type(const ov::WorkloadType workloadType,
         OPENVINO_THROW("Unknown value for WorkloadType!");
     }
 
-    commandQueue->setWorkloadType(zeWorkloadType);
+    _command_queue->setWorkloadType(zeWorkloadType);
 }
 
 std::mutex& IGraph::get_mutex() {

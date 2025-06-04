@@ -42,8 +42,6 @@ public:
      */
     void initialize(const Config& config) override;
 
-    void set_workload_type(const ov::WorkloadType workloadType) const override;
-
     // TODO: public for multi-threaded execution
     struct InputData {
         std::vector<std::shared_ptr<ov::ITensor>> tensors;
@@ -86,7 +84,6 @@ private:
     std::vector<std::vector<ArgumentDescriptor>> _initsInputDescriptors;
     std::vector<std::vector<ArgumentDescriptor>> _initsOutputDescriptors;
 
-    std::vector<std::shared_ptr<CommandQueue>> _initsCommandQueues;
     std::vector<uint32_t> _initsCommandQueueOrdinals;
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;

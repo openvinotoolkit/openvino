@@ -271,7 +271,6 @@ void WeightlessGraph::initialize(const Config& config) {
     const size_t numberOfInits = _initsHandles.size();
     _initsInputDescriptors.resize(numberOfInits);  // Can be removed after initialization?
     _initsOutputDescriptors.resize(numberOfInits);
-    _initsCommandQueues.resize(numberOfInits);
     _initsCommandQueueOrdinals.resize(numberOfInits);
     _initsCommandLists.resize(numberOfInits);
     _initsFences.resize(numberOfInits);
@@ -282,7 +281,6 @@ void WeightlessGraph::initialize(const Config& config) {
         ze_graph_handle_t initHandle = _initsHandles.at(initIndex);
         std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
         std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
-        std::shared_ptr<CommandQueue>& initCommandQueue = _initsCommandQueues.at(initIndex);
         uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
 
         // Code similar to "Graph::initialize"
@@ -317,14 +315,6 @@ void WeightlessGraph::initialize(const Config& config) {
             command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
 
-        initCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                          zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                          initCommandQueueOrdinal,
-                                                          command_queue_options);
-
-        if (config.has<WORKLOAD_TYPE>()) {
-            IGraph::set_workload_type(config.get<WORKLOAD_TYPE>(), initCommandQueue);
-        }
         _zeGraphExt->initializeGraph(initHandle, initCommandQueueOrdinal);
         _logger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
@@ -348,19 +338,12 @@ void WeightlessGraph::initialize(const Config& config) {
 
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
-    _initsCommandQueues.clear();
     _initsCommandQueueOrdinals.clear();
     _initsCommandLists.clear();
     _initsFences.clear();
     _initsMetadata.clear();
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
-}
-
-void WeightlessGraph::set_workload_type(const ov::WorkloadType workloadType) const {
-    for (const std::shared_ptr<CommandQueue>& commandQueue : _initsCommandQueues) {
-        IGraph::set_workload_type(workloadType, commandQueue);
-    }
 }
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
@@ -416,7 +399,6 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             const size_t delimiterPosition = descriptor.nameFromCompiler.find(INIT_INPUT_DELIMITER);
             OPENVINO_ASSERT(delimiterPosition > 0, "Invalid name for init inpu ", descriptor.nameFromCompiler);
             id = std::stoi(descriptor.nameFromCompiler.substr(0, delimiterPosition));
-
             OPENVINO_ASSERT(constants.count(id) > 0,
                             "Weights ID ",
                             id,
@@ -553,10 +535,6 @@ void WeightlessGraph::run_init_single_threaded() {
                   << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
                   << std::endl;
 
-        if (_initsCommandQueues.at(initIndex) != nullptr) {
-            _initsCommandQueues.at(initIndex).reset();
-        }
-
         merge_two_maps(_mainInputsViewTensors, initOutputsViewTensorsMap);
         _mainInputsAllocatedTensors.push_back(std::move(initOutputsAllocatedTensor));
     }
@@ -613,10 +591,6 @@ void WeightlessGraph::run_init_multi_threaded() {
                       << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
                       << std::endl;
 
-            if (_initsCommandQueues.at(data.initIndex) != nullptr) {
-                _initsCommandQueues.at(data.initIndex).reset();
-            }
-
             // TODO: pre-allocate those well in advance? (outside of this loop)
             merge_two_maps(_mainInputsViewTensors, data.outputs.tensorsMap);
             _mainInputsAllocatedTensors.push_back(data.outputs.hostTensor);
@@ -636,7 +610,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
 
     _initsCommandLists.at(initIndex) =
         std::make_unique<CommandList>(_zeroInitStruct, _initsCommandQueueOrdinals.at(initIndex));
-    _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueues.at(initIndex));
+    _initsFences.at(initIndex) = std::make_unique<Fence>(_command_queue);
 
     size_t io_index = 0;
     for (const auto& desc : _initsInputDescriptors.at(initIndex)) {
@@ -660,8 +634,7 @@ void WeightlessGraph::run_pipeline(const size_t initIndex) {
     _logger.debug("Init Pipeline - push() started");
     _initsCommandLists.at(initIndex)->close();
 
-    _initsCommandQueues.at(initIndex)->executeCommandList(*_initsCommandLists.at(initIndex),
-                                                          *_initsFences.at(initIndex));
+    _command_queue->executeCommandList(*_initsCommandLists.at(initIndex), *_initsFences.at(initIndex));
     _logger.debug("Init Pipeline - push() completed");
 
     _logger.debug("Init Pipeline - pull() started");

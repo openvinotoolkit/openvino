@@ -36,8 +36,6 @@ public:
 
     void initialize(const Config& config) override;
 
-    void set_workload_type(const ov::WorkloadType workloadType) const override;
-
     ~Graph() override;
 
 protected:
