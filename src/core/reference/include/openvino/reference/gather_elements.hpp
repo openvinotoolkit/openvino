@@ -12,7 +12,8 @@ namespace helpers {
 template <typename T>
 T handle_negative_indicies(const T* indicies, size_t idx, T axis_dim_size) {
     const T index = indicies[idx];
-    OPENVINO_ASSERT(index < axis_dim_size && index >= -axis_dim_size, "indices values of GatherElement exceed data size");
+    OPENVINO_ASSERT(index < axis_dim_size && index >= -axis_dim_size,
+                    "indices values of GatherElement exceed data size");
     const T fixedIdx = index < 0 ? axis_dim_size + index : index;
     return fixedIdx;
 }
