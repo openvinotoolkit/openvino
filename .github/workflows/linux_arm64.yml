@@ -122,8 +122,8 @@ jobs:
     if: ${{ 'false' }}
     uses: ./.github/workflows/job_debian_packages.yml
     with:
-      runner: 'aks-linux-4-cores-8gb-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      runner: 'ubuntu-22.04'
+      image: 'ubuntu:20.04'
 
   Samples:
     needs: [ Build, Docker, Smart_CI ]
