@@ -15,10 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f16
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-};
-
 const std::vector<ReshapeTransformationParam> params = {
     // 3D -> 4D
     {
@@ -170,7 +166,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReshapeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReshapeTransformation::getTestCaseName);
 }  // namespace
