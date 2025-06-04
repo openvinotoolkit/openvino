@@ -98,7 +98,7 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
-      POETRY_VIRTUALENVS_CREATE: false
+      # POETRY_VIRTUALENVS_CREATE: false
       
     steps:
       - name: Clone OpenVINO (with trace)
@@ -177,7 +177,9 @@ jobs:
       #
 
       - name: CMake configure - OpenVINO
-        run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
+        run: |
+          poetry shell -C ${{ env.OPENVINO_REPO }}
+          eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
 
