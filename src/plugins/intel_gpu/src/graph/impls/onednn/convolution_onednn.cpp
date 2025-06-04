@@ -322,7 +322,7 @@ public:
             auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
                                     ib.get_engine().get_onednn_engine(),
                                     dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
-                                    input_md, weights_md, nullptr, output_md,
+                                    input_md, weights_md, output_md,
                                     strides, dilates, padding_l, padding_r,
                                     *_attrs.get());
             _pd = *prim_desc;
