@@ -448,27 +448,66 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
         support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
     } else {
         LOG_INFO_TAG("compile model with model path");
-        auto iter_plugin_cache_dir = properties.find(ov::cache_dir.name());
-        std::string cache_dir =
-            iter_plugin_cache_dir != properties.end() ? iter_plugin_cache_dir->second.as<std::string>() : "";
-        if (cache_dir.empty()) {
-            try {
-                cache_dir = get_core()->get_property("", ov::cache_dir);
-            } catch (std::exception&) {
-                LOG_DEBUG_TAG("Failed to get property %s from core", ov::cache_dir.name());
+        if (work_mode_auto) {
+            auto cache_blob_ids = full_property.at(ov::intel_auto::devices_blob_hash_id.name())
+                                      .as<std::map<std::string, std::pair<std::string, bool>>>();
+            for (auto&& dev_info : support_devices_by_property) {
+                auto device_config = dev_info.config;
+                auto device_name = dev_info.device_name;
+                auto blob_id = cache_blob_ids.find(device_name);
+                if (blob_id != cache_blob_ids.end()) {
+                    device_config[ov::internal::cache_hash_id.name()] = blob_id->first;
+                }
             }
-        }
-        if (work_mode_auto && cache_dir.empty()) {
-            // cache disable and will read model first here
-            LOG_DEBUG_TAG("Try to read model via core from model path: %s", model_path.c_str());
-            try {
-                auto_s_context->m_model = get_core()->read_model(model_path, std::string{}, {});
-            } catch (const ov::Exception&) {
-                OPENVINO_THROW("Failed to read model from model path:%s", model_path.c_str());
+            bool is_any_blob_exist = false;
+            for (auto&& blob : cache_blob_ids) {
+                if (blob.second.second) {
+                    is_any_blob_exist = true;
+                    break;
+                }
             }
-            support_devices = filter_device_by_model(support_devices_by_property, auto_s_context->m_model, load_config);
+            if (!is_any_blob_exist) {
+                // No cache blob found and will read model first here
+                LOG_DEBUG_TAG("Try to read model via core from model path: %s", model_path.c_str());
+                try {
+                    auto_s_context->m_model = get_core()->read_model(model_path, std::string{}, {});
+                } catch (const ov::Exception&) {
+                    OPENVINO_THROW("Failed to read model from model path:%s", model_path.c_str());
+                }
+                support_devices =
+                    filter_device_by_model(support_devices_by_property, auto_s_context->m_model, load_config);
+            } else {
+                load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
+                load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
+                // update/reorder device priorities if any cache blob exists
+                support_devices.clear();
+                unsigned int priority = 0;
+                std::unordered_set<std::string> devices_with_blob;
+                for (const auto& dev_blob : cache_blob_ids) {
+                    if (dev_blob.second.second) {
+                        auto it = std::find_if(support_devices_by_property.begin(),
+                                               support_devices_by_property.end(),
+                                               [&](const DeviceInformation& dev) {
+                                                   return dev.device_name == dev_blob.first;
+                                               });
+                        if (it != support_devices_by_property.end()) {
+                            it->device_priority = priority++;
+                            support_devices.push_back(*it);
+                            devices_with_blob.insert(it->device_name);
+                        }
+                    }
+                }
+                // insert the remaining devices from support_devices_by_property in order
+                for (const auto& dev_info : support_devices_by_property) {
+                    if (devices_with_blob.count(dev_info.device_name) == 0) {
+                        DeviceInformation dev = dev_info;
+                        dev.device_priority = priority++;
+                        support_devices.push_back(dev);
+                    }
+                }
+            }
         } else {
-            // cache enabled and will pass model path into schedule
+            // will pass model path into schedule for cumulative mode
             LOG_DEBUG_TAG("Will pass model path into auto schedule: %s", model_path.c_str());
             auto_s_context->m_model_path = model_path;
         }
@@ -493,9 +532,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
-    // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
-    auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
+    if (!auto_s_context->m_model)
+        auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
+    auto_s_context->m_device_blob_hash_ids =
+        full_property.at(ov::intel_auto::devices_blob_hash_id.name())
+            .as<std::map<std::string, std::pair<std::string, bool>>>();
     auto_s_context->m_device_priorities = support_devices;
     auto_s_context->m_device_priorities_initial = std::move(support_devices);
     auto_s_context->m_str_devices = std::move(str_devices);
@@ -746,12 +788,6 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         return "";
     };
     std::vector<std::string> devices_merged;
-    bool enable_startup_cpu = properties.count(ov::intel_auto::enable_startup_fallback.name())
-                                  ? properties.at(ov::intel_auto::enable_startup_fallback.name()).as<bool>()
-                                  : true;
-    bool enable_runtime_cpu = properties.count(ov::intel_auto::enable_runtime_fallback.name())
-                                  ? properties.at(ov::intel_auto::enable_runtime_fallback.name()).as<bool>()
-                                  : true;
     bool is_cumulative_tput =
         get_device_name() != "AUTO" ||
         (properties.count(ov::hint::performance_mode.name()) &&
@@ -761,41 +797,30 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         // parsing the string and splitting the comma-separated tokens
         std::vector<std::string> devices_to_be_merged =
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
-        std::size_t num_blob_files = 0;
         std::string cache_dir = properties.count(ov::cache_dir.name())
                                     ? properties.at(ov::cache_dir.name()).as<std::string>()
                                     : get_core()->get_property("", ov::cache_dir);
-        bool if_need_cache_check =
-            !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_dir.empty();
-        if (if_need_cache_check) {
-            for (auto&& device : devices_to_be_merged) {
-                ov::DeviceIDParser parsed{device};
-                if (parsed.get_device_name().find("CPU") != std::string::npos)
-                    continue;
-                // check if cached model exists for other devices
-                auto dev_properties = get_core()->get_supported_property(parsed.get_device_name(), properties);
-                dev_properties = get_core()->create_compile_config(parsed.get_device_name(), dev_properties);
+
+        auto& device_blob_hash_ids = properties.at(ov::intel_auto::devices_blob_hash_id.name())
+                                         .as<std::map<std::string, std::pair<std::string, bool>>>();
+        bool if_need_cache_check = !is_cumulative_tput && (model || !model_path.empty()) && !cache_dir.empty();
+        auto compute_device_hash_id = [&](const std::string& device) {
+            try {
+                auto dev_properties = get_core()->get_supported_property(device, properties);
+                dev_properties = get_core()->create_compile_config(device, dev_properties);
                 std::string blobId;
 
                 if (model)
-                    blobId = ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(model),
-                                                          dev_properties);
+                    blobId =
+                        ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(model), dev_properties);
                 else
                     blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
-                std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
-                bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
-                num_blob_files += is_blob_file_exist;
-                LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
-                              device.c_str(),
-                              is_blob_file_exist ? "found" : "not found",
-                              cached_model_path.c_str());
+                return blobId;
+            } catch (const ov::Exception& e) {
+                LOG_WARNING_TAG("Failed to compute device hash ID for device: %s, error: %s", device.c_str(), e.what());
+                return std::string{};
             }
-
-            if (enable_startup_cpu && num_blob_files) {
-                LOG_DEBUG_TAG("Disabling CPU fallback as a cached blob file was found for a device in the candidate "
-                              "list. AUTO will work as pass-through mode.");
-            }
-        }
+        };
         std::vector<std::string> devices_to_be_deleted(devices_to_be_merged.size());
         const auto& iterDel = std::copy_if(devices_to_be_merged.begin(),
                                            devices_to_be_merged.end(),
@@ -848,18 +873,6 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 ov::DeviceIDParser parsed{device};
                 std::vector<std::string> device_list = {};
                 try {
-                    if (parsed.get_device_name().find("CPU") != std::string::npos) {
-                        // Disable CPU if any blob files found
-                        if (num_blob_files) {
-                            properties[ov::intel_auto::enable_startup_fallback.name()] = false;
-                            properties[ov::intel_auto::enable_runtime_fallback.name()] = false;
-                            continue;
-                        }
-                        // Disable CPU if enable_startup_cpu and enable_runtime_cpu are both disabled
-                        if (!enable_startup_cpu && !enable_runtime_cpu) {
-                            continue;
-                        }
-                    }
                     auto device_id_list = get_core()
                                               ->get_property(parsed.get_device_name(), ov::available_devices.name(), {})
                                               .as<std::vector<std::string>>();
@@ -883,6 +896,21 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                         continue;
                     // Add user specified device into candidate list
                     devices_merged.push_back(device);
+                    if (if_need_cache_check) {
+                        // check if cached model exists for other devices
+                        std::string blobId = compute_device_hash_id(device);
+                        if (blobId.empty()) {
+                            LOG_WARNING_TAG("Failed to compute device hash ID for device: %s", device.c_str());
+                            continue;
+                        }
+                        std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                        bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
+                        device_blob_hash_ids[device] = {blobId, is_blob_file_exist};
+                        LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
+                                      device.c_str(),
+                                      is_blob_file_exist ? "found" : "not found",
+                                      cached_model_path.c_str());
+                    }
                 } else {
                     // Update device name if supported device with id existed
                     for (auto&& item : device_list) {
@@ -899,6 +927,21 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                         if (std::find(devices_merged.begin(), devices_merged.end(), item) != devices_merged.end())
                             continue;
                         devices_merged.push_back(item);
+                        if (if_need_cache_check) {
+                            // check if cached model exists for other devices
+                            std::string blobId = compute_device_hash_id(item);
+                            if (blobId.empty()) {
+                                LOG_WARNING_TAG("Failed to compute device hash ID for device: %s", item.c_str());
+                                continue;
+                            }
+                            std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                            bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
+                            device_blob_hash_ids[item] = {blobId, is_blob_file_exist};
+                            LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
+                                          item.c_str(),
+                                          is_blob_file_exist ? "found" : "not found",
+                                          cached_model_path.c_str());
+                        }
                     }
                 }
             }
@@ -986,8 +1029,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         return meta_devices;
     }
 
-    if (!ov::op::util::is_stateful_model(*model)) {
-        // not stateful model
+    if (!ov::op::util::is_stateful_model(*model) && !ov::op::util::is_large_language_model(*model)) {
+        // if model is not stateful or LLM, return all devices
         return meta_devices;
     }
 

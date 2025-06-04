@@ -838,7 +838,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         // hint::compiled_blob is set and imported skip compilation
     } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        auto iter_hash_id = config.find(ov::internal::cache_hash_id.name());
+        cacheContent.blobId = iter_hash_id == config.end()
+                                  ? ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config))
+                                  : iter_hash_id->second.as<std::string>();
         cacheContent.model = model;
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -875,7 +878,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         // hint::compiled_blob is set and imported skip compilation
     } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
+        auto iter_hash_id = config.find(ov::internal::cache_hash_id.name());
+        cacheContent.blobId = iter_hash_id == config.end()
+                                  ? ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config))
+                                  : iter_hash_id->second.as<std::string>();
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         cacheContent.model = model;
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
@@ -904,7 +910,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core_skip_cache_dir(parsed._config);
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap(), model_path};
-        cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
+        auto iter_hash_id = config.find(ov::internal::cache_hash_id.name());
+        cacheContent.blobId =
+            iter_hash_id == config.end()
+                ? ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config))
+                : iter_hash_id->second.as<std::string>();
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -933,8 +943,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // hint::compiled_blob is set and imported skip compilation
     } else if (cacheManager && device_supports_model_caching(plugin, parsed._config) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager, parsed._core_config.get_enable_mmap()};
+        auto iter_hash_id = config.find(ov::internal::cache_hash_id.name());
         cacheContent.blobId =
-            ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
+            iter_hash_id == config.end()
+                ? ov::ModelCache::compute_hash(model_str, create_compile_config(plugin, parsed._config))
+                : iter_hash_id->second.as<std::string>();
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
@@ -1633,6 +1646,11 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
     return compile_config;
 }
 
+ov::AnyMap ov::CoreImpl::create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const {
+    ov::DeviceIDParser parsed{device_name};
+    return create_compile_config(get_plugin(parsed.get_device_name()), origConfig);
+}
+
 ov::CoreConfig::CoreConfig(const CoreConfig& other) {
     {
         std::lock_guard<std::mutex> lock(other._cacheConfigMutex);
@@ -1679,7 +1697,8 @@ void ov::CoreConfig::remove_core(ov::AnyMap& config) {
 }
 
 void ov::CoreConfig::remove_core_skip_cache_dir(ov::AnyMap& config) {
-    for (const auto& name : {ov::enable_mmap.name(), ov::force_tbb_terminate.name()}) {
+    for (const auto& name :
+         {ov::enable_mmap.name(), ov::force_tbb_terminate.name(), ov::internal::cache_hash_id.name()}) {
         config.erase(name);
     }
 }

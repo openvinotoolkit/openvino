@@ -90,5 +90,11 @@ static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUER
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformations{"LP_TRANSFORMS_MODE"};
 
+/**
+ * @brief Read-write property to pass the cache blob hash ID to Core from AUTO
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> cache_hash_id{"CACHE_HASH_ID"};
+
 }  // namespace internal
 }  // namespace ov

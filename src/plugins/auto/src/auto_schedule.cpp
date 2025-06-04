@@ -8,6 +8,7 @@
 #include "async_infer_request.hpp"
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "plugin.hpp"
 
 // ------------------------------AutoSchedule----------------------------
@@ -141,6 +142,16 @@ void AutoSchedule::init() {
             m_compile_context[CPU].m_is_enabled = false;
             return;
         }
+        // If both the model and model_path are not empty, it indicates that the model was loaded via core.read_model.
+        // so use the model to check if it is stateful or LLM here.
+        if (m_context->m_model && !m_context->m_model_path.empty() &&
+            (ov::op::util::is_large_language_model(*(m_context->m_model)) ||
+             ov::op::util::is_stateful_model(*(m_context->m_model)))) {
+            // if model is stateful or LLM, disable CPU helper
+            m_compile_context[CPU].m_is_enabled = false;
+            LOG_INFO_TAG("Stateful model or LLM, disable CPU helper");
+            return;
+        }
         m_compile_context[CPU].m_device_info = *cpu_iter;
         m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
             ov::hint::PerformanceMode::LATENCY;
@@ -157,10 +168,26 @@ void AutoSchedule::init() {
     };
     if (m_compile_context[ACTUALDEVICE].m_is_enabled) {
         LOG_INFO_TAG("select device:%s", m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
+        auto target_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+        if (m_context->m_device_blob_hash_ids.count(target_device))
+            // save the cache hash id as the device property of actual device
+            // so that the Core can use it directly rather than compute it again
+            m_compile_context[ACTUALDEVICE].m_device_info.config[ov::internal::cache_hash_id.name()] =
+                m_context->m_device_blob_hash_ids.at(target_device).first;
+        bool is_actual_device_blob_existed = m_context->m_device_blob_hash_ids.count(target_device) &&
+                                             m_context->m_device_blob_hash_ids.at(target_device).second;
         bool is_actual_cpu = m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("CPU") != std::string::npos;
-        // if Actual device is CPU or perf_hint is cumulative, disabled m_compile_context[CPU], only use
-        // m_compile_context[ACTUALDEVICE]
-        if (is_actual_cpu || !m_context->m_startup_fallback) {
+        if (!is_actual_device_blob_existed && !m_context->m_model && !m_context->m_model_path.empty()) {
+            // if the device blob is not existed, model is not loaded and model path is not empty,
+            // read model from path first
+            m_context->m_model = m_context->m_ov_core->read_model(m_context->m_model_path, std::string{}, {});
+            if (!m_context->m_model) {
+                OPENVINO_THROW("Failed to read model from path: ", m_context->m_model_path);
+            }
+        }
+        // if Actual device is CPU or perf_hint is cumulative, or the blob of actual device is existed, disabled
+        // m_compile_context[CPU], only use m_compile_context[ACTUALDEVICE]
+        if (is_actual_cpu || !m_context->m_startup_fallback || is_actual_device_blob_existed) {
             m_compile_context[CPU].m_is_enabled = false;
         } else {
             customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
@@ -319,6 +346,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
+        // compile model by model first if it is not empty,
         if (m_context->m_model) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         } else {
