@@ -53,7 +53,7 @@ Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, std::optional<Openvi
 
 Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
                                          std::optional<OpenvinoVersion> ovVersion,
-                                         const std::vector<uint64_t> initSizes)
+                                         const std::optional<std::vector<uint64_t>> initSizes)
     : Metadata<METADATA_VERSION_2_0>{blobSize, ovVersion},
       _initSizes{initSizes} {
     _version = METADATA_VERSION_2_1;
@@ -69,9 +69,11 @@ void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
     uint64_t numberOfInits;
     stream.read(reinterpret_cast<char*>(&numberOfInits), sizeof(numberOfInits));
 
-    _initSizes.resize(numberOfInits);
-    for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
-        stream.read(reinterpret_cast<char*>(&_initSizes.at(initIndex)), sizeof(_initSizes.at(initIndex)));
+    if (numberOfInits) {
+        _initSizes = std::vector<uint64_t>(numberOfInits);
+        for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
+            stream.read(reinterpret_cast<char*>(&_initSizes->at(initIndex)), sizeof(_initSizes->at(initIndex)));
+        }
     }
 }
 
@@ -88,10 +90,13 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_0>::write(stream);
 
-    uint64_t numberOfInits = _initSizes.size();
+    uint64_t numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
     stream.write(reinterpret_cast<const char*>(&numberOfInits), sizeof(numberOfInits));
-    for (uint64_t initSize : _initSizes) {
-        stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
+
+    if (_initSizes.has_value()) {
+        for (uint64_t initSize : _initSizes.value()) {
+            stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
+        }
     }
 }
 
@@ -201,10 +206,10 @@ uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
 
-std::vector<uint64_t> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
-    return std::vector<uint64_t>();
+std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
+    return std::nullopt;
 }
-std::vector<uint64_t> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
+std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
 }
 

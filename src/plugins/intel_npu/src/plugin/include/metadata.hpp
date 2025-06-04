@@ -34,7 +34,7 @@ public:
 
     virtual uint64_t get_blob_size() const;
 
-    virtual std::vector<uint64_t> get_init_sizes() const = 0;
+    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
 
     virtual ~MetadataBase() = default;
 
@@ -168,7 +168,7 @@ public:
      */
     bool is_compatible() override;
 
-    std::vector<uint64_t> get_init_sizes() const override;
+    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
 protected:
     OpenvinoVersion _ovVersion;
@@ -182,7 +182,7 @@ class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
 public:
     Metadata(uint64_t blobSize,
              std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             const std::vector<uint64_t> initSizes = std::vector<uint64_t>());
+             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt);
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
@@ -196,10 +196,10 @@ public:
      */
     void write(std::ostream& stream) override;
 
-    std::vector<uint64_t> get_init_sizes() const override;
+    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
 private:
-    std::vector<uint64_t> _initSizes;
+    std::optional<std::vector<uint64_t>> _initSizes;
 };
 
 /**

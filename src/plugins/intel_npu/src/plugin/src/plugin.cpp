@@ -710,7 +710,7 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
                                       const Config& config,
                                       const ov::AnyMap& properties) const {
     uint64_t mainSize;
-    std::vector<uint64_t> initSizes;
+    std::optional<std::vector<uint64_t>> initSizes;
 
     const bool skipCompatibility = config.get<DISABLE_VERSION_CHECK>();
     if (!skipCompatibility) {
@@ -721,7 +721,9 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
 
         size_t accumulator = 0;
         initSizes = storedMeta->get_init_sizes();
-        mainSize = storedMeta->get_blob_size() - std::accumulate(initSizes.begin(), initSizes.end(), accumulator);
+        mainSize = initSizes.has_value() ? storedMeta->get_blob_size() -
+                                               std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
+                                         : storedMeta->get_blob_size();
     } else {
         _logger.info("Blob compatibility check skipped.");
         mainSize = MetadataBase::getFileSize(stream);
@@ -739,13 +741,13 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
 
     std::shared_ptr<ov::Model> originalModel;
     std::vector<ov::Tensor> tensorsInits;
-    const bool weightsSeparationEnabled = !initSizes.empty();
+    const bool weightsSeparationEnabled = initSizes.has_value();
 
     if (weightsSeparationEnabled) {
         // Read the init compiled models as well
         size_t cursorPosition = mainSize;
         ov::Tensor tensorInit;
-        for (uint64_t initSize : initSizes) {
+        for (uint64_t initSize : initSizes.value()) {
             if (tensorFromProperty == false) {
                 tensorInit = ov::Tensor(ov::element::u8, ov::Shape{initSize});
                 stream.read(tensorInit.data<char>(), initSize);

@@ -34,7 +34,7 @@ public:
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
-    std::pair<uint64_t, std::vector<uint64_t>> export_blob(std::ostream& stream) const override;
+    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     /**
      * @brief The same operations performed within "Graph::initialize", but for all handles. In addition to this, the

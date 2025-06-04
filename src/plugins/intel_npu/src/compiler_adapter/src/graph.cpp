@@ -32,7 +32,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     initialize(config);
 }
 
-std::pair<uint64_t, std::vector<uint64_t>> Graph::export_blob(std::ostream& stream) const {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -71,7 +71,7 @@ std::pair<uint64_t, std::vector<uint64_t>> Graph::export_blob(std::ostream& stre
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return std::make_pair(blobSize, std::vector<uint64_t>());
+    return std::make_pair(blobSize, std::nullopt);
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
