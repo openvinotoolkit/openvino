@@ -136,7 +136,7 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
 
 namespace {
-    void validateNodeKeys(const YAML::Node& node, const std::unordered_set<std::string>& supported_keys, std::string position_name)
+    void validateNodeKeys(const YAML::Node& node, const std::set<std::string>& supported_keys, std::string position_name)
     {
         for (const auto& nodeChild : node) {
             const auto key = nodeChild.first.as<std::string>();
@@ -293,7 +293,7 @@ struct convert<IAccuracyMetric::Ptr> {
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
-        const std::unordered_set<std::string> parameters = {"blob_dir", "compiler_type", "device_name", 
+        const std::set<std::string> parameters = {"blob_dir", "compiler_type", "device_name", 
         "disable_high_resolution_waitable_timer", "log_level", "metric", "model_dir", "multi_inference", 
         "random", "save_validation_outputs"};
         validateNodeKeys(node, parameters, "global options");
@@ -420,6 +420,8 @@ struct convert<ONNXRTParams::OpenVINO> {
 template <>
 struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
+        const std::set<std::string> parameters = { "name" };
+        validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: onnxrt\" and \"attribute: ep\"");
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
             ep = node.as<ONNXRTParams::OpenVINO>();
@@ -459,8 +461,13 @@ struct convert<Network> {
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
+            const std::set<std::string> parameters = {"name", "framework", "path", "device", "ip", "op", "il", "ol", "iml", "oml",
+                "reshape", "config", "priority", "nireq"};
+            validateNodeKeys(node, parameters, "node with \"framework: Infer\"");
             network.params = node.as<OpenVINOParams>();
         } else if (framework == "onnxrt") {
+            const std::set<std::string> parameters = {"name", "framework", "session_options", "ep", "opt_level"};
+            validateNodeKeys(node, parameters, "node with \"framework: onnxrt\"");
             network.params = node.as<ONNXRTParams>();
         } else {
             THROW_ERROR("Unsupported \"framework:\" value: " << framework);
@@ -499,16 +506,8 @@ struct convert<InferOp> {
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
             op.params = node.as<OpenVINOParams>();
-            const std::unordered_set<std::string> parameters = {"config", "device", "framework", "il", "iml", 
-            "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", 
-            "priority", "random", "repeat_count", "reshape", "tag", "type"};
-            validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: openvino\"");
         } else if (framework == "onnxrt") {
             op.params = node.as<ONNXRTParams>();
-            const std::unordered_set<std::string> parameters = {"device_type", "ep", "framework", 
-            "input_data", "metric", "name", "opt_level", "output_data", "params", "path", "random", 
-            "repeat_count", "session_options", "tag", "type"};
-            validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: onnxrt\"");
         } else {
             THROW_ERROR("Unsupported \"framework:\" value: " << framework);
         }
@@ -542,10 +541,33 @@ struct convert<OpDesc> {
             type = "Compound";
         }
         if (type == "Infer") {
+            const std::set<std::string> parameters = {"config", "device", "framework", "il", "iml",
+                "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", "priority",
+                "random", "repeat_count", "reshape", "tag", "type", "device_type", "ep", "framework","input_data",
+                "opt_level", "params", "session_options"};
+            validateNodeKeys(node, parameters, "node with \"type: Infer\"");
             opdesc.op = node.as<InferOp>();
+            const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
+            if (framework == "openvino") {
+                const std::set<std::string> parameters = {"config", "device", "framework", "il", "iml", 
+                "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", 
+                "priority", "random", "repeat_count", "reshape", "tag", "type"};
+                validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: openvino\"");
+            } else if (framework == "onnxrt") {
+                const std::set<std::string> parameters = {"device_type", "ep", "framework", 
+                "input_data", "metric", "name", "opt_level", "output_data", "params", "path", "random", 
+                "repeat_count", "session_options", "tag", "type"};
+                validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: onnxrt\"");
+            } else {
+                THROW_ERROR("Unsupported \"framework:\" value: " << framework);
+            }
         } else if (type == "CPU") {
+            const std::set<std::string> parameters = {"tag", "type", "repeat_count", "time_in_us"};
+            validateNodeKeys(node, parameters, "node with \"type: CPU\"");
             opdesc.op = node.as<CPUOp>();
         } else if (type == "Compound") {
+            const std::set<std::string> parameters = {"tag", "type", "repeat_count", "connections", "op_desc"};
+            validateNodeKeys(node, parameters, "node with \"type: Compound\"");
             std::vector<std::vector<std::string>> connections;
             if (node["connections"]) {
                 connections = node["connections"].as<std::vector<std::vector<std::string>>>();
@@ -675,7 +697,7 @@ static InferenceParams adjustParams(InferenceParams&& params, const GlobalOption
 static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts, const std::string& default_name,
                               const ReplaceBy& replace_by) {
     StreamDesc stream;
-    const std::unordered_set<std::string> parameters = {"delay_in_us", "exec_time_in_secs", "frames_interval_in_ms",
+    const std::set<std::string> parameters = {"delay_in_us", "exec_time_in_secs", "frames_interval_in_ms",
     "iteration_count", "name", "network", "target_fps", "target_latency_in_ms"};
     validateNodeKeys(node, parameters, "node at stream level");
     // FIXME: Create a function for the duplicate code below
@@ -879,7 +901,7 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
-        const std::unordered_set<std::string> parameters = {"input_stream_list", "name"};
+        const std::set<std::string> parameters = {"input_stream_list", "name"};
         validateNodeKeys(subnode, parameters, "node at scenario level");
         ScenarioDesc scenario;
         scenario.name = subnode["name"] ? subnode["name"].as<std::string>()
