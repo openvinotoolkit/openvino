@@ -23,7 +23,6 @@ public:
     OPENVINO_OP("GemmCopyB", "SnippetsOpset");
 
     GemmCopyB(const Output<Node>& x,
-              const element::Type src_type,
               const PortDescriptor& desc_in0,
               const PortDescriptor& desc_out0,
               const std::vector<size_t>& layout_input = {});
@@ -36,7 +35,6 @@ public:
         return get_output_offset(0);
     }
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -51,7 +49,5 @@ public:
 private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
     void validate_element_type(const ov::element::Type& element_type);
-
-    element::Type m_src_type = ov::element::dynamic;  // src element type of the corresponding BRGEMM
 };
 }  // namespace ov::intel_cpu::aarch64

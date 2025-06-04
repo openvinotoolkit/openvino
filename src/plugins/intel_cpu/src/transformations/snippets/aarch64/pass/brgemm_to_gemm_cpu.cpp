@@ -49,6 +49,7 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto& layout_c = brgemm_out_desc->get_layout();
 
         const auto element_type_b = brgemm->get_input_element_type(1);
+        OPENVINO_ASSERT(element_type_b == element::f32, "GemmCPU only support f32 precision.");
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
@@ -56,7 +57,6 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         snippets::modifier::MemoryAccess::PortDescriptor copyb_in_port_desc(0, offset_b);
         snippets::modifier::MemoryAccess::PortDescriptor copyb_out_port_desc(0, 0);
         auto gemm_repacking = std::make_shared<aarch64::GemmCopyB>(brgemm->input_value(1),
-                                                                   element_type_b,
                                                                    copyb_in_port_desc,
                                                                    copyb_out_port_desc,
                                                                    layout_b);

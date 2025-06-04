@@ -12,24 +12,15 @@
 namespace ov::intel_cpu::aarch64 {
 
 GemmCopyB::GemmCopyB(const Output<Node>& x,
-                     const element::Type src_type,
                      const PortDescriptor& desc_in0,
                      const PortDescriptor& desc_out0,
                      const std::vector<size_t>& layout_input)
     : snippets::modifier::MemoryAccess(1, 1),
-      op::Op({x}),
-      m_src_type(src_type) {
+      op::Op({x}) {
     set_output_size(1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
     custom_constructor_validate_and_infer_types(layout_input);
-}
-
-bool GemmCopyB::visit_attributes(AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(GemmRepack_visit_attributes);
-    MemoryAccess::visit_attributes(visitor);
-    visitor.on_attribute("src_type", m_src_type);
-    return true;
 }
 
 void GemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
@@ -64,7 +55,6 @@ std::shared_ptr<ov::Node> GemmCopyB::clone_with_new_inputs(const OutputVector& n
     check_new_args_count(this, new_args);
     return std::make_shared<GemmCopyB>(
         new_args.at(0),
-        m_src_type,
         get_input_port_descriptor(0),
         get_output_port_descriptor(0),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
