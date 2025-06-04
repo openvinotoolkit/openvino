@@ -182,25 +182,30 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
 
     auto reg_work_amount = XReg(in.back());
     XReg reg_runtime_params = XReg(Operand::X0);
-    XReg reg_increments = h->X_TMP_0;
     XReg reg_aux = h->X_TMP_1;
-    const auto loop_id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
+
     auto apply_increments = [&](const std::vector<int64_t>& increments_vec,
                                 const std::vector<bool>& incremented_vec,
                                 const std::vector<int64_t>& sizes_vec,
-                                bool is_dynamic,
                                 int64_t increment_multiplier,
                                 int32_t runtime_offset) {
-        if (is_dynamic) {
+        XReg reg_increments = h->X_TMP_0;
+        bool has_dynamic = std::any_of(increments_vec.begin(), increments_vec.end(), [](int64_t val) {
+            return snippets::utils::is_dynamic_value(val);
+        });
+        if (has_dynamic) {
             h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
-            h->ldr(reg_increments, ptr(reg_increments, static_cast<int32_t>(loop_id_offset + runtime_offset)));
+            h->ldr(reg_increments,
+                   ptr(reg_increments,
+                       static_cast<int32_t>(loop_id * sizeof(jit_snippets_call_args::loop_args_t) + runtime_offset)));
         }
+
         for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
             if (!incremented_vec[idx] || increments_vec[idx] == 0) {
                 continue;
             }
             auto data_reg = XReg(static_cast<int>(data_ptr_reg_idxs[idx]));
-            if (is_dynamic) {
+            if (snippets::utils::is_dynamic_value(increments_vec[idx])) {
                 h->ldr(reg_aux, ptr(reg_increments, static_cast<int32_t>(idx * sizeof(int64_t))));
                 h->add(data_reg, data_reg, reg_aux);
             } else {
@@ -215,23 +220,13 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     };
 
     if (!evaluate_once) {
-        apply_increments(ptr_increments,
-                         is_incremented,
-                         data_sizes,
-                         is_work_amount_dynamic,
-                         wa_increment,
-                         GET_OFF_LOOP_ARGS(m_ptr_increments));
+        apply_increments(ptr_increments, is_incremented, data_sizes, wa_increment, GET_OFF_LOOP_ARGS(m_ptr_increments));
         h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
         h->cmp(reg_work_amount, wa_increment);
         h->b(GE, *loop_begin_label);
     }
 
-    apply_increments(finalization_offsets,
-                     is_incremented,
-                     data_sizes,
-                     is_work_amount_dynamic,
-                     1,
-                     GET_OFF_LOOP_ARGS(m_finalization_offsets));
+    apply_increments(finalization_offsets, is_incremented, data_sizes, 1, GET_OFF_LOOP_ARGS(m_finalization_offsets));
 
     h->L(*loop_end_label);
 }
