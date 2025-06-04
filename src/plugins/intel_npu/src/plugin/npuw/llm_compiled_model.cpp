@@ -788,7 +788,8 @@ void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, con
     for (auto i = 0; i < new_shape.rank().get_length(); i++) {
         if (new_shape[i].is_dynamic()) {
             new_shape[i] = 1;
-            // Just prevention of multiple left axes to be set to 1, as it is unexpected 
+            // Sanity check that only one left dimension is dynamic, as
+            // another one should contain embedding space rank 
             break;
         }
     }
@@ -796,7 +797,7 @@ void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, con
     tail_mm_model->reshape(new_shape);
 }
 
-void slice_out_embeds(std::shared_ptr<ov::Model> model) {
+void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_dim) {
     std::shared_ptr<ov::Node> embed_result;
     for (auto&& output : model->outputs()) {
         if (output.get_any_name() == "output_embed") {
@@ -806,22 +807,37 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model) {
 
     if (embed_result) {
         auto shape = embed_result->input(0).get_shape();
-        if (shape.size() == 3 && shape[1] > 1) {
-            auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                ov::Shape{3},
-                                                                std::vector<int32_t>{0, int32_t(shape[1] - 1), 0});
-            auto stop =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                       ov::Shape{3},
-                                                       std::vector<int32_t>{1, int32_t(shape[1]), int32_t(shape[2])});
-            auto step =
-                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+        // If shape.size() is 3, then last axis should be the Vocab size.
+        // But 1st and 2nd axis can mean different things.
+        // 1st axis can represent the batch size, while 2nd - the number of embeddings,
+        // or vice-versa (in chatglm)
+        if (shape.size() == 3) {
+            uint32_t num_embeds_dim = 1 - batch_dim;
+            if (shape[num_embeds_dim] > 1) {
+                std::vector<int32_t> start_pos {
+                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)),
+                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)),
+                    0 };
+                std::vector<int32_t> stop_pos {
+                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
+                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
+                    static_cast<int32_t>(shape[2]) };
+                auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                    ov::Shape{3},
+                                                                    start_pos);
+                auto stop =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                        ov::Shape{3},
+                                                        stop_pos);
+                auto step =
+                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
 
-            auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
+                auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
 
-            embed_result->input(0).replace_source_output(slice);
-            embed_result->validate_and_infer_types();
-            model->validate_nodes_and_infer_types();
+                embed_result->input(0).replace_source_output(slice);
+                embed_result->validate_and_infer_types();
+                model->validate_nodes_and_infer_types();
+            }
         }
     }
 }
@@ -1062,7 +1078,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                   "kvcache models.");
         // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
         // the Prefill model:
-        slice_out_embeds(prefill_model);
+        slice_out_embeds(prefill_model, axes.batch);
         LOG_DEBUG("Make tail matmul model with static shapes");
         reshape_sliced_tail_to_static(tail_mm_model, axes.batch);
     }
