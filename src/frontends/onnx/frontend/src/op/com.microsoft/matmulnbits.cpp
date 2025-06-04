@@ -188,11 +188,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 for (const auto& d : zp_shape) {
                     actual_zp_size *= d.get_length();
                 }
-                CHECK_VALID_NODE(
-                    node,
-                    zp_shape.is_static() && actual_zp_size == expected_zp_size,
-                    "Expected input Zero Point shape is static and compatible with shape [N][n_blocks_per_col][1], got: ",
-                    zp_shape);
+                CHECK_VALID_NODE(node,
+                                 zp_shape.is_static() && actual_zp_size == expected_zp_size,
+                                 "Expected input Zero Point shape is static and compatible with shape "
+                                 "[N][n_blocks_per_col][1], got: ",
+                                 zp_shape);
 
                 ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
                 converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
