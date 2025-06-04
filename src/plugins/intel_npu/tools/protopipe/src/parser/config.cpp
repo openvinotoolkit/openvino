@@ -827,6 +827,9 @@ static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOption
     StreamDesc stream;
 
     // FIXME: Create a function for the duplicate code below
+    const std::set<std::string> parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", 
+        "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
+    validateNodeKeys(node, parameters, "");
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
     stream.frames_interval_in_us = 0u;
     if (node["frames_interval_in_ms"]) {
