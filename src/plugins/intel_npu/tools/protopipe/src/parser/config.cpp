@@ -563,11 +563,11 @@ struct convert<OpDesc> {
             }
         } else if (type == "CPU") {
             const std::set<std::string> parameters = {"tag", "type", "repeat_count", "time_in_us"};
-            validateNodeKeys(node, parameters, std::string("node with \"type: " + type +"\"");
+            validateNodeKeys(node, parameters, std::string("node with \"type: ") + type +"\"");
             opdesc.op = node.as<CPUOp>();
         } else if (type == "Compound") {
             const std::set<std::string> parameters = {"tag", "type", "repeat_count", "connections", "op_desc"};
-            validateNodeKeys(node, parameters, std::string("node with \"type: " + type +"\"");
+            validateNodeKeys(node, parameters, std::string("node with \"type: ") + type +"\"");
             std::vector<std::vector<std::string>> connections;
             if (node["connections"]) {
                 connections = node["connections"].as<std::vector<std::vector<std::string>>>();
