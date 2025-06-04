@@ -88,7 +88,7 @@ bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const
 
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string BrgemmKernelConfig::StaticParams::to_string() const {
-    std::stringstream ss = 0;
+    std::stringstream ss;
     PRINT(m_type_in0);
     PRINT(m_type_in1);
     PRINT(m_type_out0);
@@ -99,7 +99,7 @@ std::string BrgemmKernelConfig::StaticParams::to_string() const {
 }
 
 std::string BrgemmKernelConfig::to_string() const {
-    std::stringstream ss = 0;
+    std::stringstream ss;
     ss << get_static_params()->to_string() << "\n";
     ss << BrgemmGenericKernelConfig::to_string() << "\n";
     PRINT(m_compile_flags);
