@@ -345,8 +345,6 @@ std::vector<std::vector<int>> get_streams_info_table(
                         n_streams += proc_type_table[0][i] / n_threads_per_stream;
                     }
                 }
-                std::cout << "n_streams = " << n_streams << " n_threads = " << n_threads
-                          << " n_threads_per_stream = " << n_threads_per_stream << std::endl;
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
                     if (proc_type_table.size() == 1) {
