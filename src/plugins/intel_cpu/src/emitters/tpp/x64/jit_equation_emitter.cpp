@@ -4,7 +4,29 @@
 
 #include "jit_equation_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <libxsmm.h>
+#include <libxsmm_typedefs.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/tpp/common/utils.hpp"
+#include "emitters/tpp/x64/jit_tpp_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "transformations/tpp/x64/op/equation.hpp"
 
 using namespace Xbyak;
@@ -32,7 +54,8 @@ EquationTppEmitter::EquationTppEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     const auto op_metadata = libxsmm_create_meqn_op_metadata(m_equation_id, -1);
     const auto sing_attr =
         libxsmm_create_matrix_arg_attributes(LIBXSMM_MATRIX_ARG_TYPE_SINGULAR, LIBXSMM_MATRIX_ARG_SET_TYPE_NONE, 0, 0);
-    libxsmm_blasint M, N;
+    libxsmm_blasint M;
+    libxsmm_blasint N;
     for (const auto& op_desc : eq_tpp->get_op_descs()) {
         switch (op_desc.get_arity()) {
         case tpp::op::OpDescTPP::ARITY::BINARY: {
@@ -82,8 +105,9 @@ std::set<std::vector<element::Type>> EquationTppEmitter::get_supported_precision
     // created)
     OV_CPU_JIT_EMITTER_ASSERT(node && ov::is_type<tpp::op::EquationTPP>(node), "Invalid node ptr or type");
     std::vector<element::Type> input_precs;
-    for (const auto& in : node->inputs())
+    for (const auto& in : node->inputs()) {
         input_precs.push_back(in.get_element_type());
+    }
     return {input_precs};
 }
 

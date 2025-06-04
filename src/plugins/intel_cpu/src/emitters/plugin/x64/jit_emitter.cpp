@@ -4,9 +4,21 @@
 
 #include "jit_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
 #include <vector>
 
-#include "utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
@@ -219,7 +231,7 @@ void jit_emitter::emitter_postamble() const {
 
 void jit_emitter::emit_data() const {
     h->align(64);
-    h->L(*l_table.get());
+    h->L(*l_table);
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
     static_assert(sizeof(table_entry_val_t) == 4);

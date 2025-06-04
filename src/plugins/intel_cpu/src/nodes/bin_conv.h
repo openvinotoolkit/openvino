@@ -4,7 +4,21 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "graph_context.h"
 #include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -128,7 +142,7 @@ private:
                           uint8_t* dst,
                           const std::vector<size_t>& s_str,
                           const std::vector<size_t>& w_str,
-                          const std::vector<size_t>& d_str);
+                          const std::vector<size_t>& d_str) const;
 };
 
 }  // namespace node

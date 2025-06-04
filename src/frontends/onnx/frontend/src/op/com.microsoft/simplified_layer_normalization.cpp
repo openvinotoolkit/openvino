@@ -80,6 +80,18 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
 ONNX_OP("SimplifiedLayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::simplified_layer_normalization);
 }  // namespace opset_1
 }  // namespace ai_onnx
+
+namespace com_microsoft {
+namespace opset_1 {
+OPENVINO_DEPRECATED("'SimplifiedLayerNormalization' in the 'com_microsoft' domain is deprecated. Please use the "
+                    "'ai_onnx' domain instead, which is adopted by ONNX Runtime Web.")
+ONNX_OP("SimplifiedLayerNormalization",
+        OPSET_SINCE(1),
+        ai_onnx::opset_1::simplified_layer_normalization,
+        MICROSOFT_DOMAIN);
+}  // namespace opset_1
+}  // namespace com_microsoft
+
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

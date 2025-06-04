@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <oneapi/dnnl/dnnl.hpp>
+#include <memory>
+#include <utility>
 
 #include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "onednn/iml_type_mapper.h"

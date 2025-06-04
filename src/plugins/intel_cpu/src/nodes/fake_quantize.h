@@ -4,11 +4,27 @@
 
 #pragma once
 
+#include <algorithm>
+#include <bitset>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
-#include "common/primitive_attr.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_postops_composer_legacy.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -188,7 +204,7 @@ public:
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
                            bool allowBinary = true,
-                           bool do_rounding = true);
+                           bool doRounding = true);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -230,7 +246,10 @@ private:
     void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const;
 
     void appendMemory(const size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
-    void appendMemory(const size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem);
+    static void appendMemory(const size_t dataSize,
+                             const void* data,
+                             MemoryPtr& memPtr,
+                             std::vector<const void*>& postOpsMem);
     template <typename T>
     void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<T>& postOpsMem);
 
