@@ -21,7 +21,15 @@ AvgPool::AvgPool(const Output<Node>& arg,
                  bool exclude_pad,
                  RoundingType rounding_type,
                  const PadType& auto_pad)
-    : util::AvgPoolBase(arg, strides, Strides(kernel.size(), 1), pads_begin, pads_end, kernel, exclude_pad, rounding_type, auto_pad) {
+    : util::AvgPoolBase(arg,
+                        strides,
+                        Strides(kernel.size(), 1),
+                        pads_begin,
+                        pads_end,
+                        kernel,
+                        exclude_pad,
+                        rounding_type,
+                        auto_pad) {
     constructor_validate_and_infer_types();
 }
 
@@ -62,7 +70,15 @@ AvgPool::AvgPool(const Output<Node>& arg,
                  bool exclude_pad,
                  RoundingType rounding_type,
                  const PadType& auto_pad)
-    : util::AvgPoolBase(arg, strides, Strides(kernel.size(), 1), pads_begin, pads_end, kernel, exclude_pad, rounding_type, auto_pad) {
+    : util::AvgPoolBase(arg,
+                        strides,
+                        Strides(kernel.size(), 1),
+                        pads_begin,
+                        pads_end,
+                        kernel,
+                        exclude_pad,
+                        rounding_type,
+                        auto_pad) {
     constructor_validate_and_infer_types();
 }
 
