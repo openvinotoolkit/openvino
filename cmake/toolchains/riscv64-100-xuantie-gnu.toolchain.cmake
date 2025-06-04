@@ -41,3 +41,7 @@ set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -march=rv64gcv1p0_zfh -mabi=lp
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-pthread")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "-pthread")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "-pthread")
+
+# Set target triple for cross-compilation
+set(CMAKE_C_COMPILER_TARGET "riscv64-unknown-linux-gnu")
+set(CMAKE_CXX_COMPILER_TARGET "riscv64-unknown-linux-gnu")
