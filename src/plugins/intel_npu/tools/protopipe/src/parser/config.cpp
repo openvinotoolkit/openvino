@@ -463,11 +463,11 @@ struct convert<Network> {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
             const std::set<std::string> parameters = {"name", "framework", "path", "device", "ip", "op", "il", "ol", "iml", "oml",
                 "reshape", "config", "priority", "nireq"};
-            validateNodeKeys(node, parameters, "node with \"framework: Infer\"");
+            validateNodeKeys(node, parameters, std::string("node with \"framework: ") + framework + "\"");
             network.params = node.as<OpenVINOParams>();
         } else if (framework == "onnxrt") {
             const std::set<std::string> parameters = {"name", "framework", "session_options", "ep", "opt_level"};
-            validateNodeKeys(node, parameters, "node with \"framework: onnxrt\"");
+            validateNodeKeys(node, parameters, std::string("node with \"framework: ") + framework + "\"");
             network.params = node.as<ONNXRTParams>();
         } else {
             THROW_ERROR("Unsupported \"framework:\" value: " << framework);
@@ -545,29 +545,29 @@ struct convert<OpDesc> {
                 "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", "priority",
                 "random", "repeat_count", "reshape", "tag", "type", "device_type", "ep", "framework","input_data",
                 "opt_level", "params", "session_options"};
-            validateNodeKeys(node, parameters, "node with \"type: Infer\"");
+            validateNodeKeys(node, parameters, std::string("node with \"type: ") + type + "\"");
             opdesc.op = node.as<InferOp>();
             const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
             if (framework == "openvino") {
                 const std::set<std::string> parameters = {"config", "device", "framework", "il", "iml", 
                 "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", 
                 "priority", "random", "repeat_count", "reshape", "tag", "type"};
-                validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: openvino\"");
+                validateNodeKeys(node, parameters, std::string("node with \"type: ") + type + "\"");
             } else if (framework == "onnxrt") {
                 const std::set<std::string> parameters = {"device_type", "ep", "framework", 
                 "input_data", "metric", "name", "opt_level", "output_data", "params", "path", "random", 
                 "repeat_count", "session_options", "tag", "type"};
-                validateNodeKeys(node, parameters, "node with \"type: Infer\" and \"framework: onnxrt\"");
+                validateNodeKeys(node, parameters, std::string("node with \"type: ") + type + "\" and \"framework: " + framework + "\"");
             } else {
                 THROW_ERROR("Unsupported \"framework:\" value: " << framework);
             }
         } else if (type == "CPU") {
             const std::set<std::string> parameters = {"tag", "type", "repeat_count", "time_in_us"};
-            validateNodeKeys(node, parameters, "node with \"type: CPU\"");
+            validateNodeKeys(node, parameters, std::string("node with \"type: " + type +"\"");
             opdesc.op = node.as<CPUOp>();
         } else if (type == "Compound") {
             const std::set<std::string> parameters = {"tag", "type", "repeat_count", "connections", "op_desc"};
-            validateNodeKeys(node, parameters, "node with \"type: Compound\"");
+            validateNodeKeys(node, parameters, std::string("node with \"type: " + type +"\"");
             std::vector<std::vector<std::string>> connections;
             if (node["connections"]) {
                 connections = node["connections"].as<std::vector<std::vector<std::string>>>();
