@@ -54,6 +54,12 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr, "has not inited begin label!");
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr, "has not inited end label!");
+    if (ov::snippets::utils::is_dynamic_value(wa_increment)) {
+        OV_CPU_JIT_EMITTER_ASSERT(evaluate_once, "wa_increment can be dynamic only when evaluate_once is true");
+    }
+    if (!is_work_amount_dynamic) {
+        OV_CPU_JIT_EMITTER_ASSERT(work_amount != 0, "Static work_amount must not be 0");
+    }
 }
 
 void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
@@ -79,7 +85,8 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
         h->ldr(reg_aux, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
         h->ldr(reg_work_amount, ptr(reg_aux, static_cast<int32_t>(id_offset + GET_OFF_LOOP_ARGS(m_work_amount))));
 
-        h->cmp(reg_work_amount, wa_increment);
+        auto increment = evaluate_once && snippets::utils::is_dynamic_value(wa_increment) ? 1 : wa_increment;
+        h->cmp(reg_work_amount, increment);
         h->b(LT, *loop_end_label);
     } else {
         h->mov(reg_work_amount, work_amount);
@@ -178,57 +185,47 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     XReg reg_increments = h->X_TMP_0;
     XReg reg_aux = h->X_TMP_1;
     const auto loop_id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
-
-    if (!evaluate_once) {
-        if (is_work_amount_dynamic) {
+    auto apply_increments = [&](const std::vector<int64_t>& increments_vec,
+                                const std::vector<bool>& incremented_vec,
+                                const std::vector<int64_t>& sizes_vec,
+                                bool is_dynamic,
+                                int64_t increment_multiplier,
+                                int32_t runtime_offset) {
+        if (is_dynamic) {
             h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
             h->ldr(reg_increments,
-                   ptr(reg_increments, static_cast<int32_t>(loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments))));
+                   ptr(reg_increments, static_cast<int32_t>(loop_id_offset + runtime_offset)));
         }
-
         for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
-            if (!is_incremented[idx] || ptr_increments[idx] == 0) {
+            if (!incremented_vec[idx] || increments_vec[idx] == 0) {
                 continue;
             }
-            auto data_reg = XReg(data_ptr_reg_idxs[idx]);
-            if (is_work_amount_dynamic) {
+            auto data_reg = XReg(static_cast<int>(data_ptr_reg_idxs[idx]));
+            if (is_dynamic) {
                 h->ldr(reg_aux, ptr(reg_increments, static_cast<int32_t>(idx * sizeof(int64_t))));
                 h->add(data_reg, data_reg, reg_aux);
             } else {
-                if (ptr_increments[idx] > 0) {
-                    h->add_imm(data_reg, data_reg, ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
-                } else if (ptr_increments[idx] < 0) {
-                    h->sub_imm(data_reg, data_reg, -ptr_increments[idx] * wa_increment * data_sizes[idx], h->X_TMP_0);
+                int64_t offset = increments_vec[idx] * increment_multiplier * sizes_vec[idx];
+                if (offset > 0) {
+                    h->add_imm(data_reg, data_reg, offset, h->X_TMP_0);
+                } else if (offset < 0) {
+                    h->sub_imm(data_reg, data_reg, -offset, h->X_TMP_0);
                 }
             }
         }
+    };
+
+    if (!evaluate_once) {
+        apply_increments(ptr_increments, is_incremented, data_sizes, is_work_amount_dynamic, wa_increment,
+                         GET_OFF_LOOP_ARGS(m_ptr_increments));
         h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
         h->cmp(reg_work_amount, wa_increment);
         h->b(GE, *loop_begin_label);
     }
 
-    if (is_work_amount_dynamic) {
-        h->ldr(reg_increments, ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(loop_args))));
-        h->ldr(reg_increments,
-               ptr(reg_increments, static_cast<int32_t>(loop_id_offset + GET_OFF_LOOP_ARGS(m_finalization_offsets))));
-    }
+    apply_increments(finalization_offsets, is_incremented, data_sizes, is_work_amount_dynamic, 1,
+                     GET_OFF_LOOP_ARGS(m_finalization_offsets));
 
-    for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); idx++) {
-        if (!is_incremented[idx] || finalization_offsets[idx] == 0) {
-            continue;
-        }
-        auto data_reg = XReg(static_cast<int>(data_ptr_reg_idxs[idx]));
-        if (is_work_amount_dynamic) {
-            h->ldr(reg_aux, ptr(reg_increments, static_cast<int32_t>(idx * sizeof(int64_t))));
-            h->add(data_reg, data_reg, reg_aux);
-        } else {
-            if (finalization_offsets[idx] > 0) {
-                h->add_imm(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
-            } else if (finalization_offsets[idx] < 0) {
-                h->sub_imm(data_reg, data_reg, -finalization_offsets[idx] * data_sizes[idx], h->X_TMP_0);
-            }
-        }
-    }
     h->L(*loop_end_label);
 }
 
