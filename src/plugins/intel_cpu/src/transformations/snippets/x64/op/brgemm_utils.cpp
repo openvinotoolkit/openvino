@@ -173,6 +173,7 @@ bool AttributeAdapter<ov::intel_cpu::brgemm_utils::BrgemmConfig>::visit_attribut
     bool with_wei_repacking = m_ref.with_wei_repacking();
     bool with_comps = m_ref.with_compensations();
     bool are_wei_blocked = m_ref.are_wei_blocked();
+    bool are_wei_constant = m_ref.are_wei_constant();
     bool is_amx = m_ref.is_amx();
     std::string isa = JIT_IMPL_NAME_HELPER("", m_ref.isa(), "");
     size_t wei_n_blk = m_ref.wei_n_blk();
@@ -181,6 +182,7 @@ bool AttributeAdapter<ov::intel_cpu::brgemm_utils::BrgemmConfig>::visit_attribut
     visitor.on_attribute("with_brgemm_copy_b", with_wei_repacking);
     visitor.on_attribute("with_compensations", with_comps);
     visitor.on_attribute("are_wei_blocked", are_wei_blocked);
+    visitor.on_attribute("are_wei_constant", are_wei_constant);
     visitor.on_attribute("is_amx", is_amx);
     visitor.on_attribute("prim_isa", isa);
     visitor.on_attribute("wei_n_blk", wei_n_blk);
