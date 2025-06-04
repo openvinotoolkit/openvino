@@ -4,8 +4,16 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
-#include "utils/plain_tensor.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -64,7 +64,8 @@ MatMulFunctionBase::MatMulFunctionBase(const std::vector<PartialShape>& inputSha
         const bool is_f32 = ov::snippets::utils::everyone_is(element::f32, precisions[0], precisions[1]);
         const bool is_int8 = ov::snippets::utils::one_of(precisions[0], element::i8, element::u8) && precisions[1] == element::i8;
         const bool is_bf16 = ov::snippets::utils::everyone_is(element::bf16, precisions[0], precisions[1]);
-        OPENVINO_ASSERT(is_f32 || is_bf16 || is_int8, "Invalid precisions");
+        const bool is_f16 = ov::snippets::utils::everyone_is(element::f16, precisions[0], precisions[1]);
+        OPENVINO_ASSERT(is_f32 || is_bf16 || is_f16 || is_int8, "Invalid precisions");
     }
 }
 

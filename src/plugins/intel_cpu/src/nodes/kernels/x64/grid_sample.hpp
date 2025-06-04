@@ -4,9 +4,17 @@
 
 #pragma once
 
-#include <set>
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
 
 #include "jit_kernel_base.hpp"
+#include "nodes/kernels/x64/registers_pool.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 

@@ -4,7 +4,15 @@
 
 #pragma once
 
-#include "node.h"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,7 +22,7 @@ class EmbeddingBag {
 public:
     enum class Reduction { SUM, MEAN };
     EmbeddingBag(const std::shared_ptr<ov::Node>&,
-                 size_t requiredInputsNum,
+                 size_t requiredInputNum,
                  size_t indicesIdx,
                  size_t perSampleWeightsIdx,
                  size_t defaultIndexIdx);
