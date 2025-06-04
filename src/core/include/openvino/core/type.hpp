@@ -106,7 +106,7 @@ bool is_type_any_of(const Value& value) {
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
 template <typename Type, typename Value>
 std::enable_if_t<std::is_convertible_v<decltype(static_cast<Type*>(std::declval<Value>())), Type*>, Type*> as_type(
-    const Value& value) {
+    Value value) {
     if constexpr (use_ov_dynamic_cast<Type>())
         return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
     else
