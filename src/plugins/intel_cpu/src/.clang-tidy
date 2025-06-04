@@ -48,17 +48,12 @@
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
 # -readability-avoid-nested-conditional-operator
-# -readability-avoid-return-with-void-value
 # -readability-const-return-type
-# -readability-convert-member-functions-to-static
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
-# -readability-inconsistent-declaration-parameter-name
 # -readability-isolate-declaration
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
 # -readability-simplify-boolean-expr
-# -readability-static-accessed-through-instance
 # -readability-suspicious-call-argument
-# -readability-use-anyofallof
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
 # -modernize-use-std-numbers
@@ -114,19 +109,14 @@ Checks: >
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
   -readability-avoid-nested-conditional-operator,
-  -readability-avoid-return-with-void-value,
   -readability-const-return-type,
-  -readability-convert-member-functions-to-static,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
-  -readability-inconsistent-declaration-parameter-name,
   -readability-isolate-declaration,
   -readability-magic-numbers,
   -readability-simplify-boolean-expr,
-  -readability-static-accessed-through-instance,
   -readability-suspicious-call-argument,
   -readability-uppercase-literal-suffix,
-  -readability-use-anyofallof,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
