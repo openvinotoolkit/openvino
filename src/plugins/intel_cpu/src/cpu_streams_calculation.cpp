@@ -337,7 +337,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                 } else {
                     n_threads_per_stream = (n_proc > 16) ? 4 : std::max(1, (n_proc / 4));
                 }
-                if(input_threads > 0) {
+                if (input_threads > 0) {
                     n_streams = n_threads / n_threads_per_stream;
                 } else {
                     n_streams = 0;
