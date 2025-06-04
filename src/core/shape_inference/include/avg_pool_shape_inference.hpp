@@ -61,7 +61,7 @@ std::vector<TRShape> avg_pool_shape_infer_util(const TOp* op,
                                                TContainer& pads_end) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
-    auto dilations = op->get_dilations(); 
+    auto dilations = op->get_dilations();
     if (dilations.empty()) {
         // If dilations are not specified, use default value of 1 for each spatial dimension.
         // This is the case for AvgPool v1 and v14.
