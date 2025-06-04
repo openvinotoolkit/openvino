@@ -1012,6 +1012,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_GENERATE_CONFIG"));
     auto prefill_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_PREFILL_CONFIG"));
     auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
+    // Also make these maps for third: tail matmul model, in case it will be created:
+    auto tail_mm_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_TAIL_MM_CONFIG"));
+    auto tail_mm_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_TAIL_MM_CONFIG"));
 
     m_cfg.update(any_copy(npuw_llm_props));
 
@@ -1121,6 +1124,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (tail_mm_model) {
         auto tail_mm_config = get_default_tail_mm_config(npudesc);
         merge_config_with(tail_mm_config, other_props);
+        const auto& tail_mm_config_addition_value =
+            tail_mm_config_addition.has_value() ? tail_mm_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+
+        merge_config_with(tail_mm_config, tail_mm_config_addition_value);
         m_tail_mm_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(tail_mm_model, plugin, tail_mm_config));
         NPUW_ASSERT(m_tail_mm_compiled);
