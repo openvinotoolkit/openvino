@@ -47,16 +47,24 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
     const auto blob_size = (block_size * bits + 7) / 8;
 
+    const uint64_t expected_b_size = N * n_blocks_per_col * blob_size;
+    const auto& b_shape = b_quantized.get_partial_shape();
+    uint64_t actual_b_size = 1;
+    for (const auto& d : b_shape) {
+        actual_b_size *= d.get_length();
+    }
+
     CHECK_VALID_NODE(node, n_blocks_per_col > 0, "Wrong blocks count: ", n_blocks_per_col);
     CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);
     // in documentation: ...Input B is a 2D constant Matrix.
     CHECK_VALID_NODE(node,
                      ov::as_type<v0::Constant>(b_quantized.get_node()) != nullptr,
                      "MatMulNBits limitation: accepting only a constant as a B input");
-    CHECK_VALID_NODE(node,
-                     b_quantized.get_partial_shape().rank() == 3,
-                     "Expected rank of quantized weights is 3 [N][n_blocks_per_col][blob_size], got: ",
-                     b_quantized.get_partial_shape().rank());
+    CHECK_VALID_NODE(
+        node,
+        b_shape.is_static() && actual_b_size == expected_b_size,
+        "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
+        b_shape);
     CHECK_VALID_NODE(node,
                      a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32 ||
                          a.get_element_type() == ov::element::dynamic,
@@ -168,8 +176,24 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             //
             // no matter which package method, the outputs of this section will be
             //   {A type, [N, n_blocks_per_col, 1]}
+            CHECK_VALID_NODE(node,
+                             ov::as_type<v0::Constant>(zero_points.get_node()) != nullptr,
+                             "MatMulNBits limitation: accepting only a constant as a zero_points");
+
             const auto zero_points_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
             if (zero_points.get_element_type() == a.get_element_type()) {
+                const uint64_t expected_zp_size = N * n_blocks_per_col * 1;
+                const auto& zp_shape = zero_points.get_partial_shape();
+                uint64_t actual_zp_size = 1;
+                for (const auto& d : zp_shape) {
+                    actual_zp_size *= d.get_length();
+                }
+                CHECK_VALID_NODE(
+                    node,
+                    zp_shape.is_static() && actual_zp_size == expected_zp_size,
+                    "Expected input Zero Point shape is static and compatible with shape [N][n_blocks_per_col][1], got: ",
+                    zp_shape);
+
                 ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
                 converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
                                                                        casted_zp_shape,
@@ -195,6 +219,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     converted_zero_points =
                         std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
                 }
+            } else {
+                FRONT_END_THROW("Unexpected zero point type");
             }
         }
 
