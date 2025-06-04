@@ -279,7 +279,6 @@ macro(ov_define_setup_py_dependencies)
         ${openvino_py_files}
         "${OpenVINO_SOURCE_DIR}/pyproject.toml"
         "${OpenVINO_SOURCE_DIR}/setup.py"
-        "${OpenVINOPython_SOURCE_DIR}/requirements.txt"
         "${OpenVINOPython_SOURCE_DIR}/wheel/readme.txt"
         "${OpenVINO_SOURCE_DIR}/LICENSE"
         "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
@@ -394,14 +393,6 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
-    install(FILES constraints.txt
-            DESTINATION tests/bindings/python
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
-    install(FILES requirements_test.txt
-            DESTINATION tests/bindings/python
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
     install(FILES src/openvino/preprocess/torchvision/requirements.txt
             DESTINATION tests/python/preprocess/torchvision
             COMPONENT tests
