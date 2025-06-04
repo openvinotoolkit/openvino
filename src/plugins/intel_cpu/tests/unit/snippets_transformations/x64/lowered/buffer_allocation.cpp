@@ -163,7 +163,8 @@ protected:
         const auto load_reshape = std::make_shared<ov::snippets::op::LoadReorder>(parameter1, 1, 0, order);
         const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(store);
-        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(parameter0, relu0, BRGEMM_TYPE::STAND_ALONE);
+        const auto brgemm_cpu0 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{parameter0, relu0}, BRGEMM_TYPE::STAND_ALONE);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -178,7 +179,8 @@ protected:
         const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
-        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(multiply, parameter2, BRGEMM_TYPE::STAND_ALONE);
+        const auto brgemm_cpu1 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{multiply, parameter2}, BRGEMM_TYPE::STAND_ALONE);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
@@ -219,8 +221,9 @@ protected:
 
         const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, ov::element::bf16);
         const auto scratch0 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
-        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
-            parameter0, brgemm_copyb0->output(0), scratch0, BRGEMM_TYPE::WITH_AMX);
+        const auto brgemm_cpu0 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{parameter0, brgemm_copyb0->output(0), scratch0},
+                                                       BRGEMM_TYPE::WITH_AMX);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -239,8 +242,9 @@ protected:
 
         const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, ov::element::bf16);
         const auto scratch1 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
-        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
-            convert2, brgemm_copyb1->output(0), scratch1, BRGEMM_TYPE::WITH_AMX);
+        const auto brgemm_cpu1 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{convert2, brgemm_copyb1->output(0), scratch1},
+                                                       BRGEMM_TYPE::WITH_AMX);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
