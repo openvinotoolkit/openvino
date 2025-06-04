@@ -310,3 +310,5 @@ The implementation of state variables in the NPU plugin will be improved for upc
 
 ## Dynamic shapes
 Dynamic shapes are not supported by the NPU plugin yet.
+
+## Add Accuracy Failover here?

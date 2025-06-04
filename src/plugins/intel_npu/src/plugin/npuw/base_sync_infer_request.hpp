@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,8 +150,8 @@ protected:
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
 
-    void dump_input_tensors(std::size_t idx);
-    void dump_output_tensors(std::size_t idx);
+    void dump_input_tensors(std::size_t idx, bool forced = false);
+    void dump_output_tensors(std::size_t idx, bool forced = false);
 
     // Quick-and-dirty profiling
     ov::npuw::perf::metric<float, ov::npuw::perf::MSec> m_ms_unpack;
