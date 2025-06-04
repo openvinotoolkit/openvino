@@ -4,10 +4,19 @@
 
 #include "jit_kernel.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <array>
+#include <common/bfloat16.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
+#include <functional>
 #include <stdexcept>
-#include <unordered_set>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -285,7 +294,7 @@ const Xbyak::Reg64& stack_frame::pointer() const {
 }
 
 void stack_frame::clear() const {
-    const size_t end = _size & ~static_cast<size_t>(7u);
+    const size_t end = _size & ~static_cast<size_t>(7U);
 
     _kernel.foreach (
         0,

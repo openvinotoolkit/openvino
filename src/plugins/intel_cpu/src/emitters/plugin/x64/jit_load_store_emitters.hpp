@@ -4,10 +4,19 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "jit_bf16_emitters.hpp"
 #include "jit_emitter.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -156,13 +165,13 @@ private:
     void store_bytes(const Xbyak::Reg64& reg, int offset, int store_size) const;
 
     template <typename Vmm>
-    void store_dword_to_byte_extension(const Xbyak::Reg64& reg, int offset, bool is_signed, int store_size) const;
+    void store_dword_to_byte_extension(const Xbyak::Reg64& reg, int offset, bool is_signed, int store_num) const;
 
     template <typename Vmm>
     void store_dword_to_word_extension(const Xbyak::Reg64& reg,
                                        int offset,
                                        ov::element::Type precision,
-                                       int store_size) const;
+                                       int store_num) const;
 
     void register_table_entries() override;
 

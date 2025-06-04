@@ -4,16 +4,23 @@
 
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <algorithm>
 #include <cassert>
 #include <common/c_types_map.hpp>
-#include <common/primitive_desc_iface.hpp>
+#include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <map>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <tuple>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
@@ -26,14 +33,20 @@
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
+#include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/graph_emitter.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -762,7 +775,8 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
 void DnnlConvolutionPrimitive::execute(dnnl_primitive_args& primArgs) {
     if (m_intermediateReorders.empty()) {  // fast path
-        return m_prim.execute(m_stream, primArgs);
+        m_prim.execute(m_stream, primArgs);
+        return;
     }
 
     // keep original memory to restore it after the execution
@@ -812,12 +826,12 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
     auto getPaddings = [&attrs](const VectorDims& dataShape, const VectorDims& weightsShape) {
-        const bool zeroPaddingR = std::all_of(attrs.paddingR.begin(), attrs.paddingR.end(), [](const auto& p) {
-            return p == 0;
+        const bool fusedDWconv = std::any_of(attrs.postOps.begin(), attrs.postOps.end(), [](const auto& p) {
+            return p.type() == typeid(DepthwiseConvolutionPostOp);
         });
 
         if (attrs.autoPadding == AutoPaddingType::None ||  // auto padding disabled
-            !zeroPaddingR) {  // auto padding enabled, but paddingR is calculated manually for fused convolution
+            fusedDWconv) {  // auto padding enabled, but paddingR is calculated manually for fused convolution
             return std::make_tuple(attrs.paddingL, attrs.paddingR);
         }
 
@@ -928,11 +942,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
     if (isDepthWise) {
         // 1d equivalent cases are painfully slow
-        if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
-            return false;
-        }
-
-        return true;
+        return inpDims.size() != 3 && 1 != inpDims[inpDims.size() - 2];
     }
 
     // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the
@@ -949,7 +959,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         auto paddingRreversItr = config.attrs.paddingR.crbegin();
 
         for (size_t i = 0; i < spatialRank; ++i) {
-            is1x1 = true && *(weightDimsReversItr++) == 1 && *(strideReversItr++) == 1 && *(paddingLreversItr++) == 0 &&
+            is1x1 = *(weightDimsReversItr++) == 1 && *(strideReversItr++) == 1 && *(paddingLreversItr++) == 0 &&
                     *(paddingRreversItr++) == 0;
         }
     }
@@ -966,11 +976,11 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         }
     }
 
-    unsigned thresholdNumChannels = 128u;  // for avx and below
+    unsigned thresholdNumChannels = 128U;  // for avx and below
     if (is1x1) {
-        thresholdNumChannels = 2048u;
+        thresholdNumChannels = 2048U;
     } else if (mayiuse(impl::cpu::x64::avx512_core)) {
-        thresholdNumChannels = 512u;
+        thresholdNumChannels = 512U;
     }
 
     size_t OC = outDims[1];

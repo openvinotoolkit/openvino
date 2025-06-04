@@ -4,18 +4,22 @@
 
 #include "permute_kernel.h"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <vector>
+#include <string>
 
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/jit_generator.hpp"
-#include "cpu_memcpy.h"
-#include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "cpu_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "openvino/core/except.hpp"
-#include "utils/bfloat16.hpp"
+#include "openvino/core/parallel.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -206,7 +210,7 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
     RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, dst_dims[0]);
 }
 
-void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data, const int mb) {
+void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, const int mb) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
@@ -216,6 +220,16 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
     }
 
     switch (jcp.n) {
+    case 0:
+    // This is a degenerate case that is only possible if the tensor has 0 or 1st rank
+    // Such a situation is possible in the following graph:
+    //  Parameter
+    //     |
+    //  Transpose
+    //     |
+    //  Result
+    // The elimination of the Transpose node will not be performed
+    // So copy from input buffer to output buffer without any permutation
     case 1:
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
@@ -255,7 +269,6 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data,
     default:
         OPENVINO_THROW("Unsupported number of dimensions: " + std::to_string(jcp.n));
     }
-    return;
 }
 
 size_t PermuteParams::hash() const {

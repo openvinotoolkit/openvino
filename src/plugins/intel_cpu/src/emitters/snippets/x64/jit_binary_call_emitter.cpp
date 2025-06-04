@@ -4,7 +4,18 @@
 
 #include "jit_binary_call_emitter.hpp"
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/utils.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;

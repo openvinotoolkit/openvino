@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cstddef>
+#include <type_traits>
 #ifdef CPU_DEBUG_CAPS
 
 #    include "cpu/x64/jit_generator.hpp"
@@ -73,7 +77,7 @@ private:
     template <typename PRC_T, size_t vlen>
     static void print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr);
     template <typename T>
-    static void print_reg_prc(const char* name, const char* ori_name, T* val);
+    static void print_reg_prc(const char* name, const char* ori_name, T* ptr);
     static void preamble(jit_generator_t& h);
     static void postamble(jit_generator_t& h);
     template <typename T>

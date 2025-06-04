@@ -4,9 +4,32 @@
 
 #include "jit_brgemm_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <type_traits>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -29,17 +52,26 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
+    const auto& brgOutPrc = brgemm_node->get_output_element_type(0);
     const auto brgemm_type = brgemm_node->get_type();
-    m_is_with_amx = brgemm_utils::with_amx(brgemm_type);
-    if (m_is_with_amx) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc, brg1Prc, brgemm_utils::get_primitive_isa(brg0Prc, true));
+    const auto& post_ops_config = brgemm_node->get_postops_config();
+
+    m_binary_postops_offset = post_ops_config.binary_postops_offset;
+    if (brgemm_utils::with_amx(brgemm_type)) {
+        BrgemmAMXKernelConfig kernel_config(brg0Prc,
+                                            brg1Prc,
+                                            brgOutPrc,
+                                            brgemm_utils::get_primitive_isa(brg0Prc, true),
+                                            post_ops_config.post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     } else {
         BrgemmKernelConfig kernel_config(brg0Prc,
                                          brg1Prc,
+                                         brgOutPrc,
                                          with_compensations(brgemm_type),
-                                         brgemm_utils::get_primitive_isa(brg0Prc, false));
+                                         brgemm_utils::get_primitive_isa(brg0Prc, false),
+                                         post_ops_config.post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     }
@@ -54,10 +86,12 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
     m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
                     utils::get_buffer_cluster_id(expr->get_input_port(1)),
                     utils::get_buffer_cluster_id(expr->get_output_port(0))};
-    if (with_scratchpad(brgemm_type)) {
+    m_with_scratchpad = with_scratchpad(brgemm_type);
+    if (m_with_scratchpad) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
+    m_gemm_inputs_count = brgemm_node->get_gemm_inputs_count();
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
@@ -65,32 +99,55 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
     using brgemm_utils::BRGEMM_TYPE;
+
+    auto form_precisions = [&brgemm](const element::TypeVector& precisions) {
+        OPENVINO_ASSERT(precisions.size() == brgemm->get_gemm_inputs_count(),
+                        "precisions size should be equal to the number of gemm inputs");
+        auto res = precisions;
+        // Note: all postops are supported only in f32 precision
+        for (size_t i = brgemm->get_gemm_inputs_count(); i < brgemm->input_values().size(); ++i) {
+            res.push_back(element::f32);
+        }
+        return res;
+    };
+
     switch (brgemm->get_type()) {
     case BRGEMM_TYPE::STAND_ALONE:
-        return {{element::f32, element::f32}};
+        return {form_precisions({element::f32, element::f32})};
     case BRGEMM_TYPE::REPACKING_ONLY: {
-        std::set<std::vector<element::Type>> supported_types = {{element::u8, element::i8},
-                                                                {element::bf16, element::bf16},
-                                                                {element::f32, element::f32}};
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            supported_types.insert({element::i8, element::i8});
+        std::set<std::vector<element::Type>> supported_types = {form_precisions({element::f32, element::f32})};
+        if (mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+            supported_types.insert(form_precisions({element::bf16, element::bf16}));
+        }
+        if (mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
+            supported_types.insert(form_precisions({element::f16, element::f16}));
+            supported_types.insert(form_precisions({element::i8, element::i8}));
+        }
+        if (mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni)) {
+            supported_types.insert(form_precisions({element::u8, element::i8}));
         }
         return supported_types;
     }
     case BRGEMM_TYPE::WITH_COMPENSATIONS:
-        return {{element::i8, element::i8, element::f32}};
-    case BRGEMM_TYPE::WITH_AMX:
-        return {{element::i8, element::i8, element::u8},
-                {element::u8, element::i8, element::u8},
-                {element::bf16, element::bf16, element::u8},
-                {element::f16, element::f16, element::u8}};
+        return {form_precisions({element::i8, element::i8, element::f32})};
+    case BRGEMM_TYPE::WITH_AMX: {
+        std::set<std::vector<element::Type>> supported_types = {
+            form_precisions({element::i8, element::i8, element::u8}),
+            form_precisions({element::u8, element::i8, element::u8}),
+            form_precisions({element::bf16, element::bf16, element::u8})};
+        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+            supported_types.insert(form_precisions({element::f16, element::f16, element::u8}));
+        }
+        return supported_types;
+    }
     default:
         OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
     }
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == in.size() + 1 && (out.size() == 1),
+    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == m_gemm_inputs_count + 1, "invalid memory offsets size");
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() >= m_gemm_inputs_count && out.size() == 1,
                               "expects 3 inputs if there are compensations/wsp");
 }
 
@@ -98,7 +155,7 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
     init_binary_call_regs(2, mem_ptrs_idxs);
-    if (in.size() > 2) {
+    if (m_with_scratchpad) {
         mem_ptrs_idxs.emplace_back(in[2]);
     }
 
@@ -128,7 +185,6 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
                                                      GET_OFF_CALL_ARGS(B),
                                                      GET_OFF_CALL_ARGS(C),
                                                      GET_OFF_CALL_ARGS(scratch)};
-#undef GET_OFF_CALL_ARGS
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
@@ -147,6 +203,16 @@ void jit_brgemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) con
     if (mem_ptrs.size() < 4) {
         h->mov(h->qword[h->rsp + brgemm_args_offsets.back()], reinterpret_cast<uintptr_t>(nullptr));
     }
+
+    // Prepare external pointers
+    if (m_binary_postops_offset) {
+        h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(external_ptrs)]);
+        h->add(aux_reg, m_binary_postops_offset.value() * sizeof(void**));
+        h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], aux_reg);
+    } else {
+        h->mov(h->qword[h->rsp + GET_OFF_CALL_ARGS(post_ops_binary_arg_vec)], reinterpret_cast<uintptr_t>(nullptr));
+    }
+#undef GET_OFF_CALL_ARGS
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     if (std::is_same<T, BrgemmAMXKernelExecutor>()) {

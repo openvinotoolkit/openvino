@@ -4,10 +4,21 @@
 
 #include "brgemm_utils.hpp"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+
 #include "dnnl_extension_utils.h"
 #include "emitters/utils.hpp"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
-#include "snippets/op/buffer.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "utils/general_utils.h"
@@ -42,7 +53,11 @@ cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
             SUPPORT_ONE(avx512_core_amx,
                         "Unsupported hardware configuration: amx is supported only on avx512 platforms")
     } else if (dt_in0 == ov::element::bf16) {
-        SUPPORT_ONE(avx512_core_bf16, "Unsupported hardware configuration: bf16 is supported only on avx512 platforms")
+        SUPPORT_TWO(avx512_core_bf16,
+                    avx2_vnni_2,
+                    "Unsupported hardware configuration: bf16 is supported only on avx512 and avx2_vnni_2 platforms")
+    } else if (dt_in0 == ov::element::f16) {
+        SUPPORT_ONE(avx2_vnni_2, "Unsupported hardware configuration: fp16 is supported only on avx2_vnni_2 platforms")
     } else if (one_of(dt_in0, ov::element::u8, ov::element::i8)) {
         SUPPORT_THREE(avx512_core_vnni,
                       avx2_vnni_2,
@@ -64,10 +79,12 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, bool transp
         return transpose_b ? BRGEMM_TYPE::REPACKING_ONLY : BRGEMM_TYPE::STAND_ALONE;
     }
 
-    OPENVINO_ASSERT(element_type_a != element::bf16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16),
-                    "BrgemmCPU BF16 precision is not supported on non avx512_core_bf16 system");
-    OPENVINO_ASSERT(element_type_a != element::f16 || mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16),
-                    "BrgemmCPU FP16 precision is not supported on non avx512_core_amx_fp16 system");
+    if (element_type_a == element::bf16) {
+        OPENVINO_ASSERT(is_bf16_supported(), "BrgemmCPU BF16 precision is not supported on the current system");
+    }
+    if (element_type_a == element::f16) {
+        OPENVINO_ASSERT(is_fp16_supported(), "BrgemmCPU FP16 precision is not supported on the current system");
+    }
 
     if (one_of(element_type_a, element::u8, element::i8, element::bf16) &&
         dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
@@ -84,7 +101,7 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, bool transp
                                                                                 : BRGEMM_TYPE::WITH_COMPENSATIONS;
     }
 
-    if (one_of(element_type_a, element::u8, ov::element::bf16)) {
+    if (one_of(element_type_a, element::u8, ov::element::bf16, ov::element::f16)) {
         return BRGEMM_TYPE::REPACKING_ONLY;
     }
     OV_CPU_JIT_EMITTER_THROW("Failed to determine brgemm mode");

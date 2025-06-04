@@ -75,6 +75,12 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "FP64";
     case ov::element::Type_t::bf16:
         return "BF16";
+    case ov::element::Type_t::f8e4m3:
+        return "FP8_E4M3";
+    case ov::element::Type_t::f8e5m2:
+        return "FP8_E5M2";
+    case ov::element::Type_t::f8e8m0:
+        return "FP8_E8M0";
     case ov::element::Type_t::nf4:
         return "NF4";
     case ov::element::Type_t::i4:
@@ -491,6 +497,28 @@ std::string DriverCompilerAdapter::serializeConfig(const Config& config,
         content = std::regex_replace(content,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
+    }
+
+    // Special case for compiler Turbo
+    // NPU_TURBO is a special option in the sense that by default it is a driver-setting, but certain compilers support
+    // and make use of it too If we have turbo in the config string, we check if compiler supports it. If it doesn't
+    // support it, we remove it
+    if (std::regex_search(content, std::regex("NPU_TURBO"))) {
+        bool is_supported = false;
+        try {
+            is_supported = is_option_supported("NPU_TURBO");
+        } catch (...) {
+            // mute it, not critical
+            is_supported = false;
+        }
+        if (!is_supported) {
+            std::ostringstream turbostr;
+            turbostr << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                     << VALUE_DELIMITER;
+            logger.info("NPU_TURBO property is not supported by this compiler. Removing from "
+                        "parameters");
+            content = std::regex_replace(content, std::regex(turbostr.str()), "");
+        }
     }
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility

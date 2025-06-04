@@ -16,8 +16,12 @@ endif()
 
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
-      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm
-      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/arm)
+      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm)
+endif()
+
+if (NOT AARCH64)
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/aarch64)
 endif()
 
 if(NOT X86_64)

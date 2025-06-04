@@ -4,7 +4,22 @@
 
 #include "jit_dnnl_emitters.hpp"
 
-#include <nodes/eltwise.h>
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl;
@@ -43,17 +58,17 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator_t* host,
 void jit_dnnl_emitter::set_injector() {
     if (host_isa_ == cpu::x64::sse41) {
         eltwise_injector_sse42 =
-            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::sse41>>(h, kind, alpha, beta, 1.f, data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::sse41>>(h, kind, alpha, beta, 1.F, data_type::f32);
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2 =
-            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx2>>(h, kind, alpha, beta, 1.f, data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx2>>(h, kind, alpha, beta, 1.F, data_type::f32);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         eltwise_injector_avx512_core =
             std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx512_core>>(h,
                                                                                 kind,
                                                                                 alpha,
                                                                                 beta,
-                                                                                1.f,
+                                                                                1.F,
                                                                                 data_type::f32);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);

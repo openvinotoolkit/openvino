@@ -3,17 +3,18 @@
 //
 #include "executor_pa_common.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <cfloat>
 #include <cmath>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "utils/plain_tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::Extensions::Cpu {
 

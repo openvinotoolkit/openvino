@@ -4,12 +4,18 @@
 
 #pragma once
 
-#include "emitters/plugin/x64/jit_emitter.hpp"
+#include <libxsmm_typedefs.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
-#include "emitters/tpp/common/utils.hpp"
-#include "libxsmm.h"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/shape_types.hpp"
 
 namespace ov::intel_cpu {
 

@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_cpu {

@@ -2923,19 +2923,26 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
-    void test_compressed_int8_scale(bool is_caching_test, bool is_dynamic, int64_t batch_num, bool use_bias = false, bool use_zp = false, bool is_3d = false) {
+    void test_compressed_int8_scale(bool is_caching_test,
+                                    bool is_dynamic,
+                                    int64_t batch_num,
+                                    bool use_bias = false,
+                                    bool use_zp = false,
+                                    bool is_3d = false,
+                                    bool common_scale = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
         int64_t ifm_num = 33;
         int64_t ofm_num = 65;
+        int64_t scales_num = common_scale ? 1 : ofm_num;
 
         auto in_shape = is_3d ? ov::PartialShape({batch_num, 1, ifm_num}) : ov::PartialShape({batch_num, ifm_num});
         auto bias_shape = is_3d ? ov::PartialShape({1, 1, ofm_num}) : ov::PartialShape({1, ofm_num});
         auto input_mem = engine.allocate_memory({ in_shape, data_types::f16, format::bfyx });
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u8, format::bfyx });
         auto bias_mem = engine.allocate_memory({ bias_shape, data_types::f16, format::bfyx });
-        auto scale_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::f16, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {scales_num, 1}, data_types::f16, format::bfyx });
         auto zp_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::u8, format::bfyx });
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f);
@@ -2947,7 +2954,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto bias_data = rg.generate_random_1d<ov::float16>(ofm_num, -2.0f, 2.0f);;
         set_values(bias_mem, bias_data);
 
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num, -1.0f, 1.0f);
+        auto scale_data = rg.generate_random_1d<ov::float16>(scales_num, -1.0f, 1.0f);
         set_values(scale_mem, scale_data);
 
         auto zp_data = rg.generate_random_1d<uint8_t>(ofm_num, 0, 4);
@@ -3853,7 +3860,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
     void test_compressed_int8_scale_dyn_quan_weight_u8(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
                                                         size_t quantize_group_size = 32, int scales_group_size = 128,
-                                                        bool is_wzp_test = false, bool is_wzp_scalar = false) {
+                                                        bool is_wzp_test = false, bool is_wzp_scalar = false, int wzp_size = 1) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -3870,7 +3877,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u8, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::fbyx });
-        auto dcomp_zp_mem = engine.allocate_memory({ {wzp_num, 1}, data_types::u8, format::bfyx });
+        auto dcomp_zp_mem = engine.allocate_memory({ {wzp_num, wzp_size}, data_types::u8, format::bfyx });
 
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.f, 2.f);
@@ -5279,6 +5286,14 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b13) {
     this->test_compressed_int8_scale(false, true, 13, false, true);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int8_common_scale_b13) {
+    this->test_compressed_int8_scale(false, true, 13, false, false, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_common_scale_b13_cached) {
+    this->test_compressed_int8_scale(true, true, 13, false, false, false, true);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_b12_3d) {
     this->test_compressed_int8_scale(false, true, 12, false, true, true);
 }
@@ -5331,6 +5346,9 @@ TEST_F(fully_connected_gpu_tests, dynamic_multi_inference_multiple_shapes_cached
     this->test_dynamic_multi_inference_multiple_shapes(true);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int8_dynamic_quantize_grouped_wzp_test) {
+    this->test_compressed_int8_scale_dyn_quan_weight_u8(false, 320, 1024, 1024, 32, 32, true, false, 32);
+}
 
 using fully_connected_dynamic_test_params = std::tuple<
     std::vector<ov::Dimension::value_type>, // batch_sizes
