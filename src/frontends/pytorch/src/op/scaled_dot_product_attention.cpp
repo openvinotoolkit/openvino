@@ -117,7 +117,7 @@ std::shared_ptr<Node> decompose_gqa(const NodeContext& context,
                                     const Output<Node>& value,      // [B,..., Hk, S, Dv]
                                     const Output<Node>& scale,      // optional
                                     const Output<Node>& attn_mask,  // optional
-                                    bool is_casual) {
+                                    bool is_causal) {
     auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i64));
     auto v_shape = context.mark_node(std::make_shared<v3::ShapeOf>(value, element::i64));
 
@@ -151,7 +151,7 @@ std::shared_ptr<Node> decompose_gqa(const NodeContext& context,
     }
 
     auto inputs = prepare_inputs_to_sdpa(context, q_reshaped, k_unsqueezed, v_unsqueezed, scale, unsqueezed_attn_mask);
-    auto attn = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_casual));
+    auto attn = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
 
     // Reshape back: [B,..., Hk, group_size, T, Dv] -> [B,..., Hq, T, Dv]
     auto reshape_out_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{prefix_shape, Hq, L, Dv}, 0));
