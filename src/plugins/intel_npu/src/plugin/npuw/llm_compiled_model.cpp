@@ -775,8 +775,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
 }
 
 void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, const uint32_t& batch_dim) {
-    // We have only one input: output of Slice operation, and this output should
-    // have "1" in 1st dimension.
+    // We have only one input with dynamic shapes: output of Slice operation, and this output
+    // should have "1" for dimension representing number of embeddings to send to the matmul.
     // Batch size should be also equal "1" for NPU.
     const auto& input = tail_mm_model->input(0);
     const auto& partial_shape = input.get_partial_shape();
@@ -784,7 +784,14 @@ void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, con
 
     ov::PartialShape new_shape = partial_shape;
     new_shape[batch_dim] = 1;
-    new_shape[1] = 1;
+    // Left dynamic axis will be for number of embeddings
+    for (auto i = 0; i < new_shape.rank().get_length(); i++) {
+        if (new_shape[i].is_dynamic()) {
+            new_shape[i] = 1;
+            // Just prevention of multiple left axes to be set to 1, as it is unexpected 
+            break;
+        }
+    }
 
     tail_mm_model->reshape(new_shape);
 }
