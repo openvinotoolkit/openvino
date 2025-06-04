@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <openvino/runtime/core.hpp>
+#include <openvino/runtime/intel_npu/properties.hpp>
 
 #include "common_test_utils/unicode_utils.hpp"
 #include "npu_test_env_cfg.hpp"
