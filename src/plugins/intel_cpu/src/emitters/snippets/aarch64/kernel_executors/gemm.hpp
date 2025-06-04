@@ -35,7 +35,7 @@ public:
 
     // No need kernel update, just update config is enough for update. The universal ukernel is reused with any config.
     void update_kernel(const GemmKernelKaiConfig& config,
-                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final {}
+                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final;
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0);

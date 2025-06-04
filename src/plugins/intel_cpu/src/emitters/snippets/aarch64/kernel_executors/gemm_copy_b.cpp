@@ -33,7 +33,7 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
 #endif
 
 void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t n_blk_size) {
-    // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for
+    // If one of the dims is zero, it means that GemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
     if (ov::snippets::utils::one_of(0ul, N, K, n_blk_size)) {
         m_N = 0;
@@ -56,19 +56,19 @@ size_t GemmCopyBKernelKaiConfig::compute_hash() const {
 }
 
 GemmCopyBKaiKernelExecutor::GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {
-    m_kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
+
+void GemmCopyBKaiKernelExecutor::update_kernel(const GemmCopyBKernelKaiConfig& config,
+                                               std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const {
+    if (kernel == nullptr) {
+        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+    }
 }
 
 void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                                const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                GemmCopyBKernelKaiConfig& config) const {
-    const auto& input_pds = expr->get_input_port_descriptors();
-    const auto& output_pds = expr->get_output_port_descriptors();
-    OV_CPU_JIT_EMITTER_ASSERT((input_pds.size() == 1) && output_pds.size() == 1,
-                              "Invalid number of in/out port descriptors");
-
-    const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
+    const auto& in0_shape = snippets::utils::get_planar_vdims(expr->get_input_port(0));
     int64_t N = *in0_shape.rbegin();
     int64_t K = *++in0_shape.rbegin();
     const auto& child_gemms = intel_cpu::aarch64::gemm_utils::repacking::get_gemm_exprs(expr);
@@ -99,6 +99,7 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     const size_t sr = ukernel.get_sr();
     size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
     size_t dst_offset = 0;
+    const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_blk_size, K);
     int8_t* bias = static_cast<int8_t*>(executor->get_bias_mem());
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {
         size_t n_start = n_block * n_blk_size;
@@ -106,7 +107,6 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
         size_t n_step = n_end - n_start;
         int8_t* src_ptr = static_cast<int8_t*>(in0) + n_start * sizeof(int32_t);
         int8_t* dst_ptr = static_cast<int8_t*>(out0) + dst_offset;
-        const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_step, K);
         dst_offset += rhsPackedSize;
         kai_run_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(1,
                                                          n_step,

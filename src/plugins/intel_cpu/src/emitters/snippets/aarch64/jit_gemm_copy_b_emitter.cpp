@@ -45,7 +45,6 @@ void jit_gemm_copy_b_emitter::emit_code_impl(const std::vector<size_t>& in,
 }
 
 void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    validate_arguments(in, out);
     // todo: use optimized reg spill after CVS-162498
     std::unordered_set<size_t> exclude = {};
     store_context(exclude);

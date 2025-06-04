@@ -41,11 +41,11 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
     [[maybe_unused]] size_t allocation_rank) {
     const auto& parent_expr = get_input_port_connector(0)->get_source().get_expr();
-    const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0));
-    OPENVINO_ASSERT(in_subtensor.size() >= 2 && allocation_rank >= 2, "GemmCopyB should has at least 2 rank tensor");
+    const auto& in_shape = ov::snippets::utils::get_planar_vdims(parent_expr->get_input_port(0));
+    OPENVINO_ASSERT(in_shape.size() >= 2 && allocation_rank >= 2, "GemmCopyB should has at least 2 rank tensor");
     const auto& element_type = get_node()->get_input_element_type(0);
-    const size_t N = *in_subtensor.rbegin();
-    const size_t K = *++in_subtensor.rbegin();
+    const size_t N = *in_shape.rbegin();
+    const size_t K = *++in_shape.rbegin();
 
     const auto& consumers = get_output_port_connector(0)->get_consumers();
     ExpressionPtr child_gemm_expr = nullptr;
@@ -66,10 +66,7 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     }
     size_t n_block_num = N / n_block_size;
     size_t n_tail_size = N % n_block_size;
-    m_allocation_size = 0;
-    for (size_t i = 0; i < n_block_num; i++) {
-        m_allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_block_size, K);
-    }
+    m_allocation_size = n_block_num * kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_block_size, K);
     if (n_tail_size > 0) {
         m_allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_tail_size, K);
     }

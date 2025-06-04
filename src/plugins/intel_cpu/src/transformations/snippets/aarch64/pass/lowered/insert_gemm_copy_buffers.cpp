@@ -30,12 +30,11 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
         const auto& buffer_op = std::make_shared<ov::snippets::op::Buffer>(copy_b->output(0));
         BufferExpressionPtr buffer_expr =
             factory->build<ov::intel_cpu::aarch64::RepackedWeightsBufferExpression>(buffer_op, {copy_b_out});
-        return linear_ir.insert_expr(
-            buffer_expr,
-            LoopManager::get_common_outer_loops(copy_b_expr, copy_b_consumers.begin()->get_expr()),
-            true,
-            insertion_pos,
-            {copy_b_consumers});
+        linear_ir.insert_expr(buffer_expr,
+                              LoopManager::get_common_outer_loops(copy_b_expr, copy_b_consumers.begin()->get_expr()),
+                              true,
+                              insertion_pos,
+                              {copy_b_consumers});
     };
 
     bool modified = false;
@@ -48,7 +47,7 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
                 insert_copy_b_buffer(copy_b_expr, insertion_it);
                 modified = true;
             } else {
-                OPENVINO_ASSERT("GemmCopyB must connect to gemmCPU in subgraph, and not be extracted from the body");
+                OPENVINO_THROW("GemmCopyB must connect to gemmCPU in subgraph, and not be extracted from the body");
             }
         }
     }

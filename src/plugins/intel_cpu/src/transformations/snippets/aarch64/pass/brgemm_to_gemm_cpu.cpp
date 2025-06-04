@@ -23,16 +23,6 @@ namespace ov::intel_cpu {
 
 using namespace snippets::lowered;
 
-namespace {
-template <typename T>
-void set_full_port_desc(const T& port) {
-    const auto& shape_rank = port.get_partial_shape().size();
-    const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, static_cast<size_t>(2)),
-                                                 ov::snippets::utils::get_full_dim_value());
-    PortDescriptorUtils::set_port_descriptor(port, full_dim_subtensor);
-}
-}  // namespace
-
 pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
     MATCHER_SCOPE(BrgemmToGemmCPU);
     auto is_not_tpp = [](const Output<Node>& out) {
@@ -71,7 +61,7 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
                                                                    copyb_out_port_desc,
                                                                    layout_b);
         PortDescriptorUtils::set_port_descriptor(gemm_repacking->input(0), brgemm_in1_desc->get_subtensor(), layout_b);
-        set_full_port_desc(gemm_repacking->output(0));
+        snippets::utils::set_full_port_desc(gemm_repacking->output(0));
 
         snippets::modifier::MemoryAccess::PortDescriptor gemm_in_port_desc_0(0, offset_a);
         snippets::modifier::MemoryAccess::PortDescriptor gemm_in_port_desc_1(0, 0);
@@ -91,7 +81,7 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
 
         // Transfer ports
         PortDescriptorUtils::set_port_descriptor(gemm_cpu->input(0), brgemm_in0_desc->get_subtensor(), layout_a);
-        set_full_port_desc(gemm_cpu->input(1));
+        snippets::utils::set_full_port_desc(gemm_cpu->input(1));
         PortDescriptorUtils::set_port_descriptor(gemm_cpu->output(0), brgemm_out_desc->get_subtensor(), layout_c);
 
         // need to run validate_and_infer_types manually: either input shapes were updated or

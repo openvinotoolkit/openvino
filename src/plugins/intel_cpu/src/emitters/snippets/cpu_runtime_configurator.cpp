@@ -28,7 +28,7 @@
 #    include "transformations/snippets/x64/pass/lowered/external_repacking_adjuster.hpp"
 #endif
 #ifdef OPENVINO_ARCH_ARM64
-#    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/gemm_copy_b_loop_ports_adjuster.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -72,7 +72,9 @@ void CPURuntimeConfigurator::initialization(const ov::snippets::lowered::LinearI
     RuntimeOptimizer::register_if_applicable<BrgemmExternalRepackingAdjuster>(m_final_optimizers, linear_ir, this);
 #endif
 #ifdef OPENVINO_ARCH_ARM64
-    m_intermediate_optimizers.register_pass<pass::aarch64::AdjustGemmCopyBLoopPorts>();
+    RuntimeOptimizer::register_if_applicable<pass::aarch64::GemmCopyBLoopPortsAdjuster>(m_intermediate_optimizers,
+                                                                                        linear_ir,
+                                                                                        this);
 #endif
 }
 

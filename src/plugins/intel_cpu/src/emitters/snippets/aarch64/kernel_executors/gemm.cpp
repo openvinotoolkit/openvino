@@ -11,16 +11,19 @@
 namespace ov::intel_cpu::aarch64 {
 
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {
-    m_kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+    : snippets::KernelExecutor<GemmKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
+
+void GemmKaiKernelExecutor::update_kernel(const GemmKernelKaiConfig& config,
+                                          std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const {
+    if (kernel == nullptr) {
+        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+    }
 }
 
 void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                           const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                           GemmKernelKaiConfig& config) const {
-    // update M/N/K/beta
-    // int64_t M, N, K, beta;
-    auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
+    const auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
 
     const auto LDA = snippets::utils::get_dim_stride(expr->get_input_port(0));
     const auto LDC = snippets::utils::get_dim_stride(expr->get_output_port(0));

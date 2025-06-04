@@ -23,7 +23,7 @@ namespace repacking {
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& gemm_expr);
 
 /**
- * @brief Retrieves the expression pointers for the gemm expression corresponding to the given gemm_copy_b
+ * @brief Retrieves the expression pointers for the gemm expressions corresponding to the given gemm_copy_b
  * expression.
  * @param gemm_expr The expression pointer for the gemm_copy_b operation.
  * @return The expression pointers for the gemm operation.
