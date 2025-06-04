@@ -306,6 +306,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NoReshapeAndReshapeDynamic.*CodegenGelu.*)",
         // Issue: 163351
         R"(.*CoreThreadingTestsWithIter.*nightly_AsyncInfer_ShareInput.*)",
+        // Issue: 168864
+        R"(.*smoke_GroupConv_brgemm_1D_FP32/GroupConvolutionLayerCPUTest.CompareWithRefs.*)",
         // This transformation is disabled on CPU
         R"(.*smoke_LPT.*MultiplyToGroupConvolutionTransformation.*)",
     };
@@ -345,6 +347,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
         // Ticket: 166771
         retVector.emplace_back(R"(.*smoke_BroadcastEltwise/BroadcastEltwise.smoke_CompareWithRefs.*)");
+        // Ticket: 168863
+        retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
