@@ -973,6 +973,9 @@ ov::AnyMap get_default_tail_mm_config(const std::optional<NPUDesc>& npudesc) {
     config.erase("NPUW_SLICE_OUT");
     config.erase("NPUW_FUNCALL_ASYNC");
     config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
+    if (npudesc.has_value() && npudesc->arch == "4000") {
+        config.emplace("NPU_TILES", 6);
+    }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         config.emplace("NPUW_DQ", "YES");
