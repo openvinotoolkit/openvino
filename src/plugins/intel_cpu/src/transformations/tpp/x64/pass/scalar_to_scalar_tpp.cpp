@@ -4,9 +4,17 @@
 
 #include "scalar_to_scalar_tpp.hpp"
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/port_connector.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/scalar.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 #include "transformations/tpp/x64/op/scalar.hpp"
@@ -25,8 +33,9 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
         size_t num_connected_tpp = 0;
         const auto& target_ins = node->get_output_target_inputs(0);
         for (const auto& in : target_ins) {
-            if (dynamic_cast<tpp::modifier::TensorProcessingPrimitive*>(in.get_node()))
+            if (dynamic_cast<tpp::modifier::TensorProcessingPrimitive*>(in.get_node())) {
                 num_connected_tpp++;
+            }
         }
         if (num_connected_tpp == 0) {
             return false;
@@ -40,8 +49,9 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
         ov::replace_node_update_name(node, tpp_scalar);
         const auto& out = tpp_scalar->output(0);
         ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(out, {1});
-        for (const auto& in : out.get_target_inputs())
+        for (const auto& in : out.get_target_inputs()) {
             ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(in, {1});
+        }
         return true;
     };
 

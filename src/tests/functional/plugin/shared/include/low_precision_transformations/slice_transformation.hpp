@@ -23,7 +23,6 @@ typedef std::tuple<
     ov::element::Type,
     ov::PartialShape,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     SliceTransformationParam
 > SliceTransformationParams;
 

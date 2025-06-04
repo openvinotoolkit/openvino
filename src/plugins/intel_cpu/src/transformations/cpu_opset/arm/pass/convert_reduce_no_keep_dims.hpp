@@ -3,10 +3,11 @@
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 /*
  * Description:

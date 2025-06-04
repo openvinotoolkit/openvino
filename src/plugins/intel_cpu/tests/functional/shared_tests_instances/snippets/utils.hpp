@@ -13,11 +13,11 @@ namespace snippets {
 #define SNIPPETS_TESTS_STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 
 static inline bool is_bf16_supported_by_brgemm() {
-    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16();
+    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
 }
 
 static inline bool is_fp16_supported_by_brgemm() {
-    return ov::with_cpu_x86_avx512_core_amx_fp16();
+    return ov::with_cpu_x86_avx512_core_amx_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
 }
 
 static inline bool is_i8_supported_by_brgemm() {
@@ -27,6 +27,12 @@ static inline bool is_i8_supported_by_brgemm() {
 static inline std::vector<std::vector<element::Type>> precision_f32(size_t count) {
     std::vector<std::vector<element::Type>> prc;
     prc.emplace_back(std::vector<element::Type>(count, element::f32));
+    return prc;
+}
+
+static inline std::vector<std::vector<element::Type>> precision_i8(size_t count) {
+    std::vector<std::vector<element::Type>> prc;
+    prc.emplace_back(std::vector<element::Type>(count, element::i8));
     return prc;
 }
 

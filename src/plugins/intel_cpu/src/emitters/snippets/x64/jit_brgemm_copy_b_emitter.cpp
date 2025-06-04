@@ -4,13 +4,28 @@
 
 #include "jit_brgemm_copy_b_emitter.hpp"
 
-#include <cpu/x64/brgemm/brgemm.hpp>
-#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
+#include <cpu/x64/xbyak/xbyak.h>
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
+#include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "emitters/snippets/x64/utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;

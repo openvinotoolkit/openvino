@@ -5,9 +5,17 @@
 #pragma once
 
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
+#include "allocation_context.hpp"
+#include "cpu_types.h"
 #include "graph.h"
+#include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
