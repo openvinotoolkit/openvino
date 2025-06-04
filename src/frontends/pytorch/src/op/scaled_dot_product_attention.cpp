@@ -29,10 +29,10 @@ using namespace ov::op;
 
 namespace {
 ov::OutputVector prepare_inputs_to_sdpa(const NodeContext& context,
-                                        const Output<Node>& query,  // [B, Hq, T, D]
-                                        const Output<Node>& key,    // [B, Hk, T, D]
-                                        const Output<Node>& value,  // [B, Hk, T, D]
-                                        const Output<Node>& scale,  // optional
+                                        const Output<Node>& query,
+                                        const Output<Node>& key,
+                                        const Output<Node>& value,
+                                        const Output<Node>& scale,
                                         const Output<Node>& attn_mask) {
     OutputVector inputs = {query, key, value};
 
@@ -88,11 +88,8 @@ ov::Output<ov::Node> get_dim_for_negative_idx(const NodeContext& context,
 
 // Returns sub-shape[0 : rank - delta]
 ov::Output<ov::Node> get_prefix_shape_until_rank_minus_delta(const NodeContext& context,
-                                                             const Output<Node>& input,
+                                                             const Output<Node>& input_shape,
                                                              int64_t delta) {
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i64));
-
-    // rank = length of shape = ShapeOf(ShapeOf(input))[0]
     auto input_rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i64));
 
     // end = rank - delta
@@ -131,7 +128,7 @@ std::shared_ptr<Node> decompose_gqa(const NodeContext& context,
     auto Hk = get_dim_for_negative_idx(context, v_shape, -3);
 
     // Extract prefix shape for query [B, ...]. it excludes [Hq, L, D]
-    auto prefix_shape = get_prefix_shape_until_rank_minus_delta(context, query, 3);
+    auto prefix_shape = get_prefix_shape_until_rank_minus_delta(context, q_shape, 3);
 
     // Compute group_size = Hq / Hk
     auto group_size = context.mark_node(std::make_shared<v1::Divide>(Hq, Hk));
