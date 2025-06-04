@@ -10,10 +10,10 @@ namespace ov {
 namespace reference {
 namespace helpers {
 template <typename T>
-T HandleNegativeIndicies(const T* indicies, size_t idx, T axisDimSize) {
+T handle_negative_indicies(const T* indicies, size_t idx, T axis_dim_size) {
     const T index = indicies[idx];
-    OPENVINO_ASSERT(index < axisDimSize && index >= -axisDimSize, "indices values of GatherElement exceed data size");
-    const T fixedIdx = index < 0 ? axisDimSize + index : index;
+    OPENVINO_ASSERT(index < axis_dim_size && index >= -axis_dim_size, "indices values of GatherElement exceed data size");
+    const T fixedIdx = index < 0 ? axis_dim_size + index : index;
     return fixedIdx;
 }
 }  // namespace helpers
@@ -33,12 +33,12 @@ void gather_elements(const T* data,
         throw std::domain_error{"axis for GatherElements exceeds allowed range [0, data_rank)"};
     }
 
-    const U axisDimSize = static_cast<U>(data_shape[axis]);
+    const U axis_dim_size = static_cast<U>(data_shape[axis]);
 
     // in 1D case results can be achieved without additional calculations
     if (data_shape.size() == 1) {
         for (size_t i = 0; i < indices_shape[0]; i++) {
-            const U idx = helpers::HandleNegativeIndicies<U>(indices, i, axisDimSize);
+            const U idx = helpers::handle_negative_indicies<U>(indices, i, axis_dim_size);
             out[i] = data[idx];
         }
         return;
@@ -53,7 +53,7 @@ void gather_elements(const T* data,
         if (axis == 0) {
             for (size_t i = 0; i < num_rows; i++)
                 for (size_t j = 0; j < num_columns; j++) {
-                    const U idx = helpers::HandleNegativeIndicies<U>(indices, num_columns * i + j, axisDimSize);
+                    const U idx = helpers::handle_negative_indicies<U>(indices, num_columns * i + j, axis_dim_size);
                     out[num_columns * i + j] = data[data_num_columns * idx + j];
                 }
             return;
@@ -61,7 +61,7 @@ void gather_elements(const T* data,
         {
             for (size_t i = 0; i < num_rows; i++)
                 for (size_t j = 0; j < num_columns; j++) {
-                    const U idx = helpers::HandleNegativeIndicies<U>(indices, num_columns * i + j, axisDimSize);
+                    const U idx = helpers::handle_negative_indicies<U>(indices, num_columns * i + j, axis_dim_size);
                     out[num_columns * i + j] = data[data_num_columns * i + idx];
                 }
             return;
@@ -101,7 +101,7 @@ void gather_elements(const T* data,
     for (size_t outer_sum = 0, i = 0; outer_sum < max_outer_sum; outer_sum += outer_sum_inc)
         for (size_t k = 0; k < indices_shape[axis]; k++)
             for (size_t inner_sum = 0; inner_sum < max_inner_sum; inner_sum++) {
-                const U idx = helpers::HandleNegativeIndicies<U>(indices, i, axisDimSize);
+                const U idx = helpers::handle_negative_indicies<U>(indices, i, axis_dim_size);
                 out[i] = data[outer_sum + max_inner_sum * idx + inner_sum];
                 i++;
             }
