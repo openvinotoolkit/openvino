@@ -30,7 +30,6 @@ RUN dnf update -y && dnf install -y \
     make \
     tar \
     gcc \
-    glibc-devel \
     gcc-c++ \
     # parallel gzip
     pigz \
