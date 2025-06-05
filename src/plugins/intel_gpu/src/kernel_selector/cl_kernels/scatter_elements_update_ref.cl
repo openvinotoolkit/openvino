@@ -100,12 +100,10 @@
         }
 
         inline uint add_count(
-            #if COUNT_LENGTH > COUNT_LIMIT
-            __global int count_k[], __global int count_v[], 
-            #else
-            __local int count_k[], __local int count_v[], 
-            #endif
-            int idx, uint valid_count)
+            __local int count_k[],
+            __local int count_v[],
+            int idx,
+            uint valid_count)
         {
             for (int i = 0; i < valid_count; ++i) {
                 if (count_k[i] == idx) {
@@ -117,8 +115,12 @@
             count_v[valid_count] += 1;
             return valid_count + 1;
         }
-    
-        inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
+
+        inline int get_count(
+            __local int count_k[],
+            __local int count_v[],
+            int it,
+            int *idx)
         {
             if (count_k[it] != -1) {
                 *idx = count_k[it];
@@ -185,16 +187,8 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
             const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
         #endif
-        #if COUNT_LENGTH > COUNT_LIMIT
-            __global int count_k[COUNT_LENGTH];
-            __global int count_v[COUNT_LENGTH];
-        #elif COUNT_LENGTH == 0
-            __local int count_k[1];
-            __local int count_v[1];
-        #else
             __local int count_k[COUNT_LENGTH];
             __local int count_v[COUNT_LENGTH];
-        #endif
         for (int i = 0; i < COUNT_LENGTH; ++i) {
             count_k[i] = -1;
             count_v[i] = 0;
