@@ -220,7 +220,7 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0LU;
                 for (size_t i = 0; i < sliceRank; i++) {
-                    const int32_t index = HandleNegativeIndicies(shiftedIndices, i);
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i);
                     dataIdx += srcShifts[i] * index;
                 }
                 cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataLength);
@@ -263,7 +263,7 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0LU;
                 for (size_t i = 0LU; i < sliceRank; i++) {
-                    const int32_t index = HandleNegativeIndicies(shiftedIndices, i);
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i);
                     dataIdx += srcShifts[i] * index;
                 }
                 shiftedDstData[0] = shiftedSrcData[dataIdx];
@@ -279,8 +279,8 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
     });
 }
 
-int32_t GatherND::GatherNDExecutor::HandleNegativeIndicies(const int32_t* indicies, size_t idx) const {
-    int32_t index = indicies[idx];
+int32_t GatherND::GatherNDExecutor::HandleNegativeIndices(const int32_t* indices, size_t idx) const {
+    int32_t index = indices[idx];
     if (index < 0) {
         index += srcDims[idx + batchDims];
     }
