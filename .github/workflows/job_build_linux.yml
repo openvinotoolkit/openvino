@@ -169,7 +169,7 @@ jobs:
       - name: Install Test dependencies
         run: |
           poetry env info
-          poetry install --with build,onnx,tensorflow,paddle,tests # onnx required for test model generation
+          poetry install --with build,onnx,tests # onnx required for test model generation
         working-directory: ${{ env.OPENVINO_REPO }}
 
       #
@@ -187,7 +187,9 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: |
+          $(poetry env activate -C ${{ env.OPENVINO_REPO }})
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
