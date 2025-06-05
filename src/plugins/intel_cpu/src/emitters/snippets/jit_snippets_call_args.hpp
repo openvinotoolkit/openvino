@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
-#include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 
 namespace ov::intel_cpu {
@@ -35,6 +36,7 @@ struct jit_snippets_call_args {
     ~jit_snippets_call_args();
 
     void register_loops(const std::vector<loop_args_t>& loops);
+    void init_external_ptrs(const size_t size);
 
     const void* src_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
     void* dst_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
@@ -48,6 +50,7 @@ struct jit_snippets_call_args {
     // Issue: 168073
     // TODO: decrease max array size
     size_t buffer_offsets[24] = {};
+    const void** external_ptrs = nullptr;
 };
 
 struct jit_snippets_call_args::loop_args_t {
