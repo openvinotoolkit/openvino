@@ -25,6 +25,8 @@ RUN apt-get update && \
         pigz \
         # Python
         python3-full \
+        g++ \
+        gcc \
         && \
     rm -rf /var/lib/apt/lists/*
 
