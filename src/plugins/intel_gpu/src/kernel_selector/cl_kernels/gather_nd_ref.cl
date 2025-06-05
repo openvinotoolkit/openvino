@@ -121,9 +121,9 @@ KERNEL(gather_nd_ref)(
     }
 
     for (uint i = 0; i < indices_last_dim; i++) {
-        const int indicies_val_read = indices[idx + i];
-        const int final_indicies_val = indicies_val_read < 0 ? indicies_val_read + data_dim[i + BATCH_DIMS] : indicies_val_read;
-        indices_val[i + BATCH_DIMS] = final_indicies_val;
+        const int indices_val_read = indices[idx + i];
+        const int final_indices_val = indices_val_read < 0 ? indices_val_read + data_dim[i + BATCH_DIMS] : indices_val_read;
+        indices_val[i + BATCH_DIMS] = final_indices_val;
     }
 
     #if INPUT0_DIMS == 4
