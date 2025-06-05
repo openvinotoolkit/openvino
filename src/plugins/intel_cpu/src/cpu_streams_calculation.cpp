@@ -624,7 +624,8 @@ int get_model_prefer_threads(const int num_streams,
         std::cout << "max_mem_tolerance = " << networkToleranceForLowCache.max_mem_tolerance << std::endl;
         std::cout << "ratio_compute_convs = " << networkToleranceForLowCache.ratio_compute_convs << std::endl;
         std::cout << "ratio_mem_limited_convs = " << networkToleranceForLowCache.ratio_mem_limited_convs << std::endl;
-        std::cout << "ratio_mem_limited_deconvs = " << networkToleranceForLowCache.ratio_mem_limited_deconvs << std::endl;
+        std::cout << "ratio_mem_limited_deconvs = " << networkToleranceForLowCache.ratio_mem_limited_deconvs
+                  << std::endl;
         std::cout << "ratio_mem_limited_gemms = " << networkToleranceForLowCache.ratio_mem_limited_gemms << std::endl;
         std::cout << "ratio_mem_limited_adds = " << networkToleranceForLowCache.ratio_mem_limited_adds << std::endl;
         std::cout << "ratio_compute_deconvs = " << networkToleranceForLowCache.ratio_compute_deconvs << std::endl;
@@ -634,7 +635,6 @@ int get_model_prefer_threads(const int num_streams,
         std::cout << "total_nodes = " << networkToleranceForLowCache.total_nodes << std::endl;
         std::cout << "total_G_T = " << networkToleranceForLowCache.total_G_T << std::endl;
 
-        
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         if (num_streams > sockets || num_streams == 0) {
             config.modelPreferThreads = 4;

@@ -41,9 +41,9 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu::node {
 

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <common/dnnl_thread.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -24,6 +25,7 @@
 #include <new>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <set>
 #include <string>
 #include <tuple>
@@ -32,9 +34,6 @@
 #include <utility>
 #include <vector>
 
-#include <common/dnnl_thread.hpp>
-#include <oneapi/dnnl/dnnl_threadpool.hpp>
-#include "thread_pool_imp.hpp"
 #include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -73,6 +72,7 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf_count.h"
 #include "proxy_mem_blk.h"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/node_dumper.h"

@@ -493,7 +493,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     }
     if (name == ov::intel_cpu::tbb_partitioner) {
         return static_cast<decltype(ov::intel_cpu::tbb_partitioner)::value_type>(engConfig.tbbPartitioner);
-    } 
+    }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     }

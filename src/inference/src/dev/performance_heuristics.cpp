@@ -27,7 +27,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
     // Traverse OpenVINO Model in topological order
     for (auto& node : model->get_ordered_ops()) {
         const auto node_name = node->get_type_info().name;
-        
+
         total_nodes++;
 
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name) &&
