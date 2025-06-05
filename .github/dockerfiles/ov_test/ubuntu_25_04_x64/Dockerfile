@@ -29,7 +29,7 @@ RUN apt-get update && \
         pkg-config \
         cmake \
         ccache \
-        ninja \
+        ninja-build \
         g++ \
         gcc \
         && \
