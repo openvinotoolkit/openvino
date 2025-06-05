@@ -198,7 +198,6 @@ Example:
         <message>Tests with unsupported precision</message>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=bf16.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=i64.*</filter>
@@ -878,6 +877,17 @@ Example:
             <filter>.*OVCompiledModelBaseTest.*compile_from_.*_blob.*</filter>
             <filter>.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*</filter>
             <filter>.*OVCompiledModelBaseTest.*use_blob_hint_.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 167305 -->
+    <skip_config>
+        <message>Failing test on Ubuntu after NPU driver update</message>
+        <enable_rules>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*TestCompiledModelNPU.samePlatformProduceTheSameBlobCacheEnabled.*</filter>
         </filters>
     </skip_config>
 </skip_configs>

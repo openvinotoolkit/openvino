@@ -5,8 +5,12 @@
 #pragma once
 
 #include <bitset>
+#include <cstddef>
+#include <memory>
+#include <string>
 
 #include "cpu_memory_desc.h"
+#include "cpu_types.h"
 
 namespace ov {
 namespace intel_cpu {

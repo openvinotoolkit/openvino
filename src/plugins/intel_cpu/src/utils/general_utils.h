@@ -6,6 +6,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "cpu_shape.h"
 #include "openvino/core/type/element_type.hpp"
@@ -182,6 +187,18 @@ inline std::string join(const Container& strs, char delim) {
         result << delim << *it;
     }
     return result.str();
+}
+
+template <typename Container, typename T>
+inline bool any_of_values(const Container& container, const T& value) {
+    return std::find(container.begin(), container.end(), value) != container.end();
+}
+
+template <typename Container, typename T>
+inline bool all_of_values(const Container& container, const T& value) {
+    return std::all_of(container.begin(), container.end(), [&](const auto& elem) {
+        return elem == value;
+    });
 }
 
 }  // namespace intel_cpu

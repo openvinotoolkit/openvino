@@ -152,7 +152,9 @@ Result HorizonOpShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes
 }
 
 BrgemmShapeInfer::BrgemmShapeInfer(const std::shared_ptr<Node>& n) {
-    for (const auto& in : n->inputs()) {
+    // Only first 2 inputs are used for shape inference
+    for (size_t i = 0; i < 2; ++i) {
+        const auto& in = n->input(i);
         const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
         m_io_layouts.push_back(port->get_layout());
     }
@@ -161,7 +163,7 @@ BrgemmShapeInfer::BrgemmShapeInfer(const std::shared_ptr<Node>& n) {
 }
 
 Result BrgemmShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(input_shapes.size() == 2 || input_shapes.size() == 3, "BRGEMM expects 2 or 3 input shapes for shape inference");
+    OPENVINO_ASSERT(input_shapes.size() >= 2, "Unexpected input_shapes count");
 
     // Todo: Ideally we should use the layout stored in PortDescriptors. Can we do it?
     const auto& arg0_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_io_layouts[0]);

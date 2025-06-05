@@ -72,8 +72,12 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v0::Proposal::set_attrs(Attributes attrs) {
+void op::v0::Proposal::set_attrs(Attributes&& attrs) {
     m_attrs = std::move(attrs);
+}
+
+void op::v0::Proposal::set_attrs(const Attributes& attrs) {
+    m_attrs = attrs;
 }
 
 // --- v4 ---
