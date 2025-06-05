@@ -1036,19 +1036,14 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
             auto sdpa_kernel_params = get_sdpa_kernel_params(impl_param, stage, input_tensors, get_query_block_size(stage), impl_param.is_dynamic());
             if (has_additional_sdpa_micro()) {
                 // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-                auto can_use_micro = [&sdpa_kernel_params]() -> bool {
-                    return sdpa_kernel_params.conf.paged_attention_sliding_window == 0 ||
-                        (sdpa_kernel_params.conf.paged_attention_sliding_window > 0 &&
-                        sdpa_kernel_params.conf.paged_attention_aligned_seq_len <
-                        static_cast<int64_t>(sdpa_kernel_params.conf.paged_attention_sliding_window));
-                };
+                use_micro_sdpa = sdpa_kernel_params.conf.paged_attention_sliding_window == 0 ||
+                                 (sdpa_kernel_params.conf.paged_attention_sliding_window > 0 &&
+                                  sdpa_kernel_params.conf.paged_attention_aligned_seq_len <
+                                  static_cast<int64_t>(sdpa_kernel_params.conf.paged_attention_sliding_window));
                 auto sdpa_micro_idx = _kernels_data.size() - 1;
-                if (can_use_micro()) {
-                    use_micro_sdpa = true;
-                } else {
-                    use_micro_sdpa = false;
+                if (!use_micro_sdpa)
                     sdpa_micro_idx = Stage::SDPA;
-                }
+
                 // Get sdpa kernel params again based on updated query block size if use_micro_sdpa has changed
                 // and update dispatch data for selected kernels (sdpa or sdpa_micro)
                 sdpa_kernel_params = get_sdpa_kernel_params(impl_param, stage, input_tensors, get_query_block_size(stage), impl_param.is_dynamic());
