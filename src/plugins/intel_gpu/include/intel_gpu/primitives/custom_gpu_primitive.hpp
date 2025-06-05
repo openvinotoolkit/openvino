@@ -47,6 +47,10 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         }
     };
 
+    static void update_work_group_size(const std::shared_ptr<ov::Node>& op) {
+        std::cout << "== update_work_group_size...." << std::endl;
+    }
+
     /// @brief Constructs custom_gpu_primitive primitive
     /// @param id This primitive id.
     /// @param input Input primitive ids.
@@ -65,7 +69,8 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                          const std::string& build_options,
                          const layout& output_layout,
                          const std::vector<size_t>& gws = {},
-                         const std::vector<size_t>& lws = {})
+                         const std::vector<size_t>& lws = {},
+                         const std::shared_ptr<ov::Node>& op = nullptr)
         : primitive_base(id, inputs, 1, {optional_data_type()}, {output_layout.data_padding}),
           kernel_entry_point(kernel_entry_point),
           kernel_arguments(kernel_arguments),
@@ -73,7 +78,8 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
           output_layout(output_layout),
           gws(gws.size() ? gws : std::vector<size_t>{output_layout.count()}),
           lws(lws),
-          kernels_code(kernels_code) {}
+          kernels_code(kernels_code),
+          op(op) {}
 
     /// @brief The name of the entry point function in the kernel
     const std::string kernel_entry_point;
@@ -84,11 +90,13 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief The output layout declared by the primitive
     const layout output_layout;
     /// @brief The global working sizes
-    const std::vector<size_t> gws;
+    std::vector<size_t> gws;
     /// @brief The local working sizes
-    const std::vector<size_t> lws;
+    std::vector<size_t> lws;
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
+    /// @brief Original IR op
+    const std::shared_ptr<ov::Node> op;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

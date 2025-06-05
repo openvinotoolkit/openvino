@@ -169,23 +169,30 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     const std::string layerTitle("\n// Layer " + op->get_friendly_name() + " using Custom Layer " + customLayer->Name() + "\n");
     const std::string defineTitle("// Custom Layer User Defines\n");
 
-    auto dims = op->get_output_shape(0);
-    size_t N = (dims.size() > 0) ? dims[0] : 1;
-    size_t C = (dims.size() > 1) ? dims[1] : 1;
-    size_t H = (dims.size() > 2) ? dims[2] : 1;
-    size_t W = (dims.size() > 3) ? dims[3] : 1;
-    cldnn::tensor outputTensor = cldnn::tensor(cldnn::batch(N), cldnn::feature(C), cldnn::spatial(W, H));
+    auto dims = op->get_output_partial_shape(0);
+    std::cout << "CustomOp output dims=" << dims << ", dims.size()=" << dims.size() << std::endl;
 
-    cldnn::layout outputLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outputTensor);
+    size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? -1 : dims[0].get_length() : 1;
+    size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? -1 : dims[1].get_length() : 1;
+    size_t H = (dims.size() > 2) ? dims[2].is_dynamic() ? -1 : dims[2].get_length() : 1;
+    size_t W = (dims.size() > 3) ? dims[3].is_dynamic() ? -1 : dims[3].get_length() : 1;
+
+    cldnn::layout outputLayout;
+    if (dims.is_dynamic()) {
+        outputLayout = cldnn::layout(dims, cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat);
+    } else {
+        cldnn::tensor outputTensor = cldnn::tensor(cldnn::batch(N), cldnn::feature(C), cldnn::spatial(W, H));
+        outputLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outputTensor);
+    }
 
     // evaluate work sizes rules
     std::vector<size_t> gws, lws;
 
     // assume output tensor is dimension source by default
-    int batchDim = outputTensor.batch[0];
-    int featureDim = outputTensor.feature[0];
-    int yDim = outputTensor.spatial[1];
-    int xDim = outputTensor.spatial[0];
+    int batchDim = N;
+    int featureDim = C;
+    int yDim = H;
+    int xDim = W;
     int iidx = customLayer->InputDimSourceIndex();
 
     std::string genericLayerName = layer_type_name_ID(op);
@@ -227,7 +234,8 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                   customLayer->CompilerOptions(),
                                                   outputLayout,
                                                   gws,
-                                                  lws);
+                                                  lws,
+                                                  op);
     p.add_primitive(*op, customPrim);
 
     auto prevLayerName = genericLayerName;
@@ -236,7 +244,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
         auto reorderPrimName = genericLayerName + ProgramBuilder::m_postCustomLayerTag;
         p.add_primitive(*op, cldnn::reorder(reorderPrimName,
                                             cldnn::input_info(genericLayerName),
-                                            cldnn::format::get_default_format(op->get_output_shape(0).size()),
+                                            cldnn::format::get_default_format(op->get_output_partial_shape(0).size()),
                                             customPrim.output_layout.data_type));
         prevLayerName = reorderPrimName;
     }

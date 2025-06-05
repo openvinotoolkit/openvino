@@ -71,6 +71,17 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         return {kernels_cache.get_cached_kernel_id(_kernels[0])};
     }
 
+    void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
+        // OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
+        auto& kernel_vec = kernels.begin()->second;
+        _kernels.clear();
+        _kernels.resize(kernel_vec.size());
+        for (auto& k : kernel_vec) {
+            auto sub_kernel_idx = k.second;
+            _kernels[sub_kernel_idx] = k.first;
+        }
+    }
+
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
@@ -217,7 +228,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
     const auto primitive = outer.get_primitive().get();
 
     mem_consts.AddConstants({
-        kernel_selector::MakeJitConstant("GLOBAL_WORKSIZE", primitive->gws),
+        kernel_selector::MakeJitConstant("GLOBAL_WORKSIZE", impl_param.custom_op_dynamic_gws.size() > 0 ? impl_param.custom_op_dynamic_gws : primitive->gws),
         kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", primitive->lws),
     });
 
@@ -248,7 +259,7 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
         cl_kernel->code.kernelString->str += s + "\n";
     }
 
-    cl_kernel->params.workGroups.global = primitive->gws;
+    cl_kernel->params.workGroups.global = impl_param.custom_op_dynamic_gws.size() > 0 ? impl_param.custom_op_dynamic_gws : primitive->gws;
     cl_kernel->params.workGroups.local = primitive->lws;
 
     for (const auto& p : primitive->kernel_arguments) {
