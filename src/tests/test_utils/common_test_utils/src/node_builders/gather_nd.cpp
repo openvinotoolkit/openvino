@@ -58,7 +58,10 @@ std::shared_ptr<ov::Node> make_gather_nd8(const ov::Output<Node>& data_node,
 
         std::vector<int> indices_values(indices_count * slice_rank);
         const double startFrom = -static_cast<double>(max_dim);
-        ov::test::utils::fill_data_random<int>(indices_values.data(), indices_count * slice_rank, 2*max_dim, startFrom);
+        const auto range = 2 * max_dim;
+
+        ov::test::utils::fill_data_random<int>(indices_values.data(), indices_count * slice_rank, range, startFrom);
+
         auto indices_data = indices_values.data();
         for (int i = 0; i < indices_count; i++) {
             for (int dim = 0; dim < slice_rank; dim++) {
