@@ -25,13 +25,18 @@ RUN apt-get update && \
         pigz \
         # Python
         python3-full \
+        python3 \
+        python3-venv \
+        python3-pip \
         python3-dev \
+        libpython3.13 \
         pkg-config \
         cmake \
         ccache \
         ninja-build \
         g++ \
         gcc \
+        libc6-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
