@@ -104,7 +104,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
     cpu_parallel->parallel_for(B, [&](size_t b) {
         size_t t = 0;
         for (; t < T; t++) {
-            if (sequenceMask[B * t + b] == 0.f) {
+            if (sequenceMask[B * t + b] == 0.F) {
                 break;
             }
         }
@@ -121,12 +121,14 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
     // At the first stage find the maximum index. At second stage merge if needed.
     // Such approach makes parallelization more efficient.
     auto threadBody = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
         }
-        size_t tStart = 0lu, bStart = 0lu;
+        size_t tStart = 0LU;
+        size_t bStart = 0LU;
         for (; bStart < B; bStart++) {
             tStart += sequenceLengths[bStart];
             if (tStart >= start) {
@@ -161,7 +163,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
                     return;
                 }
             }
-            tStart = 0lu;
+            tStart = 0LU;
         }
     };  // thread body
 
@@ -173,13 +175,13 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
         const size_t sequenceLength = sequenceLengths[b];
         float* shiftedOut = outputSequences + b * T;
         for (size_t t = 0; t < sequenceLength; ++t) {
-            if (*shiftedOut < blankIndex && !(mergeRepeated && *shiftedOut == prevClassIdx)) {
+            if (*shiftedOut < blankIndex && (!mergeRepeated || *shiftedOut != prevClassIdx)) {
                 outputSequences[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;
             shiftedOut++;
         }
-        std::fill(outputSequences + outputIndex, outputSequences + (b + 1) * T, -1.f);
+        std::fill(outputSequences + outputIndex, outputSequences + (b + 1) * T, -1.F);
     });
 }
 

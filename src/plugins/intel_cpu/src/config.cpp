@@ -177,7 +177,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ". Expected only true/false.");
             }
         } else if (key == ov::intel_cpu::sparse_weights_decompression_rate.name()) {
-            float val_f = 0.0f;
+            float val_f = 0.0F;
             try {
                 val_f = val.as<float>();
             } catch (const ov::Exception&) {
@@ -185,7 +185,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Expected only float numbers");
             }
-            if (val_f < 0.f || val_f > 1.f) {
+            if (val_f < 0.F || val_f > 1.F) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Sparse rate must be in range [0.0f,1.0f]");
@@ -533,12 +533,12 @@ void Config::updateProperties() {
         return;
     }
 
-    if (collectPerfCounters == true) {
+    if (collectPerfCounters) {
         _config.insert({ov::enable_profiling.name(), "YES"});
     } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
     }
-    if (exclusiveAsyncRequests == true) {
+    if (exclusiveAsyncRequests) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});
     } else {
         _config.insert({ov::internal::exclusive_async_requests.name(), "NO"});

@@ -22,7 +22,6 @@
 
 #include "cache/multi_cache.h"
 #include "convert.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -129,14 +128,14 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     }
     if (!isOptimized) {
         const auto& inShape = getInputShapeAtPort(0);
-        if (one_of(inShape.getRank(), 4u, 5u) && config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
+        if (one_of(inShape.getRank(), 4U, 5U) && config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
             config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
             config.inConfs[0].getMemDesc()->getPrecision() == ov::element::f32 &&
             config.outConfs[0].getMemDesc()->getPrecision() == ov::element::f32) {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++
             // implementation
             isNspc2NcspCase = true;
-        } else if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && one_of(inShape.getRank(), 4u, 5u) &&
+        } else if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && one_of(inShape.getRank(), 4U, 5U) &&
                    config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                    config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                    config.inConfs[0].getMemDesc()->getPrecision() == config.outConfs[0].getMemDesc()->getPrecision() &&
@@ -208,7 +207,6 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
     dnnl::primitive_attr attr;
     transposeExecutor = factory->makeExecutor(transposeParams, {parentDesc}, {transposedDesc}, attr);
     getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
-    return;
 }
 
 void Reorder::prepareParams() {
@@ -476,7 +474,8 @@ void Reorder::execute(const dnnl::stream& strm) {
 }
 
 std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDesc& childDesc) {
-    std::string inArgs, outArgs;
+    std::string inArgs;
+    std::string outArgs;
     if (parentDesc.getPrecision() != childDesc.getPrecision()) {
         inArgs += (inArgs.empty() ? "" : "_") + static_cast<std::string>(parentDesc.getPrecision().get_type_name());
         outArgs += (outArgs.empty() ? "" : "_") + static_cast<std::string>(childDesc.getPrecision().get_type_name());

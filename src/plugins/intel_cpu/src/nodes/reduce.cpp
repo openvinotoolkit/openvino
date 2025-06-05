@@ -188,9 +188,9 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             exp_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
                                                                            alg_kind::eltwise_exp,
-                                                                           0.f,
-                                                                           0.f,
-                                                                           1.f,
+                                                                           0.F,
+                                                                           0.F,
+                                                                           1.F,
                                                                            data_type::f32);
         }
 
@@ -294,7 +294,7 @@ private:
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
     std::shared_ptr<jit_uni_eltwise_injector<isa>> exp_injector;
 
-    inline void reduce_main() {
+    void reduce_main() {
         // ================================================================
         // ***isa: AVX512***
         // ReduceAnd (Logical And)
@@ -508,7 +508,7 @@ private:
         L(reduce_main_end_label);
     }
 
-    inline void reduce_tail() {
+    void reduce_tail() {
         if (jcp_.reduce_mode == Algorithm::ReduceL1) {
             uni_vmovups(xmm_aux, table_val(1));
         }
@@ -569,12 +569,12 @@ private:
         L(reduce_tail_end_label);
     }
 
-    inline void init_reg_reduce_stride() {
+    void init_reg_reduce_stride() {
         mov(reg_reduce_stride, ptr[reg_params + GET_OFF(reduce_stride)]);
         mul_by_const(reg_reduce_stride, reg_tmp_64, jcp_.src_data_size);
     }
 
-    inline void reduce_kernel() {
+    void reduce_kernel() {
         Xbyak::Label reduce_label;
         Xbyak::Label reduce_end_label;
         Xbyak::Label reduce_batch_label;
@@ -613,7 +613,7 @@ private:
         L(reduce_end_label);
     }
 
-    inline void reduce_once() {
+    void reduce_once() {
         load_vector(vmm_src, ptr[reg_src], jcp_.src_dt);
         reduce_kernel(vmm_src, vmm_dst);
 
@@ -623,7 +623,7 @@ private:
         }
     }
 
-    inline void reduce_batch() {
+    void reduce_batch() {
         mov(reg_src_aux, reg_src);
         mov(reg_work_batch_aux, reg_work_batch);
 
@@ -648,7 +648,7 @@ private:
         L(reduce_batch_loop_end_label);
     }
 
-    inline void reduce_gather(Vmm vmm_dst, int offset) {
+    void reduce_gather(Vmm vmm_dst, int offset) {
         switch (jcp_.src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -688,7 +688,7 @@ private:
         reduce_kernel(vmm_src, vmm_dst);
     }
 
-    inline void pack_gathered_vector(Vmm vmm_val, Vmm vmm_index, int offset, memory::data_type src_dt) {
+    void pack_gathered_vector(Vmm vmm_val, Vmm vmm_index, int offset, memory::data_type src_dt) {
         sub(rsp, vlen);
         uni_vmovdqu(ptr[rsp], vmm_index);
         size_t repeats = vlen / sizeof(float);
@@ -744,7 +744,7 @@ private:
         add(rsp, vlen);
     }
 
-    inline void reduce_kernel_tail() {
+    void reduce_kernel_tail() {
         Xbyak::Label reduce_label;
         Xbyak::Label reduce_end_label;
         Xbyak::Label reduce_batch_label;
@@ -801,7 +801,7 @@ private:
         L(reduce_end_label);
     }
 
-    inline void reduce_once_tail() {
+    void reduce_once_tail() {
         load_scalar(xmm_src, ptr[reg_src], jcp_.src_dt);
         reduce_kernel_scalar(xmm_src, xmm_dst);
         if (jcp_.reduce_mode == Algorithm::ReduceOr) {
@@ -810,7 +810,7 @@ private:
         }
     }
 
-    inline void reduce_batch_tail() {
+    void reduce_batch_tail() {
         mov(reg_src_aux, reg_src);
         mov(reg_work_batch_aux, reg_work_batch);
 
@@ -835,7 +835,7 @@ private:
         L(reduce_batch_loop_end_label);
     }
 
-    inline void reduce_main_loop() {
+    void reduce_main_loop() {
         Xbyak::Label reduce_loop_label;
         Xbyak::Label reduce_loop_end_label;
 
@@ -861,7 +861,7 @@ private:
         L(reduce_loop_end_label);
     }
 
-    inline void reduce_kernel(Vmm vmm_src, Vmm vmm_dst) {
+    void reduce_kernel(Vmm vmm_src, Vmm vmm_dst) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             if (isa == cpu::x64::avx512_core) {
@@ -915,7 +915,7 @@ private:
         }
     }
 
-    inline void reduce_kernel_scalar(Xmm xmm_src, Xmm xmm_dst) {
+    void reduce_kernel_scalar(Xmm xmm_src, Xmm xmm_dst) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_cmpneqps(xmm_src, xmm_src, xmm_zero);
@@ -960,14 +960,14 @@ private:
         }
     }
 
-    inline void load_dst_vector() {
+    void load_dst_vector() {
         load_vector(vmm_dst, ptr[reg_dst], jcp_.dst_dt);
         if (isa == cpu::x64::sse41) {
             load_vector(vmm_dst_aux, ptr[reg_dst + 4 * jcp_.dst_data_size], jcp_.dst_dt);
         }
     }
 
-    inline void store_dst_vector() {
+    void store_dst_vector() {
         if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_core) {
             uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
             uni_vandps(vmm_dst, vmm_dst, vmm_aux);
@@ -983,7 +983,7 @@ private:
         }
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -1011,7 +1011,7 @@ private:
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -1041,7 +1041,7 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
         auto xmm_dst = Xmm(vmm_dst.getIdx());
         auto ymm_dst = Ymm(vmm_dst.getIdx());
         if (jcp_.round_to_zero && !support_intermediate_int) {
@@ -1108,7 +1108,7 @@ private:
         }
     }
 
-    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
+    void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (jcp_.round_to_zero && !support_intermediate_int) {
             uni_vroundps(xmm_dst, xmm_dst, 3);
         }
@@ -1147,7 +1147,7 @@ private:
         }
     }
 
-    inline void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
+    void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
@@ -1169,7 +1169,7 @@ private:
         }
     }
 
-    inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
+    void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
         uni_vmovshdup(xmm_aux3, xmm_dst);           // dst:1,2,3,4; aux3:2,2,4,4
         horiz_ps(xmm_dst, xmm_aux3);                // dst:f(1,2),f(2,2),f(3,4),f(4,4)
         uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
@@ -1181,7 +1181,7 @@ private:
         store_scalar(ptr[reg_dst], xmm_dst, dst_dt);
     }
 
-    inline void horiz_ps(const Xmm& xmm, const Operand& op) {
+    void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_vandps(xmm, xmm, op);
@@ -1216,11 +1216,11 @@ private:
         }
     }
 
-    inline bool convert_i32_to_f32(memory::data_type src_dt) {
+    bool convert_i32_to_f32(memory::data_type src_dt) {
         return !isFloatCompatible(src_dt) && !support_intermediate_int;
     }
 
-    inline bool convert_f32_to_i32(memory::data_type dst_dt) {
+    bool convert_f32_to_i32(memory::data_type dst_dt) {
         return !isFloatCompatible(dst_dt) && !support_intermediate_int;
     }
 
@@ -1293,9 +1293,9 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
             log_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
                                                                            alg_kind::eltwise_log,
-                                                                           0.f,
-                                                                           0.f,
-                                                                           1.f,
+                                                                           0.F,
+                                                                           0.F,
+                                                                           1.F,
                                                                            data_type::f32);
         }
 
@@ -1415,7 +1415,7 @@ private:
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
-    inline void reduce_post_main() {
+    void reduce_post_main() {
         Xbyak::Label reduce_channel_label;
         Xbyak::Label reduce_map_label;
         if (planar_layout) {
@@ -1566,7 +1566,7 @@ private:
         }
     }
 
-    inline void reduce_post_tail() {
+    void reduce_post_tail() {
         // reduce map for tail in dst memory
         // cases: [ReduceL2] [ReduceLogSum] [ReduceLogSumExp] [ReduceMean] in planar layout
         if (post_reduce) {
@@ -1701,7 +1701,7 @@ private:
         }
     }
 
-    inline void reduce_map_kernel(Vmm vmm_dst) {
+    void reduce_map_kernel(Vmm vmm_dst) {
         if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
         } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
@@ -1711,7 +1711,7 @@ private:
         }
     }
 
-    inline void reduce_map_kernel_scalar(Xmm xmm_dst) {
+    void reduce_map_kernel_scalar(Xmm xmm_dst) {
         if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(xmm_dst, xmm_dst, xmm_aux);
         } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
@@ -1721,7 +1721,7 @@ private:
         }
     }
 
-    inline void wrap_load_vector(Vmm vmm_val, size_t offset) {
+    void wrap_load_vector(Vmm vmm_val, size_t offset) {
         if (jcp_.fuse_low_precision) {
             load_vector(vmm_val, ptr[reg_src + offset * sizeof(float)], memory::data_type::f32);
         } else {
@@ -1729,7 +1729,7 @@ private:
         }
     }
 
-    inline void wrap_load_scalar(Xmm xmm_val, size_t offset) {
+    void wrap_load_scalar(Xmm xmm_val, size_t offset) {
         if (jcp_.fuse_low_precision) {
             load_scalar(xmm_val, ptr[reg_src + offset * sizeof(float)], memory::data_type::f32);
         } else {
@@ -1737,7 +1737,7 @@ private:
         }
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -1765,7 +1765,7 @@ private:
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -1795,7 +1795,7 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
         auto xmm_dst = Xmm(vmm_dst.getIdx());
         auto ymm_dst = Ymm(vmm_dst.getIdx());
         // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
@@ -1863,7 +1863,7 @@ private:
         }
     }
 
-    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
+    void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (!post_ops_fusing && jcp_.round_to_zero) {
             uni_vroundps(xmm_dst, xmm_dst, 3);
         }
@@ -1902,7 +1902,7 @@ private:
         }
     }
 
-    inline void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
+    void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
@@ -1924,7 +1924,7 @@ private:
         }
     }
 
-    inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
+    void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
         uni_vmovshdup(xmm_aux3, xmm_dst);           // dst:1,2,3,4; aux3:2,2,4,4
         horiz_ps(xmm_dst, xmm_aux3);                // dst:f(1,2),f(2,2),f(3,4),f(4,4)
         uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
@@ -1944,7 +1944,7 @@ private:
         }
     }
 
-    inline void horiz_ps(const Xmm& xmm, const Operand& op) {
+    void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_vandps(xmm, xmm, op);
@@ -2602,7 +2602,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                                               work_amount,
                                               1,
                                               0,
-                                              static_cast<int*>(&index_buf[0]));
+                                              static_cast<int*>(index_buf.data()));
                     });
                     size_t tail_start = IK * blk_size;
                     size_t IT = outer_size - tail_start;
@@ -2616,13 +2616,15 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 } else {
                     if (ReduceH) {
                         cpu_parallel->parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
-                            size_t oc = ic, od = id;
+                            size_t oc = ic;
+                            size_t od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, work_amount, 1);
                         });
                     } else {
                         cpu_parallel->parallel_for3d(IC, ID, IH, [&](size_t ic, size_t id, size_t ih) {
-                            size_t oc = ic, od = id;
+                            size_t oc = ic;
+                            size_t od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             size_t oh = ih;
                             GET_PTR_NCDH_PLN;
@@ -2644,7 +2646,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 if (ReduceCDW_opt) {
                     // reduce parallelly in HW dimensions
                     // step1: ReduceC && ReduceD && !ReduceH && !ReduceW
-                    uint8_t* prc_ptr_n = &vec_reduceCDW_prc[0];
+                    uint8_t* prc_ptr_n = vec_reduceCDW_prc.data();
                     init_dst_data(prc_ptr_n, prc_size);
                     size_t IS = IH * IW;
                     reduce_stride = IS;
@@ -2703,7 +2705,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 }
             } else if (!ReduceC && !ReduceD && ReduceH && !ReduceW) {
                 cpu_parallel->parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
-                    size_t oc = ic, od = id;
+                    size_t oc = ic;
+                    size_t od = id;
                     GET_PTR_NCD_BASE_PTR_N_PLN;
                     cpu_parallel->parallel_for(IW / blk_size, [&](size_t ibw) {
                         size_t obw = ibw;
@@ -2726,10 +2729,11 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     if (IWB > 0) {
                         // reduce parallelly in D dimension
                         // step1: !ReduceD && ReduceH && !ReduceW
-                        uint8_t* prc_ptr_n = &vec_reduceDH_prc[0];
+                        uint8_t* prc_ptr_n = vec_reduceDH_prc.data();
                         init_dst_data(prc_ptr_n, prc_size);
                         cpu_parallel->parallel_for2d(ID, IWB, [&](size_t id, size_t iwb) {
-                            size_t pd = id, pwb = iwb;
+                            size_t pd = id;
+                            size_t pwb = iwb;
                             reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
                                                   prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size,
                                                   blk_size,
@@ -2740,7 +2744,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                         reduce_stride = PW;
                         reduce_kernel_reassign();
                         cpu_parallel->parallel_for(IWB, [&](size_t iwb) {
-                            size_t pwb = iwb, owb = iwb;
+                            size_t pwb = iwb;
+                            size_t owb = iwb;
                             reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
                                                   out_ptr_n + owb * blk_size * dst_data_size,
                                                   blk_size,
@@ -2864,7 +2869,8 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 apply_post_kernel = !apply_division;
             }
             cpu_parallel->parallel_for2d(ICB, ID, [&](size_t icb, size_t id) {
-                size_t ocb = icb, od = id;
+                size_t ocb = icb;
+                size_t od = id;
                 GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
@@ -2906,7 +2912,8 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
         } else if (ReduceC && !ReduceD && !ReduceH && !ReduceW) {
             reduce_stride = ID * IH * IW * blk_size;
             cpu_parallel->parallel_for3d(ID, IH, IW, [&](size_t id, size_t ih, size_t iw) {
-                size_t icb = 0, ocb = 0;
+                size_t icb = 0;
+                size_t ocb = 0;
                 GET_PTR_NC_BLK;
                 size_t od = id;
                 GET_PTR_NCD_BLK;
@@ -3068,7 +3075,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
 
 inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
     const auto& cpu_parallel = context->getCpuParallel();
-    const uint8_t* in_ptr = fuse_low_precision ? static_cast<uint8_t*>(&intermediate_buf[0]) : nullptr;
+    const uint8_t* in_ptr = fuse_low_precision ? static_cast<uint8_t*>(intermediate_buf.data()) : nullptr;
     const size_t integerDivisor = empty_input ? 1 : IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const auto divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp) {
@@ -3082,7 +3089,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             arg.channel_size = OC;
             arg.work_amount = OD * OH * OW;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void**>(postOpsDataPtrs.data());
+            arg.post_op_data = postOpsDataPtrs.data();
             (*reduce_post_kernel)(&arg);
         });
     } else if (layout == ReduceLayoutType::reduce_nspc) {
@@ -3102,7 +3109,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             arg.channel_size = OW;  // OW is related to nspc-ncsp dimension reinterpret
             arg.work_amount = work_amount;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void**>(postOpsDataPtrs.data());
+            arg.post_op_data = postOpsDataPtrs.data();
             (*reduce_post_kernel)(&arg);
         };
 
@@ -3121,7 +3128,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             arg.oc_off = ocb * blk_size * sizeof(float);
             arg.work_amount = OD * OH * OW * blk_size;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void**>(postOpsDataPtrs.data());
+            arg.post_op_data = postOpsDataPtrs.data();
             (*reduce_post_kernel)(&arg);
         });
     }
@@ -3142,7 +3149,7 @@ inline void Reduce::reduce_kernel_restore() {
 inline void Reduce::output_info_reassign(uint8_t** out_ptr) {
     if (fuse_low_precision) {
         tmp_ptr = *out_ptr;
-        *out_ptr = static_cast<uint8_t*>(&intermediate_buf[0]);
+        *out_ptr = static_cast<uint8_t*>(intermediate_buf.data());
         tmp_prec = output_prec;
         output_prec = intermediate_prec;
         tmp_data_size = dst_data_size;
@@ -3160,8 +3167,7 @@ inline void Reduce::output_info_restore(uint8_t** out_ptr) {
     }
 }
 
-void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
-    const auto& cpu_parallel = context->getCpuParallel();
+void Reduce::nspc2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const {
     // dimension reinterpret after nspc reusing routine reduce_PLN
     // demote -- nspc -- ncsp
     //  DIM0  --   B  --  B
@@ -3176,6 +3182,7 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     const size_t DIM4 = OH;
     const size_t stride1 = DIM2 * DIM3 * DIM4;
     const size_t stride0 = stride1 * DIM1;
+    const auto& cpu_parallel = context->getCpuParallel();
 
     if (dst_data_size == 4) {
         const auto* src_data = reinterpret_cast<const float*>(proc_ptr);
@@ -3202,8 +3209,8 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
             }
         });
     } else {
-        const auto* src_data = reinterpret_cast<const uint8_t*>(proc_ptr);
-        auto* dst_data = reinterpret_cast<uint8_t*>(out_ptr);
+        const auto* src_data = proc_ptr;
+        auto* dst_data = out_ptr;
         cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * stride0 + j * DIM1;
             auto dst_off = b * stride0 + j;
@@ -3216,7 +3223,7 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     }
 }
 
-void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
+void Reduce::blocked2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const {
     const auto& cpu_parallel = context->getCpuParallel();
     const size_t DIM0 = OB;
     const size_t DIM1 = OC;
@@ -3270,8 +3277,8 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
             }
         });
     } else {
-        const auto* src_data = reinterpret_cast<const uint8_t*>(proc_ptr);
-        auto* dst_data = reinterpret_cast<uint8_t*>(out_ptr);
+        const auto* src_data = proc_ptr;
+        auto* dst_data = out_ptr;
         cpu_parallel->parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * src_stride0 + j * blk_size;
             auto dst_off = b * dst_stride0 + j;
@@ -3329,7 +3336,7 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
                 out_p[i] = static_cast<ov::float16>(1);
             });
         } else if (output_prec == ov::element::u8) {
-            auto* out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            auto* out_p = out_ptr;
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<uint8_t>(1);
             });
@@ -3362,7 +3369,7 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
                 out_p[i] = std::numeric_limits<ov::float16>::lowest();
             });
         } else if (output_prec == ov::element::u8) {
-            auto* out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            auto* out_p = out_ptr;
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<uint8_t>::min();
             });
@@ -3395,7 +3402,7 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
                 out_p[i] = std::numeric_limits<ov::float16>::max();
             });
         } else if (output_prec == ov::element::u8) {
-            auto* out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            auto* out_p = out_ptr;
             cpu_parallel->parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<uint8_t>::max();
             });
@@ -3589,7 +3596,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
     switch (algorithm) {
     case Algorithm::ReduceAnd:
         reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y) -> float {
-            return static_cast<float>((x != 0.0f) && (y) != 0.0f);
+            return static_cast<float>((x != 0.0F) && (y) != 0.0F);
         });
         break;
     case Algorithm::ReduceL1:
@@ -3629,7 +3636,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         break;
     case Algorithm::ReduceOr:
         reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
-            return static_cast<float>((x != 0.0f) || (y) != 0.0f);
+            return static_cast<float>((x != 0.0F) || (y) != 0.0F);
         });
         break;
     case Algorithm::ReduceProd:
@@ -3656,7 +3663,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                                 float* out_ptr,
                                 float init_value,
                                 std::function<float(float, float)> func) {
-    size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
+    size_t work_amount_dst = 1;
+    size_t reduced_dims_work_amount = 1;
     for (size_t process_dst_dim : process_dst_dims) {
         work_amount_dst *= process_dst_dim;
     }
@@ -3669,7 +3677,9 @@ void Reduce::reduce_ref_process(const float* in_ptr,
         getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     parallel_nt(0, [&](const int ithr, const int nthr) {
         int j;
-        size_t i, start = 0, end = 0;
+        size_t i;
+        size_t start = 0;
+        size_t end = 0;
         VectorDims dst_counters(process_dst_dims.size(), 0);
         splitter(work_amount_dst, nthr, ithr, start, end);
         for (j = process_dst_dims.size() - 1, i = start; j >= 0; j--) {

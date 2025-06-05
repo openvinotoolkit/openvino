@@ -112,7 +112,7 @@ static bool streamsSet(const ov::AnyMap& config) {
     return config.find(ov::num_streams.name()) != config.end();
 }
 
-void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
+void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) {
     int streams_set = config.streams;
     int streams;
     if (config.streamsChanged) {
@@ -125,14 +125,14 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
         streams = streams_set == 1 ? 0 : streams_set;
     }
 
-    if (!((0 == streams_set) && config.streamsChanged)) {
+    if ((0 != streams_set) || !config.streamsChanged) {
         get_num_streams(streams, model, config);
     } else {
         config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
     }
 }
 
-void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) {
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache

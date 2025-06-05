@@ -126,14 +126,14 @@ void Inverse::lu_decomposition(const float* data,
                                std::vector<float>& L,
                                std::vector<float>& U,
                                std::vector<size_t>& P,
-                               size_t b) {
+                               size_t b) const {
     // Make L identity, U a copy of data and P a range(0, side)
     const auto batch_idx = b * m_side_squared;
     const auto& cpu_parallel = context->getCpuParallel();
 
-    std::fill(L.begin(), L.end(), 0.0f);
+    std::fill(L.begin(), L.end(), 0.0F);
     if (!m_adjoint) {
-        cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(float) * m_side_squared);
+        cpu_parallel_memcpy(U.data(), &data[batch_idx], sizeof(float) * m_side_squared);
     } else {
         cpu_parallel->parallel_for2d(m_side, m_side, [&](size_t i, size_t j) {
             U[j * m_side + i] = data[batch_idx + i * m_side + j];
@@ -141,7 +141,7 @@ void Inverse::lu_decomposition(const float* data,
     }
 
     cpu_parallel->parallel_for(m_side, [&](size_t i) {
-        L[i * m_side + i] = 1.0f;
+        L[i * m_side + i] = 1.0F;
         P[i] = i;
     });
 
@@ -184,16 +184,20 @@ void Inverse::lu_decomposition(const float* data,
     }
 }
 
-void Inverse::lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b) {
+void Inverse::lu_solve(float* output,
+                       std::vector<float>& L,
+                       std::vector<float>& U,
+                       std::vector<size_t>& P,
+                       size_t b) const {
     const auto& cpu_parallel = context->getCpuParallel();
     cpu_parallel->parallel_for(m_side, [&](size_t column) {
-        std::vector<float> X(m_side, 0.0f);
-        std::vector<float> Y(m_side, 0.0f);
+        std::vector<float> X(m_side, 0.0F);
+        std::vector<float> Y(m_side, 0.0F);
 
         // Forward substitution: Ly = Pb
         for (size_t i = 0; i < m_side; ++i) {
             if (P[i] == column) {
-                Y[i] = 1.0f;
+                Y[i] = 1.0F;
             }
             const auto i_idx = i * m_side;
             for (size_t j = 0; j < i; ++j) {

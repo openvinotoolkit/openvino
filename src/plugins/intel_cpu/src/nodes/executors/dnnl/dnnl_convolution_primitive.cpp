@@ -777,7 +777,8 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
 void DnnlConvolutionPrimitive::execute(dnnl_primitive_args& primArgs) {
     if (m_intermediateReorders.empty()) {  // fast path
-        return m_prim.execute(m_stream, primArgs);
+        m_prim.execute(m_stream, primArgs);
+        return;
     }
 
     // keep original memory to restore it after the execution
@@ -944,11 +945,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
     if (isDepthWise) {
         // 1d equivalent cases are painfully slow
-        if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
-            return false;
-        }
-
-        return true;
+        return inpDims.size() != 3 && 1 != inpDims[inpDims.size() - 2];
     }
 
     // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the
@@ -965,7 +962,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         auto paddingRreversItr = config.attrs.paddingR.crbegin();
 
         for (size_t i = 0; i < spatialRank; ++i) {
-            is1x1 = true && *(weightDimsReversItr++) == 1 && *(strideReversItr++) == 1 && *(paddingLreversItr++) == 0 &&
+            is1x1 = *(weightDimsReversItr++) == 1 && *(strideReversItr++) == 1 && *(paddingLreversItr++) == 0 &&
                     *(paddingRreversItr++) == 0;
         }
     }
@@ -982,11 +979,11 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         }
     }
 
-    unsigned thresholdNumChannels = 128u;  // for avx and below
+    unsigned thresholdNumChannels = 128U;  // for avx and below
     if (is1x1) {
-        thresholdNumChannels = 2048u;
+        thresholdNumChannels = 2048U;
     } else if (mayiuse(impl::cpu::x64::avx512_core)) {
-        thresholdNumChannels = 512u;
+        thresholdNumChannels = 512U;
     }
 
     size_t OC = outDims[1];

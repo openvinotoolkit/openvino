@@ -149,12 +149,18 @@ bool Multinomial::created() const {
 
 void Multinomial::execute([[maybe_unused]] const dnnl::stream& strm) {
     switch (m_probs_precision) {
-    case ov::element::f32:
-        return execute_probs_type<float>();
-    case ov::element::f16:
-        return execute_probs_type<float16>();
-    case ov::element::bf16:
-        return execute_probs_type<bfloat16_t>();
+    case ov::element::f32: {
+        execute_probs_type<float>();
+        break;
+    }
+    case ov::element::f16: {
+        execute_probs_type<float16>();
+        break;
+    }
+    case ov::element::bf16: {
+        execute_probs_type<bfloat16_t>();
+        break;
+    }
     default:
         THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
     }
@@ -210,7 +216,7 @@ void Multinomial::execute_convert_type() {
         gen.seed(seed);
     }
 
-    const auto gen_max = static_cast<float>(gen.max());
+    const auto gen_max = static_cast<float>(std::mt19937::max());
     std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
         return static_cast<P>(static_cast<float>(gen()) / gen_max);
     });

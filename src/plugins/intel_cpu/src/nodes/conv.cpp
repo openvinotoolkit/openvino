@@ -111,7 +111,7 @@ public:
                 addEdge(parentNode, currentNode, 0, 0);
                 auto constantsItr = conv.fusedConstNodes.find(currentNode);
                 if (constantsItr != conv.fusedConstNodes.end()) {
-                    size_t inpPort = 1lu;
+                    size_t inpPort = 1LU;
                     for (const auto& item : constantsItr->second) {
                         addEdge(item, currentNode, 0, inpPort++);
                     }
@@ -198,7 +198,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
       dw_conv_ih(0),
       dw_conv_iw(0),
       dw_conv_in_dt(memory::data_type::undef),
-      groupNum(1lu),
+      groupNum(1LU),
       IC(1),
       groupIC(1),
       groupOC(1) {
@@ -698,7 +698,8 @@ void Convolution::prepareParams() {
 
 void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) {
     if (!withSum) {  // fast path
-        return Node::redefineOutputMemory(newOutputShapes);
+        Node::redefineOutputMemory(newOutputShapes);
+        return;
     }
 
     const size_t sumPortNum = getParentEdges().size() - 1;

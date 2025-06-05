@@ -48,7 +48,7 @@ using namespace dnnl;
 
 namespace ov::intel_cpu::node {
 namespace {
-constexpr size_t channelAxis = 1lu;
+constexpr size_t channelAxis = 1LU;
 }
 
 bool Concat::neverExecute() const {
@@ -154,7 +154,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
     // check if blocked layouts are available the channels size should be evenly divided by the block size to avoid slow
     // oneDNN ref implementation and allow inPlace memory usage if possible
     if (dstShape.getRank() > channelAxis) {
-        for (const auto& item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+        for (const auto& item : {std::make_pair(8LU, LayoutType::nCsp8c), std::make_pair(16LU, LayoutType::nCsp16c)}) {
             const VectorDims& blkDims = dstShape.getDims();
             if (blkDims[channelAxis] == Shape::UNDEFINED_DIM || blkDims[channelAxis] % item.first != 0) {
                 continue;
@@ -311,7 +311,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         }
     }
 
-    for (const auto& item : {std::make_pair(8lu, LayoutType::nCsp8c), std::make_pair(16lu, LayoutType::nCsp16c)}) {
+    for (const auto& item : {std::make_pair(8LU, LayoutType::nCsp8c), std::make_pair(16LU, LayoutType::nCsp16c)}) {
         if (convertTo == item.second) {
             if (outDims[channelAxis] == Shape::UNDEFINED_DIM || outDims[1] % item.first != 0) {
                 convertTo = LayoutType::ncsp;
@@ -649,7 +649,8 @@ void Concat::execRef() {
             int nthr = parallel_get_max_threads();
             parallel_nt(nthr, [&](int ithr, int nthr) {
                 for (size_t a = 0; a < srcPtrs.size(); ++a) {
-                    size_t start = 0, end = 0;
+                    size_t start = 0;
+                    size_t end = 0;
                     splitter(nelemToCopy[a], nthr, ithr, start, end);
                     const uint8_t* i = srcPtrs[a] + start;
                     uint8_t* o = dstPtr + dstOffset[a] + start;

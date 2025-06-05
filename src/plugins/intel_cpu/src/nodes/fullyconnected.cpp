@@ -505,7 +505,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
                                           const float sparseWeiDecompressionRate) {
     const auto minSparseRate = sparseWeiDecompressionRate;
 
-    if (minSparseRate == 1.f) {
+    if (minSparseRate == 1.F) {
         return false;
     }
 
