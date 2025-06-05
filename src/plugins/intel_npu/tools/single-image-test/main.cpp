@@ -730,8 +730,8 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
  * - Optional batched inputs separated by pipe ('|') are ignored
  * - Each mapping in the format "input_name:file_path1|file_path2"
  *
- * @param inputInfo     Vector of model input information objects
- * @param inputFiles    String containing input file specifications
+ * @param inputsInfo     Vector of model input information objects (retrieved from ov::Model::inputs())
+ * @param inputCases    String containing input file specifications
  *
  * @return A string with processed input files, maintaining the test case structure (semicolon-separated)
  *         with each test case containing comma-separated input files.
@@ -739,59 +739,59 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
  * @throws OpenVINO::AssertionFailure If input specification is incomplete or contains duplicates within the
  *         same test case.
  */
-std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputInfo, const std::string& inputFiles) {
+std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputsInfo, const std::string& inputCases) {
     // Splits input files into test cases (delimited by ';')
-    std::vector<std::string> inputFileList = splitStringList(inputFiles, ';');
+    std::vector<std::string> inputCasesList = splitStringList(inputCases, ';');
 
-    std::vector<std::string> processedInputFiles(inputFileList.size());
+    std::vector<std::string> processedInputCasesList(inputCasesList.size());
 
-    for (size_t testCaseIndex = 0; testCaseIndex < inputFileList.size(); ++testCaseIndex) {
-        const auto& inputFile = inputFileList[testCaseIndex];
-        std::map<std::string, std::string> newInputFileMap = parseArgMap(inputFile, ',');
-        std::vector<std::string> processedInputFilesPerCase(inputInfo.size());
+    for (size_t testCaseIndex = 0; testCaseIndex < inputCasesList.size(); ++testCaseIndex) {
+        const auto& inputFilesPerCase = inputCasesList[testCaseIndex];
+        std::map<std::string, std::string> inputFilesPerCaseMap = parseArgMap(inputFilesPerCase, ',');
+        std::vector<std::string> processedInputFilesPerCaseList(inputsInfo.size());
 
-        for (size_t i = 0; i < inputInfo.size(); ++i) {
-            const auto& input = inputInfo[i];
-            const auto& inputNames = input.get_names();
+        for (size_t i = 0; i < inputsInfo.size(); ++i) {
+            const auto& inputInfo = inputsInfo[i];
+            const auto& inputNames = inputInfo.get_names();
 
             for (const auto& name : inputNames) {
-                auto it = newInputFileMap.find(name);
-                if (it != newInputFileMap.end()) {
-                    processedInputFilesPerCase[i] = it->second;
+                auto it = inputFilesPerCaseMap.find(name);
+                if (it != inputFilesPerCaseMap.end()) {
+                    processedInputFilesPerCaseList[i] = it->second;
                     break;
                 }
             }
         }
 
-        size_t valueCount = std::count_if(processedInputFilesPerCase.begin(), processedInputFilesPerCase.end(),
+        size_t valueCount = std::count_if(processedInputFilesPerCaseList.begin(), processedInputFilesPerCaseList.end(),
                                         [](const std::string& s) { return !s.empty(); });
         // All inputs must have values or none must have values
-        if (valueCount > 0 && valueCount < inputInfo.size()) {
+        if (valueCount > 0 && valueCount < inputsInfo.size()) {
             OPENVINO_ASSERT(false, "Incomplete input specification. All inputs must be specified or none. "
                                 "Check if there are duplicate input names in the input file map.");
         }
         if (valueCount == 0) {
-            processedInputFiles[testCaseIndex] = inputFile;
+            processedInputCasesList[testCaseIndex] = inputFilesPerCase;
             continue;
         }
-        // Concatenate processedInputFilesPerCase results with , delimiter, then store in processedInputFiles at index
-        std::string result;
-        for (size_t i = 0; i < processedInputFilesPerCase.size(); ++i) {
+        // Concatenate processedInputFilesPerCaseList results with , delimiter, then store in processedInputCasesList at index
+        std::string processedInputFilesPerCase;
+        for (size_t i = 0; i < processedInputFilesPerCaseList.size(); ++i) {
             if (i > 0) {
-                result += ",";
+                processedInputFilesPerCase += ",";
             }
-            result += processedInputFilesPerCase[i];
+            processedInputFilesPerCase += processedInputFilesPerCaseList[i];
         }
-        processedInputFiles[testCaseIndex] = std::move(result);
+        processedInputCasesList[testCaseIndex] = std::move(processedInputFilesPerCase);
     }
 
-    // Concatenate processedInputFiles results with ; delimiter
+    // Concatenate processedInputCasesList results with ; delimiter
     std::string inputFilesConcatenated;
-    for (size_t i = 0; i < processedInputFiles.size(); ++i) {
+    for (size_t i = 0; i < processedInputCasesList.size(); ++i) {
         if (i > 0) {
             inputFilesConcatenated += ";";
         }
-        inputFilesConcatenated += processedInputFiles[i];
+        inputFilesConcatenated += processedInputCasesList[i];
     }
     return inputFilesConcatenated;
 }
