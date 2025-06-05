@@ -5,18 +5,30 @@
 #include "model_generator.hpp"
 
 #include "openvino/openvino.hpp"
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/transpose.hpp"
 
 
 std::shared_ptr<ov::Model> ModelGenerator::get_model_with_one_op() {
-    auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
     param->set_friendly_name("input");
-    auto const_value = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
+    auto const_value = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1, 1, 1}, {1});
     const_value->set_friendly_name("const_val");
-    auto add = std::make_shared<ov::opset11::Add>(param, const_value);
+    auto add = std::make_shared<ov::op::v1::Add>(param, const_value);
     add->set_friendly_name("add");
-    auto result = std::make_shared<ov::opset11::Result>(add);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 }

@@ -5,8 +5,10 @@
 #include "functions.h"
 #include "common/npu_test_env_cfg.hpp"
 #include "openvino/op/softmax.hpp"
-#include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 
 std::shared_ptr<ov::Model> buildSingleLayerSoftMaxNetwork() {
     ov::Shape inputShape = {1, 3, 4, 3};
@@ -28,16 +30,16 @@ std::shared_ptr<ov::Model> buildSingleLayerSoftMaxNetwork() {
 }
 
 std::shared_ptr<ov::Model> createModelWithLargeSize() {
-    auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f16, ov::Shape{4000, 4000});
-    auto mul_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {1.5});
-    auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
-    auto add_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {0.5});
-    auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{4000, 4000});
+    auto mul_constant = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.5});
+    auto mul = std::make_shared<ov::op::v1::Multiply>(data, mul_constant);
+    auto add_constant = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {0.5});
+    auto add = std::make_shared<ov::op::v1::Add>(mul, add_constant);
     // Just a sample model here, large iteration to make the model large
     for (int i = 0; i < 1000; i++) {
-        add = std::make_shared<ov::opset11::Add>(add, add_constant);
+        add = std::make_shared<ov::op::v1::Add>(add, add_constant);
     }
-    auto res = std::make_shared<ov::opset11::Result>(add);
+    auto res = std::make_shared<ov::op::v0::Result>(add);
 
     /// Create the OpenVINO model
     return std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
