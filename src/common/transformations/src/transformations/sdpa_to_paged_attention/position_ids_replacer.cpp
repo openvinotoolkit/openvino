@@ -103,6 +103,10 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         auto slice_2 = pattern_map.at(p_slice_2).get_node_shared_ptr();
 
         auto axis = v0::Constant::create(element::i64, Shape{}, {1});
+
+        std::cout << "slice_1: " << slice_1 << std::endl;
+        std::cout << "slice_2: " << slice_2 << std::endl;
+        std::cout << "slice_1->input_value(0): " << slice_1->input_value(0).get_node_shared_ptr() << std::endl;
         // in case of PagedAttention (Continuous batching) the rotary_emb_cos/rotary_emb_sin
         // are used not in the sequential order, so we need to use position_ids to get the expected values.
         auto gather = std::make_shared<v8::Gather>(slice_1->input_value(0), position_ids, axis);
@@ -119,6 +123,7 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         // so here we need to reshape the output tensor to move the seq dim (num tokens) to the batch
         // num_kv_heads * head_size are already handled in the StateManagementPattern transformation
         auto head_size = static_cast<int64_t>(pshape[3].get_length());
+        std::cout << "head_size: " << head_size << std::endl;
         auto new_shape = v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{-1, 1, 1, head_size});
         auto reshape = std::make_shared<v1::Reshape>(gather, new_shape, false);
         replace_node(slice_2, reshape);
