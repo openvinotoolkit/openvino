@@ -993,7 +993,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                 const float offset_w = data_offset_ptr[data_offset_w_index];
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
-                bool skip_compute;
+                bool skip_compute = false;
                 if (with_bi_pad) {
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;

@@ -39,7 +39,7 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& inMemPtrs,
     const auto& callable = m_schedule->get_callable<kernel>();
 
     auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-        init_call_args(call_args, inMemPtrs, outMemPtrs, m_start_offset_in, m_start_offset_out, ithr);
+        init_call_args(call_args, inMemPtrs, outMemPtrs, m_start_offset_in, m_start_offset_out);
         update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     };
     auto caller =
@@ -71,7 +71,7 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
     init_original_ptrs(inMemPtrs, outMemPtrs, src_ptrs, dst_ptrs, m_start_offset_in, m_start_offset_out);
 
     auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-        init_call_args(call_args, ithr);
+        init_call_args(call_args);
         update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     };
     auto caller =

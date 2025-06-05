@@ -114,7 +114,7 @@ static bool streamsSet(const ov::AnyMap& config) {
 
 void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) {
     int streams_set = config.streams;
-    int streams;
+    int streams = 0;
     if (config.streamsChanged) {
         streams = streams_set;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
@@ -136,7 +136,7 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
-        int cache_model_prefer;
+        int cache_model_prefer = 0;
         const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
         const auto it_model_prefer = hints_config.find(model_prefer_name);
         if (it_model_prefer != hints_config.end()) {

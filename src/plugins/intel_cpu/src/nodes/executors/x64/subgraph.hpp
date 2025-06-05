@@ -97,20 +97,26 @@ private:
 
 class SubgraphStaticExecutor : public SubgraphExecutor, public SubgraphStaticBaseExecutor {
 public:
-    template <typename T, typename... Args>
-    SubgraphStaticExecutor(T&& first, Args&&... rest)
-        : SubgraphExecutor(std::forward<T>(first), std::forward<Args>(rest)...),
-          SubgraphStaticBaseExecutor() {}
+    template <typename... Args>
+    SubgraphStaticExecutor(const std::shared_ptr<ov::intel_cpu::CPURuntimeConfig>& config,
+                           const std::set<size_t>& external_ptrs_idces,
+                           size_t in_num,
+                           Args&&... rest)
+        : SubgraphExecutor(config, std::forward<Args>(rest)...),
+          SubgraphStaticBaseExecutor(external_ptrs_idces, in_num) {}
 
     void exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs, const std::vector<MemoryPtr>& out_mem_ptrs) override;
 };
 
 class SubgraphDynamicSpecializedExecutor : public SubgraphExecutor, public SubgraphDynamicSpecializedBaseExecutor {
 public:
-    template <typename T, typename... Args>
-    SubgraphDynamicSpecializedExecutor(T&& first, Args&&... rest)
-        : SubgraphExecutor(std::forward<T>(first), std::forward<Args>(rest)...),
-          SubgraphDynamicSpecializedBaseExecutor(std::forward<T>(first)) {}
+    template <typename... Args>
+    SubgraphDynamicSpecializedExecutor(const std::shared_ptr<ov::intel_cpu::CPURuntimeConfig>& config,
+                                       const std::set<size_t>& external_ptrs_idces,
+                                       size_t in_num,
+                                       Args&&... rest)
+        : SubgraphExecutor(config, std::forward<Args>(rest)...),
+          SubgraphDynamicSpecializedBaseExecutor(config, external_ptrs_idces, in_num) {}
 
     void exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs, const std::vector<MemoryPtr>& out_mem_ptrs) override;
 };

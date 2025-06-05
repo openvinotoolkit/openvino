@@ -46,7 +46,7 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
     if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_EXEC_ID);
         it != dumpFilters.end()) {  // filter by exec id configured
         std::stringstream ss(it->second);
-        int id;
+        int id = 0;
         bool matched = false;
 
         while (ss >> id) {

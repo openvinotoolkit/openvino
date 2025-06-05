@@ -775,7 +775,8 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
 void DnnlConvolutionPrimitive::execute(dnnl_primitive_args& primArgs) {
     if (m_intermediateReorders.empty()) {  // fast path
-        return m_prim.execute(m_stream, primArgs);
+        m_prim.execute(m_stream, primArgs);
+        return;
     }
 
     // keep original memory to restore it after the execution
@@ -930,12 +931,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
     auto outDims = config.descs.at(ARG_DST)->getShape().getDims();
     auto ndims = inpDims.size();
 
-    size_t groupNum;
-    size_t groupIC;
-    size_t groupOC;
-    size_t IC;
-
-    std::tie(groupNum, groupIC, groupOC, IC) = getChannelParams(config);
+    auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
 
     bool isDepthWise = config.attrs.isGrouped && 1 == groupOC && 1 == groupIC;
 

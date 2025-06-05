@@ -204,7 +204,7 @@ public:
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
                            bool allowBinary = true,
-                           bool do_rounding = true);
+                           bool doRounding = true);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 

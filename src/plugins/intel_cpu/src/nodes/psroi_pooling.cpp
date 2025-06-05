@@ -154,16 +154,18 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(0) == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
 
@@ -283,15 +285,15 @@ void PSROIPooling::executeAverage(const inputType* srcData,
                                   const int roiBatchInd,
                                   const BlockedMemoryDesc& srcDesc,
                                   const BlockedMemoryDesc& dstDesc) {
-    int inBlockSize;
-    int outBlockSize;
-    int outBlockCount;
-    int hInputStride;
-    int wInputStride;
-    int hOutputStride;
-    int wOutputStride;
-    uint64_t inputChannelsPadding;
-    uint64_t outputChannelsPadding;
+    int inBlockSize = 0;
+    int outBlockSize = 0;
+    int outBlockCount = 0;
+    int hInputStride = 0;
+    int wInputStride = 0;
+    int hOutputStride = 0;
+    int wOutputStride = 0;
+    uint64_t inputChannelsPadding = 0;
+    uint64_t outputChannelsPadding = 0;
     unpackParams(srcDesc,
                  dstDesc,
                  hInputStride,
@@ -387,15 +389,15 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
                                    const int roiBatchInd,
                                    const BlockedMemoryDesc& srcDesc,
                                    const BlockedMemoryDesc& dstDesc) {
-    int inBlockSize;
-    int outBlockSize;
-    int outBlockCount;
-    int hInputStride;
-    int wInputStride;
-    int hOutputStride;
-    int wOutputStride;
-    uint64_t inputChannelsPadding;
-    uint64_t outputChannelsPadding;
+    int inBlockSize = 0;
+    int outBlockSize = 0;
+    int outBlockCount = 0;
+    int hInputStride = 0;
+    int wInputStride = 0;
+    int hOutputStride = 0;
+    int wOutputStride = 0;
+    uint64_t inputChannelsPadding = 0;
+    uint64_t outputChannelsPadding = 0;
     unpackParams(srcDesc,
                  dstDesc,
                  hInputStride,
@@ -418,8 +420,8 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
 
     auto bilinearPsroi = [&](int c, int h, int w, int binOffOut, int outBlkRes) {
         float accum = 0.0F;
-        int binOffIn;
-        int inBlkRes;
+        int binOffIn = 0;
+        int inBlkRes = 0;
         size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
         dstData[dstIndex] = 0;
 

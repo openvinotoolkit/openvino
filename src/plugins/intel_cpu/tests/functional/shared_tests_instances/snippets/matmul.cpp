@@ -20,6 +20,8 @@ static inline std::vector<std::vector<element::Type>> precisions() {
     std::copy(quant.begin(), quant.end(), std::back_inserter(prc));
     auto bfloat = precision_bf16_if_supported(2);
     std::copy(bfloat.begin(), bfloat.end(), std::back_inserter(prc));
+    auto halffloat = precision_fp16_if_supported(2);
+    std::copy(halffloat.begin(), halffloat.end(), std::back_inserter(prc));
 #endif
     return prc;
 }

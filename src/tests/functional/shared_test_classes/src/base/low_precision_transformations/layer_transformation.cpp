@@ -10,37 +10,13 @@
 #include "openvino/util/common_util.hpp"
 
 namespace LayerTestsUtils {
-ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
-    return ov::pass::low_precision::LayerTransformation::Params();
-}
-
-ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
-    return ov::pass::low_precision::LayerTransformation::Params();
-}
-
-ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsI8I8() {
-    return ov::pass::low_precision::LayerTransformation::Params();
-}
-
-ov::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParams() {
-    return ov::pass::low_precision::LayerTransformation::Params();
-}
-
 LayerTransformation::LayerTransformation() {
     rel_threshold = 1.1;
     abs_threshold = 1.0e-4;
     configuration["LP_TRANSFORMS_MODE"] = true;
 }
 
-std::pair<float, float> LayerTransformation::get_quantization_interval(ov::element::Type precision) {
-    const bool unsignedInterval = precision == ov::element::u8;
-    const float low = unsignedInterval ? 0.f : -128.f;
-    const float hight = unsignedInterval ? 255.f : 127.f;
-    return std::make_pair(low, hight);
-}
-
 std::string LayerTransformation::to_string(const ov::pass::low_precision::LayerTransformation::Params& params) {
-    using namespace ov::pass::low_precision;
     std::ostringstream result;
     result <<
         (params.updatePrecisions ? "" : "notUpdatePrecisions_") <<

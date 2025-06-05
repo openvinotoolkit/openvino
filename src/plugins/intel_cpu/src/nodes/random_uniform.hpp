@@ -138,7 +138,7 @@ private:
     void preparePhiloxParams();
 
     std::pair<uint64_t, uint64_t> computePhilox(void* out,
-                                                size_t work_amount,
+                                                size_t output_elements_count,
                                                 const std::pair<uint64_t, uint64_t>& prev_state);
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +155,7 @@ private:
 
     void prepareMersenneTwisterParams();
 
-    void computeMersenneTwister(void* out, size_t work_amount);
+    void computeMersenneTwister(void* out, size_t output_elements_count);
 
     /////////////////////////////////////////////////////////////////////////////////
 

@@ -435,8 +435,8 @@ void Input::cloneBlobIfRequired() {
     // The presence of subnormals is better to determined at IR read time.
     auto checkSubnormalsAndBF16Overflows = [&](bool& has_subnormals, bool& has_bf16_overflows) {
         if (prec == ov::element::f32) {
-            auto const* u32data = m_constOp->get_data_ptr<uint32_t>();
-            auto const* f32data = m_constOp->get_data_ptr<float>();
+            const auto* u32data = m_constOp->get_data_ptr<uint32_t>();
+            const auto* f32data = m_constOp->get_data_ptr<float>();
 
             if (!size) {
                 return;
@@ -702,7 +702,8 @@ void Input::initOptimalPrimitiveDescriptor() {
 
 void Input::selectOptimalPrimitiveDescriptor() {
     if (!m_useParentMemoryDescForOutput || getType() != Type::Output) {
-        return Node::selectOptimalPrimitiveDescriptor();
+        Node::selectOptimalPrimitiveDescriptor();
+        return;
     }
 
     // ignore previous configuration
@@ -788,7 +789,8 @@ void Input::initSupportedPdFromMemDesc() {
 
 void Input::resolveInPlaceEdges(Edge::LOOK look) {
     if (!m_isInPlace) {
-        return Node::resolveInPlaceEdges(look);
+        Node::resolveInPlaceEdges(look);
+        return;
     }
 
     if (look & Edge::LOOK_UP) {

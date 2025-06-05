@@ -220,12 +220,12 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     std::function<void(const float*, float*, int, int, int, size_t)> pool;
     auto poolMax = [&](const float* srcData, float* dstData, int od, int oh, int ow, size_t spatIndOff) {
-        size_t dStart;
-        size_t dEnd;
-        size_t hStart;
-        size_t hEnd;
-        size_t wStart;
-        size_t wEnd;
+        size_t dStart = 0;
+        size_t dEnd = 0;
+        size_t hStart = 0;
+        size_t hEnd = 0;
+        size_t wStart = 0;
+        size_t wEnd = 0;
         setBinBorders(&dStart, &dEnd, od, ID, OD);
         setBinBorders(&hStart, &hEnd, oh, IH, OH);
         setBinBorders(&wStart, &wEnd, ow, IW, OW);
@@ -246,12 +246,12 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     };
     auto poolAvg =
         [&](const float* srcData, float* dstData, int od, int oh, int ow, [[maybe_unused]] size_t spatIndOff) {
-            size_t dStart;
-            size_t dEnd;
-            size_t hStart;
-            size_t hEnd;
-            size_t wStart;
-            size_t wEnd;
+            size_t dStart = 0;
+            size_t dEnd = 0;
+            size_t hStart = 0;
+            size_t hEnd = 0;
+            size_t wStart = 0;
+            size_t wEnd = 0;
             setBinBorders(&dStart, &dEnd, od, ID, OD);
             setBinBorders(&hStart, &hEnd, oh, IH, OH);
             setBinBorders(&wStart, &wEnd, ow, IW, OW);

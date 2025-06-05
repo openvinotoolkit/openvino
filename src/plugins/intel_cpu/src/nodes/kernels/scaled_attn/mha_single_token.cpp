@@ -1448,9 +1448,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         size_t end{0};
         splitter(B * h_group_num * kv_len, nthr, ithr, start, end);
 
-        size_t b;
-        size_t h_group;
-        size_t pk;
+        size_t b = 0;
+        size_t h_group = 0;
+        size_t pk = 0;
         if (start < end) {
             parallel_it_init(start, pk, kv_len, b, B, h_group, h_group_num);
             if (q_len == 1 && h_each_group_len == 1) {
@@ -1648,9 +1648,9 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 
         memset(buf_attn_score.ptr<T3>(ithr, 0, 0, 0, 0), 0, buf_attn_score.stride(0) * sizeof(T3));
 
-        size_t b;
-        size_t h_group;
-        size_t pv;
+        size_t b = 0;
+        size_t h_group = 0;
+        size_t pv = 0;
         if (start < end) {
             parallel_it_init(start, pv, kv_len, b, B, h_group, h_group_num);
             if (q_len == 1 && h_each_group_len == 1) {

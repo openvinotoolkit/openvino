@@ -12,16 +12,9 @@
 namespace LayerTestsDefinitions {
 
 std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::op::PadMode padMode;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    PadTransformationParam param;
-    std::tie(netPrecision, inputShape, padMode, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShape, padMode, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params)
+    result << get_test_case_name_by_params(netPrecision, inputShape, device)
            << "_" << param.fakeQuantize << "_"
            << ov::test::utils::vec2str(param.padsBegin) << ov::test::utils::vec2str(param.padsEnd) << "_"
            << padMode << "_" << (padMode == ov::op::PadMode::CONSTANT ? "" : std::to_string(param.padValue));
@@ -29,12 +22,8 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
 }
 
 void PadTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::op::PadMode mode;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    PadTransformationParam param;
-    std::tie(netPrecision, inputShape, mode, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, mode, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -51,7 +40,7 @@ void PadTransformation::SetUp() {
 void PadTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<5>(GetParam());
+    const auto params = std::get<4>(GetParam());
     const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     const auto expectedPrecision = params.expectedKernelType;
 
