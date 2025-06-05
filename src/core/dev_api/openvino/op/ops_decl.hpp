@@ -289,4 +289,5 @@ class ISTFT;
 class Identity;
 class SegmentMax;
 class SparseFillEmptyRows;
+class SparseFillEmptyRowsUnpackedString;
 }  // namespace ov::op::v16
