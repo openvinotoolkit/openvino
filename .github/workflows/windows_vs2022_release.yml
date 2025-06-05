@@ -75,6 +75,16 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+  
+  Build:
+  needs: [ Smart_CI ]
+  if: "!needs.smart_ci.outputs.skip_workflow"
+  uses: ./.github/workflows/job_build_windows1.yml
+  with:
+    runner: 'aks-win-16-cores-32gb'
+    affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+    target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+
 
   Samples:
     needs: [ Build, Smart_CI ]
