@@ -179,6 +179,7 @@ ov::pass::TotalSequenceLengthPatternCodeGen::TotalSequenceLengthPatternCodeGen(
         std::cout << "TotalSequenceLengthPatternCodeGen start" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
+        std::cout << "total_seq: " << total_seq << std::endl;
         std::shared_ptr<Node> replacement = max_context_len;
 
         auto target_type = total_seq->get_output_element_type(0);

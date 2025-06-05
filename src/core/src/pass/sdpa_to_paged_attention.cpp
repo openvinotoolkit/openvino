@@ -173,8 +173,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternCodeGen>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
-    // manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
-    // manager.register_pass<ReplaceRoPERangeWithPositionIds>(position_ids, dbg_results, layer_index1);
+    manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
+    manager.register_pass<ReplaceRoPERangeWithPositionIds>(unsqueezed_position_ids, dbg_results, layer_index1);
     // manager.register_pass<CustomModelPass>(position_ids);
     manager.run_passes(model);
 
@@ -211,7 +211,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         //         auto dbg_result = std::make_shared<v0::Result>(op);
         //         dbg_result->get_output_tensor(0).set_names({"add_result_" + std::to_string(add_counter++)});
         //         dbg_results.push_back(dbg_result);
-        //         std::cout << "added result to: " << add << std::endl;
+        //         std::cout << "added result to add: " << add << std::endl;
         //     }
         // }
     }
@@ -281,6 +281,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(model_wide_params);
     model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
-    ov::pass::VisualizeTree("after_qwen_7b_no_ivan_fixes_last.svg").run_on_model(model);
+    ov::pass::VisualizeTree("after_qwen_7b_full.svg").run_on_model(model);
     return true;
 }
