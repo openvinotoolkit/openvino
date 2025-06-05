@@ -612,6 +612,10 @@ bool fuse_type_to_eye_v9(const std::shared_ptr<ov::Node>& node, const precisions
 bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
                             const precisions_map& precisions,
                             bool convert_input_precision) {
+    // Parameter marked with is_keep_const_precision should be kept in their own precision until they reach the plugin
+    if (is_keep_const_precision(node))
+        return false;
+
     auto it = precisions.find(node->get_output_element_type(0));
     if (it == precisions.end())
         return false;
