@@ -4,7 +4,7 @@
 
 #include "jit_load_store_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>

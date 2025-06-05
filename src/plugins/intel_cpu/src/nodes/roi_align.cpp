@@ -4,7 +4,7 @@
 
 #include "roi_align.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>

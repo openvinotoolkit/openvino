@@ -4,7 +4,7 @@
 
 #include "jit_equation_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <libxsmm.h>
 #include <libxsmm_typedefs.h>
 

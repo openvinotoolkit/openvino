@@ -4,7 +4,7 @@
 
 #include "mlp_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cassert>

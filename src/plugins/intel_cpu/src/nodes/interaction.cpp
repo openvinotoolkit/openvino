@@ -4,7 +4,7 @@
 
 #include "interaction.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <common/utils.hpp>

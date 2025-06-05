@@ -4,7 +4,7 @@
 
 #include "extract_image_patches.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cmath>
 #include <common/utils.hpp>

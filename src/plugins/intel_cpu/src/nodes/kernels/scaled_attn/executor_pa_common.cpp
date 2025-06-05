@@ -3,7 +3,7 @@
 //
 #include "executor_pa_common.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cfloat>
 #include <cmath>

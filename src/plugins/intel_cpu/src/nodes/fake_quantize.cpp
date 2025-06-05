@@ -4,7 +4,7 @@
 
 #include "fake_quantize.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <oneapi/dnnl/dnnl_types.h>
 

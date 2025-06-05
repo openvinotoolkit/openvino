@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "common/primitive_attr.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"

@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cstddef>
 #include <cstdint>

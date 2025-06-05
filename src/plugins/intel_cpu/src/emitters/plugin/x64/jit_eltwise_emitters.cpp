@@ -4,7 +4,7 @@
 
 #include "jit_eltwise_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cmath>

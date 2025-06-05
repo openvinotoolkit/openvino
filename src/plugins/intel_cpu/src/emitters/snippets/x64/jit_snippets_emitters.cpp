@@ -4,7 +4,7 @@
 
 #include "jit_snippets_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <climits>
 #include <common/utils.hpp>

@@ -4,7 +4,7 @@
 
 #include "brgemm_copy_b.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>

@@ -4,7 +4,7 @@
 
 #include "jit_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <array>
 #include <common/bfloat16.hpp>

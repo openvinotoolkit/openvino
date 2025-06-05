@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <array>
 #include <cpu/x64/cpu_isa_traits.hpp>

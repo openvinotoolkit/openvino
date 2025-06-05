@@ -4,7 +4,7 @@
 
 #include "utils.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <common/utils.hpp>

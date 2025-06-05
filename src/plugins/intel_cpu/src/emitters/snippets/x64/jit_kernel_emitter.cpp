@@ -4,7 +4,7 @@
 
 #include "jit_kernel_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>

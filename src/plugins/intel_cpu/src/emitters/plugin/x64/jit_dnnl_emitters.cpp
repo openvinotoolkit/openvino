@@ -4,7 +4,7 @@
 
 #include "jit_dnnl_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <common/c_types_map.hpp>

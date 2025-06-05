@@ -4,7 +4,7 @@
 
 #include "bin_conv.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/c_types_map.hpp>

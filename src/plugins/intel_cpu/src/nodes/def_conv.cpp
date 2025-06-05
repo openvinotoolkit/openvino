@@ -4,7 +4,7 @@
 
 #include "def_conv.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>

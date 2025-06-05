@@ -4,7 +4,7 @@
 
 #include "jit_kernel_base.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>

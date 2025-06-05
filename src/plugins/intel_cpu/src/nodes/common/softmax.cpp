@@ -3,7 +3,7 @@
 //
 #include "softmax.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <cstddef>
