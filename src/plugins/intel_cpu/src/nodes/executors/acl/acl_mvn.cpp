@@ -17,7 +17,7 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 
-    size_t X, Y;
+    size_t X = 0, Y = 0;
     if (mvnAttrs.initAcrossChannels_) {
         if (srcDims.size() >= 2u) {
             Y = srcDims[0];

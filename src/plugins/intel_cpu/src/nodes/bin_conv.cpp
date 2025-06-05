@@ -776,22 +776,22 @@ private:
                         auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
                         if (isa == x64::avx512_core) {
-                            size_t o_off;
-                            if (jcp_.with_dw_conv) {
-                                o_off = jj * jcp_.oc_block;
-                            } else {
-                                o_off = jj * jcp_.oc * jcp_.ngroups;
-                            }
+                            size_t o_off = [&] {
+                                if (jcp_.with_dw_conv) {
+                                    return jj * jcp_.oc_block;
+                                }
+                                return jj * jcp_.oc * jcp_.ngroups;
+                            }();
 
                             uni_vmovups(ptr[reg_output + o_off * jcp_.typesize_out], vmm_dst | ktail_mask);
                         } else {
                             for (int oc = 0; oc < tail_size; oc++) {
-                                size_t o_off;
-                                if (jcp_.with_dw_conv) {
-                                    o_off = jj * jcp_.oc_block + oc + r * (jcp_.oc_block / 2);
-                                } else {
-                                    o_off = jj * jcp_.oc * jcp_.ngroups + r * (jcp_.oc_block / 2) + oc;
-                                }
+                                size_t o_off = [&] {
+                                    if (jcp_.with_dw_conv) {
+                                        return jj * jcp_.oc_block + oc + r * (jcp_.oc_block / 2);
+                                    }
+                                    return jj * jcp_.oc * jcp_.ngroups + r * (jcp_.oc_block / 2) + oc;
+                                }();
 
                                 store_dst(ptr[reg_output + o_off * jcp_.typesize_out], vmm_dst, true);
 
@@ -811,7 +811,7 @@ private:
                         for (int jj = 0; jj < ur_w; jj++) {
                             auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
-                            size_t o_off;
+                            size_t o_off = 0;
                             if (jcp_.with_dw_conv) {
                                 o_off = (static_cast<size_t>(ii) * jcp_dw_conv_.kh * jcp_.ow + jj) * jcp_.oc_block +
                                         r * (jcp_.oc_block / 2);
@@ -1369,7 +1369,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                     widx = with_groups ? g * w_str[0] + oc * w_str[1] + ic * w_str[2] + kh * w_str[3] + kw * w_str[4]
                                        : oc * w_str[0] + ic * w_str[1] + kh * w_str[2] + kw * w_str[3];
 
-                    uint8_t s;
+                    uint8_t s = 0;
                     if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
                         if (pad_value == 0) {
                             continue;
@@ -1392,20 +1392,20 @@ void BinaryConvolution::executeReference(const uint8_t* src,
         int32_t a = 0;
         ker(a, g, mb, oc, oh, ow);
 
-        float base_value;
-        if (pad_value == 0.0F) {
-            const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
-            const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
-            const int kw_padding = KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
+        auto base_value = [&]() -> float {
+            if (pad_value == 0.0F) {
+                const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
+                const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
+                const int kw_padding = KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
 
-            const int i_top_overflow = nstl::max(0, (padT - oh * KSH));
-            const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
-            const int kh_padding = KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
+                const int i_top_overflow = nstl::max(0, (padT - oh * KSH));
+                const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
+                const int kh_padding = KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
 
-            base_value = IC * kh_padding * kw_padding;
-        } else {
-            base_value = IC * KH * KW;
-        }
+                return IC * kh_padding * kw_padding;
+            }
+            return IC * KH * KW;
+        }();
 
         float a_fp = base_value - static_cast<float>(2 * a);
 

@@ -47,7 +47,7 @@ std::string vector_to_string(const T& v) {
 std::string get_emitter_type_name(const jit_emitter* emitter) {
     std::string name = typeid(*emitter).name();
 #    ifndef _WIN32
-    int status;
+    int status = 0;
     std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
                                                           std::free);
     name = demangled_name.get();

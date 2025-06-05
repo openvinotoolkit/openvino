@@ -303,8 +303,8 @@ public:
 
                 // K reduce is done, results of [M, BN] sub-block is ready in L2.
                 // combine Gate & Up
-                float* ptr_c;
-                size_t stride_c;
+                float* ptr_c = nullptr;
+                size_t stride_c = 0;
                 if (config.gate_up_quantized) {
                     // dequantize m_C in-place
                     ptr_c = work.m_C.template ptr<float>();

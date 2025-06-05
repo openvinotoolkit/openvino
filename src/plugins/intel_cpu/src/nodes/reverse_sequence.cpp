@@ -171,7 +171,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i;
+        size_t i = 0;
         size_t start = 0;
         size_t end = 0;
         size_t srcIdx = 0;

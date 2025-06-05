@@ -51,15 +51,15 @@ void ACLScheduler::schedule_custom(ICPPKernel* kernel, const Hints& hints, const
         const unsigned int num_iterations = m * n;
         const auto num_threads = get_num_threads(num_iterations);
 
-        unsigned m_threads, n_threads;
-        std::tie(m_threads, n_threads) = scheduler_utils::split_2d(num_threads, m, n);
+        auto [m_threads, n_threads] = scheduler_utils::split_2d(num_threads, m, n);
+
         unsigned int max_parallelism = std::min<unsigned int>(m, m_threads) * std::min<unsigned int>(n, n_threads);
         if (max_parallelism < num_threads) {
             m_threads = std::min<unsigned int>(m, m_threads);
             n_threads = std::min<unsigned int>(n, n_threads);
         }
 
-        ov::parallel_for(m_threads * n_threads, [&](int wid) {
+        ov::parallel_for(m_threads * n_threads, [&, m_threads = m_threads, n_threads = n_threads](int wid) {
             int mi = wid / n_threads;
             int ni = wid % n_threads;
             Window win = max_window.split_window(Window::DimX, mi, m_threads).split_window(Window::DimY, ni, n_threads);

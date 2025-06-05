@@ -2562,7 +2562,7 @@ struct MHAHelper {
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
-                DATA_TYPE* v_ptr;
+                DATA_TYPE* v_ptr = nullptr;
                 if (q_is_xf16 || !q_cache_is_same) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
                 } else {
@@ -2903,7 +2903,7 @@ struct MHAHelper {
         _weight_bhl.resize<float>({B, H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
         // for small batches dynamic scheduler has notable overhead
-        bool prefer_static_loop;
+        bool prefer_static_loop = false;
         // if less than 2 work items per thread, loop H
         bool loop_hk = B * kv_len_in_blocks * Hk > 2 * _nthr;
         if (B <= 32) {
@@ -2933,9 +2933,9 @@ struct MHAHelper {
             };
         auto loop_qk = [&](size_t b, size_t pk_in_blocks, size_t hx) {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-            size_t hk;
-            size_t hq_beg;
-            size_t hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
 
             // kv_len must be valid
@@ -3042,9 +3042,9 @@ struct MHAHelper {
         auto loop_wk = [&](size_t b, size_t pv_in_blocks, size_t hx) {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto pv = pv_in_blocks * _block_size;
-            size_t hk;
-            size_t hq_beg;
-            size_t hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
 
             // kv_len must be valid
@@ -3316,9 +3316,9 @@ struct MHA {
         _helper.resize_temporary_weight_buffer(weight_h);
 
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper.H, [&](size_t w, size_t hx) {
-            size_t hk;
-            size_t hq_beg;
-            size_t hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             if (loop_hk) {
                 hk = hx;
                 hq_beg = hk * _helper._h_each_group_len;
@@ -3810,10 +3810,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor subsequence_begins;
         PlainTensor block_indices;
         PlainTensor block_indices_begins;
-        float scale;
-        size_t sliding_window;
+        float scale = NAN;
+        size_t sliding_window = 0;
         PlainTensor alibi_slopes;
-        size_t max_context_len;
+        size_t max_context_len = 0;
         PlainTensor rotated_block_indices;
         PlainTensor rotation_deltas;
         PlainTensor rotation_trig_lut;

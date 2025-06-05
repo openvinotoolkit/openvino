@@ -458,7 +458,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              precision_of<T>::value);
             }
             auto* w_ptr = reinterpret_cast<T*>(weight_score.ptr<float>(ithr, 0, 0, 0));
-            float* fp32_out_ptr;
+            float* fp32_out_ptr = nullptr;
             if (is_xf16) {
                 fp32_out_ptr = has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0})
                                                  : &fp32_out.at<float>({b, h, m_start, 0});
@@ -900,7 +900,7 @@ struct MHASingleToken {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
-        size_t kv_len;
+        size_t kv_len = 0;
         kv_len = present_key.size(2);
 
         // aligned to cache line (64bytes=16*sizeof(float)) to avoid false sharing
@@ -974,11 +974,11 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         PlainTensor attn_mask;
         PlainTensor output_emb(output);
         float scale_input = 0.0F;
-        size_t B;
-        size_t L1;
-        size_t L0;
-        size_t S;
-        size_t SV;
+        size_t B = 0;
+        size_t L1 = 0;
+        size_t L0 = 0;
+        size_t S = 0;
+        size_t SV = 0;
 
         // B,L,H*S->B,L,H,S
         auto get_reshape_shape = [&config](const PlainTensor& input) {
@@ -1049,8 +1049,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             beam_table.assert_dims({B, L0 + L1});
         }
 
-        bool auto_causal;
-        bool use_attn_mask;
+        bool auto_causal = false;
+        bool use_attn_mask = false;
         if (fuse_causal_attn) {
             assert(attn_mask);
             attn_mask.assert_dims({B, 1, L1, L0 + L1});
@@ -1690,7 +1690,7 @@ void ScaledDotProductAttention::gatherConcatPastkv(const MemoryPtr& mem_cur_k,
     cur_k.reset(mem_cur_k);
     auto inputNumber = getOriginalInputsNumber();
     auto&& v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
-    size_t B_state;
+    size_t B_state = 0;
     if (!m_config.config.permute_axes.empty()) {
         cur_k = cur_k.permute(m_config.config.permute_axes);
         B_state = v_dims.at(m_config.config.permute_axes[0]);

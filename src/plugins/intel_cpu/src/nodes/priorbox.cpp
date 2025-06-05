@@ -72,7 +72,7 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     fixed_ratio = attrs.fixed_ratio;
     density = attrs.density;
 
-    bool exist;
+    bool exist = false;
     aspect_ratio.push_back(1.0F);
     for (float aspect_ratio_item : attrs.aspect_ratio) {
         exist = false;
@@ -182,12 +182,12 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     int64_t idx = 0;
-    float center_x;
-    float center_y;
-    float box_width;
-    float box_height;
-    float step_x;
-    float step_y;
+    float center_x = NAN;
+    float center_y = NAN;
+    float box_width = NAN;
+    float box_height = NAN;
+    float step_x = NAN;
+    float step_y = NAN;
     float IWI = 1.0F / static_cast<float>(IW);
     float IHI = 1.0F / static_cast<float>(IH);
 

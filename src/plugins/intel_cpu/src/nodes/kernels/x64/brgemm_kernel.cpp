@@ -88,7 +88,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
     bool isAMXSupported = (is_bf16 && mayiuse(avx512_core_amx)) || (is_f16 && mayiuse(avx512_core_amx_fp16));
     bool isBrgWithAMX = isAMXSupported && !is_avx_f16_only;
 
-    size_t vlen;
+    size_t vlen = 0;
     if (mayiuse(avx512_core)) {
         vlen = cpu_isa_traits<avx512_core>::vlen;
     } else {
@@ -186,24 +186,24 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
 
     const bool is_int8 =
         one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    cpu_isa_t isa;
-    if (use_amx) {
-        isa = isa_undef;
-    } else if (mayiuse(avx512_core)) {
-        if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
-            isa = avx512_core_bf16;
-        } else if (ctx.dt_in0 == dnnl_data_type_t::dnnl_f16 && mayiuse(avx512_core_fp16)) {
-            isa = avx512_core_fp16;
-        } else {
-            if (is_int8) {
-                isa = avx512_core_vnni;
-            } else {
-                isa = avx512_core;
-            }
+    cpu_isa_t isa = [&]() {
+        if (use_amx) {
+            return isa_undef;
         }
-    } else {
-        isa = cpu_isa_t::avx2;
-    }
+        if (mayiuse(avx512_core)) {
+            if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
+                return avx512_core_bf16;
+            }
+            if (ctx.dt_in0 == dnnl_data_type_t::dnnl_f16 && mayiuse(avx512_core_fp16)) {
+                return avx512_core_fp16;
+            }
+            if (is_int8) {
+                return avx512_core_vnni;
+            }
+            return avx512_core;
+        }
+        return cpu_isa_t::avx2;
+    }();
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
                                    brgemm_addr,

@@ -275,8 +275,8 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
         };
 
     if (isBlocked) {
-        size_t orderShiftForBlocks;
-        size_t orderShiftForDims;
+        size_t orderShiftForBlocks = 0;
+        size_t orderShiftForDims = 0;
         if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = attrs.nSpatialDims + 2;
             orderShiftForDims = 1;
