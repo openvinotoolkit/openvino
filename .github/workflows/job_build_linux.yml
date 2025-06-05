@@ -175,20 +175,20 @@ jobs:
       #
       # Build
       #
+      
+      - name: Clean sccache stats
+        run: ${SCCACHE_PATH} --zero-stats
 
       - name: CMake configure - OpenVINO
         run: |
-          $(poetry env activate -C ${{ env.OPENVINO_REPO }})
+          eval $(poetry env activate -C ${{ env.OPENVINO_REPO }})
           eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }}
 
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
-
       - name: Cmake build - OpenVINO
         run: |
-          $(poetry env activate -C ${{ env.OPENVINO_REPO }})
+          eval $(poetry env activate -C ${{ env.OPENVINO_REPO }})
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show sccache stats
@@ -216,7 +216,7 @@ jobs:
             
             poetry env use $python_exec_path
             $(poetry env activate)
-            poetry install --with build
+            poetry install --only build
             
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$(poetry env info --executable) -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
@@ -250,7 +250,7 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
-          $(poetry env activate)
+          eval $(poetry env activate)
           # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
           cmake -UPython* -U_Python* -UPYTHON* \
