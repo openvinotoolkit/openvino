@@ -159,15 +159,6 @@ MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 bool MatMul::canFuse(const NodePtr& node) const {
-#ifdef OPENVINO_ARCH_X86_64
-    // could go to optimized and not fused for now.
-    auto src_shape = getInputShapeAtPort(0).getDims();
-    auto wei_shape = getInputShapeAtPort(0).getDims();
-    if (canOptimize(src_shape, wei_shape)) {
-        return false;
-    }
-#endif
-
     // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
     if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
@@ -704,6 +695,7 @@ void MatMul::prepareParams() {
             matmul_attr.M = *++shape_in0.rbegin();
             matmul_attr.K = *shape_in0.rbegin();
             matmul_attr.N = *shape_in1.rbegin();
+            matmul_attr.attr = key.attr;
             return std::make_shared<MatMulSmallExecutor>(matmul_attr, prim_desc);
         }
 #endif
@@ -798,7 +790,6 @@ bool MatMul::canOptimize(const VectorDims& src_shape, const VectorDims& wei_shap
     auto in0_prec = getOriginalInputPrecisionAtPort(0);
     auto in1_prec = getOriginalInputPrecisionAtPort(1);
     auto out_prec = getOriginalOutputPrecisionAtPort(0);
-    // todo: extend precision, transpose and bias limitation.
     if (!everyone_is(ov::element::f32, in0_prec, in1_prec, out_prec)) {
         return false;
     }
@@ -808,17 +799,18 @@ bool MatMul::canOptimize(const VectorDims& src_shape, const VectorDims& wei_shap
     if (withBiases) {
         return false;
     }
-
     auto src_rank = src_shape.size();
     auto wei_rank = wei_shape.size();
-    if (src_rank > 2 && src_rank == wei_rank &&
-        (src_shape[src_rank - 1] <= 2 || src_shape[src_rank - 1] == Shape::UNDEFINED_DIM) &&
-        (src_shape[src_rank - 2] <= 2 || src_shape[src_rank - 2] == Shape::UNDEFINED_DIM) &&
-        (wei_shape[wei_rank - 1] <= 2 || wei_shape[wei_rank - 1] == Shape::UNDEFINED_DIM) &&
-        (wei_shape[wei_rank - 1] <= 2 || wei_shape[wei_rank - 1] == Shape::UNDEFINED_DIM)) {
-        return true;
+    if (src_rank < 2 || src_rank != wei_rank) {
+        return false;
     }
-    return false;
+    for (size_t i = 0; i < src_rank - 2; i++) {
+        if (src_shape[i] != wei_shape[i]) {
+            return false;
+        }
+    }
+    return (src_shape[src_rank - 1] <= 2) && (src_shape[src_rank - 2] <= 2) && (wei_shape[wei_rank - 1] <= 2) &&
+           (wei_shape[wei_rank - 2] <= 2);
 }
 #endif
 
