@@ -52,7 +52,7 @@ static std::string GetAxisDimSizeStr(const gather_elements_params& params) {
     }
 }
 
-static std::string GetLoadAndHandleNegativeIndiciesStr(const gather_elements_params& params) {
+static std::string GetLoadAndHandleNegativeIndicesStr(const gather_elements_params& params) {
     std::string str = "const int axis_dim = " + GetAxisDimSizeStr(params) + ";";
     str += "const int indices_val_read = (int)indices[out_idx];";
     str += "const int indices_val = indices_val_read < 0 ? indices_val_read + axis_dim : indices_val_read;";
@@ -161,7 +161,7 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
 JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("LOAD_AND_HANDLE_NEGATIVE_INDICIES", GetLoadAndHandleNegativeIndiciesStr(params)));
+    jit.AddConstant(MakeJitConstant("LOAD_AND_HANDLE_NEGATIVE_INDICES", GetLoadAndHandleNegativeIndicesStr(params)));
     jit.AddConstant(MakeJitConstant("AXIS", GetGatherElementsChannelIndex(params)));
     jit.AddConstant(MakeJitConstant("DATA_INDEX_ORDER", GetDataIndexOrder(params, GetGatherElementsChannelIndex(params))));
 
