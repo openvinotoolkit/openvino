@@ -8,27 +8,25 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "subgraph_mlp_seq.hpp"
+#include "subgraph_mlp.hpp"
 
 namespace ov {
 namespace test {
 namespace snippets {
 
-void MLPSeqBase::compile_model() {
-    if (m_thread_count != default_thread_count)
-        core->set_property(targetDevice, ov::inference_num_threads(m_thread_count));
-    SubgraphBaseTest::compile_model();
-}
-
-void MLPSeqBase::SetUp() {
-    std::vector<InputShape> input_shapes;
+void MLP::SetUp() {
+    std::pair<InputShape, std::vector<Shape>> shapes;
+    MLPFunction::WeightFormat weightFormat;
+    utils::ActivationTypes ActType;
     ov::element::Type prc;
     ov::AnyMap additional_config;
-    init_params(input_shapes, prc, additional_config);
-    init_input_shapes(input_shapes);
 
-    const auto subgraph_model = get_subgraph(m_num_hidden_layers, m_hidden_matmul_size);
-    function = subgraph_model->getOriginal();
+    std::tie(shapes, weightFormat, ActType, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) = this->GetParam();
+    auto [inShape, weightsShapes] = shapes;
+    init_input_shapes({inShape});
+
+    const auto subgraph_model = ov::test::snippets::MLPFunction(inputDynamicShapes, weightsShapes, weightFormat, ActType);
+    function = subgraph_model.getOriginal();
 
     configuration.insert(additional_config.begin(), additional_config.end());
     if (!configuration.count("SNIPPETS_MODE")) {
@@ -39,26 +37,16 @@ void MLPSeqBase::SetUp() {
     setInferenceType(prc);
 }
 
-std::string MLPSeq::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPSeqParams> obj) {
-    auto [input_shapes,
-          elem_types,
-          prc,
-          thread_count,
-          target_device,
-          additional_config,
-          num_hidden_layers_with_expectations,
-          hidden_matmul_size] = obj.param;
-
-    auto [num_hidden_layers, num_subgraphs_and_nodes] = num_hidden_layers_with_expectations;
-    auto [num_subgraphs, num_nodes] = num_subgraphs_and_nodes;
+std::string MLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPParams> obj) {
+    auto [shapes, weightFormat, ActType, prc, num_nodes, num_subgraphs, target_device, additional_config] = obj.param;
+    auto [inputShape, weightsShapes] = shapes;
 
     std::ostringstream result;
-    for (size_t i = 0; i < input_shapes.size(); i++)
-        result << "IS[" << i << "]=" << input_shapes[i] << "_";
-    for (size_t i = 0; i < elem_types.size(); i++)
-        result << "T[" << i << "]=" << elem_types[i] << "_";
-    result << "ThreadNum=" << thread_count << "_";
-    result << "PRC=" << prc << "_";
+    result << "InputShape=" << inputShape << "_";
+    result << "weightsShapes=" << ov::test::utils::vec2str(weightsShapes) << "_";
+    result << "WeightFormat=" << weightFormat << "_";
+    result << "ActType=" << ActType << "_";
+    result << "Prc=" << prc << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << target_device << "_";
@@ -69,48 +57,10 @@ std::string MLPSeq::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
             result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
-    result << "#num_hidden_layers=" << num_hidden_layers << "_";
-    result << "#hidden_matmul_size=" << hidden_matmul_size << "_";
     return result.str();
 }
 
-void MLPSeq::init_params(std::vector<InputShape>& input_shapes, ov::element::Type& prc, ov::AnyMap& additional_config) {
-    std::pair <size_t, std::pair<size_t, size_t>> num_hidden_layers_with_expectations;
-    std::tie(input_shapes,
-             m_input_types,
-             prc,
-             m_thread_count,
-             targetDevice,
-             additional_config,
-             num_hidden_layers_with_expectations,
-             m_hidden_matmul_size) = this->GetParam();
-    std::pair<size_t, size_t> ref_num_subgraphs_and_nodes;
-    std::tie(m_num_hidden_layers, ref_num_subgraphs_and_nodes) = num_hidden_layers_with_expectations;
-    std::tie(ref_num_subgraphs, ref_num_nodes) = ref_num_subgraphs_and_nodes;
-}
-
-std::shared_ptr<SnippetsFunctionBase> MLPSeq::get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const {
-    return std::make_shared<ov::test::snippets::MLPSeqFunction>(inputDynamicShapes,
-                                                                m_input_types,
-                                                                num_hidden_layers,
-                                                                hidden_matmul_size);
-}
-
-std::shared_ptr<SnippetsFunctionBase> MLPSeqQuantized::get_subgraph(size_t num_hidden_layers,
-                                                                 size_t hidden_matmul_size) const {
-    return std::make_shared<ov::test::snippets::MLPSeqQuantizedFunction>(inputDynamicShapes,
-                                                                         m_input_types,
-                                                                         num_hidden_layers,
-                                                                         hidden_matmul_size);
-}
-
-TEST_P(MLPSeq, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    run();
-    validateNumSubgraphs();
-}
-
-TEST_P(MLPSeqQuantized, CompareWithRefImpl) {
+TEST_P(MLP, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

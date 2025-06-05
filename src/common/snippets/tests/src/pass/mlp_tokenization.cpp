@@ -4,66 +4,82 @@
 
 #include <gtest/gtest.h>
 
-#include <pass/mlp_tokenization.hpp>
-#include <subgraph_mlp_seq.hpp>
+#include "pass/mlp_tokenization.hpp"
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 #include "snippets/pass/common_optimizations.hpp"
-#include "snippets/pass/mlp_seq_tokenization.hpp"
+#include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
+#include "snippets/pass/mlp_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "subgraph_mlp.hpp"
+
 namespace ov {
 namespace test {
 namespace snippets {
 
-void TokenizeMLPSeqSnippetsTests::run() {
+void TokenizeMLPSnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
-    manager.register_pass<ov::snippets::pass::TokenizeMLPSeqSnippets>(config);
+    manager.register_pass<ov::snippets::pass::TokenizeMLPSnippets>(config);
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     disable_rt_info_check();
+
+    // To avoid Transpose exraction from MatMuls
+    manager.get_pass_config()->set_callback<ov::snippets::pass::ExplicitTransposeMatMulInputs>(
+        [](const std::shared_ptr<const ov::Node>& n){
+            return true;
+        });
 }
-class TokenizeMLPSnippetsParamTests : public TokenizeMLPSeqSnippetsTests,
-                                       public testing::WithParamInterface<std::tuple<std::vector<PartialShape>, ov::element::Type, int>> {
+
+using TokenizeMLPSnippetsParam = std::tuple<
+    PartialShape,
+    std::vector<Shape>,
+    MLPFunction::WeightFormat,
+    ov::test::utils::ActivationTypes
+>;
+class TokenizeMLPSnippetsParamTests : public TokenizeMLPSnippetsTests,
+                                      public testing::WithParamInterface<TokenizeMLPSnippetsParam> {
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        auto params = GetParam();
-        auto shape = std::get<0>(params);
-        auto elem_type = std::get<1>(params);
-        auto hidden_layers = std::get<2>(params);
+        auto [inputShape, weightsShapes, weightFormat, ActType] = GetParam();
 
-        const auto& f = MLPSeqQuantizedTypeRelaxedFunction(shape,
-                                                          std::vector<ov::element::Type>({elem_type}),
-                                                          hidden_layers,
-                                                          128);
+        const auto& f = MLPFunction({inputShape}, weightsShapes, weightFormat, ActType);
         model = f.getOriginal();
-        model_ref = f.getReference();
+
+        // Currently we support only Constants on second inputs of MatMuls
+        // Weights decompression in not supported and not tokenized
+        if (weightFormat == MLPFunction::WeightFormat::FP32) {
+            model_ref = f.getReference();
+        } else {
+            model_ref = f.getOriginal();
+        }
     }
 };
 
-TEST_P(TokenizeMLPSnippetsParamTests, TypeRelaxed_2D) {
+TEST_P(TokenizeMLPSnippetsParamTests, MLP_LLM) {
     run();
 }
 
-static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::vector<PartialShape>, ov::element::Type, int>>& info) {
-    std::vector<PartialShape> shape = std::get<0>(info.param);
-    ov::element::Type elem_type = std::get<1>(info.param);
-    int hidden_layers = std::get<2>(info.param);
+static std::string getTestCaseName(const testing::TestParamInfo<TokenizeMLPSnippetsParam>& info) {
+    auto [inputShape, weightsShapes, weightFormat, ActType] = info.param;
     std::ostringstream result;
-    result << "InputShape=" << ov::test::utils::partialShape2str(shape) << "_";
-    result << "ElementType=" << elem_type.get_type_name() << "_";
-    result << "HiddenLayers=" << hidden_layers << "_";
-    result << "Precision=" << elem_type.get_type_name() << "_";
+    result << "InputShape=" << ov::test::utils::partialShape2str({inputShape}) << "_";
+    result << "weightsShapes=" << ov::test::utils::vec2str(weightsShapes) << "_";
+    result << "WeightFormat=" << weightFormat << "_";
+    result << "ActType=" << ActType;
     return result.str();
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    smoke_Snippets_MLP_SEQ,
+    smoke_Snippets_MLP,
     TokenizeMLPSnippetsParamTests,
     testing::Combine(
-        testing::Values(std::vector<PartialShape>{{64, 64}}, std::vector<PartialShape>{{128, 128}}),
-        testing::Values(ov::element::f32, ov::element::u8),
-        testing::Values(1, 2, 3, 5, 7)),
+        testing::Values(PartialShape{-1, -1, 896}),
+        testing::Values(std::vector<Shape>{{4864, 896}, {4864, 896}, {896, 4864}}),
+        testing::Values(MLPFunction::WeightFormat::FP32, MLPFunction::WeightFormat::FP16),
+        testing::Values(utils::ActivationTypes::Swish, utils::ActivationTypes::Relu)),
     getTestCaseName);
 
 }  // namespace snippets
