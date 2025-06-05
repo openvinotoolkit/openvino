@@ -311,7 +311,7 @@ public:
     explicit LoraOptFirstTokenA(std::string suffix, size_t reg_m, size_t reg_n) : LoraOptFirstTokenBase("first_token_a_" + suffix, reg_m, reg_n) {}
 
     static std::pair<size_t, size_t> get_subgroup_params(const RuntimeParams& params, size_t reg_n) {
-        size_t sg_m, sg_n;
+        size_t sg_m = 0, sg_n = 0;
 
         const auto& lora_input_lo = params.input_layouts[1];
         size_t lora_rank = extract_channel(ChannelName::FEATURE, lora_input_lo);
@@ -374,7 +374,7 @@ protected:
 
             size_t subgroup_size = LoraOptBase::get_subgroup_size(params);
 
-            size_t sg_m, sg_n;
+            size_t sg_m = 0, sg_n = 0;
             std::tie(sg_m, sg_n) = LoraOptFirstTokenA::get_subgroup_params(params, reg_n);
 
             if (sg_n == 0) {
