@@ -137,7 +137,6 @@ Image to Text,blip-vision-model,onnx,FP32,ONNX Runtime OVEP,+,+,+
 Image to Text,blip-vision-model,onnx,FP16,ONNX Runtime OVEP,+,+,+
 Large Language Model,bloom,pytorch,FP32,torch.compile,+,+,+
 Large Language Model,bloom-560m,pytorch,INT4,Optimum Intel,+,+,
-Large Language Model,bloomz-1b1,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,bloomz-1b4-zh,pytorch,FP16,OpenVINO,+,+,
 Large Language Model,bloomz-1b4-zh,pytorch,INT4-MIXED,OpenVINO,+,+,
 Large Language Model,bloomz-1b4-zh,pytorch,INT8-CW,OpenVINO,+,+,
@@ -188,10 +187,6 @@ Large Language Model,codegemma-1.1-2b,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,codegemma-1.1-7b-it,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,codegemma-2b,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,codegemma-7b,pytorch,INT4,Optimum Intel,+,+,
-Large Language Model,codegen2-1b,pytorch,FP16,OpenVINO,+,+,
-Large Language Model,codegen2-1b,pytorch,INT4-MIXED,OpenVINO,+,+,
-Large Language Model,codegen2-1b,pytorch,INT8-CW,OpenVINO,+,+,
-Large Language Model,codegen2-1B_P,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,codegen2-3_7b,pytorch,FP16,OpenVINO,+,+,
 Large Language Model,codegen2-3_7b,pytorch,INT4-MIXED,OpenVINO,+,+,
 Large Language Model,codegen2-3_7b,pytorch,INT8-CW,OpenVINO,+,+,
@@ -201,7 +196,6 @@ Large Language Model,codegen25-7b,pytorch,FP16,OpenVINO,+,+,
 Large Language Model,codegen2-7b,pytorch,FP16,OpenVINO,+,+,
 Large Language Model,codegen2-7b,pytorch,INT4-MIXED,OpenVINO,+,+,
 Large Language Model,codegen2-7b,pytorch,INT8-CW,OpenVINO,+,+,
-Large Language Model,codegen-2B-multi,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,codegen-350M-mono,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,codellama-7b,pytorch,FP16,OpenVINO,+,+,
 Large Language Model,codellama-7b,pytorch,INT4-MIXED,OpenVINO,+,+,
@@ -581,7 +575,6 @@ Large Language Model,gemma-2-2b,pytorch,INT8-CW,OpenVINO,+,+,
 Large Language Model,gemma-2-9b,pytorch,INT4-MIXED,OpenVINO,+,+,
 Large Language Model,gemma-2-9b,pytorch,INT8-CW,OpenVINO,+,+,
 Large Language Model,gemma-2-9b,pytorch,FP16,OpenVINO,+,+,
-Large Language Model,gemma-2b,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,gemma-2b-it,pytorch,INT4-MIXED,OpenVINO,+,+,
 Large Language Model,gemma-2b-it,pytorch,INT8-CW,OpenVINO,+,+,+
 Large Language Model,gemma-2b-it,pytorch,FP16,OpenVINO,+,+,
@@ -626,14 +619,6 @@ Image Classification,googlenet-v4,tf,FP16-INT8,OpenVINO,+,+,+
 Image Classification,googlenet-v4,tf,FP32,OpenVINO,+,+,
 Large Language Model,gpt2,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,gpt2,pytorch,FP32,torch.compile,+,+,+
-Large Language Model,GPT-2,onnx,FP16,OpenVINO,+,+,+
-Large Language Model,GPT-2,onnx,FP32,OpenVINO,+,+,+
-Large Language Model,gpt-2,pytorch,FP16,OpenVINO,+,+,
-Large Language Model,gpt-2,pytorch,INT4-MIXED,OpenVINO,+,+,
-Large Language Model,gpt-2,pytorch,INT8-CW,OpenVINO,+,+,
-Large Language Model,GPT-2,onnx,FP32,ONNX Runtime OVEP,+,+,+
-Large Language Model,GPT-2,onnx,FP16,ONNX Runtime OVEP,+,+,+
-Large Language Model,GPT-2,onnx,INT8,ONNX Runtime OVEP,+,+,
 Large Language Model,GPT2Neo1.3BPoints,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,gpt2-wikitext2-int8-onnx-0001,onnx,FP16-INT8,OpenVINO,,+,
 Large Language Model,gpt-neox-20b,pytorch,INT4-MIXED,OpenVINO,+,+,
@@ -1113,14 +1098,12 @@ Natural Language Processing,PubChem10M_SMILES_BPE_396_250,pytorch,FP32,torch.com
 Image Classification,pvt_v2_b3,pytorch,FP32,torch.compile,+,+,+
 Audio,pyannotate-speaker-diarization,onnx,FP32,ONNX Runtime OVEP,+,+,+
 Audio,pyannotate-speaker-diarization,onnx,FP16,ONNX Runtime OVEP,+,+,+
-Large Language Model,pythia-1.4b,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,pythia-12b,pytorch,FP16,OpenVINO,+,,
 Large Language Model,pythia-12b,pytorch,INT4-MIXED,OpenVINO,+,+,
 Large Language Model,pythia-12b,pytorch,INT8-CW,OpenVINO,+,+,
 Large Language Model,pythia-12b,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,pythia-14m,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,pythia-160m,pytorch,INT4,Optimum Intel,+,+,
-Large Language Model,pythia-1b,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,pythia-2.8b,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,pythia-410m,pytorch,INT4,Optimum Intel,+,+,
 Large Language Model,pythia-6.9b,pytorch,INT4,Optimum Intel,+,+,
