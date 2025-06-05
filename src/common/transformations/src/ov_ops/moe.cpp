@@ -55,7 +55,9 @@ bool MOE::visit_attributes(ov::AttributeVisitor& visitor) {
     m_attrs.consts.resize(m_attrs.config.expert_num);
     for (size_t i = 0; i < m_attrs.config.expert_num; i++) {
         for (size_t j = 0; j < 3; j++) {
+            visitor.start_structure("expert" + std::to_string(i) + "_mlp" + std::to_string(j));
             m_attrs.consts[i].gates[j]->visit_attributes(visitor);
+            visitor.finish_structure();
         }
     }
     return true;

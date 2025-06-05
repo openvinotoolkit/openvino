@@ -62,7 +62,11 @@ public:
     }
 
     void add_consts(size_t expert_no, const ConstsPerExpert& consts) {
-        OPENVINO_ASSERT(expert_no == m_attrs.consts.size());
+        OPENVINO_ASSERT(expert_no == m_attrs.consts.size(),
+                        "MOE add_consts failed. Expected expert number: ",
+                        m_attrs.consts.size(),
+                        ", current: ",
+                        expert_no);
         m_attrs.consts.push_back(consts);
     }
 
