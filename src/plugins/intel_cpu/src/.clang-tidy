@@ -8,7 +8,6 @@
 # -cppcoreguidelines-avoid-c-arrays. There are a lot of code which uses C-style arrays
 # -cppcoreguidelines-avoid-do-while. Just stylistic preference
 # -cppcoreguidelines-explicit-virtual-functions. Forbids 'override final' usage
-# -cppcoreguidelines-init-variables. Too many unnecessary initializations
 # -cppcoreguidelines-macro-usage. There are macros defined by OV that are matching this check
 # -cppcoreguidelines-misleading-capture-default-by-value. Commonly used in the transformations code
 # -cppcoreguidelines-non-private-member-variables-in-classes. There are a lot of code which uses protected members directly
@@ -80,7 +79,6 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-explicit-virtual-functions,
-  -cppcoreguidelines-init-variables,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-misleading-capture-default-by-value,
   -cppcoreguidelines-narrowing-conversions,

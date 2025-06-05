@@ -408,10 +408,10 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
         }
     };
 
-    size_t K_dim;
-    size_t K_blk;
-    size_t N_dim;
-    size_t N_blk;
+    size_t K_dim = 0;
+    size_t K_blk = 0;
+    size_t N_dim = 0;
+    size_t N_blk = 0;
     //  Dimension K
     init(K_dim, K_blk, 1);
     //  Dimension N
