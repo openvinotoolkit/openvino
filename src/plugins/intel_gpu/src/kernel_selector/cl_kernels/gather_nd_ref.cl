@@ -52,6 +52,14 @@ KERNEL(gather_nd_ref)(
     const uint idx_f = dim2 % F_NUM;
     const uint idx_b = dim2 / F_NUM;
 
+    #if INPUT0_DIMS == 4
+        const int data_dim[INPUT0_DIMS] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X};
+    #elif INPUT0_DIMS == 5
+        const int data_dim[INPUT0_DIMS] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
+    #else
+        const int data_dim[INPUT0_DIMS] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_W, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
+    #endif
+
     #if INPUT1_DIMS == 4
         const uint idx_x = dim0;
         const uint idx_y = dim1;
@@ -113,7 +121,9 @@ KERNEL(gather_nd_ref)(
     }
 
     for (uint i = 0; i < indices_last_dim; i++) {
-        indices_val[i + BATCH_DIMS] = indices[idx+i];
+        const int indicies_val_read = indices[idx + i];
+        const int final_indicies_val = indicies_val_read < 0 ? indicies_val_read + data_dim[i + BATCH_DIMS] : indicies_val_read;
+        indices_val[i + BATCH_DIMS] = final_indicies_val;
     }
 
     #if INPUT0_DIMS == 4
