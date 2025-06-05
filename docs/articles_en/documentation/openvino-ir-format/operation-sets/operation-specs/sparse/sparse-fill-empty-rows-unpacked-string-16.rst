@@ -37,7 +37,7 @@ This operator also returns a boolean vector indicating which rows were filled wi
 * **1**: `begins` - ND tensor of type *T_IDX* containing the beginning indices of strings in the `symbols` array. **Required.**
 * **2**: `ends` - ND tensor of type *T_IDX* containing the ending indices of strings in the `symbols` array. The shape must be identical to `begins`. **Required.**
 * **3**: `symbols` - 1D tensor of type *u8* containing the concatenated string data encoded in utf-8 bytes. **Required.**
-* **4**: `default_value` - A string scalar of type *u8* to be inserted into the empty rows. **Required.**
+* **4**: `default_value` - A 1D tensor of type *u8* describing a string to be inserted into the empty rows. **Required.**
 
 **Outputs**:
 
@@ -82,7 +82,7 @@ Rows 1 and 4 are empty. The output will be:
             <dim>35</dim>
         </port>
         <port id="3" precision="U8">        <!-- default_value -->
-            <dim>0</dim>
+            <dim>5</dim>
         </port>
     </input>
     <output>
