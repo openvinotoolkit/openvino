@@ -52,6 +52,10 @@ RUN apt-get update && \
         python3.13-venv \
         # For Java API
         default-jdk \
+        # To build documentation
+        graphviz \
+        texlive \
+        liblua5.2-0 \
         # JS API
         xvfb \
         libgtk-3-0 \
@@ -111,6 +115,14 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | b
 RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
+# Install doxygen
+ENV DOXYGEN_HOME="/opt/doxygen"
+ENV DOXYGEN_VERSION='1.9.6'
+RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.nl/files/doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
+    tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
+    rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
+ENV PATH="${DOXYGEN_HOME}/doxygen-$DOXYGEN_VERSION/bin:$PATH"
+
 # Change ownership of the home directory to the non-root user
 RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
 
@@ -120,6 +132,8 @@ RUN chown -R ${USER_NAME}:${USER_NAME} /venv
 # Change ownership of node to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
 
+# Change ownership of doxygen to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} ${DOXYGEN_HOME}
+
 # Switch to the non-root user
 USER ${USER_NAME}
-
