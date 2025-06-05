@@ -27,6 +27,9 @@ RUN apt-get update && \
         python3-full \
         python3-dev \
         pkg-config \
+        cmake \
+        ccache \
+        ninja \
         g++ \
         gcc \
         && \
