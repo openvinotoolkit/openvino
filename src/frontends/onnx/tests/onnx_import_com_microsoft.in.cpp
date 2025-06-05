@@ -1444,6 +1444,36 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization) {
+    const auto model = convert_model("com.microsoft/simplified_layer_normalization.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> input =
+        {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f};
+
+    const std::vector<float> expected_output = {0.19802947f,
+                                                0.39605895f,
+                                                0.59408844f,
+                                                0.7921179f,
+                                                0.9901474f,
+                                                1.1881769f,
+                                                1.3862064f,
+                                                1.5842358f,
+                                                0.7082005f,
+                                                0.78688943f,
+                                                0.8655784f,
+                                                0.94426733f,
+                                                1.0229563f,
+                                                1.1016452f,
+                                                1.1803342f,
+                                                1.2590232f};
+
+    test_case.add_input<float>(Shape{2, 8}, input);
+    test_case.add_expected_output<float>(Shape{2, 8}, expected_output);
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization_2x2x8) {
     const auto model = convert_model("com.microsoft/simplified_layer_normalization_2x2x8.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -2145,6 +2175,96 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_1_input_1_rotary_interleaved)
     test_case.run_with_tolerance_as_fp();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_reducemean_i8) {
+    const auto model = convert_model("com.microsoft/qlinear_reducemean_i8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<int8_t> data{-10, 0, 10, -20, 20, 30};
+    const std::vector<float> data_scale{0.1f};
+    const std::vector<int8_t> data_zero_point{0};
+    const std::vector<float> reduced_scale{0.05f};
+    const std::vector<int8_t> reduced_zero_point{5};
+
+    const std::vector<int8_t> expected_output{5, 25};
+
+    test_case.add_input<int8_t>(Shape{2, 3}, data);
+    test_case.add_input<float>(Shape{1}, data_scale);
+    test_case.add_input<int8_t>(Shape{1}, data_zero_point);
+    test_case.add_input<float>(Shape{1}, reduced_scale);
+    test_case.add_input<int8_t>(Shape{1}, reduced_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 1}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_concat_i8) {
+    const auto model = convert_model("com.microsoft/qlinear_concat_i8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> y_scale{0.1f};
+    const std::vector<int8_t> y_zero_point{5};
+
+    const std::vector<int8_t> X1{1, 2, 3, 4};
+    const std::vector<float> X1_scale{0.1f};
+    const std::vector<int8_t> X1_zero_point{0};
+
+    const std::vector<int8_t> X2{5, 6, 7, 8};
+    const std::vector<float> X2_scale{0.1f};
+    const std::vector<int8_t> X2_zero_point{0};
+
+    const std::vector<int8_t> expected_output{6, 7, 10, 11, 8, 9, 12, 13};
+
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_input<int8_t>(Shape{2, 2}, X1);
+    test_case.add_input<float>(Shape{1}, X1_scale);
+    test_case.add_input<int8_t>(Shape{1}, X1_zero_point);
+
+    test_case.add_input<int8_t>(Shape{2, 2}, X2);
+    test_case.add_input<float>(Shape{1}, X2_scale);
+    test_case.add_input<int8_t>(Shape{1}, X2_zero_point);
+
+    test_case.add_expected_output<int8_t>(Shape{2, 4}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_concat_u8) {
+    const auto model = convert_model("com.microsoft/qlinear_concat_u8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> y_scale{0.1f};
+    const std::vector<uint8_t> y_zero_point{5};
+
+    const std::vector<uint8_t> X1{10, 20, 30, 40, 50, 60, 15, 25, 35, 45, 55, 65,
+                                  12, 22, 32, 42, 52, 62, 18, 28, 38, 48, 58, 68};
+    const std::vector<float> X1_scale{0.1f};
+    const std::vector<uint8_t> X1_zero_point{0};
+
+    const std::vector<uint8_t> X2{70, 80, 90, 100, 110, 120, 75, 85, 95, 105, 115, 125,
+                                  72, 82, 92, 102, 112, 122, 78, 88, 98, 108, 118, 128};
+    const std::vector<float> X2_scale{0.1f};
+    const std::vector<uint8_t> X2_zero_point{0};
+
+    const std::vector<uint8_t> expected_output{
+        15, 25, 35, 45, 55, 65, 75, 85, 95, 105, 115, 125, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130,
+        17, 27, 37, 47, 57, 67, 77, 87, 97, 107, 117, 127, 23, 33, 43, 53, 63, 73, 83, 93, 103, 113, 123, 133};
+
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<uint8_t>(Shape{1}, y_zero_point);
+
+    test_case.add_input<uint8_t>(Shape{4, 6}, X1);
+    test_case.add_input<float>(Shape{1}, X1_scale);
+    test_case.add_input<uint8_t>(Shape{1}, X1_zero_point);
+
+    test_case.add_input<uint8_t>(Shape{4, 6}, X2);
+    test_case.add_input<float>(Shape{1}, X2_scale);
+    test_case.add_input<uint8_t>(Shape{1}, X2_zero_point);
+
+    test_case.add_expected_output<uint8_t>(Shape{4, 12}, expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsoftmax) {
     const auto model = convert_model("com.microsoft/qlinear_softmax_opset13.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -2187,5 +2307,82 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinearsoftmax_opset12) {
     test_case.add_input<int8_t>(Shape{1}, y_zero_point);
 
     test_case.add_expected_output<int8_t>(Shape{4, 5}, expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_where_i8) {
+    const auto model = convert_model("com.microsoft/qlinear_where_i8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<bool> condition = {true, false, true, false, true, false};
+    const std::vector<int8_t> X = {10, 20, 30, 40, 50, 60};
+    const std::vector<int8_t> Y = {100, 90, 80, 70, 60, 50};
+    const std::vector<float> x_scale = {0.1f};
+    const std::vector<int8_t> x_zero_point = {0};
+    const std::vector<float> y_scale = {0.2f};
+    const std::vector<int8_t> y_zero_point = {5};
+    const std::vector<float> z_scale = {0.15f};
+    const std::vector<int8_t> z_zero_point = {3};
+
+    const std::vector<int8_t> expected_output = {9, 116, 23, 89, 36, 63};
+
+    test_case.add_input<bool>(Shape{2, 3}, condition);
+    test_case.add_input<int8_t>(Shape{2, 3}, X);
+    test_case.add_input<float>(Shape{1}, x_scale);
+    test_case.add_input<int8_t>(Shape{1}, x_zero_point);
+    test_case.add_input<int8_t>(Shape{2, 3}, Y);
+    test_case.add_input<float>(Shape{1}, y_scale);
+    test_case.add_input<int8_t>(Shape{1}, y_zero_point);
+    test_case.add_input<float>(Shape{1}, z_scale);
+    test_case.add_input<int8_t>(Shape{1}, z_zero_point);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_qlinear_where_u8) {
+    const auto model = convert_model("com.microsoft/qlinear_where_u8.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<uint8_t> condition = {1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0,
+                                            0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1,
+                                            1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1,
+                                            0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0,
+                                            1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1};
+    const std::vector<uint8_t> X = {
+        10, 20, 30,  40,  50,  60,  15, 25, 35,  45,  55,  65,  12, 22, 32,  42,  52,  62,  18, 28, 38,  48,  58,  68,
+        70, 80, 90,  100, 110, 120, 75, 85, 95,  105, 115, 100, 72, 82, 92,  102, 112, 108, 78, 88, 98,  108, 118, 115,
+        20, 30, 40,  50,  60,  70,  25, 35, 45,  55,  65,  75,  22, 32, 42,  52,  62,  72,  28, 38, 48,  58,  68,  78,
+        80, 90, 100, 110, 120, 110, 85, 95, 105, 115, 100, 90,  82, 92, 102, 112, 108, 98,  88, 98, 108, 118, 115, 105,
+        30, 40, 50,  60,  70,  80,  35, 45, 55,  65,  75,  85,  32, 42, 52,  62,  72,  82,  38, 48, 58,  68,  78,  88};
+
+    const std::vector<uint8_t> Y = {
+        50,  40, 30, 20, 10, 5,  60,  55,  45, 35, 25, 15, 65,  55,  45,  35, 25, 15, 75,  65, 55, 45, 35, 25,
+        100, 90, 80, 70, 60, 50, 110, 100, 90, 80, 70, 60, 120, 110, 100, 90, 80, 70, 105, 95, 85, 75, 65, 55,
+        40,  30, 20, 10, 5,  3,  50,  40,  30, 20, 10, 8,  55,  45,  35,  25, 15, 12, 65,  55, 45, 35, 25, 22,
+        90,  80, 70, 60, 50, 40, 100, 90,  80, 70, 60, 50, 110, 100, 90,  80, 70, 60, 95,  85, 75, 65, 55, 45,
+        30,  20, 10, 5,  3,  2,  40,  30,  20, 10, 8,  6,  45,  35,  25,  15, 12, 10, 55,  45, 35, 25, 22, 20};
+
+    const std::vector<float> X_scale{0.1f};
+    const std::vector<uint8_t> X_zero_point{0};
+    const std::vector<float> Y_scale{0.1f};
+    const std::vector<uint8_t> Y_zero_point{0};
+    const std::vector<float> Z_scale{0.1f};
+    const std::vector<uint8_t> Z_zero_point{0};
+
+    std::vector<uint8_t> expected_output(X.size());
+    for (size_t i = 0; i < X.size(); i++) {
+        expected_output[i] = condition[i] ? X[i] : Y[i];
+    }
+
+    test_case.add_input<uint8_t>(Shape{4, 5, 6}, condition);
+    test_case.add_input<uint8_t>(Shape{4, 5, 6}, X);
+    test_case.add_input<float>(Shape{1}, X_scale);
+    test_case.add_input<uint8_t>(Shape{1}, X_zero_point);
+    test_case.add_input<uint8_t>(Shape{4, 5, 6}, Y);
+    test_case.add_input<float>(Shape{1}, Y_scale);
+    test_case.add_input<uint8_t>(Shape{1}, Y_zero_point);
+    test_case.add_input<float>(Shape{1}, Z_scale);
+    test_case.add_input<uint8_t>(Shape{1}, Z_zero_point);
+
+    test_case.add_expected_output<uint8_t>(Shape{4, 5, 6}, expected_output);
     test_case.run();
 }

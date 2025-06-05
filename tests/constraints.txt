@@ -16,12 +16,11 @@ opencv-python>=4.5
 paddlepaddle==2.6.2
 protobuf>=3.18.1,<7.0.0
 py>=1.9.0
-pytest>=5.0,<8.4
+pytest>=5.0,<8.5
 pytest-dependency==0.6.0
 pytest-html==4.1.1
 pytest-timeout==2.4.0
 kornia==0.8.1
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch~=2.5.1; platform_system != "Darwin" or platform_machine != "x86_64"
-torch~=2.7.0; platform_system == "Darwin" and platform_machine == "x86_64"
+torch~=2.7.0

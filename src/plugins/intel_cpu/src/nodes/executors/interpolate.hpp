@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
+#include <vector>
 
-#include "node.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 enum { MAX_INPUT_INTERPOLATE = 8 };
 
@@ -150,7 +163,7 @@ private:
                        InterpolateLayoutType layout);
 
     [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-    [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+    [[nodiscard]] static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
     void linearOnnxCF(int outCoord,
                       float scale,
                       int inShape,
@@ -159,7 +172,7 @@ private:
                       int& index1,
                       float& weight0,
                       float& weight1);
-    std::vector<float> getCubicCoeffs(float mantissa, float a);
+    static std::vector<float> getCubicCoeffs(float mantissa, float a);
 
 protected:
     InterpolateAttrs interpAttrs;
