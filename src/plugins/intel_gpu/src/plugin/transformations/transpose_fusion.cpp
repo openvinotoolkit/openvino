@@ -30,6 +30,32 @@ namespace ov::intel_gpu {
 
 namespace {
 
+bool is_valid_order(const std::vector<size_t>& target_order, size_t dims) {
+    static const std::vector<std::vector<size_t>> allowed_orders_4d = {
+        {0, 1, 2, 3},
+        {0, 1, 3, 2},
+        {1, 2, 3, 0},
+        {0, 2, 1, 3},
+        {0, 3, 1, 2},
+        {1, 2, 0, 3},
+        {2, 0, 1, 3},
+        {3, 0, 1, 2}
+    };
+
+    static const std::vector<std::vector<size_t>> allowed_orders_3d = {
+        {0, 1, 2, 3},
+        {0, 1, 3, 2},
+        {1, 2, 3, 0},
+        {0, 2, 1, 3},
+        {1, 2, 0, 3},
+        {2, 0, 1, 3},
+        {3, 0, 1, 2}
+    };
+
+    const auto& allowed_orders = (dims < 4) ? allowed_orders_3d : allowed_orders_4d;
+    return cldnn::one_of(target_order, allowed_orders);
+}
+
 bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad) {
     if (!output.get_element_type().is_real())
         return false;
@@ -42,17 +68,6 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
         return false;
 
     auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(order_node)->cast_vector<int64_t>();
-    static const std::vector<std::vector<size_t>> allowed_orders = {
-        {0, 1, 2, 3},
-        {0, 1, 3, 2},
-        {1, 2, 3, 0},
-        {0, 2, 1, 3},
-        {0, 3, 1, 2},
-        {1, 2, 0, 3},
-        {2, 0, 1, 3},
-        {3, 0, 1, 2},
-    };
-
     const auto expected_dims_num = 4;
 
     std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
@@ -67,10 +82,8 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
     for (size_t i = 0; i < order.size(); ++i) {
         target_permute_order[order[i]] = i;
     }
-    if (!cldnn::one_of(target_permute_order, allowed_orders))
-        return false;
 
-    return true;
+    return is_valid_order(target_permute_order, transpose_order.size());
 }
 }  // namespace
 
