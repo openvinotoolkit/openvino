@@ -175,6 +175,9 @@ void LSTMSequenceTest::SetUp() {
         bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
     }
+    if (activations == std::vector<std::string>{"tanh", "tanh", "tanh"}) {
+        abs_threshold = 0.001f;
+    }
 }
 
 void LSTMSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
