@@ -136,6 +136,39 @@ static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
 
 namespace {
+    template <typename T, std::size_t N1, std::size_t N2>
+    constexpr std::array<T, N1 + N2> concat(std::array<T, N1> lhs, std::array<T, N2> rhs)
+    {
+        std::array<T, N1 + N2> result{};
+        std::size_t index = 0;
+
+        for (auto& el : lhs) {
+            result[index] = std::move(el);
+            ++index;
+        }
+        for (auto& el : rhs) {
+            result[index] = std::move(el);
+            ++index;
+        }
+
+        return result;
+    }
+
+    template <typename T, std::size_t N1, std::size_t N2, std::size_t N3>
+    constexpr std::array<T, N1 + N2 + N3> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3) {
+        return concat(concat(a1, a2), a3);
+    }
+
+    template <typename T, std::size_t N1, std::size_t N2, std::size_t N3, std::size_t N4>
+    constexpr std::array<T, N1 + N2 + N3 + N4> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3, std::array<T, N4> a4) {
+        return concat(concat(a1, a2, a3), a4);
+    }
+    
+    template <typename T, std::size_t N1, std::size_t N2, std::size_t N3, std::size_t N4, std::size_t N5>
+    constexpr std::array<T, N1 + N2 + N3 + N4 + N5> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3, std::array<T, N4> a4, std::array<T, N5> a5) {
+        return concat(concat(a1, a2, a3, a4), a5);
+    }
+
     void validateNodeKeys(const YAML::Node& node, const std::set<std::string>& supported_keys, std::string position_name)
     {
         for (const auto& nodeChild : node) {
@@ -147,6 +180,12 @@ namespace {
                 THROW_ERROR(ss.str());
             }
         }
+    }
+
+    template <std::size_t N>
+    void validateNodeKeys(const YAML::Node& node, const std::array<const char *, N>& supported_keys, std::string position_name) {
+        std::set<std::string> supported_keys_set(supported_keys.begin(), supported_keys.end());
+        validateNodeKeys(node, supported_keys_set, position_name);
     }
 }
 
@@ -453,21 +492,25 @@ struct convert<ONNXRTParams> {
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
+        const std::array networkParametersArr = {"name", "framework", "random", "metric", "input_data", "output_data"};
+        const std::array openVINOParamsArr = {"name", "path", "device", "ip", "op", "il", "ol", "iml", 
+            "oml","reshape", "config", "priority", "nireq"};
+        const std::array onnxRTParamsArr = {"name", "session_options", "ep", "opt_level"};
+
+        validateNodeKeys(node, concat(networkParametersArr, openVINOParamsArr, onnxRTParamsArr), std::string("network node"));
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
+
         const auto name = node["name"].as<std::string>();
         network.tag = std::filesystem::path{name}.stem().string();
         // NB: OpenVINO is default to keep back compatibility for config syntax
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
-            const std::set<std::string> parameters = {"name", "framework", "path", "device", "ip", "op", "il", "ol", "iml", "oml",
-                "reshape", "config", "priority", "nireq"};
-            validateNodeKeys(node, parameters, std::string("node with \"framework: ") + framework + "\"");
+            validateNodeKeys(node, concat(networkParametersArr, openVINOParamsArr), std::string("node with \"framework: ") + framework + "\"");
             network.params = node.as<OpenVINOParams>();
         } else if (framework == "onnxrt") {
-            const std::set<std::string> parameters = {"name", "framework", "session_options", "ep", "opt_level"};
-            validateNodeKeys(node, parameters, std::string("node with \"framework: ") + framework + "\"");
+            validateNodeKeys(node, concat(networkParametersArr, onnxRTParamsArr), std::string("node with \"framework: ") + framework + "\"");
             network.params = node.as<ONNXRTParams>();
         } else {
             THROW_ERROR("Unsupported \"framework:\" value: " << framework);
@@ -532,6 +575,17 @@ struct convert<InferOp> {
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
+        const std::array opDescParametersArr = { "tag", "type", "repeat_count", "framework", "connections", "op_desc" };
+        const std::array inferOpParamsArr = { "framework", "random", "metric", "input_data", "output_data" };
+        const std::array openVINOParamsArr = { "name", "path", "device", "ip", "op", "il", "ol", "iml", "oml",
+            "reshape", "config", "priority", "nireq" };
+        const std::array onnxRTParams = { "name", "path", "session_options", "ep", "opt_level" };
+        const std::array cpuParamsArr = { "time_in_us" };
+
+        auto opDescAllParametersArr = concat(opDescParametersArr, inferOpParamsArr, openVINOParamsArr, onnxRTParams, 
+            cpuParamsArr);
+        validateNodeKeys(node, opDescAllParametersArr, std::string("op_desc node"));
+
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
         auto repeat_count = node["repeat_count"] ? node["repeat_count"].as<uint64_t>() : 1u;
@@ -541,33 +595,25 @@ struct convert<OpDesc> {
             type = "Compound";
         }
         if (type == "Infer") {
-            const std::set<std::string> parameters = {"config", "device", "framework", "il", "iml",
-                "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", "priority",
-                "random", "repeat_count", "reshape", "tag", "type", "device_type", "ep", "framework","input_data",
-                "opt_level", "params", "session_options"};
-            validateNodeKeys(node, parameters, std::string("node with \"type: ") + type + "\"");
+            auto inferAllParametersArr = concat(opDescParametersArr, inferOpParamsArr, openVINOParamsArr, onnxRTParams);
+            validateNodeKeys(node, inferAllParametersArr, std::string("node with \"type: ") + type + "\"");
             opdesc.op = node.as<InferOp>();
             const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
             if (framework == "openvino") {
-                const std::set<std::string> parameters = {"config", "device", "framework", "il", "iml", 
-                "input_data", "ip", "metric", "name", "nireq", "ol", "oml", "op", "output_data", "path", 
-                "priority", "random", "repeat_count", "reshape", "tag", "type"};
-                validateNodeKeys(node, parameters, std::string("node with \"type: ") + type + "\"");
+                validateNodeKeys(node, concat(opDescParametersArr, inferOpParamsArr, openVINOParamsArr), 
+                    std::string("node with \"type: ") + type + "\"");
             } else if (framework == "onnxrt") {
-                const std::set<std::string> parameters = {"device_type", "ep", "framework", 
-                "input_data", "metric", "name", "opt_level", "output_data", "params", "path", "random", 
-                "repeat_count", "session_options", "tag", "type"};
-                validateNodeKeys(node, parameters, std::string("node with \"type: ") + type + "\" and \"framework: " + framework + "\"");
+                validateNodeKeys(node, concat(opDescParametersArr, inferOpParamsArr, onnxRTParams), 
+                    std::string("node with \"type: ") + type + "\" and \"framework: " + framework + "\"");
             } else {
                 THROW_ERROR("Unsupported \"framework:\" value: " << framework);
             }
         } else if (type == "CPU") {
-            const std::set<std::string> parameters = {"tag", "type", "repeat_count", "time_in_us"};
-            validateNodeKeys(node, parameters, std::string("node with \"type: ") + type +"\"");
+            validateNodeKeys(node, concat(opDescParametersArr, cpuParamsArr),
+                std::string("node with \"type: ") + type +"\"");
             opdesc.op = node.as<CPUOp>();
         } else if (type == "Compound") {
-            const std::set<std::string> parameters = {"tag", "type", "repeat_count", "connections", "op_desc"};
-            validateNodeKeys(node, parameters, std::string("node with \"type: ") + type +"\"");
+            validateNodeKeys(node, opDescAllParametersArr, std::string("node with \"type: ") + type +"\"");
             std::vector<std::vector<std::string>> connections;
             if (node["connections"]) {
                 connections = node["connections"].as<std::vector<std::vector<std::string>>>();
