@@ -25,6 +25,8 @@ RUN apt-get update && \
         pigz \
         # Python
         python3-full \
+        python3-dev \
+        pkg-config \
         g++ \
         gcc \
         && \
