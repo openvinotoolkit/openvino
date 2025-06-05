@@ -6,11 +6,18 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "edge.h"
+#include "graph_context.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {
