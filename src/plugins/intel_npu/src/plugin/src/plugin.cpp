@@ -241,6 +241,7 @@ void Plugin::init_options() {
 
     REGISTER_OPTION(LOG_LEVEL);
     REGISTER_OPTION(CACHE_DIR);
+    REGISTER_OPTION(CACHE_MODE);
     REGISTER_OPTION(DEVICE_ID);
     REGISTER_OPTION(NUM_STREAMS);
     REGISTER_OPTION(PERF_COUNT);
@@ -547,6 +548,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
+
+    if (localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<CACHE_DIR>().empty()) {
+        // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the size
+        // of the binary object
+        localConfig.update({{ov::intel_npu::weightless_blob.name(),
+                             (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE) ? "YES" : "NO"}});
+    }
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
