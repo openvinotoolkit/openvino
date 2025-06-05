@@ -91,6 +91,9 @@ std::ostream& operator<<(std::ostream& os, const ov::test::utils::EltwiseTypes t
     case ov::test::utils::EltwiseTypes::LEFT_SHIFT:
         os << "BitwiseLeftShift";
         break;
+    case ov::test::utils::EltwiseTypes::EQUAL_ELTWISE:
+        os << "Equal";
+        break;
     default:
         throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }

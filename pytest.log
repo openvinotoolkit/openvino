@@ -1,0 +1,36 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-8.3.5, pluggy-1.5.0 -- /usr/local/py-utils/venvs/pytest/bin/python
+cachedir: .pytest_cache
+rootdir: /workspaces/openvino
+configfile: pyproject.toml
+plugins: anyio-4.9.0
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting docs/scripts/tests/test_docs.py _______________
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/_pytest/config/__init__.py:1694: in getoption
+    val = getattr(self.option, name)
+E   AttributeError: 'Namespace' object has no attribute 'doxygen'
+
+The above exception was the direct cause of the following exception:
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/pluggy/_hooks.py:513: in __call__
+    return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/pluggy/_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/_pytest/python.py:245: in pytest_pycollect_makeitem
+    return list(collector._genfunctions(name, obj))
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/_pytest/python.py:462: in _genfunctions
+    self.ihook.pytest_generate_tests.call_extra(methods, dict(metafunc=metafunc))
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/pluggy/_hooks.py:574: in call_extra
+    return self._hookexec(self.name, hookimpls, kwargs, firstresult)
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/pluggy/_manager.py:120: in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+docs/scripts/tests/conftest.py:97: in pytest_generate_tests
+    if metafunc.config.getoption('doxygen'):
+/usr/local/py-utils/venvs/pytest/lib/python3.12/site-packages/_pytest/config/__init__.py:1705: in getoption
+    raise ValueError(f"no option named {name!r}") from e
+E   ValueError: no option named 'doxygen'
+=========================== short test summary info ============================
+ERROR docs/scripts/tests/test_docs.py - ValueError: no option named 'doxygen'
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.57s ===============================
