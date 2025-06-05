@@ -98,7 +98,7 @@ public:
     std::chrono::high_resolution_clock::time_point t1;
 
     PrintableDelta delta() {
-        PrintableDelta ret;
+        PrintableDelta ret{};
         auto now = std::chrono::high_resolution_clock::now();
         ret.us_last = std::chrono::duration_cast<std::chrono::microseconds>(now - t1).count();
         ret.us_all = std::chrono::duration_cast<std::chrono::microseconds>(now - t0).count();

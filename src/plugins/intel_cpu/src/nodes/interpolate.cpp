@@ -3605,7 +3605,7 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
 
     // pillowScale: e.g. 2.0 means down sample 2 times
     auto generateArgs = [&](float pillowScale) -> filterArgs {
-        filterArgs args;
+        filterArgs args{};
         float scaleClip = pillowScale < 1.0F ? 1.0F : pillowScale;
         args.ScaleClipReciprocal = 1.0F / scaleClip;
         args.filterRadius = (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
