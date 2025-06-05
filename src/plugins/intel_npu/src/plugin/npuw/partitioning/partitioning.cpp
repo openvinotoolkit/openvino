@@ -1872,6 +1872,13 @@ void Partitioner::optimize(const std::string& func_name) {
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWf8>(std::ref(ctx));
         }
+
+        if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
+            // FIXME: perhaphs should be simplified and handled somewhere else
+            rewr.add_matcher<ov::npuw::patterns::opt::DQParamToConstDictMatMulCWu>(std::ref(ctx));
+            rewr.add_matcher<ov::npuw::patterns::opt::DQParamToConstDictMatMulCWf8>(std::ref(ctx));
+        }
+
         // NB: This pass is disabled for reason! It doesn't make things better
         // rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulGQi>(std::ref(ctx));
         rewr.add_matcher<ov::npuw::patterns::opt::CompressDictMatMulf32>(std::ref(ctx));
@@ -1981,6 +1988,29 @@ void Partitioner::optimize(const std::string& func_name) {
                 // It assigns some closures to be calculated instead of keeping the lazy ones.
                 // Here we remember lazy closure not to be unpacked in compile time in DCOFF.
                 funcall._is_lazy_unpack.push_back(true);
+            });
+        }
+
+        // Tail processing where we replace Vocab scale and zerop back to Constants
+        for (auto&& p : ctx.params_to_consts) {
+            auto p_to_remove_idx = f._model->get_parameter_index(p.first);
+            to_remove.push_back(p.first);
+            to_remove_idx.insert(p_to_remove_idx);
+
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                // Sanity check that LazyTensor only has Contant
+                auto& temp_lt = funcall._lazy_closure[p_to_remove_idx - f._param_offset];
+                auto transforms = temp_lt.get_transformations();
+                NPUW_ASSERT(transforms.size() == 1 &&
+                            std::holds_alternative<ov::npuw::weights::op::Const>(transforms[0]));
+                // Evaluate LazyTensor here, it only contains a single Constant underneath
+                auto temp_t = funcall._lazy_closure[p_to_remove_idx - f._param_offset].eval();
+                // Then copy tensor data to the new Constant
+                NPUW_ASSERT(p.second->get_shape() == temp_t.get_shape() &&
+                            p.second->get_element_type() == temp_t.get_element_type() &&
+                            p.second->get_byte_size() == temp_t.get_byte_size());
+                std::memcpy(const_cast<void*>(p.second->get_data_ptr()), temp_t.data(), temp_t.get_byte_size());
             });
         }
 

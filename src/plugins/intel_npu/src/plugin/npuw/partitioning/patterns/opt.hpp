@@ -26,6 +26,7 @@ struct Context {
 
     using PPtr = std::shared_ptr<ov::op::v0::Parameter>;
     using NPtr = std::shared_ptr<ov::Node>;
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
 
     using Axes = std::vector<std::size_t>;
     std::map<PPtr, Axes> closures_to_permute;
@@ -68,6 +69,8 @@ struct Context {
     PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
     PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr s, ov::element::Type type);
     PPtr host_gather_unpack_quant(PPtr ids, PPtr w, ov::element::Type type);
+
+    std::map<PPtr, CPtr> params_to_consts;
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -210,6 +213,19 @@ class CompressDictMatMulf32 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::CompressDictMatMulf32");
     CompressDictMatMulf32(Context::Ref ctx);
+};
+
+// Tail vocab transformations
+class DQParamToConstDictMatMulCWu : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParamToConstDictMatMulCWu");
+    DQParamToConstDictMatMulCWu(Context::Ref ctx);
+};
+
+class DQParamToConstDictMatMulCWf8 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParamToConstDictMatMulCWf8");
+    DQParamToConstDictMatMulCWf8(Context::Ref ctx);
 };
 
 // Slice last Matmul

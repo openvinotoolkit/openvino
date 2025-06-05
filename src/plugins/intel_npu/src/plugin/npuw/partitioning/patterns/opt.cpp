@@ -1918,6 +1918,124 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(res, "OptCompressDictMatMulf32"), std::move(callback));
 }
 
+// FROM:
+//     Param(W) -> to(f16) ->
+//     Param(Z) -> to(f16) -> Subtract
+//     Param(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
+//     ???(Act) -------------------------------------------->
+//
+// TO:
+//     Param(W) -> to(f16) ->
+//     Const(Z) -> to(f16) -> Subtract
+//     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
+//     ???(Act) -------------------------------------------->
+
+DQParamToConstDictMatMulCWu::DQParamToConstDictMatMulCWu(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
+    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
+        auto matched_node_cvtz = node_to_output.at(qcvtz).get_node_shared_ptr();
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+
+        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
+            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            auto const_coeff =
+                std::make_shared<ov::op::v0::Constant>(matched_qcoeff->get_element_type(), matched_qcoeff->get_shape());
+            auto const_zerop =
+                std::make_shared<ov::op::v0::Constant>(matched_qzerop->get_element_type(), matched_qzerop->get_shape());
+
+            ctx.get().params_to_consts[matched_qcoeff] = const_coeff;
+            ctx.get().params_to_consts[matched_qzerop] = const_zerop;
+
+            matched_node_qmuls->input(1).replace_source_output(const_coeff);
+            matched_node_cvtz->input(0).replace_source_output(const_zerop);
+
+            matched_matmul->validate_and_infer_types();
+
+            return false;  // root hasn't changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQParamToConstDictMatMulCWu"), std::move(callback));
+}
+
+// FROM:
+//     Param(W) ---> to(f16) --->
+//     Param(S) ----------------> Multiply -> MatMul -> Result
+//     ???(Act) ---------------------------->
+//
+// TO:
+//     Param(W) ---> to(f16) --->
+//     Const(S) ----------------> Multiply -> MatMul -> Result
+//     ???(Act) ---------------------------->
+
+DQParamToConstDictMatMulCWf8::DQParamToConstDictMatMulCWf8(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qmuls});
+    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+
+        if ((ov::element::f8e4m3 == matched_qweight->get_element_type() ||
+             ov::element::f8e5m2 == matched_qweight->get_element_type() ||
+             ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
+            qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            auto const_coeff =
+                std::make_shared<ov::op::v0::Constant>(matched_qcoeff->get_element_type(), matched_qcoeff->get_shape());
+            ctx.get().params_to_consts[matched_qcoeff] = const_coeff;
+
+            matched_node_qmuls->input(1).replace_source_output(const_coeff);
+
+            matched_matmul->validate_and_infer_types();
+
+            return false;  // root hasn't changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQParamToConstDictMatMulCWf8"), std::move(callback));
+}
+
 SliceLastMatmul::SliceLastMatmul() {
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
     auto convert = opp::optional<ov::op::v0::Convert>({matmul->output(0)});
