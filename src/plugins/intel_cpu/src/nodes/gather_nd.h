@@ -54,7 +54,7 @@ private:
         template <typename dataType>
         void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
         void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
-        int32_t HandleNegativeIndicies(const int32_t* indicies, size_t idx) const;
+        int32_t HandleNegativeIndices(const int32_t* indicies, size_t idx) const;
 
         size_t batchSize = 1lu;
         size_t dataSize = 1lu;
