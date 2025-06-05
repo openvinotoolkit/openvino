@@ -15,6 +15,7 @@
 
 #include "async_infer_request.h"
 #include "config.h"
+#include "cpu_parallel.hpp"
 #include "graph.h"
 #include "graph_context.h"
 #include "infer_request.h"
