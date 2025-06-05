@@ -14,6 +14,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/transpose.hpp"
 #include "ov_ops/lora_subgraph.hpp"
 #include "transformations/utils/utils.hpp"
@@ -62,8 +63,15 @@ std::shared_ptr<ov::Node> create_lora_subgraph(const ov::Output<ov::Node>& main_
     const auto& mm1_input = add_transposes ? create_transpose(lora_input) : lora_input;
     auto mm1 = std::make_shared<ov::op::v0::MatMul>(mm1_input, states[0], false, true);
 
-    const auto& mul_in_0 = mul_read_value_idx == 0 ? states[1] : mm1->output(0);
-    const auto& mul_in_1 = mul_read_value_idx == 0 ? mm1->output(0) : states[1];
+    auto zero_dim =
+        ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(states[0], {0}, {}, ov::element::i32);
+    auto zero_dim_convert = std::make_shared<ov::op::v0::Convert>(zero_dim, netType);
+    auto power_const = std::make_shared<ov::op::v0::Constant>(netType, ov::Shape{}, -1.f);
+    auto power = std::make_shared<ov::op::v1::Power>(zero_dim_convert, power_const);
+    auto divide = std::make_shared<ov::op::v1::Multiply>(states[1], power);
+
+    const auto& mul_in_0 = mul_read_value_idx == 0 ? divide->output(0) : mm1->output(0);
+    const auto& mul_in_1 = mul_read_value_idx == 0 ? mm1->output(0) : divide->output(0);
     auto mul = std::make_shared<ov::op::v1::Multiply>(mul_in_0, mul_in_1);
 
     auto mm2 = std::make_shared<ov::op::v0::MatMul>(mul, states[2], false, true);
