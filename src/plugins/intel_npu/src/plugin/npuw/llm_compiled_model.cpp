@@ -973,9 +973,7 @@ ov::AnyMap get_default_tail_mm_config(const std::optional<NPUDesc>& npudesc) {
     config.erase("NPUW_SLICE_OUT");
     config.erase("NPUW_FUNCALL_ASYNC");
     config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
-    if (npudesc.has_value() && npudesc->arch == "4000") {
-        config.emplace("NPU_TILES", 6);
-    }
+
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
         config.emplace("NPUW_DQ", "YES");
@@ -1129,9 +1127,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config =
         generate_config_opt.value_or(get_default_generate_config(npudesc, generate_hint)).as<ov::AnyMap>();
 
-    const auto& prefill_config_addition_value =
+    auto prefill_config_addition_value =
         prefill_config_addition.has_value() ? prefill_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
-    const auto& generate_config_addition_value =
+    auto generate_config_addition_value =
         generate_config_addition.has_value() ? generate_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
 
     merge_config_with(prefill_config, other_props);
@@ -1150,7 +1148,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (tail_mm_model) {
         auto tail_mm_config = get_default_tail_mm_config(npudesc);
         merge_config_with(tail_mm_config, other_props);
-        const auto& tail_mm_config_addition_value =
+        auto tail_mm_config_addition_value =
             tail_mm_config_addition.has_value() ? tail_mm_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
 
         merge_config_with(tail_mm_config, tail_mm_config_addition_value);
