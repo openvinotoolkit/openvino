@@ -7,7 +7,10 @@ include(CMakeParseArguments)
 function(ov_build_target_faster TARGET_NAME)
     # ENABLE_FASTER_BUILD option enables usage of precompiled headers
     # ENABLE_UNITY_BUILD option enalbles unity build
-    cmake_parse_arguments(FASTER_BUILD "PCH" "UNITY" "PCH_HEADER" "PCH_EXCLUDE" ${ARGN})
+    set(options PCH UNITY)
+    set(oneValueArgs PCH_HEADER)
+    set(multiValueArgs PCH_EXCLUDE)
+    cmake_parse_arguments(PARSE_ARGV 0 FASTER_BUILD "${options}" "${oneValueArgs}" "${multiValueArgs}")
 
     if(FASTER_BUILD_UNITY AND ENABLE_UNITY_BUILD)
         set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON)

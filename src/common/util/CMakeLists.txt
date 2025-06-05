@@ -55,6 +55,8 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 
 set_target_properties(${TARGET_NAME} PROPERTIES PCH_CORE_HEADER_PATH "${UTIL_INCLUDE_DIR}/openvino/pch/precomp_core.hpp")
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 # install & export
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
