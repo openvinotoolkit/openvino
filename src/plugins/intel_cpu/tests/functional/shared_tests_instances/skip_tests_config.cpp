@@ -501,8 +501,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
     // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise,
-    // smoke_Snippets_Convert, smoke_Snippets_FQDecomposition and static smoke_Snippets_MatMul
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/).*)");
+    // smoke_Snippets_Convert, smoke_Snippets_FQDecomposition, static smoke_Snippets_MatMul and static smoke_Snippets_Softmax
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/|_Softmax).*)");
     retVector.emplace_back(R"(smoke_Snippets_MatMul.*\[.*\?.*\].*)");
 #endif
 #if defined(_WIN32)
