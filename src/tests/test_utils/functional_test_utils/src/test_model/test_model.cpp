@@ -12,7 +12,16 @@
 namespace ov {
 namespace test {
 namespace utils {
-
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void generate_test_model(const std::wstring& model_path,
+                         const std::wstring& weights_path,
+                         const ov::element::Type& input_type,
+                         const ov::PartialShape& input_shape) {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(model_path, weights_path);
+    manager.run_passes(ov::test::utils::make_conv_pool_relu(input_shape.to_shape(), input_type));
+}
+#endif
 void generate_test_model(const std::string& model_path,
                          const std::string& weights_path,
                          const ov::element::Type& input_type,
