@@ -116,8 +116,8 @@ void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 namespace helpers {
-static int HandleNegativeIndicies(const int* indicies, int idx, int axisDimSize) {
-    const int index = indicies[idx];
+static int HandleNegativeIndices(const int* indices, int idx, int axisDimSize) {
+    const int index = indices[idx];
     OPENVINO_ASSERT(index < axisDimSize && index >= -axisDimSize, "indices values of GatherElement exceed data size");
     const int fixedIdx = index < 0 ? axisDimSize + index : index;
     return fixedIdx;
@@ -151,7 +151,7 @@ void GatherElements::directExecution() {
                     dstShift0 += strideAx1Diff_;
                 }
             }
-            const int idx = helpers::HandleNegativeIndicies(indices, o, dataAxDim_);
+            const int idx = helpers::HandleNegativeIndices(indices, o, dataAxDim_);
             dstData[o] = srcData[o + dstShift0 + (idx - dstAxIdx) * strideAxDst_];
         }
     };
