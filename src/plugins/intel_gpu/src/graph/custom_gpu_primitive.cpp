@@ -36,17 +36,23 @@ kernel_impl_params custom_gpu_primitive_inst::get_fake_aligned_params(kernel_imp
     OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
                     "in/out layouts should be static for fake alignment!");
 
-    auto output_shape = orig_output_layout.get_partial_shape().to_shape();
+    auto op = std::static_pointer_cast<const custom_gpu_primitive>(updated_param.desc);
 
-    // auto op = std::static_pointer_cast<const custom_gpu_primitive>(updated_param.desc);
-    updated_param.custom_op_dynamic_gws = output_shape;
+    std::vector<size_t> gws, lws;
+    custom_gpu_primitive::update_work_group_size(orig_output_layout.get_partial_shape(),
+                                                 op->iidx,
+                                                 orig_output_layout.get_partial_shape(),
+                                                 op->globalSizeRules,
+                                                 op->localSizeRules,
+                                                 gws,
+                                                 lws);
 
-    custom_gpu_primitive::update_work_group_size(std::shared_ptr<ov::Node>());
+    //  GPU_DEBUG_TRACE_DETAIL
+    std::cout << "Apply fake alignment: gws(" << ov::Shape(updated_param.custom_op_dynamic_gws).to_string() << " -> " << ov::Shape(gws).to_string() << "), lws("
+              << ov::Shape(updated_param.custom_op_dynamic_lws).to_string() << " -> " << ov::Shape(lws).to_string() << ")\n";
 
-    // updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);
-    // std::cout << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
-    //                        << updated_param.input_layouts[0].to_short_string() << "), output(" << orig_output_layout.to_short_string() << " -> "
-    //                        << updated_param.output_layouts[0].to_short_string() << ")\n";
+    updated_param.custom_op_dynamic_gws = gws;
+    updated_param.custom_op_dynamic_lws = lws;
 
     return updated_param;
 }

@@ -170,7 +170,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     const std::string defineTitle("// Custom Layer User Defines\n");
 
     auto dims = op->get_output_partial_shape(0);
-    std::cout << "CustomOp output dims=" << dims << ", dims.size()=" << dims.size() << std::endl;
+    int iidx = customLayer->InputDimSourceIndex();
 
     size_t N = (dims.size() > 0) ? dims[0].is_dynamic() ? -1 : dims[0].get_length() : 1;
     size_t C = (dims.size() > 1) ? dims[1].is_dynamic() ? -1 : dims[1].get_length() : 1;
@@ -185,57 +185,39 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
         outputLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), outputFormat, outputTensor);
     }
 
-    // evaluate work sizes rules
     std::vector<size_t> gws, lws;
 
-    // assume output tensor is dimension source by default
-    int batchDim = N;
-    int featureDim = C;
-    int yDim = H;
-    int xDim = W;
-    int iidx = customLayer->InputDimSourceIndex();
-
-    std::string genericLayerName = layer_type_name_ID(op);
     // if input index is greater than -1, take dimension from input
     if (iidx >= 0) {
         if (static_cast<size_t>(iidx) >= op->get_input_size())
             OPENVINO_THROW("Invalid input tensor for index: ", iidx);
         auto inputDims = op->get_input_shape(iidx);
+        cldnn::custom_gpu_primitive::update_work_group_size(dims, iidx, inputDims, customLayer->GlobalSizeRules(), customLayer->LocalSizeRules(), gws, lws);
+    } else {
+        cldnn::custom_gpu_primitive::update_work_group_size(dims,
+                                                            iidx,
+                                                            ov::PartialShape(),
+                                                            customLayer->GlobalSizeRules(),
+                                                            customLayer->LocalSizeRules(),
+                                                            gws,
+                                                            lws);
+    }
 
-        xDim = static_cast<int>(inputDims[inputDims.size() - 1]);
-        yDim = dims.size() > 1 ? static_cast<int>(inputDims[inputDims.size() - 2]) : 0;
-        featureDim = dims.size() > 2 ? static_cast<int>(inputDims[inputDims.size() - 3]) : 0;
-        batchDim = dims.size() > 3 ? static_cast<int>(inputDims[inputDims.size() - 4]) : 0;
-    }
-    const std::map<char, int> vars = {
-        { 'b', batchDim }  , { 'B', batchDim },
-        { 'f', featureDim }, { 'F', featureDim },
-        { 'y', yDim },       { 'Y', yDim },
-        { 'x', xDim },       { 'X', xDim },
-    };
-    for (const auto& rule : customLayer->GlobalSizeRules()) {
-        SimpleMathExpression expr;
-        expr.SetVariables(vars);
-        expr.SetExpression(rule);
-        gws.push_back(expr.Evaluate());
-    }
-    for (const auto& rule : customLayer->LocalSizeRules()) {
-        SimpleMathExpression expr;
-        expr.SetVariables(vars);
-        expr.SetExpression(rule);
-        lws.push_back(expr.Evaluate());
-    }
+    std::string genericLayerName = layer_type_name_ID(op);
 
     auto customPrim = cldnn::custom_gpu_primitive(genericLayerName,
                                                   reordered_inputs,
-                                                  { layerTitle, defineTitle, layerDefines, customLayer->KernelSource() },
+                                                  {layerTitle, defineTitle, layerDefines, customLayer->KernelSource()},
                                                   customLayer->KernelEntry(),
                                                   kernelParameters,
                                                   customLayer->CompilerOptions(),
                                                   outputLayout,
                                                   gws,
                                                   lws,
-                                                  op);
+                                                  op,
+                                                  iidx,
+                                                  customLayer->GlobalSizeRules(),
+                                                  customLayer->LocalSizeRules());
     p.add_primitive(*op, customPrim);
 
     auto prevLayerName = genericLayerName;

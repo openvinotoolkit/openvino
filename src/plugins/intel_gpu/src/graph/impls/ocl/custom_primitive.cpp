@@ -229,7 +229,7 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
 
     mem_consts.AddConstants({
         kernel_selector::MakeJitConstant("GLOBAL_WORKSIZE", impl_param.custom_op_dynamic_gws.size() > 0 ? impl_param.custom_op_dynamic_gws : primitive->gws),
-        kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", primitive->lws),
+        kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", impl_param.custom_op_dynamic_lws.size() > 0 ? impl_param.custom_op_dynamic_lws : primitive->lws),
     });
 
     for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
