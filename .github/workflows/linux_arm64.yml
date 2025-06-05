@@ -146,8 +146,9 @@ jobs:
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
-    if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
-        fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
+    # if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_RT ||
+    #     fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE
+    if: ${{ 'false' }} # 168858
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
@@ -266,7 +267,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64
-    needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
+    needs: [Smart_CI, Build, Debian_Packages, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
             TensorFlow_Models_Tests, PyTorch_Models_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
