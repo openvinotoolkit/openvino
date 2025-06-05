@@ -2461,7 +2461,13 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
     A = src_dims[axis];
     int layout_axis = axis;
     if (layout == TopKLayoutType::topk_nspc) {
-        layout_axis = axis == 0 ? 0 : (axis == 1 ? static_cast<int>(layout_dims.size() - 1) : axis - 1);
+        if (axis == 0) {
+            layout_axis = 0;
+        } else if (axis == 1) {
+            layout_axis = static_cast<int>(layout_dims.size() - 1);
+        } else {
+            layout_axis = axis - 1;
+        }
     }
 
     for (int i = 0; i < layout_axis; i++) {

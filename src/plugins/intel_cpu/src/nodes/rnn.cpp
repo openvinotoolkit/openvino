@@ -74,17 +74,29 @@ static rnn_direction ieDirection2dnnl(const std::shared_ptr<const ov::Node>& op)
     } else if (ov::is_type<ov::op::v5::RNNSequence>(op)) {
         direction = ov::as_type_ptr<const ov::op::v5::RNNSequence>(op)->get_direction();
     }
-    return direction == ov::op::RecurrentSequenceDirection::FORWARD         ? rnn_direction::unidirectional_left2right
-           : direction == ov::op::RecurrentSequenceDirection::REVERSE       ? rnn_direction::unidirectional_right2left
-           : direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? rnn_direction::bidirectional_concat
-                                                                            : rnn_direction::unidirectional_left2right;
+    switch (direction) {
+    case ov::op::RecurrentSequenceDirection::FORWARD:
+        return rnn_direction::unidirectional_left2right;
+    case ov::op::RecurrentSequenceDirection::REVERSE:
+        return rnn_direction::unidirectional_right2left;
+    case ov::op::RecurrentSequenceDirection::BIDIRECTIONAL:
+        return rnn_direction::bidirectional_concat;
+    default:
+        return rnn_direction::unidirectional_left2right;
+    }
 }
 
 static dnnl::algorithm ie2dnnl(const std::string& act_type) {
-    return act_type == "sigmoid" ? dnnl::algorithm::eltwise_logistic
-           : act_type == "tanh"  ? dnnl::algorithm::eltwise_tanh
-           : act_type == "relu"  ? dnnl::algorithm::eltwise_relu
-                                 : dnnl::algorithm::undef;
+    if (act_type == "sigmoid") {
+        return dnnl::algorithm::eltwise_logistic;
+    }
+    if (act_type == "tanh") {
+        return dnnl::algorithm::eltwise_tanh;
+    }
+    if (act_type == "relu") {
+        return dnnl::algorithm::eltwise_relu;
+    }
+    return dnnl::algorithm::undef;
 }
 
 static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {

@@ -1594,9 +1594,13 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    implType = canUseOptimizedShapeAgnosticImpl ? EltwiseImplType::optimizedShapeAgnostic
-               : canUseOptimizedImpl            ? EltwiseImplType::optimized
-                                                : EltwiseImplType::reference;
+    if (canUseOptimizedShapeAgnosticImpl) {
+        implType = EltwiseImplType::optimizedShapeAgnostic;
+    } else if (canUseOptimizedImpl) {
+        implType = EltwiseImplType::optimized;
+    } else {
+        implType = EltwiseImplType::reference;
+    }
 
     const auto useJitExecutor = one_of(implType, EltwiseImplType::optimizedShapeAgnostic, EltwiseImplType::optimized);
 

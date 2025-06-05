@@ -150,10 +150,15 @@ void ShuffleChannels::createPrimitive() {
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.spatialRank = attrs.dataRank - attrs.axis - 1;
     attrs.dataSize = memoryDesc.getPrecision().size();
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
-                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
-                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
-                                                                      : LayoutType::ncsp;
+    if (memoryDesc.hasLayoutType(LayoutType::nCsp16c)) {
+        attrs.layoutType = LayoutType::nCsp16c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nCsp8c)) {
+        attrs.layoutType = LayoutType::nCsp8c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nspc)) {
+        attrs.layoutType = LayoutType::nspc;
+    } else {
+        attrs.layoutType = LayoutType::ncsp;
+    }
 
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams()) {

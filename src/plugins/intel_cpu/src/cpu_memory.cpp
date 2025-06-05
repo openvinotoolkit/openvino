@@ -64,11 +64,9 @@ inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool 
             if ((u32data[i] & (0xFF << 23)) == 0) {
                 u32data[i] = 0;
             } else if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     } else if (ftz) {
@@ -80,11 +78,9 @@ inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool 
     } else if (bf16saturation) {
         for (size_t i = 0; i < size; ++i) {
             if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     }

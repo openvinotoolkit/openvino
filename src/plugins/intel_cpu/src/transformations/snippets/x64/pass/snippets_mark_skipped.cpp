@@ -612,7 +612,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             const auto out_rank = node->get_output_partial_shape(0).rank();
             if (is_fc) {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithFCI8 : NodeFusingType::FusedWithFC);
-                channelAxis = out_rank.is_static() ? (out_rank.get_length() == 3 ? 2 : 1) : DEFAULT_AXIS;
+                if (out_rank.is_static()) {
+                    channelAxis = (out_rank.get_length() == 3) ? 2 : 1;
+                } else {
+                    channelAxis = DEFAULT_AXIS;
+                }
             } else {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithMatMulI8 : NodeFusingType::FusedWithMatMul);
                 channelAxis = out_rank.is_static() ? out_rank.get_length() - 1 : DEFAULT_AXIS;

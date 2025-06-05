@@ -621,14 +621,30 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
 
                 srcIdx++;
             } else {
-                int b = params.attrs.beginMask[axis] == 1 ? params.attrs.begin[axis]
-                                                          : (params.attrs.stride[axis] > 0 ? 0 : -1);
+                int b = [&]() {
+                    if (params.attrs.beginMask[axis] == 1) {
+                        return params.attrs.begin[axis];
+                    }
+                    if (params.attrs.stride[axis] > 0) {
+                        return 0;
+                    }
+                    return -1;
+                }();
                 correcting(b, params.srcBlockedDims[srcIdx]);
                 clipping(b, 0, params.srcBlockedDims[srcIdx]);
 
-                int e = params.attrs.endMask[axis] == 1
-                            ? (params.attrs.stride[axis] > 0 ? params.attrs.end[axis] - 1 : params.attrs.end[axis] + 1)
-                            : (params.attrs.stride[axis] > 0 ? -1 : 0);
+                int e = [&]() {
+                    if (params.attrs.endMask[axis] == 1) {
+                        if (params.attrs.stride[axis] > 0) {
+                            return params.attrs.end[axis] - 1;
+                        }
+                        return params.attrs.end[axis] + 1;
+                    }
+                    if (params.attrs.stride[axis] > 0) {
+                        return -1;
+                    }
+                    return 0;
+                }();
                 correcting(e, params.srcBlockedDims[srcIdx]);
                 clipping(e, 0, params.srcBlockedDims[srcIdx]);
 
