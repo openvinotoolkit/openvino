@@ -45,8 +45,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_GatedMLP_bf16,
                                             ::testing::Values(GatedMLPFunction::WeightFormat::FP32),
                                             ::testing::ValuesIn(activations),
                                             ::testing::Values(ov::element::bf16),
-                                            ::testing::Values(3),
-                                            ::testing::Values(1),
+                                            ::testing::Values(6), // 3 x Subgraphs + 3 x Reorders on weights
+                                            ::testing::Values(1), // 3 Subgraphs - In/Out Converts + gMLP
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          GatedMLP::getTestCaseName);
