@@ -104,7 +104,8 @@ void MatMulSmallExecutor::prepare_binary_args(const std::unordered_map<int, dnnl
     unsigned idx = 0;
     for (const auto& post_op : post_ops.entry_) {
         if (post_op.is_binary() || post_op.is_depthwise() || post_op.is_quantization()) {
-            m_post_ops_args.emplace_back((c_args[DNNL_ARG_ATTR_MULTIPLE_POST_OP(idx) | DNNL_ARG_SRC_1].get_data_handle()));
+            m_post_ops_args.emplace_back(
+                c_args[DNNL_ARG_ATTR_MULTIPLE_POST_OP(idx) | DNNL_ARG_SRC_1].get_data_handle());
         }
         ++idx;
     }
