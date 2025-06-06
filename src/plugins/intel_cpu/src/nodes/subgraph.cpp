@@ -525,7 +525,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         // Notes:
         //  - MatMul decomposition will be run later again for case if BF16 enforcement is not happened
         //  - `MatMulToBrgemm` pass fuse `transpose_a` and `transpose_b` from MatMul to inputs of Brgemm as layouts.
-        //    These layouts are resized to ranks if input shapes. But since `Canonicalization` might
+        //    These layouts are resized to ranks of input shapes. But since `Canonicalization` might
         //    reshape shapes, the pass `MatMulToBrgemm` should be after the pass `Canonicalization` to
         //    fuse layouts with ranks aligned with updated shapes after RankNormalization insertions.
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
