@@ -21,6 +21,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
+#include "traits.hpp"
 
 namespace ov {
 namespace npuw {
@@ -1249,18 +1250,14 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
     for (auto&& op_node : model_group.front()->get_ordered_ops()) {
         for (auto&& iport : op_node->inputs()) {
             auto node = iport.get_source_output().get_node_shared_ptr();
-            if (ov::op::util::is_constant(node)) {
-                auto shape = node->output(0).get_shape();
-                auto total =
-                    std::accumulate(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<std::size_t>());
-                if ((shape.size() == 0 || (shape.size() == 1 && shape[0] <= 10)) || (total <= 10)) {
-                    LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
-                                        << ": It is safe to keep this bank in function");
-                    func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
-                } else {
-                    LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
-                                        << ": This const op will be cut-off from the function");
-                }
+            auto shape = node->output(0).get_shape();
+            if (ov::npuw::partitioning::traits::is_tiny_scalar(node)) {
+                LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
+                                    << ": It is safe to keep this bank in function");
+                func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
+            } else {
+                LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
+                                    << ": This const op will be cut-off from the function");
             }
         }
     }  // for(n)
@@ -1378,12 +1375,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_DEBUG("Checking a bank with prototype node " << proto_node << "...");
         LOG_BLOCK();
 
-        if ((((proto_shape.size() == 0 || (proto_shape.size() == 1 && proto_shape[0] <= 10)) &&
-              proto_node->output(0).get_element_type().is_integral()) ||
-             ((proto_node->output(0).get_element_type() == ov::element::f32 ||
-               proto_node->output(0).get_element_type() == ov::element::f16) &&
-              std::accumulate(proto_shape.begin(), proto_shape.end(), size_t{1}, std::multiplies<std::size_t>()) ==
-                  1)) &&
+        if (ov::npuw::partitioning::traits::is_tiny_shape(proto_shape) &&
             std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
                 return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
                        values_are_the_same(proto_node, other_node);
