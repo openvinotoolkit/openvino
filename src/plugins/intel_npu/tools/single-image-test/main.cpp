@@ -786,14 +786,14 @@ std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputs
     }
 
     // Concatenate processedInputCasesList results with ; delimiter
-    std::string inputFilesConcatenated;
+    std::string processedInputCases;
     for (size_t i = 0; i < processedInputCasesList.size(); ++i) {
         if (i > 0) {
-            inputFilesConcatenated += ";";
+            processedInputCases += ";";
         }
-        inputFilesConcatenated += processedInputCasesList[i];
+        processedInputCases += processedInputCasesList[i];
     }
-    return inputFilesConcatenated;
+    return processedInputCases;
 }
 
 template <class T>
