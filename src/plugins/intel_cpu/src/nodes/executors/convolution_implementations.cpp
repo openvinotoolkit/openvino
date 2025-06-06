@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
@@ -63,6 +65,11 @@ template <typename PostOpType>
     });
 }
 
+[[maybe_unused]] static inline bool isQuantized(const ConvConfig& config) {
+    return one_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
+           config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8;
+};
+
 template <typename Attrs>
 bool MatchesMemoryFormatFilter(const executor::Config<Attrs>& config,
                                const LayoutConfig& layoutConfig,
@@ -113,7 +120,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 }
 
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
-                VERIFY(DnnlConvolutionPrimitive::isBrgConvAvailable(config), "brgemm convolution is not available");
+                VERIFY(isQuantized(config) || DnnlConvolutionPrimitive::isBrgConvAvailable(config), "is not quantized or brgemm convolution is not available");
 
                 return true;
             },
@@ -131,6 +138,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 }
 
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
@@ -144,12 +152,15 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_ncsp_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;
                 }
 
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
 
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
@@ -169,6 +180,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                     return false;
                 }
 
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
                 return IC < 4 && groupOC != 1;
@@ -181,12 +193,15 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nCsp16c_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;
                 }
 
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
 
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
@@ -206,6 +221,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                     return false;
                 }
 
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
                 return IC > 4;
@@ -223,6 +239,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                     return false;
                 }
 
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
 
@@ -240,6 +257,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                                                memoryFormatFilter)) {
                     return false;
                 }
+
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
 
                 return !one_of(srcType(config), ov::element::bf16, ov::element::f16) && DnnlConvolutionPrimitive::isNspcAvailable(config);
             },
