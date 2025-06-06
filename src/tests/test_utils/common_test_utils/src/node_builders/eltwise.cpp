@@ -61,8 +61,6 @@ std::shared_ptr<ov::Node> make_eltwise(const ov::Output<Node>& in0,
         return std::make_shared<ov::op::v15::BitwiseRightShift>(in0, in1);
     case ov::test::utils::EltwiseTypes::LEFT_SHIFT:
         return std::make_shared<ov::op::v15::BitwiseLeftShift>(in0, in1);
-    case ov::test::utils::EltwiseTypes::EQUAL_ELTWISE:
-        return std::make_shared<ov::op::v1::Equal>(in0, in1);
     default: {
         OPENVINO_THROW("Incorrect type of Eltwise operation");
     }
