@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cpu_types.h"
+#include "node.h"
 #include "nodes/adaptive_pooling.h"
 #include "nodes/batch_to_space.h"
 #include "nodes/bin_conv.h"
@@ -77,7 +79,6 @@
 #include "nodes/range.h"
 #include "nodes/rdft.h"
 #include "nodes/reduce.h"
-#include "nodes/reference.h"
 #include "nodes/region_yolo.h"
 #include "nodes/reorder.h"
 #include "nodes/reorg_yolo.h"
@@ -111,6 +112,8 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
+#include "openvino/cc/factory.h"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 

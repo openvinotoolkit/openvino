@@ -1,12 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
+#include <cpu/platform.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
+#include <memory>
 #include <type_traits>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -16,14 +25,15 @@
 #include "attn_quant.hpp"
 #include "attn_quant_kernel.hpp"
 #include "cache_rotation.hpp"
-#include "common.hpp"
 #include "executor_pa.hpp"
 #include "executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "softmax_kernel.hpp"
 #include "transpose_kernel.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
@@ -63,7 +73,7 @@ template <typename T,
                             std::is_same_v<T, float>)&&(SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
                            bool> = true>
 static void attn_acc_value_block(float* out,
-                                 float* weight,
+                                 const float* weight,
                                  T* v,
                                  const size_t S,
                                  const size_t block_size,
@@ -196,7 +206,7 @@ static void attn_acc_value_block(float* out,
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 static void attn_acc_value_block_by_dim(float* out,
-                                        float* weight,
+                                        const float* weight,
                                         uint8_t* v,
                                         const size_t S,
                                         const size_t block_size,
@@ -363,7 +373,7 @@ static void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v + src_offset);
             for (size_t i = 0; i < group_size; i++) {
                 out[dst_offset + i] += weight[j] * (v[i + src_offset + params_offset] - v0[1]) * v0[0];
             }
@@ -376,7 +386,7 @@ static void attn_acc_value_block_by_dim(float* out,
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
 static void attn_acc_value_block_by_dim(float* out,
-                                        float* weight,
+                                        const float* weight,
                                         uint8_t* v_ptr,
                                         const size_t S,
                                         const size_t block_size,
@@ -390,7 +400,7 @@ static void attn_acc_value_block_by_dim(float* out,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < S) {
-            auto v0 = reinterpret_cast<float*>(v_ptr + src_offset);
+            auto* v0 = reinterpret_cast<float*>(v_ptr + src_offset);
             size_t i = 0;
 #    if defined(HAVE_AVX512F)
             auto attn_w_vec0 = _mm512_set1_ps(weight[j] * v0[0]);
@@ -469,13 +479,13 @@ static void attn_acc_value_block_by_dim(float* out,
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 static void attn_acc_value_block_by_channel(float* out,
-                                            float* weight,
+                                            const float* weight,
                                             void* v,
                                             const size_t S,
                                             const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
     size_t src_stride = S;
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -561,13 +571,13 @@ static void attn_acc_value_block_by_channel(float* out,
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
 static void attn_acc_value_block_by_channel(float* out,
-                                            float* weight,
+                                            const float* weight,
                                             void* v,
                                             const size_t S,
                                             const size_t block_size) {
-    auto p_scales = reinterpret_cast<float*>(v);
-    auto p_zps = p_scales + S;
-    auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
+    auto* p_scales = reinterpret_cast<float*>(v);
+    auto* p_zps = p_scales + S;
+    auto* v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
     size_t src_stride = S / get_sub_byte_multiplier(SRC_PREC);
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -871,10 +881,10 @@ static void dot_product_block_quantized_by_channel(TA* a,
                                                    const size_t block_size) {
     const size_t params_offset = sizeof(float) * 2 * n;
     const size_t src_stride = n;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
-        float sum = 0.0f;
+        float sum = 0.0F;
         size_t i = 0;
 #    if defined(HAVE_AVX512F)
         auto v512_sum0 = _mm512_set1_ps(0.0f);
@@ -1089,10 +1099,10 @@ static void dot_product_block_quantized_by_channel(TA* a,
     const size_t params_offset = sizeof(float) * 2 * n;
     // src_stride must / 2 because of u4
     const size_t src_stride = n / sub_byte_multiplier;
-    auto p_scales = reinterpret_cast<float*>(b);
-    auto p_zps = p_scales + n;
+    auto* p_scales = reinterpret_cast<float*>(b);
+    auto* p_zps = p_scales + n;
     for (size_t j = 0; j < block_size; j++) {
-        float sum = 0.0f;
+        float sum = 0.0F;
         size_t i = 0;
 #    if defined(HAVE_AVX512F)
         auto v512_sum0 = _mm512_set1_ps(0.0f);
@@ -1419,8 +1429,8 @@ static void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
-            float group_sum = 0.0f;
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
+            float group_sum = 0.0F;
             for (size_t i = 0; i < group_size; i++) {
                 group_sum += a[dst_offset + i] * (b[src_offset + params_offset + i] - b0[1]);
             }
@@ -1661,8 +1671,8 @@ static void dot_product_block_quantized_by_dims(TA* a,
         dst_offset = 0;
         src_offset = 0;
         while (dst_offset < n) {
-            auto b0 = reinterpret_cast<float*>(b + src_offset);
-            float group_sum = 0.0f;
+            auto* b0 = reinterpret_cast<float*>(b + src_offset);
+            float group_sum = 0.0F;
             for (size_t i = 0; i < group_size; i += 2) {
                 uint8_t data = b[i / 2 + src_offset + params_offset];
                 float tmp0 = extract_half_byte(data, static_cast<bool>(i % 2));
@@ -1725,7 +1735,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 #    endif
     for (; i < S; i++) {
         auto* src = temp + i;
-        float sum = 0.0f;
+        float sum = 0.0F;
         // sum result from all threads partition
         for (size_t m = 0; m < M; m++) {
             sum += src[0];
@@ -1817,13 +1827,13 @@ void transpose_16NxK(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
+    auto* s = reinterpret_cast<uint8_t*>(src);
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     auto t = tmp;
     // if group_size not set, the whole row is used as a group
     if (quant_key_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
+        auto* p_scales = reinterpret_cast<float*>(s);
+        auto* p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
         attn_dequant_by_channel_kernel<TDST,
                                        SRC_PREC>(s, t, N, K, K / sub_byte_multiplier, src_stride, p_scales, p_zps);
@@ -1832,7 +1842,7 @@ void transpose_16NxK(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto f = reinterpret_cast<float*>(s + src_offset);
+                auto* f = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + sizeof(float) * 2,
                                                     t + dst_offset,
                                                     group_size,
@@ -1901,12 +1911,12 @@ void dequant(TDST* dst,
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
-    auto s = reinterpret_cast<uint8_t*>(src);
+    auto* s = reinterpret_cast<uint8_t*>(src);
     const size_t params_offset = sizeof(float) * 2;
     constexpr size_t sub_byte_multiplier = get_sub_byte_multiplier(SRC_PREC);
     if (quant_bychannel) {
-        auto p_scales = reinterpret_cast<float*>(s);
-        auto p_zps = p_scales + K;
+        auto* p_scales = reinterpret_cast<float*>(s);
+        auto* p_zps = p_scales + K;
         s = s + sizeof(float) * 2 * K;
         attn_dequant_by_channel_kernel<TDST, SRC_PREC>(s, dst, N, K, K / sub_byte_multiplier, K, p_scales, p_zps);
     } else {
@@ -1914,7 +1924,7 @@ void dequant(TDST* dst,
             size_t src_offset = 0;
             size_t dst_offset = 0;
             while (dst_offset < K) {
-                auto f = reinterpret_cast<float*>(s + src_offset);
+                auto* f = reinterpret_cast<float*>(s + src_offset);
                 attn_dequant_kernel<TDST, SRC_PREC>(s + src_offset + params_offset,
                                                     dst + dst_offset,
                                                     group_size,
@@ -2263,7 +2273,7 @@ struct MHAHelper {
 
     void resize_temporary_weight_buffer(const size_t& h) {
         // resize temporary buffers, weight.size(3) will be aligned to block_size
-        _weight.resize<float>({static_cast<size_t>(_nthr), h, _block_size, _new_score_stride});
+        _weight.resize<float>({_nthr, h, _block_size, _new_score_stride});
     }
 
     void init(size_t H,
@@ -2306,9 +2316,9 @@ struct MHAHelper {
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
         constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         if (_quant_key_bychannel || _quant_value_bychannel) {
-            _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, std::max(S, SV)});
+            _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
         } else {
-            _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, SV});
+            _output.resize<float>({_nthr, _block_size, H, SV});
         }
 
         // TODO: kernel supports stride
@@ -2488,13 +2498,13 @@ struct MHAHelper {
             for (size_t m = q_start; m < q_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
-                auto score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
+                auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
                     float* alibi_lookup = nullptr;
                     if (ncausal > _sliding_window) {
-                        start_idx = ncausal - static_cast<size_t>(_sliding_window);
+                        start_idx = ncausal - _sliding_window;
                         new_causal = _sliding_window;
                     }
                     attn_softmax_kernel<float>(score + start_idx,
@@ -2513,7 +2523,7 @@ struct MHAHelper {
                 } else {
                     // alibi may available when _sliding_window is false
                     float* alibi_lookup = nullptr;
-                    float alibi_slope = 0.f;
+                    float alibi_slope = 0.F;
                     if (alibi_slopes) {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;
@@ -2532,7 +2542,7 @@ struct MHAHelper {
                                                alibi_slope);
                 }
                 if (score_output && m >= q_start_idx_score) {
-                    auto score_block_ptr =
+                    auto* score_block_ptr =
                         score_output + h * score_info_ptr->kv_len_aligned * score_info_ptr->score_buf_num;
                     cvt_add(score_block_ptr,
                             score_block_ptr,
@@ -2552,7 +2562,7 @@ struct MHAHelper {
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
-                DATA_TYPE* v_ptr;
+                DATA_TYPE* v_ptr = nullptr;
                 if (q_is_xf16 || !q_cache_is_same) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
                 } else {
@@ -2803,7 +2813,7 @@ struct MHAHelper {
             for (size_t h = hq_beg; h < hq_end; h++) {
                 // apply attention mask & sofmax
                 float* alibi_lookup = nullptr;
-                float alibi_slope = 0.f;
+                float alibi_slope = 0.F;
                 if (alibi_slopes) {
                     alibi_slope = alibi_slopes.ptr<float>()[h];
                     alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
@@ -2893,9 +2903,9 @@ struct MHAHelper {
         _weight_bhl.resize<float>({B, H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
         // for small batches dynamic scheduler has notable overhead
-        bool prefer_static_loop;
+        bool prefer_static_loop = false;
         // if less than 2 work items per thread, loop H
-        bool loop_hk = B * kv_len_in_blocks * Hk <= 2 * _nthr ? false : true;
+        bool loop_hk = B * kv_len_in_blocks * Hk > 2 * _nthr;
         if (B <= 32) {
             prefer_static_loop = true;
             // small batch and all batch size is same(like SDPA case)
@@ -2923,7 +2933,9 @@ struct MHAHelper {
             };
         auto loop_qk = [&](size_t b, size_t pk_in_blocks, size_t hx) {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-            size_t hk, hq_beg, hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
 
             // kv_len must be valid
@@ -2978,7 +2990,7 @@ struct MHAHelper {
             auto ncausal = cur_kv_len;
             // apply attention mask & sofmax
             float* alibi_lookup = nullptr;
-            float alibi_slope = 0.f;
+            float alibi_slope = 0.F;
             if (alibi_slopes) {
                 alibi_slope = alibi_slopes.ptr<float>()[h];
                 alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - cur_kv_len;
@@ -3022,17 +3034,17 @@ struct MHAHelper {
         }
 
         // attn_w * V
-        _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, H, SV});
-        // m_attn_w {B, H, q_len, kv_len}
-        parallel_nt_static(_nthr, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
-            memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
+        _output_bhl.resize<float>({B, kv_len_in_blocks, H, q_len, SV});
+        parallel_for3d(B, kv_len_in_blocks, H, [&](size_t b, size_t pv_in_blocks, size_t h) {
+            memset(_output_bhl.ptr<float>(b, pv_in_blocks, h, 0, 0), 0, q_len * SV * sizeof(float));
         });
 
         auto loop_wk = [&](size_t b, size_t pv_in_blocks, size_t hx) {
-            auto ithr = parallel_get_thread_num();
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto pv = pv_in_blocks * _block_size;
-            size_t hk, hq_beg, hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
 
             // kv_len must be valid
@@ -3042,7 +3054,7 @@ struct MHAHelper {
                     for (size_t h = hq_beg; h < hq_end; h++) {
                         if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
                             attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _output_bhl.ptr<float>(b, pv_in_blocks, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
                                 value_cache.ptr<uint8_t, VALUE_PREC>(block_number, hk),
                                 SV,
@@ -3053,7 +3065,7 @@ struct MHAHelper {
                             auto* v_ptr =
                                 value_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                             attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _output_bhl.ptr<float>(b, pv_in_blocks, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
                                 v_ptr,
                                 SV,
@@ -3072,10 +3084,10 @@ struct MHAHelper {
         }
 
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
-            size_t temp_stride = _output_bhl.stride(0);
+            auto* temp = _output_bhl.ptr<float>(b, 0, h, pq);
+            size_t temp_stride = _output_bhl.stride(1);  // split with pv_in_blocks steps
             auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * SV);
-            attn_reduce(dst, temp, _nthr, SV, temp_stride);
+            attn_reduce(dst, temp, kv_len_in_blocks, SV, temp_stride);
         });
     }
 };
@@ -3122,7 +3134,7 @@ struct MHA {
                 if (q_len == 1) {
                     attn_items.emplace_back(AttnWorkItem{0,     // batch_in_reorder
                                                          i,     // batch_in_seq
-                                                         1ull,  // q_len
+                                                         1ULL,  // q_len
                                                          // kv_len in blocks, used in the sort function
                                                          kv_len_in_block - 1});
                 } else {
@@ -3304,7 +3316,9 @@ struct MHA {
         _helper.resize_temporary_weight_buffer(weight_h);
 
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper.H, [&](size_t w, size_t hx) {
-            size_t hk, hq_beg, hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             if (loop_hk) {
                 hk = hx;
                 hq_beg = hk * _helper._h_each_group_len;
@@ -3343,7 +3357,7 @@ struct MHA {
                     hq_beg,
                     hq_end,
                     hk,
-                    1ul,
+                    1UL,
                     cur_kv_len,
                     alibi_slopes,
                     score_output);
@@ -3620,7 +3634,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
 
         // check by_hidden_dims parameter of value cache
-        if ((value_group_num == 0u) && v_cache.get_precision().is_integral()) {
+        if ((value_group_num == 0U) && v_cache.get_precision().is_integral()) {
             OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
                            _helper._value_group_size,
                            " should be smaller than hidden_dims");
@@ -3631,10 +3645,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             if (_helper._quant_key_bychannel) {
                 S = k_cache.size(3);
             } else {
-                if (!key_group_num)
+                if (!key_group_num) {
                     OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
                                    _helper._key_group_size,
                                    " should be smaller than hidden_dims");
+                }
                 S = k_cache.size(3) - key_params_size * key_group_num;
                 _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
             }
@@ -3648,10 +3663,11 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             if (_helper._quant_value_bychannel) {
                 SV = v_cache.size(3);
             } else {
-                if (!value_group_num)
+                if (!value_group_num) {
                     OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
                                    _helper._value_group_size,
                                    " should be smaller than hidden_dims");
+                }
                 SV = v_cache.size(3) - value_params_size * value_group_num;
                 _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
             }
@@ -3697,8 +3713,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         subsequence_begins.assert_dims({B_seq + 1});
         block_indices.assert_dims({0}, true);
         block_indices_begins.assert_dims({B_seq + 1});
-        if (scale == 0.0f) {
-            scale = 1.0f / sqrt(S);
+        if (scale == 0.0F) {
+            scale = 1.0F / sqrt(S);
         }
         if (alibi_slopes) {
             alibi_slopes.assert_dims({H});
@@ -3785,12 +3801,19 @@ struct AttentionExecutor : public PagedAttentionExecutor {
     }
 
     void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
-        PlainTensor q, k, v, k_cache, v_cache;
-        PlainTensor past_lens, subsequence_begins, block_indices, block_indices_begins;
-        float scale;
-        size_t sliding_window;
+        PlainTensor q;
+        PlainTensor k;
+        PlainTensor v;
+        PlainTensor k_cache;
+        PlainTensor v_cache;
+        PlainTensor past_lens;
+        PlainTensor subsequence_begins;
+        PlainTensor block_indices;
+        PlainTensor block_indices_begins;
+        float scale = NAN;
+        size_t sliding_window = 0;
         PlainTensor alibi_slopes;
-        size_t max_context_len;
+        size_t max_context_len = 0;
         PlainTensor rotated_block_indices;
         PlainTensor rotation_deltas;
         PlainTensor rotation_trig_lut;

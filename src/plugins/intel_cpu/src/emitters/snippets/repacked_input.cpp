@@ -4,6 +4,13 @@
 
 #include "repacked_input.hpp"
 
+#include <memory>
+#include <utility>
+
+#include "cpu_types.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_cpu {
 
 RepackedInput::RepackedInput(std::shared_ptr<const RepackedInputKernel> kernel,

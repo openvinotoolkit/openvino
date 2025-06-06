@@ -111,6 +111,13 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.run_on_model(model);
     }
 
+    if (cfg_get<::intel_npu::NPUW_FOLD>(props)) {
+        // Having folding enabled assumes Scalar bank matching,
+        // make this procedure a little bit more reliable by untangling
+        // the excess tiny Const connections
+        ov::npuw::patterns::opt::untangleConst(model);
+    }
+
     if (cfg_get<::intel_npu::NPUW_SLICE_OUT>(props)) {
         // Add Slice before last MatMul for the prefill model
         ov::pass::GraphRewrite rewr;

@@ -221,7 +221,7 @@ private:
 class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::ScaledDotProductAttentionDecomposition");
-    ScaledDotProductAttentionDecomposition() {
+    explicit ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -233,7 +233,7 @@ public:
                 return false;
             }
 
-            auto new_output_node = decompose(node);
+            auto new_output_node = decompose(node, use_high_precision_on_add);
             ov::replace_node(node, new_output_node);
             return true;
         };
@@ -241,7 +241,8 @@ public:
         auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "ScaledDotProductAttentionDecomposition");
         register_matcher(m, std::move(callback));
     }
-    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) {
+    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node,
+                                        bool use_high_precision_on_add) {
         using namespace ov::op;
         using namespace ov;
         auto query = node->input_value(0);
@@ -312,6 +313,12 @@ public:
                 auto triu = register_new_node<v1::GreaterEqual>(horizontal_range, vertical_range);
                 atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
             }
+            if (use_high_precision_on_add) {
+                npuw::util::HighPrecisionAttr attr_hp;
+                attr_hp.compute_precision_type = ov::element::f32;
+                atten_mask.get_rt_info()[npuw::util::HighPrecisionAttr::get_type_info_static()] = attr_hp;
+            }
+
             scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
         }
 
@@ -374,11 +381,10 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
 }
 }  // namespace
 
-// testability - should we have interface for that or move matchers to another file?
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model);
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
+namespace ov::npuw::util {
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
+    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
@@ -389,6 +395,7 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
     // NB: matmul parameters gets transposed, if pass applied
     return ctx.bTransposed;
 }
+}  // namespace ov::npuw::util
 
 namespace {
 struct KVAxesPosition {
@@ -525,7 +532,7 @@ ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
         }
     }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
+        config.emplace("NPU_TILES", npudesc->max_tiles);
     }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
@@ -546,7 +553,7 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
     if (npudesc.has_value() && npudesc->arch == "4000") {
-        config.emplace("NPU_DPU_GROUPS", 4);
+        config.emplace("NPU_TILES", 4);
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
@@ -643,8 +650,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (optimize_v_tensors) {
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
-        if (optimize_value_tensors(kvcache_model)) {
-            NPUW_ASSERT(optimize_value_tensors(prefill_model));
+        if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
+            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
             m_kvcache_desc.v_tensors_transposed = true;
         } else {
             LOG_DEBUG("vtensors optimisation not applied");
