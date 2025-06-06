@@ -413,10 +413,10 @@ struct TensorIterator {
         m_tensorIter.resize(m_squashed_shape.size(), 0);
         getCoordinate(m_tensorIter, start, m_squashed_shape);
 
-        size_t i;
+        size_t i = 0;
         size_t dst_idx = 0;
         size_t indices_idx = 0;
-        for (i = 0; i < static_cast<size_t>(m_squashed_axis); ++i) {
+        for (; i < static_cast<size_t>(m_squashed_axis); ++i) {
             dst_idx += m_tensorIter[i] * dataBlockND[i + 1];
             indices_idx += m_tensorIter[i] * indicesBlockND[i + 1];
         }

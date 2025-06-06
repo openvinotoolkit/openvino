@@ -300,9 +300,12 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     }
     // pads are constant, so we can calculate new collapsing pads for first target dimensions and use it for the next
     // dimensions to avoid permanent identical pad calculations
-    const size_t blockSize = srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)
-                                 ? 16
-                                 : (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c) ? 8 : 1);
+    size_t blockSize = 1;
+    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
+        blockSize = 16;
+    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
+        blockSize = 8;
+    }
 
     if (blockSize > 1) {
         params.attrs.padsBegin[1] /= blockSize;
@@ -607,11 +610,15 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
-                size_t shift = (indexes[idx] < params.attrs.padsBegin[idx])
-                                   ? 0
-                                   : ((static_cast<size_t>(indexes[idx]) >= params.srcODims[idx])
-                                          ? (params.srcDims[idx] - 1)
-                                          : (indexes[idx] - params.attrs.padsBegin[idx]));
+                size_t shift = [&]() {
+                    if (indexes[idx] < params.attrs.padsBegin[idx]) {
+                        return size_t(0);
+                    }
+                    if (static_cast<size_t>(indexes[idx]) >= params.srcODims[idx]) {
+                        return params.srcDims[idx] - 1;
+                    }
+                    return static_cast<size_t>(indexes[idx] - params.attrs.padsBegin[idx]);
+                }();
                 srcIdx += shift * params.srcStrides[idx];
             }
             srcIdx *= params.dataSize;
@@ -659,11 +666,15 @@ void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t i = 0; i < params.nDimsForWork; ++i) {
-                size_t idx = (indexes[i] < params.attrs.padsBegin[i])
-                                 ? (params.attrs.padsBegin[i] - indexes[i] - shift)
-                                 : ((static_cast<size_t>(indexes[i]) >= params.srcODims[i])
-                                        ? (params.srcDimsForReflectOrSymmetric[i] - indexes[i])
-                                        : (indexes[i] - params.attrs.padsBegin[i]));
+                size_t idx = [&]() -> size_t {
+                    if (indexes[i] < params.attrs.padsBegin[i]) {
+                        return params.attrs.padsBegin[i] - indexes[i] - shift;
+                    }
+                    if (static_cast<size_t>(indexes[i]) >= params.srcODims[i]) {
+                        return params.srcDimsForReflectOrSymmetric[i] - indexes[i];
+                    }
+                    return indexes[i] - params.attrs.padsBegin[i];
+                }();
                 srcIdx += idx * params.srcStrides[i];
             }
             srcIdx *= params.dataSize;

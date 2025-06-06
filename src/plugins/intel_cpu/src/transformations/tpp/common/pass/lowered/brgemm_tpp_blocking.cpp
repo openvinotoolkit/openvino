@@ -41,17 +41,11 @@ std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmTPPBlocking::SetBrgemmB
 
 std::tuple<size_t, size_t, size_t> BrgemmTPPBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
-    size_t m;
-    size_t n;
-    size_t k;
-    std::tie(m, n, k) = get_brgemm_dimensions(brgemm_expr);
+    auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
     OPENVINO_ASSERT(!is_dynamic_value(m) && !is_dynamic_value(n) && !is_dynamic_value(n),
                     "BrgemmTPP doesn't support dynamic shapes");
 
-    size_t m_blk;
-    size_t n_blk;
-    size_t k_blk;
-    std::tie(m_blk, n_blk, k_blk) = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
+    auto [m_blk, n_blk, k_blk] = BrgemmBlockingBase::get_blocking_params(brgemm_expr);
 
     auto get_projected_blk = [](const size_t dim, const size_t blk) {
         return ov::snippets::utils::is_full_dim_value(blk) ? dim : blk;

@@ -44,7 +44,7 @@ std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisO
     int64_t num_writers,
     int64_t writes_per_loop,
     int64_t writes_per_writer_per_loop) {
-    const T* end;
+    const T* end = nullptr;
     for (int64_t l = 0; l < num_loops; ++l) {
         T* output_for_first_writer = output_data;
         for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
@@ -87,7 +87,7 @@ std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisI
     int64_t num_readers,
     int64_t reads_per_loop,
     int64_t reads_per_reader_per_loop) {
-    T* end;
+    T* end = nullptr;
     for (int64_t l = 0; l < num_loops; ++l) {
         const T* input_for_first_reader = input_data;
         for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {

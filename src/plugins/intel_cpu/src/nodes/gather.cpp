@@ -288,9 +288,13 @@ void Gather::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
-        idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize
-                      : x64::mayiuse(x64::avx2)      ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize
-                                                     : 1;
+        if (x64::mayiuse(x64::avx512_core)) {
+            idxElPerVec = x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize;
+        } else if (x64::mayiuse(x64::avx2)) {
+            idxElPerVec = x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize;
+        } else {
+            idxElPerVec = 1;
+        }
     }
     // Gather instruction is not supported by SSE.
     if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&
