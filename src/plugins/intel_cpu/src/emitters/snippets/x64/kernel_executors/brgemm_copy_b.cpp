@@ -53,8 +53,17 @@ BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const element::Type& src_dt,
                                                  cpu_isa_t isa,
                                                  bool is_with_comp,
                                                  bool is_transposed_B,
-                                                 dnnl_dim_t wei_N_blk)
-    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)),
+                                                 bool are_wei_blocked,
+                                                 dnnl_dim_t wei_N_blk,
+                                                 dnnl_dim_t wei_K_blk)
+    : m_static_params(std::make_shared<StaticParams>(src_dt,
+                                                     wei_dt,
+                                                     isa,
+                                                     is_with_comp,
+                                                     is_transposed_B,
+                                                     are_wei_blocked,
+                                                     wei_N_blk,
+                                                     wei_K_blk)),
       m_hash(compute_hash()) {}
 
 bool BrgemmCopyBKernelConfig::is_completed() const {
@@ -116,18 +125,23 @@ BrgemmCopyBKernelConfig::StaticParams::StaticParams(const element::Type& src_typ
                                                     cpu_isa_t isa,
                                                     bool is_with_comp,
                                                     bool is_transposed_B,
-                                                    dnnl_dim_t wei_n_blk)
+                                                    bool are_wei_blocked,
+                                                    dnnl_dim_t wei_n_blk,
+                                                    dnnl_dim_t wei_k_blk)
     : src_dt(DTYPE_CAST(src_type)),
       wei_dt(DTYPE_CAST(wei_type)),
       isa(isa),
       is_with_comp(is_with_comp),
       is_transposed_B(is_transposed_B),
+      are_wei_blocked(are_wei_blocked),
       wei_N_blk(wei_n_blk),
-      hash(init_hash(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)) {}
+      wei_K_blk(wei_k_blk),
+      hash(init_hash(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, are_wei_blocked, wei_N_blk, wei_K_blk)) {}
 
 bool BrgemmCopyBKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
 #define EQ(X) X == rhs.X
-    return EQ(hash) && EQ(src_dt) && EQ(wei_dt) && EQ(isa) && EQ(is_with_comp) && EQ(is_transposed_B) && EQ(wei_N_blk);
+    return EQ(hash) && EQ(src_dt) && EQ(wei_dt) && EQ(isa) && EQ(is_with_comp) && EQ(is_transposed_B) &&
+           EQ(are_wei_blocked) && EQ(wei_N_blk);
 #undef EQ
 }
 
@@ -136,7 +150,9 @@ size_t BrgemmCopyBKernelConfig::StaticParams::init_hash(const dnnl_data_type_t& 
                                                         cpu_isa_t isa,
                                                         bool is_with_comp,
                                                         bool is_transposed_B,
-                                                        dnnl_dim_t wei_N_blk) {
+                                                        bool are_wei_blocked,
+                                                        dnnl_dim_t wei_N_blk,
+                                                        dnnl_dim_t wei_K_blk) {
     size_t seed = 0;
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(src_dt);
@@ -144,7 +160,9 @@ size_t BrgemmCopyBKernelConfig::StaticParams::init_hash(const dnnl_data_type_t& 
     HASH(isa);
     HASH(is_with_comp);
     HASH(is_transposed_B);
+    HASH(are_wei_blocked);
     HASH(wei_N_blk);
+    HASH(wei_K_blk);
 #undef HASH
     return seed;
 }
@@ -170,7 +188,9 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
     PRINT(isa);
     PRINT(is_with_comp);
     PRINT(is_transposed_B);
+    PRINT(are_wei_blocked);
     PRINT(wei_N_blk);
+    PRINT(wei_K_blk);
     return ss.str();
 }
 #    undef PRINT
@@ -182,13 +202,19 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
     : jit_generator(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
-      wei_data_size(dnnl_data_type_size(conf.get_wei_dt())),
-      vnni_factor(data_type_vnni_granularity(conf.get_wei_dt())),
       K(conf.get_K()),
       N_blk(conf.get_N_blk()),
       wei_N_blk(conf.get_wei_N_blk()),
       wei_N_tail(conf.get_wei_N_tail()),
+      stride_comp(is_with_comp ? wei_N_blk * sizeof(int32_t) : 0),
       ker_(nullptr) {
+    const auto wei_data_size = dnnl_data_type_size(conf.get_wei_dt());
+    const auto vnni_factor = data_type_vnni_granularity(conf.get_wei_dt());
+    const auto buffer_repacked_k_dim = brgemm_utils::repacking::compute_blocked_dim(K, conf.get_wei_K_blk());
+
+    stride_in = conf.is_transposed_B() ? conf.get_K() * wei_N_blk * wei_data_size : wei_N_blk * wei_data_size;
+    stride_out = wei_N_blk * wei_data_size * (conf.are_wei_blocked() ? buffer_repacked_k_dim : vnni_factor);
+
     init_brgemm_copy_b_kernel(dnnl_brgemm_copy_b_kernel, conf);
     OV_CPU_JIT_EMITTER_ASSERT(dnnl_brgemm_copy_b_kernel, "Kernel is missed!");
 }
@@ -265,9 +291,9 @@ void BrgemmCopyBKernel::generate() {
         const auto current_N = N_blk - nb * wei_N_blk < wei_N_blk ? wei_N_tail : wei_N_blk;
         emit_brgemm_copy_b_kernel_call(current_N, K, start_in, start_out, start_comp);
 
-        start_in += is_transpose ? K * current_N * wei_data_size : current_N * wei_data_size;
-        start_out += current_N * vnni_factor * wei_data_size;
-        start_comp += is_with_comp ? current_N * sizeof(int32_t) : 0;
+        start_in += stride_in;
+        start_out += stride_out;
+        start_comp += stride_comp;
     }
 
     postamble();
@@ -418,7 +444,7 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     init(N_dim, N_blk, 0);
 
     const auto& brg_weight_etype = expr->get_node()->get_input_element_type(0);
-    const auto LDB = static_cast<int64_t>(brgemm_utils::repacking::compute_repacked_n_dim(N_dim, brg_weight_etype));
+    const auto LDB = brgemm_utils::repacking::compute_LDB(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
     OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
