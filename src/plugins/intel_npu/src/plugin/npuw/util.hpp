@@ -15,6 +15,22 @@ namespace ov {
 namespace npuw {
 namespace util {
 
+    // can be used for debugging memory grow issues as a first step
+    class MemLoger {
+        std::atomic<bool> m_brunning = true;
+        std::thread m_memLoggerTh;
+        static void logMemoryLoop(std::atomic<bool> &keep_running, size_t interval_ms);
+
+        public:
+            // log every 1000ms by default
+            MemLoger(size_t interval_ms = 1000) :
+                m_memLoggerTh(logMemoryLoop, std::ref(m_brunning), interval_ms) {}
+            ~MemLoger() {
+                m_brunning = false;
+                m_memLoggerTh.join();
+            }
+    };
+
 bool is_set(const std::size_t sub_idx,
             const std::string& opt,
             const std::size_t real_idx = SIZE_MAX,

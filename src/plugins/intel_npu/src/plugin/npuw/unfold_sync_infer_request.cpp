@@ -84,16 +84,6 @@ bool ov::npuw::UnfoldInferRequest::valid_subrequest(std::size_t idx) const {
     return m_subrequests.at(idx) != nullptr;
 }
 
-//void ov::npuw::UnfoldInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
-//   // get_real_subrequest(idx)->set_callback(std::move(cb));
-//
-//    LOG_ERROR("UnfoldInferRequest::subscribe_subrequest - kv-kache copy should be completed here [" << idx << "]");
-//}
-//
-//void ov::npuw::UnfoldInferRequest::complete_subrequest(std::size_t idx) {
-//    LOG_ERROR("UnfoldInferRequest::complete_subrequest - initiate do an kv-kache copy for prefil model [" << idx << "]");
-//}
-
 void ov::npuw::UnfoldInferRequest::infer() {
     const bool do_async = m_npuw_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_ASYNC>();
 

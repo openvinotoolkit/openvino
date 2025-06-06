@@ -64,9 +64,8 @@ void ov::npuw::MemAccessSim::register_read(const LinkFrom& from) {
 }
 
 ov::npuw::FuncMemMgr::FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : m_sim(compiled_model),
-      m_model(compiled_model) {
-     
+    : m_sim(compiled_model)
+    , m_model(compiled_model) {
 }
 
 void ov::npuw::FuncMemMgr::set_alloc(AllocFcn&& fcn) {
@@ -165,13 +164,13 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
         // 2. if not by sim - looks weird, so try to improve simulator logic, where outputs reuse gets directly into account
         auto allocate_case = false;
 
-        // number of maximun simultanenously inferred subgraphs - effectively equal number of infer-requests 
+        // number of maximun simultanenously inferred subgraphs - effectively equal number of infer-requests
         // created to servs subgraps chain - same constant appeared in JustInferRequest during subreqs creation
         const size_t max_simultanenous_subs = m_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_OUTS_REUSE>() ? 2 : 0;
-        LOG_DEBUG("max_simultanenous_subs: " << max_simultanenous_subs); 
-        
+        LOG_DEBUG("max_simultanenous_subs: " << max_simultanenous_subs);
+
         if (max_simultanenous_subs) {
-            // get ouput_proto 
+            // get ouput_proto
             if (from.first - real_idx < max_simultanenous_subs)  {
                 // not yet created enough outputs
                 allocate_case = true;
@@ -183,7 +182,6 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
             allocate_case = true;
         }
 
-        
         TensorPtr new_tensor;
 
         if (allocate_case) {
@@ -197,7 +195,7 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
             if (proto_comp_model_desc.spatial) {
                 oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
             }
-            LOG_DEBUG("allocating output for: " << oport.get_any_name()); 
+            LOG_DEBUG("allocating output for: " << oport.get_any_name());
 
             const auto& device = m_model->funcall_mem_device(real_idx);
 
@@ -206,10 +204,9 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
             // bind to outputs, previously allocated for function_prototype
             auto actual_outputs_proto = (from.first - real_idx) % max_simultanenous_subs + real_idx;
             new_tensor = m_table[{actual_outputs_proto, from.second}];
-            LOG_DEBUG("reusing output tensor allocated for submodel: " << actual_outputs_proto << "->" << from.first); 
+            LOG_DEBUG("reusing output tensor allocated for submodel: " << actual_outputs_proto << "->" << from.first);
         }
-        
-        
+
         NPUW_ASSERT(new_tensor);
 
         assigned_memory.push_back(Assignment{new_tensor, from});
@@ -739,7 +736,6 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t idx) {
     subscribe_subrequest(idx, [](std::exception_ptr) {});
 
     if (!comp_model_desc.spatial) {
-        
         // Run normally
         r->infer();
 
@@ -842,7 +838,6 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t idx) {
                                                      spatial.tail_size);
                 in_view->copy_to(out_view._ptr);
             }  // for(outputs)
-
         }
     }
     complete_subrequest(idx);

@@ -1438,15 +1438,8 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
     return result;
 }
 
-void ov::npuw::CompiledModel::on_sync_infer_request_created(ov::npuw::CompiledModel::SyncReqListener listener) {
-    m_sync_r_listener = std::move(listener);
-}
-
 std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
-    if (m_sync_r_listener) {
-        m_sync_r_listener(internal_request);
-    }
     return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
 }
 

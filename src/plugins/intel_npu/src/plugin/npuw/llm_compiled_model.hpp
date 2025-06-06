@@ -33,7 +33,6 @@ public:
                      const std::shared_ptr<const ov::IPlugin>& plugin,
                      const bool serialized);
     LLMCompiledModel() = delete;
-    ~LLMCompiledModel();
 
     void export_model(std::ostream& model) const override;
     static std::shared_ptr<LLMCompiledModel> import_model(std::istream& stream,
@@ -67,9 +66,6 @@ private:
     KVCacheDesc m_kvcache_desc;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
-    
-    std::atomic<bool> keep_running = true;
-    std::thread m_memLogger;
 };
 }  // namespace npuw
 }  // namespace ov

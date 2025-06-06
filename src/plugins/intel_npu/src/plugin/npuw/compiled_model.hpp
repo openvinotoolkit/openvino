@@ -114,11 +114,6 @@ private:
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
 
-    //
-    using SyncReqListener = std::function<void(std::shared_ptr<ov::ISyncInferRequest>)>;
-    void on_sync_infer_request_created(SyncReqListener listener);
-    SyncReqListener m_sync_r_listener;
-
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
