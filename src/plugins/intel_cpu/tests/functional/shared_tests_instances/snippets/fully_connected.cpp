@@ -52,7 +52,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected_EnforceBF16, MatMul,
                              ::testing::ValuesIn(fc_input_shapes),
                              ::testing::ValuesIn(precisions(true)),
                              ::testing::Values(MatMulType::FullyConnected),
-                             ::testing::Values(1), // MatMul
+                             ::testing::Values(3), // MatMul + 2 x Reorders on inputs
                              ::testing::Values(1), // Tokenized MatMul
                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                              ::testing::Values(CPUTestUtils::cpu_bf16_plugin_config)),
