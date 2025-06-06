@@ -82,6 +82,11 @@ BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
 
 dnnl::impl::cpu::x64::cpu_isa_t BrgemmConfig::get_prim_isa(const ov::element::Type& src_dt,
                                                            const ov::element::Type& wei_dt) {
+#define RETURN_IF_SUPPORTED(x) \
+    if (mayiuse(x)) {          \
+        return x;              \
+    }
+
     const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
     const auto is_fp16 = src_dt == ov::element::f16 && wei_dt == ov::element::f16;
     const auto is_bf16 = src_dt == ov::element::bf16 && wei_dt == ov::element::bf16;
@@ -94,25 +99,30 @@ dnnl::impl::cpu::x64::cpu_isa_t BrgemmConfig::get_prim_isa(const ov::element::Ty
                     wei_dt);
 
     if (is_bf16) {
-        return mayiuse(avx512_core_amx)    ? avx512_core_amx
-               : mayiuse(avx512_core_bf16) ? avx512_core_bf16
-               : mayiuse(avx2_vnni_2)      ? avx2_vnni_2
-                                           : isa_undef;
+        RETURN_IF_SUPPORTED(avx512_core_amx)
+        RETURN_IF_SUPPORTED(avx512_core_bf16)
+        RETURN_IF_SUPPORTED(avx2_vnni_2)
+        return isa_undef;
     }
 
     if (is_fp16) {
-        return mayiuse(avx512_core_amx_fp16) ? avx512_core_amx_fp16 : mayiuse(avx2_vnni_2) ? avx2_vnni_2 : isa_undef;
+        RETURN_IF_SUPPORTED(avx512_core_amx_fp16)
+        RETURN_IF_SUPPORTED(avx2_vnni_2)
+        return isa_undef;
     }
 
     if (is_int8) {
-        return mayiuse(avx512_core_amx)    ? avx512_core_amx
-               : mayiuse(avx512_core_vnni) ? avx512_core_vnni
-               : mayiuse(avx2_vnni_2)      ? avx2_vnni_2
-               : mayiuse(avx2_vnni)        ? avx2_vnni
-                                           : isa_undef;
+        RETURN_IF_SUPPORTED(avx512_core_amx)
+        RETURN_IF_SUPPORTED(avx512_core_vnni)
+        RETURN_IF_SUPPORTED(avx2_vnni_2)
+        RETURN_IF_SUPPORTED(avx2_vnni)
+        return isa_undef;
     }
 
-    return mayiuse(avx512_core) ? avx512_core : mayiuse(cpu::x64::avx2) ? cpu::x64::avx2 : isa_undef;
+    RETURN_IF_SUPPORTED(avx512_core)
+    RETURN_IF_SUPPORTED(cpu::x64::avx2)
+    return isa_undef;
+#undef RETURN_IF_SUPPORTED
 }
 
 bool BrgemmConfig::is_amx() const {
