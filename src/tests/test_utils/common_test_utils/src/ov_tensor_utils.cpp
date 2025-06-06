@@ -10,7 +10,6 @@
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
-#include "precomp.hpp"
 
 namespace ov {
 namespace test {

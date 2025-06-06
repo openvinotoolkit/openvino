@@ -4,9 +4,10 @@
 
 #include "common_test_utils/all_close_f.hpp"
 
+#include <limits.h>
+
 #include "common_test_utils/float_util.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "precomp.hpp"
 
 namespace ov {
 namespace test {

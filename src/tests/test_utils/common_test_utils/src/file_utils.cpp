@@ -4,8 +4,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "precomp.hpp"
-
 #ifdef __APPLE__
 #    include <mach-o/dyld.h>
 #endif

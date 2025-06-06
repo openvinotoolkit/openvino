@@ -69,7 +69,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 ov_build_target_faster(${TARGET_NAME}_obj
-    UNITY PCH PRIVATE "src/precomp.hpp"
+    UNITY PCH "src/precomp.hpp"
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
