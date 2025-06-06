@@ -50,6 +50,8 @@ if ``indices.shape[-1] == data.rank - batch_dims``, else
   It requires all indices from this tensor to be in the range ``[-s, s-1]`` where ``s`` is the corresponding dimension to
   which this index is applied. **Required.**
 
+.. note::
+    Behavior before 2025.3 OpenVINO release: Negative indices were not supported.
 
 **Outputs**:
 
