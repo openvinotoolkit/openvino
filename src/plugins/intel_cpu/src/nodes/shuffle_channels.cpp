@@ -108,16 +108,18 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
         THROW_CPU_NODE_ERR("has unsupported precision: ", precision.get_type_name());
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    auto impl_type = []() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     // use ncsp as default for non-quantized networks and nspc for quantized
     auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;
@@ -148,10 +150,15 @@ void ShuffleChannels::createPrimitive() {
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.spatialRank = attrs.dataRank - attrs.axis - 1;
     attrs.dataSize = memoryDesc.getPrecision().size();
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
-                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
-                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
-                                                                      : LayoutType::ncsp;
+    if (memoryDesc.hasLayoutType(LayoutType::nCsp16c)) {
+        attrs.layoutType = LayoutType::nCsp16c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nCsp8c)) {
+        attrs.layoutType = LayoutType::nCsp8c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nspc)) {
+        attrs.layoutType = LayoutType::nspc;
+    } else {
+        attrs.layoutType = LayoutType::ncsp;
+    }
 
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams()) {

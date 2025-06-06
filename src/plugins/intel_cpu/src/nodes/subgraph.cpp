@@ -522,8 +522,15 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
-        // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
-        SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ov::snippets::pass::MatMulToBrgemm);
+        // Notes:
+        //  - MatMul decomposition will be run later again for case if BF16 enforcement is not happened
+        //  - `MatMulToBrgemm` pass fuse `transpose_a` and `transpose_b` from MatMul to inputs of Brgemm as layouts.
+        //    These layouts are resized to ranks of input shapes. But since `Canonicalization` might
+        //    reshape shapes, the pass `MatMulToBrgemm` should be after the pass `Canonicalization` to
+        //    fuse layouts with ranks aligned with updated shapes after RankNormalization insertions.
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::snippets::pass::Canonicalization,
+                                               ov::snippets::pass::MatMulToBrgemm);
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::snippets::pass::MatMulToBrgemm,
                                                pass::EnforcePrecision,
@@ -533,7 +540,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           getConstantInputIndexes());
     if (subgraph_attrs->snippet->has_domain_sensitive_ops()) {
 #if defined(OPENVINO_ARCH_X86_64)
         const auto cpu_config =
@@ -546,7 +554,6 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                                ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                               getConstantInputIndexes(),
                                                cpu_config->repacked_input_config,
                                                repacked_constant_input_config);
     }
@@ -716,9 +723,9 @@ void Subgraph::optimizeIR() {
     subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 
-    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
-    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain
-    // optimization.
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work
+    // amount) needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts
+    // in domain optimization.
     subgraph->control_flow_transformations(static_cast<size_t>(parallel_get_max_threads()),
                                            256,
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
@@ -753,7 +760,8 @@ void Subgraph::prepareParams() {
             // Dynamic case:
             // 1. Generate JIT code if needed
             // 2. Update runtime config with dynamic values
-            //    If JIT code has been taken from cache, need to set cached kernel executor table for the configuration
+            //    If JIT code has been taken from cache, need to set cached kernel executor table for the
+            //    configuration
             // 3. Create SubgraphDynamicSpecializedExecutor
             const auto code_gen_result = cache->getOrCreate(
                 SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
