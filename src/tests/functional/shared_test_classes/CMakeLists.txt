@@ -22,7 +22,7 @@ ov_add_target(
 )
 
 ov_build_target_faster(${TARGET_NAME}
-        PCH PRIVATE "src/precomp.hpp"
+        PCH "src/precomp.hpp"
         )
 
 # install & export

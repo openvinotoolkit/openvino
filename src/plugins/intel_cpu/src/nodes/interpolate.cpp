@@ -414,9 +414,9 @@ private:
         //             |  |
         //             |  |    .
         //             ----
-        int f;
-        int filterS;
-        int filterL;
+        int f = 0;
+        int filterS = 0;
+        int filterL = 0;
         int tail_num = jcp_.C % vector_step;
         // xpass
         if (xPass) {
@@ -2884,7 +2884,15 @@ void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,
     // EndBottomLeft:6,   EndBottomRight:7 weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
     auto* index = static_cast<int*>(auxTable.data());
-    int eltInGrid = (spatialDimSize > 2) ? MAX_INPUT_INTERPOLATE : ((spatialDimSize > 1) ? 4 : 2);
+    int eltInGrid = [&]() -> int {
+        if (spatialDimSize > 2) {
+            return MAX_INPUT_INTERPOLATE;
+        }
+        if (spatialDimSize > 1) {
+            return 4;
+        }
+        return 2;
+    }();
     int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
     auto* weight = reinterpret_cast<float*>(&auxTable[scratchLen]);
 
@@ -3271,7 +3279,15 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
         // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3,
         // EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
         // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
-        int eltInGrid = (spatialDimSize > 2) ? MAX_INPUT_INTERPOLATE : ((spatialDimSize > 1) ? 4 : 2);
+        int eltInGrid = [&]() {
+            if (spatialDimSize > 2) {
+                return MAX_INPUT_INTERPOLATE;
+            }
+            if (spatialDimSize > 1) {
+                return 4;
+            }
+            return 2;
+        }();
         int idxType = 2;
         int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
         auxTable.resize(idxType * scratchLen);
@@ -3297,24 +3313,24 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
         int scale = mayiuse(cpu::x64::sse41) ? srcDataSize : 1;
 
         for (int oz = 0; oz < OD; oz++) {
-            int izF;
-            int izE;
-            float weightF;
-            float weightE;
+            int izF = 0;
+            int izE = 0;
+            float weightF = NAN;
+            float weightE = NAN;
             linearOnnxCF(oz, fz, ID, OD, izF, izE, weightF, weightE);
             int idxOz = oz * OH * OW;
             for (int oy = 0; oy < OH; oy++) {
-                int iyT;
-                int iyB;
-                float weightT;
-                float weightB;
+                int iyT = 0;
+                int iyB = 0;
+                float weightT = NAN;
+                float weightB = NAN;
                 linearOnnxCF(oy, fy, IH, OH, iyT, iyB, weightT, weightB);
                 int idxOzOy = idxOz + oy * OW;
                 for (int ox = 0; ox < OW; ox++) {
-                    int ixL;
-                    int ixR;
-                    float weightL;
-                    float weightR;
+                    int ixL = 0;
+                    int ixR = 0;
+                    float weightL = NAN;
+                    float weightR = NAN;
                     linearOnnxCF(ox, fx, IW, OW, ixL, ixR, weightL, weightR);
 
                     int idxOzOyOx = idxOzOy + ox;
@@ -3711,7 +3727,15 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
     // EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
     // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
 
-    int eltInGrid = (spatialDimSize > 2) ? MAX_INPUT_INTERPOLATE : ((spatialDimSize > 1) ? 4 : 2);
+    int eltInGrid = [&]() {
+        if (spatialDimSize > 2) {
+            return MAX_INPUT_INTERPOLATE;
+        }
+        if (spatialDimSize > 1) {
+            return 4;
+        }
+        return 2;
+    }();
     int scratchLen = rnd_up(eltInGrid * OW * OH * OD, 16);
 
     indexPtr[0] = static_cast<int*>(auxTable.data());
@@ -4088,11 +4112,11 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
         } else if (!xPass && !yPass) {
             cpu_memcpy(out_ptr_nc, in_ptr_nc, OH * OW * dstDataSize);
         }
-        float result;
-        int f;
-        int filterS;
-        int filterL;
-        float* weight;
+        float result = NAN;
+        int f = 0;
+        int filterS = 0;
+        int filterL = 0;
+        float* weight = nullptr;
         if (xPass) {
             for (size_t ih = 0; ih < static_cast<size_t>(IH); ih++) {
                 for (size_t ow = 0; ow < static_cast<size_t>(OW); ow++) {
@@ -4184,11 +4208,11 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
             cpu_memcpy(out_ptr_b, in_ptr_b, OH * OW * C * dstDataSize);
         }
 
-        float result;
-        int f;
-        int filterS;
-        int filterL;
-        float* weight;
+        float result = NAN;
+        int f = 0;
+        int filterS = 0;
+        int filterL = 0;
+        float* weight = nullptr;
 
         if (xPass) {
             for (size_t ih = 0; ih < static_cast<size_t>(IH); ih++) {
