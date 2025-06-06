@@ -148,7 +148,7 @@ protected:
             constexpr size_t q_step = 16;
 
             const size_t q_steps = static_cast<size_t>(std::floor(q_len / q_step));
-            const size_t WG_SIZE = std::min(q_steps, 8ul);
+            size_t WG_SIZE = std::min(q_steps, static_cast<size_t>(8ul));
 
             std::cout << "========== batch=" << batch << ", q_len=" << q_len <<
              ", num_heads=" << num_heads << ", q_steps=" << q_steps << ", WG_SIZE=" << WG_SIZE << std::endl;
@@ -206,7 +206,7 @@ public:
 
         constexpr size_t q_step = 16;
         const size_t q_steps = static_cast<size_t>(std::floor(valid_q_len / q_step));
-        const size_t WG_SIZE = std::min(q_steps, 8ul);
+        size_t WG_SIZE = std::min(q_steps, static_cast<size_t>(8ul));
 
         desc.workGroups.global.back() = q_steps;
         desc.workGroups.local.back() = WG_SIZE;
