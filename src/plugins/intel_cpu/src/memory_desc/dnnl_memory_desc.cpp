@@ -4,11 +4,20 @@
 
 #include "dnnl_memory_desc.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <common/memory_desc.hpp>
 #include <common/memory_desc_wrapper.hpp>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
 
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -38,7 +47,7 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec
 
 bool DnnlMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     if (MemoryDescType::Dnnl & rhs.getType()) {
-        auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
+        const auto* dnnMemDesc = rhs.as<DnnlMemoryDesc>();
         return isCompatible(*dnnMemDesc);
     }
     return false;
