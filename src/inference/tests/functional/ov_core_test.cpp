@@ -22,13 +22,24 @@ protected:
         ov::test::utils::generate_test_model(model_file_name, weight_file_name);
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
         for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
-            std::wstring prefix = ov::util::string_to_wstring(ov::test::utils::generateTestFilePrefix());
-            std::wstring postfix = prefix + L"_" + ov::test::utils::test_unicode_postfix_vector[testIndex];
-            auto model_path_w = postfix + L"_" + ov::util::string_to_wstring(name) + L".xml";
-            auto weight_path_w = postfix + L"_" + ov::util::string_to_wstring(name) + L".bin";
-            ov::test::utils::generate_test_model(model_path_w, weight_path_w);
-            model_files_name_w.push_back(model_path_w);
-            weight_files_name_w.push_back(weight_path_w);
+            std::wstring postfix_w = ov::util::string_to_wstring(prefix) + L"_" +
+                                     ov::test::utils::test_unicode_postfix_vector[testIndex] +
+                                     ov::util::string_to_wstring(name);
+            auto model_file_path_w = postfix_w + L".xml";
+            auto weight_file_path_w = postfix_w + L".bin";
+            bool is_copy_successfully = ov::test::utils::copyFile(model_file_name, model_file_path_w);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_file_name << "' to '"
+                       << ov::util::wstring_to_string(model_file_path_w) << "'";
+            }
+            is_copy_successfully = ov::test::utils::copyFile(weight_file_name, weight_file_path_w);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << weight_file_name << "' to '"
+                       << ov::util::wstring_to_string(weight_file_path_w) << "'";
+            }
+            // ov::test::utils::generate_test_model(model_path_w, weight_path_w);
+            model_files_name_w.push_back(model_file_path_w);
+            weight_files_name_w.push_back(weight_file_path_w);
         }
 #endif
     }
@@ -36,9 +47,11 @@ protected:
     void TearDown() override {
         ov::test::utils::removeIRFiles(model_file_name, weight_file_name);
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-        for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
-            ov::test::utils::removeIRFiles(ov::util::wstring_to_string(model_files_name_w[testIndex]),
-                                           ov::util::wstring_to_string(weight_files_name_w[testIndex]));
+        for (auto& m_path_w : model_files_name_w) {
+            ov::test::utils::removeFile(m_path_w);
+        }
+        for (auto& w_path_w : weight_files_name_w) {
+            ov::test::utils::removeFile(w_path_w);
         }
 #endif
     }
@@ -140,10 +153,17 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path_unicode) {
     generate_test_model_files("test-model");
     ov::Core core;
     for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
-        auto model_file_name_w = model_files_name_w[testIndex];
-        auto weight_file_name_w = weight_files_name_w[testIndex];
-        const auto model_path = std::filesystem::path(model_file_name_w);
-        const auto weight_path = std::filesystem::path(weight_file_name_w);
+        std::wstring model_file_name_w = model_files_name_w[testIndex];
+        std::wstring weight_file_name_w = weight_files_name_w[testIndex];
+        std::filesystem::path model_path, weight_path;
+#    ifdef WIN32
+        model_path = std::filesystem::path(model_file_name_w);
+        weight_path = std::filesystem::path(weight_file_name_w);
+#    else
+        model_path = std::filesystem::path(ov::util::wstring_to_string(model_file_name_w));
+        weight_path = std::filesystem::path(ov::util::wstring_to_string(weight_file_name_w));
+#    endif
+
         {
             const auto model = core.read_model(model_path);
             EXPECT_NE(model, nullptr);
