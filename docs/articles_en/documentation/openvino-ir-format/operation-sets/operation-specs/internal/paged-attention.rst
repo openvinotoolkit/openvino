@@ -81,7 +81,7 @@ At the core, attention is computed as:
 13. **rotated_block_indices** – `[num_rotated_blocks]`, type `int32` (optional)
 14. **rotation_deltas** – `[num_rotated_blocks, BLOCK_SIZE || 1]`, type `int32` (optional)
 15. **rotation_trig_lut** – `[M, head_size]`, type *T* (optional)
-16. **max_context_len** – scalar, type `int32` (optional)
+16. **score_aggregation_window** – [], type `int32` (optional)
 
 ---
 
