@@ -91,7 +91,7 @@ jobs:
         uses: ./action_root/.github/actions/find_wheel
         id: ov_wheel
         with:
-          wheels_dir: '${{ env.INSTALL_DIR }}/wheels'
+          wheels_dir: '${{ env.INSTALL_DIR }}'
           package_name: 'openvino'
       
       - name: Configure poetry
