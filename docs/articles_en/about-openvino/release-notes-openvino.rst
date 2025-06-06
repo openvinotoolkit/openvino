@@ -219,13 +219,7 @@ Neural Network Compression Framework
 
 
 
-
-OpenVINO Tokenizers
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-* 
-
-OpenVINO.GenAI
+OpenVINO GenAI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 * New preview pipelines with C++ and Python samples have been added:
@@ -235,18 +229,17 @@ OpenVINO.GenAI
 
 * Visual language modeling (VLMPipeline):
 
-  * Visual language modeling prompt can now refer to specific images. For example,
-   “<ov_genai_image_0>What’s on the image?” will prepend the corresponding image to the prompt
+  * VLM prompt can now refer to specific images. For example,
+   “<ov_genai_image_0>What’s in the image?” will prepend the corresponding image to the prompt
     while ignoring other images. See VLMPipeline’s docstrings for more details.
-  * Performance has been improved by switching VLM to Continuous batching implementation by default.
+  * VLM uses Continuous batching by default, improving Performance.
   * VLMPipleine can now be constructed from in-memory `ov::Model`.
   * Qwen2.5-VL support has been added.
 
 * JavaScript 
 
-  * beam_search_causal_lm and multinomial_causal_lm JavaScript samples have been added.
+  * JavaScript samples have been added: beam_search_causal_lm and multinomial_causal_lm.
   * An interruption option for LLMPipeline streaming has been introduced.
-  * 
   
 * The following has been added:
 
@@ -262,9 +255,7 @@ OpenVINO.GenAI
 Other Changes and Known Issues
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* **Windows PDB Archives**:
-  Archives containing PDB files for Windows packages are now available.
-  You can find them right next to the regular archives, in the same folder.
+
 
 Jupyter Notebooks
 -----------------------------
@@ -287,32 +278,7 @@ Known Issues
     an exception occurs, with a note providing the reason. In the current version of OpenVINO,
     the message is not correct. in future releases, the explanation will be fixed.
 
-| **Component: NPU**
-| ID: 164469
-| Description:
-|   With the NPU Linux driver release v1.13.0, a new behavior for NPU recovery in kernel
-    has been introduced. Corresponding changes in Ubuntu kernels are pending, targeting
-    new kernel releases.
-| Workaround:
-|   If inference on NPU crashes, a manual reload of the driver is a recommended option
-    (``sudo rmmod intel_vpu`` ``sudo modprobe intel_vpu``.
-    A rollback to an earlier version of Linux NPU driver will also work.
 
-| **Component: GPU**
-| ID: 164331
-| Description:
-|   Qwen2-VL model crashes on some Intel platforms when large inputs are used.
-| Workaround:
-|   Build OpenVINO GenAI from source.
-
-| **Component: OpenVINO GenAI**
-| ID: 165686
-| Description:
-|   In the VLM ContinuousBatching pipeline, when multiple requests are processed
-    using ``add_request()`` and ``step()`` API in multiple threads, the resulting
-    text is not correct.
-| Workaround:
-|   Build OpenVINO GenAI from source.
 
 
 
