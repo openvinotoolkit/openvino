@@ -38,7 +38,6 @@ jobs:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/openvino_tests
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/openvino_wheels
@@ -52,7 +51,6 @@ jobs:
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
-          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/openvino_tests" >> "$GITHUB_ENV"
           echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/openvino_wheels" >> "$GITHUB_ENV"
@@ -70,11 +68,7 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: |
-            .github/actions/setup_python/action.yml
-            .github/actions/install_ov_wheels/action.yml
-            .github/actions/validate_pyi_files/action.yml
-            .github/actions/validate_pyi_files/compare_pyi_files.py
-            .github/actions/install_poetry
+            .github/actions
             src/bindings/python/scripts/generate_pyapi_stubs.py
             src/bindings/python/**/*.pyi
           sparse-checkout-cone-mode: false
@@ -91,14 +85,19 @@ jobs:
       #
       # Tests
       #
-      - name: Install OpenVINO Python wheels
-        uses: ./action_root/.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
 
+      - name: Find OpenVINO wheel
+        uses: ./action_root/.github/actions/find_wheel
+        id: ov_wheel
+        with:
+          wheels_dir: '${{ env.INSTALL_DIR }}/wheels'
+          package_name: 'openvino'
+      
       - name: Configure poetry
         uses: ./action_root/.github/actions/install_poetry
+             
+      - name: Install OpenVINO wheel
+        run: poetry add ${{ steps.ov_wheel.outputs.wheel_path }}
         
       - name: Install Test dependencies
         run: poetry install --with tests
@@ -137,7 +136,6 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: docs/articles_en/assets/snippets
-          path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
 
       - name: Docs Python snippets
@@ -146,10 +144,10 @@ jobs:
           # torch, onnx
           poetry install --with onnx
           # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs/articles_en/assets
+          export PYTHONPATH=docs/articles_en/assets
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/tests/:$LD_LIBRARY_PATH
-          poetry run ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
+          poetry run docs/articles_en/assets/snippets/main.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
