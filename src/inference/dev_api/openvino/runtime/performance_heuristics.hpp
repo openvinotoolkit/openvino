@@ -28,8 +28,13 @@ struct MemBandwidthPressure {
     int total_gemms = 0;
     int total_convs = 0;
     int total_adds = 0;
+    int total_lstms = 0;
+    int total_loops = 0;
     int total_nodes = 0;
     int total_G_T = 0;
+    std::vector<int> conv_list;
+    std::vector<int> gemm_list;
+    std::vector<int> add_list;
 
     static constexpr float UNKNOWN = FLT_MAX;
     static constexpr float ALL = 1.0f;
