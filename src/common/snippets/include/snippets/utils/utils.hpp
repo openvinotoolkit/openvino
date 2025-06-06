@@ -12,6 +12,7 @@
 #include "snippets/shape_types.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/constant.hpp"
@@ -40,6 +41,15 @@ constexpr inline bool is_full_dim_value(size_t value) {
     return value == get_full_dim_value();
 }
 /* ---------------------- */
+template <typename T,
+          typename = typename std::enable_if<(std::is_same<T, ov::Output<Node>>::value ||
+                                              std::is_same<T, ov::Input<Node>>::value),
+                                             void>::type>
+void set_full_port_desc(const T& port, size_t rank = 2) {
+    const auto& shape_rank = port.get_partial_shape().size();
+    const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, rank), ov::snippets::utils::get_full_dim_value());
+    ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor(port, full_dim_subtensor);
+}
 
 // Get non-scalar Constant count that will be created after FakeQuantize decomposition.
 // This count is needed to know exact count of non-scalar Constants during tokenization.
