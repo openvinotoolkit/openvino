@@ -212,12 +212,16 @@ std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precision
 jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+        prepare_table();
+    }
 
 jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+        prepare_table();
+    }
 
 size_t jit_equal_emitter::get_inputs_num() const {
     return 2;
@@ -254,7 +258,6 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const s
     h->vmv_v_x(dst, zero); // set dst to 0
     h->vfeq_vv(mask_vreg(), src0, src1); // compare, result in mask
     h->vfadd_vf(dst, dst, one, VM::masked); // set 1.0 where mask is true   
-    }
 }
 
 /// Exp ///
