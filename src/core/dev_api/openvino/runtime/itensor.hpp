@@ -9,6 +9,7 @@
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 

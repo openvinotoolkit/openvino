@@ -11,23 +11,24 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/rtti.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 /// \brief Strides for a tensor.
-class Strides : public std::vector<size_t> {
+class Strides : public ov::inplace_vector<size_t> {
 public:
     OPENVINO_API Strides();
 
     OPENVINO_API Strides(const std::initializer_list<size_t>& axis_strides);
 
-    OPENVINO_API Strides(const std::vector<size_t>& axis_strides);
+    OPENVINO_API Strides(const ov::inplace_vector<size_t>& axis_strides);
 
     OPENVINO_API Strides(const Strides& axis_strides);
 
     OPENVINO_API explicit Strides(size_t n, size_t initial_value = 0);
 
     template <class InputIterator>
-    Strides(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
+    Strides(InputIterator first, InputIterator last) : ov::inplace_vector<size_t>(first, last) {}
 
     OPENVINO_API Strides& operator=(const Strides& v);
 

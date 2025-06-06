@@ -13,18 +13,18 @@ const std::vector<ov::element::Type> netPrecisions = {
 };
 
 /* ============= 2D DeformableConvolution ============= */
-const std::vector<std::vector<size_t>> deformable_values_0 = {{1, 16, 2, 2}};
-const std::vector<std::vector<size_t>> kernel_shapes_0 = {{2, 2, 2, 2}};
-const std::vector<std::vector<size_t>> stride_values = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> deformable_values_0 = {{1, 16, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernel_shapes_0 = {{2, 2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> stride_values = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> pad_begin_values = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> pad_end_values ={{0, 0}};
-const std::vector<std::vector<size_t>> dilation_values = {{1, 1}};
-const std::vector<size_t> num_groups = {1};
-const std::vector<size_t> num_deformable_groups_0 = {2};
-const std::vector<size_t> num_out_channels = {1, 5};
-const std::vector<size_t> multiple_defor_groups = {4};
-const std::vector<std::vector<size_t>> deformable_values_1 = {{1, 72, 64, 64}};
-const std::vector<std::vector<size_t>> kernel_shapes_1 = {{16, 16, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> dilation_values = {{1, 1}};
+const ov::inplace_vector<size_t> num_groups = {1};
+const ov::inplace_vector<size_t> num_deformable_groups_0 = {2};
+const ov::inplace_vector<size_t> num_out_channels = {1, 5};
+const ov::inplace_vector<size_t> multiple_defor_groups = {4};
+const std::vector<ov::inplace_vector<size_t>> deformable_values_1 = {{1, 72, 64, 64}};
+const std::vector<ov::inplace_vector<size_t>> kernel_shapes_1 = {{16, 16, 3, 3}};
 
 const std::vector<bool> with_bilinear_interpolation_pad = { false, true };
 const std::vector<bool> with_modulated_scalar = { false, true };
@@ -96,9 +96,9 @@ INSTANTIATE_TEST_SUITE_P(
     DeformableConvolutionLayerTest::getTestCaseName);
 
 ///* ============= Single Test Case ============= */
-const std::vector<std::vector<size_t>> deformable_values_2 = {{1, 54, 28, 28}};
-const std::vector<std::vector<size_t>> kernel_shapes_2 = {{1, 3, 3, 3}};
-const std::vector<size_t> num_deformable_groups_1 = {3};
+const std::vector<ov::inplace_vector<size_t>> deformable_values_2 = {{1, 54, 28, 28}};
+const std::vector<ov::inplace_vector<size_t>> kernel_shapes_2 = {{1, 3, 3, 3}};
+const ov::inplace_vector<size_t> num_deformable_groups_1 = {3};
 
 const auto deformableConv2DParams_SingleTestCase = ::testing::Combine(
     ::testing::ValuesIn(stride_values),
@@ -125,17 +125,16 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(ov::test::utils::DEVICE_GPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
 /* ============= Multiple groups case ============= */
-const auto DeformableConvolution2D_MultipleGroups22 = ::testing::Combine(
-    ::testing::ValuesIn(stride_values),
-    ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-    ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-    ::testing::ValuesIn(dilation_values),
-    ::testing::ValuesIn(std::vector<size_t>({2})),
-    ::testing::ValuesIn(std::vector<size_t>({2})),
-    ::testing::ValuesIn(num_out_channels),
-    ::testing::Values(ov::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(with_bilinear_interpolation_pad)
-);
+const auto DeformableConvolution2D_MultipleGroups22 =
+    ::testing::Combine(::testing::ValuesIn(stride_values),
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                       ::testing::ValuesIn(dilation_values),
+                       ::testing::ValuesIn(ov::inplace_vector<size_t>({2})),
+                       ::testing::ValuesIn(ov::inplace_vector<size_t>({2})),
+                       ::testing::ValuesIn(num_out_channels),
+                       ::testing::Values(ov::op::PadType::EXPLICIT),
+                       ::testing::ValuesIn(with_bilinear_interpolation_pad));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_DeformableConvolution2D_MultipleGroups, DeformableConvolutionLayerTest,
@@ -181,17 +180,16 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                 DeformableConvolutionLayerTest::getTestCaseName);
 
-const auto DeformableConvolution2D_MultipleGroups_41 = ::testing::Combine(
-    ::testing::ValuesIn(stride_values),
-    ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-    ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-    ::testing::ValuesIn(dilation_values),
-    ::testing::ValuesIn(std::vector<size_t>({4})),
-    ::testing::ValuesIn(std::vector<size_t>({1})),
-    ::testing::ValuesIn(num_out_channels),
-    ::testing::Values(ov::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(with_bilinear_interpolation_pad)
-);
+const auto DeformableConvolution2D_MultipleGroups_41 =
+    ::testing::Combine(::testing::ValuesIn(stride_values),
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                       ::testing::ValuesIn(dilation_values),
+                       ::testing::ValuesIn(ov::inplace_vector<size_t>({4})),
+                       ::testing::ValuesIn(ov::inplace_vector<size_t>({1})),
+                       ::testing::ValuesIn(num_out_channels),
+                       ::testing::Values(ov::op::PadType::EXPLICIT),
+                       ::testing::ValuesIn(with_bilinear_interpolation_pad));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_DeformableConvolution2D_MultipleGroups_2, DeformableConvolutionLayerTest,
@@ -237,17 +235,16 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                 DeformableConvolutionLayerTest::getTestCaseName);
 
-const auto DeformableConvolution2D_MultipleGroups_42 = ::testing::Combine(
-    ::testing::ValuesIn(stride_values),
-    ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-    ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-    ::testing::ValuesIn(dilation_values),
-    ::testing::ValuesIn(std::vector<size_t>({4})),
-    ::testing::ValuesIn(std::vector<size_t>({2})),
-    ::testing::ValuesIn(num_out_channels),
-    ::testing::Values(ov::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(with_bilinear_interpolation_pad)
-);
+const auto DeformableConvolution2D_MultipleGroups_42 =
+    ::testing::Combine(::testing::ValuesIn(stride_values),
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                       ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                       ::testing::ValuesIn(dilation_values),
+                       ::testing::ValuesIn(ov::inplace_vector<size_t>({4})),
+                       ::testing::ValuesIn(ov::inplace_vector<size_t>({2})),
+                       ::testing::ValuesIn(num_out_channels),
+                       ::testing::Values(ov::op::PadType::EXPLICIT),
+                       ::testing::ValuesIn(with_bilinear_interpolation_pad));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_DeformableConvolution2D_MultipleGroups_3, DeformableConvolutionLayerTest,

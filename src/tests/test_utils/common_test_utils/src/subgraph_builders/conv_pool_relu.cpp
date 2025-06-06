@@ -41,7 +41,7 @@ std::shared_ptr<ov::Model> make_conv_pool_relu(ov::Shape input_shape, ov::elemen
     conv1->set_friendly_name("Conv_1");
     conv1->output(0).get_tensor().set_names({"conv"});
 
-    std::vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
+    ov::inplace_vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
     auto pool1 = std::make_shared<ov::op::v1::MaxPool>(conv1,
                                                        stride,
                                                        padB,
@@ -57,7 +57,7 @@ std::shared_ptr<ov::Model> make_conv_pool_relu(ov::Shape input_shape, ov::elemen
     relu1->output(0).get_tensor().set_names({"relu"});
 
     ov::Shape reluShape = relu1->outputs()[0].get_tensor().get_shape();
-    std::vector<size_t> constShape2 = {1, ov::shape_size(reluShape)};
+    ov::Shape constShape2 = {1, ov::shape_size(reluShape)};
     auto const2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, constShape2);
     const2->output(0).get_tensor().set_names({"const2"});
     const2->set_friendly_name("Const_2");
@@ -96,7 +96,7 @@ std::shared_ptr<ov::Model> make_conv_pool2_relu2(ov::Shape input_shape, ov::elem
                                                    4);
     conv1->set_friendly_name("Conv_1");
     conv1->output(0).get_tensor().set_names({"conv"});
-    std::vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
+    ov::inplace_vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
 
     ov::ResultVector results;
     {
@@ -115,7 +115,7 @@ std::shared_ptr<ov::Model> make_conv_pool2_relu2(ov::Shape input_shape, ov::elem
         relu1->output(0).get_tensor().set_names({"relu_0"});
 
         ov::Shape reluShape = relu1->outputs()[0].get_tensor().get_shape();
-        std::vector<size_t> constShape2 = {1, ov::shape_size(reluShape)};
+        ov::Shape constShape2 = {1, ov::shape_size(reluShape)};
         auto const2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, constShape2);
         const2->output(0).get_tensor().set_names({"const2_0"});
         const2->set_friendly_name("Const_2_0");

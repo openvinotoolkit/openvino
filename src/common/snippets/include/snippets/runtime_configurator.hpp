@@ -186,7 +186,7 @@ protected:
     /**
      * @brief Extract layouts from m_io_descs
      */
-    std::vector<std::vector<size_t>> extract_layouts() const;
+    std::vector<VectorDims> extract_layouts() const;
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
 

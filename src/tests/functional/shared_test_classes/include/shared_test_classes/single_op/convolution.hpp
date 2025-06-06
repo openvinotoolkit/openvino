@@ -14,15 +14,15 @@
 namespace ov {
 namespace test {
 // ! [test_convolution:definition]
-typedef std::tuple<
-        std::vector<size_t>,    // Kernel size
-        std::vector<size_t>,    // Strides
-        std::vector<ptrdiff_t>, // Pad begin
-        std::vector<ptrdiff_t>, // Pad end
-        std::vector<size_t>,    // Dilation
-        size_t,                 // Num out channels
-        ov::op::PadType         // Padding type
-> convSpecificParams;
+typedef std::tuple<ov::inplace_vector<size_t>,  // Kernel size
+                   ov::inplace_vector<size_t>,  // Strides
+                   std::vector<ptrdiff_t>,      // Pad begin
+                   std::vector<ptrdiff_t>,      // Pad end
+                   ov::inplace_vector<size_t>,  // Dilation
+                   size_t,                      // Num out channels
+                   ov::op::PadType              // Padding type
+                   >
+    convSpecificParams;
 typedef std::tuple<
         convSpecificParams,
         ov::element::Type,        // Model type

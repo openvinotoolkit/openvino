@@ -39,7 +39,7 @@ public:
         std::tie(basicParamsSet, inputData, prec, targetDevice, additionalConfig) = obj.param;
 
         ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
+        ov::inplace_vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
         size_t convOutChannels, groupNum;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding) = basicParamsSet;
@@ -222,7 +222,7 @@ protected:
 private:
     ov::element::Type prec;
     ov::op::PadType padType;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels, groupNum;
     std::vector<std::vector<int32_t>> outShapeData;
@@ -239,15 +239,15 @@ const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
 /* ============= GroupConvolution params ============= */
-const std::vector<size_t> numOutChannels = {6};
-const std::vector<size_t> numGroups = {2, 3};
+const ov::inplace_vector<size_t> numOutChannels = {6};
+const ov::inplace_vector<size_t> numGroups = {2, 3};
 
 /* ============= GroupConvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
-const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
-const std::vector<std::vector<size_t>> dilations2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations2d = {{1, 1}};
 
 /* ============= GroupConvolution (2D) ============= */
 const auto groupConvParams_ExplicitPadding_2D = ::testing::Combine(
@@ -312,22 +312,21 @@ const std::vector<DeconvInputData> dyn_2D_inputs_with_output_shape = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Dynamic_OutputShape_FP32, GroupDeconvolutionLayerGPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(std::vector<size_t>{3, 3}),
-            ::testing::ValuesIn(strides2d),
-            ::testing::ValuesIn(padBegins2d),
-            ::testing::ValuesIn(padEnds2d),
-            ::testing::ValuesIn(dilations2d),
-            ::testing::ValuesIn(numOutChannels),
-            ::testing::ValuesIn(numGroups),
-            ::testing::Values(ov::op::PadType::EXPLICIT),
-            ::testing::ValuesIn(emptyOutputPadding)),
-        ::testing::ValuesIn(dyn_2D_inputs_with_output_shape),
-        ::testing::Values(ov::element::f32),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(emptyAdditionalConfig)),
-    GroupDeconvolutionLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_Dynamic_OutputShape_FP32,
+                         GroupDeconvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(ov::inplace_vector<size_t>{3, 3}),
+                                                               ::testing::ValuesIn(strides2d),
+                                                               ::testing::ValuesIn(padBegins2d),
+                                                               ::testing::ValuesIn(padEnds2d),
+                                                               ::testing::ValuesIn(dilations2d),
+                                                               ::testing::ValuesIn(numOutChannels),
+                                                               ::testing::ValuesIn(numGroups),
+                                                               ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                               ::testing::ValuesIn(emptyOutputPadding)),
+                                            ::testing::ValuesIn(dyn_2D_inputs_with_output_shape),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(emptyAdditionalConfig)),
+                         GroupDeconvolutionLayerGPUTest::getTestCaseName);
 
 } // namespace

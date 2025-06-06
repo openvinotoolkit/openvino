@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "brgemm_utils.hpp"
+#include "cpu_types.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -38,14 +39,14 @@ public:
                 const size_t offset_in = 0lu,
                 const size_t offset_out0 = 0lu,
                 const size_t offset_out1 = 0lu,
-                const std::vector<size_t>& layout_input = {});
+                const VectorDims& layout_input = {});
     BrgemmCopyB(const Output<Node>& x,
                 const element::Type src_type,
                 BRGEMM_TYPE type,
                 const PortDescriptor& desc_in0,
                 const PortDescriptor& desc_out0,
                 const PortDescriptor& desc_out1,
-                const std::vector<size_t>& layout_input = {});
+                const VectorDims& layout_input = {});
     BrgemmCopyB() = default;
 
     size_t get_offset_in() const {
@@ -71,7 +72,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     class ShapeInfer : public snippets::IShapeInferSnippets {
-        std::vector<size_t> m_layout{};
+        VectorDims m_layout{};
         size_t m_num_outs = 1;
 
     public:
@@ -79,11 +80,11 @@ public:
         Result infer(const std::vector<snippets::VectorDimsRef>& input_shapes) override;
     };
 
-    static bool is_transposed(const std::vector<size_t>& layout);
+    static bool is_transposed(const VectorDims& layout);
 
 private:
-    void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
-    static void validate_element_type(const ov::element::Type& element_type);
+    void custom_constructor_validate_and_infer_types(const VectorDims& layout_input = {});
+    void validate_element_type(const ov::element::Type& element_type);
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;
     element::Type m_src_type = ov::element::dynamic;  // src element type of the corresponding BRGEMM

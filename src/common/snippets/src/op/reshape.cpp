@@ -45,7 +45,8 @@ Reshape::ShapeInfer::ShapeInfer(const std::shared_ptr<Node>& n) {
     OPENVINO_ASSERT(reshape, "Invalid node passed to ReshapeShapeInfer.");
     const auto& partial_shape = reshape->get_target_shape();
     OPENVINO_ASSERT(partial_shape.is_static(), "target_shape of reshape op should be static in ReshapeShapeInfer");
-    target_shape = partial_shape.get_shape();
+    const auto shape = partial_shape.get_shape();
+    target_shape = VectorDims(shape.begin(), shape.end());
     target_shape_volume = utils::get_shape_size(target_shape);
 }
 

@@ -54,7 +54,7 @@ void group_convolution(const INPUT* in,
 
     const FILTER* group_filter = f;
     const Shape group_filter_shape = [&]() {
-        Shape new_shape{++filter_shape.begin(), filter_shape.end()};
+        Shape new_shape{filter_shape.begin() + 1, filter_shape.end()};
         return new_shape;
     }();
     const size_t group_filter_size = shape_size(group_filter_shape);

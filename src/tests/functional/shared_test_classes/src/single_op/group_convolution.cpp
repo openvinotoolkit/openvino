@@ -19,7 +19,7 @@ std::string GroupConvolutionLayerTest::getTestCaseName(const testing::TestParamI
     std::string target_device;
     std::tie(group_conv_params, model_type, shapes, target_device) = obj.param;
     ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end;
     size_t conv_out_channels, num_groups;
     std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type) = group_conv_params;
@@ -56,7 +56,7 @@ void GroupConvolutionLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     std::tie(group_conv_params, model_type, shapes, targetDevice) = this->GetParam();
     ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, pad_end;
     size_t conv_out_channels, num_groups;
     std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type) = group_conv_params;

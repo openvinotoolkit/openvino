@@ -39,7 +39,7 @@ public:
         std::tie(basicParamsSet, inputData, model_type, targetDevice, additionalConfig) = obj.param;
 
         ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
+        ov::inplace_vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
@@ -176,7 +176,7 @@ protected:
 private:
     ov::element::Type model_type;
     ov::op::PadType padType;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels;
     std::vector<std::vector<int32_t>> outShapeData;
@@ -192,14 +192,14 @@ std::map<std::string, std::string> emptyAdditionalConfig;
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = { {} };
 
 /* ============= Deconvolution params ============= */
-const std::vector<size_t> numOutChannels = { 6 };
+const ov::inplace_vector<size_t> numOutChannels = {6};
 
 /* ============= Deconvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = { {3, 3}, {1, 1} };
-const std::vector<std::vector<size_t>> strides2d = { {1, 1}, {2, 2} };
+const std::vector<ov::inplace_vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<ov::inplace_vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
-const std::vector<std::vector<size_t>> dilations2d = { {1, 1} };
+const std::vector<ov::inplace_vector<size_t>> dilations2d = {{1, 1}};
 
 /* ============= Deconvolution (2D) ============= */
 const auto convParams_ExplicitPadding_2D = ::testing::Combine(
@@ -263,35 +263,33 @@ const std::vector<DeconvInputData> dyn_2D_inputs_with_output_shape = {
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_OutputShape_FP32, DeconvolutionLayerGPUTest,
-    ::testing::Combine(
-        ::testing::Combine(
-            ::testing::Values(std::vector<size_t>{3, 3}),
-            ::testing::ValuesIn(strides2d),
-            ::testing::ValuesIn(padBegins2d),
-            ::testing::ValuesIn(padEnds2d),
-            ::testing::ValuesIn(dilations2d),
-            ::testing::ValuesIn(numOutChannels),
-            ::testing::Values(ov::op::PadType::EXPLICIT),
-            ::testing::ValuesIn(emptyOutputPadding)),
-        ::testing::ValuesIn(dyn_2D_inputs_with_output_shape),
-        ::testing::Values(ov::element::f32),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(emptyAdditionalConfig)),
-    DeconvolutionLayerGPUTest::getTestCaseName);
-
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_OutputShape_FP32,
+                         DeconvolutionLayerGPUTest,
+                         ::testing::Combine(::testing::Combine(::testing::Values(ov::inplace_vector<size_t>{3, 3}),
+                                                               ::testing::ValuesIn(strides2d),
+                                                               ::testing::ValuesIn(padBegins2d),
+                                                               ::testing::ValuesIn(padEnds2d),
+                                                               ::testing::ValuesIn(dilations2d),
+                                                               ::testing::ValuesIn(numOutChannels),
+                                                               ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                               ::testing::ValuesIn(emptyOutputPadding)),
+                                            ::testing::ValuesIn(dyn_2D_inputs_with_output_shape),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(emptyAdditionalConfig)),
+                         DeconvolutionLayerGPUTest::getTestCaseName);
 
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding1d = { {0} };
 
 /* ============= Deconvolution params ============= */
-const std::vector<size_t> numOutChannels1d = { 256 };
+const ov::inplace_vector<size_t> numOutChannels1d = {256};
 
 /* ============= Deconvolution params (1D) ============= */
-const std::vector<std::vector<size_t>> kernels1d = { {16} };
-const std::vector<std::vector<size_t>> strides1d = { {8} };
+const std::vector<ov::inplace_vector<size_t>> kernels1d = {{16}};
+const std::vector<ov::inplace_vector<size_t>> strides1d = {{8}};
 const std::vector<std::vector<ptrdiff_t>> padBegins1d = { {4} };
 const std::vector<std::vector<ptrdiff_t>> padEnds1d = { {4} };
-const std::vector<std::vector<size_t>> dilations1d = { {1} };
+const std::vector<ov::inplace_vector<size_t>> dilations1d = {{1}};
 
 /* ============= Deconvolution (1D) ============= */
 const auto convParams_ExplicitPadding_1D = ::testing::Combine(

@@ -12,12 +12,11 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-Reorder::Reorder(const Output<Node>& arg, std::vector<size_t> order)
-    : ShapeInferOp({arg}) {
+Reorder::Reorder(const Output<Node>& arg, VectorDims order) : ShapeInferOp({arg}) {
     custom_constructor_validate_and_infer_types(std::move(order));
 }
 
-void Reorder::custom_constructor_validate_and_infer_types(std::vector<size_t> order) {
+void Reorder::custom_constructor_validate_and_infer_types(VectorDims order) {
     INTERNAL_OP_SCOPE(Reorder_constructor_validate_and_infer_types);
 
     const auto& input_pshape = get_input_partial_shape(0);

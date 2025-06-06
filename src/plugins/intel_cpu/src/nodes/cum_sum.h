@@ -39,13 +39,13 @@ private:
     void exec();
 
     template <bool reverse, bool exclusive, typename dataType>
-    void cumSum(const dataType* input, dataType* output, const std::vector<size_t>& strides);
+    void cumSum(const dataType* input, dataType* output, const VectorDims& strides);
 
-    static void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
+    void parallelItInit(size_t start, VectorDims& counters, const VectorDims& iterationRange);
 
-    static inline void parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange);
+    static inline void parallelItStep(VectorDims& counters, const VectorDims& iterationRange);
 
-    static inline size_t getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides);
+    inline size_t getStartOffset(const VectorDims& forStartOffset, const VectorDims& strides) const;
 
     size_t getAxis(const IMemory& _axis, const IMemory& _data) const;
 

@@ -13,16 +13,16 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        ov::test::utils::PoolingTypes,  // Pooling type, max or avg
-        std::vector<size_t>,            // Kernel size
-        std::vector<size_t>,            // Stride
-        std::vector<size_t>,            // Pad begin
-        std::vector<size_t>,            // Pad end
-        ov::op::RoundingType,           // Rounding type
-        ov::op::PadType,                // Pad type
-        bool                            // Exclude pad
-> poolSpecificParams;
+typedef std::tuple<ov::test::utils::PoolingTypes,  // Pooling type, max or avg
+                   ov::inplace_vector<size_t>,     // Kernel size
+                   ov::inplace_vector<size_t>,     // Stride
+                   ov::inplace_vector<size_t>,     // Pad begin
+                   ov::inplace_vector<size_t>,     // Pad end
+                   ov::op::RoundingType,           // Rounding type
+                   ov::op::PadType,                // Pad type
+                   bool                            // Exclude pad
+                   >
+    poolSpecificParams;
 
 typedef std::tuple<
         poolSpecificParams,
@@ -31,17 +31,17 @@ typedef std::tuple<
         std::string                     // Device name
 > poolLayerTestParamsSet;
 
-typedef std::tuple<
-        std::vector<size_t>,            // Kernel size
-        std::vector<size_t>,            // Stride
-        std::vector<size_t>,            // Dilation
-        std::vector<size_t>,            // Pad begin
-        std::vector<size_t>,            // Pad end
-        ov::element::Type,              // Index element type
-        int64_t,                        // Axis
-        ov::op::RoundingType,           // Rounding type
-        ov::op::PadType                 // Pad type
-> maxPoolV8SpecificParams;
+typedef std::tuple<ov::inplace_vector<size_t>,  // Kernel size
+                   ov::inplace_vector<size_t>,  // Stride
+                   ov::inplace_vector<size_t>,  // Dilation
+                   ov::inplace_vector<size_t>,  // Pad begin
+                   ov::inplace_vector<size_t>,  // Pad end
+                   ov::element::Type,           // Index element type
+                   int64_t,                     // Axis
+                   ov::op::RoundingType,        // Rounding type
+                   ov::op::PadType              // Pad type
+                   >
+    maxPoolV8SpecificParams;
 
 typedef std::tuple<
         maxPoolV8SpecificParams,

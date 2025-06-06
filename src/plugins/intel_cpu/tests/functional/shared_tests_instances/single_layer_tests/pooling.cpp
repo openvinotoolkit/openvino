@@ -17,27 +17,20 @@ const std::vector<ov::element::Type> model_types = {
         ov::element::f16
 };
 
-const std::vector<std::vector<size_t >> kernels = {{3, 3},
-                                                          {3, 5}};
-const std::vector<std::vector<size_t >> kernel_3d = {{2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels = {{3, 3}, {3, 5}};
+const std::vector<ov::inplace_vector<size_t>> kernel_3d = {{2, 2, 2}};
 
-const std::vector<std::vector<size_t>> strides = {{1, 1},
-                                                  {1, 2},
-                                                  {2, 1},
-                                                  {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> strides = {{1, 1}, {1, 2}, {2, 1}, {2, 2}};
 
-const std::vector<std::vector<size_t >> strides_3d = {{1, 1, 1},
-                                                      {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> strides_3d = {{1, 1, 1}, {2, 2, 2}};
 
-const std::vector<std::vector<size_t >> pad_begins = {{0, 0},
-                                                      {0, 2}};
+const std::vector<ov::inplace_vector<size_t>> pad_begins = {{0, 0}, {0, 2}};
 
-const std::vector<std::vector<size_t >> pad_begins_3d = {{0, 0, 0}};
+const std::vector<ov::inplace_vector<size_t>> pad_begins_3d = {{0, 0, 0}};
 
-const std::vector<std::vector<size_t >> pad_ends = {{0, 0},
-                                                    {0, 2}};
+const std::vector<ov::inplace_vector<size_t>> pad_ends = {{0, 0}, {0, 2}};
 
-const std::vector<std::vector<size_t >> pad_ends_3d = {{0, 0, 0}};
+const std::vector<ov::inplace_vector<size_t>> pad_ends_3d = {{0, 0, 0}};
 
 ////* ========== Max Polling ========== */
 /* +========== Explicit Pad Floor Rounding ========== */
@@ -188,17 +181,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTes
 
 ////* ========== Avg Pooling ========== */
 /* +========== Explicit Pad Ceil Rounding ========== */
-const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
-        ::testing::Values(PoolingTypes::AVG),
-        ::testing::ValuesIn(kernels),
-        // TODO: Non 1 strides fails in reference implementation with error "The end corner is out of bounds at axis 3" thrown in the test body.
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}, {0, 1}})),
-        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}, {0, 1}})),
-        ::testing::Values(ov::op::RoundingType::CEIL),
-        ::testing::Values(ov::op::PadType::EXPLICIT),
-        ::testing::Values(true, false)
-);
+const auto avgPoolExplicitPadCeilRoundingParams =
+    ::testing::Combine(::testing::Values(PoolingTypes::AVG),
+                       ::testing::ValuesIn(kernels),
+                       // TODO: Non 1 strides fails in reference implementation with error "The end corner is out of
+                       // bounds at axis 3" thrown in the test body.
+                       ::testing::ValuesIn(strides),
+                       ::testing::ValuesIn(std::vector<ov::inplace_vector<size_t>>({{0, 0}, {1, 1}, {0, 1}})),
+                       ::testing::ValuesIn(std::vector<ov::inplace_vector<size_t>>({{0, 0}, {1, 1}, {0, 1}})),
+                       ::testing::Values(ov::op::RoundingType::CEIL),
+                       ::testing::Values(ov::op::PadType::EXPLICIT),
+                       ::testing::Values(true, false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                         ::testing::Combine(
@@ -224,17 +217,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_CeilRounding_corner, PoolingL
                         PoolingLayerTest::getTestCaseName);
 
 /* +========== Explicit Pad Floor Rounding ========== */
-const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
-        ::testing::Values(PoolingTypes::AVG),
-        ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}})),
-        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}})),
-        ::testing::Values(ov::op::RoundingType::FLOOR),
-        ::testing::Values(ov::op::PadType::EXPLICIT),
-        ::testing::Values(true, false)
-);
-
+const auto avgPoolExplicitPadFloorRoundingParams =
+    ::testing::Combine(::testing::Values(PoolingTypes::AVG),
+                       ::testing::ValuesIn(kernels),
+                       ::testing::ValuesIn(strides),
+                       ::testing::ValuesIn(std::vector<ov::inplace_vector<size_t>>({{0, 0}, {1, 1}})),
+                       ::testing::ValuesIn(std::vector<ov::inplace_vector<size_t>>({{0, 0}, {1, 1}})),
+                       ::testing::Values(ov::op::RoundingType::FLOOR),
+                       ::testing::Values(ov::op::PadType::EXPLICIT),
+                       ::testing::Values(true, false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
@@ -308,8 +299,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput, Poolin
 
 ////* ========== Max Pooling V8 ========== */
 
-const std::vector<std::vector<size_t>> dilation = {{1, 1}, {2, 2}};
-const std::vector<std::vector<size_t >> dilation_3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilation = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> dilation_3d = {{1, 1, 1}, {2, 2, 2}};
 
 /* ========== Explicit Pad Floor Rounding ========== */
 const auto maxPoolv8_ExplicitPad_FloorRounding_Params = ::testing::Combine(
@@ -461,15 +452,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolv8_ExplicitPad_CeilRounding, MaxPoolingV8L
 ////* ========== Avg and Max Polling Cases ========== */
 /* ========== Valid Pad Rounding Not Applicable ========== */
 const auto allPools_ValidPad_Params = ::testing::Combine(
-        ::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
-        ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides),
-        ::testing::Values(std::vector<size_t>({0, 0})),
-        ::testing::Values(std::vector<size_t>({0, 0})),
-        ::testing::Values(
-                ov::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
-        ::testing::Values(ov::op::PadType::VALID),
-        ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
+    ::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
+    ::testing::ValuesIn(kernels),
+    ::testing::ValuesIn(strides),
+    ::testing::Values(ov::inplace_vector<size_t>({0, 0})),
+    ::testing::Values(ov::inplace_vector<size_t>({0, 0})),
+    ::testing::Values(
+        ov::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
+    ::testing::Values(ov::op::PadType::VALID),
+    ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
@@ -481,16 +472,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                          PoolingLayerTest::getTestCaseName);
 
 const auto maxPoolv8_ValidPad_Params = ::testing::Combine(
-        ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(dilation),
-        ::testing::Values(std::vector<size_t>({0, 0})),
-        ::testing::Values(std::vector<size_t>({0, 0})),
-        ::testing::Values(ov::element::i32),
-        ::testing::Values(0),
-        ::testing::Values(ov::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
-        ::testing::Values(ov::op::PadType::VALID)
-);
+    ::testing::ValuesIn(kernels),
+    ::testing::ValuesIn(strides),
+    ::testing::ValuesIn(dilation),
+    ::testing::Values(ov::inplace_vector<size_t>({0, 0})),
+    ::testing::Values(ov::inplace_vector<size_t>({0, 0})),
+    ::testing::Values(ov::element::i32),
+    ::testing::Values(0),
+    ::testing::Values(
+        ov::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
+    ::testing::Values(ov::op::PadType::VALID));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MAXPoolv8_ValidPad, MaxPoolingV8LayerTest,
                          ::testing::Combine(

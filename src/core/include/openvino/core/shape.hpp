@@ -4,25 +4,31 @@
 
 #pragma once
 
+#include <absl/container/inlined_vector.h>
+
 #include <cstdio>
 #include <numeric>
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/axis_set.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/strides.hpp"
 
 namespace ov {
+
+template <typename T, class A = std::allocator<T>>
+using inplace_vector = absl::InlinedVector<T, 8, A>;
+
 /**
  * @brief Shape for a tensor.
  * @ingroup ov_model_cpp_api
  */
-class Shape : public std::vector<size_t> {
+class Shape : public inplace_vector<size_t> {
 public:
     OPENVINO_API Shape();
 
     OPENVINO_API Shape(const std::initializer_list<size_t>& axis_lengths);
+
+    OPENVINO_API Shape(const inplace_vector<size_t>& axis_lengths);
 
     OPENVINO_API Shape(const std::vector<size_t>& axis_lengths);
 
@@ -35,13 +41,15 @@ public:
     OPENVINO_API ~Shape();
 
     template <class InputIterator>
-    Shape(InputIterator first, InputIterator last) : std::vector<size_t>(first, last) {}
+    Shape(InputIterator first, InputIterator last) : ov::inplace_vector<size_t>(first, last) {}
 
     OPENVINO_API Shape& operator=(const Shape& v);
     OPENVINO_API Shape& operator=(Shape&& v) noexcept;
     OPENVINO_API std::string to_string() const;
 
-    /**
+    // allocator_type get
+
+    /**open
      * @brief Gets dimension at index.
      *
      * @param i  Index to shape dimension [-rank, rank).
@@ -106,8 +114,8 @@ size_t shape_size(const SHAPE_TYPE& shape) {
 
 /// Row-major strides for a shape
 template <typename SHAPE_TYPE>
-std::vector<size_t> row_major_strides(const SHAPE_TYPE& shape) {
-    std::vector<size_t> strides(shape.size());
+auto row_major_strides(const SHAPE_TYPE& shape) {
+    ov::inplace_vector<size_t> strides(shape.size());
     size_t s = 1;
     auto st = strides.rbegin();
     for (auto d = shape.rbegin(); d != shape.rend() && st != strides.rend(); d++, st++) {

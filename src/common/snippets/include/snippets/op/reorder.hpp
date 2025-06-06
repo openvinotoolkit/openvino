@@ -21,21 +21,22 @@ class Reorder : public ShapeInferOp {
 public:
     OPENVINO_OP("Reorder", "SnippetsOpset", ShapeInferOp);
     Reorder() = default;
-    Reorder(const Output<Node>& x, std::vector<size_t> order);
+    Reorder(const Output<Node>& x, VectorDims order);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 
     class ShapeInfer : public IShapeInferSnippets {
-        std::vector<size_t> m_target_order {};
+        VectorDims m_target_order{};
+
     public:
         explicit ShapeInfer(const std::shared_ptr<Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
 
 private:
-    void custom_constructor_validate_and_infer_types(std::vector<size_t> order);
+    void custom_constructor_validate_and_infer_types(VectorDims order);
 };
 
 } // namespace op

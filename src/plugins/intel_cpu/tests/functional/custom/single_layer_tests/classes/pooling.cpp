@@ -24,8 +24,8 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
     std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     bool excludePad;
@@ -81,8 +81,8 @@ void PoolingLayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     bool excludePad;
@@ -134,8 +134,8 @@ std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamI
     std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     bool excludePad;
@@ -183,8 +183,8 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     bool excludePad;
@@ -229,8 +229,8 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
 
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     ov::element::Type indexElementType;
@@ -276,8 +276,8 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     ov::element::Type indexElementType;
@@ -320,8 +320,8 @@ const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
     ov::AnyMap additionalConfig;
     std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
 
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     ov::element::Type indexElementType;
@@ -367,8 +367,8 @@ void MaxPoolingV14LayerCPUTest::SetUp() {
     std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     ov::element::Type indexElementType;

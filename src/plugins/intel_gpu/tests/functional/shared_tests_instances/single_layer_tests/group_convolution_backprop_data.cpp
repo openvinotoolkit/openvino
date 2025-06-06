@@ -17,8 +17,8 @@ const std::vector<ov::element::Type> netPrecisions = {
 const std::vector<ov::Shape> emptyOutputShape = {{}};
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
-const std::vector<size_t> numOutChannels = {16, 32};
-const std::vector<size_t> numGroups = {2, 8, 16};
+const ov::inplace_vector<size_t> numOutChannels = {16, 32};
+const ov::inplace_vector<size_t> numGroups = {2, 8, 16};
 
 /* ============= 2D GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> inputShapes2D = {
@@ -26,11 +26,11 @@ const std::vector<std::vector<ov::Shape>> inputShapes2D = {
         {{1, 32, 10, 10}}
 };
 
-const std::vector<std::vector<size_t >> kernels2D = {{1, 1}, {3, 3}};
-const std::vector<std::vector<size_t >> strides2D = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> kernels2D = {{1, 1}, {3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides2D = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}};
-const std::vector<std::vector<size_t >> dilations2D = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations2D = {{1, 1}};
 
 const auto groupConvBackpropData2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels2D),
@@ -79,11 +79,11 @@ const std::vector<std::vector<ov::Shape>> inputShapes3D = {
         {{1, 32, 5, 5, 5}}
 };
 
-const std::vector<std::vector<size_t >> kernels3D = {{1, 1, 1}, {3, 3, 3}};
-const std::vector<std::vector<size_t >> strides3D = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> kernels3D = {{1, 1, 1}, {3, 3, 3}};
+const std::vector<ov::inplace_vector<size_t>> strides3D = {{1, 1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3D = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3D = {{0, 0, 0}};
-const std::vector<std::vector<size_t >> dilations3D = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations3D = {{1, 1, 1}};
 
 const auto groupConvBackpropData3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(kernels3D),

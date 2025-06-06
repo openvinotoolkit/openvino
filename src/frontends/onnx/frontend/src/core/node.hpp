@@ -143,6 +143,10 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
                                                    std::vector<std::size_t> default_value) const;
 
 template <>
+ov::inplace_vector<std::size_t> Node::get_attribute_value(const std::string& name,
+                                                          ov::inplace_vector<std::size_t> default_value) const;
+
+template <>
 std::vector<std::string> Node::get_attribute_value(const std::string& name,
                                                    std::vector<std::string> default_value) const;
 
@@ -191,6 +195,9 @@ std::vector<std::int64_t> Node::get_attribute_value(const std::string& name) con
 
 template <>
 std::vector<std::size_t> Node::get_attribute_value(const std::string& name) const;
+
+template <>
+ov::inplace_vector<std::size_t> Node::get_attribute_value(const std::string& name) const;
 
 template <>
 std::vector<std::string> Node::get_attribute_value(const std::string& name) const;

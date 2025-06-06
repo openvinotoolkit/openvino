@@ -40,7 +40,7 @@ public:
         std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = obj.param;
 
         ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
+        ov::inplace_vector<size_t> kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
         size_t convOutChannels, groupNum;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding) =
@@ -225,7 +225,7 @@ public:
     }
 
 protected:
-    std::vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> kernel, stride;
 
     void SetUp() override {
         rel_threshold = 1e-4f;
@@ -276,7 +276,7 @@ protected:
 private:
     ElementType prec;
     ov::op::PadType padType;
-    std::vector<size_t> dilation;
+    ov::inplace_vector<size_t> dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
     size_t convOutChannels, groupNum;
     std::vector<std::vector<int32_t>> outShapeData;
@@ -316,40 +316,40 @@ std::vector<fusingSpecificParams> fusingParamsSetBrg{
     fusingMultiplyPerChannel
 };
 
-const std::vector<std::vector<size_t>> emptyOutputShape = {{}};
+const std::vector<ov::inplace_vector<size_t>> emptyOutputShape = {{}};
 const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
 /* ============= GroupConvolution params (planar layout) ============= */
-const std::vector<size_t> numOutChannels_Planar = {6};
-const std::vector<size_t> numGroups_Planar = {2, 3};
+const ov::inplace_vector<size_t> numOutChannels_Planar = {6};
+const ov::inplace_vector<size_t> numGroups_Planar = {2, 3};
 
 /* ============= GroupConvolution params (blocked layout) ============= */
-const std::vector<size_t> numOutChannels_Blocked = {64};
-const std::vector<size_t> numGroups_Blocked = {2, 4};
+const ov::inplace_vector<size_t> numOutChannels_Blocked = {64};
+const ov::inplace_vector<size_t> numGroups_Blocked = {2, 4};
 
 /* ============= GroupConvolution params (nspc layout) ============= */
-const std::vector<size_t> numOutChannels_nspc = {64};
-const std::vector<size_t> numGroups_nspc = {2};
+const ov::inplace_vector<size_t> numOutChannels_nspc = {64};
+const ov::inplace_vector<size_t> numGroups_nspc = {2};
 
 /* ============= GroupConvolution params (DW) ============= */
-const std::vector<size_t> numOutChannels_DW = {32};
-const std::vector<size_t> numGroups_DW = {32};
+const ov::inplace_vector<size_t> numOutChannels_DW = {32};
+const ov::inplace_vector<size_t> numGroups_DW = {32};
 
 /* ============= GroupConvolution params (2D) ============= */
-const std::vector<std::vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
-const std::vector<std::vector<size_t>> brgKernels2d = {{3, 3}, {2, 2}};
-const std::vector<std::vector<size_t>> strides2d = {{1, 1}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<ov::inplace_vector<size_t>> brgKernels2d = {{3, 3}, {2, 2}};
+const std::vector<ov::inplace_vector<size_t>> strides2d = {{1, 1}, {2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
-const std::vector<std::vector<size_t>> dilations2d = {{1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations2d = {{1, 1}};
 
 /* ============= GroupConvolution params (3D) ============= */
-const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
-const std::vector<std::vector<size_t>> brgKernels3d = {{3, 3, 3}, {2, 2, 2}};
-const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> kernels3d = {{3, 3, 3}, {1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> brgKernels3d = {{3, 3, 3}, {2, 2, 2}};
+const std::vector<ov::inplace_vector<size_t>> strides3d = {{1, 1, 1}, {2, 2, 2}};
 const std::vector<std::vector<ptrdiff_t>> padBegins3d = {{0, 0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds3d = {{0, 0, 0}};
-const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}};
+const std::vector<ov::inplace_vector<size_t>> dilations3d = {{1, 1, 1}};
 /* ============= */
 
 /* INSTANCES */
@@ -673,7 +673,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_reorder_GroupDeconv_2D,
     GroupDeconvolutionLayerCPUTest,
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(kernels2d),
-                                          ::testing::Values(std::vector<size_t>{1, 1}),
+                                          ::testing::Values(ov::inplace_vector<size_t>{1, 1}),
                                           ::testing::ValuesIn(padBegins2d),
                                           ::testing::ValuesIn(padEnds2d),
                                           ::testing::ValuesIn(dilations2d),

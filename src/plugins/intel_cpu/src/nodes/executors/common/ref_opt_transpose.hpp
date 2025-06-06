@@ -37,10 +37,10 @@ public:
     [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const override {
-        static const std::vector<std::vector<size_t>> optimizedOrders = {
-            std::vector<size_t>{0, 3, 1, 2},
-            std::vector<size_t>{0, 4, 1, 2, 3},
-            std::vector<size_t>{0, 5, 1, 2, 3, 4},
+        static const std::vector<VectorDims> optimizedOrders = {
+            VectorDims{0, 3, 1, 2},
+            VectorDims{0, 4, 1, 2, 3},
+            VectorDims{0, 5, 1, 2, 3, 4},
         };
         if (srcDescs[0]->hasLayoutType(LayoutType::ncsp) &&
             std::find(optimizedOrders.begin(), optimizedOrders.end(), transposeParams.permuteParams.order) !=

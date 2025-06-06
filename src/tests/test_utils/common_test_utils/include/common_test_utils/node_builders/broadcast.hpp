@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 
 namespace ov {
 namespace test {

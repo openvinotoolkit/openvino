@@ -32,10 +32,10 @@ constexpr auto dilated(const size_t dim, const size_t dilation) -> size_t {
 
 VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    const VectorDims& filters_shape,
-                                   const std::vector<size_t>& strides,
-                                   const std::vector<size_t>& dilations,
-                                   const std::vector<ptrdiff_t>& pads_begin,
-                                   const std::vector<ptrdiff_t>& pads_end,
+                                   const ov::Strides& strides,
+                                   const ov::Strides& dilations,
+                                   const ov::CoordinateDiff& pads_begin,
+                                   const ov::CoordinateDiff& pads_end,
                                    bool auto_padding,
                                    bool isGrouped) {
     OPENVINO_ASSERT(data_shape.size() >= 3, "At least 3D data shape is expected");

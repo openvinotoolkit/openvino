@@ -25,8 +25,20 @@ enum class OpType { SCALAR, VECTOR };
 
 std::ostream& operator<<(std::ostream& os, OpType type);
 
-template <typename vecElementType>
-inline std::string vec2str(const std::vector<vecElementType>& vec) {
+template <typename vecElementType, class A>
+inline std::string vec2str(const std::vector<vecElementType, A>& vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
+        result << vec.back() << ")";
+        return result.str();
+    }
+    return std::string("()");
+}
+
+template <typename vecElementType, class A>
+inline std::string vec2str(const ov::inplace_vector<vecElementType, A>& vec) {
     if (!vec.empty()) {
         std::ostringstream result;
         result << "(";

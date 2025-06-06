@@ -18,12 +18,14 @@ std::shared_ptr<ov::Node> make_gather_nd(const ov::Output<Node>& data_node,
                                          const std::size_t batch_dims) {
     const auto indices = [&] {
         const auto& data_shape = data_node.get_shape();
-        const auto indices_count =
-            std::accumulate(begin(indices_shape), prev(end(indices_shape)), 1ull, std::multiplies<std::size_t>{});
+        const auto indices_count = std::accumulate(std::begin(indices_shape),
+                                                   std::prev(std::end(indices_shape)),
+                                                   1ull,
+                                                   std::multiplies<std::size_t>{});
 
         const auto slice_rank = indices_shape.back();
 
-        const auto max_dim = *std::max_element(begin(data_shape), end(data_shape));
+        const auto max_dim = *std::max_element(std::begin(data_shape), std::end(data_shape));
 
         std::vector<int> indices_values(indices_count * slice_rank);
         ov::test::utils::fill_data_random(indices_values.data(), indices_count * slice_rank, max_dim, 0);
@@ -49,11 +51,13 @@ std::shared_ptr<ov::Node> make_gather_nd8(const ov::Output<Node>& data_node,
                                           const std::size_t batch_dims) {
     const auto indices = [&] {
         const auto& data_shape = data_node.get_shape();
-        const auto indices_count =
-            std::accumulate(begin(indices_shape), prev(end(indices_shape)), 1ull, std::multiplies<std::size_t>{});
+        const auto indices_count = std::accumulate(std::begin(indices_shape),
+                                                   std::prev(std::end(indices_shape)),
+                                                   1ull,
+                                                   std::multiplies<std::size_t>{});
         const auto slice_rank = indices_shape.back();
 
-        const auto max_dim = *std::max_element(begin(data_shape), end(data_shape));
+        const auto max_dim = *std::max_element(std::begin(data_shape), std::end(data_shape));
 
         std::vector<int> indices_values(indices_count * slice_rank);
         ov::test::utils::fill_data_random(indices_values.data(), indices_count * slice_rank, max_dim, 0);

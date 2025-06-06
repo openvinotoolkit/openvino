@@ -11,11 +11,11 @@ namespace ov {
 namespace test {
 namespace utils {
 std::shared_ptr<ov::Node> make_binary_convolution(const ov::Output<Node>& in,
-                                                  const std::vector<size_t>& filterSize,
-                                                  const std::vector<size_t>& strides,
+                                                  const ov::Shape& filterSize,
+                                                  const ov::inplace_vector<size_t>& strides,
                                                   const std::vector<ptrdiff_t>& padsBegin,
                                                   const std::vector<ptrdiff_t>& padsEnd,
-                                                  const std::vector<size_t>& dilations,
+                                                  const ov::inplace_vector<size_t>& dilations,
                                                   const ov::op::PadType& autoPad,
                                                   size_t numOutChannels,
                                                   float padValue,

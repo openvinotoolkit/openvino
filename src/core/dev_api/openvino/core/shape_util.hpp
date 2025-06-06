@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/util/attr_types.hpp"
 

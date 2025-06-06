@@ -50,7 +50,7 @@ protected:
 class LoadReorder : public Load {
 public:
     OPENVINO_OP("LoadReorder", "SnippetsOpset", Load);
-    LoadReorder(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, std::vector<size_t> order = {});
+    LoadReorder(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, VectorDims order = {});
     LoadReorder() = default;
 
     void set_offset(size_t offset) { set_output_offset(offset, 0); }
@@ -61,7 +61,8 @@ public:
     void validate_and_infer_types() override;
 
     class ShapeInfer : public IShapeInferSnippets {
-        std::vector<size_t> m_order;
+        VectorDims m_order;
+
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
@@ -69,7 +70,7 @@ public:
 
 
 protected:
-    std::vector<size_t> m_order;
+    VectorDims m_order;
 };
 } // namespace op
 } // namespace snippets

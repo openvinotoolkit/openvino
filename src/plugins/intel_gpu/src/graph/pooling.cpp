@@ -218,7 +218,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
                                            : desc->dilation;
     bool ceil_mod = desc->rounding_type == ov::op::RoundingType::CEIL;
 
-    auto is_positive_values = [](const std::vector<size_t>& values) {
+    auto is_positive_values = [](const auto& values) {
         return !std::any_of(values.begin(), values.end(), [](size_t val) { return val == 0; });
     };
 

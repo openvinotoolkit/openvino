@@ -48,14 +48,20 @@ Output<ov::Node> translate_quantized_convnd_base(const NodeContext& context) {
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
-        conv = std::make_shared<v1::Convolution>(input, weight, strides, pads, pads, dilations, pad_type);
+        conv = std::make_shared<v1::Convolution>(input,
+                                                 weight,
+                                                 Strides{strides.begin(), strides.end()},
+                                                 pads,
+                                                 pads,
+                                                 Strides{dilations.begin(), dilations.end()},
+                                                 pad_type);
     } else {
         conv = std::make_shared<v1::GroupConvolution>(input,
                                                       reshape_kernel_for_group(context, weight, groups),
-                                                      strides,
+                                                      Strides{strides.begin(), strides.end()},
                                                       pads,
                                                       pads,
-                                                      dilations,
+                                                      Strides{dilations.begin(), dilations.end()},
                                                       pad_type);
     }
     auto bias_rank = bias.get_partial_shape().rank();

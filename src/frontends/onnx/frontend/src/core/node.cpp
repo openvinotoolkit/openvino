@@ -430,6 +430,12 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
 }
 
 template <>
+ov::inplace_vector<std::size_t> Node::get_attribute_value(const std::string& name,
+                                                          ov::inplace_vector<std::size_t> default_value) const {
+    return m_pimpl->template get_attribute_value<ov::inplace_vector<std::size_t>>(name, std::move(default_value));
+}
+
+template <>
 std::vector<std::string> Node::get_attribute_value(const std::string& name,
                                                    std::vector<std::string> default_value) const {
     return m_pimpl->template get_attribute_value<std::vector<std::string>>(name, std::move(default_value));
@@ -509,6 +515,11 @@ std::vector<std::int64_t> Node::get_attribute_value(const std::string& name) con
 template <>
 std::vector<std::size_t> Node::get_attribute_value(const std::string& name) const {
     return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name);
+}
+
+template <>
+ov::inplace_vector<std::size_t> Node::get_attribute_value(const std::string& name) const {
+    return m_pimpl->template get_attribute_value<ov::inplace_vector<std::size_t>>(name);
 }
 
 template <>

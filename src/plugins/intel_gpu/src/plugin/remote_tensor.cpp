@@ -20,7 +20,7 @@ static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::
         return strides;
 
     if (!shape.empty()) {
-        strides.resize(shape.size());
+        strides.resize(shape.size(), {});
         strides.back() = shape.back() == 0 ? 0 : element_type.size();
         std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
         std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());

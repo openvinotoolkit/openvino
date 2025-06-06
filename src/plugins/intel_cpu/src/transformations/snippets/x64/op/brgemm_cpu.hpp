@@ -12,6 +12,7 @@
 
 #include "brgemm_copy_b.hpp"
 #include "brgemm_utils.hpp"
+#include "cpu_types.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
@@ -46,9 +47,9 @@ public:
               BRGEMM_TYPE type,
               const std::vector<MemoryAccess::PortDescriptor>& input_descs = {},
               const MemoryAccess::PortDescriptor& output_desc = {0, 0},
-              const std::vector<size_t>& layout_a = {},
-              const std::vector<size_t>& layout_b = {},
-              const std::vector<size_t>& layout_c = {},
+              const VectorDims& layout_a = {},
+              const VectorDims& layout_b = {},
+              const VectorDims& layout_c = {},
               PostopsConfig post_ops = PostopsConfig{});
     BrgemmCPU() = default;
 
@@ -102,9 +103,9 @@ public:
     constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
 
 private:
-    void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
-                                                     const std::vector<size_t>& layout_b,
-                                                     const std::vector<size_t>& layout_c);
+    void custom_constructor_validate_and_infer_types(const VectorDims& layout_a,
+                                                     const VectorDims& layout_b,
+                                                     const VectorDims& layout_c);
     static size_t compute_gemm_inputs_count(const BRGEMM_TYPE type);
     void validate_with_scratchpad() const;
     void validate_inputs_size() const;

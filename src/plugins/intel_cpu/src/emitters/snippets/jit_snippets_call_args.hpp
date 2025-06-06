@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <oneapi/dnnl/dnnl_common_types.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
+#include "cpu_types.h"
+#include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 
 namespace ov::intel_cpu {
@@ -75,8 +75,8 @@ struct jit_snippets_call_args::loop_args_t {
 };
 
 struct jit_snippets_compile_args {
-    std::vector<std::vector<size_t>> data_offsets = {};
-    std::vector<size_t> exec_domain = {};
+    std::vector<VectorDims> data_offsets = {};
+    VectorDims exec_domain = {};
 };
 
 }  // namespace ov::intel_cpu

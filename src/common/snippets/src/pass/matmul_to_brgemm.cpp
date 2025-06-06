@@ -32,7 +32,7 @@ MatMulToBrgemm::MatMulToBrgemm() {
             return false;
 
         auto generate_layout = [](const ov::PartialShape& shape, const bool transpose) {
-            std::vector<size_t> layout = utils::get_planar_layout(shape.size());
+            VectorDims layout = utils::get_planar_layout(shape.size());
             if (transpose)
                 std::swap(*layout.rbegin(), *(layout.rbegin() + 1));
             return layout;

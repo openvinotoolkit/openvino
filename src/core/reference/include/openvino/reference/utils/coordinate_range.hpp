@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iterator>
 
+#include "openvino/core/axis_set.hpp"
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"

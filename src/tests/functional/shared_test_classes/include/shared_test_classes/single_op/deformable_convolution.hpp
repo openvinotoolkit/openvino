@@ -12,17 +12,17 @@
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        std::vector<size_t>,    // Strides
-        std::vector<ptrdiff_t>, // Pad begin
-        std::vector<ptrdiff_t>, // Pad end
-        std::vector<size_t>,    // Dilation
-        size_t,                 // Groups
-        size_t,                 // Deformable groups
-        size_t,                 // Num out channels
-        ov::op::PadType,        // Padding type
-        bool                   // Bilinear interpolation pad
-> deformableConvSpecificParams;
+typedef std::tuple<ov::inplace_vector<size_t>,  // Strides
+                   std::vector<ptrdiff_t>,      // Pad begin
+                   std::vector<ptrdiff_t>,      // Pad end
+                   ov::inplace_vector<size_t>,  // Dilation
+                   size_t,                      // Groups
+                   size_t,                      // Deformable groups
+                   size_t,                      // Num out channels
+                   ov::op::PadType,             // Padding type
+                   bool                         // Bilinear interpolation pad
+                   >
+    deformableConvSpecificParams;
 typedef std::tuple<
         deformableConvSpecificParams,
         bool,                      // Modulation

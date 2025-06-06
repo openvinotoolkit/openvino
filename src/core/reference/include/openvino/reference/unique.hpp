@@ -67,7 +67,7 @@ std::vector<TensorSlice<Index_t, Count_t>> generate_descriptors(const size_t cou
 template <typename Index_t, typename Count_t>
 inline std::pair<size_t, size_t> first_elems_of_both_slices(const TensorSlice<Index_t, Count_t>& lhs,
                                                             const TensorSlice<Index_t, Count_t>& rhs,
-                                                            const std::vector<size_t>& data_shape_strides,
+                                                            const ov::inplace_vector<size_t>& data_shape_strides,
                                                             const int64_t axis) {
     return {data_shape_strides[axis] * lhs.idx, data_shape_strides[axis] * rhs.idx};
 }
@@ -75,7 +75,7 @@ inline std::pair<size_t, size_t> first_elems_of_both_slices(const TensorSlice<In
 template <typename Index_t, typename Count_t>
 inline size_t calc_slices_offset(const TensorSlice<Index_t, Count_t>& lhs,
                                  const TensorSlice<Index_t, Count_t>& rhs,
-                                 const std::vector<size_t>& data_shape_strides,
+                                 const ov::inplace_vector<size_t>& data_shape_strides,
                                  const int64_t axis) {
     const auto first_elem_indices = first_elems_of_both_slices(lhs, rhs, data_shape_strides, axis);
     if (first_elem_indices.first > first_elem_indices.second) {

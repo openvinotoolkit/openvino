@@ -58,7 +58,7 @@ inline void validate_deformable_convolution_params(const Shape& in_shape,
 }
 
 inline Shape shape_reduce(const Shape& s) {
-    return Shape(++s.begin(), s.end());
+    return Shape(s.begin() + 1, s.end());
 }
 
 inline Shape shape_scale(Shape s, size_t groups) {

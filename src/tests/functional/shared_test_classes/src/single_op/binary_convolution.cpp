@@ -18,7 +18,7 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParam
     std::tie(bin_conv_params, model_type, shapes, target_device) = obj.param;
 
     ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
     std::vector<ptrdiff_t> pad_begin, padEnd;
     size_t conv_out_channels;
     float pad_value;
@@ -59,7 +59,7 @@ void BinaryConvolutionLayerTest::SetUp() {
     init_input_shapes(shapes);
 
     ov::op::PadType pad_type;
-    std::vector<size_t> kernel_size, strides, dilations;
+    ov::inplace_vector<size_t> kernel_size, strides, dilations;
     std::vector<ptrdiff_t> pads_begin, pads_end;
     size_t num_out_channels;
     float pad_value;

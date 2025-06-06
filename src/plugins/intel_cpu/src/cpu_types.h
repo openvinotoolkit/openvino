@@ -8,13 +8,14 @@
 #include <string>
 #include <vector>
 
+#include "openvino/core/shape.hpp"
 #include "utils/caseless.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
 using Dim = std::size_t;
-using VectorDims = std::vector<Dim>;
+using VectorDims = ov::Shape;
 
 std::string dim2str(Dim dim);
 std::string dims2str(const VectorDims& dims);

@@ -140,8 +140,8 @@ void matmul(const T* arg0,
         Shape arg0_br_target_shape(out_shape.begin(), out_shape.end() - 2);
         Shape arg1_br_target_shape(out_shape.begin(), out_shape.end() - 2);
 
-        arg0_br_target_shape.insert(end(arg0_br_target_shape), end(arg0_shape_tmp) - 2, end(arg0_shape_tmp));
-        arg1_br_target_shape.insert(end(arg1_br_target_shape), end(arg1_shape_tmp) - 2, end(arg1_shape_tmp));
+        arg0_br_target_shape.insert(arg0_br_target_shape.end(), arg0_shape_tmp.end() - 2, arg0_shape_tmp.end());
+        arg1_br_target_shape.insert(arg1_br_target_shape.end(), arg1_shape_tmp.end() - 2, arg1_shape_tmp.end());
 
         std::vector<size_t> broadcast_axes(out_shape.size() - 2);
         std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);

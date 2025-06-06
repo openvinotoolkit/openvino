@@ -130,7 +130,7 @@ public:
     static void load(BufferType& buffer, ov::Strides& vector) {
         typename ov::Strides::size_type vector_size = 0UL;
         buffer >> vector_size;
-        vector.resize(vector_size);
+        vector.resize(vector_size, {});
         for (auto& el : vector) {
             buffer >> el;
         }
@@ -154,7 +154,7 @@ public:
     static void load(BufferType& buffer, ov::Shape& vector) {
         typename ov::Shape::size_type vector_size = 0UL;
         buffer >> vector_size;
-        vector.resize(vector_size);
+        vector.resize(vector_size, {});
         for (auto& el : vector) {
             buffer >> el;
         }

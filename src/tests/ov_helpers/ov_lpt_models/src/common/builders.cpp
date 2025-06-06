@@ -34,7 +34,7 @@ std::shared_ptr<Node> makeDequantization(
     if (!dequantizationOperations.subtract.empty()) {
         std::shared_ptr<ov::opset1::Subtract> subtract;
 
-        std::vector<size_t> shape;
+        ov::Shape shape;
         auto values = dequantizationOperations.subtract.values;
         if (dequantizationOperations.subtract.constantShapeIsDefined) {
             shape = dequantizationOperations.subtract.constantShape;
@@ -115,7 +115,7 @@ std::shared_ptr<Node> makeDequantization(
 }
 
 std::shared_ptr<Node> makeMultiply(const ov::Output<Node>& parent, const DequantizationOperations::Multiply& multiply) {
-    std::vector<size_t> shape;
+    ov::Shape shape;
     auto values = multiply.values;
     if (multiply.constantShapeIsDefined) {
         shape = multiply.constantShape;
@@ -124,10 +124,10 @@ std::shared_ptr<Node> makeMultiply(const ov::Output<Node>& parent, const Dequant
         }
     } else {
         if (values.size() == 1ul) {
-            shape = std::vector<size_t>({});
+            shape = {};
         } else {
             const auto rank = parent.get_partial_shape().rank();
-            shape = std::vector<size_t>(rank.is_dynamic() ? 4ul : rank.get_length(), 1ul);
+            shape = ov::Shape(rank.is_dynamic() ? 4ul : rank.get_length(), 1ul);
             shape[shape.size() >= 2 ? 1ul : 0] = values.size();
         }
     }

@@ -22,11 +22,11 @@ protected:
 
         std::shared_ptr<Node> conv;
         {
-            const std::vector<size_t> kernelSize = {3, 3};
-            const std::vector<size_t> strides = {1, 1};
+            const ov::inplace_vector<size_t> kernelSize = {3, 3};
+            const ov::inplace_vector<size_t> strides = {1, 1};
             const std::vector<ptrdiff_t> padBegin = {0, 0};
             const std::vector<ptrdiff_t> padEnd = {0, 0};
-            const std::vector<size_t> dilation = {1, 1};
+            const ov::inplace_vector<size_t> dilation = {1, 1};
             const size_t numOutChannels = 16;
             const op::PadType paddingType = op::PadType::EXPLICIT;
             conv = ov::test::utils::make_convolution(inputParams[0],

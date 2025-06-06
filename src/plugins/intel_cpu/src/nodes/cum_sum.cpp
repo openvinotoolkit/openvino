@@ -165,7 +165,7 @@ void CumSum::exec() {
 
 template <bool reverse, bool exclusive, typename dataType>
 void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& strides) {
-    VectorDims iterationRange(numOfDims - 1);
+    std::vector<size_t> iterationRange(numOfDims - 1);
     size_t j = 0;
     const auto& shape = getParentEdgeAt(CUM_SUM_DATA)->getMemory().getStaticDims();
     for (size_t i = 0; i < shape.size(); i++) {
@@ -231,7 +231,7 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
     });
 }
 
-void CumSum::parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
+void CumSum::parallelItInit(size_t start, VectorDims& counters, const VectorDims& iterationRange) {
     auto itCounter = counters.rbegin();
     auto itWork = iterationRange.rbegin();
     while (itCounter != counters.rend() && itWork != iterationRange.rend()) {
@@ -242,7 +242,7 @@ void CumSum::parallelItInit(size_t start, std::vector<size_t>& counters, const s
     }
 }
 
-inline void CumSum::parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
+inline void CumSum::parallelItStep(VectorDims& counters, const VectorDims& iterationRange) {
     auto itCounter = counters.rbegin();
     auto itWork = iterationRange.rbegin();
 
@@ -256,7 +256,7 @@ inline void CumSum::parallelItStep(std::vector<size_t>& counters, const std::vec
     }
 }
 
-inline size_t CumSum::getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides) {
+inline size_t CumSum::getStartOffset(const VectorDims& forStartOffset, const VectorDims& strides) const {
     size_t startOffset = 0;
     for (size_t idx = 0; idx < forStartOffset.size(); ++idx) {
         startOffset += forStartOffset[idx] * strides[idx];

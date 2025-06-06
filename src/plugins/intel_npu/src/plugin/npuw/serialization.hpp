@@ -17,6 +17,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "openvino/core/shape.hpp"
+
 namespace ov {
 namespace npuw {
 namespace s11n {
@@ -185,6 +187,14 @@ void write(std::ostream& stream, const std::vector<T>& var) {
     }
 }
 
+template <typename T>
+void write(std::ostream& stream, const ov::inplace_vector<T>& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el);
+    }
+}
+
 template <typename T, size_t N>
 void write(std::ostream& stream, const std::array<T, N>& var) {
     for (const auto& el : var) {
@@ -240,6 +250,19 @@ void read(std::istream& stream, std::vector<T>& var) {
         T elem;
         read(stream, elem);
         var.push_back(std::move(elem));
+    }
+}
+
+template <typename T>
+void read(std::istream& stream, ov::inplace_vector<T>& var) {
+    var.clear();
+    std::size_t var_size = 0;
+    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
+    var.reserve(var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        T elem;
+        read(stream, elem);
+        var.push_back(elem);
     }
 }
 

@@ -32,7 +32,7 @@ std::shared_ptr<ov::Model> make_conv_pool_relu_non_zero(ov::Shape input_shape, o
     conv1->set_friendly_name("Conv_1");
     conv1->output(0).get_tensor().set_names({"conv"});
 
-    std::vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
+    ov::inplace_vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
     auto pool1 = std::make_shared<ov::op::v1::MaxPool>(conv1,
                                                        stride,
                                                        padB,

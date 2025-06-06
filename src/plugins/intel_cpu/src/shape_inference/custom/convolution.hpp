@@ -20,20 +20,20 @@ namespace ov::intel_cpu::node {
 
 VectorDims convolution_shape_infer(const VectorDims& data_shape,
                                    const VectorDims& filters_shape,
-                                   const std::vector<size_t>& strides,
-                                   const std::vector<size_t>& dilations,
-                                   const std::vector<ptrdiff_t>& pads_begin,
-                                   const std::vector<ptrdiff_t>& pads_end,
+                                   const ov::Strides& strides,
+                                   const ov::Strides& dilations,
+                                   const ov::CoordinateDiff& pads_begin,
+                                   const ov::CoordinateDiff& pads_end,
                                    bool auto_padding,
                                    bool isGrouped);
 
 using Result = IShapeInfer::Result;
 class ConvolutionShapeInfer : public ShapeInferEmptyPads {
 public:
-    ConvolutionShapeInfer(std::vector<size_t> strides,
-                          std::vector<size_t> dilations,
-                          std::vector<ptrdiff_t> pads_begin,
-                          std::vector<ptrdiff_t> pads_end,
+    ConvolutionShapeInfer(ov::Strides strides,
+                          ov::Strides dilations,
+                          ov::CoordinateDiff pads_begin,
+                          ov::CoordinateDiff pads_end,
                           bool auto_padding,
                           bool isGrouped = false)
         : m_strides(std::move(strides)),
@@ -50,10 +50,10 @@ public:
     }
 
 private:
-    std::vector<size_t> m_strides;
-    std::vector<size_t> m_dilations;
-    std::vector<ptrdiff_t> m_pads_begin;
-    std::vector<ptrdiff_t> m_pads_end;
+    ov::Strides m_strides;
+    ov::Strides m_dilations;
+    ov::CoordinateDiff m_pads_begin;
+    ov::CoordinateDiff m_pads_end;
     bool m_auto_padding;
     bool m_isGrouped;
 };

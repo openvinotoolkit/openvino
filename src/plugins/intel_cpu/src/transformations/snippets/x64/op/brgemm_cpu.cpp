@@ -53,9 +53,9 @@ BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      BRGEMM_TYPE type,
                      const std::vector<PortDescriptor>& input_descs,
                      const PortDescriptor& output_desc,
-                     const std::vector<size_t>& layout_a,
-                     const std::vector<size_t>& layout_b,
-                     const std::vector<size_t>& layout_c,
+                     const VectorDims& layout_a,
+                     const VectorDims& layout_b,
+                     const VectorDims& layout_c,
                      PostopsConfig post_ops)
     : m_type(type),
       m_post_ops_config(std::move(post_ops)),
@@ -84,9 +84,9 @@ BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
     custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
-void BrgemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
-                                                            const std::vector<size_t>& layout_b,
-                                                            const std::vector<size_t>& layout_c) {
+void BrgemmCPU::custom_constructor_validate_and_infer_types(const VectorDims& layout_a,
+                                                            const VectorDims& layout_b,
+                                                            const VectorDims& layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
     validate_inputs_size();
 

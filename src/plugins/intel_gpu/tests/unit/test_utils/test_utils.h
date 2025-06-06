@@ -258,8 +258,17 @@ void set_values(cldnn::memory::ptr mem, std::initializer_list<T> args) {
         *it++ = x;
 }
 
-template<typename T>
-void set_values(cldnn::memory::ptr mem, std::vector<T> args) {
+template <typename T, class A>
+void set_values(cldnn::memory::ptr mem, std::vector<T, A> args) {
+    cldnn::mem_lock<T> ptr(mem, get_test_stream());
+
+    auto it = ptr.begin();
+    for (auto x : args)
+        *it++ = x;
+}
+
+template <typename T, class A>
+void set_values(cldnn::memory::ptr mem, ov::inplace_vector<T, A> args) {
     cldnn::mem_lock<T> ptr(mem, get_test_stream());
 
     auto it = ptr.begin();

@@ -21,8 +21,8 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
     std::string targetDevice;
     std::tie(pool_params, model_type, shapes, targetDevice) = obj.param;
     PoolingTypes pool_type;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> pad_begin, pad_end;
+    ov::inplace_vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> pad_begin, pad_end;
     ov::op::PadType pad_type;
     ov::op::RoundingType rounding_type;
     bool excludePad;
@@ -67,8 +67,8 @@ void PoolingLayerTest::SetUp() {
     ov::element::Type model_type;
     std::tie(pool_params, model_type, shapes, targetDevice) = this->GetParam();
     PoolingTypes pool_type;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> pad_begin, pad_end;
+    ov::inplace_vector<size_t> kernel, stride;
+    ov::inplace_vector<size_t> pad_begin, pad_end;
     ov::op::PadType pad_type;
     ov::op::RoundingType rounding_type;
     bool excludePad;
@@ -95,8 +95,8 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
     std::vector<InputShape> shapes;
     std::string target_device;
     std::tie(pool_params, model_type, shapes, target_device) = obj.param;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> pad_begin, pad_end;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> pad_begin, pad_end;
     ov::op::PadType pad_type;
     ov::op::RoundingType rounding_type;
     ov::element::Type index_element_type;
@@ -135,8 +135,8 @@ void MaxPoolingV8LayerTest::SetUp() {
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
     std::tie(pool_params, model_type, shapes, targetDevice) = this->GetParam();
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> pad_begin, pad_end;
+    ov::inplace_vector<size_t> kernel, stride, dilation;
+    ov::inplace_vector<size_t> pad_begin, pad_end;
     ov::op::PadType pad_type;
     ov::op::RoundingType rounding_type;
     ov::element::Type index_element_type;
