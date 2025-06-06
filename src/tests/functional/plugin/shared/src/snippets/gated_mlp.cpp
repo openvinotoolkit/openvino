@@ -15,14 +15,13 @@ namespace test {
 namespace snippets {
 
 void GatedMLP::SetUp() {
-    std::pair<InputShape, std::vector<Shape>> shapes;
-    GatedMLPFunction::WeightFormat weightFormat;
-    utils::ActivationTypes ActType;
-    ov::element::Type prc;
-    ov::AnyMap additional_config;
-
-    std::tie(shapes, weightFormat, ActType, prc, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) = this->GetParam();
+    const auto [shapes, weightFormat, ActType, prc, target_num_nodes, target_num_subgraphs, device, additional_config] = this->GetParam();
     auto [inShape, weightsShapes] = shapes;
+
+    ref_num_nodes = target_num_nodes;
+    ref_num_subgraphs = target_num_subgraphs;
+    targetDevice = device;
+
     init_input_shapes({inShape});
 
     const auto subgraph_model = ov::test::snippets::GatedMLPFunction(inputDynamicShapes, weightsShapes, weightFormat, ActType);
