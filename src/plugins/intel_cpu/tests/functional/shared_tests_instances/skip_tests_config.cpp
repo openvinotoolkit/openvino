@@ -619,6 +619,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16() && !CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_FullyConnected_EnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MLP.*bf16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
