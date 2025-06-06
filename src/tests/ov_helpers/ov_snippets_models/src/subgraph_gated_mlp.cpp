@@ -27,12 +27,14 @@ std::ostream& operator<<(std::ostream& os, GatedMLPFunction::WeightFormat type) 
     return os;
 }
 
-std::shared_ptr<ov::Node> GatedMLPFunction::makeWeights(const Shape& shape) const {
+std::shared_ptr<ov::Node> GatedMLPFunction::makeWeights(const Shape& shape, int32_t seed) const {
+    utils::InputGenerateData gen_data;
+    gen_data.seed = seed;
     switch (m_wei_format) {
     case WeightFormat::FP32:
-        return ov::test::utils::make_constant(ov::element::f32, shape);
+        return ov::test::utils::make_constant(ov::element::f32, shape, gen_data);
     case WeightFormat::FP16:
-        return ov::test::utils::make_constant(ov::element::f16, shape);
+        return ov::test::utils::make_constant(ov::element::f16, shape, gen_data);
     default:
         OPENVINO_THROW("Unexpected weight format!");
     }
@@ -42,8 +44,8 @@ std::shared_ptr<ov::Node> GatedMLPFunction::makeFC(const ov::Output<ov::Node>& o
     return std::make_shared<ov::op::v0::MatMul>(output, weights, false, true);
 }
 
-std::shared_ptr<ov::Node> GatedMLPFunction::makeFC(const ov::Output<ov::Node>& output, const Shape& shape) const {
-    std::shared_ptr<ov::Node> weights = makeWeights(shape);
+std::shared_ptr<ov::Node> GatedMLPFunction::makeFC(const ov::Output<ov::Node>& output, const Shape& shape, int32_t seed) const {
+    std::shared_ptr<ov::Node> weights = makeWeights(shape, seed);
     if (weights->get_output_element_type(0) != output.get_element_type()) {
         weights = std::make_shared<ov::op::v0::Convert>(weights, output.get_element_type());
     }
@@ -53,11 +55,11 @@ std::shared_ptr<ov::Node> GatedMLPFunction::makeFC(const ov::Output<ov::Node>& o
 std::shared_ptr<ov::Model> GatedMLPFunction::initOriginal() const {
     auto param = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[0]);
 
-    auto fc_gate = makeFC(param, m_weights_shapes[0]);
-    auto fc_up = makeFC(param, m_weights_shapes[1]);
+    auto fc_gate = makeFC(param, m_weights_shapes[0], 3);
+    auto fc_up = makeFC(param, m_weights_shapes[1], 7);
     auto act = ov::test::utils::make_activation(fc_gate, precision, m_act_type, ov::Shape{}, std::vector<float>{0.5});
     auto mul = std::make_shared<ov::op::v1::Multiply>(act, fc_up);
-    auto fc_down = makeFC(mul, m_weights_shapes[2]);
+    auto fc_down = makeFC(mul, m_weights_shapes[2], 11);
 
     auto result = std::make_shared<ov::op::v0::Result>(fc_down);
     return std::make_shared<Model>(ResultVector{result}, ParameterVector{param});
@@ -66,9 +68,9 @@ std::shared_ptr<ov::Model> GatedMLPFunction::initOriginal() const {
 std::shared_ptr<ov::Model> GatedMLPFunction::initReference() const {
     auto data = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[0]);
 
-    auto fc_gate_weights = makeWeights(m_weights_shapes[0]);
-    auto fc_up_weights = makeWeights(m_weights_shapes[1]);
-    auto fc_down_weights = makeWeights(m_weights_shapes[2]);
+    auto fc_gate_weights = makeWeights(m_weights_shapes[0], 3);
+    auto fc_up_weights = makeWeights(m_weights_shapes[1], 7);
+    auto fc_down_weights = makeWeights(m_weights_shapes[2], 11);
 
     NodeVector subgraph_inputs = {data, fc_gate_weights, data, fc_up_weights, fc_down_weights};
 

@@ -48,8 +48,8 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
-    std::shared_ptr<ov::Node> makeWeights(const Shape& shape) const;
-    std::shared_ptr<ov::Node> makeFC(const ov::Output<ov::Node>& output, const Shape& shape) const;
+    std::shared_ptr<ov::Node> makeWeights(const Shape& shape, int32_t seed = 1) const;
+    std::shared_ptr<ov::Node> makeFC(const ov::Output<ov::Node>& output, const Shape& shape, int32_t seed = 1) const;
     std::shared_ptr<ov::Node> makeFC(const ov::Output<ov::Node>& output, const ov::Output<ov::Node>& weights) const;
 
     const std::vector<Shape> m_weights_shapes {};
