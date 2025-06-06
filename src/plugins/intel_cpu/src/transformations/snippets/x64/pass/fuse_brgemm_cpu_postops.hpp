@@ -23,8 +23,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     static bool can_be_fused_as_postop(const std::shared_ptr<const ov::Node>& node);
-    static bool brgemm_can_fuse_postop(const ov::intel_cpu::brgemm_utils::BRGEMM_TYPE brgemm_type,
-                                       const ov::element::Type& input_precision);
+    static bool brgemm_can_fuse_postop(const ov::element::Type& input_precision);
 
 private:
     std::set<size_t>& m_brgemm_external_params_idces;
