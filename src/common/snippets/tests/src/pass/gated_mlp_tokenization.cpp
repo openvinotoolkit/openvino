@@ -52,8 +52,6 @@ protected:
         // Weights decompression in not supported and not tokenized
         if (weightFormat == GatedMLPFunction::WeightFormat::FP32) {
             model_ref = f.getReference();
-        } else {
-            model_ref = f.getOriginal();
         }
     }
 };
