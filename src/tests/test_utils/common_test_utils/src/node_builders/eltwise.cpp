@@ -13,7 +13,6 @@
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
-#include "openvino/op/equal.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/mod.hpp"
