@@ -51,15 +51,18 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()),
                               "Jit emitter is called when the shapes are unknown");
 
-    const auto& src_prc = brgemm_repack->get_src_element_type();
-    const auto& wei_prc = brgemm_repack->get_input_element_type(0);
-    const auto wei_N_blk = brgemm_utils::repacking::compute_inner_n_block(wei_prc);
     const auto is_transposed = BrgemmCopyB::is_transposed(expr->get_input_port_descriptor(0)->get_layout());
-    const auto brgemm_type = get_brgemm_type(src_prc, is_transposed);
-    const auto primitive_isa = brgemm_utils::get_primitive_isa(src_prc, with_amx(brgemm_type));
-    m_with_comp = with_compensations(brgemm_type);
+    const auto& brgemm_config = brgemm_repack->get_config();
+    m_with_comp = brgemm_config.with_compensations();
 
-    BrgemmCopyBKernelConfig kernel_config(src_prc, wei_prc, primitive_isa, m_with_comp, is_transposed, wei_N_blk);
+    BrgemmCopyBKernelConfig kernel_config(brgemm_repack->get_src_element_type(),
+                                          brgemm_repack->get_input_element_type(0),
+                                          brgemm_config.isa(),
+                                          m_with_comp,
+                                          is_transposed,
+                                          brgemm_config.are_wei_blocked(),
+                                          brgemm_config.wei_n_blk(),
+                                          brgemm_config.wei_k_blk());
     m_kernel_executor =
         kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
 
