@@ -993,7 +993,7 @@ const VectorDims& ColorConvert::Converter::inputDims(size_t idx) const {
 }
 
 bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    Algorithm alg;
+    Algorithm alg{};
     std::tie(alg, errorMessage) = getAlgorithmFor(op);
     return alg != Algorithm::Default;
 }

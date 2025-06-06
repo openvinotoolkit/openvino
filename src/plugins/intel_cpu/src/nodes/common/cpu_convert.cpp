@@ -446,36 +446,29 @@ private:
 template <typename T, typename U>
 const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
     if (prec.is_real()) {
-        double lbound;
-        double ubound;
-        switch (prec) {
-        case ov::element::f8e4m3:
-            lbound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max());
-            break;
-        case ov::element::f8e5m2:
-            lbound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max());
-            break;
-        case ov::element::bf16:
-            lbound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max());
-            break;
-        case ov::element::f16:
-            lbound = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::float16>::max());
-            break;
-        case ov::element::f32:
-            lbound = static_cast<double>(std::numeric_limits<float>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<float>::max());
-            break;
-        case ov::element::f64:
-            lbound = std::numeric_limits<double>::lowest();
-            ubound = std::numeric_limits<double>::max();
-            break;
-        default:
-            OPENVINO_THROW("Unsupported precision");
-        }
+        auto [lbound, ubound] = [&]() {
+            switch (prec) {
+            case ov::element::f8e4m3:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max()));
+            case ov::element::f8e5m2:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max()));
+            case ov::element::bf16:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max()));
+            case ov::element::f16:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::float16>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::float16>::max()));
+            case ov::element::f32:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<float>::lowest()),
+                                       static_cast<double>(std::numeric_limits<float>::max()));
+            case ov::element::f64:
+                return std::make_tuple(std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max());
+            default:
+                OPENVINO_THROW("Unsupported precision");
+            }
+        }();
         // If U is integral, its range always less than float, so not need update _range
         // Else it will be overflow, for example static_cast double to int64_t:
         //         int64_t ubound = 9223372036854775807
@@ -486,48 +479,39 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
             std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
         }
     } else {
-        int64_t lbound;
-        uint64_t ubound;
-        switch (prec) {
-        case ov::element::boolean:
-            lbound = static_cast<int64_t>(std::numeric_limits<bool>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<bool>::max());
-            break;
-        case ov::element::u8:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint8_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint8_t>::max());
-            break;
-        case ov::element::i8:
-            lbound = static_cast<int64_t>(std::numeric_limits<int8_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int8_t>::max());
-            break;
-        case ov::element::u16:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint16_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint16_t>::max());
-            break;
-        case ov::element::i16:
-            lbound = static_cast<int64_t>(std::numeric_limits<int16_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int16_t>::max());
-            break;
-        case ov::element::u32:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint32_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
-            break;
-        case ov::element::i32:
-            lbound = static_cast<int64_t>(std::numeric_limits<int32_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
-            break;
-        case ov::element::u64:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint64_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint64_t>::max());
-            break;
-        case ov::element::i64:
-            lbound = static_cast<int64_t>(std::numeric_limits<int64_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
-            break;
-        default:
-            OPENVINO_THROW("Unsupported precision");
-        }
+        auto [lbound, ubound] = [&]() {
+            switch (prec) {
+            case ov::element::boolean:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<bool>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<bool>::max()));
+            case ov::element::u8:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint8_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint8_t>::max()));
+            case ov::element::i8:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int8_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int8_t>::max()));
+            case ov::element::u16:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint16_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint16_t>::max()));
+            case ov::element::i16:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int16_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int16_t>::max()));
+            case ov::element::u32:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint32_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()));
+            case ov::element::i32:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int32_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int32_t>::max()));
+            case ov::element::u64:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint64_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint64_t>::max()));
+            case ov::element::i64:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int64_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int64_t>::max()));
+            default:
+                OPENVINO_THROW("Unsupported precision");
+            }
+        }();
         using ltype = std::conditional_t<std::is_floating_point<U>::value, double, int64_t>;
         using utype = std::conditional_t<std::is_floating_point<U>::value, double, uint64_t>;
         std::get<0>(_range) =
@@ -562,9 +546,7 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertContext& ctx) {
         auto src = static_cast<const src_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
-        src_t lbound;
-        src_t ubound;
-        std::tie(lbound, ubound) = ctx.range<src_t>();
+        auto [lbound, ubound] = ctx.range<src_t>();
 
         // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
         // to float should output float-inf instead of f8e4m3-max. Proper handling of special values
@@ -579,11 +561,11 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         }
 
         if (std::is_integral<src_t>::value || ctx.interimPrc.is_real() || std::is_integral<dst_t>::value) {
-            parallel_for(ctx.size, [&](size_t i) {
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
             });
         } else {
-            parallel_for(ctx.size, [&](size_t i) {
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
             });
         }
@@ -603,10 +585,8 @@ struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
             });
         } else {
-            float lbound;
-            float ubound;
-            std::tie(lbound, ubound) = ctx.range<float>();
-            parallel_for(ctx.size, [&](size_t i) {
+            auto [lbound, ubound] = ctx.range<float>();
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
             });
         }
@@ -626,10 +606,8 @@ struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
                 dst[i] = static_cast<float>(src[i]);
             });
         } else {
-            float lbound;
-            float ubound;
-            std::tie(lbound, ubound) = ctx.range<ov::intel_cpu::bfloat16_t>();
-            parallel_for(ctx.size, [&](size_t i) {
+            auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.range<ov::intel_cpu::bfloat16_t>());
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
             });
         }
@@ -649,12 +627,10 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        src_t lbound;
-        src_t ubound;
-        std::tie(lbound, ubound) = ctx.range<src_t>();
+        auto [lbound, ubound] = ctx.range<src_t>();
 
         if (std::is_integral<src_t>::value) {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -678,7 +654,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                 }
             });
         } else {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -703,12 +679,10 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound;
-        float ubound;
-        std::tie(lbound, ubound) = ctx.range<ov::float16>();
+        auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.range<ov::float16>());
 
         if (std::is_integral<dst_t>::value) {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -732,7 +706,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 }
             });
         } else {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -757,14 +731,12 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound;
-        float ubound;
-        std::tie(lbound, ubound) = ctx.range<ov::float16>();
+        auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.range<ov::float16>());
 
         if (ctx.interimPrc.is_real()) {
             cpu_memcpy(dst, src, ctx.size * sizeof(ov::float16));
         } else {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);

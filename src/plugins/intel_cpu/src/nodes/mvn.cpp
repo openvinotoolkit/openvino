@@ -798,7 +798,15 @@ private:
     }
 
     void worker_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
-        int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
+        int tile_start_idx = [&]() {
+            if (isa == cpu::x64::avx512_core) {
+                return 0;
+            }
+            if (isa == cpu::x64::avx2) {
+                return 1;
+            }
+            return 2;
+        }();
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
             cmp(reg_tail_num, tile_size[i]);
@@ -1720,7 +1728,15 @@ private:
     }
 
     void worker_mvn_tails(Xbyak::Reg64& reg_tail_num, const std::function<void(int)>& func) {
-        int tile_start_idx = (isa == cpu::x64::avx512_core) ? 0 : ((isa == cpu::x64::avx2) ? 1 : 2);
+        int tile_start_idx = [&]() {
+            if (isa == cpu::x64::avx512_core) {
+                return 0;
+            }
+            if (isa == cpu::x64::avx2) {
+                return 1;
+            }
+            return 2;
+        }();
         Label tile_exit[kTileNum];
         for (int i = tile_start_idx; i < kTileNum; i++) {
             cmp(reg_tail_num, tile_size[i]);
@@ -2075,16 +2091,18 @@ void MVN::initSupportedPrimitiveDescriptors() {
         inputPrecision = outputPrecision = ov::element::f32;
 #endif  // OV_CPU_WITH_ACL
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     if (mayiuse(cpu::x64::sse41)) {
         // nspc

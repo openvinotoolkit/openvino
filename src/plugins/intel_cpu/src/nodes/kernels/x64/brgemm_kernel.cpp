@@ -88,7 +88,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
     bool isAMXSupported = (is_bf16 && mayiuse(avx512_core_amx)) || (is_f16 && mayiuse(avx512_core_amx_fp16));
     bool isBrgWithAMX = isAMXSupported && !is_avx_f16_only;
 
-    size_t vlen;
+    size_t vlen = 0;
     if (mayiuse(avx512_core)) {
         vlen = cpu_isa_traits_t<avx512_core>::vlen;
     } else {
@@ -112,7 +112,12 @@ BrgemmKernel::BrgemmKernel(size_t M,
             for (size_t n = 0; n < 2; n++) {
                 auto& brgemmCtx = brgCtxs[getBrgIdx(m, k, n)];
 
-                auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
+                size_t M_ = 0;
+                if (m) {
+                    M_ = M_tail;
+                } else if (M >= M_blk) {
+                    M_ = M_blk;
+                }
                 auto N_ = n ? N_tail : N - N_tail;
                 auto K_ = k ? K_tail : K - K % K_blk;
                 auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0F : 0.0F;
@@ -120,9 +125,17 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
-                brgemmCtx.LDA = k ? K_blk : (is_avx_f16_only ? K : lda);  // f16 use f32 internally
-                brgemmCtx.LDB =
-                    (!is_f32 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // bf16/fp16/b_transposed needs copy
+                if (k) {
+                    brgemmCtx.LDA = K_blk;
+                } else {
+                    brgemmCtx.LDA = is_avx_f16_only ? K : lda;  // f16 use f32 internally
+                }
+
+                if (!is_f32 || b_transposed) {
+                    brgemmCtx.LDB = rnd_up(N, N_blk);  // bf16/fp16/b_transposed needs copy
+                } else {
+                    brgemmCtx.LDB = ldb;
+                }
                 brgemmCtx.LDC = ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(srcType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(weiType));
@@ -186,24 +199,24 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
 
     const bool is_int8 =
         one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    cpu_isa_t isa;
-    if (use_amx) {
-        isa = isa_undef;
-    } else if (mayiuse(avx512_core)) {
-        if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
-            isa = avx512_core_bf16;
-        } else if (ctx.dt_in0 == dnnl_data_type_t::dnnl_f16 && mayiuse(avx512_core_fp16)) {
-            isa = avx512_core_fp16;
-        } else {
-            if (is_int8) {
-                isa = avx512_core_vnni;
-            } else {
-                isa = avx512_core;
-            }
+    cpu_isa_t isa = [&]() {
+        if (use_amx) {
+            return isa_undef;
         }
-    } else {
-        isa = cpu_isa_t::avx2;
-    }
+        if (mayiuse(avx512_core)) {
+            if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
+                return avx512_core_bf16;
+            }
+            if (ctx.dt_in0 == dnnl_data_type_t::dnnl_f16 && mayiuse(avx512_core_fp16)) {
+                return avx512_core_fp16;
+            }
+            if (is_int8) {
+                return avx512_core_vnni;
+            }
+            return avx512_core;
+        }
+        return cpu_isa_t::avx2;
+    }();
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
                                    brgemm_addr,
@@ -394,7 +407,10 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     size_t K0_step0 = brgCtxs[brgIdx0].K;
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
-        size_t K_offset = is_avx_f16_only ? 0 : (K < K_blk ? 0 : K0_step0 * srcType.size());
+        size_t K_offset = 0;
+        if (!is_avx_f16_only && K >= K_blk) {
+            K_offset = K0_step0 * srcType.size();
+        }
         auto* pCopyKernelIn = ptr_A + K_offset;
         auto* pCopyKernelOut = ptr_scartch_a;
 
@@ -419,7 +435,12 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
-                auto* local_a_ptr = is_avx_f16_only ? ptr_scartch_a : (k > 0 ? ptr_scartch_a : ptr_A);
+                void* local_a_ptr = [&]() {
+                    if (is_avx_f16_only || k > 0) {
+                        return ptr_scartch_a;
+                    }
+                    return ptr_A;
+                }();
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * weiType.size();
                 auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
