@@ -8,6 +8,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/wstring_convert_util.hpp"
 
 namespace ov {
 namespace test {
@@ -18,7 +19,12 @@ void generate_test_model(const std::wstring& model_path,
                          const ov::element::Type& input_type,
                          const ov::PartialShape& input_shape) {
     ov::pass::Manager manager;
+#    ifdef _WIN32
     manager.register_pass<ov::pass::Serialize>(model_path, weights_path);
+#    else
+    manager.register_pass<ov::pass::Serialize>(ov::util::wstring_to_string(model_path),
+                                               ov::util::wstring_to_string(weights_path));
+#    endif
     manager.run_passes(ov::test::utils::make_conv_pool_relu(input_shape.to_shape(), input_type));
 }
 #endif

@@ -27,17 +27,7 @@ protected:
                                      ov::util::string_to_wstring(name);
             auto model_file_path_w = postfix_w + L".xml";
             auto weight_file_path_w = postfix_w + L".bin";
-            bool is_copy_successfully = ov::test::utils::copyFile(model_file_name, model_file_path_w);
-            if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << model_file_name << "' to '"
-                       << ov::util::wstring_to_string(model_file_path_w) << "'";
-            }
-            is_copy_successfully = ov::test::utils::copyFile(weight_file_name, weight_file_path_w);
-            if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << weight_file_name << "' to '"
-                       << ov::util::wstring_to_string(weight_file_path_w) << "'";
-            }
-            // ov::test::utils::generate_test_model(model_path_w, weight_path_w);
+            ov::test::utils::generate_test_model(model_file_path_w, weight_file_path_w);
             model_files_name_w.push_back(model_file_path_w);
             weight_files_name_w.push_back(weight_file_path_w);
         }
@@ -156,7 +146,7 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path_unicode) {
         std::wstring model_file_name_w = model_files_name_w[testIndex];
         std::wstring weight_file_name_w = weight_files_name_w[testIndex];
         std::filesystem::path model_path, weight_path;
-#    ifdef WIN32
+#    ifdef _WIN32
         model_path = std::filesystem::path(model_file_name_w);
         weight_path = std::filesystem::path(weight_file_name_w);
 #    else
