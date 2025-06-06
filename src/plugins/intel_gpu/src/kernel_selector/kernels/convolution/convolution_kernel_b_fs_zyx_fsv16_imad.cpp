@@ -423,6 +423,16 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
     mem_consts.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     mem_consts.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
 
+    if (params.inputs[0].GetDType() == Datatype::INT8) {
+        mem_consts.AddConstants({MakeJitConstant("INPUT_I8", 1)});
+    }
+
+    if (!params.activations_zero_points.empty()) {
+        if (params.activations_zero_points[0].GetDType() == Datatype::INT8) {
+            mem_consts.AddConstants({MakeJitConstant("AZP_I8", 1)});
+        }
+    }
+
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         std::vector<std::string> idx_order = { "out_b", "(out_f + ofb * 16)", "(out_y + oh)", "(out_x + ow)" };

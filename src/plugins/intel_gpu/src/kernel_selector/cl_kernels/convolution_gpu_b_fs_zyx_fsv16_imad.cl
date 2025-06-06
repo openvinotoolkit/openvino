@@ -118,12 +118,19 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
     uint in_f_offset = (g * FILTER_IFM_NUM) % FSV;
 #endif
-
-    uint4 input_val[IN_BLOCK_DEPTH][IN_BLOCK_HEIGHT][CEIL_DIV(IN_BLOCK_WIDTH, SIMD)];
-
+    #if INPUT_I8
+        int4 input_val[IN_BLOCK_DEPTH][IN_BLOCK_HEIGHT][CEIL_DIV(IN_BLOCK_WIDTH, SIMD)];
+    #else
+        uint4 input_val[IN_BLOCK_DEPTH][IN_BLOCK_HEIGHT][CEIL_DIV(IN_BLOCK_WIDTH, SIMD)];
+    #endif
 #ifdef SHOULD_USE_DATA_ZP
     uint data_zp_idx = g * FILTER_IFM_NUM + in_f_start;
-    uint4 data_zp_val;
+    
+    #if AZP_I8
+        int4 data_zp_val;
+    #else
+        uint4 data_zp_val;
+    #endif
 #endif
 
 #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
@@ -157,9 +164,17 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
         #ifdef SHOULD_USE_DATA_ZP
             #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
-                data_zp_val = as_uint4(vload16(0, activations_zp + data_zp_idx));
+                #if AZP_I8
+                    data_zp_val = as_int4(vload4(0, activations_zp + data_zp_idx));
+                #else
+                    data_zp_val = as_uint4(vload16(0, activations_zp + data_zp_idx));
+                #endif
             #else
-                data_zp_val = vload4(0, (__global uint *)(activations_zp + data_zp_idx));
+                #if AZP_I8
+                    data_zp_val = vload4(0, (__global int *)(activations_zp + data_zp_idx));
+                #else
+                    data_zp_val = vload4(0, (__global uint *)(activations_zp + data_zp_idx));
+                #endif
             #endif
         #endif
 
@@ -205,7 +220,11 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                             input_val[izb][iyb][ixb] = data_zp_val;
                                         } else {
                                     #endif
-                                            input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                            #if INPUT_I8
+                                                input_val[izb][iyb][ixb] = vload4(0, (__global int *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                            #else
+                                                input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
+                                            #endif
                                     #ifdef SHOULD_USE_DATA_ZP
                                         }
                                     #endif
@@ -253,7 +272,11 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                             input_val[izb][iyb][ixb] = data_zp_val;
                                         } else {
                                     #endif
-                                            input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + tmp * FSV));
+                                            #if INPUT_I8
+                                                input_val[izb][iyb][ixb] = vload4(0, (__global int *)(conv_input + input_idx + tmp * FSV));
+                                            #else
+                                                input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + tmp * FSV));
+                                            #endif
                                     #ifdef SHOULD_USE_DATA_ZP
                                         }
                                     #endif
@@ -305,9 +328,14 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                 unroll_for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
                                     #ifdef SHOULD_USE_DATA_ZP
                                         ACCUMULATOR_TYPE dotProdAZPxW = 0;
+                                        #if AZP_I8
+                                            int temp_zp = data_zp_val[ive];
+                                        #else
+                                            uint temp_zp = data_zp_val[ive];
+                                        #endif
                                         dotProdAZPxW = TO_ACCUMULATOR_TYPE(
                                         IMAD(dotProdAZPxW,
-                                        AS_INPUT0_TYPE_4(data_zp_val[ive]),
+                                        AS_INPUT0_TYPE_4(temp_zp),
                                         AS_FILTER_TYPE_4(weights_val[ofb][ive])));
                                     #endif
 
