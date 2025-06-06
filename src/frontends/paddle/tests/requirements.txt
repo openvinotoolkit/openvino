@@ -1,4 +1,3 @@
 # PaddlePaddle - generate test models
 protobuf
-numpy
 paddlepaddle
