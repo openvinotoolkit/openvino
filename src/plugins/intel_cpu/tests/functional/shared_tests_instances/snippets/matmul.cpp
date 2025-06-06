@@ -77,7 +77,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMul, MatMul,
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // MatMul
                                  ::testing::Values(1), // Tokenized MatMul
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
@@ -111,7 +112,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulTransposeB, MatMulTransposeB,
                              ::testing::Values(MatMulType::MatMul),
                              ::testing::Values(1), // MatMul
                              ::testing::Values(1), // Tokenized MatMul
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 std::vector<std::vector<ov::test::InputShape>> input_shapes_bias{
@@ -136,7 +138,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBias, MatMulBias,
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized,
@@ -146,7 +149,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulBiasQuantized, MatMulBiasQuantized
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(1), // Subgraph
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
@@ -156,7 +160,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantized, MatMulsQuantized,
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
                                  ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantizedSoftmax, MatMulsQuantizedSoftmax,
@@ -166,7 +171,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulsQuantizedSoftmax, MatMulsQuantize
                                  ::testing::Values(MatMulType::MatMul),
                                  ::testing::Values(3), // Subgraph + Reshape + Subgraph
                                  ::testing::Values(2), // Tokenized [MatMul+FQ+Matmul] and [FQ]
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 } // namespace

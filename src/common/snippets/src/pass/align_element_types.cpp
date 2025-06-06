@@ -108,6 +108,7 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
                     consumer_inputs.size() == 1) {
                     // remove existing convert
                     existing_convert->output(0).replace(parent_output);
+                    is_modified = true;
                     continue;
                 }
             }

@@ -522,8 +522,15 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
-        // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
-        SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ov::snippets::pass::MatMulToBrgemm);
+        // Notes:
+        //  - MatMul decomposition will be run later again for case if BF16 enforcement is not happened
+        //  - `MatMulToBrgemm` pass fuse `transpose_a` and `transpose_b` from MatMul to inputs of Brgemm as layouts.
+        //    These layouts are resized to ranks of input shapes. But since `Canonicalization` might
+        //    reshape shapes, the pass `MatMulToBrgemm` should be after the pass `Canonicalization` to
+        //    fuse layouts with ranks aligned with updated shapes after RankNormalization insertions.
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::snippets::pass::Canonicalization,
+                                               ov::snippets::pass::MatMulToBrgemm);
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::snippets::pass::MatMulToBrgemm,
                                                pass::EnforcePrecision,
