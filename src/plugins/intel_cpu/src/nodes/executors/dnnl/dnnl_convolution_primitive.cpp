@@ -893,7 +893,7 @@ bool DnnlConvolutionPrimitive::isJitPlanarAvailable(const ConvConfig& config) {
     const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
                             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !config.attrs.isGraphQuantized;
 
-    const auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
+    const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
     return (IC == 1 && groupOC * groupNum == 1) && isAvx2FP32;
 }
@@ -931,7 +931,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
     auto outDims = config.descs.at(ARG_DST)->getShape().getDims();
     auto ndims = inpDims.size();
 
-    auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
+    const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
     bool isDepthWise = config.attrs.isGrouped && 1 == groupOC && 1 == groupIC;
 
