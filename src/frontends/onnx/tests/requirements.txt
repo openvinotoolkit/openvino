@@ -1,6 +1,4 @@
 # ONNX - generate test models
-numpy
 protobuf
 docopt
 onnx
-pytest
