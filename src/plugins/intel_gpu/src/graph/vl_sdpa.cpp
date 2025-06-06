@@ -48,4 +48,14 @@ std::vector<int32_t> vl_sdpa_inst::get_mask_seqlens_from_memory() const {
     return buf;   
 }
 
+std::vector<int32_t> vl_sdpa_inst::get_mask_seqlens_from_memory2(memory::ptr cu_seqlens_mem, stream& stream) {
+    // TODO: wait for attention_mask_seqlen input only
+    stream.finish();
+
+    std::vector<int32_t> buf(cu_seqlens_mem->count());
+    cu_seqlens_mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
+
+    return buf;   
+}
+
 }  // namespace cldnn

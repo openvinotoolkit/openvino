@@ -58,10 +58,18 @@ struct vl_sdpa : public primitive_base<vl_sdpa> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<vl_sdpa>::save(ob);
+        ob << input_q_transpose_order;
+        ob << input_k_transpose_order;
+        ob << input_v_transpose_order;
+        ob << output_transpose_order;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<vl_sdpa>::load(ib);
+        ib >> input_q_transpose_order;
+        ib >> input_k_transpose_order;
+        ib >> input_v_transpose_order;
+        ib >> output_transpose_order;
     }
 };
 
