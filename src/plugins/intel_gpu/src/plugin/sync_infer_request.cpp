@@ -916,7 +916,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto user_tensor = user_tensor_wrapper.ptr;
     auto iremote_tensor_ptr = std::dynamic_pointer_cast<IRemoteTensor>(user_tensor);
     auto remote_tensor_impl_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
-    auto usm_tensor_ptr = std::dynamic_pointer_cast<USMHostTensor>(user_tensor);
     auto internal_name = m_output_names_map.at(output_idx);
     bool is_remote_tensor_impl = remote_tensor_impl_ptr != nullptr;
     bool is_generic_remote = iremote_tensor_ptr != nullptr && remote_tensor_impl_ptr == nullptr;
@@ -941,7 +940,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
     // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
-    if ((is_remote_tensor_impl || usm_tensor_ptr) && !convert_needed) {
+    if (is_remote_tensor_impl && !convert_needed) {
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
@@ -965,13 +964,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     if (m_plugin_outputs.find(output_idx) == m_plugin_outputs.end())
         return {};
 
-    cldnn::memory::ptr output_memory;
-    if (usm_tensor_ptr) {
-        output_memory = usm_tensor_ptr->get_impl()->get_memory();
-    } else {
-        auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
-        output_memory = output_tensor->get_memory();
-    }
+    auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
+    cldnn::memory::ptr output_memory = output_tensor->get_memory();
+
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
     return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }

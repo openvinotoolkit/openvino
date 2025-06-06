@@ -652,21 +652,21 @@ public:
         // softmax+topk
         layout layout_topk_id(ov::PartialShape{batch, max_topk}, data_types::u32, cldnn::format::bfyx);
         layout layout_topk_weights(ov::PartialShape{batch, max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_topk_id, false);       // topk_id
-        internal_buffers.emplace_back(layout_topk_weights, false);  // topk_weights
+        internal_buffers.emplace_back(layout_topk_id, true);       // topk_id
+        internal_buffers.emplace_back(layout_topk_weights, true);  // topk_weights
         // fast single batch: scratch.up = up(x) * silu(gate(x)); scratch.y = down(scratch.up) * weight[expert_no]
         layout layout_gateup_out(ov::PartialShape{batch, static_cast<int>(config.intermediate_size)}, data_type, cldnn::format::bfyx);
         layout layout_down_out(ov::PartialShape{batch, static_cast<int>(config.hidden_size)}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_gateup_out, false);  // up
-        internal_buffers.emplace_back(layout_down_out, false);    // y
+        internal_buffers.emplace_back(layout_gateup_out, true);  // up
+        internal_buffers.emplace_back(layout_down_out, true);    // y
         // onednn: scratch.x, scratch.routing_weights = gather(x, ...)
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, false);  // x, scratch.x has same layout with down output
+        internal_buffers.emplace_back(layout_down_out, true);  // x, scratch.x has same layout with down output
         layout routing_layout(ov::PartialShape{batch * max_topk}, data_type, cldnn::format::bfyx);
-        internal_buffers.emplace_back(layout_down_out, false);    // routing_weights
-        internal_buffers.emplace_back(layout_gateup_out, false);  // gate, scratch.gate has same layout with up
+        internal_buffers.emplace_back(layout_down_out, true);    // routing_weights
+        internal_buffers.emplace_back(layout_gateup_out, true);  // gate, scratch.gate has same layout with up
         // expert masks for gpu
         layout index_layout(ov::PartialShape{batch}, ov::element::i32, cldnn::format::bfyx);
         for (int i = 0; i < expert_num; i++) {
@@ -780,14 +780,6 @@ public:
             args.outputs.push_back(outputs[i]);
         }
 
-        // scalars_desc scalars_desc;
-        // for (auto i : scalars) {
-        //     scalar_desc desc;
-        //     desc.t = scalar_desc::Types::INT32;
-        //     desc.v.s32 = i;
-        //     scalars_desc.push_back(desc);
-        // }
-        // args.scalars = &scalars_desc;
         stream.set_arguments(*stage.kernel, desc, args);
         desc.workGroups.global = global;
         desc.workGroups.local = local;
@@ -864,9 +856,10 @@ public:
         }
     };
 
+    using lru_cache_hash = LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash>;
+    lru_cache_hash _kernels = lru_cache_hash(1024);
     onednn_kernel& get_kernel(int n_token, int expert_no, typed_primitive_inst<moe>& instance) {
         auto key = std::make_pair(n_token, expert_no);
-        static LruCache<std::pair<int, int>, std::shared_ptr<onednn_kernel>, PairHash> _kernels(1024);
         if (_kernels.has(key)) {
             return *_kernels.get(key);
         }
