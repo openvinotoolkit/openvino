@@ -4,8 +4,11 @@
 
 #include "common_test_utils/test_control.hpp"
 
+#include <fstream>
+#include <unordered_map>
+#include <unordered_set>
+
 #include "openvino/util/common_util.hpp"
-#include "precomp.hpp"
 
 using namespace std;
 
