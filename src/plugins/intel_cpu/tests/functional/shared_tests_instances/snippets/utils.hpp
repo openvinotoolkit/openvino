@@ -12,16 +12,19 @@ namespace snippets {
 
 #define SNIPPETS_TESTS_STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 
+// Snippets BRGEMM supports bf16 only on platforms with AVX512_bf16 or AMX instructions
 static inline bool is_bf16_supported_by_brgemm() {
     return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
 }
 
+// Snippets BRGEMM supports fp16 only on platforms with AMX-FP16 instructions
 static inline bool is_fp16_supported_by_brgemm() {
     return ov::with_cpu_x86_avx512_core_amx_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
 }
 
+// Snippets BRGEMM supports i8 only on platforms with VNNI or AMX instructions
 static inline bool is_i8_supported_by_brgemm() {
-    return ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8();
+    return ov::with_cpu_x86_avx2_vnni() || ov::with_cpu_x86_avx512_core_vnni() || ov::with_cpu_x86_avx512_core_amx_int8();
 }
 
 static inline std::vector<std::vector<element::Type>> precision_f32(size_t count) {

@@ -80,9 +80,11 @@ protected:
     virtual SpecificIterationHandlers get_n_loop_handlers(size_t work_amount, size_t block_size) const;
     virtual SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const;
 
-    virtual size_t get_default_m_blk(size_t m) const;
-    virtual size_t get_default_n_blk(size_t n) const;
-    virtual size_t get_default_k_blk(size_t k) const;
+    static inline size_t get_corrected_blk_size_by_dim(const size_t dim, const size_t default_blk) {
+        if (!utils::is_dynamic_value(dim) && dim <= default_blk)
+            return utils::get_full_dim_value();
+        return default_blk;
+    }
 };
 
 /**

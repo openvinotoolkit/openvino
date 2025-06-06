@@ -36,7 +36,9 @@ public:
                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                             bool is_with_comp,
                             bool is_transposed_B,
-                            dnnl_dim_t wei_N_blk);
+                            bool are_wei_blocked,
+                            dnnl_dim_t wei_N_blk,
+                            dnnl_dim_t wei_K_blk);
 
     bool operator==(const BrgemmCopyBKernelConfig& rhs) const;
     bool operator!=(const BrgemmCopyBKernelConfig& rhs) const {
@@ -77,6 +79,9 @@ public:
     [[nodiscard]] bool is_transposed_B() const {
         return m_static_params->is_transposed_B;
     }
+    [[nodiscard]] bool are_wei_blocked() const {
+        return m_static_params->are_wei_blocked;
+    }
 
     [[nodiscard]] dnnl_dim_t get_N() const {
         return m_N;
@@ -92,6 +97,9 @@ public:
     }
     [[nodiscard]] dnnl_dim_t get_wei_N_tail() const {
         return m_N_blk % m_static_params->wei_N_blk;
+    }
+    [[nodiscard]] dnnl_dim_t get_wei_K_blk() const {
+        return m_static_params->wei_K_blk;
     }
     [[nodiscard]] dnnl_dim_t get_K() const {
         return m_K;
@@ -117,13 +125,16 @@ private:
                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                      bool is_with_comp,
                      bool is_transposed_B,
-                     dnnl_dim_t wei_N_blk);
+                     bool are_wei_blocked,
+                     dnnl_dim_t wei_N_blk,
+                     dnnl_dim_t wei_K_blk);
 
         const dnnl_data_type_t src_dt{dnnl_data_type_undef}, wei_dt{dnnl_data_type_undef};
         const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::isa_undef};
         const bool is_with_comp{false};
         const bool is_transposed_B{false};
-        const dnnl_dim_t wei_N_blk{0};
+        const bool are_wei_blocked{false};
+        const dnnl_dim_t wei_N_blk{0}, wei_K_blk{0};
         const size_t hash{0};
 
         bool operator==(const StaticParams& rhs) const;
@@ -141,7 +152,9 @@ private:
                                 dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                                 bool is_with_comp,
                                 bool is_transposed_B,
-                                dnnl_dim_t wei_N_blk);
+                                bool are_wei_blocked,
+                                dnnl_dim_t wei_N_blk,
+                                dnnl_dim_t wei_K_blk);
     };
 
     [[nodiscard]] size_t compute_hash() const;
@@ -193,12 +206,13 @@ private:
 
     const bool is_with_comp = false;
     const bool is_transpose = false;
-    const size_t wei_data_size = 1u;
-    const size_t vnni_factor = 1u;
     const size_t K = 0;
     const size_t N_blk = 0;
     const size_t wei_N_blk = 0;
     const size_t wei_N_tail = 0;
+    size_t stride_in = 0;
+    size_t stride_out = 0;
+    size_t stride_comp = 0;
 
     // JIT kernel code of the current BrgemmCopyBKernel
     void (*ker_)(const call_args*);

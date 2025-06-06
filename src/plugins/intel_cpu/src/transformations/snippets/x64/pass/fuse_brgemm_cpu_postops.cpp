@@ -42,7 +42,6 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 
 namespace ov::intel_cpu {
@@ -53,11 +52,10 @@ using namespace snippets::lowered;
 using namespace ov::pass::pattern;
 using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
-bool pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(const brgemm_utils::BRGEMM_TYPE brgemm_type,
-                                                        const ov::element::Type& input_precision) {
+bool pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(const ov::element::Type& input_precision) {
     // Note: postops are not supported in case of blocking enabled
     // Ticket: 165567
-    return !pass::BrgemmCPUBlocking::is_kn_blocking_supported(brgemm_type, input_precision);
+    return !pass::BrgemmCPUBlocking::is_kn_blocking_supported(input_precision);
 }
 
 namespace {
@@ -65,8 +63,7 @@ ov::pass::pattern::op::Predicate brgemm_predicate(
     [](const Output<Node>& output) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(output.get_node_shared_ptr());
         return has_static_rank()(output) && consumers_count(1)(output) && brgemm != nullptr &&
-               pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(brgemm->get_type(),
-                                                                  brgemm->get_input_element_type(1));
+               pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(brgemm->get_input_element_type(1));
     },
     "brgemm_predicate");
 
@@ -120,14 +117,13 @@ pass::FuseConvert::FuseConvert() {
         // Forcing an output precision with a smaller bit width for output buffer causes out-of-bounds memory writes
         // during intermediate results storage, so the convert fusion is skipped in the case when internal blocking is
         // needed.
-        if (brgemm_utils::with_amx(brgemm->get_type())) {
+        if (brgemm->get_config().is_amx()) {
             const auto& cur_out_precision = brgemm->get_output_element_type(0);
             const auto& new_out_precision = convert->get_output_element_type(0);
             if (cur_out_precision.bitwidth() > new_out_precision.bitwidth()) {
                 const auto a_shape = ov::snippets::utils::get_planar_pshape(brgemm->input(0));
                 const auto& k_dim = *a_shape.rbegin();
-                const auto k_inner_block =
-                    brgemm_utils::repacking::compute_inner_k_block(brgemm->get_input_element_type(0));
+                const auto k_inner_block = brgemm->get_config().wei_k_blk();
                 if (k_dim.is_dynamic() || (k_dim.get_length() % k_inner_block != 0)) {
                     return false;
                 }
