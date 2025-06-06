@@ -479,32 +479,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
             } else {
                 load_config.set_property(ov::intel_auto::enable_startup_fallback(false));
                 load_config.set_property(ov::intel_auto::enable_runtime_fallback(false));
-                // update/reorder device priorities if any cache blob exists
-                support_devices.clear();
-                unsigned int priority = 0;
-                std::unordered_set<std::string> devices_with_blob;
-                for (const auto& dev_blob : cache_blob_ids) {
-                    if (dev_blob.second.second) {
-                        auto it = std::find_if(support_devices_by_property.begin(),
-                                               support_devices_by_property.end(),
-                                               [&](const DeviceInformation& dev) {
-                                                   return dev.device_name == dev_blob.first;
-                                               });
-                        if (it != support_devices_by_property.end()) {
-                            it->device_priority = priority++;
-                            support_devices.push_back(*it);
-                            devices_with_blob.insert(it->device_name);
-                        }
-                    }
-                }
-                // insert the remaining devices from support_devices_by_property in order
-                for (const auto& dev_info : support_devices_by_property) {
-                    if (devices_with_blob.count(dev_info.device_name) == 0) {
-                        DeviceInformation dev = dev_info;
-                        dev.device_priority = priority++;
-                        support_devices.push_back(dev);
-                    }
-                }
             }
         } else {
             // will pass model path into schedule for cumulative mode

@@ -169,11 +169,18 @@ void AutoSchedule::init() {
     if (m_compile_context[ACTUALDEVICE].m_is_enabled) {
         LOG_INFO_TAG("select device:%s", m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
         auto target_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
-        if (m_context->m_device_blob_hash_ids.count(target_device))
+        if (m_context->m_device_blob_hash_ids.count(target_device)) {
             // save the cache hash id as the device property of actual device
             // so that the Core can use it directly rather than compute it again
             m_compile_context[ACTUALDEVICE].m_device_info.config[ov::internal::cache_hash_id.name()] =
                 m_context->m_device_blob_hash_ids.at(target_device).first;
+            if (!m_context->m_model_path.empty()) {
+                // if the model path is not empty, pass it to Core via device property
+                // so that the Core can use it to generate the cache blob with model
+                m_compile_context[ACTUALDEVICE].m_device_info.config[ov::internal::cache_model_path.name()] =
+                    m_context->m_model_path;
+            }
+        }
         bool is_actual_device_blob_existed = m_context->m_device_blob_hash_ids.count(target_device) &&
                                              m_context->m_device_blob_hash_ids.at(target_device).second;
         bool is_actual_cpu = m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("CPU") != std::string::npos;
@@ -347,7 +354,7 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
         // compile model by model first if it is not empty,
-        if (m_context->m_model) {
+        if (model) {
             context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
         } else {
             context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);

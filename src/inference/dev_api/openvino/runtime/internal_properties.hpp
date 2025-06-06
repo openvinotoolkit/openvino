@@ -96,5 +96,11 @@ static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformation
  */
 static constexpr Property<std::string, PropertyMutability::RW> cache_hash_id{"CACHE_HASH_ID"};
 
+/**
+ * @brief Read-write property to pass the model path to Core from AUTO for caching purposes.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::string, PropertyMutability::RW> cache_model_path{"CACHE_MODEL_PATH"};
+
 }  // namespace internal
 }  // namespace ov
