@@ -1,0 +1,55 @@
+{
+  "name": "find-wheel-action",
+  "description": "Action to find a wheel file in a folder using package",
+  "version": "0.0.1",
+  "author": "OpenVINO Developers",
+  "private": true,
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "ncc build src/index.js -o dist",
+    "bundle": "npm run format:write && npm run build",
+    "test": "npx jest",
+    "coverage": "npx jest -- --coverage",
+    "format:write": "npx prettier --write .",
+    "format:check": "npx prettier --check .",
+    "all": "npm run test && npm run coverage && npm run format:write && npm run build"
+  },
+  "jest": {
+    "verbose": true,
+    "clearMocks": true,
+    "testEnvironment": "node",
+    "moduleFileExtensions": [
+      "js"
+    ],
+    "testMatch": [
+      "**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "coverageReporters": [
+      "json-summary",
+      "text",
+      "lcov"
+    ],
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "./src/**"
+    ]
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "glob": "^11.0.1",
+    "path": "^0.12.7",
+    "util": "^0.12.5"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.34.0",
+    "prettier": "^3.5.0",
+    "jest": "29.7.0"
+  }
+}

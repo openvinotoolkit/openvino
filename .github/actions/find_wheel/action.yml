@@ -1,0 +1,18 @@
+name: Find Wheel
+description: Find a .whl file in a folder using package name and Python version
+
+inputs:
+  wheels_dir:
+    description: Folder to search in
+    required: true
+  package_name:
+    description: Name of the package to match
+    required: true
+
+outputs:
+  wheel_path:
+    description: The path to the matching .whl file
+
+runs:
+  using: "node20"
+  main: "dist/index.js"
