@@ -32,9 +32,8 @@ using LinkFrom = std::pair<std::size_t /* Subrequest index */
 // infer sub-request state changed listeners bridge
 class   IInferRequestListener {
 public:
-
     virtual ~IInferRequestListener() = default;
-    // when subrequest indicated by idx is about to start 
+    // when subrequest indicated by idx is about to start
     // it might be used as sync point if on_output_ready() doing some asynhronous operation on tensors
     virtual void on_submit(std::size_t idx) = 0;
 
@@ -59,7 +58,7 @@ public:
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& port) const override;
     void set_tensors(const ov::Output<const ov::Node>& port,
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
-                     
+
 
     void check_tensors() const override;
 
@@ -73,7 +72,7 @@ public:
     virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
     virtual void start_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
-    
+
     using Completed = std::function<void(std::exception_ptr)>;
     virtual void subscribe_subrequest(std::size_t idx, Completed cb);
     virtual void complete_subrequest(std::size_t idx);
