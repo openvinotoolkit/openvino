@@ -74,8 +74,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto factor = memLimitedFactor(total_data, data_type_size);
                 mem_limited_gemms += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
-                const auto gemm_indicator = dataSizeOutput * shapeInput1[2] * data_type_size;
-                const int base_threshold = 16 * 6 * 49 * 49 / 8;
+                const long unsigned int gemm_indicator = dataSizeOutput * data_type_size;
+                const long unsigned int base_threshold = 16 * 6 * 49 * 49 / 8;
                 for (int n = 9; n > 0; n--) {
                     if (gemm_indicator > base_threshold * (2^n)) {
                         gemm_list[n - 1]++;
@@ -116,11 +116,11 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
-                auto conv_indicator = dataSizeOutput * data_type_size;
+                long unsigned int conv_indicator = dataSizeOutput * data_type_size;
                 for (size_t n = 1; n < shapeInput1.size(); n++) {
                     conv_indicator = conv_indicator * shapeInput1[n];
                 }
-                const int base_threshold = 44 * 1056 / 8;
+                const long unsigned int base_threshold = 44 * 1056 / 8;
                 for (int n = 9; n > 0; n--) {
                     if (conv_indicator > base_threshold * (2^n)) {
                         conv_list[n - 1]++;
@@ -167,8 +167,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_adds += factor < mem_threshold_assume_limited;
-                const auto add_indicator = dataSizeOutput * data_type_size;
-                const int base_threshold = 100 * 256 / 8;
+                const long unsigned int add_indicator = dataSizeOutput * data_type_size;
+                const long unsigned int base_threshold = 100 * 256 / 8;
                 for (int n = 9; n > 0; n--) {
                     if (add_indicator > base_threshold * (2^n)) {
                         add_list[n - 1]++;
