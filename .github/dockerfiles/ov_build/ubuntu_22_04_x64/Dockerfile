@@ -32,8 +32,6 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         libtbb2 \
-        # ONNX Runtime build
-        language-pack-en \
         # parallel gzip
         pigz \
         # Pythons
