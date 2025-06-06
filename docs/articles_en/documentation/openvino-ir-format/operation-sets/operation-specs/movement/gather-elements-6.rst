@@ -101,6 +101,10 @@ Example 3 ``indices`` has lesser (than ``data``) shape:
 * **2**:  Tensor of type *T_IND* with the same rank as the input. All index values are expected to be
   within bounds ``[-s, s-1]``, where ``s`` is size along ``axis`` dimension of the ``data`` tensor. **Required.**
 
+.. note::
+
+    Behavior before 2025.3 OpenVINO release: Negative indices were not supported.
+
 **Outputs**:
 
 * **1**: Tensor with gathered values of type *T*. Tensor has the same shape as ``indices``.
