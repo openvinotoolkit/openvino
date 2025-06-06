@@ -106,11 +106,10 @@ ENV CPATH=/opt/intel/oneapi/dpl/2022.6/include:/opt/intel/oneapi/dev-utilities/2
 ENV CC=icx
 ENV CXX=icpx
 
-# Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} /venv
 
 # Switch to the non-root user
 USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

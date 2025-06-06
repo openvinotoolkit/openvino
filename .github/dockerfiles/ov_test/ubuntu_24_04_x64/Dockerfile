@@ -59,11 +59,10 @@ RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages
 
-# Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${GROUP_ID} /home/${USER_NAME}
-
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${GROUP_ID} /venv
 
 # Switch to the non-root user
 USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

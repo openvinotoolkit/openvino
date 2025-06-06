@@ -48,8 +48,7 @@ RUN chmod +x /install_build_dependencies.sh && \
 ENV LD_LIBRARY_PATH="/usr/arm-linux-gnueabihf/:/usr/arm-linux-gnueabihf/lib/:$LD_LIBRARY_PATH"
 RUN ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
 
-# Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-
 # Switch to the non-root user
 USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

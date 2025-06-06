@@ -38,11 +38,10 @@ ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 ENV PIP_VERSION="24.0"
 RUN python3 -m pip install --upgrade pip==${PIP_VERSION}
 
-# Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-
 # Change ownership of node to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
 
 # Switch to the non-root user
 USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

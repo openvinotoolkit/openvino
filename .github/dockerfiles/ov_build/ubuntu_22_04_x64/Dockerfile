@@ -123,9 +123,6 @@ RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.n
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
 ENV PATH="${DOXYGEN_HOME}/doxygen-$DOXYGEN_VERSION/bin:$PATH"
 
-# Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} /venv
 
@@ -137,3 +134,5 @@ RUN chown -R ${USER_NAME}:${USER_NAME} ${DOXYGEN_HOME}
 
 # Switch to the non-root user
 USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

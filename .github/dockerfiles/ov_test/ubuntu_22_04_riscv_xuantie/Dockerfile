@@ -64,11 +64,10 @@ RUN mkdir -p ${XUINTIE_TMP_PATH} && cd ${XUINTIE_TMP_PATH} && \
     make -j$(nproc) && make install && \
     rm -rf ${XUINTIE_TMP_PATH}
 
-# Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} /venv
 
 # Switch to the non-root user
 USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

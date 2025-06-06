@@ -144,9 +144,6 @@ RUN cd git-2.49.0 && \
 # Use python3.9 instead of /usr/bin/python
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 
-# Change ownership of the home directory to the non-root user
-RUN mkdir -p /home/${USER_NAME} && chown -R ${USER_NAME}:${USER_NAME} /home/${USER_NAME}
-
 # Change ownership of the venv directory to the non-root user
 RUN chown -R ${USER_NAME}:${USER_NAME} /venv
 
@@ -155,3 +152,5 @@ RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
 
 # Switch to the non-root user
 USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}
