@@ -511,8 +511,8 @@ void Edge::validate() {
         return;
     }
 
-    getParent();
-    getChild();
+    std::ignore = getParent();
+    std::ignore = getChild();
 
     if (status != Status::Allocated || !memoryPtr) {
         OPENVINO_THROW("Error memory is not allocated for edge: ", *this);

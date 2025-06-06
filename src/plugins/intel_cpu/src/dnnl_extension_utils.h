@@ -36,7 +36,6 @@ public:
     struct throw_tag {};
     struct nothrow_tag {};
 
-public:
     static uint8_t sizeOfDataType(dnnl::memory::data_type dataType);
     static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType,
                                                          throw_tag tag = throw_tag{});
@@ -48,7 +47,7 @@ public:
     static Dim convertToDim(const dnnl::memory::dim& dim);
     static dnnl::memory::dim convertToDnnlDim(const Dim& dim);
     static VectorDims convertToVectorDims(const dnnl::memory::dims& dims);
-    static VectorDims convertToVectorDims(const dnnl::impl::dims_t dims, const int ndims);
+    static VectorDims convertToVectorDims(const dnnl::impl::dims_t dims, int ndims);
     static std::vector<dnnl::memory::dim> convertToDnnlDims(const VectorDims& dims);
     static dnnl::memory::format_tag GetPlainFormatByRank(size_t rank);
 
@@ -115,8 +114,6 @@ public:
                 break;
             }
         }
-
-        return;
     }
 
     static bool find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type);

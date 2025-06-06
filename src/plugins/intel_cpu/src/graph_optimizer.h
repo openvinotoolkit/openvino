@@ -8,14 +8,12 @@
 #include "graph.h"
 #include "node.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class GraphOptimizer {
 public:
     GraphOptimizer();
 
-public:
     static void ApplyCommonGraphOptimizations(Graph& graph);
     static void ApplyImplSpecificGraphOptimizations(Graph& graph);
     static void ShareReorders(Graph& graph);
@@ -93,8 +91,7 @@ private:
                                              const NodePtr& transposeNode,
                                              const NodePtr& reshapeNode,
                                              const NodePtr& reorderNode,
-                                             const bool reverseOrder);
+                                             bool reverseOrder);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

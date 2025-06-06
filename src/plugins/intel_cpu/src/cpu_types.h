@@ -10,8 +10,7 @@
 
 #include "utils/caseless.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
@@ -291,9 +290,8 @@ extern const ov::intel_cpu::caseless_unordered_map<std::string, Type> type_to_na
 
 Type TypeFromName(const std::string& type);
 
-std::string NameFromType(const Type type);
+std::string NameFromType(Type type);
 
-std::string algToString(const Algorithm alg);
+std::string algToString(Algorithm alg);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

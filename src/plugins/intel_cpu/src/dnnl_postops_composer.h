@@ -22,8 +22,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // so far the API only support per-Tensor or per-OC
 class DnnlPostOpsComposer {
@@ -31,11 +30,11 @@ public:
     DnnlPostOpsComposer(const PostOps& postOps,
                         const dnnl::engine& engine,
                         const VectorDims& outputDims,
-                        const size_t indexOfOutputChannelDim,
-                        const bool isINT8,
-                        const int weiScaleMaskPerChannel,
+                        size_t indexOfOutputChannelDim,
+                        bool isINT8,
+                        int weiScaleMaskPerChannel,
                         const MemoryArgs& memory,
-                        const dnnl::memory::data_type outDataType,
+                        dnnl::memory::data_type outDataType,
                         const std::vector<float>& legacyDqScales = {},
                         bool useLegacyPostOps = false,
                         bool useLegacyZeroPoints = false);
@@ -66,8 +65,8 @@ private:
     void appendAttrPostOpsLegacy(const ActivationPostOp& postOp);
     void appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp);
     void appendAttrPostOpsLegacy(const FakeQuantizePostOp& postOp);
-    void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
-    void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
+    void appendBinary(dnnl::algorithm alg, const std::vector<float>& data);
+    void appendEltwise(dnnl::algorithm alg, float alpha, float beta);
     void appendSum(float scale, int32_t zeroPoint, ov::element::Type dataType);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);
@@ -113,5 +112,4 @@ private:
     void updateDestScales();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
