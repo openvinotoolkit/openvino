@@ -846,6 +846,25 @@ static const std::string& translate_type_name(const std::string& name) {
     return name;
 }
 
+namespace {
+void set_custom_rt_info(const pugi::xml_node& rt_attrs, ov::AnyMap& rt_info) {
+    std::string custom_name, custom_value;
+    for (const auto& item : rt_attrs) {
+        if (std::strcmp(item.name(), "custom") == 0) {
+            if (ov::getStrAttribute(item, "name", custom_name)) {
+                if (ov::getStrAttribute(item, "value", custom_value)) {
+                    rt_info.emplace(custom_name, custom_value);
+                } else {
+                    rt_info.emplace(custom_name, ov::AnyMap{});
+                    auto& nested = rt_info[custom_name].as<ov::AnyMap>();
+                    set_custom_rt_info(item, nested);
+                }
+            }
+        }
+    }
+}
+}  // namespace
+
 std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov::Output<ov::Node>>& inputs,
                                                            const pugi::xml_node& node,
                                                            const std::shared_ptr<ov::AlignedBuffer>& weights,
@@ -988,33 +1007,36 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
         if (!rt_attrs)
             return;
         for (const auto& item : rt_attrs) {
-            std::string attribute_name, attribute_version;
-            // For view:
-            // <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
-            if (!getStrAttribute(item, "name", attribute_name) || !getStrAttribute(item, "version", attribute_version))
-                continue;
+            if (std::strcmp(item.name(), "attribute") == 0) {
+                std::string attribute_name, attribute_version;
+                if (!getStrAttribute(item, "name", attribute_name) ||
+                    !getStrAttribute(item, "version", attribute_version))
+                    continue;
 
-            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
-            auto attr = attrs_factory.create_by_type_info(type_info);
-            if (!attr.empty()) {
-                if (attr.is<ov::RuntimeAttribute>()) {
-                    RTInfoDeserializer attribute_visitor(item);
-                    if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
-                        auto res = rt_info.emplace(type_info, attr);
-                        if (!res.second) {
-                            OPENVINO_THROW("multiple rt_info attributes are detected: ", attribute_name);
+                const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
+                auto attr = attrs_factory.create_by_type_info(type_info);
+                if (!attr.empty()) {
+                    if (attr.is<ov::RuntimeAttribute>()) {
+                        RTInfoDeserializer attribute_visitor(item);
+                        if (attr.as<ov::RuntimeAttribute>().visit_attributes(attribute_visitor)) {
+                            auto res = rt_info.emplace(type_info, attr);
+                            if (!res.second) {
+                                OPENVINO_THROW("multiple rt_info attributes are detected: ", attribute_name);
+                            }
+                        } else {
+                            OPENVINO_THROW("VisitAttributes is not supported for: ", item.name(), " attribute");
                         }
                     } else {
-                        OPENVINO_THROW("VisitAttributes is not supported for: ", item.name(), " attribute");
+                        OPENVINO_THROW("Attribute: ", item.name(), " is not recognized as runtime attribute");
                     }
                 } else {
-                    OPENVINO_THROW("Attribute: ", item.name(), " is not recognized as runtime attribute");
+                    // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
+                    // when loading new IR with new attribute in old OV version.
                 }
-            } else {
-                // As runtime attributes are optional, so we skip attribute if it is unknown to avoid exception
-                // when loading new IR with new attribute in old OV version.
             }
         }
+
+        set_custom_rt_info(rt_attrs, rt_info);
     };
 
     // read runtime info only for IR v11+
