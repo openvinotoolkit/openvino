@@ -36,7 +36,7 @@ protected:
 
 public:
     explicit DnnlExecutorLegacy(const dnnl::primitive_desc& pd);
-    void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm);
+    virtual void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm);
     bool needReordering() const;
     virtual ~DnnlExecutorLegacy() = default;
     dnnl::primitive getExecPrim() const;
