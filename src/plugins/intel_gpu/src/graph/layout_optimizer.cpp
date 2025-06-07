@@ -41,6 +41,7 @@
 #include "permute_inst.h"
 #include "dft_inst.h"
 #include "lstm_seq_inst.h"
+#include "group_normalization_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -137,8 +138,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
-    if (prev.is_dynamic() || next.is_dynamic())
-        return false;
+    bool is_dynamic = false;
+    if (prev.is_dynamic() || next.is_dynamic()) {
+        if (!next.is_type<permute>() &&
+            !next.is_type<group_normalization>()) {
+            return false;
+        }
+        is_dynamic = true;
+    }
 
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
@@ -239,6 +246,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
         prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+        return true;
+
+    if (next.is_type<group_normalization>() && is_dynamic &&
+        fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::bfyx)
+        return true;
+
+    if (next.is_type<permute>() && is_dynamic &&
+        fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::bfyx)
         return true;
 
     if (!use_onednn_impls || next.get_preferred_impl_type() == impl_types::ocl) {
@@ -354,8 +369,14 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
     }
 
-    if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
-        return false;
+    bool is_dynamic = false;
+    if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic())) {
+        if (!prev.is_type<permute>() &&
+            !prev.is_type<group_normalization>()) {
+            return false;
+        }
+        is_dynamic = true;
+    }
 
     // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
     if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>()
@@ -371,6 +392,10 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     auto use_onednn_impls = contains_onednn_impls_optimization_attribute(&node) && contains_onednn_impls_optimization_attribute(&prev);
 
     if (prev.is_type<reorder>())
+        return true;
+
+    if (prev.is_type<group_normalization>() && is_dynamic &&
+        fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
         return true;
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
@@ -395,25 +420,32 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
 
     if (prev.is_type<permute>()) {
-        if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf)
+        if (is_dynamic) {
+            if (fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
+                return true;
+
+            return false;
+        } else {
+            if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf)
+                return true;
+
+            auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
+            if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
+            fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
+            && permute_order.back() != 1
+            && (!prev.as<permute>().is_rotating_except_batch())) {
+                return false;
+            }
+            // permute kernel doesn't support reorder fusion for ranks > 6
+            if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
+                return false;
+
+            // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
+            if (allow_new_shape_infer && (fmt_prev.dimension() != fmt_next.dimension()))
+                return false;
+
             return true;
-
-        auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
-        if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
-         fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-         && permute_order.back() != 1
-         && (!prev.as<permute>().is_rotating_except_batch())) {
-            return false;
         }
-        // permute kernel doesn't support reorder fusion for ranks > 6
-        if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
-            return false;
-
-        // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
-        if (allow_new_shape_infer && (fmt_prev.dimension() != fmt_next.dimension()))
-            return false;
-
-        return true;
     }
 
 
