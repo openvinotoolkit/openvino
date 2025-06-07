@@ -1,10 +1,11 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "base_sync_infer_request.hpp"
 
 #include "compiled_model.hpp"
+#include "accuracy/result.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
@@ -75,7 +76,7 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
             OPENVINO_THROW("NPUW: TEMPORARY LIMITATION: Couldn't create reference infer "
                            "requests if 'nireq' is set to > 1!");
         }
-        LOG_INFO("Create reference subrequest for submodel [" << id << "] on " << m_npuw_model->m_ref_device << "...");
+        LOG_INFO("Create reference subrequest for Subgraph[" << id << "] on " << m_npuw_model->m_ref_device << "...");
         LOG_BLOCK();
         if (m_npuw_model->submodel_device(id) != m_npuw_model->m_ref_device) {
             auto& ref_submodel = m_npuw_model->m_compiled_submodels.at(id).ref_compiled_model;
@@ -85,66 +86,126 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
             m_ref_subrequests.at(id) = std::move(ref_infer_request);
             LOG_INFO("Done");
         } else {
-            LOG_INFO("Skip creation of reference subrequest for submodule["
-                     << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
-                     << id << "] has been already created on "
-                     << "it .");
+            LOG_INFO("Skip creation of reference subrequest for Subgraph["
+                    << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
+                    << id << "] has been already created on "
+                    << "it .");
         }
     }
 
     return rqs;
 }
 
-void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx, bool& failover) {
+void ov::npuw::IBaseInferRequest::ensure_subrequest_is_accurate(std::size_t idx, bool& accuracy_failover) {
     LOG_INFO("Check if subrequest[" << idx << "] is accurate...");
     LOG_BLOCK();
-    failover = false;
-    if (m_ref_subrequests.at(idx) != nullptr && m_subrequests.at(idx)._ptr != m_ref_subrequests.at(idx)._ptr) {
-        NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref == false);
-        NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(idx).replaced_by.value_or(idx) == idx);
 
-        const auto& ref_comp_model = m_ref_subrequests.at(idx)->get_compiled_model();
-        const auto& actual_comp_model = m_subrequests.at(idx)->get_compiled_model();
-        NPUW_ASSERT(actual_comp_model->inputs().size() == ref_comp_model->inputs().size());
-        // Setting inputs:
-        for (size_t i = 0; i < actual_comp_model->inputs().size(); i++) {
-            const auto& itensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->inputs()[i]);
-            m_ref_subrequests.at(idx)->set_tensor(ref_comp_model->inputs()[i], itensor);
-        }
-        m_ref_subrequests.at(idx)->infer();
-
-        LOG_INFO("Compare actual outputs against references:");
-        bool tensors_converge = true;
-        for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
-            LOG_INFO(" - " << actual_comp_model->outputs()[i]);
-            const auto& actual_tensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->outputs()[i]);
-            const auto& ref_tensor = m_ref_subrequests.at(idx)->get_tensor(ref_comp_model->outputs()[i]);
-            LOG_BLOCK();
-            tensors_converge &= m_npuw_model->m_acc_check(actual_tensor, ref_tensor);
-        }
-        LOG_INFO((tensors_converge ? "PASS" : "FAIL"));
-
-        if (!tensors_converge) {
-            LOG_INFO("Subrequest is inaccurate, failover to reference.");
-            // FIXME: We need to copy reference tensors to actual only in single-model-inference mode
-            //        or if our subgraph is last in the chain.
-            for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
-                const auto& actual_tensor = m_subrequests.at(idx)->get_tensor(actual_comp_model->outputs()[i]);
-                const auto& ref_tensor = m_ref_subrequests.at(idx)->get_tensor(ref_comp_model->outputs()[i]);
-                ref_tensor->copy_to(actual_tensor._ptr);
-            }
-            m_npuw_model->m_compiled_submodels.at(idx).compiled_model =
-                m_npuw_model->m_compiled_submodels.at(idx).ref_compiled_model;
-            m_npuw_model->m_compiled_submodels.at(idx).switched_to_ref = true;
-            m_subrequests.at(idx) = m_ref_subrequests.at(idx);
-            update_subrequest_links(idx);
-            failover = true;
-        }
-
-        LOG_INFO("Done");
-    } else {
-        LOG_INFO("Skipped, subrequest is launched on reference device.");
+    if (m_npuw_model->submodel_device(idx) == m_npuw_model->m_ref_device) {
+        LOG_INFO("Skipped, subrequest[" << idx << "] is launched on reference device.");
+        return;
     }
+
+    accuracy_failover = false;
+
+    std::size_t real_idx = real(idx);
+    auto& actual_subr = m_subrequests.at(real_idx);
+    auto& ref_subr = m_ref_subrequests.at(real_idx);
+    NPUW_ASSERT(ref_subr);
+
+    // Just assert, that at given point in code we work only with not yet failovered requests:
+    NPUW_ASSERT(actual_subr._ptr != ref_subr._ptr);
+    NPUW_ASSERT(m_npuw_model->m_compiled_submodels.at(real_idx).switched_to_ref == false);
+
+    const auto& ref_comp_model = ref_subr->get_compiled_model();
+    const auto& actual_comp_model = actual_subr->get_compiled_model();
+    NPUW_ASSERT(actual_comp_model->inputs().size() == ref_comp_model->inputs().size());
+    // Setting inputs:
+    for (size_t i = 0; i < actual_comp_model->inputs().size(); i++) {
+        const auto& itensor = actual_subr->get_tensor(actual_comp_model->inputs()[i]);
+        ref_subr->set_tensor(ref_comp_model->inputs()[i], itensor);
+    }
+    // Running inference on reference device:
+    ref_subr->infer();
+
+    // Comparing results of actual and reference inferfences:
+    LOG_INFO("Compare actual outputs against references:");
+    bool tensors_converge = true;
+    std::vector<ov::npuw::metrics::Result> results(actual_comp_model->outputs().size());
+    for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
+        const auto& actual_tensor = actual_subr->get_tensor(actual_comp_model->outputs()[i]);
+        const auto& ref_tensor = ref_subr->get_tensor(ref_comp_model->outputs()[i]);
+        results[i] = m_npuw_model->m_acc_check(actual_tensor, ref_tensor);
+        tensors_converge &= results[i];
+    }
+    if (tensors_converge == false) {
+        if (ov::npuw::get_log_level() == ov::npuw::LogLevel::Error) {
+            // For just log level error print header message:
+            LOG_ERROR("Check if subrequest[" << idx << "] is accurate...");
+        }
+    }
+    // Log comparison details:
+    for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
+        if (results[i]) {
+            LOG_INFO(" - " << actual_comp_model->outputs()[i]);
+            LOG_BLOCK();
+            LOG_INFO(m_npuw_model->m_acc_check_name << " loss: " << results[i].metric <<
+                    ", threshold: " << results[i].threshold << ".");
+            LOG_INFO("PASS");
+        } else {
+            LOG_ERROR(" - " << actual_comp_model->outputs()[i]);
+            LOG_BLOCK();
+            LOG_ERROR(m_npuw_model->m_acc_check_name << " loss: " << results[i].metric <<
+                    ", threshold: " << results[i].threshold << ".");
+            LOG_ERROR("FAIL");
+        }
+    }
+
+    // If comparison fails, failover to reference results:
+    if (tensors_converge) {
+        LOG_INFO("PASS");
+    } else {
+        LOG_ERROR("FAIL");
+        LOG_ERROR("Subrequest[" << idx << "] is inaccurate, failover to reference results.");
+        if (idx != real_idx) {
+            LOG_ERROR("As subrequest[" << idx << "] is actually " << "subrequest[" << real_idx <<
+                    "], all subrequests, corresponding to last, will be further " <<
+                    "launched on " << m_npuw_model->m_ref_device << ".'");
+        } else if (m_npuw_model->m_compiled_submodels[real_idx].replaced_by) {
+            LOG_ERROR("As subrequest[" << real_idx << "] is actually " << "a function, all " <<
+                    "subrequests, corresponding to it, will be further launched on " <<
+                    m_npuw_model->m_ref_device << ".");
+        }
+
+        if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_ACC_DUMP_FAILS>()) {
+            const auto model = m_npuw_model->m_compiled_submodels[real_idx].model;
+            const auto model_path = "inaccurate_" + model->get_friendly_name() + ".xml";
+            ov::save_model(model, model_path);
+            dump_input_tensors(idx, true);
+            dump_output_tensors(idx, true);
+        }
+        
+        // TODO: For future implementation of accuracy failover in spatial mode, it will
+        //       be safe to just copy results from reference subrequest back to already
+        //       properly allocated and linked tensors of actual subrequest due to the
+        //       complex memory management logic.
+
+        // FIXME: Now, we need to copy reference tensors to actual only in
+        //        single-model-inference mode or if our subgraph is the last in the chain.
+        for (size_t i = 0; i < actual_comp_model->outputs().size(); i++) {
+            const auto& actual_tensor = actual_subr->get_tensor(actual_comp_model->outputs()[i]);
+            const auto& ref_tensor = ref_subr->get_tensor(ref_comp_model->outputs()[i]);
+            ref_tensor->copy_to(actual_tensor._ptr);
+        }
+        m_npuw_model->m_compiled_submodels.at(real_idx).compiled_model =
+            m_npuw_model->m_compiled_submodels.at(real_idx).ref_compiled_model;
+        m_subrequests.at(real_idx) = m_ref_subrequests.at(real_idx);
+        // Using idx here, let real_idx be handled inside if needed.
+        update_subrequest_links(idx);
+        m_npuw_model->m_compiled_submodels.at(real_idx).switched_to_ref = true;
+        accuracy_failover = true;
+    }
+
+    LOG_INFO("Done");
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -226,9 +287,9 @@ void ov::npuw::IBaseInferRequest::infer() {
     m_run_iter++;
 
     if (failover_happened) {
-        LOG_INFO("Refined device distribution:");
+        LOG_ERROR("Refined device distribution:");
         LOG_BLOCK();
-        m_npuw_model->log_device_dist();
+        m_npuw_model->log_device_dist(ov::npuw::LogLevel::Error);
     }
     m_now_idx.reset();
 }
@@ -488,12 +549,11 @@ void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr req
     LOG_DEBUG("Done");
 }
 
-void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
+void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx, bool forced) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
-    auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
-
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
+    const std::size_t real_idx = real(idx);
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx) && !forced) {
         return;
     }
 
@@ -569,12 +629,12 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
     }
 }
 
-void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
+void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx, bool forced) {
     const std::string dump_ios_opt = m_npuw_model->m_cfg.get<::intel_npu::NPUW_DUMP_IO>();
     const std::size_t end_idx = m_npuw_model->m_compiled_submodels.size();
     auto real_idx = m_npuw_model->m_compiled_submodels[idx].replaced_by.value_or(idx);
 
-    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx)) {
+    if (!ov::npuw::util::is_set(idx, dump_ios_opt, real_idx, end_idx) && !forced) {
         return;
     }
 
