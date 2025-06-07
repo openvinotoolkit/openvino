@@ -17,8 +17,7 @@
 #include "sub_memory_manager.hpp"
 #include "weights_cache.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 namespace node {
 class MemoryStatesRegister;
@@ -29,8 +28,8 @@ class NetworkMemoryControl;
 
 class GraphContext {
 public:
-    typedef std::shared_ptr<GraphContext> Ptr;
-    typedef std::shared_ptr<const GraphContext> CPtr;
+    using Ptr = std::shared_ptr<GraphContext>;
+    using CPtr = std::shared_ptr<const GraphContext>;
 
     GraphContext(Config config,
                  WeightsSharing::Ptr w_cache,
@@ -131,5 +130,4 @@ private:
     MemoryControl::Ptr m_memoryControl;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

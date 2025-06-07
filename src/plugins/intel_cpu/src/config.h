@@ -20,8 +20,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 struct Config {
     Config();
 
@@ -53,8 +52,8 @@ struct Config {
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
-    std::string dumpToDot = {};
-    std::string device_id = {};
+    std::string dumpToDot;
+    std::string device_id;
     float fcSparseWeiDecompressionRate = 1.0f;
     uint64_t fcDynamicQuantizationGroupSize = 32;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
@@ -96,7 +95,7 @@ struct Config {
     bool changedCpuPinning = false;
     bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
-    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;
@@ -120,7 +119,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const ov::AnyMap& prop, const ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& prop, ModelType modelType = ModelType::Unknown);
 
     void updateProperties();
 
@@ -139,5 +138,4 @@ struct Config {
 #endif
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
