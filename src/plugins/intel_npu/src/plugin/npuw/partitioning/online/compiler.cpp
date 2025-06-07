@@ -328,6 +328,25 @@ class Compiler {
         LOG_INFO("Done");
     }
 
+    void none_with_avoids() {
+        LOG_INFO("Online partitioning: compiling single group with avoids pipeline...");
+        LOG_BLOCK();
+
+        // Note: Assuming the context was set with minimum graph size = 1
+        // Note: If there are avoids present there will be multiple groups formed instead of 1
+        m_snapshot->earlyAvoids();
+        m_snapshot->repeat([&] {
+            m_snapshot->repeat([&] {
+                m_snapshot->collectLHF();
+            });
+            m_snapshot->repeat([&] {
+                m_snapshot->fuseRemnantsExtended();
+            });
+        });
+
+        LOG_INFO("Done");
+    }
+
     void init() {
         LOG_INFO("Online partitioning: compiling initial pipeline...");
         LOG_BLOCK();
@@ -387,7 +406,15 @@ public:
         : m_model(model),
           m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
-        if (currentPipeline() == Pipeline::NONE) {
+        PassContext ctx;
+        ctx.min_graph_size = detail::getMinGraphSize(m_cfg);
+        ctx.keep_blocks = detail::getMinRepBlocks(m_cfg);
+        ctx.keep_block_size = detail::getMinRepBlockSize(m_cfg);
+        ctx.avoids = detail::getAvoids(m_cfg);
+        ctx.isolates = detail::getIsolates(m_cfg);
+        ctx.nofolds = detail::getNoFolds(m_cfg);
+
+        if (currentPipeline() == Pipeline::NONE && ctx.avoids.empty()) {
             none();
             return;
         }
@@ -398,19 +425,15 @@ public:
         LOG_INFO("Online partitioning: building initial graph...");
         m_snapshot->buildGraph();
 
-        PassContext ctx;
-        ctx.min_graph_size = detail::getMinGraphSize(m_cfg);
-        ctx.keep_blocks = detail::getMinRepBlocks(m_cfg);
-        ctx.keep_block_size = detail::getMinRepBlockSize(m_cfg);
-        ctx.avoids = detail::getAvoids(m_cfg);
-        ctx.isolates = detail::getIsolates(m_cfg);
-        ctx.nofolds = detail::getNoFolds(m_cfg);
-
         m_snapshot->setCtx(ctx);
 
         switch (currentPipeline()) {
         case Pipeline::NONE:
-            break;  // unreachable
+            // Allow partitioning to merge everything into a single group
+            ctx.min_graph_size = 1;
+            m_snapshot->setCtx(ctx);
+            none_with_avoids();
+            break;
         case Pipeline::INIT:
             init();
             break;
