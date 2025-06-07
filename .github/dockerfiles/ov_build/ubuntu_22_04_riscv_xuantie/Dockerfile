@@ -13,9 +13,11 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt-get update && \
-    apt-get install software-properties-common && \
+    apt-get install software-properties-common wget && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
+    add-apt-repository --yes --no-update "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" && \
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     apt-get update && \
     # install compilers to build OpenVINO for RISC-V 64
     apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu && \
@@ -58,6 +60,10 @@ RUN apt-get update && \
         bc \
         zlib1g-dev \
         libexpat-dev \
+        # For clang-tidy validation
+        clang-format-18 \
+        clang-tidy-18 \
+        libomp-18-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
