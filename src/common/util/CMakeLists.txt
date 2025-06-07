@@ -17,7 +17,9 @@ if (WIN32)
 else()
     # Remove windows specific files
     file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.cpp)
     list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
 endif()
 
@@ -44,6 +46,8 @@ target_link_libraries(${TARGET_NAME}
            $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
 
 if (WIN32)
+    set(MONITORS_WIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/)
+    target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${MONITORS_WIN_INCLUDE_DIR}>)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 
