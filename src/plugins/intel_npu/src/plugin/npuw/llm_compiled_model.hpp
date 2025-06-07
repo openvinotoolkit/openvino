@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <thread>
 
 #include "compiled_model.hpp"
 
@@ -66,6 +67,5 @@ private:
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
 };
-
 }  // namespace npuw
 }  // namespace ov

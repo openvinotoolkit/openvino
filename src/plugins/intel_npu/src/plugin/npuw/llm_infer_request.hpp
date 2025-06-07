@@ -9,11 +9,16 @@
 #include "llm_compiled_model.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "base_sync_infer_request.hpp"
+
+#if (OV_THREAD == OV_THREAD_TBB)
+# include "tbb/task_group.h"
+#endif
 
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest final : public ov::ISyncInferRequest{
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -37,16 +42,36 @@ private:
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids);
+    struct KVCacheCopyTask {
+        size_t index;
+    #if (OV_THREAD == OV_THREAD_TBB)
+        std::shared_ptr<tbb::task_group> tg;
+    #else
+        // TODO: either use std::async or self thread pool
+        std::future<void> future;
+    #endif
+    };
+    std::list<KVCacheCopyTask> tasks_in_progress;
+    std::mutex m_copy_access;
 
+    void copy_kv_cache(std::string name = "", ov::SoPtr<ITensor> tensor = {});
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);
 
+    static constexpr auto all = std::numeric_limits<std::size_t>::max();
+    void on_prefill_request_prepare(std::size_t idx = all);  // before request started
+    void on_prefill_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor); // after .wait()
+
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
+
+    // copying kv-cache values happened in during with prefill inference
+    bool m_copy_cache_inline = true;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;

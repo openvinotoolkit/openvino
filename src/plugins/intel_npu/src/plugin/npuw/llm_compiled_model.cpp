@@ -593,6 +593,7 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     }
     return result;
 }
+
 }  // namespace
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -1069,6 +1070,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
-                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
+                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
+                          BIND(npuw::llm::prefill_kv_cache_opt, NPUW_LLM_PREFILL_KV_CACHE_OPT, get)});
 #undef BIND
 }

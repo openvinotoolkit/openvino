@@ -33,7 +33,11 @@ public:
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 
+
 class InferRequest;
+class IInferRequestListener;
+
+
 class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
     using GetPropertiesMap =
@@ -66,6 +70,7 @@ private:
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
+    friend class LLMInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);

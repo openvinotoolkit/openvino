@@ -94,16 +94,17 @@ void ov::npuw::UnfoldInferRequest::infer() {
         bind_global_params(idx, m_subrequests[idx]);
         bind_global_results(idx, m_subrequests[idx]);
     };
-    auto wait_and_clear = [](RqPtrs& rqs) {
+    auto wait_and_clear = [&](RqPtrsIdx& rqs) {
         for (auto&& r : rqs) {
-            r->wait();
+            r.first->wait();
+            complete_subrequest(r.second);
         }
         rqs.clear();
     };
 
     if (do_async) {
         std::size_t past_repl_id = 0u;
-        RqPtrs previous_requests;
+        RqPtrsIdx previous_requests;
 
         prepare(0);
         for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
@@ -121,8 +122,9 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 wait_and_clear(previous_requests);
                 past_repl_id = this_repl_id;
             }
+            subscribe_subrequest(idx, [](std::exception_ptr) {});
             subr->start_async();
-            previous_requests.push_back(subr);
+            previous_requests.push_back({subr, idx});
             prepare(idx + 1);
         }
         wait_and_clear(previous_requests);
@@ -134,9 +136,11 @@ void ov::npuw::UnfoldInferRequest::infer() {
                 prepare(idx + 1);
                 continue;
             }
+            subscribe_subrequest(idx, [](std::exception_ptr) {});
             subr->start_async();
             prepare(idx + 1);
             subr->wait();
+            complete_subrequest(idx);
         }
     }  // (async)
 }
