@@ -68,7 +68,7 @@ void GatherND8LayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto gather = ov::test::utils::make_gather_nd8(param, indices_shape, indices_type, batch_dims);
+    auto gather = ov::test::utils::make_gather_nd8(param, indices_shape, indices_type, batch_dims, targetDevice);
 
     auto result = std::make_shared<ov::op::v0::Result>(gather);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "gatherND");

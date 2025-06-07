@@ -54,6 +54,7 @@ private:
         template <typename dataType>
         void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
         void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
+        int32_t HandleNegativeIndices(const int32_t* indices, size_t idx) const;
 
         size_t batchSize = 1lu;
         size_t dataSize = 1lu;
@@ -66,6 +67,9 @@ private:
         size_t idxBatchStride = 1lu;
         size_t dstBatchStride = 1lu;
         VectorDims srcShifts;
+
+        size_t batchDims = 0lu;
+        VectorDims srcDims;
 
         struct GatherNDContext {
             GatherNDExecutor* executor;
