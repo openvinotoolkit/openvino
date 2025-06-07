@@ -4,7 +4,7 @@
 
 #include "gather_uni_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -65,8 +65,8 @@ const unsigned jitGatherKernelBase::incVec[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 
 
 template <x64::cpu_isa_t isa>
 jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
-    : jitGatherKernelBase(jcp, x64::cpu_isa_traits<isa>::vlen, indicesTypeSize),
-      x64::jit_generator(jit_name()) {
+    : jitGatherKernelBase(jcp, x64::cpu_isa_traits_t<isa>::vlen, indicesTypeSize),
+      x64::jit_generator_t(jit_name()) {
     if (jcp.dataTypeSize == 2) {
         dataTypeShift = 1;
     } else if (jcp.dataTypeSize == 4) {
@@ -89,7 +89,7 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
 
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::create_ker() {
-    auto code = x64::jit_generator::create_kernel();
+    auto code = x64::jit_generator_t::create_kernel();
     if (code != dnnl::impl::status::success) {
         OPENVINO_THROW("Could not create Gather kernel. Error code: ", std::to_string(code));
     }
@@ -1088,7 +1088,7 @@ void jitUniGatherKernel<x64::avx512_core>::fillRestWorkMask(Vmask& kDstMask,
     jge(lKmov);
     Xbyak::Reg8 rShift(Xbyak::Operand::CL);
     mov(rShift, idxElPerVec);
-    sub(rShift, rWorkRest);
+    sub(Xbyak::Reg64(rShift.getIdx()), rWorkRest);
     shr(rOnes, rShift);
     L(lKmov);
     kmovw(kDstMask, rOnes);

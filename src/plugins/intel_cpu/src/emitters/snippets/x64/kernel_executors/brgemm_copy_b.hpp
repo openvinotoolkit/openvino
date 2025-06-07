@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <common/c_types_map.hpp>
@@ -166,7 +166,7 @@ private:
     size_t m_hash{SIZE_MAX};
 };
 
-struct BrgemmCopyBKernel : public RepackedInputKernel, public dnnl::impl::cpu::x64::jit_generator {
+struct BrgemmCopyBKernel : public RepackedInputKernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(BrgemmCopyBKernel)
     struct call_args {
         const void* src = nullptr;
