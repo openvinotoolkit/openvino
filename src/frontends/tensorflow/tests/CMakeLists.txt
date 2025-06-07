@@ -25,9 +25,9 @@ ov_add_test_target(
         EXCLUDED_SOURCE_PATHS ${EXCLUDED_TESTS}
         DEPENDENCIES ${TF_TESTS_DEPENDENCIES}
         LINK_LIBRARIES
-            gtest_main_manifest 
-            frontend_shared_test_classes 
-            openvino_tensorflow_frontend 
+            gtest_main_manifest
+            frontend_shared_test_classes
+            openvino_tensorflow_frontend
             openvino_tensorflow_common
         ADD_CLANG_FORMAT
         LABELS
@@ -80,6 +80,8 @@ else()
 endif()
 
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_fe_standalone_build_test)
