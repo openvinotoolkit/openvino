@@ -41,6 +41,8 @@ class CfgManager():
             fullCfg = Template.getTemplate(tmplName).generateBrokenCompTemplate(self.readJsonTmpl("broken_compilation.json"), self.cfg["template"])
         elif tmplName == "bm_cc":
             fullCfg = Template.getTemplate(tmplName).generateFullConfig(self.readJsonTmpl("benchmark_crosscheck.json"), self.cfg["template"])
+        elif tmplName == "table":
+            fullCfg = Template.getTemplate(tmplName).generateFullConfig(self.readJsonTmpl("benchmark_crosscheck.json"), self.cfg["template"])
         else:
             raise Exception(
                 "Unknown template '{}'".format(tmplName)

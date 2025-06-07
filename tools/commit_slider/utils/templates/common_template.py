@@ -62,5 +62,9 @@ class Template(ABC):
         elif tmplName == 'bm_cc':
             from utils.templates.benchmark_cross_check import BenchmarkCrossCheckTemplate
             return BenchmarkCrossCheckTemplate
+        elif tmplName == 'table':
+            raise Exception("table template")
+            from utils.templates.benchmark_cross_check import BenchmarkCrossCheckTemplate
+            return BenchmarkCrossCheckTemplate
         else:
             return Template
