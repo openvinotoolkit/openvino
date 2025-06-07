@@ -89,25 +89,24 @@ constexpr bool use_ov_dynamic_cast() {
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
 /// Type*/shared_ptr<Type>
 template <typename Type, typename Value>
-typename std::enable_if<
-    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
-                        bool>::value,
-    bool>::type
-is_type(Value value) {
+std::enable_if_t<
+    std::is_convertible_v<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
+                          bool>,
+    bool>
+is_type(const Value& value) {
     return value && value->get_type_info().is_castable(Type::get_type_info_static());
 }
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to any of the specified types
 template <typename... Types, typename Value>
-bool is_type_any_of(Value&& value) {
-    return (is_type<Types>(std::forward<Value>(value)) || ...);
+bool is_type_any_of(const Value& value) {
+    return (is_type<Types>(value) || ...);
 }
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
 template <typename Type, typename Value>
-typename std::enable_if<std::is_convertible<decltype(static_cast<Type*>(std::declval<Value>())), Type*>::value,
-                        Type*>::type
-as_type(Value value) {
+std::enable_if_t<std::is_convertible_v<decltype(static_cast<Type*>(std::declval<Value>())), Type*>, Type*> as_type(
+    Value value) {
     if constexpr (use_ov_dynamic_cast<Type>())
         return is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
     else
