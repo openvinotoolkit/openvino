@@ -19,7 +19,11 @@ public:
     OPENVINO_RTTI("GemmCPUBlocking", "", BrgemmBlocking)
 
 private:
-    size_t get_default_k_blk(size_t k) const override;
+    std::tuple<size_t, size_t, size_t> get_blocking_params(
+        const ov::snippets::lowered::ExpressionPtr& gemm_expr) const override;
+    static size_t get_default_m_blk();
+    static size_t get_default_n_blk();
+    static size_t get_default_k_blk();
 };
 
 }  // namespace ov::intel_cpu::pass

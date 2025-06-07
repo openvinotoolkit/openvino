@@ -34,15 +34,8 @@ void jit_gemm_emitter::validate_arguments(const std::vector<size_t>& in, const s
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
 }
 
-void jit_gemm_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                      const std::vector<size_t>& out,
-                                      const std::vector<size_t>& pool_vec_idxs,
-                                      const std::vector<size_t>& pool_gpr_idxs) const {
-    validate_arguments(in, out);
-    emit_impl(in, out);
-}
-
 void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    validate_arguments(in, out);
     // todo: use optimized reg spill after CVS-162498
     std::unordered_set<size_t> exclude = {};
     store_context(exclude);

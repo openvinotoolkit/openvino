@@ -27,10 +27,6 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
-    void emit_code_impl(const std::vector<size_t>& in_idxs,
-                        const std::vector<size_t>& out_idxs,
-                        const std::vector<size_t>& pool_vec_idxs = {},
-                        const std::vector<size_t>& pool_gpr_idxs = {}) const override;
 
     const uintptr_t get_execute_function_ptr() const;
     const uintptr_t get_compiled_kernel_ptr() const;

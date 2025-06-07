@@ -34,8 +34,7 @@ void GemmCPU::custom_constructor_validate_and_infer_types(const std::vector<size
     INTERNAL_OP_SCOPE(GemmCPU_constructor_validate_and_infer_types);
     const auto& element_type_0 = get_input_element_type(0);
     const auto& element_type_1 = get_input_element_type(1);
-    validate_element_type(element_type_0);
-    validate_element_type(element_type_1);
+    validate_element_type(element_type_0, element_type_1);
     const std::vector<ov::PartialShape> planar_input_shapes{
         snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
         snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b)};
@@ -47,16 +46,16 @@ void GemmCPU::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(GemmCPU_validate_and_infer_types);
     const auto& element_type_0 = get_input_element_type(0);
     const auto& element_type_1 = get_input_element_type(1);
-    validate_element_type(element_type_0);
-    validate_element_type(element_type_1);
+    validate_element_type(element_type_0, element_type_1);
     const auto planar_input_shapes = get_planar_input_shapes({input(0), input(1)});
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 }
 
-void GemmCPU::validate_element_type(const ov::element::Type& element_type) {
-    OPENVINO_ASSERT(one_of(element_type, element::f32),
-                    "GemmCPU doesn't support element type" + element_type.get_type_name());
+void GemmCPU::validate_element_type(const ov::element::Type& type_0, const ov::element::Type& type_1) {
+    OPENVINO_ASSERT(
+        everyone_is(type_0, type_1, element::f32),
+        "GemmCPU doesn't support element type in0:" + type_0.get_type_name() + " in1:" + type_1.get_type_name());
 }
 
 std::shared_ptr<Node> GemmCPU::clone_with_new_inputs(const OutputVector& new_args) const {
