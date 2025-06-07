@@ -4412,7 +4412,7 @@ TEST(scatter_nd_update_gpu, dynamic) {
     });
 
     set_values(input2, {
-        0.f, 1.f, 1.f, 2.f, 2.f, 2.f
+        0.f, 0.f, 1.f, 1.f, 0.f, 1.f
     });
 
     set_values(input3, {
