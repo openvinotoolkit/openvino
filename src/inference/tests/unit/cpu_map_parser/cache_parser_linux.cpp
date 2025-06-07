@@ -1570,6 +1570,28 @@ LinuxCpuMapTestCase cache_1sockets_4cores_1 = {
     },
     {},
 };
+LinuxCpuMapTestCase cache_1sockets_4cores_2 = {
+    4,
+    1,
+    1,
+    4,
+    {{4, 4, 0, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 1, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 1, -1},
+    },
+    {
+        {{"0"}, {"0-1"}, {""}},
+        {{"1"}, {"0-1"}, {""}},
+        {{"2"}, {"2-3"}, {""}},
+        {{"3"}, {"2-3"}, {""}},
+    },
+    {
+        {"0-3"},
+    },
+};
 LinuxCpuMapTestCase cache_VM_cache_0 = {
     0,
     0,
@@ -1621,6 +1643,7 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_6cores_hyperthreading,
                                          cache_1sockets_4cores,
                                          cache_1sockets_4cores_1,
+                                         cache_1sockets_4cores_2,
                                          cache_VM_cache_0));
 
 TEST_P(LinuxGetCpuMapFromCoresTests, LinuxCore) {}
