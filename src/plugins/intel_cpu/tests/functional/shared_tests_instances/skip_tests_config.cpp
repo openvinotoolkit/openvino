@@ -608,7 +608,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_FullyConnected_EnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MLP.*bf16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_.*MLP.*bf16.*)");
         retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
     }
     if (!ov::test::snippets::is_fp16_supported_by_brgemm()) {

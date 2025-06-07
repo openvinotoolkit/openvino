@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/mlp.hpp"
+#include "snippets/mlp_seq.hpp"
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 
