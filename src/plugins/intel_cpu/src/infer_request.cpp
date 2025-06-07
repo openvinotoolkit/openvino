@@ -655,8 +655,8 @@ void SyncInferRequest::sub_streams_infer() {
 
     if (!requests.empty()) {
         for (const auto& output : outputs) {
-            auto tensor = requests[0]->get_tensor(output);
-            set_tensor(output, tensor);
+            auto tensor = get_tensor(output);
+            requests[0]->set_tensor(output, tensor);
         }
         for (size_t i = 0; i < requests_num; i++) {
             for (auto& input : inputs) {
