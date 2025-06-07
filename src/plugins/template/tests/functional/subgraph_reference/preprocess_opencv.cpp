@@ -15,6 +15,7 @@
 #    include "functional_test_utils/skip_tests_config.hpp"
 #    include "openvino/core/preprocess/pre_post_process.hpp"
 #    include "openvino/op/add.hpp"
+#    include "openvino/op/constant.hpp"
 #    include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 using namespace ov;
