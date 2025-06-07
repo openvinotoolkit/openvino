@@ -89,6 +89,7 @@ OP_CONVERTER(translate_erf);
 OP_CONVERTER(translate_erfc);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
+OP_CONVERTER(translate_extend);
 OP_CONVERTER(translate_exp);
 OP_CONVERTER(translate_expm1);
 OP_CONVERTER(translate_eye);
@@ -501,6 +502,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::exp_", op::inplace_op<op::translate_exp>},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
+        {"aten::extend", op::translate_extend},
         {"aten::expm1", op::translate_expm1},
         {"aten::eye", op::translate_eye},
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
