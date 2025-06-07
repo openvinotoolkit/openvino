@@ -26,7 +26,6 @@ public:
     IDevice::Uuid GetDeviceUuid(const std::string& specifiedDeviceName) const;
     ov::device::LUID GetDeviceLUID(const std::string& specifiedDeviceName) const;
     const std::vector<std::string>& GetSupportedConfigKeys() const;
-    const std::vector<std::string> GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
     std::string GetDeviceArchitecture(const std::string& specifiedDeviceName) const;
@@ -48,11 +47,6 @@ private:
     const ov::SoPtr<IEngineBackend> _backend;
     std::vector<std::string> _supportedMetrics;
     std::vector<std::string> _supportedConfigKeys;
-    const std::vector<std::string> _optimizationCapabilities = {
-        ov::device::capability::FP16,
-        ov::device::capability::INT8,
-        ov::device::capability::EXPORT_IMPORT,
-    };
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
     const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{1u, 10u, 1u};
