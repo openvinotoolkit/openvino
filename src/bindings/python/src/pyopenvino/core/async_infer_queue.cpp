@@ -357,8 +357,8 @@ void regclass_AsyncInferQueue(py::module m) {
             return self.m_user_ids;
         },
         R"(
-        :return: List of all passed userdata. List is filled with `None` if the data wasn't passed yet.
-        :rtype: List[Any]
+        :return: list of all passed userdata. list is filled with `None` if the data wasn't passed yet.
+        :rtype: list[Any]
     )");
 
     cls.def("__repr__", [](const AsyncInferQueue& self) {

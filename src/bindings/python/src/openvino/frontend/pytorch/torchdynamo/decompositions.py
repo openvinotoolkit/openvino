@@ -121,7 +121,7 @@ def get_inf_decomposition_list():
 
 
 def get_export_decomposition_list():
-    # List of decompositions from torch._decomp.core_aten_decompositions
+    # list of decompositions from torch._decomp.core_aten_decompositions
     # removed _backward ops and ops supported without decomposition
     decomp = [
         torch.ops.aten.addcdiv,
@@ -299,7 +299,7 @@ def get_export_decomposition_list():
 
 
 def ops_to_not_decompose():
-    # List of operations that shouldn't be decomposed
+    # list of operations that shouldn't be decomposed
     return [
         torch.ops.aten.col2im.default,
         torch.ops.aten.linear.default,
