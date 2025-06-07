@@ -3,6 +3,15 @@ FROM openvinogithubactions.azurecr.io/quayio/pypa/manylinux_2_28
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
+RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+
 RUN yum groupinstall -y "Development Tools" && \
     yum install -y wget bzip2 gcc-c++ libmpc-devel mpfr-devel gmp-devel cmake ccache ninja-build make tbb-devel ocl-icd-devel opencl-headers lld
 
@@ -18,3 +27,8 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 # To make python3 and pip binaries accessible
 ENV PATH="/opt/python/cp311-cp311/bin:$SCCACHE_HOME:$PATH"
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}
