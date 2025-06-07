@@ -53,7 +53,7 @@ private:
     template <typename T>
     struct Executor;
 
-    QKVProjectionNode::Config m_config;
+    QKVProjectionNode::Config m_config = {};
 };
 
 }  // namespace node
