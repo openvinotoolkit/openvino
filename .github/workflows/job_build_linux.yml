@@ -98,6 +98,8 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
+      # POETRY_VIRTUALENVS_CREATE: false
+      
     steps:
       - name: Clone OpenVINO (with trace)
         if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
@@ -160,38 +162,34 @@ jobs:
       #
       # Dependencies
       #
+      
+      - name: Configure poetry
+        uses: ./openvino/.github/actions/install_poetry
 
-      - name: Install python dependencies
+      - name: Install Test dependencies
         run: |
-          # For Python API: build and wheel packaging
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-
-          # For running ONNX frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
-
-          # For running TensorFlow frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
-
-          # For running TensorFlow Lite frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
-
-          # For running Paddle frontend unit tests
-          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+          poetry env info
+          poetry install --with build,onnx,tensorflow,paddle # required for test model generation
+        working-directory: ${{ env.OPENVINO_REPO }}
 
       #
       # Build
       #
-
-      - name: CMake configure - OpenVINO
-        run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
-        env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
-
+      
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
+      - name: CMake configure - OpenVINO
+        run: |
+          eval $(poetry env activate -C ${{ env.OPENVINO_REPO }})
+          eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
+        env:
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: |
+          eval $(poetry env activate -C ${{ env.OPENVINO_REPO }})
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -214,11 +212,13 @@ jobs:
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
             mkdir -p $PY_BUILD_DIR
           
-            python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
-          
-            $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+            python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")          
             
-            CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
+            poetry env use $python_exec_path
+            $(poetry env activate)
+            poetry install --only build
+            
+            CMAKE_OPTIONS="-DPython3_EXECUTABLE=$(poetry env info --executable) -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
               echo "Adding ARM specific CMake options"
               CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
@@ -229,6 +229,7 @@ jobs:
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
           done
+        working-directory: ${{ env.OPENVINO_REPO }}
         env:
           OS: ${{ inputs.os }}
 
@@ -249,21 +250,19 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
+          eval $(poetry env activate)
           # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
-          [[ "${OS}" == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
-          $python_exec -m pip install -U pip
-          $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package
+        working-directory: ${{ env.OPENVINO_REPO }}
 
       - name: Cmake & Build - OpenVINO Contrib
         if: ${{ inputs.build-contrib }}
@@ -302,6 +301,7 @@ jobs:
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
+          eval $(poetry env activate)
           cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
