@@ -145,7 +145,7 @@ details::OptionValue::~OptionValue() = default;
 // OptionsDesc
 //
 
-details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) const {
+details::OptionConcept OptionsDesc::get(std::string_view key, OptionMode mode) const {//// key: NPU_STORE_LOGGER_LOG
     auto log = Logger::global().clone("OptionsDesc");
 
     std::string searchKey{key};
