@@ -345,4 +345,22 @@ TEST_F(TypePropSparseFillEmptyRowsTest, out_of_bounds_column_index) {
                     HasSubstr("Sparse tensor index out of bounds: column 4 is outside the valid range [0, 3]"));
 }
 
+TEST_F(TypePropSparseFillEmptyRowsTest, string_values_input) {
+    const auto values = std::make_shared<op::v0::Parameter>(element::string, PartialShape{3});
+    const auto dense_shape = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto indices = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{3, 2});
+    const auto default_value = std::make_shared<op::v0::Parameter>(element::string, PartialShape{});
+
+    const auto op = make_op(values, dense_shape, indices, default_value);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(op->get_output_element_type(1), element::string);
+    EXPECT_EQ(op->get_output_element_type(2), element::boolean);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension::dynamic()}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{Dimension::dynamic()}));
+}
+
 }  // namespace ov::test
