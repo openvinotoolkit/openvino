@@ -258,6 +258,54 @@ __XETLA_API T xetla_exp(T src, Sat sat = {}) {
     return cm_exp(T(src * log2e), Sat::value);
 }
 
+/// @brief Calculate exponent value for each element of the input vector, the base is e.
+/// @tparam T element type of the input and return vectors.
+/// @tparam SZ size of the input and returned vectors.
+/// @param src the input vector.
+/// @param sat enables/disables the saturation (off by default). Possible
+/// values: saturation_on/saturation_off.
+/// @return vector of component-wise exponent elements.
+template <class T, int SZ, typename Sat = xetla_saturation_off_tag>
+__XETLA_API xetla_vector<T, SZ> xetla_exp_precise(
+        xetla_vector<T, SZ> src, Sat sat = {}) {
+    static_assert((std::is_same<remove_const_t<T>, float>::value)
+                    || (std::is_same<remove_const_t<T>, fp16>::value),
+            "Only support fp32 and fp16");
+    constexpr float log2e = 1.44269502162933349609375f;
+    constexpr float ln2 = 0.693145751953125f;
+    constexpr float coeff = -0.000001428606765330187045037746429443359375f;
+    
+    xetla_vector<float, SZ> temp = src * log2e;
+    xetla_vector<float, SZ> rounded = cm_rndz<float, SZ>(temp);
+    temp = src + rounded * -ln2;
+    temp += rounded * coeff; 
+    temp *= log2e;
+    return cm_exp<SZ>(rounded, Sat::value) * cm_exp<SZ>(temp, Sat::value);
+}
+
+/// @brief Calculate exponent value of a scalar, the base is e.
+/// @tparam T element type of the input and return a scalar.
+/// @param src the scalar value.
+/// @param sat enables/disables the saturation (off by default). Possible
+/// values: saturation_on/saturation_off.
+/// @return exponent value.
+template <class T, typename Sat = xetla_saturation_off_tag>
+__XETLA_API T xetla_exp_precise(T src, Sat sat = {}) {
+    static_assert((std::is_same<remove_const_t<T>, float>::value)
+                    || (std::is_same<remove_const_t<T>, fp16>::value),
+            "Only support fp32 and fp16");
+    constexpr float log2e = 1.44269502162933349609375f;
+    constexpr float ln2 = 0.693145751953125f;
+    constexpr float coeff = -0.000001428606765330187045037746429443359375f;
+    
+    float temp = src * log2e;
+    float rounded = cm_rndz<float>(temp);
+    temp = src + rounded * -ln2;
+    temp += rounded * coeff; 
+    temp *= log2e;
+    return cm_exp(rounded, Sat::value) * cm_exp(temp, Sat::value);
+}
+
 /// @brief Calculate exponent value for each element of the input vector, the base is 2.
 /// @tparam T element type of the input and return vectors.
 /// @tparam SZ size of the input and returned vectors.
@@ -483,6 +531,41 @@ __XETLA_API T xetla_sigmoid(T src) {
     T exp = xetla_exp<T>(-src);
     T ret = 1.f / (exp + 1.f);
     return (src <= -10) ? 0 : ret;
+}
+
+/// @brief Calculate sigmoid value for each element of the input vector.
+/// @tparam T element type of the input and return vectors.
+/// @tparam SZ size of the input and returned vectors.
+/// @param src the input vector.
+/// @return vector of sigmoid of component-wise elements.
+template <typename T, int SZ>
+__XETLA_API xetla_vector<T, SZ> xetla_sigmoid_precise(xetla_vector<T, SZ> src) {
+    static_assert((std::is_same<remove_const_t<T>, float>::value)
+                    || (std::is_same<remove_const_t<T>, fp16>::value),
+            "Only support fp32 and fp16");
+    xetla_mask<SZ> mask_gt = src > 105.f;
+    xetla_mask<SZ> mask_lt = src < -105.f;
+    xetla_vector<float, SZ> exp = xetla_exp_precise<float, SZ>(-src);
+    xetla_vector<float, SZ> ret_sub = 1.f / (exp + 1.f);
+    ret_sub.xetla_merge(1, mask_gt);
+    ret_sub.xetla_merge(0, mask_lt);
+    return ret_sub;
+}
+
+/// @brief Calculate sigmoid of a scalar.
+/// @tparam T element type of the input and return a scalar.
+/// @param src the scalar value.
+/// @return sigmoid value.
+template <typename T>
+__XETLA_API T xetla_sigmoid_precise(T src) {
+    static_assert((std::is_same<remove_const_t<T>, float>::value)
+                    || (std::is_same<remove_const_t<T>, fp16>::value),
+            "Only support fp32 and fp16");
+    float exp = xetla_exp_precise<float>(-src);
+    float ret = 1.f / (exp + 1.f);
+    float val = src > 105.f ? 1 : val;
+    val = src < -105.f ? 0 : val;
+    return val;
 }
 
 /// Add two unsigned integer vectors, return the result and in-place update the carry.
