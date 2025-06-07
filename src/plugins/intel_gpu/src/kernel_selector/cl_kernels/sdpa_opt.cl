@@ -1306,7 +1306,7 @@ KERNEL(sdpa_opt)(
 #if IS_CAUSAL
                     // casual mask: valid only if m >= n
 #if defined(IS_PAGED_ATTENTION) && SLIDING_WINDOW_SIZE != 0
-                    if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i >= target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
+                    if ((seq_len + i <= target_seq_idx + sglid) && (target_seq_idx + sglid < SLIDING_WINDOW_SIZE || seq_len + i > target_seq_idx + sglid - SLIDING_WINDOW_SIZE)) {
 #else
                     if (seq_len + i <= target_seq_idx + sglid) {
 #endif
