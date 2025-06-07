@@ -146,7 +146,7 @@ void Snapshot::buildGraph() {
                 m_graph->link(gr_parent->getHandle(), nh);
             }
         }  // for(inputs)
-    }      // for(get_ordered_ops)
+    }  // for(get_ordered_ops)
 
     LOG_DEBUG("Initial number of groups: " << graphSize());
     LOG_INFO("DONE.");
