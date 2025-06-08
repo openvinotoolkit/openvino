@@ -29,6 +29,7 @@ public:
     BrgemmAMXKernelConfig(const element::Type& in0_dtype,
                           const element::Type& in1_dtype,
                           const element::Type& out_dtype,
+                          dnnl_dim_t wei_K_blk,
                           dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                           const dnnl_post_ops& post_ops);
     BrgemmAMXKernelConfig() = delete;
@@ -37,8 +38,8 @@ public:
         return std::make_unique<BrgemmAMXKernelConfig>(*this);
     }
 
-    [[nodiscard]] dnnl_dim_t get_inner_K_blk() const {
-        return m_static_params->inner_k_blk;
+    [[nodiscard]] dnnl_dim_t get_wei_K_blk() const {
+        return m_static_params->wei_K_blk;
     }
     [[nodiscard]] dnnl_dim_t get_vnni_factor() const {
         return m_static_params->vnni_factor;
@@ -51,10 +52,11 @@ private:
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
                      const element::Type& out_dtype,
+                     dnnl_dim_t wei_K_blk,
                      dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                      const dnnl_post_ops& post_ops);
 
-        const dnnl_dim_t inner_k_blk{0};
+        const dnnl_dim_t wei_K_blk{0};
         const dnnl_dim_t vnni_factor{0};
 
         bool operator==(const StaticParams& rhs) const;
@@ -65,7 +67,7 @@ private:
         [[nodiscard]] std::string to_string() const override;
 #endif
     private:
-        static size_t compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor);
+        static size_t compute_hash(dnnl_dim_t wei_K_blk, dnnl_dim_t vnni_factor);
     };
 
     [[nodiscard]] std::shared_ptr<StaticBaseParams> get_static_params() const override {

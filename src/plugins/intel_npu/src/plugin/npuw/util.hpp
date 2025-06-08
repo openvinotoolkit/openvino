@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
