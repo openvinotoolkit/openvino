@@ -52,7 +52,7 @@ def get_repo_data(repo_dir: str | Path) -> dict:
     trigger_repo_url = f"{os.getenv('GITHUB_SERVER_URL')}/{os.getenv('GITHUB_REPOSITORY')}"
     is_trigger_repo = repo_url == trigger_repo_url
 
-    branch = os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
+    branch = os.getenv('TRIGGER_REPO_BRANCH') or os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
     target_branch = os.getenv('GITHUB_BASE_REF') if is_trigger_repo else None
     revision = os.getenv('TRIGGER_REPO_SHA') if is_trigger_repo else repo.head.commit.hexsha
     target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
@@ -80,11 +80,32 @@ def parse_ov_version(header_file: str | Path) -> str:
     return f"{major}.{minor}.{patch}"
 
 
+def parse_version_from_toml(toml_file: str | Path) -> str:
+    with open(toml_file, "r", encoding="utf-8") as file:
+        toml = file.read()
+    version_pattern = r'(^\s*\[project\][^\[]*?^\s*version\s*=\s*["\'])(.*)(["\']\s*)'
+    match = re.search(version_pattern, toml, flags=re.M)
+    if not match:
+        raise ValueError("Version not found in TOML file")
+    return match.group(2)
+
+
+def update_pyproject_toml(toml_file: str | Path, replacements: dict = None):
+    with open(toml_file, "r", encoding="utf-8") as file:
+        content = file.read()
+
+    for pattern, new_string in replacements.items():
+        content = re.sub(pattern, new_string, content, flags=re.M)
+
+    with open(toml_file, "w", encoding="utf-8") as file:
+        file.write(content)
+
+
 def generate_manifest(repos: list, product_type: str, event_type: str, build_type: str, target_arch: str) -> Manifest:
     manifest = Manifest()
     component_name = None
     repositories = []
-    ov_version = None
+    version = None
     trigger_repo = None
 
     for repo_dir in repos:
@@ -92,23 +113,35 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
         repositories.append(repo)
         if repo.name == 'openvino':
             version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
-            ov_version = parse_ov_version(version_file)
+            version = parse_ov_version(version_file)
+        elif repo.name in ('openvino_tokenizers', 'openvino.genai'):
+            version_file = Path(repo_dir) / 'pyproject.toml'
+            version = parse_version_from_toml(version_file)
+            
         if repo.trigger:
             trigger_repo = repo
             component_name = repo.name
+            pyproject_file = version_file
 
     custom_branch_name = f'-{trigger_repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
-    product_version = f"{ov_version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
+    product_version = f'{version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}'
 
     merge_queue_target_branch = next(iter(re.findall(f'^gh-readonly-queue/(.*)/', trigger_repo.branch)), None)
     target_branch = merge_queue_target_branch or trigger_repo.target_branch or trigger_repo.branch
     is_release_branch = re.match('^releases/.+$', target_branch)
     ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}' if not is_release_branch else ''
-    wheel_product_version = f'{ov_version}.{ci_build_dev_tag}' if not is_release_branch else ov_version
+    wheel_product_version = f'{version}.{ci_build_dev_tag}' if not is_release_branch else version
 
     set_github_output('CI_BUILD_NUMBER', product_version, 'GITHUB_ENV')
     set_github_output('CI_BUILD_DEV_TAG', ci_build_dev_tag, 'GITHUB_ENV')
+
+    if ci_build_dev_tag:
+        replacements = {
+            # update extension version (2025.0.0.0 -> 2025.0.0.0.dev001)
+            r'(^\s*\[project\][^\[]*?^\s*version\s*=\s*["\'])(.*)(["\']\s*)': r'\1\2' + f'.{ci_build_dev_tag}' + r'\3'
+        }
+        update_pyproject_toml(pyproject_file, replacements)
 
     component = Component(name=component_name, version=product_version, product_type=product_type,
                           target_arch=target_arch, build_type=build_type, build_event=event_type,

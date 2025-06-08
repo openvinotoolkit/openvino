@@ -3,17 +3,18 @@
 //
 #include "executor_pa_common.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <cfloat>
 #include <cmath>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "utils/plain_tensor.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::Extensions::Cpu {
 
@@ -27,8 +28,8 @@ using namespace dnnl::impl::cpu::x64;
 void TileConfig::reset(int palette, int _startRow, const std::vector<std::pair<int, int>>& _rows_columnsBytes) {
     palette_id = palette;
     startRow = _startRow;
-    uint64_t i;
-    for (i = 0; i < 14; i++) {
+    uint64_t i = 0;
+    for (; i < 14; i++) {
         reserved[i] = 0;
     }
     for (i = 0; i < _rows_columnsBytes.size(); i++) {

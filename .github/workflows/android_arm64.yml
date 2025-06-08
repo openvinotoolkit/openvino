@@ -1,6 +1,11 @@
 name: Android ARM64 with vcpkg
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -164,6 +169,7 @@ jobs:
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_FLATBUFFERS=ON \
+            -DENABLE_FASTER_BUILD=ON \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
             -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TARGET_TRIPLET }} \

@@ -15,10 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f16
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-};
-
 const std::vector<bool> addPrecisionPreserved = { true, false };
 
 const std::vector<std::pair<ov::PartialShape, ov::Shape>> inputShapes = {
@@ -34,7 +30,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution, tensor quantization
     {
@@ -44,7 +40,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution, tensor quantization
     {
@@ -54,7 +50,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         true,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution, per-channel quantization
     {
@@ -87,7 +83,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),
@@ -107,7 +102,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 3, 8, 1, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution without reshape, per channel quantization with different values
     {
@@ -130,7 +125,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 
@@ -138,7 +133,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
          ::testing::Values(ov::test::utils::DEVICE_GPU),
-         ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
@@ -159,7 +153,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         { 255ul, ov::Shape { 3, 8, 1, 1 }, { -127.f }, { 127.f }, { -127.f }, { 127.f } },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
     // group convolution without reshape, per channel quantization with different values
     {
@@ -182,7 +176,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
         },
         false,
         "Convolution",
-        "U8"
+        "u8"
     },
 };
 
@@ -190,7 +184,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
          ::testing::Values(ov::test::utils::DEVICE_GPU),
-         ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
@@ -232,7 +225,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),

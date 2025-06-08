@@ -199,7 +199,7 @@ struct OVMockAllocator {
         return impl->allocate(b, a);
     }
 
-    void deallocate(void* ptr, size_t b, size_t a) {
+    void deallocate(void* ptr, size_t b, size_t a) noexcept {
         impl->deallocate(ptr, b, a);
     }
     bool is_equal(const OVMockAllocator& other) const {

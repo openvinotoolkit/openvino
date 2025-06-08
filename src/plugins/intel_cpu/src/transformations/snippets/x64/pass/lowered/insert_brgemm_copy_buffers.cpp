@@ -4,11 +4,24 @@
 
 #include "insert_brgemm_copy_buffers.hpp"
 
+#include <cstddef>
+#include <iterator>
+#include <memory>
+
 #include "expressions/brgemm_copy_b_buffer_expressions.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 using namespace ov::intel_cpu::brgemm_utils::repacking;
 using namespace ov::snippets::lowered;
@@ -31,7 +44,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
             BufferExpressionPtr buffer_expr = nullptr;
             if (out_port == 0) {
                 buffer_expr = factory->build<RepackedWeightsBufferExpression>(buffer_op, {copy_b_out});
-            } else if (out_port == 1 && with_compensations(copy_b->get_type())) {
+            } else if (out_port == 1 && copy_b->get_config().with_compensations()) {
                 buffer_expr = factory->build<CompensationsBufferExpression>(buffer_op, {copy_b_out});
             } else {
                 OPENVINO_THROW("BrgemmCopyB has incorrect output ports");
@@ -55,7 +68,8 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(M_blk), "M blk cannot be dynamic!");
 
         const auto vnni_factor = brgemm_utils::compute_vnni_factor(src_dt);
-        const auto inner_k_blk = brgemm_utils::repacking::compute_inner_k_block(src_dt);
+        OPENVINO_ASSERT(vnni_factor > 0, "vnni_factor cannot be zero!");
+        const auto inner_k_blk = ov::as_type_ptr<BrgemmCPU>(brgemm_expr->get_node())->get_config().wei_k_blk();
         OPENVINO_ASSERT(inner_k_blk > 0, "inner_k_blk cannot be zero!");
         const auto tile_scratch_size = BrgemmCPU::SCRATCH_BYTE_SIZE;
         const auto current_scratch_size = scratch_expr->get_byte_size();
@@ -81,7 +95,8 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& brgemm_expr = *expr_it;
         if (const auto brgemm_cpu = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node())) {
-            if (brgemm_utils::with_repacking(brgemm_cpu->get_type())) {
+            const auto& brgemm_config = brgemm_cpu->get_config();
+            if (brgemm_config.with_wei_repacking()) {
                 // BrgemmCopyB might be extracted from the body
                 if (const auto copy_b_expr = brgemm_utils::repacking::get_copy_b_expr(brgemm_expr)) {
                     auto insertion_it = std::next(linear_ir.find_before(expr_it, copy_b_expr));
@@ -92,7 +107,7 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
                 }
             }
 
-            if (brgemm_utils::with_amx(brgemm_cpu->get_type())) {
+            if (brgemm_config.is_amx()) {
                 const auto& scratch_expr = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(
                     brgemm_expr->get_input_port_connector(2)->get_source().get_expr());
                 update_scratchpad(brgemm_expr, scratch_expr);

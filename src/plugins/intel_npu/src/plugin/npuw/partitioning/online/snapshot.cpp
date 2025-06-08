@@ -33,9 +33,10 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
         return false;
     }
     if (ov::is_type<ov::opset1::Convert>(node)) {
-        if (node->inputs().size() != 1) {
-            // can occur only in Const->Convert->Node case
-            return false;
+        if (node->output(0).get_target_inputs().size() > 1) {
+            // If a Convert node has > 1 reader(s), it is not a simple straight Weight
+            // convert we could discard from the partitioning
+            return true;
         }
         auto target_input = node->get_input_source_output(0);
         auto parent_node = target_input.get_node()->shared_from_this();
@@ -386,15 +387,23 @@ void Snapshot::markInternalCompute() {
             prod_cons_tags.insert(group_cons->specialTags());
         }
         if (prod_cons_tags.size() == 1 && !(*prod_cons_tags.begin()).empty()) {
-            NPUW_ASSERT(!group->srcNodes().empty());
-            auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
-            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
-            NPUW_ASSERT(!group_prod->isolatedTag().empty());
-            if (group_prod->isolatedTag() !=
+            Group::GPtr group_with_tag = nullptr;
+            if (group->srcNodes().empty()) {
+                NPUW_ASSERT(!group->dstNodes().empty());
+                auto cons_nh = group->dstNodes().at(0);  // all tags are the same, pick either group
+                group_with_tag = m_graph->meta(cons_nh).get<Group::GPtr>();
+            } else {
+                auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
+                group_with_tag = m_graph->meta(prod_nh).get<Group::GPtr>();
+            }
+
+            NPUW_ASSERT(group_with_tag);
+            NPUW_ASSERT(!group_with_tag->isolatedTag().empty());
+            if (group_with_tag->isolatedTag() !=
                 "compute") {  // this pass only operates with "compute" tag set by COMPUTE pipeline
                 continue;
             }
-            group->isolate(group_prod->isolatedTag());
+            group->isolate(group_with_tag->isolatedTag());
         }
     }
 
@@ -433,14 +442,18 @@ void Snapshot::earlyAvoids() {
         }
         case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-            if (avoid.pattern != "RMSNorm") {
-                LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm as a pattern (don't confuse with operations)."
-                         << " Avoid pattern " << avoid.pattern << " is skipped!");
+            if (avoid.pattern != "RMSNorm" && avoid.pattern != "SinCos") {
+                LOG_WARN(
+                    "OPENVINO_NPUW_AVOID only supports RMSNorm and SinCos as patterns (don't confuse with operations)."
+                    << " Avoid pattern " << avoid.pattern << " is skipped!");
                 break;
             }
             handle_patterns = true;
-
-            rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
+            if (avoid.pattern == "RMSNorm") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
+            } else if (avoid.pattern == "SinCos") {
+                rewr.add_matcher<ov::npuw::patterns::avoid::SinCos>(shared_from_this(), avoid.device);
+            }
             break;
         }
         }
@@ -488,6 +501,8 @@ void Snapshot::earlyRegroup() {
     }
             HNDL(RMSNorm);
             HNDL(RMSNorm2);
+            HNDL(RMSNorm3);
+            HNDL(RMSNorm4);
             HNDL(DQMatMulCWu4);
             HNDL(DQMatMulGQu4);
             HNDL(DQMatMulCWi4);
@@ -1056,8 +1071,8 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     for (const auto& gptr : gptrs) {
         if (!gptr->avoidedTargets().empty() || gptr->isNoFold()) {
             auto block_layer_size = (*(gptrs.begin()))->size();
-            LOG_DEBUG("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
-                                                     << " layers - has AVOIDs");
+            LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
+                                                    << " layers - has AVOIDs");
             // Special case - keep it
             for (const auto& g : gptrs) {
                 g->freeze();
@@ -1070,7 +1085,7 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
     if (gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) {
-        LOG_DEBUG("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
+        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
         for (const auto& g : gptrs) {
             g->freeze();
         }
@@ -1081,8 +1096,7 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     for (const auto& gptr : gptrs) {
         gptr->setRepeated(nullptr);
     }
-
-    LOG_DEBUG("Repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers is dropped.");
+    LOG_VERB("Repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers is dropped.");
 
     return false;
 }

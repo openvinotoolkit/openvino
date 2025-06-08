@@ -303,7 +303,7 @@ void prepare_quantization::handle_quantize_node(program& p, quantize_node& quant
         return;
 
     auto l = quantize_node.get_primitive()->levels;
-    if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt() && !quantize_node.is_constant()) {
+    if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt()) {
         prepare_scale_shift_opt(p, quantize_node);
     }
 }
@@ -528,7 +528,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         reorder_bfyx_to_fbyx(decompression_scale_idx);
     }
 
-    if (!fc_prim->decompression_zero_point.empty()) {
+    if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
         if (need_reorder(decompression_zp_idx)) {
             reorder_bfyx_to_fbyx(decompression_zp_idx);

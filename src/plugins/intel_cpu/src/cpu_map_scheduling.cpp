@@ -4,8 +4,10 @@
 
 #include "cpu_map_scheduling.hpp"
 
-#include "cpu_streams_calculation.hpp"
-#include "openvino/core/parallel.hpp"
+#include <string>
+#include <vector>
+
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
@@ -75,7 +77,7 @@ bool check_cpu_pinning(const bool cpu_pinning,
                        const bool cpu_pinning_changed,
                        const bool cpu_reservation,
                        const std::vector<std::vector<int>>& streams_info_table) {
-    bool result_value;
+    bool result_value = false;
 
 #if defined(__APPLE__)
     result_value = false;
