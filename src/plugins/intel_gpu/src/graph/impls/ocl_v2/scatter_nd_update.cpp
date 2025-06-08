@@ -4,13 +4,13 @@
 #include "scatter_nd_update.hpp"
 
 #include "common_utils/jitter.hpp"
-#include "scatter_nd_update_inst.h"
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
+#include "kernel_selector/jitter.h"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 #include "primitive_inst.h"
 #include "primitive_ocl_base.hpp"
+#include "scatter_nd_update_inst.h"
 #include "utils/kernel_generator.hpp"
-#include "kernel_selector/jitter.h"
 
 namespace ov::intel_gpu::ocl {
 
@@ -51,7 +51,7 @@ static std::string GetInputBlockND(kernel_selector::DataTensor& input, size_t sh
     for (int32_t idx = static_cast<int32_t>(rank) - 1; idx >= 0; --idx) {
         block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
 
-        size_t dim_offset = idx < 2 ? idx : (kernel_selector::DataTensor::max_rank() - dims.size()) + idx; // convert to idx in default planar format
+        size_t dim_offset = idx < 2 ? idx : (kernel_selector::DataTensor::max_rank() - dims.size()) + idx;  // convert to idx in default planar format
         block_nd_s[idx] = "(" + kernel_selector::toCodeString(dims[idx], input_offset + dim_offset) + "*" + block_nd_s[idx + 1] + ")";
     }
 
@@ -77,8 +77,8 @@ protected:
         auto jit = KernelGenerator::get_jit_constants(params);
 
         if (params.has_fused_primitives()) {
-            FusedOpsConfiguration conf = { "", GetDefaultOrder(params.get_output_layout(0).get_rank()), "val", params.get_input_layout(0).data_type };
-            jit.add(make_fused_ops_jit_constants(params, { conf }));
+            FusedOpsConfiguration conf = {"", GetDefaultOrder(params.get_output_layout(0).get_rank()), "val", params.get_input_layout(0).data_type};
+            jit.add(make_fused_ops_jit_constants(params, {conf}));
         }
 
         return jit;
@@ -138,8 +138,8 @@ public:
         jit.add(make_jit_constant("INDICES_RANK", desc->indices_rank));
 
         if (params.has_fused_primitives()) {
-            FusedOpsConfiguration conf = { "", GetDefaultOrder(params.get_output_layout(0).get_rank()), "val", params.get_input_layout(0).data_type };
-            jit.add(make_fused_ops_jit_constants(params, { conf }));
+            FusedOpsConfiguration conf = {"", GetDefaultOrder(params.get_output_layout(0).get_rank()), "val", params.get_input_layout(0).data_type};
+            jit.add(make_fused_ops_jit_constants(params, {conf}));
         }
 
         auto inputs = get_multi_data_tensor(params);
@@ -150,8 +150,8 @@ public:
 
             size_t last_idx = desc->indices_rank - 1;
             size_t dim_offset = last_idx < 2 ? last_idx : last_idx + kernel_selector::DataTensor::max_rank() - desc->indices_rank;
-            auto indices_last_dim = kernel_selector::toCodeString(dims[last_idx],
-                                        dim_offset + (inputs[0].is_dynamic() ? kernel_selector::DataTensor::max_rank() : 0));
+            auto indices_last_dim =
+                kernel_selector::toCodeString(dims[last_idx], dim_offset + (inputs[0].is_dynamic() ? kernel_selector::DataTensor::max_rank() : 0));
             jit.add(make_jit_constant("INDICES_LAST_DIM", indices_last_dim));
         } else {
             jit.add(make_jit_constant("INDICES_LAST_DIM", params.get_input_layout(1).get_dims()[desc->indices_rank - 1]));
@@ -179,15 +179,9 @@ protected:
         size_t input0_rank = inputs[0].LogicalDims().size();
         size_t input2_rank = inputs[2].LogicalDims().size();
 
-        jit.add(make_jit_constant(
-            "INPUT0_BLOCK_ND",
-            GetInputBlockND(inputs[0], inputs[0].get_dynamic_shape_offset(), input0_rank)));
-        jit.add(make_jit_constant(
-            "INPUT1_BLOCK_ND",
-            GetInputBlockND(inputs[1], inputs[1].get_dynamic_shape_offset(), desc->indices_rank - 1)));
-        jit.add(make_jit_constant(
-            "INPUT2_BLOCK_ND",
-            GetInputBlockND(inputs[2], inputs[2].get_dynamic_shape_offset(), input2_rank)));
+        jit.add(make_jit_constant("INPUT0_BLOCK_ND", GetInputBlockND(inputs[0], inputs[0].get_dynamic_shape_offset(), input0_rank)));
+        jit.add(make_jit_constant("INPUT1_BLOCK_ND", GetInputBlockND(inputs[1], inputs[1].get_dynamic_shape_offset(), desc->indices_rank - 1)));
+        jit.add(make_jit_constant("INPUT2_BLOCK_ND", GetInputBlockND(inputs[2], inputs[2].get_dynamic_shape_offset(), input2_rank)));
 
         return jit;
     }
@@ -233,20 +227,14 @@ protected:
             auto& wgs = kd.params.workGroups;
             wgs.global = {x * y, z * w, f * b};
             if (updates_l.get_rank() == 4) {
-                wgs.global = { x, y, f * b };
-                dims_by_gws = {{ChannelName::X},
-                               {ChannelName::Y},
-                               {ChannelName::BATCH, ChannelName::FEATURE}};
+                wgs.global = {x, y, f * b};
+                dims_by_gws = {{ChannelName::X}, {ChannelName::Y}, {ChannelName::BATCH, ChannelName::FEATURE}};
             } else if (updates_l.get_rank() == 5) {
-                wgs.global = { x, y * z, f * b };
-                dims_by_gws = {{ChannelName::X},
-                               {ChannelName::Y, ChannelName::Z},
-                               {ChannelName::BATCH, ChannelName::FEATURE}};
+                wgs.global = {x, y * z, f * b};
+                dims_by_gws = {{ChannelName::X}, {ChannelName::Y, ChannelName::Z}, {ChannelName::BATCH, ChannelName::FEATURE}};
             } else if (updates_l.get_rank() == 6) {
-                wgs.global = { x * y, z * w, f * b };
-                dims_by_gws = {{ChannelName::X, ChannelName::Y},
-                               {ChannelName::Z, ChannelName::W},
-                               {ChannelName::BATCH, ChannelName::FEATURE}};
+                wgs.global = {x * y, z * w, f * b};
+                dims_by_gws = {{ChannelName::X, ChannelName::Y}, {ChannelName::Z, ChannelName::W}, {ChannelName::BATCH, ChannelName::FEATURE}};
             } else {
                 OPENVINO_THROW("Unknown rank: rank=", updates_l.get_rank());
             }
@@ -296,7 +284,7 @@ bool support_opt_kernel(const kernel_impl_params& params) {
 }
 
 std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
-    std::vector<size_t> stages_order = { KernelsTypes::COPY_ALL };
+    std::vector<size_t> stages_order = {KernelsTypes::COPY_ALL};
     auto params = instance.get_impl_params();
     stages_order.emplace_back(support_opt_kernel(*params) ? KernelsTypes::UPDATE_OPT : KernelsTypes::UPDATE_REF);
     return stages_order;
