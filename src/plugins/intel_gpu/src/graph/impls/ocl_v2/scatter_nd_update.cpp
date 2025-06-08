@@ -134,7 +134,7 @@ public:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        auto desc = params.typed_desc<scatter_nd_update>();
+        const auto& desc = params.typed_desc<scatter_nd_update>();
         jit.add(make_jit_constant("INDICES_RANK", desc->indices_rank));
 
         if (params.has_fused_primitives()) {
@@ -174,7 +174,7 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = ScatterNDUpdateBase::get_jit_constants(params);
-        auto desc = params.typed_desc<scatter_nd_update>();
+        const auto& desc = params.typed_desc<scatter_nd_update>();
         auto inputs = get_multi_data_tensor(params);
         size_t input0_rank = inputs[0].LogicalDims().size();
         size_t input2_rank = inputs[2].LogicalDims().size();
@@ -188,7 +188,7 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            auto desc = params.typed_desc<scatter_nd_update>();
+            const auto& desc = params.typed_desc<scatter_nd_update>();
             auto indices_dims = params.get_input_layout(1).get_dims();
 
             size_t indices_set_size = 1;
@@ -248,9 +248,9 @@ bool support_opt_kernel(const kernel_impl_params& params) {
     ov::Shape input_shape = params.get_input_layout(0).get_shape();
     ov::Shape indices_shape = params.get_input_layout(1).get_shape();
     ov::Shape updates_shape = params.get_input_layout(2).get_shape();
-    auto desc = params.typed_desc<scatter_nd_update>();
+    const auto& desc = params.typed_desc<scatter_nd_update>();
     auto indices_rank = desc->indices_rank;
-    auto last_indices_dim = indices_shape[indices_rank - 1];
+    const auto& last_indices_dim = indices_shape[indices_rank - 1];
 
     ov::Shape expected_update_shape;
     if (indices_shape.size() == 1 && indices_shape[0] == 1) {
