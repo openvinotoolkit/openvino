@@ -30,12 +30,14 @@ OutputVector translate_uniform(const NodeContext& context) {
     auto dtype = input.get_element_type();
 
     // Create min and max constants with the same dtype as input
-    auto min_val = context.mark_node(ov::op::v0::Constant::create(dtype, ov::Shape{}, {from}));
-    auto max_val = context.mark_node(ov::op::v0::Constant::create(dtype, ov::Shape{}, {to}));
+    auto min_val =
+        context.mark_node(ov::op::v0::Constant::create(dtype, ov::Shape{}, {from}));
+    auto max_val =
+        context.mark_node(ov::op::v0::Constant::create(dtype, ov::Shape{}, {to}));
 
     // Create RandomUniform node
-    auto random_uniform =
-        context.mark_node(std::make_shared<ov::op::v8::RandomUniform>(shape, min_val, max_val, dtype, 0, 0));
+    auto random_uniform = context.mark_node(std::make_shared<ov::op::v8::RandomUniform>(
+        shape, min_val, max_val, dtype, 0, 0));
 
     return {random_uniform};
 }
