@@ -11,13 +11,16 @@
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla.h"
 #include "kai/ukernels/matmul/matmul_clamp_f32_f32_f32p/kai_matmul_clamp_f32_f32_f32p_interface.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
 struct GemmCopyBKernelKaiConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     GemmCopyBKernelKaiConfig() = default;
-    GemmCopyBKernelKaiConfig(const size_t N, const size_t K, const size_t n_blk_size);
+    GemmCopyBKernelKaiConfig(const size_t n_blk_size);
+
+    GemmCopyBKernelKaiConfig& operator=(GemmCopyBKernelKaiConfig other);
 
     bool operator==(const GemmCopyBKernelKaiConfig& rhs) const;
     bool operator!=(const GemmCopyBKernelKaiConfig& rhs) const {
@@ -34,7 +37,7 @@ public:
     virtual std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K, size_t n_blk_size);
+    void update(size_t N, size_t K);
 
     size_t hash() const override {
         return m_hash;
@@ -55,31 +58,14 @@ private:
 
     size_t m_N = 0;
     size_t m_K = 0;
-    size_t m_n_blk_size = 0;
+    const size_t m_n_blk_size = 0;
     size_t m_hash{SIZE_MAX};
 };
 
-class GemmCopyBKaiKernelExecutor
-    : public snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel> {
-public:
-    GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config);
-
-    void update_kernel(const GemmCopyBKernelKaiConfig& config,
-                       std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const override final;
-
-    // Function that will be called in runtime to execute the kernel
-    static void execute(const GemmCopyBKaiKernelExecutor* executor, void* in0, void* out0);
-    void* get_bias_mem() const {
-        return biasMem.data();
-    }
-    mutable size_t biasSize = 0;
-
-private:
-    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
-                       GemmCopyBKernelKaiConfig& config) const override;
-
-    mutable std::vector<uint8_t> biasMem;
+struct GemmCopyBCompiledKernel {
+    std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel> copy_b_ukernel =
+        std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+    std::shared_ptr<std::vector<uint8_t>> bias_buffer = std::make_shared<std::vector<uint8_t>>();
 
     static constexpr kai_matmul_clamp_f32_f32_f32p_ukernel ukernel{
         kai_get_m_step_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
@@ -92,6 +78,22 @@ private:
         kai_get_dst_offset_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_get_dst_size_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla,
         kai_run_matmul_clamp_f32_f32_f32p8x1biasf32_6x8x4_neon_mla};
+};
+
+class GemmCopyBKaiKernelExecutor : public snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBCompiledKernel> {
+public:
+    GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config);
+
+    void update_kernel(const GemmCopyBKernelKaiConfig& config,
+                       std::shared_ptr<GemmCopyBCompiledKernel>& kernel) const override final;
+
+    // Function that will be called in runtime to execute the kernel
+    static void execute(const GemmCopyBKaiKernelExecutor* executor, void* in0, void* out0);
+
+private:
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                       GemmCopyBKernelKaiConfig& config) const override;
 };
 
 }  // namespace ov::intel_cpu::aarch64

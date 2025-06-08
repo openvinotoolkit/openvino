@@ -11,11 +11,14 @@
 
 namespace ov::intel_cpu::aarch64 {
 
-GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t N, const size_t K, const size_t n_blk_size)
-    : m_N(N),
-      m_K(K),
-      m_n_blk_size(n_blk_size),
-      m_hash(compute_hash()) {}
+GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t n_blk_size) : m_n_blk_size(n_blk_size) {}
+
+GemmCopyBKernelKaiConfig& GemmCopyBKernelKaiConfig::operator=(GemmCopyBKernelKaiConfig other) {
+    m_N = other.get_N();
+    m_K = other.get_K();
+    m_hash = compute_hash();
+    return *this;
+}
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
     return !ov::snippets::utils::one_of(0ul, m_N, m_K, m_n_blk_size);
@@ -32,17 +35,15 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
 #    undef PRINT
 #endif
 
-void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t n_blk_size) {
+void GemmCopyBKernelKaiConfig::update(size_t N, size_t K) {
     // If one of the dims is zero, it means that GemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (ov::snippets::utils::one_of(0ul, N, K, n_blk_size)) {
+    if (ov::snippets::utils::one_of(0ul, N, K)) {
         m_N = 0;
         m_K = 0;
-        m_n_blk_size = 0;
     } else {
         m_N = N;
         m_K = K;
-        m_n_blk_size = n_blk_size;
     }
     m_hash = compute_hash();
 }
@@ -56,12 +57,14 @@ size_t GemmCopyBKernelKaiConfig::compute_hash() const {
 }
 
 GemmCopyBKaiKernelExecutor::GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
+    : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBCompiledKernel>(std::move(config)) {}
 
 void GemmCopyBKaiKernelExecutor::update_kernel(const GemmCopyBKernelKaiConfig& config,
-                                               std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const {
+                                               std::shared_ptr<GemmCopyBCompiledKernel>& kernel) const {
     if (kernel == nullptr) {
-        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+        kernel = std::make_shared<GemmCopyBCompiledKernel>();
+        const auto& n_blk_size = config.get_n_blk_size();
+        kernel->bias_buffer->resize(n_blk_size * sizeof(float), 0);
     }
 }
 
@@ -71,19 +74,9 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
     const auto& in0_shape = snippets::utils::get_planar_vdims(expr->get_input_port(0));
     int64_t N = *in0_shape.rbegin();
     int64_t K = *++in0_shape.rbegin();
-    const auto& child_gemms = intel_cpu::aarch64::gemm_utils::repacking::get_gemm_exprs(expr);
-    OV_CPU_JIT_EMITTER_ASSERT(!child_gemms.empty(), "Can not get gemm after gemm_copyb.");
-    size_t n_blk_size = 0;
-    for (size_t i = 0; i < child_gemms.size(); i++) {
-        const auto& gemm_in_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemms[i]->get_input_port(1));
-        const auto& current_block = *gemm_in_subtensor.rbegin();
-        if (n_blk_size < current_block) {
-            n_blk_size = current_block;
-        }
-    }
-    config.update(N, K, n_blk_size);
-    biasMem.resize(N * sizeof(float), 0);
+    config.update(N, K);
 }
+
 // regarding K*N(32*516),
 // for K*N(32*512) part and nb(n_block-64), repack each nb block(32*64) to nb(K+1)8nb.
 // for K*N(32*4) part, roundup to (32+1)*8.
@@ -91,16 +84,17 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     // rhs is input, rhs_packed is output
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
+    const auto& kernel = executor->get_kernel();
+    const auto& ukernel = kernel->copy_b_ukernel;
     const auto K = config.get_K();                     // K
     const auto N = config.get_N();                     // N-rhs_stride
     const auto& n_blk_size = config.get_n_blk_size();  // n_blk
-    const size_t nr = ukernel.get_nr();
-    const size_t kr = ukernel.get_kr();
-    const size_t sr = ukernel.get_sr();
+    const size_t nr = ukernel->get_nr();
+    const size_t kr = ukernel->get_kr();
+    const size_t sr = ukernel->get_sr();
     size_t n_blocks = ov::snippets::utils::div_up(N, n_blk_size);
     size_t dst_offset = 0;
     const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_blk_size, K);
-    int8_t* bias = static_cast<int8_t*>(executor->get_bias_mem());
     for (size_t n_block = 0; n_block < n_blocks; n_block++) {
         size_t n_start = n_block * n_blk_size;
         size_t n_end = std::min(n_start + n_blk_size, N);
@@ -113,12 +107,12 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
                                                          K,
                                                          nr,
                                                          kr,
-                                                         sr,                              // Packing arguments
-                                                         N * sizeof(float),               // RHS stride
-                                                         src_ptr,                         // RHS
-                                                         bias + n_start * sizeof(float),  // Bias
-                                                         nullptr,                         // Scale
-                                                         dst_ptr,                         // RHS packed
+                                                         sr,                           // Packing arguments
+                                                         N * sizeof(float),            // RHS stride
+                                                         src_ptr,                      // RHS
+                                                         kernel->bias_buffer->data(),  // bias
+                                                         nullptr,                      // Scale
+                                                         dst_ptr,                      // RHS packed
                                                          0,
                                                          nullptr);
     }
