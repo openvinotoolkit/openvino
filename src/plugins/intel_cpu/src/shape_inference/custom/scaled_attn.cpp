@@ -56,7 +56,7 @@ public:
             auto weight_dims_size = weight_dims.size();
             if (attn_mask_dims_size >= 2 && attn_mask_dims_size <= weight_dims_size) {
                 auto check_broadcast = [](const size_t& target, const size_t& to) -> bool {
-                    return (target != to && target != 1) ? false : true;
+                    return target == to || target == 1;
                 };
                 weight_dims[3] = present_v_dims[length_index];
                 auto offset = weight_dims_size - attn_mask_dims_size;
@@ -112,7 +112,7 @@ private:
 ShapeInferPtr SDPAShapeInferFactory::makeShapeInfer() const {
     if (auto sdpa = ov::as_type_ptr<const ScaledDotProductAttentionWithKVCache>(m_op)) {
         const auto& config = sdpa->get_config();
-        if (config.output_BLHxS == false) {
+        if (!config.output_BLHxS) {
             return std::make_shared<SDPAShapeInfer>(config);
         }
     }

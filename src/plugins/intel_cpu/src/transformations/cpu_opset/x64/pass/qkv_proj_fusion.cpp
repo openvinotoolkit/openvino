@@ -83,7 +83,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                 // maybe a ShapeOf
                 continue;
             }
-            if (mm->get_transpose_a() != false || mm->get_transpose_b() != true) {
+            if (mm->get_transpose_a() || !mm->get_transpose_b()) {
                 return false;
             }
 

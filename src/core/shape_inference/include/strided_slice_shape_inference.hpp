@@ -203,6 +203,10 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
 
                     out.push_back(std::move(sliced_dim));
                 } else {
+                    NODE_SHAPE_INFER_CHECK(op,
+                                           input_shapes,
+                                           start && stop,
+                                           "Requires both start and stop to be defined for static shapes.");
                     auto sliced_dim = slice::make_dim(input_dim, *start, *stop, stride);
                     out.push_back(std::move(sliced_dim));
                 }

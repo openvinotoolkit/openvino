@@ -15,6 +15,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
@@ -395,29 +396,51 @@ void Pooling::getSupportedDescriptors() {
             outputDataType = memory::data_type::f32;
         }
         // i8 layers supports only ndhwc and nhwc layouts
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            parentShape,
-            inputDataType,
-            inputRank == 3 ? memory::format_tag::nwc
-                           : (inputRank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            childShape,
-            outputDataType,
-            inputRank == 3 ? memory::format_tag::nwc
-                           : (inputRank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
+        auto [in_candidate, out_candidate] = [&]() {
+            std::shared_ptr<DnnlBlockedMemoryDesc> in_candidate;
+            std::shared_ptr<DnnlBlockedMemoryDesc> out_candidate;
+            if (inputRank == 3) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::nwc);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::nwc);
+            } else if (inputRank == 4) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::nhwc);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::nhwc);
+            } else {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::ndhwc);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::ndhwc);
+            }
+            return std::make_pair(in_candidate, out_candidate);
+        }();
         createDescriptor({in_candidate}, {out_candidate});
     } else if ((inputRank == 3 || inputRank == 4 || inputRank == 5) && parentShape.getDims()[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            parentShape,
-            inputDataType,
-            inputRank == 3 ? memory::format_tag::ncw
-                           : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            childShape,
-            outputDataType,
-            inputRank == 3 ? memory::format_tag::ncw
-                           : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
+        auto [in_candidate, out_candidate] = [&]() {
+            std::shared_ptr<DnnlBlockedMemoryDesc> in_candidate;
+            std::shared_ptr<DnnlBlockedMemoryDesc> out_candidate;
+            if (inputRank == 3) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::ncw);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::ncw);
+            } else if (inputRank == 4) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::nchw);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::nchw);
+            } else {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::ncdhw);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::ncdhw);
+            }
+            return std::make_pair(in_candidate, out_candidate);
+        }();
         createDescriptor({in_candidate}, {out_candidate});
     } else {
         if (!one_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
@@ -684,7 +707,8 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     }
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
-        std::vector<PortConfig> inConfs, outConfs;
+        std::vector<PortConfig> inConfs;
+        std::vector<PortConfig> outConfs;
         const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {

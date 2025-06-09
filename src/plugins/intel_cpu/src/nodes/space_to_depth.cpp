@@ -168,10 +168,10 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
         };
 
         supportedTypes.push_back(LayoutType::nspc);
-        if (canUseBlocked(8lu)) {
+        if (canUseBlocked(8LU)) {
             supportedTypes.push_back(LayoutType::nCsp8c);
         }
-        if (canUseBlocked(16lu)) {
+        if (canUseBlocked(16LU)) {
             supportedTypes.push_back(LayoutType::nCsp16c);
         }
     }
@@ -201,10 +201,15 @@ void SpaceToDepth::createPrimitive() {
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
-                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
-                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
-                                                                      : LayoutType::ncsp;
+    if (memoryDesc.hasLayoutType(LayoutType::nCsp16c)) {
+        attrs.layoutType = LayoutType::nCsp16c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nCsp8c)) {
+        attrs.layoutType = LayoutType::nCsp8c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nspc)) {
+        attrs.layoutType = LayoutType::nspc;
+    } else {
+        attrs.layoutType = LayoutType::ncsp;
+    }
 
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams()) {
@@ -275,7 +280,8 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
         };
 
     if (isBlocked) {
-        size_t orderShiftForBlocks, orderShiftForDims;
+        size_t orderShiftForBlocks = 0;
+        size_t orderShiftForDims = 0;
         if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = attrs.nSpatialDims + 2;
             orderShiftForDims = 1;

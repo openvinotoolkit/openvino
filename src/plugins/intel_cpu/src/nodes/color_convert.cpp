@@ -87,18 +87,18 @@ bool Converter::singlePlane() const {
 
 template <typename T>
 std::tuple<T, T, T> Converter::yuv_to_rgb(float y, float u, float v) {
-    auto c = y - 16.f;
-    auto d = u - 128.f;
-    auto e = v - 128.f;
+    auto c = y - 16.F;
+    auto d = u - 128.F;
+    auto e = v - 128.F;
     auto clip = [](float a) -> T {
         if (std::is_integral<T>()) {
-            return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
+            return static_cast<T>(std::min(std::max(std::round(a), 0.F), 255.F));
         }
-        return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
+        return static_cast<T>(std::min(std::max(a, 0.F), 255.F));
     };
-    auto r = clip(1.164f * c + 1.596f * e);
-    auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
-    auto b = clip(1.164f * c + 2.018f * d);
+    auto r = clip(1.164F * c + 1.596F * e);
+    auto g = clip(1.164F * c - 0.391F * d - 0.813F * e);
+    auto b = clip(1.164F * c + 2.018F * d);
     return std::make_tuple(r, g, b);
 }
 
@@ -292,7 +292,7 @@ void jit_uni_converter::store_tail(const variable<T*>& dst,
     sptr += step;
     store(sptr, c);
 
-    auto copy_size = size * static_cast<size_t>(3u);
+    auto copy_size = size * static_cast<size_t>(3U);
 
     copy<T>(ptr[dst], s.pointer(), copy_size);
 }
@@ -366,7 +366,9 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * width + (w / 2) * 2;
             auto u_val = static_cast<float>(uv_ptr[uv_index]);
             auto v_val = static_cast<float>(uv_ptr[uv_index + 1]);
-            T r, g, b;
+            T r;
+            T g;
+            T b;
             std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
@@ -439,7 +441,7 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
+    static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
 
     const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
@@ -697,7 +699,9 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * (width / 2) + w / 2;
             auto u_val = static_cast<float>(u_ptr[uv_index]);
             auto v_val = static_cast<float>(v_ptr[uv_index]);
-            T r, g, b;
+            T r;
+            T g;
+            T b;
             std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
@@ -774,7 +778,7 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
+    static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
 
     const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
@@ -989,7 +993,7 @@ const VectorDims& ColorConvert::Converter::inputDims(size_t idx) const {
 }
 
 bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    Algorithm alg;
+    Algorithm alg{};
     std::tie(alg, errorMessage) = getAlgorithmFor(op);
     return alg != Algorithm::Default;
 }
