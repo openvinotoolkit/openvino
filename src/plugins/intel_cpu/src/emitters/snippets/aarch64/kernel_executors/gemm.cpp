@@ -11,12 +11,14 @@
 namespace ov::intel_cpu::aarch64 {
 
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
-    : snippets::KernelExecutor<GemmKernelKaiConfig, kai_matmul_clamp_f32_f32_f32p_ukernel>(std::move(config)) {}
+    : snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernel>(std::move(config)) {}
 
 void GemmKaiKernelExecutor::update_kernel(const GemmKernelKaiConfig& config,
-                                          std::shared_ptr<kai_matmul_clamp_f32_f32_f32p_ukernel>& kernel) const {
+                                          std::shared_ptr<GemmCompiledKernel>& kernel) const {
     if (kernel == nullptr) {
-        kernel = std::make_shared<kai_matmul_clamp_f32_f32_f32p_ukernel>(ukernel);
+        // universal kernel could be used in any config and shape, as excuted peice by peice as binary call.
+        // config is passed as binary call parameters.
+        kernel = std::make_shared<GemmCompiledKernel>();
     }
 }
 
@@ -35,6 +37,8 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     // matmul for input1 and slices of repacked input2
     const auto& config = static_cast<const GemmKernelKaiConfig&>(executor->get_config());
+    const auto& kernel = executor->get_kernel();
+    const auto& ukernel = *kernel->gemm_ukernel;
     const auto& M = config.get_M();
     const auto& N = config.get_N();
     const auto& K = config.get_K();
