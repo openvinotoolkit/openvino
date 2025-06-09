@@ -94,6 +94,10 @@ public:
                                                             const std::vector<uint8_t>& network,
                                                             const intel_npu::Config& config) const final override;
 
+    bool get_supported_options(std::vector<char>& options) const;
+
+    bool is_option_supported(const std::string& option) const;
+
 private:
     std::shared_ptr<VCLApi> _vclApi;
     vcl_log_handle_t _logHandle = nullptr;
