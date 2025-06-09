@@ -1,9 +1,14 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifdef CPU_DEBUG_CAPS
+#include <algorithm>
+#include <cstddef>
+#include <iostream>
 
-#    include "node_dumper.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#ifdef CPU_DEBUG_CAPS
 
 #    include <regex>
 #    include <sstream>
@@ -11,6 +16,7 @@
 
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "node.h"
+#    include "node_dumper.h"
 #    include "utils/blob_dump.h"
 #    include "utils/debug_caps_config.h"
 
@@ -40,7 +46,7 @@ static bool shouldBeDumped(const NodePtr& node, const DebugCapsConfig& config, c
     if (auto it = dumpFilters.find(DebugCapsConfig::FILTER::BY_EXEC_ID);
         it != dumpFilters.end()) {  // filter by exec id configured
         std::stringstream ss(it->second);
-        int id;
+        int id = 0;
         bool matched = false;
 
         while (ss >> id) {
@@ -155,7 +161,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
 
         std::cout << "Dump inputs: " << dump_file << '\n';
 
-        auto& desc = prEdge->getMemory().getDesc();
+        const auto& desc = prEdge->getMemory().getDesc();
         if (desc.getPrecision() == ov::element::u1) {
             continue;
         }
@@ -192,7 +198,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
 
         std::cout << "Dump outputs:  " << dump_file << '\n';
 
-        auto& desc = childEdge->getMemory().getDesc();
+        const auto& desc = childEdge->getMemory().getDesc();
         if (desc.getPrecision() == ov::element::u1) {
             continue;
         }
