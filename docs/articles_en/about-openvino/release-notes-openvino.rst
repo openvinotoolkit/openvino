@@ -250,7 +250,7 @@ OpenVINO GenAI
   * `ov::Property` as arguments to the `ov_genai_llm_pipeline_create` function for the C API,
   * support for the SnapKV method for more accurate KV cache eviction, enabled by default when 
     KV cache eviction is used.
-  * preview support for `GGUF models <https://huggingface.co/models?library=gguf>`__.
+  * preview support for `(GGML Unified Format)GGUF models (GGML Unified Format) <https://huggingface.co/models?library=gguf>`__.
   
 
 Other Changes and Known Issues
