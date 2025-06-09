@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
 #include <utility>
 
 #include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace intel_cpu {

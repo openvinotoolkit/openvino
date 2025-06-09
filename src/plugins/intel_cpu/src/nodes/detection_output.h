@@ -4,8 +4,14 @@
 
 #pragma once
 
-#include "common/permute_kernel.h"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -69,15 +75,15 @@ private:
     int confInfoLen = 0;
     bool isSparsityWorthwhile = false;
 
-    inline void getActualPriorNum(const float* priorData, int* numPriorsActual, int n);
+    inline void getActualPriorNum(const float* priorData, int* numPriorsActual, int n) const;
 
-    inline void confReorderDense(const float* confData, const float* ARMConfData, float* reorderedConfData);
+    inline void confReorderDense(const float* confData, const float* ARMConfData, float* reorderedConfData) const;
 
     inline void confFilterCF(const float* pConf, int* pindices, int* pbuffer, int* detectionsData, const int& n);
 
     inline void confFilterMX(const float* confData,
                              const float* ARMConfData,
-                             float* reorderedConfData,
+                             const float* reorderedConfData,
                              int* indicesData,
                              int* indicesBufData,
                              int* detectionsData,
@@ -97,29 +103,37 @@ private:
                                                int* indicesBufData,
                                                int* detectionsData);
 
-    inline void decodeBBoxes(const float* prior_data,
-                             const float* loc_data,
-                             const float* variance_data,
-                             float* decoded_bboxes,
-                             float* decoded_bbox_sizes,
-                             int* num_priors_actual,
+    inline void decodeBBoxes(const float* priorData,
+                             const float* locData,
+                             const float* varianceData,
+                             float* decodedBboxes,
+                             float* decodedBboxSizes,
+                             const int* numPriorsActual,
                              int n,
                              const int& offs,
-                             const int& pr_size,
+                             const int& priorSize,
                              bool decodeType = true,
-                             const int* conf_info_h = nullptr,
-                             const int* conf_info_v = nullptr);  // decodeType is false after ARM
+                             const int* confInfoH = nullptr,
+                             const int* confInfoV = nullptr) const;  // decodeType is false after ARM
 
-    inline void NMSCF(int* indicesIn, int& detections, int* indicesOut, const float* bboxes, const float* boxSizes);
+    inline void NMSCF(const int* indicesIn,
+                      int& detections,
+                      int* indicesOut,
+                      const float* bboxes,
+                      const float* boxSizes) const;
 
-    inline void NMSMX(int* indicesIn, int* detections, int* indicesOut, const float* bboxes, const float* sizes);
+    inline void NMSMX(const int* indicesIn,
+                      int* detections,
+                      int* indicesOut,
+                      const float* bboxes,
+                      const float* sizes) const;
 
-    inline void topk(const int* indicesIn, int* indicesOut, const float* conf, int n, int k);
+    static inline void topk(const int* indicesIn, int* indicesOut, const float* conf, int n, int k);
 
-    inline void generateOutput(float* reorderedConfData,
-                               int* indicesData,
-                               int* detectionsData,
-                               float* decodedBboxesData,
+    inline void generateOutput(const float* reorderedConfData,
+                               const int* indicesData,
+                               const int* detectionsData,
+                               const float* decodedBboxesData,
                                float* dstData);
 
     std::vector<float> decodedBboxes;

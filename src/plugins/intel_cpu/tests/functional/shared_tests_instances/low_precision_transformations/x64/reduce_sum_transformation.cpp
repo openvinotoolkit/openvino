@@ -16,10 +16,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
-};
-
 const std::vector<LayerTestsDefinitions::ReduceSumTransformationParam> params = {
     {
         { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
@@ -94,7 +90,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ReduceSumTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 3, 10, 10 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ReduceSumTransformation::getTestCaseName);
 
