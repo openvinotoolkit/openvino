@@ -210,8 +210,11 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#else
-#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
 
@@ -234,6 +237,8 @@
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#else
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -252,7 +257,7 @@ namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
+bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
         return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
             return input.get_node()->get_type_info() == type;
@@ -268,13 +273,10 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
         if (!all_has_type(consumers, ov::op::v0::Convert::get_type_info_static())) {
             return false;
         }
-        for (const auto& consumer : consumers) {
+        return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
             const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
-            if (!all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static())) {
-                return false;
-            }
-        }
-        return true;
+            return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static());
+        });
     };
 
     if (all_has_type(consumers, ov::op::v1::Reshape::get_type_info_static())) {
@@ -621,7 +623,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(
         manager,
         [](const_node_ptr& node) -> bool {
-            return node->input_value(0).get_shape().size() <= 5lu &&
+            return node->input_value(0).get_shape().size() <= 5LU &&
                    node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
         },
         ov::pass::ConvertSpaceToDepth,
@@ -631,7 +633,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto& rank = node->input(0).get_partial_shape().rank().get_length();
-            return rank == 4lu || rank == 5lu;
+            return rank == 4LU || rank == 5LU;
         },
         ov::pass::ConvertBatchToSpace,
         ov::pass::ConvertSpaceToBatch);
@@ -766,7 +768,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     auto nmsCallback = []([[maybe_unused]] const_node_ptr& node) -> bool {
         // TODO: remove nmsCallback at all
         const bool isLegacyApi = false;
-        return isLegacyApi ? false : true;
+        return !isLegacyApi;
     };
 
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertNMS9ToNMSIEInternal);
@@ -1154,10 +1156,27 @@ void Transformations::MainSnippets() {
     size_t data_ptr_gpr_count = 23;
     // ARM doesn't even support MHA yet
     is_dynamic_mha_token_enabled = false;
-#else
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+#elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
+    auto supported_as_postop = [this](const std::shared_ptr<const ov::op::v0::MatMul>& matmul,
+                                      const std::shared_ptr<const ov::Node>& node) {
+        if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
+            return false;
+        }
+        // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
+        // Need to support precision conversion in BrgemmCopyB kernel.
+        if (matmul->get_input_element_type(1) == element::f32 &&
+            one_of(config.inferencePrecision, element::f16, element::bf16)) {
+            return false;
+        }
+        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(matmul->get_input_element_type(0));
+    };
+#else
+    size_t data_ptr_gpr_count = 0;
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
@@ -1170,7 +1189,8 @@ void Transformations::MainSnippets() {
                                                                      split_m_dimension,
                                                                      mha_token_enable_transpose_on_output,
                                                                      is_dynamic_mha_token_enabled,
-                                                                     mha_supported_transpose_ranks);
+                                                                     mha_supported_transpose_ranks,
+                                                                     supported_as_postop);
 
     ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
@@ -1179,8 +1199,6 @@ void Transformations::MainSnippets() {
         CPU_REGISTER_PASS_ARM64(snippetsManager, SnippetsMarkSkipped);
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
-        // TODO: enable MLP SEQ tokenization as a part of 163370
-        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMLPSeqSnippets);
     }
     CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
@@ -1189,17 +1207,17 @@ void Transformations::MainSnippets() {
     // To avoid performance degradations, we disable MHA tokenization into Subgraphs in LLMs'.
     // We consider the presence of `ScaledDotProductAttentionWithKVCache` ops
     // in the model as a sign that this model is LLM.
-    const auto is_LLM = ov::op::util::is_large_language_model(*model.get()) ||
+    const auto is_LLM = ov::op::util::is_large_language_model(*model) ||
                         ov::op::util::has_op_with_type<intel_cpu::ScaledDotProductAttentionWithKVCache>(model);
 
-    // CPU Plugin Subgraph supports f32, bf16, quantized and fp16(on avx_512_core_amx_fp16 target) BRGEMM
+    // CPU Plugin Subgraph supports f32, bf16, quantized and fp16 BRGEMM
     const auto is_infer_prc_supported_by_brgemm =
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
-         one_of(config.inferencePrecision, ov::element::f32, element::dynamic)) ||
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-         one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, element::dynamic)) ||
-        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-         one_of(config.inferencePrecision, ov::element::f16));
+        (one_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::brgemm_utils::is_fp32_supported()) ||
+        (one_of(config.inferencePrecision, ov::element::bf16, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::brgemm_utils::is_bf16_supported()) ||
+        (one_of(config.inferencePrecision, ov::element::f16, ov::element::f32, ov::element::dynamic) &&
+         ov::intel_cpu::brgemm_utils::is_fp16_supported());
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
     const bool isMHASupported = false;
@@ -1240,22 +1258,10 @@ void Transformations::MainSnippets() {
         if (matmul->get_transpose_a()) {
             return false;
         }
-        if (is_fp32) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
-        }
-        if (is_int8) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
-        }
-        if (is_bf16) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) ||
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
-        }
-        if (is_fp16) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
-        }
-        return false;
+        return (is_fp32 && ov::intel_cpu::brgemm_utils::is_fp32_supported()) ||
+               (is_bf16 && ov::intel_cpu::brgemm_utils::is_bf16_supported()) ||
+               (is_fp16 && ov::intel_cpu::brgemm_utils::is_fp16_supported()) ||
+               (is_int8 && ov::intel_cpu::brgemm_utils::is_i8_supported());
     };
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n,
                                                    const ov::PartialShape& shape) {
@@ -1427,6 +1433,12 @@ void Transformations::MainSnippets() {
                     return true;
                 if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
                     return true;
+                // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
+                // Need to support precision conversion in BrgemmCopyB kernel.
+                if (n->get_input_element_type(1) == element::f32 &&
+                    one_of(config.inferencePrecision, element::f16, element::bf16)) {
+                    return true;
+                }
                 return false;
             },
             snippets::pass::TokenizeMLPSeqSnippets);

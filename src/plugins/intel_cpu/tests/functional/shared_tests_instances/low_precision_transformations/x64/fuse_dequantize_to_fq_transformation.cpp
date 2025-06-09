@@ -15,7 +15,6 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // 1) Multiply
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ov::element::f32,
             { },
@@ -27,7 +26,6 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     },
     {
         {128, 3},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ov::element::f32,
             { },
@@ -40,7 +38,6 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // 1) Multiply by zero
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ov::element::f32,
             { },
@@ -53,7 +50,6 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // 1) Subtract + Multiply
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ov::element::f32,
             { },
@@ -66,7 +62,6 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // 1) Convert + Subtract + Multiply
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ov::element::f32,
             { },
@@ -79,7 +74,6 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // 1) Convert + Subtract + Multiply 2) Add
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ov::element::f32,
             { {128}, ov::element::f32 },
@@ -92,7 +86,6 @@ const std::vector<FuseDequantizeToFakeQuantizeTransformationTestValues> testValu
     // issue #40611 for FP32
     {
         {1, 3, 16, 16},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             { },
             { },
