@@ -110,6 +110,7 @@
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/constants_reduce.hpp"
+#include "transformations/common_optimizations/variadic_split_merge.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/convert_precision.hpp"
@@ -469,6 +470,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
+        manager.register_pass<ov::pass::ConstantFolding>();
+        manager.register_pass<ov::pass::VariadicSplitMerge>();
         manager.register_pass<ov::pass::CommonOptimizations>();
 
         ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
@@ -1182,8 +1185,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>();
-
-        manager.register_pass<ov::intel_gpu::ConvertStridedSlicesToVariadicSplit>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size, device_info.supports_immad);
