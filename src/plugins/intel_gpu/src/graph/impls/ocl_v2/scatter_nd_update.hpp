@@ -38,10 +38,8 @@ struct ScatterNDUpdate : public ImplementationManager {
         const auto& in1_layout = node.get_input_layout(1);  // indices
         const auto& in2_layout = node.get_input_layout(2);  // updates
         const auto& out_layout = node.get_output_layout(0);
-        if (!one_of(in0_layout.data_type, supported_inout_types) ||
-            !one_of(in1_layout.data_type, supported_indices_types) ||
-            !one_of(in2_layout.data_type, supported_inout_types) ||
-            !one_of(out_layout.data_type, supported_inout_types)) {
+        if (!one_of(in0_layout.data_type, supported_inout_types) || !one_of(in1_layout.data_type, supported_indices_types) ||
+            !one_of(in2_layout.data_type, supported_inout_types) || !one_of(out_layout.data_type, supported_inout_types)) {
             return false;
         }
 
