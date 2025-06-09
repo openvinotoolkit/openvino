@@ -23,21 +23,7 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
         this->lib = ov::util::load_shared_object(libpath.c_str());
 #endif
     } catch (const std::runtime_error& error) {
-        // OPENVINO_THROW(error.what());
-        try {
-            _logger.error("Failed to load npu_driver_compiler: %s", error.what());
-            _logger.debug("Try to load npu_mlir_compiler with VCL interface");
-            const std::string rollBackName = "npu_mlir_compiler";
-            auto libpath = ov::util::make_plugin_library_name({}, rollBackName);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
-            this->lib = ov::util::load_shared_object(libpath.c_str());
-#endif
-        } catch (const std::runtime_error& error) {
-            OPENVINO_THROW("Failed to load npu_mlir_compiler with VCL interface: ", error.what());
-        }
+        OPENVINO_THROW(error.what());
     }
 
     try {
@@ -113,7 +99,7 @@ VCLCompilerImpl::~VCLCompilerImpl() {
     if (_compilerHandle) {
         vcl_result_t ret = vclCompilerDestroy(_compilerHandle);
         if (ret != VCL_RESULT_SUCCESS) {
-            _logger.error("Failed to destroy VCL compiler: 0x", ret);
+            _logger.error("Failed to destroy VCL compiler: 0x%x", ret);
         }
     }
     if (_logHandle) {
@@ -143,13 +129,6 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     buildFlags += " ";
     buildFlags += intel_npu::driver_compiler_utils::serializeConfig(config, compilerVersion);
 
-    // vcl_allocator_t allocator; // Create own allocator to avoid copy
-    // allocator.allocate = intel_npu::driver_compiler_utils::allocateBlob;
-    // allocator.deallocate = intel_npu::driver_compiler_utils::deallocateBlob;
-    // vcl_executable_desc_t exeDesc = {serializedIR.second.get(), serializedIR.first, buildFlags.c_str(),
-    // buildFlags.size()}; uint8_t* blob = nullptr; uint64_t size = 0; ret =
-    // vclAllocatedExecutableCreate(_compilerHandle, exeDesc, &allocator, &blob, &size);
-
     vcl_executable_desc_t exeDesc = {serializedIR.second.get(),
                                      serializedIR.first,
                                      buildFlags.c_str(),
@@ -174,28 +153,8 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         OPENVINO_THROW("Failed to destroy VCL executable: 0x", ret);
     }
 
-    // TODO: Need to create networkdescription with right Metadata
+    // Use empty metadata as VCL does not support metadata extraction
     NetworkMetadata metadata;
-    // metadata.inputs = {IODescriptor{"input",
-    //                                 ov::element::f32,
-    //                                 {1, 3, 4, 5},
-    //                                 false,
-    //                                 false,
-    //                                 false,
-    //                                 {},
-    //                                 "input",
-    //                                 {"input"},
-    //                                 std::optional<ov::PartialShape>({1, 3, 4, 5})}};
-    // metadata.outputs = {IODescriptor{"output",
-    //                                  ov::element::f32,
-    //                                  {1, 3, 4, 5},
-    //                                  false,
-    //                                  false,
-    //                                  false,
-    //                                  {},
-    //                                  "output",
-    //                                  {"output"},
-    //                                  std::optional<ov::PartialShape>({1, 3, 4, 5})}};
 
     _logger.debug("VCLCompilerImpl compile end, blob size:%d", compiledNetwork.size());
     return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
@@ -203,6 +162,7 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
     _logger.debug("VCLCompilerImpl parse start");
+    // VCL does not support parse, return empty metadata
     return intel_npu::NetworkMetadata();
 }
 
@@ -241,7 +201,7 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
 
     std::vector<ze_profiling_layer_info> layerInfo(profOutput.size / sizeof(ze_profiling_layer_info));
     if (profOutput.size > 0) {
-        _logger.debug("VCL profiling output size: {}", profOutput.size);
+        _logger.debug("VCL profiling output size: %d", profOutput.size);
         std::memcpy(layerInfo.data(), profOutput.data, profOutput.size);
     }
 
@@ -262,8 +222,7 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
         OPENVINO_THROW("Failed to destroy VCL profiling handler: 0x", ret);
     }
 
-    return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
-    ;  // Return processed profiling info
+    return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);  // Return processed profiling info
 }
 
 uint32_t VCLCompilerImpl::get_version() const {
@@ -319,6 +278,55 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     _logger.info("For given model, there are %d supported layers", parsedSupportedLayers.size());
 
     return result;
+}
+
+bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
+    _logger.debug("VCLCompilerImpl get_supported_options start");
+    vcl_result_t ret = VCL_RESULT_SUCCESS;
+    // 1. get size of compiler supported options list
+    size_t str_size = 0;
+    try {
+        ret = vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size);
+    } catch (const std::runtime_error& e) {
+        _logger.error("Failed to get size of option list: %s", e.what());
+        return false;
+    }
+
+    if (ret != VCL_RESULT_SUCCESS) {
+        _logger.warning("Failed to get size of option list %x", ret);
+        return false;
+    }
+
+    if (str_size > 0) {
+        _logger.debug("VCLCompilerImpl - obtain list");
+        // 2. allocate buffer for it
+        options.resize(str_size);
+        // 3. populate char list
+        try {
+            ret = vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size);
+        } catch (const std::runtime_error& e) {
+            _logger.error("Failed to get content of option list: %s", e.what());
+            return false;
+        }
+
+        if (ret != VCL_RESULT_SUCCESS) {
+            _logger.debug("Failed to get content of option list 0x%x", ret);
+            return false;
+        }
+    }
+
+    _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
+    return false;
+}
+
+bool VCLCompilerImpl::is_option_supported(const std::string& option) const {
+    const char* optname_ch = option.c_str();
+    auto result = vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, nullptr);
+    if (result == VCL_RESULT_SUCCESS) {
+        return true;
+    }
+
+    return false;
 }
 
 }  // namespace intel_npu
