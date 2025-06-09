@@ -48,6 +48,8 @@ class TestBernoulli(PytorchLayerTest):
     @pytest.mark.parametrize("seed", [1, 50, 1234])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_bernoulli(self, input, input_type, out, seed, ie_device, precision, ir_version):
         if input_type == np.float64:
             pytest.skip("156027: Incorrect specification or reference for RandomUniform for fp64 output type")
