@@ -18,6 +18,8 @@ namespace NapiArg {
 const char* get_type_name(napi_valuetype type);
 }  // namespace NapiArg
 
+typedef ov::Output<ov::Node> OutputNode;
+
 std::string get_current_signature(const Napi::CallbackInfo& info);
 
 template <typename T>
@@ -47,7 +49,7 @@ template <>
 const char* get_attr_type<TensorWrap>();
 
 template <>
-const char* get_attr_type<Output<ov::Node>>();
+const char* get_attr_type<OutputNode>();
 
 template <>
 const char* get_attr_type<PartialShapeWrap>();
@@ -80,7 +82,7 @@ template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
-bool validate_value<Output<ov::Node>>(const Napi::Env& env, const Napi::Value& value);
+bool validate_value<OutputNode>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value);

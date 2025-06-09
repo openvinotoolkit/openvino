@@ -5,7 +5,7 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const { testModels, isModelAvailable } = require('../utils.js');
+const { testModels, isModelAvailable, getAddModel } = require('../utils.js');
 
 describe('ov.Model tests', () => {
   const { testModelFP32 } = testModels;
@@ -195,19 +195,18 @@ describe('ov.Model tests', () => {
   describe('Model.reshape()', () => {
     const pShape = '[?,?,1..3,224]';
 
-    it('should have ctor (PartialShape, variablesShapes)', () => {
+    it('test reshape with PartialShape obj', () => {
       const partialShape = new ov.PartialShape(pShape);
       const reshapedModel = model.reshape(partialShape);
       assert.ok( reshapedModel instanceof ov.Model );
 
       const newShape = reshapedModel.input().getPartialShape();
       assert.ok( newShape instanceof ov.PartialShape );
-      assert.deepStrictEqual( newShape, partialShape );
       assert.deepStrictEqual( newShape.toString(), pShape );
-      
+
     });
 
-    it('should have ctor (string, variablesShapes)', () => {
+    it('test reshape with PartialShape string', () => {
       const reshapedModel = model.reshape(pShape);
       assert.ok(reshapedModel instanceof ov.Model);
       const newShape = reshapedModel.input().getPartialShape();
@@ -221,7 +220,43 @@ describe('ov.Model tests', () => {
       );
     });
 
-    // TODO: Test reshape of model with multiple inputs
+    it('test reshape with ports', () => {
+      const model = core.readModelSync(getAddModel());
+      const newShape = new ov.PartialShape('1, 4');
+      for (const modelInput of model.inputs) {
+        assert.ok(modelInput instanceof ov.Output);
+        model.reshape(new Map([
+          [modelInput, newShape],
+        ]));
+        assert.deepStrictEqual(
+          modelInput.getPartialShape().toString(), newShape.toString());
+      }
+    });
+
+    it('test reshape with indexes', () => {
+      const model = core.readModelSync(getAddModel());
+      const newShape = new ov.PartialShape('1, 4');
+      model.reshape(new Map([
+        [0, newShape],
+        [1, newShape],
+      ]));
+      assert.deepStrictEqual(model.inputs[0].getPartialShape().toString(),
+        newShape.toString());
+      assert.deepStrictEqual(model.inputs[1].getPartialShape().toString(),
+        newShape.toString());
+    });
+
+    it('test reshape with names', () => {
+      const model = core.readModelSync(getAddModel());
+      const newShape = new ov.PartialShape('1, 4');
+      for (const modelInput of model.inputs) {
+        assert.ok(modelInput instanceof ov.Output);
+        model.reshape(new Map([
+          [modelInput.anyName, newShape],
+        ]));
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(),
+          newShape.toString());
+      }});
 
   });
 });
