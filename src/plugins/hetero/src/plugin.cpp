@@ -18,12 +18,14 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
+#include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
@@ -197,6 +199,10 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         }
     }
     model->add_results(new_outputs);
+    // Apply transformation before splitting the graph
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
+    manager.run_passes(model);
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed
