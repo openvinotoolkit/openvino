@@ -206,12 +206,13 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
 
         if (i == 1) {
-            auto count_limit = params.engineInfo.maxLocalMemSize;
-            auto count_length = dispatchData.gws[0] * dispatchData.gws[1] * dispatchData.gws[2];
-            auto min_count_length = count_limit / 64;
+            auto maxAllocatableMemSize = params.engineInfo.maxLocalMemSize / 8 / 2;    // 8 is for allocatable local memory size.
+                                                                                       // 2 is for k and v of count.
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
-            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", params.engineInfo.maxLocalMemSize));
-            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", newParams.inputs[1].LogicalSize()));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", maxAllocatableMemSize));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", newParams.inputs[1].LogicalSize() != 0 ?
+                                                                  newParams.inputs[1].LogicalSize() :
+                                                                  maxAllocatableMemSize));
         }
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
