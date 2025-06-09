@@ -51,41 +51,6 @@
 
 // clang-format on
 
-#if defined _WIN32
-
-#    include <psapi.h>
-#    include <windows.h>
-
-int64_t getPeakMemoryUsage() {
-    PROCESS_MEMORY_COUNTERS memCounters;
-    GetProcessMemoryInfo(GetCurrentProcess(), &memCounters, sizeof(memCounters));
-    return memCounters.PeakWorkingSetSize / 1000;
-}
-
-#else
-
-#    include <fstream>
-#    include <regex>
-#    include <sstream>
-
-int64_t getPeakMemoryUsage() {
-    size_t peakMemUsageKB = 0;
-
-    std::ifstream statusFile("/proc/self/status");
-    std::string line;
-    std::regex vmPeakRegex("VmPeak:");
-    std::smatch vmMatch;
-    while (std::getline(statusFile, line)) {
-        if (std::regex_search(line, vmMatch, vmPeakRegex)) {
-            std::istringstream iss(vmMatch.suffix());
-            iss >> peakMemUsageKB;
-        }
-    }
-    return static_cast<int64_t>(peakMemUsageKB);
-}
-
-#endif
-
 namespace {
 
 #if defined(_WIN32)
@@ -906,7 +871,6 @@ int main(int argc, char* argv[]) {
             auto startTime = Time::now();
 
             std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
-            auto importModelMemStart = getPeakMemoryUsage();
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }

@@ -70,16 +70,13 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
 
-    ov::element::TypeVector decompression_precisions{ov::element::u4,
-                                                     ov::element::i4,
-                                                     ov::element::nf4,
-                                                     ov::element::u8,
-                                                     ov::element::i8,
-                                                     ov::element::f8e4m3,
-                                                     ov::element::f8e5m2,
-                                                     ov::element::f8e8m0};
+    ov::element::TypeVector decompression_precisions{ov::element::u2,     ov::element::u4,     ov::element::i4,
+                                                     ov::element::nf4,    ov::element::u8,     ov::element::i8,
+                                                     ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f8e8m0};
     manager.register_pass<ov::pass::MarkDequantization>(decompression_precisions, /*fold_subtract_const=*/true);
     manager.register_pass<ov::pass::KeepConstPrecision>(decompression_precisions, /*fold_subtract_const=*/true);
+    manager.register_pass<ov::pass::KeepConstAndDecompression>();
+
     manager.register_pass<ov::pass::SharedOpOptimization>();
     manager.register_pass<ov::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ov::pass::ConstantFolding>();
@@ -87,7 +84,6 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
     manager.register_pass<ov::pass::ConvertTopK11ToTopK3>();
-    manager.register_pass<ov::pass::ConvertPad12ToPad1>();
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::SliceToStridedSlice>(true);
     manager.register_pass<ov::pass::MOCTransformations>(true, false);
@@ -159,6 +155,7 @@ void runOVPasses(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::pass::ConvertShapeOf3>();
 
     manager.register_pass<ov::pass::StridesOptimization>();
+    manager.register_pass<ov::pass::ConvertPad12ToPad1>();
     manager.register_pass<ov::pass::ConvertSoftMax1ToSoftMax8>();
 
     manager.run_passes(model);

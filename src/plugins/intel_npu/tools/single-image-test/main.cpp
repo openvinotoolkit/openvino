@@ -3,29 +3,31 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
+#include "image_quality_helper.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "semantic_segmentation_helpers.hpp"
+#include "tensor_utils.hpp"
+#include "yolo_helpers.hpp"
+#include "tools_helpers.hpp"
+
+#include <openvino/core/parallel.hpp>
+#include <openvino/openvino.hpp>
+
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
 #include <gflags/gflags.h>
 
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-#include <openvino/core/parallel.hpp>
-#include <openvino/openvino.hpp>
 #include <optional>
 #include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include "image_quality_helper.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "semantic_segmentation_helpers.hpp"
-#include "tensor_utils.hpp"
-#include "tools_helpers.hpp"
-#include "yolo_helpers.hpp"
 
 constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
 constexpr std::string_view BLOB_EXTENSION = ".blob";
@@ -80,59 +82,51 @@ DEFINE_string(config, "", "Path to the configuration file (optional)");
 DEFINE_string(ip, "", "Input precision (default: U8, available: FP32, FP16, I32, I64, U8)");
 DEFINE_string(op, "", "Output precision (default: FP32, available: FP32, FP16, I32, I64, U8)");
 DEFINE_string(
-    il,
-    "",
-    "Input layout for all inputs, or ';' separated list of pairs <input>:<layout>. Regex in <input> is supported");
-DEFINE_string(ol,
-              "",
+        il, "",
+        "Input layout for all inputs, or ';' separated list of pairs <input>:<layout>. Regex in <input> is supported");
+DEFINE_string(ol, "",
               "Output layout for all outputs, or ';' separated list of pairs <output>:<layout>. Regex in <output> is "
               "supported");
-DEFINE_string(iml,
-              "",
+DEFINE_string(iml, "",
               "Model input layout for all model inputs, or ';' separated list of pairs <input>:<layout>. Regex in "
               "<input> is supported");
-DEFINE_string(oml,
-              "",
+DEFINE_string(oml, "",
               "Model output layout for all outputs, or ';' separated list of pairs <output>:<layout>. Regex in "
               "<output> is supported");
 DEFINE_bool(img_as_bin, false, "Force binary input even if network expects an image");
 DEFINE_bool(pc, false, "Report performance counters");
 DEFINE_string(
-    shape,
-    "",
-    "Optional. Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
-    " in case of one input size. This parameter affects model input shape and can be dynamic."
-    " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
-    " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].");
-DEFINE_string(data_shape,
-              "",
-              "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set."
-              "In case of one input size: \"[1,3,224,224]\"");
-DEFINE_string(skip_output_layers,
-              "",
-              "Skip output layers from the network. Currently only applicable for"
-              "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
+        shape, "",
+        "Optional. Set shape for model input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+        " in case of one input size. This parameter affects model input shape and can be dynamic."
+        " For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?]."
+        " For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].");
+DEFINE_string(data_shape, "",
+    "Required for models with dynamic shapes. Set shape for input blobs. Only one shape can be set."
+    "In case of one input size: \"[1,3,224,224]\"");
+DEFINE_string(skip_output_layers, "" , "Skip output layers from the network. Currently only applicable for"
+        "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
 DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
-    "Optional. Mean values to be used for the input image per channel. "
-    "Values to be provided in the [channel1,channel2,channel3] format. "
-    "Can be defined for desired input of the model, for example: \"--mean_values "
-    "data[255,255,255],info[255,255,255]\". The exact meaning and order of channels depend on how the original "
-    "model "
-    "was trained. Applying the values affects performance and may cause type conversion";
+        "Optional. Mean values to be used for the input image per channel. "
+        "Values to be provided in the [channel1,channel2,channel3] format. "
+        "Can be defined for desired input of the model, for example: \"--mean_values "
+        "data[255,255,255],info[255,255,255]\". The exact meaning and order of channels depend on how the original "
+        "model "
+        "was trained. Applying the values affects performance and may cause type conversion";
 
 static constexpr char scale_values_message[] =
-    "Optional. Scale values to be used for the input image per channel. "
-    "Values are provided in the [channel1,channel2,channel3] format. "
-    "Can be defined for desired input of the model, for example: \"--scale_values "
-    "data[255,255,255],info[255,255,255]\". "
-    "The exact meaning and order of channels depend on how the original model was trained. If both --mean_values "
-    "and "
-    "--scale_values are specified, the mean is subtracted first and then scale is applied regardless of the order "
-    "of "
-    "options in command line. Applying the values affects performance and may cause type conversion";
+        "Optional. Scale values to be used for the input image per channel. "
+        "Values are provided in the [channel1,channel2,channel3] format. "
+        "Can be defined for desired input of the model, for example: \"--scale_values "
+        "data[255,255,255],info[255,255,255]\". "
+        "The exact meaning and order of channels depend on how the original model was trained. If both --mean_values "
+        "and "
+        "--scale_values are specified, the mean is subtracted first and then scale is applied regardless of the order "
+        "of "
+        "options in command line. Applying the values affects performance and may cause type conversion";
 DEFINE_string(mean_values, "", mean_values_message);
 DEFINE_string(scale_values, "", scale_values_message);
 
@@ -144,11 +138,11 @@ DEFINE_string(
     "",
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
 static constexpr char ref_results_message[] =
-    "String of reference result file(s) to be used during run_test mode. "
-    "For the same test case, the files should be separated by comma (,) (example: one case multiple output). "
-    "For different test cases, it should be separated by semicolon (;). "
-    "If ref_dir is provided, the reference files should be relative to the ref_dir. "
-    "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
+        "String of reference result file(s) to be used during run_test mode. "
+        "For the same test case, the files should be separated by comma (,) (example: one case multiple output). "
+        "For different test cases, it should be separated by semicolon (;). "
+        "If ref_dir is provided, the reference files should be relative to the ref_dir. "
+        "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
 DEFINE_string(ref_results, "", ref_results_message);
 DEFINE_string(mode, "", "Comparison mode to use");
 
@@ -183,22 +177,11 @@ DEFINE_bool(skip_arg_max, false, "Skip ArgMax post processing step");
 DEFINE_uint32(sem_seg_classes, 12, "Number of classes for semantic segmentation");
 DEFINE_double(sem_seg_threshold, 0.98, "Threshold for 'semantic segmentation' mode");
 DEFINE_uint32(sem_seg_ignore_label, std::numeric_limits<uint32_t>::max(), "The number of the label to be ignored");
-DEFINE_string(dataset,
-              "NONE",
+DEFINE_string(dataset, "NONE",
               "The dataset used to train the model. Useful for instances such as semantic segmentation to visualize "
               "the accuracy per-class");
-std::vector<std::string> camVid12 = {"Sky",
-                                     "Building",
-                                     "Pole",
-                                     "Road",
-                                     "Pavement",
-                                     "Tree",
-                                     "SignSymbol",
-                                     "Fence",
-                                     "Car",
-                                     "Pedestrian",
-                                     "Bicyclist",
-                                     "Unlabeled"};
+std::vector<std::string> camVid12 = {"Sky",        "Building", "Pole", "Road",       "Pavement",  "Tree",
+                                     "SignSymbol", "Fence",    "Car",  "Pedestrian", "Bicyclist", "Unlabeled"};
 
 std::vector<std::string> splitStringList(const std::string& str, char delim) {
     std::vector<std::string> out;
@@ -226,7 +209,7 @@ std::string to_string(const std::vector<std::string>& c) {
     std::string ret;
     if (!c.empty()) {
         stream << "[";
-        for (const auto& elem : c) {
+        for (const auto &elem : c) {
             stream << elem << ",";
         }
         ret = stream.str();
@@ -291,7 +274,7 @@ void parseCommandLine(int argc, char* argv[]) {
         std::cout << "    Reference files directory:                "
                   << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
                   << std::endl;
-        std::cout << "    Reference file(s):                        " << FLAGS_ref_results << std::endl;
+        std::cout << "    Reference file(s):                        " << FLAGS_ref_results<< std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -356,14 +339,12 @@ std::vector<cv::Mat> ovToCV(ov::Tensor& tensor,
     const ov::element::Type& precision = tensor.get_element_type();
 
     OPENVINO_ASSERT(layout == ov::Layout("NCHW") || layout == ov::Layout("NCDHW"),
-                    "Unsupported layout: ",
-                    layout.to_string());
+                    "Unsupported layout: ", layout.to_string());
 
     OPENVINO_ASSERT(precision == ov::element::Type_t::u8 || precision == ov::element::Type_t::f32 ||
-                        precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::bf16 ||
-                        precision == ov::element::Type_t::i32,
-                    "Unsupported precision: ",
-                    precision.get_type_name());
+                            precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::bf16 ||
+                            precision == ov::element::Type_t::i32,
+                    "Unsupported precision: ", precision.get_type_name());
 
     int cvType = 0;
     size_t elemSize = 0;
@@ -400,9 +381,7 @@ std::vector<cv::Mat> ovToCV(ov::Tensor& tensor,
 
         out.resize(C);
         for (size_t c = 0; c < C; ++c) {
-            out[c] = cv::Mat(static_cast<int>(H),
-                             static_cast<int>(W),
-                             cvType,
+            out[c] = cv::Mat(static_cast<int>(H), static_cast<int>(W), cvType,
                              dataBuffer + (batchInd * C + c) * W * H * elemSize);
         }
     } else if (layout == ov::Layout("NCDHW")) {
@@ -420,9 +399,7 @@ std::vector<cv::Mat> ovToCV(ov::Tensor& tensor,
 
         out.resize(C);
         for (size_t c = 0; c < C; ++c) {
-            out[c] = cv::Mat(static_cast<int>(H),
-                             static_cast<int>(W),
-                             cvType,
+            out[c] = cv::Mat(static_cast<int>(H), static_cast<int>(W), cvType,
                              dataBuffer + (strideN * batchInd + strideC * c + strideD * depthInd) * elemSize);
         }
     }
@@ -457,17 +434,14 @@ struct BatchIndexer {
     const size_t size = 1;
 
     BatchIndexer(size_t lineIndex = 0, size_t lineCount = 1) : index(lineIndex), size(lineCount) {
-        OPENVINO_ASSERT(index < size,
-                        "Inconsistent parameters used for "
-                        "BatchIndexer construction, lineIndex: ",
-                        index,
-                        " must be lesser than lineCount: ",
-                        size);
+        OPENVINO_ASSERT(index < size, "Inconsistent parameters used for "
+                        "BatchIndexer construction, lineIndex: ", index,
+                        " must be lesser than lineCount: ", size);
     }
 
     std::string to_string() const {
         std::stringstream sstream;
-        sstream << "[" << index << "/" << size << "]";
+        sstream << "["  << index << "/" << size << "]";
         return sstream.str();
     }
 };
@@ -480,8 +454,7 @@ void cvToOV(const cv::Mat& cvImg,
     const ov::element::Type& precision = tensor.get_element_type();
 
     OPENVINO_ASSERT(layout == ov::Layout("NHWC") || layout == ov::Layout("NCHW"),
-                    "Unsupported layout: ",
-                    layout.to_string());
+                    "Unsupported layout: ", layout.to_string());
 
     const auto N = shape[ov::layout::batch_idx(layout)];
     const auto C = shape[ov::layout::channels_idx(layout)];
@@ -504,10 +477,9 @@ void cvToOV(const cv::Mat& cvImg,
         cvType = static_cast<int>(CV_32SC(C));
     } else {
         OPENVINO_ASSERT(precision == ov::element::Type_t::u8 || precision == ov::element::Type_t::f32 ||
-                            precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::bf16 ||
-                            precision == ov::element::Type_t::i32,
-                        "Unsupported precision ",
-                        precision.get_type_name());
+                                precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::bf16 ||
+                                precision == ov::element::Type_t::i32,
+                        "Unsupported precision ", precision.get_type_name());
     }
 
     cv::Mat in;
@@ -545,7 +517,7 @@ void cvToOV(const cv::Mat& cvImg,
         // only a first image from an input image array fills an original input tensor up.
         // Subsequent images (if exist) will fill batch slices of the input tensor
         // by its number in the input array respectively
-        cv::Mat& out = (cvImgInBatch.index == 0 ? tensorOut : auxOut);
+        cv::Mat &out = (cvImgInBatch.index == 0 ? tensorOut : auxOut);
 
         if (precision == ov::element::Type_t::f16) {
             const auto inPtr = in.ptr<float>();
@@ -569,13 +541,15 @@ void cvToOV(const cv::Mat& cvImg,
         // The final batched tensor will comprise
         // [imgIdx_0, imgIdx_1,..., imgIdx_M, imgIdx_M,...,imgIdx_M] as its slices
         if (cvImgInBatch.index == 0 && N != 1) {
-            std::cout << "Fill up all input batch slices up to " << N << " with image data from the array: ["
+            std::cout << "Fill up all input batch slices up to " << N
+                      << " with image data from the array: ["
                       << cvImgInBatch.to_string() << std::endl;
         }
         for (size_t n = std::max<size_t>(1, cvImgInBatch.index); n < N; ++n) {
             if (n == std::max<size_t>(1, cvImgInBatch.index) && cvImgInBatch.index >= 1) {
-                std::cout << "Fill input batch slices starting from index " << n << " up to " << N
-                          << " with image data from the array: " << cvImgInBatch.to_string() << std::endl;
+                std::cout << "Fill input batch slices starting from index "
+                          << n << " up to " << N << " with image data from the array: "
+                          << cvImgInBatch.to_string() << std::endl;
             }
             cv::Mat batch(static_cast<const int>(H),
                           static_cast<int>(W),
@@ -591,7 +565,8 @@ void cvToOV(const cv::Mat& cvImg,
         // by its number in the input array respectively
         auto tensorPlanes = ovToCV(outTensor, shape, layout, 0);
 
-        if (!(precision == ov::element::Type_t::f16 || precision == ov::element::Type_t::bf16)) {
+        if (!(precision == ov::element::Type_t::f16 ||
+            precision == ov::element::Type_t::bf16)) {
             cv::split(in, tensorPlanes);
         } else {
             std::vector<cv::Mat> inPlanes;
@@ -620,12 +595,14 @@ void cvToOV(const cv::Mat& cvImg,
         // [imgIdx_0, imgIdx_1,..., imgIdx_M, imgIdx_M,...,imgIdx_M] as its slices
         if (cvImgInBatch.index == 0 && N != 1) {
             std::cout << "Fill up all input batch slices planes up to " << N
-                      << " with image data from the array: " << cvImgInBatch.to_string() << std::endl;
+                      << " with image data from the array: "
+                      << cvImgInBatch.to_string() << std::endl;
         }
         for (size_t n = std::max<size_t>(1, cvImgInBatch.index); n < N; ++n) {
             if (n == std::max<size_t>(1, cvImgInBatch.index) && cvImgInBatch.index >= 1) {
-                std::cout << "Fill input batch slices planes starting from index " << n << " up to " << N
-                          << " with image data from the array: " << cvImgInBatch.to_string() << std::endl;
+                std::cout << "Fill input batch slices planes starting from index "
+                          << n << " up to " << N << " with image data from the array: "
+                          << cvImgInBatch.to_string() << std::endl;
             }
             const auto batchPlanes = ovToCV(tensor, shape, layout, n);
 
@@ -708,8 +685,7 @@ std::vector<std::vector<float>> parseMeanOrScale(const std::string& mean_scale,
         if (!layer_name.empty()) {
             // Add an explicit reference. Lambda expressions in C++17 cannot capture structured bindings.
             const auto& layer_name_ref = layer_name;
-            auto required_input_it = std::find_if(inputs_info.begin(),
-                                                  inputs_info.end(),
+            auto required_input_it = std::find_if(inputs_info.begin(), inputs_info.end(),
                                                   [&layer_name_ref](const ov::Output<const ov::Node>& item) {
                                                       return item.get_any_name() == layer_name_ref;
                                                   });
@@ -778,23 +754,19 @@ bool hasLoadableExt(const std::string& network_path) {
 
 std::string cleanName(std::string&& name) {
     std::replace_if(
-        name.begin(),
-        name.end(),
-        [](unsigned char c) {
-            return !std::isalnum(c);
-        },
-        '_');
+            name.begin(), name.end(),
+            [](unsigned char c) {
+                return !std::isalnum(c);
+            },
+            '_');
     return std::move(name);
 }
 
-ov::Tensor loadImages(const ov::element::Type& precision,
-                      const ov::Shape& shape,
-                      const ov::Layout& layout,
-                      const std::vector<std::string>& filePaths,
-                      const std::string& colorFormat) {
+ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths, const std::string& colorFormat) {
     ov::Tensor tensor(precision, shape);
     for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
-        const auto& filePath = filePaths[fileIndex];
+        const auto &filePath = filePaths[fileIndex];
         const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
         OPENVINO_ASSERT(!frame.empty(), "Failed to open input image file ", filePath);
 
@@ -803,13 +775,9 @@ ov::Tensor loadImages(const ov::element::Type& precision,
     return tensor;
 }
 
-void loadBinary(const std::string& filePath,
-                const BatchIndexer& fileSourceInBatch,
-                ov::Tensor& requestedTensor,
-                const ov::element::Type& modelPrecision,
-                const ov::Shape& shape,
-                const ov::Layout& layout,
-                const ov::element::Type& dataPrecision) {
+void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBatch, ov::Tensor &requestedTensor,
+                const ov::element::Type& modelPrecision, const ov::Shape& shape,
+                const ov::Layout& layout, const ov::element::Type& dataPrecision) {
     std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
     OPENVINO_ASSERT(binaryFile, "Failed to open input binary file: ", filePath);
     const auto fileSize = binaryFile.tellg();
@@ -831,20 +799,11 @@ void loadBinary(const std::string& filePath,
                       << " while converting precision from " << dataPrecision << " to " << modelPrecision
                       << ". Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                            "Input layout has no batch dimenstion: ",
-                            layout.to_string());
+                            "Input layout has no batch dimenstion: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
-            OPENVINO_ASSERT(fileBytes * N == inputTensor.get_byte_size(),
-                            "File contains ",
-                            fileBytes,
-                            " bytes, but ",
-                            inputTensor.get_byte_size() * N,
-                            " total in batch size ",
-                            N,
-                            " expected while converting precision from ",
-                            dataPrecision,
-                            " to ",
-                            modelPrecision);
+            OPENVINO_ASSERT(fileBytes * N == inputTensor.get_byte_size(), "File contains ", fileBytes, " bytes, but ",
+                            inputTensor.get_byte_size() * N, " total in batch size ", N,
+                            " expected while converting precision from ", dataPrecision, " to ", modelPrecision);
             ov::Shape debatchedInputTensorShape(shape);
             debatchedInputTensorShape[ov::layout::batch_idx(layout)] = 1;
             ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
@@ -859,15 +818,11 @@ void loadBinary(const std::string& filePath,
             // where fileSourceInBatch.index < N
             // The rest parts of the new tensor [fileSourceInBatch.index+1...N]
             // will be filled up by same content of an image of `fileSourceInBatch.index`
-            std::copy_n(tensorsFromSplit.begin(),
-                        std::min(fileSourceInBatch.index, N),
-                        std::back_inserter(tensorsToJoin));
+            std::copy_n(tensorsFromSplit.begin(), std::min(fileSourceInBatch.index, N), std::back_inserter(tensorsToJoin));
             if (fileSourceInBatch.index < N) {
-                std::generate_n(std::back_inserter(tensorsToJoin),
-                                N - fileSourceInBatch.index,
-                                [&convertedPrecisionTensor]() {
-                                    return convertedPrecisionTensor;
-                                });
+                std::generate_n(std::back_inserter(tensorsToJoin), N - fileSourceInBatch.index, [&convertedPrecisionTensor]() {
+                    return convertedPrecisionTensor;
+                });
             }
             requestedTensor = npu::utils::joinTensors(tensorsToJoin, layout);
         }
@@ -880,27 +835,22 @@ void loadBinary(const std::string& filePath,
                       << " when datatypes match. "
                       << "Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                            "Input layout has no batch dimenstion: ",
-                            layout.to_string());
+                            "Input layout has no batch dimenstion: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
-            OPENVINO_ASSERT(fileBytes * N == reqTensorBytes,
-                            "File contains ",
-                            fileBytes,
-                            " bytes, but ",
-                            reqTensorBytes,
-                            " in batch size ",
-                            N,
-                            " expected");
+            OPENVINO_ASSERT(fileBytes * N == reqTensorBytes, "File contains ", fileBytes, " bytes, but ",
+                            reqTensorBytes, " in batch size ", N, " expected");
 
             if (fileSourceInBatch.index == 0 && N != 1) {
                 std::cout << "Fill up all input batch slices up to " << N
-                          << " with binary data from the array: " << fileSourceInBatch.to_string() << std::endl;
+                          << " with binary data from the array: "
+                          << fileSourceInBatch.to_string() << std::endl;
             }
             for (size_t n = std::max<size_t>(0, fileSourceInBatch.index); n < N; ++n) {
                 if (n == std::max<size_t>(1, fileSourceInBatch.index) && fileSourceInBatch.index >= 1) {
-                    std::cout << "Fill input batch slices starting from index " << n << " up to " << N
-                              << " with binary data from the data sources array: " << fileSourceInBatch.to_string()
-                              << std::endl;
+                    std::cout << "Fill input batch slices starting from index "
+                              << n << " up to " << N
+                              << " with binary data from the data sources array: "
+                              << fileSourceInBatch.to_string() << std::endl;
                 }
                 binaryFile.seekg(0, std::ios_base::beg);
                 binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()) + fileBytes * n,
@@ -910,21 +860,12 @@ void loadBinary(const std::string& filePath,
     }
 }
 
-ov::Tensor loadBinaries(const ov::element::Type& modelPrecision,
-                        const ov::Shape& shape,
-                        const ov::Layout& layout,
-                        const std::vector<std::string>& filePaths,
-                        const ov::element::Type& dataPrecision) {
+ov::Tensor loadBinaries(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
+                      const std::vector<std::string>& filePaths, const ov::element::Type& dataPrecision) {
     ov::Tensor requestedTensor(modelPrecision, shape);
     for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
-        const auto& filePath = filePaths[fileIndex];
-        loadBinary(filePath,
-                   BatchIndexer{fileIndex, filePaths.size()},
-                   requestedTensor,
-                   modelPrecision,
-                   shape,
-                   layout,
-                   dataPrecision);
+        const auto &filePath = filePaths[fileIndex];
+        loadBinary(filePath, BatchIndexer{fileIndex, filePaths.size()}, requestedTensor, modelPrecision, shape, layout, dataPrecision);
     }
     return requestedTensor;
 }
@@ -991,15 +932,13 @@ std::map<std::string, std::string> parseConfigFile() {
         }
         size_t spacePos = option.find_first_of(" \t\n\r");
         OPENVINO_ASSERT(spacePos != std::string::npos,
-                        "Invalid config parameter format. Space separator required here: ",
-                        option);
+                        "Invalid config parameter format. Space separator required here: ", option);
         std::string key, value;
         if (spacePos != std::string::npos) {
             key = option.substr(0, spacePos);
             size_t valueStart = option.find_first_not_of(" \t\n\r", spacePos);
             OPENVINO_ASSERT(valueStart != std::string::npos,
-                            "An invalid config parameter value detected, it mustn't be empty: ",
-                            option);
+                            "An invalid config parameter value detected, it mustn't be empty: ", option);
             size_t valueEnd = option.find_last_not_of(" \t\n\r");
             value = option.substr(valueStart, valueEnd - valueStart + 1);
             config[key] = value;
@@ -1012,9 +951,7 @@ std::map<std::string, std::string> parseConfigFile() {
 // This function formats performance counters in a same way as benchmark_app -pc does.
 // It is a copy-paste from $OPENVINO_HOME/samples/cpp/common/utils/include/samples/common.hpp
 using ProfVec = std::vector<ov::ProfilingInfo>;
-static void printPerformanceCounts(ProfVec performanceData,
-                                   std::ostream& stream,
-                                   std::string deviceName,
+static void printPerformanceCounts(ProfVec performanceData, std::ostream& stream, std::string deviceName,
                                    bool bshowHeader = true) {
     std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     // Print performance counts
@@ -1059,11 +996,8 @@ static void printPerformanceCounts(ProfVec performanceData,
     std::cout.flags(fmt);
 }
 
-bool checkBBoxOutputs(std::vector<utils::BoundingBox>& actualOutput,
-                      std::vector<utils::BoundingBox>& refOutput,
-                      const size_t imgWidth,
-                      const size_t imgHeight,
-                      const float boxTolerance,
+bool checkBBoxOutputs(std::vector<utils::BoundingBox>& actualOutput, std::vector<utils::BoundingBox>& refOutput,
+                      const size_t imgWidth, const size_t imgHeight, const float boxTolerance,
                       const float probTolerance) {
     std::cout << "Ref Top:" << std::endl;
     for (size_t i = 0; i < refOutput.size(); ++i) {
@@ -1090,13 +1024,10 @@ bool checkBBoxOutputs(std::vector<utils::BoundingBox>& actualOutput,
                 continue;
             }
 
-            const utils::Box actualBox{actualBB.left / imgWidth,
-                                       actualBB.top / imgHeight,
+            const utils::Box actualBox{actualBB.left / imgWidth, actualBB.top / imgHeight,
                                        (actualBB.right - actualBB.left) / imgWidth,
                                        (actualBB.bottom - actualBB.top) / imgHeight};
-            const utils::Box refBox{refBB.left / imgWidth,
-                                    refBB.top / imgHeight,
-                                    (refBB.right - refBB.left) / imgWidth,
+            const utils::Box refBox{refBB.left / imgWidth, refBB.top / imgHeight, (refBB.right - refBB.left) / imgWidth,
                                     (refBB.bottom - refBB.top) / imgHeight};
 
             const auto boxIntersection = boxIntersectionOverUnion(actualBox, refBox);
@@ -1149,8 +1080,7 @@ std::vector<std::pair<int, float>> parseClassification(const float* dataBuffer, 
 std::vector<std::vector<std::pair<int, float>>> parseClassificationBatch(const ov::Tensor& tensor, size_t batch_size) {
     OPENVINO_ASSERT(batch_size, "batch_size can't be 0");
     OPENVINO_ASSERT(tensor.get_element_type() == ov::element::Type_t::f32,
-                    "Unsupported precision: ",
-                    tensor.get_element_type().get_type_name());
+                    "Unsupported precision: ", tensor.get_element_type().get_type_name());
 
     std::vector<std::vector<std::pair<int, float>>> ret;
 
@@ -1159,11 +1089,8 @@ std::vector<std::vector<std::pair<int, float>>> parseClassificationBatch(const o
 
     size_t batch_bundle_size = tensor.get_size() / batch_size;
     OPENVINO_ASSERT(!(tensor.get_size() % batch_bundle_size),
-                    "Tensor is a not batched tensor! Size: ",
-                    tensor.get_size(),
-                    " can't be batched on a batch size: ",
-                    batch_size,
-                    " properly");
+                    "Tensor is a not batched tensor! Size: ", tensor.get_size(),
+                    " can't be batched on a batch size: ", batch_size, " properly");
 
     size_t i = 0;
     for (; i < tensor.get_size(); i += batch_bundle_size) {
@@ -1192,23 +1119,12 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, s
     auto probsBatch = parseClassificationBatch(outputFP32, batch_size);
     auto refProbsBatch = parseClassificationBatch(referenceFP32, batch_size);
     OPENVINO_ASSERT(refProbsBatch.size() == probsBatch.size(),
-                    "Incorrect batch size of both output tensor: ",
-                    probsBatch.size(),
-                    " and reference tensor: ",
-                    refProbsBatch.size(),
-                    ". Expected: ",
-                    batch_size);
+                    "Incorrect batch size of both output tensor: ", probsBatch.size(),
+                    " and reference tensor: ", refProbsBatch.size(), ". Expected: ", batch_size);
     for (size_t i = 0; i < batch_size; i++) {
         OPENVINO_ASSERT(probsBatch[i].size() == refProbsBatch[i].size(),
-                        "Incorrect size of referenced tensor in batch bundle number: (",
-                        i,
-                        "/",
-                        batch_size,
-                        ")",
-                        ". Expected size: ",
-                        probsBatch[i].size(),
-                        ", got: ",
-                        refProbsBatch[i].size());
+                        "Incorrect size of referenced tensor in batch bundle number: (", i, "/", batch_size, ")",
+                        ". Expected size: ", probsBatch[i].size(), ", got: ", refProbsBatch[i].size());
         OPENVINO_ASSERT(refProbsBatch[i].size() >= FLAGS_top_k);
         refProbsBatch[i].resize(FLAGS_top_k);
     }
@@ -1235,9 +1151,9 @@ bool testClassification(const TensorMap& outputs, const TensorMap& references, s
 
         for (const auto& refElem : refs) {
             const auto actualIt =
-                std::find_if(probs.cbegin(), probs.cend(), [&refElem](const std::pair<int, float>& arg) {
-                    return refElem.first == arg.first;
-                });
+                    std::find_if(probs.cbegin(), probs.cend(), [&refElem](const std::pair<int, float>& arg) {
+                        return refElem.first == arg.first;
+                    });
             if (actualIt == probs.end()) {
                 std::cout << "Ref result " << refElem.first << " was not found in actual results" << std::endl;
                 result = result && false;
@@ -1303,7 +1219,7 @@ bool compareTensors(const ov::Tensor& output, const ov::Tensor& reference) {
 bool testRAW(const TensorMap& outputTensors, const TensorMap& referenceTensors, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'raw' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'raw' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
 
     if (outputTensors.size() != referenceTensors.size()) {
@@ -1374,7 +1290,7 @@ bool compareCoSim(const ov::Tensor& output, const ov::Tensor& reference) {
 bool testCoSim(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'testCoSim' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'testCoSim' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
 
     if (outputs.size() != references.size()) {
@@ -1442,7 +1358,7 @@ bool computeRRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
 bool testRRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'rrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'rrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
 
     if (outputs.size() != references.size()) {
@@ -1508,7 +1424,7 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     }
 
     double nrmseLoss =
-        sqrt(error / size) / std::max(0.001f, std::max(maxOutput - minOutput, maxReference - minReference));
+            sqrt(error / size) / std::max(0.001f, std::max(maxOutput - minOutput, maxReference - minReference));
 
     std::cout << "NRMSE loss : " << std::fixed << std::setprecision(4) << nrmseLoss
               << "   NRMSE threshold : " << FLAGS_nrmse_loss_threshold << std::endl;
@@ -1534,9 +1450,8 @@ std::vector<float> softmax(std::vector<float>& tensor) {
         probabilities[i] /= sum_exp;
     }
 
-    std::transform(probabilities.begin(), probabilities.end(), results.begin(), [](double value) {
-        return static_cast<float>(value);
-    });
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
+                   [](double value) { return static_cast<float>(value); });
 
     return results;
 }
@@ -1544,7 +1459,7 @@ std::vector<float> softmax(std::vector<float>& tensor) {
 bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'nrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'nrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
 
     if (outputs.size() != references.size()) {
@@ -1569,12 +1484,9 @@ bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_siz
             std::vector<float> actOutput;
             std::vector<float> refOutput;
 
-            std::copy_n((npu::utils::toFP32(output)).data<const float>(),
-                        output.get_size(),
-                        std::back_insert_iterator(actOutput));
-            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(),
-                        referencesIterator->second.get_size(),
-                        std::back_insert_iterator(refOutput));
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
+                std::back_insert_iterator(refOutput));
 
             auto actSoftMax = softmax(actOutput);
             auto refSoftMax = softmax(refOutput);
@@ -1602,14 +1514,11 @@ bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_siz
 // Direction of metric’s growth is higher-better. If the images are identical, the PSNR is infinite.
 //
 
-bool testPSNR(const TensorMap& outputs,
-              const TensorMap& references,
-              const int dstHeight,
-              const int dstWidth,
+bool testPSNR(const TensorMap& outputs, const TensorMap& references, const int dstHeight, const int dstWidth,
               size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'psnr' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'psnr' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
     OPENVINO_ASSERT(outputs.size() == references.size(),
                     "Mismatch between the number of model outputs and the number of references");
@@ -1631,8 +1540,7 @@ bool testPSNR(const TensorMap& outputs,
     return true;
 }
 
-static void printPerformanceCountsAndLatency(size_t numberOfTestCase,
-                                             const ProfVec& profilingData,
+static void printPerformanceCountsAndLatency(size_t numberOfTestCase, const ProfVec& profilingData,
                                              std::chrono::duration<double, std::milli> duration) {
     auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
 
@@ -1729,10 +1637,8 @@ void nameIOTensors(std::shared_ptr<ov::Model> model) {
     }
 }
 
-std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest,
-                                       ov::CompiledModel& compiledModel,
-                                       const TensorMap& inputs,
-                                       const std::vector<std::string>& dumpedInputsPaths) {
+std::pair<TensorMap, ProfVec> runInfer(ov::InferRequest& inferRequest, ov::CompiledModel& compiledModel,
+                                       const TensorMap& inputs, const std::vector<std::string>& dumpedInputsPaths) {
     for (const auto& [tensorName, tensor] : inputs) {
         inferRequest.set_tensor(tensorName, tensor);
     }
@@ -1789,13 +1695,11 @@ static std::string toString(const std::vector<size_t>& vec) {
     return ss.str();
 }
 
-bool testSSDDetection(const TensorMap& outputs,
-                      const TensorMap& references,
-                      const TensorDescriptorMap& inputDescriptors,
-                      size_t batch_size = 1) {
+bool testSSDDetection(const TensorMap& outputs, const TensorMap& references,
+                      const TensorDescriptorMap& inputDescriptors, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'ssd' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'ssd' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
 
     OPENVINO_ASSERT(outputs.size() == 1 && references.size() == 1);
@@ -1815,11 +1719,7 @@ bool testSSDDetection(const TensorMap& outputs,
     auto parsedOutput = utils::parseSSDOutput(output, imgWidth, imgHeight, static_cast<float>(confThresh));
     auto parsedReference = utils::parseSSDOutput(reference, imgWidth, imgHeight, static_cast<float>(confThresh));
 
-    auto result = checkBBoxOutputs(parsedOutput,
-                                   parsedReference,
-                                   imgWidth,
-                                   imgHeight,
-                                   static_cast<float>(boxTolerance),
+    auto result = checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
 
     return result;
@@ -1828,13 +1728,11 @@ bool testSSDDetection(const TensorMap& outputs,
 //
 // Yolo V2 mode
 //
-bool testYoloV2(const TensorMap& outputs,
-                const TensorMap& references,
-                const TensorDescriptorMap& inputDescriptors,
+bool testYoloV2(const TensorMap& outputs, const TensorMap& references, const TensorDescriptorMap& inputDescriptors,
                 size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'yolo_v2' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'yolo_v2' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
     OPENVINO_ASSERT(inputDescriptors.size() == 1, "The YOLO v2 model accepts only a single input");
     OPENVINO_ASSERT(outputs.size() == 1, "The YOLO v2 model a single output");
@@ -1852,19 +1750,12 @@ bool testYoloV2(const TensorMap& outputs,
     double boxTolerance = FLAGS_box_tolerance;
     bool isTiny = FLAGS_is_tiny_yolo;
 
-    auto parsedOutput =
-        utils::parseYoloOutput(npu::utils::toFP32(output), imgWidth, imgHeight, static_cast<float>(confThresh), isTiny);
-    auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(reference),
-                                                  imgWidth,
-                                                  imgHeight,
-                                                  static_cast<float>(confThresh),
-                                                  isTiny);
+    auto parsedOutput = utils::parseYoloOutput(npu::utils::toFP32(output), imgWidth, imgHeight,
+                                               static_cast<float>(confThresh), isTiny);
+    auto parsedReference = utils::parseYoloOutput(npu::utils::toFP32(reference), imgWidth, imgHeight,
+                                                  static_cast<float>(confThresh), isTiny);
 
-    bool result = checkBBoxOutputs(parsedOutput,
-                                   parsedReference,
-                                   imgWidth,
-                                   imgHeight,
-                                   static_cast<float>(boxTolerance),
+    bool result = checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
     return result;
 }
@@ -1872,14 +1763,11 @@ bool testYoloV2(const TensorMap& outputs,
 //
 // Yolo V3 mode
 //
-bool testYoloV3(const TensorMap& outputs,
-                const TensorMap& references,
-                const TensorDescriptorMap& inputDescriptors,
-                const LayoutMap& outputLayouts,
-                size_t batch_size = 1) {
+bool testYoloV3(const TensorMap& outputs, const TensorMap& references, const TensorDescriptorMap& inputDescriptors,
+                const LayoutMap& outputLayouts, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'yolo_v3' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'yolo_v3' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
     OPENVINO_ASSERT(inputDescriptors.size() == 1, "The YOLO v3 model accepts only a single input");
     OPENVINO_ASSERT(outputs.size() == 3, "The YOLO v3 model has three outputs");
@@ -1896,49 +1784,15 @@ bool testYoloV3(const TensorMap& outputs,
     int classes = FLAGS_classes;
     int coords = FLAGS_coords;
     int num = FLAGS_num;
-    std::vector<float> anchors = {10.0,
-                                  13.0,
-                                  16.0,
-                                  30.0,
-                                  33.0,
-                                  23.0,
-                                  30.0,
-                                  61.0,
-                                  62.0,
-                                  45.0,
-                                  59.0,
-                                  119.0,
-                                  116.0,
-                                  90.0,
-                                  156.0,
-                                  198.0,
-                                  373.0,
-                                  326.0};
+    std::vector<float> anchors = {10.0, 13.0, 16.0,  30.0,  33.0, 23.0,  30.0,  61.0,  62.0,
+                                  45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
 
-    auto parsedOutput = utils::parseYoloV3Output(outputs,
-                                                 imgWidth,
-                                                 imgHeight,
-                                                 classes,
-                                                 coords,
-                                                 num,
-                                                 anchors,
-                                                 static_cast<float>(confThresh),
-                                                 outputLayouts);
-    auto parsedReference = utils::parseYoloV3Output(references,
-                                                    imgWidth,
-                                                    imgHeight,
-                                                    classes,
-                                                    coords,
-                                                    num,
-                                                    anchors,
-                                                    static_cast<float>(confThresh),
-                                                    outputLayouts);
+    auto parsedOutput = utils::parseYoloV3Output(outputs, imgWidth, imgHeight, classes, coords, num, anchors,
+                                                 static_cast<float>(confThresh), outputLayouts);
+    auto parsedReference = utils::parseYoloV3Output(references, imgWidth, imgHeight, classes, coords, num, anchors,
+                                                    static_cast<float>(confThresh), outputLayouts);
 
-    bool result = checkBBoxOutputs(parsedOutput,
-                                   parsedReference,
-                                   imgWidth,
-                                   imgHeight,
-                                   static_cast<float>(boxTolerance),
+    bool result = checkBBoxOutputs(parsedOutput, parsedReference, imgWidth, imgHeight, static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
     return result;
 }
@@ -1947,14 +1801,11 @@ bool testYoloV3(const TensorMap& outputs,
 // Yolo V4 mode
 // Ref link: https://docs.openvino.ai/latest/omz_models_model_yolo_v4_tiny_tf.html
 //
-bool testYoloV4(const TensorMap& outputs,
-                const TensorMap& references,
-                const TensorDescriptorMap& inputDescriptors,
-                const LayoutMap& outputLayouts,
-                size_t batch_size = 1) {
+bool testYoloV4(const TensorMap& outputs, const TensorMap& references, const TensorDescriptorMap& inputDescriptors,
+                const LayoutMap& outputLayouts, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'yolo_v4' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'yolo_v4' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
 
     OPENVINO_ASSERT(inputDescriptors.size() == 1, "The YOLO v4 model accepts only a single input");
@@ -1987,29 +1838,11 @@ bool testYoloV4(const TensorMap& outputs,
         }
     }
 
-    auto refOutput = utils::parseYoloV4Output(references,
-                                              imgWidth,
-                                              imgHeight,
-                                              classes,
-                                              coords,
-                                              num,
-                                              masked_anchors,
-                                              static_cast<float>(confThresh),
-                                              outputLayouts);
-    auto actOutput = utils::parseYoloV4Output(outputs,
-                                              imgWidth,
-                                              imgHeight,
-                                              classes,
-                                              coords,
-                                              num,
-                                              masked_anchors,
-                                              static_cast<float>(confThresh),
-                                              outputLayouts);
-    bool result = checkBBoxOutputs(actOutput,
-                                   refOutput,
-                                   imgWidth,
-                                   imgHeight,
-                                   static_cast<float>(boxTolerance),
+    auto refOutput = utils::parseYoloV4Output(references, imgWidth, imgHeight, classes, coords, num, masked_anchors,
+                                              static_cast<float>(confThresh), outputLayouts);
+    auto actOutput = utils::parseYoloV4Output(outputs, imgWidth, imgHeight, classes, coords, num, masked_anchors,
+                                              static_cast<float>(confThresh), outputLayouts);
+    bool result = checkBBoxOutputs(actOutput, refOutput, imgWidth, imgHeight, static_cast<float>(boxTolerance),
                                    static_cast<float>(probTolerance));
     return result;
 }
@@ -2019,13 +1852,11 @@ bool testYoloV4(const TensorMap& outputs,
 // Using sem_seg_classes, sem_seg_threshold flags and optionally sem_seg_ignore_label and dataset flags for validation
 // e.g. '--mode mean_iou --sem_seg_classes 12 --sem_seg_threshold 0.98 --sem_seg_ignore_label 11 --dataset camVid12'
 //
-bool testMeanIoU(const TensorMap& outputs,
-                 const TensorMap& references,
-                 const LayoutMap& outputLayouts,
+bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts,
                  size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
-            "The testcase 'mean_iou' doesn't support any `override_model_batch_size` values besides 1 yet");
+                "The testcase 'mean_iou' doesn't support any `override_model_batch_size` values besides 1 yet");
     }
 
     OPENVINO_ASSERT(outputs.size() == 1, "The metric accepts only a single output");
@@ -2082,10 +1913,8 @@ static ov::Shape parseDataShape(const std::string& dataShapeStr) {
     return ov::Shape(dataShape);
 }
 
-std::string getRefBlobFilePath(const std::string& netFileName,
-                               const std::vector<std::string>& refFiles,
-                               size_t numberOfTestCase,
-                               size_t outputInd) {
+std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+                               size_t numberOfTestCase, size_t outputInd) {
     std::string blobFileFullPath;
     if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
         // Case 1: Reference files & directory are provided (relative path)
@@ -2154,7 +1983,7 @@ static int runSingleImageTest() {
             std::vector<std::string> filesPerModel = splitStringList(images, ',');
             FilesForModelInputs entireModelFiles;
             entireModelFiles.reserve(filesPerModel.size());
-            for (auto&& filesPerInput : filesPerModel) {
+            for (auto &&filesPerInput : filesPerModel) {
                 // from now on each input of a model support multiple image files as content of a batched input
                 entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
             }
@@ -2172,9 +2001,9 @@ static int runSingleImageTest() {
             // input files
             if (refFilesPerCase.size() != inputFilesPerCase.size()) {
                 std::cout << "The number of test cases in reference files is not equal to the number of test cases"
-                          << " given in input files. "
-                          << "  Number of test cases in reference files: " << refFilesPerCase.size()
-                          << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
                 return EXIT_FAILURE;
             }
 
@@ -2262,11 +2091,11 @@ static int runSingleImageTest() {
             // Input layout
             for (size_t i = 0; i < inputInfo.size(); ++i) {
                 if (std::optional<ov::Layout> inUserLayout =
-                        getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inUserLayouts);
+                            getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inUserLayouts);
                     inUserLayout.has_value()) {
                     ov::Layout inLayerModelLayout;
                     if (std::optional<ov::Layout> inModelLayout =
-                            getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inModelLayouts);
+                                getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inModelLayouts);
                         inModelLayout.has_value()) {
                         inLayerModelLayout = inModelLayout.value();
                     } else {
@@ -2326,11 +2155,11 @@ static int runSingleImageTest() {
             // Output layout
             for (size_t i = 0; i < outputInfo.size(); ++i) {
                 if (std::optional<ov::Layout> outUserLayout =
-                        getRegexSubstitutionIfExist(outputInfo[i].get_any_name(), outUserLayouts);
+                            getRegexSubstitutionIfExist(outputInfo[i].get_any_name(), outUserLayouts);
                     outUserLayout.has_value()) {
                     ov::Layout outLayerModelLayout;
                     if (std::optional<ov::Layout> outModelLayout =
-                            getRegexSubstitutionIfExist(outputInfo[i].get_any_name(), outModelLayouts);
+                                getRegexSubstitutionIfExist(outputInfo[i].get_any_name(), outModelLayouts);
                         outModelLayout.has_value()) {
                         outLayerModelLayout = outModelLayout.value();
                     } else {
@@ -2356,7 +2185,8 @@ static int runSingleImageTest() {
             printInputAndOutputsInfoShort(*model);
 
             std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_device);
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
+                    FLAGS_override_model_batch_size, FLAGS_device);
 
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
@@ -2373,7 +2203,7 @@ static int runSingleImageTest() {
 
             std::ifstream file(FLAGS_network, std::ios_base::in | std::ios_base::binary);
             OPENVINO_ASSERT(file.is_open(), "Can't open file ", FLAGS_network, " for read");
-
+            
             ov::AnyMap device_config;
             // Temporary solution: build the path to the weights by leveraging the one towards the binary object
             std::string weightsPath = FLAGS_network;
@@ -2430,20 +2260,14 @@ static int runSingleImageTest() {
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
             const auto outputsInfo = compiledModel.outputs();
-            const FilesForModelInputs& inputFiles = inputFilesForOneInfer[numberOfTestCase];
-            OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(),
-                            "Number of input files ",
-                            inputFiles.size(),
-                            " doesn't match network configuration ",
-                            inputsInfo.size());
-            const RefFilesPerInput& refFiles =
-                refFilesForOneInfer.empty() ? RefFilesPerInput{} : refFilesForOneInfer[numberOfTestCase];
+            const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
+            OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
+                            " doesn't match network configuration ", inputsInfo.size());
+            const RefFilesPerInput &refFiles = refFilesForOneInfer.empty() ? RefFilesPerInput{}
+                                                                           : refFilesForOneInfer[numberOfTestCase];
             if (!FLAGS_ref_results.empty()) {
-                OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(),
-                                "Number of reference files ",
-                                refFiles.size(),
-                                " doesn't match number of network output (s): ",
-                                outputsInfo.size());
+                OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
+                " doesn't match number of network output (s): ", outputsInfo.size());
             }
 
             TensorMap inTensors;
@@ -2461,11 +2285,11 @@ static int runSingleImageTest() {
                 ov::Layout inputLayout;
 
                 if (std::optional<ov::Layout> inUserLayout =
-                        getRegexSubstitutionIfExist(inputInfo.get_any_name(), inUserLayouts);
+                            getRegexSubstitutionIfExist(inputInfo.get_any_name(), inUserLayouts);
                     inUserLayout.has_value()) {
                     inputLayout = inUserLayout.value();
                 } else if (std::optional<ov::Layout> inModelLayout =
-                               getRegexSubstitutionIfExist(inputInfo.get_any_name(), inModelLayouts);
+                                   getRegexSubstitutionIfExist(inputInfo.get_any_name(), inModelLayouts);
                            inModelLayout.has_value()) {
                     inputLayout = inModelLayout.value();
                 } else {
@@ -2476,21 +2300,17 @@ static int runSingleImageTest() {
                               << " rank (" << shape.size() << ") as " << inputLayout.to_string() << std::endl;
                 }
 
-                inputDescriptors.emplace(inputInfo.get_any_name(),
-                                         TensorDescriptor{precision, shape, dataShape, inputLayout});
+                inputDescriptors.emplace(inputInfo.get_any_name(), TensorDescriptor{precision, shape,
+                                                                                    dataShape, inputLayout});
 
-                std::cout << "Load input #" << inputInd << " from " << to_string(inputFiles[inputInd]) << " as "
-                          << precision << " " << inputLayout.to_string() << " " << shape << std::endl;
+                std::cout << "Load input #" << inputInd << " from " << to_string(inputFiles[inputInd]) << " as " << precision
+                          << " " << inputLayout.to_string() << " " << shape << std::endl;
 
                 const ov::Tensor tensor =
-                    !FLAGS_img_as_bin
-                        ? loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format)
-                        : loadInput(precision,
-                                    dataShape,
-                                    inputLayout,
-                                    inputFiles[inputInd],
-                                    FLAGS_color_format,
-                                    inputBinPrecisionForOneInfer[numberOfTestCase][inputInd]);
+                        !FLAGS_img_as_bin
+                                ? loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format)
+                                : loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
+                                            inputBinPrecisionForOneInfer[numberOfTestCase][inputInd]);
                 std::ostringstream ostr;
                 ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
                 const auto blobFileName = ostr.str();
@@ -2528,8 +2348,7 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::string blobFileFullPath =
-                        getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
+                    std::string blobFileFullPath = getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
 
                     std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
@@ -2541,11 +2360,11 @@ static int runSingleImageTest() {
                     ov::Layout outputLayout;
 
                     if (std::optional<ov::Layout> outUserLayout =
-                            getRegexSubstitutionIfExist(tensorName, outUserLayouts);
+                                getRegexSubstitutionIfExist(tensorName, outUserLayouts);
                         outUserLayout.has_value()) {
                         outputLayout = outUserLayout.value();
                     } else if (std::optional<ov::Layout> outModelLayout =
-                                   getRegexSubstitutionIfExist(tensorName, outModelLayouts);
+                                       getRegexSubstitutionIfExist(tensorName, outModelLayouts);
                                outModelLayout.has_value()) {
                         outputLayout = outModelLayout.value();
                     } else {
@@ -2613,9 +2432,7 @@ static int runSingleImageTest() {
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "ssd")) {
-                    if (testSSDDetection(outputTensors,
-                                         referenceTensors,
-                                         inputDescriptors,
+                    if (testSSDDetection(outputTensors, referenceTensors, inputDescriptors,
                                          FLAGS_override_model_batch_size)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
@@ -2623,9 +2440,7 @@ static int runSingleImageTest() {
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "yolo_v2")) {
-                    if (testYoloV2(outputTensors,
-                                   referenceTensors,
-                                   inputDescriptors,
+                    if (testYoloV2(outputTensors, referenceTensors, inputDescriptors,
                                    FLAGS_override_model_batch_size)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
@@ -2633,10 +2448,7 @@ static int runSingleImageTest() {
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "yolo_v3")) {
-                    if (testYoloV3(outputTensors,
-                                   referenceTensors,
-                                   inputDescriptors,
-                                   outputLayouts,
+                    if (testYoloV3(outputTensors, referenceTensors, inputDescriptors, outputLayouts,
                                    FLAGS_override_model_batch_size)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
@@ -2644,10 +2456,7 @@ static int runSingleImageTest() {
                         return EXIT_FAILURE;
                     }
                 } else if (strEq(FLAGS_mode, "yolo_v4")) {
-                    if (testYoloV4(outputTensors,
-                                   referenceTensors,
-                                   inputDescriptors,
-                                   outputLayouts,
+                    if (testYoloV4(outputTensors, referenceTensors, inputDescriptors, outputLayouts,
                                    FLAGS_override_model_batch_size)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
@@ -2661,11 +2470,8 @@ static int runSingleImageTest() {
                     const size_t dstHeight = shape[ov::layout::height_idx(outputLayout)];
                     const size_t dstWidth = shape[ov::layout::width_idx(outputLayout)];
 
-                    if (testPSNR(outputTensors,
-                                 referenceTensors,
-                                 static_cast<int>(dstHeight),
-                                 static_cast<int>(dstWidth),
-                                 FLAGS_override_model_batch_size)) {
+                    if (testPSNR(outputTensors, referenceTensors, static_cast<int>(dstHeight),
+                                 static_cast<int>(dstWidth), FLAGS_override_model_batch_size)) {
                         std::cout << "PASSED" << std::endl;
                     } else {
                         std::cout << "FAILED" << std::endl;

@@ -66,14 +66,6 @@ public:
                                                                           const Config& config) const = 0;
 
     /**
-     * @brief Sequantial compilation of Init(s) and Main
-     *
-     * "Stateful compiler" approach
-     */
-    virtual std::shared_ptr<NetworkDescription> compileWS_v2(const std::shared_ptr<ov::Model>& model,
-                                                             const Config& config) = 0;
-
-    /**
      * @brief Sequential compilation of Init(s) and Main
      *
      * "Stateless compiler" approach

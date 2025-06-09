@@ -158,20 +158,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         initMainNetworkDescriptions.pop_back();
         initNetworkDescriptions = std::move(initMainNetworkDescriptions);
     } break;
-    case 2: {
-        while (auto networkDescription = _compiler->compileWS_v2(model, config)) {
-            if (isInit(networkDescription->metadata.name)) {
-                initNetworkDescriptions.push_back(networkDescription);
-                continue;
-            }
-            OPENVINO_ASSERT(isMain(networkDescription->metadata.name),
-                            "Unexpected network name: ",
-                            networkDescription->metadata.name);
-
-            mainNetworkDescription = std::move(networkDescription);
-            break;
-        }
-    } break;
     case 3: {
         const std::shared_ptr<ov::Model> originalModel = model->clone();
         std::shared_ptr<ov::Model> targetModel = model;
