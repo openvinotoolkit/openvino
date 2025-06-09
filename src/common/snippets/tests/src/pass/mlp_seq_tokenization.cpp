@@ -4,13 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <pass/mlp_tokenization.hpp>
+#include <pass/mlp_seq_tokenization.hpp>
 #include <subgraph_mlp_seq.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
+
 namespace ov {
 namespace test {
 namespace snippets {
@@ -22,8 +23,8 @@ void TokenizeMLPSeqSnippetsTests::run() {
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     disable_rt_info_check();
 }
-class TokenizeMLPSnippetsParamTests : public TokenizeMLPSeqSnippetsTests,
-                                       public testing::WithParamInterface<std::tuple<std::vector<PartialShape>, ov::element::Type, int>> {
+class TokenizeMLPSeqSnippetsParamTests : public TokenizeMLPSeqSnippetsTests,
+                                         public testing::WithParamInterface<std::tuple<std::vector<PartialShape>, ov::element::Type, int>> {
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
@@ -41,7 +42,7 @@ protected:
     }
 };
 
-TEST_P(TokenizeMLPSnippetsParamTests, TypeRelaxed_2D) {
+TEST_P(TokenizeMLPSeqSnippetsParamTests, TypeRelaxed_2D) {
     run();
 }
 
@@ -59,7 +60,7 @@ static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MLP_SEQ,
-    TokenizeMLPSnippetsParamTests,
+    TokenizeMLPSeqSnippetsParamTests,
     testing::Combine(
         testing::Values(std::vector<PartialShape>{{64, 64}}, std::vector<PartialShape>{{128, 128}}),
         testing::Values(ov::element::f32, ov::element::u8),
