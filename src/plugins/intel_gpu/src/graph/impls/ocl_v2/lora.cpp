@@ -816,7 +816,7 @@ std::vector<size_t> get_stages_execution_order_single_lora(const cldnn::primitiv
     return stages_order;
 }
 
-std::vector<size_t> get_stages_execution_order_horizontal_fused_lora(const cldnn::primitive_inst& instance) {
+std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_inst& instance) {
     const auto& params = *instance.get_impl_params();
     std::vector<size_t> stages_order;
 
@@ -972,8 +972,7 @@ public:
         std::vector<cldnn::event::ptr> tmp_events(events);
 
         size_t is_simple_lora = LoraRefBase<>::get_lora_count(*instance.get_impl_params()) == 1;
-        const auto& exec_stages = is_simple_lora ? get_stages_execution_order_single_lora(instance)
-                                                 : get_stages_execution_order_horizontal_fused_lora(instance);
+        const auto& exec_stages = is_simple_lora ? get_stages_execution_order_single_lora(instance) : get_stages_execution_order_hf_lora(instance);
         for (const auto& stage_id : exec_stages) {
             tmp_events = {execute_stage(tmp_events, instance, *_stages[stage_id])};
         }
