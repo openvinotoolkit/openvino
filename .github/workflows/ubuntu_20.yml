@@ -116,6 +116,7 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DENABLE_WHEEL=ON
             -DENABLE_PYTHON=ON
+            -DENABLE_FASTER_BUILD=ON
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
   CXX_Unit_Tests:
