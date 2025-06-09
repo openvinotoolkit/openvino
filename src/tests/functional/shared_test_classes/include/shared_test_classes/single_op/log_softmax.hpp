@@ -26,6 +26,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<logSoftmaxLayerTestParams>& obj);
 
 protected:
+    void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
     void SetUp() override;
 };
 }  // namespace test
