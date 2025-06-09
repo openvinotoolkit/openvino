@@ -15,9 +15,9 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::cm {
 
-struct VLSDPAOpt2ImplementationManager : public ImplementationManager {
-    OV_GPU_PRIMITIVE_IMPL("cm::vl_sdpa::opt2")
-    explicit VLSDPAOpt2ImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
+struct VLSDPAOpt3ImplementationManager : public ImplementationManager {
+    OV_GPU_PRIMITIVE_IMPL("cm::vl_sdpa::opt3")
+    explicit VLSDPAOpt3ImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
         : ImplementationManager(impl_types::cm, shape_type, std::move(vf)) {}
 
     [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
@@ -44,13 +44,13 @@ struct VLSDPAOpt2ImplementationManager : public ImplementationManager {
         const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
 
-        if (std::getenv("OV_DISABLE_VLSDPA_OPT2")) {
-            std::cout << "OV_DISABLE_VLSDPA_OPT2 set-----------------" << std::endl;
+        if (std::getenv("OV_DISABLE_VLSDPA_OPT3")) {
+            std::cout << "OV_DISABLE_VLSDPA_OPT3 set-----------------" << std::endl;
             return false;
         }
 
-        // CM optimized for Xe1 architectures
-        if (!check_cm_jit_support(engine, config) || !(info.arch >= gpu_arch::xe_lp && info.arch <= gpu_arch::xe_hpc) || !config.get_use_cm()) {
+        // CM optimized for Xe1/Xe2 architectures
+        if (!check_cm_jit_support(engine, config) || !(info.arch >= gpu_arch::xe_lp) || !config.get_use_cm()) {
             return false;
         }
 

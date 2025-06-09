@@ -9,6 +9,22 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(vl_sdpa);
 
+namespace {
+// Overload << operator for vectors
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
+    os << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        os << vec[i];
+        if (i != vec.size() - 1) {
+            os << ", ";
+        }
+    }
+    os << "]";
+    return os;
+}
+};
+
 std::string vl_sdpa_inst::to_string(const vl_sdpa_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
@@ -45,6 +61,8 @@ std::vector<int32_t> vl_sdpa_inst::get_mask_seqlens_from_memory() const {
     std::vector<int32_t> buf(shape[0]);
     cu_seqlens_mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
 
+    GPU_DEBUG_TRACE_DETAIL << " get_mask_seqlens_from_memory " << cu_seqlens_mem->buffer_ptr() << " : " << buf << std::endl;
+
     return buf;   
 }
 
@@ -54,6 +72,8 @@ std::vector<int32_t> vl_sdpa_inst::get_mask_seqlens_from_memory2(memory::ptr cu_
 
     std::vector<int32_t> buf(cu_seqlens_mem->count());
     cu_seqlens_mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
+
+    GPU_DEBUG_TRACE_DETAIL << " get_mask_seqlens_from_memory2 " << cu_seqlens_mem->buffer_ptr() << " : " << buf << std::endl;
 
     return buf;   
 }

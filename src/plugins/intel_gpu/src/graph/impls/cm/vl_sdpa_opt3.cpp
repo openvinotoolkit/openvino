@@ -4,7 +4,7 @@
 #include <cmath>
 #include <algorithm>
 
-#include "vl_sdpa_opt2.hpp"
+#include "vl_sdpa_opt3.hpp"
 
 #include "common_utils/kernel_generator_base.hpp"
 #include "primitive_cm_base.hpp"
@@ -17,7 +17,7 @@ namespace ov::intel_gpu::cm {
 namespace {
 
 constexpr auto get_vlsdpa_build_options() {
-    return " -cmc -Qxcm_register_file_size=256 -mdump_asm -g2 ";
+    return " -cmc -Qxcm_register_file_size=256 -mCM_printregusage -mdump_asm -g2 ";
 }
 
 // Overload << operator for vectors
@@ -33,9 +33,10 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
     os << "]";
     return os;
 }
+
 class VLSDPAGenerator : public KernelGenerator {
 public:
-    VLSDPAGenerator() : KernelGenerator("sdpaMha80Xe1") {}
+    VLSDPAGenerator() : KernelGenerator("cm_sdpa_vlen") {}
 
 protected:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
@@ -79,6 +80,10 @@ protected:
         // TODO: jit for transpose
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
+            make_jit_constant("CMFLA_NUM_HEADS", num_q_heads),
+            make_jit_constant("CMFLA_NUM_KV_HEADS", num_kv_heads),
+            make_jit_constant("CMFLA_HEAD_SIZE", head_size),
+            make_jit_constant("CMFLA_SCALE_FACTOR", scale_factor),
         });
 
         return jit;
@@ -89,7 +94,7 @@ protected:
 
         std::cout << "----------------- VLSDPA::get_arguments_desc -----------------" << std::endl;
 
-        for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
+        for (uint32_t i = 0; i < params.input_layouts.size() - 1; i++) { // inputs: q, k, v
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }
 
@@ -97,8 +102,9 @@ protected:
             args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
         }
 
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(params.input_layouts.size() - 1)}); // input: cu_seq_lens
+
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});
 
         return args;
     }
@@ -120,42 +126,61 @@ protected:
                 return transposed_pshape;
             };
             const auto& out_shape = transpose_pshape(params.output_layouts[0].get_shape(), desc->output_transpose_order);
-            const auto key_shape = transpose_pshape(params.get_input_layout(1).get_shape(), desc->input_k_transpose_order);
+            const auto query_shape = transpose_pshape(params.get_input_layout(0).get_shape(), desc->input_q_transpose_order);
 
             std::cout << "----------------- VLSDPA::get_dispatch_data_func -----------------" << std::endl;
             std::cout << "----------------- output_transpose_order: " << desc->output_transpose_order <<
             "," << params.output_layouts[0].get_shape() << "->" << out_shape << std::endl;
-            std::cout << "----------------- input_k_transpose_order: " << desc->input_k_transpose_order <<
-            "," << params.input_layouts[1].get_shape() << "->" << key_shape << std::endl;
+            std::cout << "----------------- input_k_transpose_order: " << desc->input_q_transpose_order <<
+            "," << params.input_layouts[0].get_shape() << "->" << query_shape << std::endl;
 
-            const size_t headNumKv = key_shape[key_shape.size()-3];
-
-            const size_t batchSize = static_cast<size_t>(std::floor(params.input_layouts[3].get_shape()[0] / 2));
-            constexpr bool hasMask = false;
+            const size_t num_q_heads = query_shape[query_shape.size()-3];  // TODO: make it to be configuration of primitive_inst
 
             auto& instance = reinterpret_cast<typed_primitive_inst<cldnn::vl_sdpa>&>(*rt_params->instance);
             const auto& cu_seqlens = vl_sdpa_inst::get_mask_seqlens_from_memory2(instance.cu_seqlens_memory_ptr(), params.get_stream());
             std::cout << "------------------------- " << desc->id << ", cu_seqlens=" << cu_seqlens << std::endl;
-            size_t longestBatch = 0;
+            size_t max_seq_len = 0;
             for (size_t i = 1; i < cu_seqlens.size(); i++) {
                 auto start_idx = cu_seqlens[i - 1];
                 auto end_idx = cu_seqlens[i];
-                longestBatch = std::max(longestBatch, static_cast<size_t>(end_idx - start_idx));
+                max_seq_len = std::max(max_seq_len, static_cast<size_t>(end_idx - start_idx));
             }
 
-            size_t groupH = (longestBatch + 255) / 256;
-            size_t groupV = headNumKv * batchSize / 2;
-            size_t localH = 64;
-            size_t localV = 1;
+            const auto& info = params.get_device_info();
+            const size_t CM_GRF_WIDTH = (info.arch <= gpu_arch::xe_hpc) ? 128 : 256;
+            const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));   // or 8 on Xe1
+            size_t wg_size = static_cast<size_t>(std::floor((max_seq_len + q_step - 1) / q_step));
+            int32_t need_wg_mapping = 0;
+            if (wg_size > 16) {
+                // # seq_len is too big to fit into a single work-group
+                // # will use fixed work-group size 16, process 16*16 (or 16*8 on xe1)
+                // # part of sequence, in this case, kernel needs to figure-out which part
+                // # it needs to handle
+                need_wg_mapping = 1;
+                wg_size = 16;
+            }
+
+            size_t wg_count;
+            if (need_wg_mapping) {
+                wg_count = 0;
+                const auto wg_seq_len = wg_size * q_step;
+                for (size_t i = 1; i < cu_seqlens.size(); i++) {
+                    auto start_idx = cu_seqlens[i - 1];
+                    auto end_idx = cu_seqlens[i];
+                    wg_count += static_cast<size_t>(std::floor((end_idx - start_idx + wg_seq_len - 1) / wg_seq_len));
+                }
+            } else {
+                wg_count = cu_seqlens.size() - 1;
+            }
 
             auto& wgs = kd.params.workGroups;
-            wgs.global = {groupH * localH, groupV * localV};
-            wgs.local = {localH, localV};
+            wgs.global = {num_q_heads, wg_count * wg_size};
+            wgs.local = {1, wg_size};
 
             std::cout << "========== WGS=" << wgs.global << ", LGS=" << wgs.local <<
-             ", batchSize=" << batchSize << ", longestBatch=" << longestBatch << ", headNumKv=" << headNumKv << std::endl;
+             ", wg_count=" << wg_count << ", max_seq_len=" << max_seq_len << ", need_wg_mapping=" << need_wg_mapping << ", num_q_heads" << num_q_heads << std::endl;
 
-            std::vector<size_t> scalars {batchSize, hasMask};
+            std::vector<int32_t> scalars {need_wg_mapping};
             kd.params.scalars.clear();
             for (auto i : scalars) {
                 scalar_desc desc;
@@ -167,30 +192,30 @@ protected:
     }
 };
 
-class VLSDPAOptImpl2 : public PrimitiveImplCM {
+class VLSDPAOptImpl3 : public PrimitiveImplCM {
 public:
-    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::VLSDPAOptImpl2)
+    DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::VLSDPAOptImpl3)
 
     Stage::Ptr vl_sdpa = make_stage<VLSDPAGenerator>();
 
-    VLSDPAOptImpl2() : PrimitiveImplOCL(VLSDPAOpt2ImplementationManager::get_type_info_static()) {}
-    VLSDPAOptImpl2(const program_node& node, const RuntimeParams& params) : VLSDPAOptImpl2() {
+    VLSDPAOptImpl3() : PrimitiveImplOCL(VLSDPAOpt3ImplementationManager::get_type_info_static()) {}
+    VLSDPAOptImpl3(const program_node& node, const RuntimeParams& params) : VLSDPAOptImpl3() {
         add_stage(vl_sdpa, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
-        return make_deep_copy<VLSDPAOptImpl2>(this);
+        return make_deep_copy<VLSDPAOptImpl3>(this);
     }
 };
 
 }  // namespace
 
-std::unique_ptr<primitive_impl> VLSDPAOpt2ImplementationManager::create_impl(const program_node& node, const RuntimeParams& params) const {
+std::unique_ptr<primitive_impl> VLSDPAOpt3ImplementationManager::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<vl_sdpa>());
-    return std::make_unique<VLSDPAOptImpl2>(node, params);
+    return std::make_unique<VLSDPAOptImpl3>(node, params);
 }
 
 }  // namespace ov::intel_gpu::cm
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
-BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::VLSDPAOptImpl2)
+// BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
+BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::VLSDPAOptImpl3)
