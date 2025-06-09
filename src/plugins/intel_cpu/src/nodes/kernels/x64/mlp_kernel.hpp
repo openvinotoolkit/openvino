@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "../scaled_attn/executor_pa_common.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)
@@ -115,7 +128,7 @@ public:
     // with the help of :
     //  - m_BM_hint controls dynamic behaviour of the kernel
     //  - tile config controls behaviour of tileload & TMUL
-    void tile_config_M(ov::Extensions::Cpu::TileConfig& tile_cfg, int M);
+    static void tile_config_M(ov::Extensions::Cpu::TileConfig& tile_cfg, int M);
 
     // to save push/pop: do not use `abi_save_gpr_regs`
     uint8_t* prefetch_next_A_addr;
@@ -144,14 +157,24 @@ public:
 
         // convert
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight, int stride, int N, int K);
+        void setup(Tdst* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight, int stride, int N, int K);
+        void setup(int8_t* ext_buff, int8_t* p_weight, int weight_stride_in_bytes, int N, int K);
         // two B tiles in each pair (B0 & B1) comes from different raw weight matrix
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight_B0, ov::float16* p_weight_B1, int stride, int N, int K);
+        void setup(Tdst* ext_buff,
+                   ov::float16* p_weight_B0,
+                   ov::float16* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight_B0, int8_t* p_weight_B1, int stride, int N, int K);
+        void setup(int8_t* ext_buff,
+                   int8_t* p_weight_B0,
+                   int8_t* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
     };
 
     // run L2 cache blocking kernel with size:
@@ -162,12 +185,12 @@ public:
     // but prefetch of next B must be specified by caller.
     //
     void run(int M,  // actual M
-             uint8_t* pA,
+             const uint8_t* pA,
              int strideA,          // A [M, K]
              BMatrix& repacked_B,  // B
-             uint8_t* pC,
-             int strideC,          // C [M, N]
-             uint8_t* prefetch_B,  // prefetch B
+             const uint8_t* pC,
+             int strideC,                // C [M, N]
+             const uint8_t* prefetch_B,  // prefetch B
              bool do_accumulation);
 };
 
@@ -472,8 +495,8 @@ struct MatrixDynQuantPerRow {
         zp = reinterpret_cast<float*>(scale + M);
     }
 
-    void quantize(size_t BM, ov::bfloat16* psrc, int src_stride);
-    void quantize(size_t BM, ov::float16* psrc, int src_stride);
+    void quantize(size_t BM, ov::bfloat16* psrc, int src_stride) const;
+    void quantize(size_t BM, ov::float16* psrc, int src_stride) const;
 };
 
 // combine gate_proj & up_proj using activation algo, then convert to bf16
