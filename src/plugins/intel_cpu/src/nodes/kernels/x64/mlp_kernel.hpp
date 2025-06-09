@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <atomic>

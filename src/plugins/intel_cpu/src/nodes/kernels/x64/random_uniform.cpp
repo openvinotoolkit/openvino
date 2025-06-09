@@ -4,8 +4,8 @@
 
 #include "random_uniform.hpp"
 
-#include <xbyak/xbyak.h>
 #include <immintrin.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>

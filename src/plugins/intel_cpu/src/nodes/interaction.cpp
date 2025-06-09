@@ -4,8 +4,8 @@
 
 #include "interaction.h"
 
-#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <cstddef>

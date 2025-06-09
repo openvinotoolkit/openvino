@@ -4,9 +4,9 @@
 
 #include "fake_quantize.h"
 
-#include <xbyak/xbyak.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <array>

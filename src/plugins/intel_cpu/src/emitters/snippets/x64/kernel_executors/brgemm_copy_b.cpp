@@ -4,10 +4,10 @@
 
 #include "brgemm_copy_b.hpp"
 
-#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <common/utils.hpp>

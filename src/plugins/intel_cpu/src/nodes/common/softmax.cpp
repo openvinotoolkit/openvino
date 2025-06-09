@@ -74,8 +74,12 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     }
 
     void generate() override {
-        exp_injector.reset(
-            new jit_uni_eltwise_injector_t<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.F, 0.F, 1.0F, data_type::f32));
+        exp_injector.reset(new jit_uni_eltwise_injector_t<isa>(this,
+                                                               dnnl::impl::alg_kind::eltwise_exp,
+                                                               0.F,
+                                                               0.F,
+                                                               1.0F,
+                                                               data_type::f32));
 
         if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);

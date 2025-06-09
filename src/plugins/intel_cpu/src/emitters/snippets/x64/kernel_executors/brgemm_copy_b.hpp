@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>

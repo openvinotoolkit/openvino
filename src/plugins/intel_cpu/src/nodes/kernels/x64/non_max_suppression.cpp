@@ -29,8 +29,12 @@ void NonMaxSuppression<isa>::generate() {
     load_scalar_emitter =
         std::make_unique<jit_load_emitter>(this, isa, ov::element::f32, ov::element::f32, scalar_step);
 
-    exp_injector.reset(
-        new x64::jit_uni_eltwise_injector_t<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.F, 0.F, 1.F, data_type::f32));
+    exp_injector.reset(new x64::jit_uni_eltwise_injector_t<isa>(this,
+                                                                dnnl::impl::alg_kind::eltwise_exp,
+                                                                0.F,
+                                                                0.F,
+                                                                1.F,
+                                                                data_type::f32));
 
     this->preamble();
 
