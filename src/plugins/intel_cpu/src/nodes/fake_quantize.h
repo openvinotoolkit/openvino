@@ -204,7 +204,7 @@ public:
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
                            bool allowBinary = true,
-                           bool do_rounding = true);
+                           bool doRounding = true);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -246,7 +246,10 @@ private:
     void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const;
 
     void appendMemory(const size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
-    void appendMemory(const size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem);
+    static void appendMemory(const size_t dataSize,
+                             const void* data,
+                             MemoryPtr& memPtr,
+                             std::vector<const void*>& postOpsMem);
     template <typename T>
     void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims& postOpDims, std::vector<T>& postOpsMem);
 

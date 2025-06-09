@@ -165,6 +165,13 @@ public:
         return max_gemma_sgk;
     }
 
+    [[nodiscard]] static size_t is_first_token(const RuntimeParams& params) {
+        const auto& lora_input_lo = params.input_layouts[1];
+        size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
+        size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
+        return batch * feature > 1;
+    }
+
     static constexpr size_t gemm_a_sg_bk = 32ul;
 };
 
@@ -251,9 +258,10 @@ protected:
 
             for (size_t m = 0; m < M; ++m) {
                 for (size_t n = 0; n < N; ++n) {
+                    std::string scaled_alpha = "(alpha_" + std::to_string(n) + " / TO_ACCUMULATOR_TYPE(LORA_RANK))";
                     res += generate_block_write(dtype,
                                                 "ptrC + SUBGROUP_SIZE * " + std::to_string(n),
-                                                "sum_" + std::to_string(m) + "_" + std::to_string(n) + " * alpha_" + std::to_string(n));
+                                                "sum_" + std::to_string(m) + "_" + std::to_string(n) + " * " + scaled_alpha);
                 }
                 res += "ptrC += N;";
             }
@@ -304,7 +312,7 @@ public:
     explicit LoraOptFirstTokenA(std::string suffix, size_t reg_m, size_t reg_n) : LoraOptFirstTokenBase("first_token_a_" + suffix, reg_m, reg_n) {}
 
     static std::pair<size_t, size_t> get_subgroup_params(const RuntimeParams& params, size_t reg_n) {
-        size_t sg_m, sg_n;
+        size_t sg_m = 0, sg_n = 0;
 
         const auto& lora_input_lo = params.input_layouts[1];
         size_t lora_rank = extract_channel(ChannelName::FEATURE, lora_input_lo);
@@ -367,7 +375,7 @@ protected:
 
             size_t subgroup_size = LoraOptBase::get_subgroup_size(params);
 
-            size_t sg_m, sg_n;
+            size_t sg_m = 0, sg_n = 0;
             std::tie(sg_m, sg_n) = LoraOptFirstTokenA::get_subgroup_params(params, reg_n);
 
             if (sg_n == 0) {
@@ -484,7 +492,7 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});
         args.push_back({ArgumentDescriptor::Types::INPUT, 2});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 
         return args;
     }
@@ -547,7 +555,7 @@ protected:
         }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         args.push_back({ArgumentDescriptor::Types::INPUT, 3});
         args.push_back({ArgumentDescriptor::Types::INPUT, 4});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -569,22 +577,22 @@ protected:
     }
 };
 
-bool is_optimized_kernel_supported(const cldnn::primitive_inst& instance) {
-    size_t subgroup_size = LoraOptBase::get_subgroup_size(*instance.get_impl_params());
+bool is_optimized_kernel_supported(const RuntimeParams& params) {
+    size_t subgroup_size = LoraOptBase::get_subgroup_size(params);
 
-    const auto& state_a_layout = instance.get_input_layout(2);
+    const auto& state_a_layout = params.get_input_layout(2);
     size_t input_state = state_a_layout.get_shape().back();
     if (input_state % subgroup_size != 0) {
         return false;
     }
 
-    const auto& alpha_layout = instance.get_input_layout(3);
+    const auto& alpha_layout = params.get_input_layout(3);
     size_t lora_rank = alpha_layout.get_shape().back();
     if (lora_rank % subgroup_size != 0) {
         return false;
     }
 
-    const auto& state_b_layout = instance.get_input_layout(4);
+    const auto& state_b_layout = params.get_input_layout(4);
     size_t output_state = state_b_layout.get_shape().front();
     if (output_state % subgroup_size != 0) {
         return false;
@@ -595,18 +603,14 @@ bool is_optimized_kernel_supported(const cldnn::primitive_inst& instance) {
 
 std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
     std::vector<size_t> stages_order;
+    const auto& params = *instance.get_impl_params();
 
     bool is_empty_lora = instance.get_input_layout(2).count() == 0;
     if (!is_empty_lora) {
-        if (!is_optimized_kernel_supported(instance)) {
+        if (!is_optimized_kernel_supported(params)) {
             stages_order.emplace_back(KernelsTypes::REFERENCE);
         } else {
-            const auto& lora_input = instance.get_input_layout(1);
-            size_t batch = extract_channel(ChannelName::BATCH, lora_input);
-            size_t feature = extract_channel(ChannelName::FEATURE, lora_input);
-            bool is_first_token = batch * feature > 1;
-
-            if (is_first_token) {
+            if (LoraOptBase::is_first_token(params)) {
                 const auto& state_alpha_lo = instance.get_input_layout(3);
                 size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
 
@@ -618,9 +622,13 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
                     stages_order.emplace_back(KernelsTypes::FIRST_TOKEN_A_SMALL);
                 }
 
+                const auto& lora_input = instance.get_input_layout(1);
+                size_t batch = extract_channel(ChannelName::BATCH, lora_input);
+                size_t feature = extract_channel(ChannelName::FEATURE, lora_input);
+
                 if (batch * feature < 256) {
-                    size_t max_workgroup_size = instance.get_impl_params()->get_device_info().max_work_group_size;
-                    size_t subgroup_size = LoraOptBase::get_subgroup_size(*instance.get_impl_params());
+                    size_t max_workgroup_size = params.get_device_info().max_work_group_size;
+                    size_t subgroup_size = LoraOptBase::get_subgroup_size(params);
                     size_t b_medium_sg_m = 16;
                     size_t b_medium_sg_n = 4;
                     if (b_medium_sg_m * b_medium_sg_n * subgroup_size > max_workgroup_size) {
@@ -690,17 +698,17 @@ public:
         size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
         size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
-        auto first_token_buffer = BufferDescriptor{lora_rank * batch * feature, params.get_output_layout().data_type};
+        if (LoraOptBase::is_first_token(params)) {
+            return {BufferDescriptor{lora_rank * batch * feature, params.get_output_layout().data_type}};
+        } else {
+            const auto& state_a_lo = params.input_layouts[2];
+            size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
 
-        const auto& state_a_lo = params.input_layouts[2];
-        size_t input_state = extract_channel(ChannelName::FEATURE, state_a_lo);
+            size_t max_workgroup_size = params.get_device_info().max_work_group_size;
+            size_t output_a_size = ceil_div(input_state, LoraOptBase::gemm_a_sg_bk * (max_workgroup_size / lora_rank));
 
-        size_t max_workgroup_size = params.get_device_info().max_work_group_size;
-        size_t output_a_size = ceil_div(input_state, LoraOptBase::gemm_a_sg_bk * (max_workgroup_size / lora_rank));
-
-        auto second_token_buffer = BufferDescriptor{output_a_size, params.get_output_layout().data_type};
-
-        return {first_token_buffer, second_token_buffer};
+            return {BufferDescriptor{output_a_size, params.get_output_layout().data_type}};
+        }
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {

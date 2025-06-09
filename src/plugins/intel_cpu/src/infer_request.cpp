@@ -193,7 +193,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     for (auto& it : m_input_external_ptr) {
         auto inputNodePtr = graph.getInputNodeByIndex(it.first);
         OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data())) {
+        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
             continue;
         }
         const auto& childEdges = inputNodePtr->getChildEdges();
@@ -245,7 +245,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
-        if (outputRawPtr == static_cast<void*>(it.second->data())) {
+        if (outputRawPtr == it.second->data()) {
             continue;
         }
 
@@ -544,9 +544,15 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
             // WA, due to the transformations and constant folding, shape inference of the resulting model may
             // have static shapes, while they are dynamic in the initial representation
-            const auto& shape = graph_shape.isDynamic()
-                                    ? port_shape
-                                    : (port_shape.is_dynamic() ? graph_shape.toPartialShape() : port_shape);
+            const auto shape = [&]() -> ov::PartialShape {
+                if (graph_shape.isDynamic()) {
+                    return port_shape;
+                }
+                if (port_shape.is_dynamic()) {
+                    return graph_shape.toPartialShape();
+                }
+                return port_shape;
+            }();
 
             const bool isDynamic = shape.is_dynamic();
             tensor = ov::ISyncInferRequest::get_tensor(port);
@@ -609,7 +615,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     if (!tensor) {
         OPENVINO_THROW("Cannot find tensor with index: ", port_index);
     }
-    return;
 }
 
 void SyncInferRequest::push_input_data(Graph& graph) {

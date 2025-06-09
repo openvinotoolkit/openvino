@@ -108,7 +108,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     m_normalized = attrs.normalized;
     if (m_decayFunction == MatrixNmsDecayFunction::LINEAR) {
         m_decay_fn = [](float iou, float max_iou, [[maybe_unused]] float sigma) -> float {
-            return (1. - iou) / (1. - max_iou + 1e-10f);
+            return (1. - iou) / (1. - max_iou + 1e-10F);
         };
     } else {
         m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
@@ -166,7 +166,7 @@ bool MatrixNms::created() const {
 
 namespace {
 
-static inline float boxArea(const float* bbox, const bool normalized) {
+inline float boxArea(const float* bbox, const bool normalized) {
     if (bbox[2] < bbox[0] || bbox[3] < bbox[1]) {
         return static_cast<float>(0.);
     }
@@ -178,7 +178,7 @@ static inline float boxArea(const float* bbox, const bool normalized) {
     return (width + 1) * (height + 1);
 }
 
-static inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {
+inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {
     if (bbox2[0] > bbox1[2] || bbox2[2] < bbox1[0] || bbox2[1] > bbox1[3] || bbox2[3] < bbox1[1]) {
         return static_cast<float>(0.);
     }
@@ -283,7 +283,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
 void MatrixNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
-    if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
+    if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2]) {
         THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' input dmensions");
     }
 
@@ -293,9 +293,12 @@ void MatrixNms::prepareParams() {
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
-                              : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
-                                                                                      : m_numClasses;
+    size_t real_num_classes = [&]() {
+        if (m_backgroundClass == -1 || static_cast<size_t>(m_backgroundClass) >= m_numClasses) {
+            return m_numClasses;
+        }
+        return m_numClasses - 1;
+    }();
     if (m_nmsTopk >= 0) {
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     } else {
@@ -463,7 +466,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
 
         if (m_outStaticShape) {
-            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.f);
+            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.F);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
             outputOffset += m_maxBoxesPerBatch;
             originalOffset += real_boxes;

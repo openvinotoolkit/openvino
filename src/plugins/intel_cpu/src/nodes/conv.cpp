@@ -111,7 +111,7 @@ public:
                 addEdge(parentNode, currentNode, 0, 0);
                 auto constantsItr = conv.fusedConstNodes.find(currentNode);
                 if (constantsItr != conv.fusedConstNodes.end()) {
-                    size_t inpPort = 1lu;
+                    size_t inpPort = 1LU;
                     for (const auto& item : constantsItr->second) {
                         addEdge(item, currentNode, 0, inpPort++);
                     }
@@ -198,7 +198,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
       dw_conv_ih(0),
       dw_conv_iw(0),
       dw_conv_in_dt(memory::data_type::undef),
-      groupNum(1lu),
+      groupNum(1LU),
       IC(1),
       groupIC(1),
       groupOC(1) {
@@ -233,11 +233,13 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         }
         m_attrs.paddingL = convolutionOp->get_pads_begin();
         m_attrs.paddingR = convolutionOp->get_pads_end();
-        m_attrs.autoPadding =
-            convolutionOp->get_auto_pad() == ov::op::PadType::SAME_UPPER
-                ? AutoPaddingType::SAME_UPPER
-                : (convolutionOp->get_auto_pad() == ov::op::PadType::SAME_LOWER ? AutoPaddingType::SAME_LOWER
-                                                                                : AutoPaddingType::None);
+        if (convolutionOp->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
+            m_attrs.autoPadding = AutoPaddingType::SAME_UPPER;
+        } else if (convolutionOp->get_auto_pad() == ov::op::PadType::SAME_LOWER) {
+            m_attrs.autoPadding = AutoPaddingType::SAME_LOWER;
+        } else {
+            m_attrs.autoPadding = AutoPaddingType::None;
+        }
     } else if (groupConvolutionOp) {
         algorithm = Algorithm::ConvolutionGrouped;
         m_attrs.isGrouped = true;
@@ -258,11 +260,13 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         }
         m_attrs.paddingL = groupConvolutionOp->get_pads_begin();
         m_attrs.paddingR = groupConvolutionOp->get_pads_end();
-        m_attrs.autoPadding =
-            groupConvolutionOp->get_auto_pad() == ov::op::PadType::SAME_UPPER
-                ? AutoPaddingType::SAME_UPPER
-                : (groupConvolutionOp->get_auto_pad() == ov::op::PadType::SAME_LOWER ? AutoPaddingType::SAME_LOWER
-                                                                                     : AutoPaddingType::None);
+        if (groupConvolutionOp->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
+            m_attrs.autoPadding = AutoPaddingType::SAME_UPPER;
+        } else if (groupConvolutionOp->get_auto_pad() == ov::op::PadType::SAME_LOWER) {
+            m_attrs.autoPadding = AutoPaddingType::SAME_LOWER;
+        } else {
+            m_attrs.autoPadding = AutoPaddingType::None;
+        }
     }
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
     const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
@@ -698,7 +702,8 @@ void Convolution::prepareParams() {
 
 void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) {
     if (!withSum) {  // fast path
-        return Node::redefineOutputMemory(newOutputShapes);
+        Node::redefineOutputMemory(newOutputShapes);
+        return;
     }
 
     const size_t sumPortNum = getParentEdges().size() - 1;

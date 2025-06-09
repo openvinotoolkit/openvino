@@ -161,7 +161,7 @@ GatherTree::GatherTreeExecutor::GatherTreeExecutor(const VectorDims& stepIdxDims
       batchSize{stepIdxDims[1]},
       beamWidth{stepIdxDims[2]},
       bbSize{batchSize * beamWidth},
-      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1lu, std::multiplies<>())} {
+      parentIdxSize{std::accumulate(parentIdxDims.cbegin(), parentIdxDims.cend(), 1LU, std::multiplies<>())} {
     if (maxTime != static_cast<int32_t>(parentIdxDims[0]) || maxTime != static_cast<int32_t>(dstDims[0]) ||
         batchSize != parentIdxDims[1] || batchSize != dstDims[1] || batchSize != maxSeqLenDims[0] ||
         beamWidth != parentIdxDims[2] || beamWidth != dstDims[2]) {
@@ -186,8 +186,9 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
     parallel_for2d(batchSize, beamWidth, [&](size_t batch, size_t beam) {
         int32_t maxSequenceInBeam = std::min<int32_t>(maxTime, static_cast<int32_t>(maxSeqLen[batch]));
         if (maxSequenceInBeam > 0) {
-            int32_t time, idx = (maxTime - 1) * bbSize + batch * beamWidth;
-            for (time = (maxTime - 1); time >= maxSequenceInBeam; time--, idx -= bbSize) {
+            int32_t time = (maxTime - 1);
+            int32_t idx = (maxTime - 1) * bbSize + batch * beamWidth;
+            for (; time >= maxSequenceInBeam; time--, idx -= bbSize) {
                 finalIdx[idx + beam] = endToken;
             }
 
