@@ -20,17 +20,28 @@ struct ScatterNDUpdate : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        static constexpr std::array supported_types = {
+        static constexpr std::array supported_inout_types = {
             ov::element::f32,
             ov::element::f16,
             ov::element::i32,
+            ov::element::i64,
             ov::element::i8,
             ov::element::u8,
         };
 
-        const auto& in0_layout = node.get_input_layout(0);
+        static constexpr std::array supported_indices_types = {
+            ov::element::i32,
+            ov::element::i64,
+        };
+
+        const auto& in0_layout = node.get_input_layout(0);  // data
+        const auto& in1_layout = node.get_input_layout(1);  // indices
+        const auto& in2_layout = node.get_input_layout(2);  // updates
         const auto& out_layout = node.get_output_layout(0);
-        if (!one_of(in0_layout.data_type, supported_types) || !one_of(out_layout.data_type, supported_types)) {
+        if (!one_of(in0_layout.data_type, supported_inout_types) ||
+            !one_of(in1_layout.data_type, supported_indices_types) ||
+            !one_of(in2_layout.data_type, supported_inout_types) ||
+            !one_of(out_layout.data_type, supported_inout_types)) {
             return false;
         }
 
