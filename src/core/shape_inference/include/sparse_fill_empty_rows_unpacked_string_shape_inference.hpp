@@ -33,8 +33,8 @@ std::vector<TRShape> shape_infer(const SparseFillEmptyRowsUnpackedString* op,
                            symbols_shape);
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           default_value_shape.rank().compatible(0),
-                           "The default_value input must be a 1D tensor of u8 values.",
+                           default_value_shape.rank().compatible(1),
+                           "The default_value input must be a 1D tensor.",
                            default_value_shape);
 
     auto output_shapes = std::vector<TRShape>(4);
@@ -79,7 +79,8 @@ std::vector<TRShape> shape_infer(const SparseFillEmptyRowsUnpackedString* op,
         }
 
         if (has_empty_rows && symbols_shape[0].is_static()) {
-            output_symbols_shape[0] = symbols_shape[0].get_length() + (*default_value_data).size();
+            // Add the length of the default_value tensor to symbols shape
+            output_symbols_shape[0] = symbols_shape[0].get_length() + default_value_shape[0].get_length();
         }
     }
     
