@@ -148,8 +148,6 @@ class TestIndexPut_ManyIndicesWithNone(PytorchLayerTest):
         ),
     )
     @pytest.mark.parametrize("accumulate", (True, False))
-    @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_index_put_many_indices_with_none(self, ie_device, precision, ir_version, input_data, indices, accumulate):
