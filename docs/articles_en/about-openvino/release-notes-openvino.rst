@@ -57,20 +57,20 @@ What's new
     included. 
   * Support for INT4 data-free weights compression for ONNX models implemented in the Neural
     Network Compression Framework (NNCF).
-  * NPU support for FP16-NF4 precisions on Intel® Core™ Processors (Series 1 and Series 2)
-    for models with fewer than 4 billion parameters.
+  * NPU support for FP16-NF4 precisions on Intel® Core™ 200V Series processors for models
+    with up to 8 billion parameters
 
 
-OpenVINO™ Runtime
+OpenVINO™ Runtime 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Common
+Common 
 ---------------------------------------------------------------------------------------------
 
-* Better developer experience with shorter build times, due to optimizations and source code
+* Better developer experience with shorter build times, due to optimizations and source code 
   refactoring. Code readability has been improved, helping developers understand the 
   components included between different C++ files.
-* Memory consumption has been optimized, by expanding the usage of mmap for the GenAI
+* Memory consumption has been optimized by expanding the usage of mmap for the GenAI
   component and introducing the delayed constant weights mechanism.
 * Support for ISTFT operator for GPU has been expanded, improving support of text-to-speech,
   speech-to-text, and speech-to-speech models, like AudioShake and Kokoro.
@@ -139,7 +139,9 @@ NPU Device Plugin
   for a compiled blob.
 * Weightless caching and compilation for LLMs are now available when used with OpenVINO GenAI.
 * LLM accuracy issues with BF16 models have been resolved.
-
+* The NPU driver is now included in OpenVINO Docker images for Ubuntu, enabling out-of-the-box NPU 
+  support without manual driver installation. For instructions, refer to the
+  `OpenVINO Docker documentation <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/npu_accelerator.md>`__.
 
 
 OpenVINO Python API
@@ -218,6 +220,14 @@ Neural Network Compression Framework
 * Weight compression time for NF4 data type has been reduced.
 
 
+OpenVINO Tokenizers
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Regex-based normalization and split operations have been optimized, resulting in significant 
+  speed improvements, especially for long input strings.
+* Two-string inputs are now supported, enabling various tasks, including RAG reranking.
+* Sentencepiece char-level tokenizers are now supported to enhance the SpeechT5 TTS model.
+* The tokenization node factory has been exposed to enable OpenVINO GenAI GGUF support.
 
 OpenVINO GenAI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -229,14 +239,14 @@ OpenVINO GenAI
 
 * Visual language modeling (VLMPipeline):
 
-  * VLM prompt can now refer to specific images. For example,
-   “<ov_genai_image_0>What’s in the image?” will prepend the corresponding image to the prompt
+  * VLM prompt can now refer to specific images. For example, 
+    ``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
     while ignoring other images. See VLMPipeline’s docstrings for more details.
   * VLM uses Continuous batching by default, improving Performance.
-  * VLMPipleine can now be constructed from in-memory `ov::Model`.
+  * VLMPipeline can now be constructed from in-memory `ov::Model`.
   * Qwen2.5-VL support has been added.
 
-* JavaScript 
+* JavaScript: 
 
   * JavaScript samples have been added: beam_search_causal_lm and multinomial_causal_lm.
   * An interruption option for LLMPipeline streaming has been introduced.
@@ -249,7 +259,7 @@ OpenVINO GenAI
   * `ov::genai::Tokenizer::get_vocab()` method for C++ and Python,
   * `ov::Property` as arguments to the `ov_genai_llm_pipeline_create` function for the C API,
   * support for the SnapKV method for more accurate KV cache eviction, enabled by default when 
-    KV cache eviction is used.
+    KV cache eviction is used,
   * preview support for `GGUF models (GGML Unified Format) <https://huggingface.co/models?library=gguf>`__.
   
 
@@ -272,17 +282,23 @@ Jupyter Notebooks
 Known Issues
 -----------------------------
 
-| **Component: NPU**
-| ID: n/a
+| **Component: GPU**
+| ID: 168284
 | Description:
-|   For LLM runs with prompts longer than the user may set through the MAX_PROMPT_LEN parameter,
-    an exception occurs, with a note providing the reason. In the current version of OpenVINO,
-    the message is not correct. in future releases, the explanation will be fixed.
+|   Using the phi-3 or phi-3.5 model for speculative decoding with large input sequences on GPU 
+    may cause an `OpenCL out of resources` error.
 
+| **Component: GPU**
+| ID: 168637
+| Description:
+|   Quantizing the Qwen3-8b model to int4 using the AWQ method results in accuracy issues on GPU.
 
-
-
-
+| **Component: GPU**
+| ID: 168889
+| Description:
+|    Running multiple `benchmark_app` processes simultaneously on Intel® Flex 170 or Intel® Arc™ A770 
+    may lead to a system crash. This is due to a device driver issue but appears when using 
+    `benchmark_app`.
 
 
 .. Previous 2025 releases
@@ -863,8 +879,7 @@ Deprecation And Support
 +++++++++++++++++++++++++++++
 
 Using deprecated features and components is not advised. They are available to enable a smooth
-transition to new solutions and will be discontinued in the future. To keep using discontinued
-features, you will have to revert to the last LTS OpenVINO version supporting them.
+transition to new solutions and will be discontinued in the future.
 For more details, refer to:
 `OpenVINO Legacy Features and Components <https://docs.openvino.ai/2025/documentation/legacy-features.html>`__.
 
@@ -913,7 +928,7 @@ Discontinued in 2025
 
 Deprecated and to be removed in the future
 --------------------------------------------
-
+* Python 3.9 is now deprecated and will be unavailable after OpenVINO version 2025.4.
 * ``openvino.Type.undefined`` is now deprecated and will be removed with version 2026.0.
   ``openvino.Type.dynamic`` should be used instead.
 * APT & YUM Repositories Restructure:
@@ -934,13 +949,8 @@ Deprecated and to be removed in the future
   Full support will be removed later in 2025.
 * The `openvino` namespace of the OpenVINO Python API has been redesigned, removing the nested
   `openvino.runtime` module. The old namespace is now considered deprecated and will be
-  discontinued in 2026.0.
-
-
-
-
-
-
+  discontinued in 2026.0. A new namespace structure is available for immediate migration.
+  Details will be provided through warnings and documentation.
 
 
 
