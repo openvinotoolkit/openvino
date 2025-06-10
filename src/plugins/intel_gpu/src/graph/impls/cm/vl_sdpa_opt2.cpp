@@ -60,12 +60,15 @@ protected:
         auto desc = params.typed_desc<vl_sdpa>();
         const auto query_shape = transpose_pshape(params.get_input_layout(0).get_partial_shape(), desc->input_q_transpose_order);
         const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
+        const auto output_shape = transpose_pshape(params.get_output_layout(0).get_partial_shape(), desc->output_transpose_order);
 
         std::cout << "----------------- VLSDPA::get_jit_constants -----------------" << std::endl;
         std::cout << "----------------- input_q_transpose_order: " << desc->input_q_transpose_order <<
         "," << params.get_input_layout(0).get_partial_shape() << "->" << query_shape << std::endl;
         std::cout << "----------------- input_k_transpose_order: " << desc->input_k_transpose_order <<
         "," << params.get_input_layout(1).get_partial_shape() << "->" << key_shape<< std::endl;
+        std::cout << "----------------- output_transpose_order: " << desc->output_transpose_order <<
+        "," << params.get_output_layout(0).get_partial_shape() << "->" << output_shape<< std::endl;
 
         const size_t head_size = key_shape[query_shape.size()-1].get_length();
         const size_t num_q_heads = query_shape[query_shape.size()-3].get_length();
@@ -192,5 +195,5 @@ std::unique_ptr<primitive_impl> VLSDPAOpt2ImplementationManager::create_impl(con
 
 }  // namespace ov::intel_gpu::cm
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
+// BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::VLSDPAOptImpl2)

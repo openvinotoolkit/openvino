@@ -17,7 +17,7 @@ namespace ov::intel_gpu::cm {
 namespace {
 
 constexpr auto get_vlsdpa_build_options() {
-    return " -cmc -Qxcm_register_file_size=256 -mCM_printregusage -mdump_asm -g2 ";
+    return " -cmc -Qxcm_register_file_size=256 -mCM_printregusage -mdump_asm -g2";
 }
 
 // Overload << operator for vectors
@@ -61,12 +61,15 @@ protected:
         auto desc = params.typed_desc<vl_sdpa>();
         const auto query_shape = transpose_pshape(params.get_input_layout(0).get_partial_shape(), desc->input_q_transpose_order);
         const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
+        const auto output_shape = transpose_pshape(params.get_output_layout(0).get_partial_shape(), desc->output_transpose_order);
 
         std::cout << "----------------- VLSDPA::get_jit_constants -----------------" << std::endl;
         std::cout << "----------------- input_q_transpose_order: " << desc->input_q_transpose_order <<
         "," << params.get_input_layout(0).get_partial_shape() << "->" << query_shape << std::endl;
         std::cout << "----------------- input_k_transpose_order: " << desc->input_k_transpose_order <<
         "," << params.get_input_layout(1).get_partial_shape() << "->" << key_shape<< std::endl;
+        std::cout << "----------------- output_transpose_order: " << desc->output_transpose_order <<
+        "," << params.get_output_layout(0).get_partial_shape() << "->" << output_shape<< std::endl;
 
         const size_t head_size = key_shape[query_shape.size()-1].get_length();
         const size_t num_q_heads = query_shape[query_shape.size()-3].get_length();
@@ -147,7 +150,7 @@ protected:
             }
 
             const auto& info = params.get_device_info();
-            const size_t CM_GRF_WIDTH = (info.arch <= gpu_arch::xe_hpc) ? 128 : 256;
+            const size_t CM_GRF_WIDTH = (info.arch <= gpu_arch::xe_hpc) ? 256 : 512;
             const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));   // or 8 on Xe1
             size_t wg_size = static_cast<size_t>(std::floor((max_seq_len + q_step - 1) / q_step));
             int32_t need_wg_mapping = 0;
@@ -217,5 +220,5 @@ std::unique_ptr<primitive_impl> VLSDPAOpt3ImplementationManager::create_impl(con
 
 }  // namespace ov::intel_gpu::cm
 
-// BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::VLSDPAOptImpl3)
