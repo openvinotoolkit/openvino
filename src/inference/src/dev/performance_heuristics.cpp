@@ -3,7 +3,7 @@
 //
 
 #include "openvino/runtime/performance_heuristics.hpp"
-
+#include <cmath>
 namespace ov {
 
 MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::Model> model,
@@ -76,24 +76,33 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 worst_case = std::min(factor, worst_case);
                 const long unsigned int gemm_indicator = dataSizeOutput * data_type_size;
                 const long unsigned int base_threshold = 16 * 6 * 49 * 49 / 8;
-                for (int n = 9; n > 0; n--) {
-                    if (gemm_indicator > base_threshold * (2^n)) {
-                        gemm_list[n - 1]++;
-                        break;
-                    }
-                    if(n == 1) {
-                        gemm_list[0]++;
-                        break;
-                    }
-                }
+                int index = log2(gemm_indicator / base_threshold);
+                index = index > 9 ? 9 : index < 0 ? 0 : index;
+                gemm_list[index]++;
             }
         } else if (!std::strcmp("Convolution", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
             const auto input = node->input(0);
             const auto output = node->output(0);
             const auto kernels = node->input(1);
+            const auto& shapeOutput = output.get_shape();
+            const auto& shapeInput1 = kernels.get_shape();
 
             total_convs++;
+
+            if (kernels.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
+                dataSizeOutput =
+                    std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
+                long unsigned int conv_indicator = dataSizeOutput * data_type_size;
+                for (size_t n = 1; n < shapeInput1.size(); n++) {
+                    conv_indicator = conv_indicator * shapeInput1[n];
+                }
+                const long unsigned int base_threshold = 1327104;
+                int index = log2(conv_indicator / base_threshold);
+                index = index > 9 ? 9 : index < 0 ? 0 : index;
+                conv_list[index]++;
+            }
+
             if (kernels.get_partial_shape().is_static()) {
                 const auto& shape = kernels.get_shape();
                 if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
@@ -103,34 +112,16 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
             }
             if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
                 const auto& shapeInput = input.get_shape();
-                const auto& shapeOutput = output.get_shape();
-                const auto& shapeInput1 = kernels.get_shape();
+
                 if (shapeInput.size() > 4 /*5D*/ && isINT8) {
                     compute_convs++;
                     continue;
                 }
                 dataSizeInput =
                     std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>());
-                dataSizeOutput =
-                    std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
-                long unsigned int conv_indicator = dataSizeOutput * data_type_size;
-                for (size_t n = 1; n < shapeInput1.size(); n++) {
-                    conv_indicator = conv_indicator * shapeInput1[n];
-                }
-                const long unsigned int base_threshold = 44 * 1056 / 8;
-                for (int n = 9; n > 0; n--) {
-                    if (conv_indicator > base_threshold * (2^n)) {
-                        conv_list[n - 1]++;
-                        break;
-                    }
-                    if(n == 1) {
-                        conv_list[0]++;
-                        break;
-                    }
-                }
             }
         } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
             const auto input = node->input(0);
@@ -169,16 +160,9 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 mem_limited_adds += factor < mem_threshold_assume_limited;
                 const long unsigned int add_indicator = dataSizeOutput * data_type_size;
                 const long unsigned int base_threshold = 100 * 256 / 8;
-                for (int n = 9; n > 0; n--) {
-                    if (add_indicator > base_threshold * (2^n)) {
-                        add_list[n - 1]++;
-                        break;
-                    }
-                    if(n == 1) {
-                        add_list[0]++;
-                        break;
-                    }
-                }
+                int index = log2(add_indicator / base_threshold);
+                index = index > 9 ? 9 : index < 0 ? 0 : index;
+                add_list[index]++;
             }
         } else if (!std::strcmp("LSTMSequence", node_name)) {
             total_lstms++;
