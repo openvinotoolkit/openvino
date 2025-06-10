@@ -197,6 +197,7 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
         return {};
     }
     std::string compilerOptionsStr(options.data(), options.size());
+    _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
     // vectorize string
     std::istringstream suppstream(compilerOptionsStr);
     std::vector<std::string> compilerOpts = {};
