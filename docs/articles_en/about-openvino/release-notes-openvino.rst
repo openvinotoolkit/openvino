@@ -238,7 +238,7 @@ OpenVINO GenAI
 * Visual language modeling (VLMPipeline):
 
   * VLM prompt can now refer to specific images. For example, 
-    `<ov_genai_image_0>What’s in the image?` will prepend the corresponding image to the prompt 
+    ``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
     while ignoring other images. See VLMPipeline’s docstrings for more details.
   * VLM uses Continuous batching by default, improving Performance.
   * VLMPipeleine can now be constructed from in-memory `ov::Model`.
