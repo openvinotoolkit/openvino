@@ -218,6 +218,14 @@ Neural Network Compression Framework
 * Weight compression time for NF4 data type has been reduced.
 
 
+OpenVINO Tokenizers
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Regex-based normalization and split operations have been optimized, resulting in significant 
+  speed improvements, expecially for long input strings.
+* Two string inputs are now supported, enabling various tasks, including RAG reranking.
+* Sentencepiece char-level tokenizers are now supported to enhance the SpeechT5 TTS model.
+* The tokenization node factory has been exposed to enable OpenVINO GenAI GGUF support.
 
 OpenVINO GenAI
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -229,8 +237,8 @@ OpenVINO GenAI
 
 * Visual language modeling (VLMPipeline):
 
-  * VLM prompt can now refer to specific images. For example,
-   “<ov_genai_image_0>What’s in the image?” will prepend the corresponding image to the prompt
+  * VLM prompt can now refer to specific images. For example, 
+    `<ov_genai_image_0>What’s in the image?` will prepend the corresponding image to the prompt 
     while ignoring other images. See VLMPipeline’s docstrings for more details.
   * VLM uses Continuous batching by default, improving Performance.
   * VLMPipleine can now be constructed from in-memory `ov::Model`.
