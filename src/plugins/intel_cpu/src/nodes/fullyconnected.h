@@ -63,7 +63,7 @@ public:
     const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
     size_t descInputNumbers() override {
-        return static_cast<size_t>(getOriginalInputsNumber());
+        return getOriginalInputsNumber();
     }
 
     void initSupportedPrimitiveDescriptors() override;

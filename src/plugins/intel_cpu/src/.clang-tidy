@@ -119,7 +119,7 @@ Checks: >
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
 FormatStyle: file
-# HeaderFilterRegex: 'src/plugins/intel_cpu/src/.*'
+HeaderFilterRegex: 'src/plugins/intel_cpu/src/[^/]*\.h(pp)?$'
 CheckOptions:
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
     value: true

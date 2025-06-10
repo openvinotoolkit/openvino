@@ -29,7 +29,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     size_t descInputNumbers() override {
-        return static_cast<size_t>(getOriginalInputsNumber());
+        return getOriginalInputsNumber();
     }
     std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
     bool created() const override;

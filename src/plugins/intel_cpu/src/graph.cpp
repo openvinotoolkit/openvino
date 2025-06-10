@@ -1953,8 +1953,8 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
     // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't
     // do these checks.
     if (!isOptimized) {
-        reorder->getParentEdgeAt(0)->getOriginalDesc();
-        reorder->getChildEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getParentEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getChildEdgeAt(0)->getOriginalDesc();
     }
 
     return reorder;
