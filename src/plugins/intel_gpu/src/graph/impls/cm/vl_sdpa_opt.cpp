@@ -273,5 +273,5 @@ std::unique_ptr<primitive_impl> VLSDPAOptImplementationManager::create_impl(cons
 
 }  // namespace ov::intel_gpu::cm
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
+// BIND_BINARY_BUFFER_WITH_TYPE(cldnn::vl_sdpa)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::VLSDPAOptImpl)

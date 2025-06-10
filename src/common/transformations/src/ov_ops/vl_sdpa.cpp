@@ -101,10 +101,10 @@ void VLSDPA::validate_and_infer_types() {
         return transposed_pshape;
     };
     const auto& output_shape = transpose_pshape(input_shapes[0], m_order_q);
-    std::cout << "----------------- VLSDPA::validate_and_infer_types() -----------------" << std::endl;
-    std::cout << "----------------- m_order_q: " << m_order_q <<
-    "," << "m_order_out: " << m_order_out <<
-    "," << input_shapes[0] << "->" << output_shape<< std::endl;
+    // std::cout << "----------------- VLSDPA::validate_and_infer_types() -----------------" << std::endl;
+    // std::cout << "----------------- m_order_q: " << m_order_q <<
+    // "," << "m_order_out: " << m_order_out <<
+    // "," << input_shapes[0] << "->" << output_shape<< std::endl;
     if (m_order_out.size() > 0) {
         set_output_type(0, out_type, transpose_pshape(output_shape, m_order_out));
     } else {

@@ -161,10 +161,10 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
         size_t output_o_input_idx = sdpa->get_input_source_output(2).get_index();
 
         std::cout << "----------------- TransposeVLSDPAMatcher -----------------" << std::endl;
-        std::cout << "----------------- default order_q: " << order_q << std::endl;
-        std::cout << "----------------- default order_k: " << order_k << std::endl;
-        std::cout << "----------------- default order_v: " << order_v << std::endl;
-        std::cout << "----------------- default order_output: " << order_output << std::endl;
+        // std::cout << "----------------- default order_q: " << order_q << std::endl;
+        // std::cout << "----------------- default order_k: " << order_k << std::endl;
+        // std::cout << "----------------- default order_v: " << order_v << std::endl;
+        // std::cout << "----------------- default order_output: " << order_output << std::endl;
 
         auto process_transpose = [](const std::shared_ptr<Node>& transpose_node,
                                     const std::shared_ptr<Node>& transpose_order_const_node,
@@ -349,7 +349,6 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             inputs.push_back(sdpa->get_input_source_output(4));
         }
 
-        std::cout << "----------------- TransposeSDPAMatcher -----------------" << std::endl;
         auto sdpa_new = std::make_shared<op::SDPA>(inputs, sdpa->get_causal(), order_q, order_k, order_v, order_output);
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
