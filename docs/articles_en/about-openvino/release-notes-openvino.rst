@@ -64,7 +64,7 @@ What's new
 OpenVINO™ Runtime
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Common
+Common 
 ---------------------------------------------------------------------------------------------
 
 * Better developer experience with shorter build times, due to optimizations and source code 
