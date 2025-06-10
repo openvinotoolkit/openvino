@@ -76,9 +76,9 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             accumulate = acc_const->cast_vector<bool>()[0];
         }
 
-        auto input_rank = input.get_partial_shape().rank().get_length();
-        auto values_rank = values.get_partial_shape().rank().get_length();
-        if (input_rank > 1 && input_rank == values_rank + 1 && input.get_partial_shape()[0] == 1) {
+        auto input_rank = input.get_partial_shape().rank();
+        auto values_rank = values.get_partial_shape().rank();
+        if (input_rank.is_static() && values_rank.is_static() && input_rank.get_length() > 1 && input_rank.get_length() == values_rank.get_length() + 1 && input.get_partial_shape()[0] == 1) {
             values = rg.make<v0::Unsqueeze>(values, const_0);
         }
 
