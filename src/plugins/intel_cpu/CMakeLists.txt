@@ -361,6 +361,8 @@ ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 #
 # add test object library
 #
@@ -416,6 +418,8 @@ if(BUILD_SHARED_LIBS)
 
     # LTO
     set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+    ov_build_target_faster(${TARGET_NAME}_obj PCH)
 endif()
 
 if(ENABLE_TESTS)
