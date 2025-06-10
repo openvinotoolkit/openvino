@@ -163,7 +163,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 } // anonymous namespace
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(group_normalization, input_bfyx_output_fsv16) {
     GTEST_SKIP();
     auto& engine = get_test_engine();
@@ -240,12 +239,9 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
         ASSERT_NEAR(output_mem_t[i], output_mem_g[i], 0.0001);
     }
 }
-#endif // ENABLE_ONEDNN_FOR_GPU
 
 TEST(group_normalization, basic_b_fs_yx_fsv16) {
     auto& engine = get_test_engine();
-    if (engine.get_device_info().supports_immad)
-        return;
 
     const ov::Shape input_shape = {1, 128, 256, 256};
     const ov::Shape param_shape = {128, 1, 1, 1};
@@ -298,11 +294,11 @@ TEST(group_normalization, basic_b_fs_yx_fsv16) {
 
     auto outputs = network.execute();
     auto output = outputs.at("output_bfyx_f32").get_memory();
-    cldnn::mem_lock<float> output_mem_lock(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_mem_lock(output, get_test_stream());
 
-    cldnn::mem_lock<float> input_mem_lock(input_mem, get_test_stream());
-    cldnn::mem_lock<float> scale_mem_lock(scale_mem, get_test_stream());
-    cldnn::mem_lock<float> bias_mem_lock(bias_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> input_mem_lock(input_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> scale_mem_lock(scale_mem, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> bias_mem_lock(bias_mem, get_test_stream());
 
     std::vector<float> reference_output(output_mem_lock.size());
     ov::reference::group_normalization(input_mem_lock.data(),

@@ -60,7 +60,7 @@ namespace ov::intel_cpu {
 namespace {
 size_t replace_all(std::string& inout, const std::string& what, const std::string& with) {
     std::size_t count{};
-    for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
+    for (std::string::size_type pos{}; std::string::npos != (pos = inout.find(what.data(), pos, what.length()));
          pos += with.length(), ++count) {
         inout.replace(pos, what.length(), with.data(), with.length());
     }
@@ -196,16 +196,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return id;
     };
     auto is_single_output_port = [](Node& node) {
-        for (const auto& e : node.getChildEdges()) {
+        return std::all_of(node.getChildEdges().begin(), node.getChildEdges().end(), [](const auto& e) {
             auto edge = e.lock();
-            if (!edge) {
-                continue;
-            }
-            if (edge->getInputNum() != 0) {
-                return false;
-            }
-        }
-        return true;
+            return edge && edge->getInputNum() == 0;
+        });
     };
 
     auto* nodeDesc = node.getSelectedPrimitiveDescriptor();
@@ -505,7 +499,7 @@ public:
     }
 
     template <class Container>
-    inline std::string join(const Container& strs) {
+    std::string join(const Container& strs) {
         std::stringstream ss;
         ss << "[" << ov::intel_cpu::join(strs, ',') << "]";
         return ss.str();
@@ -517,7 +511,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
     const std::string& tag = model.tag;
     const std::string& prefix = model.prefix;
     OstreamAttributeVisitor osvis(os);
-    std::string sep = "";
+    std::string sep;
     os << prefix;
     for (const auto& op : f.get_results()) {
         os << sep << op->get_name();
@@ -587,7 +581,7 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (size_t i = 0; i < cnt; i++) {
                 os << "\t\t MultiSubGraphOp " << tag << msubgraph->get_friendly_name() << "[" << i << "]" << '\n';
-                os << PrintableModel(*msubgraph->get_function(i).get(), tag, prefix + "\t\t");
+                os << PrintableModel(*msubgraph->get_function(i), tag, prefix + "\t\t");
             }
         }
     }

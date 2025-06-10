@@ -158,8 +158,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
     };
 
     auto create_ngraph_node = [&](const NodePtr& node) {
-        bool is_input = false, is_output = false, should_be_hold = false;
-        size_t input_index = -1, output_index = -1;
+        bool is_input = false;
+        bool is_output = false;
+        bool should_be_hold = false;
+        size_t input_index = -1;
+        size_t output_index = -1;
         for (auto&& kvp : graph.inputNodesMap) {
             if (kvp.second == node) {
                 is_input = true;
@@ -323,7 +326,7 @@ void summary_perf(const Graph& graph) {
     std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << '\n';
     std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph))
               << '\n';
-    std::cout << "     Total(us): " << (uint64_t)(total) << '\n';
+    std::cout << "     Total(us): " << total << '\n';
     std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << '\n';
     {
         std::cout << " perf_by_type:" << '\n';

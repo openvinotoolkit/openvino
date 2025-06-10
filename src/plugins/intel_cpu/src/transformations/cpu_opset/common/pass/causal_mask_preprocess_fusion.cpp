@@ -87,7 +87,7 @@ template <typename T>
 bool is_triu(ov::op::v0::Constant* cmask, size_t rows, size_t columns) {
     const auto* ptr = reinterpret_cast<const T*>(cmask->get_data_ptr());
     for (size_t y = 0; y < rows; y++, ptr += columns) {
-        size_t x;
+        size_t x = 0;
         for (x = 0; x <= y; x++) {
             if (ptr[x]) {
                 return false;
@@ -171,7 +171,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                          1,
                                          1,
                                      }),
-                                     {0.000000f});
+                                     {0.000000F});
     auto eq_Equal =
         makePattern<ov::op::v1::Equal>({causal_mask_boolean_slice | causal_mask_boolean_strided_slice, Constant_107278},
                                        {{"auto_broadcast", "numpy"}});  //  tensor_array<u8[?,1,8192,..8192]>
@@ -186,7 +186,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                          1,
                                          1,
                                      }),
-                                     {0.000000f});
+                                     {0.000000F});
     auto eq_Equal_1 = makePattern<ov::op::v1::Equal>({eq_Convert, Constant_107279},
                                                      {{"auto_broadcast", "numpy"}});  //  tensor_array<u8[?,1,1,?]>
     auto mul_LogicalAnd =

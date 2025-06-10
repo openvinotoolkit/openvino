@@ -206,7 +206,7 @@ void copyDataToOutputWithSignalSize(const float* input,
         std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     auto totalOutput =
         std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<>());
-    std::fill_n(output, totalOutput, 0.f);
+    std::fill_n(output, totalOutput, 0.F);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
         if (inputShape[index] != outputShape[index]) {
@@ -297,7 +297,7 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
-            const float* resultBufPtr;
+            const float* resultBufPtr = nullptr;
 
             fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
 
@@ -339,7 +339,7 @@ void DFT::dftNd(float* output,
                                      parallelIterationCounter,
                                      outputShape,
                                      outputStrides);
-                    const float* resultBufPtr;
+                    const float* resultBufPtr = nullptr;
                     fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
                     applyBufferND(resultBufPtr,
                                   output,
@@ -421,7 +421,7 @@ void DFT::fft(float* inBuffer,
         };
     }
 
-    size_t blockSize;
+    size_t blockSize = 0;
     size_t nextIterationBlockSize = dataLength;
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
@@ -448,7 +448,7 @@ void DFT::fft(float* inBuffer,
 void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     std::vector<float> outputBuffer(dataLength);
     const size_t nComplex = dataLength / 2;
-    const float reciprocalNComplex = 1.0f / nComplex;
+    const float reciprocalNComplex = 1.0F / nComplex;
     auto twiddlesIter = twiddlesMapDFT.find(nComplex);
     if (twiddlesIter == twiddlesMapDFT.end()) {
         THROW_CPU_NODE_ERR("Twiddles for nComplex=", nComplex, " not found");
@@ -475,8 +475,8 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
         };
     } else {
         blockIteration = [&](size_t k) {
-            float sumReal = 0.0f;
-            float sumImag = 0.0f;
+            float sumReal = 0.0F;
+            float sumImag = 0.0F;
             for (size_t n = 0; n < nComplex; ++n) {
                 const auto* complexRef = &twiddles[2 * (k * nComplex + n)];
                 float complexReal = *complexRef;
@@ -503,12 +503,12 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     cpu_memcpy(data, outputBuffer.data(), dataLength * sizeof(float));
 }
 
-std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) const {
+std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
     std::vector<float> twiddles(n_complex * n_complex * 2);
     const float inverseMultiplier = inverse ? 1 : -1;
     parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
-            float phase = 2.0f * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
+            float phase = 2.0F * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
             auto complexReal = std::cos(phase);
             auto complexImag = std::sin(phase) * inverseMultiplier;
             twiddles[2 * (k * n_complex + n)] = complexReal;
@@ -524,8 +524,8 @@ void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
 
     twiddlesFFT.reserve((n_complex - 1) * 2);
     if (twiddlesFFT.empty()) {
-        twiddlesFFT.emplace_back(1.0f);   //  cos(0)
-        twiddlesFFT.emplace_back(-0.0f);  // -sin(0)
+        twiddlesFFT.emplace_back(1.0F);   //  cos(0)
+        twiddlesFFT.emplace_back(-0.0F);  // -sin(0)
     } else {
         for (size_t i = numBlocks; i < twiddlesFFT.size() / 2; i += numBlocks) {
             numBlocks *= 2;

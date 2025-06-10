@@ -20,6 +20,7 @@ on:
       - "Manylinux 2014"
       - "Manylinux 2_28"
       - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
+      - "Documentation"
     types:
       - completed
   pull_request:
