@@ -244,7 +244,7 @@ OpenVINO GenAI
   * VLMPipeleine can now be constructed from in-memory `ov::Model`.
   * Qwen2.5-VL support has been added.
 
-* JavaScript 
+* JavaScript: 
 
   * JavaScript samples have been added: beam_search_causal_lm and multinomial_causal_lm.
   * An interruption option for LLMPipeline streaming has been introduced.
@@ -257,7 +257,7 @@ OpenVINO GenAI
   * `ov::genai::Tokenizer::get_vocab()` method for C++ and Python,
   * `ov::Property` as arguments to the `ov_genai_llm_pipeline_create` function for the C API,
   * support for the SnapKV method for more accurate KV cache eviction, enabled by default when 
-    KV cache eviction is used.
+    KV cache eviction is used,
   * preview support for `GGUF models (GGML Unified Format) <https://huggingface.co/models?library=gguf>`__.
   
 
