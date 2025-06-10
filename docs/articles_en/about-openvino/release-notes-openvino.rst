@@ -223,7 +223,7 @@ OpenVINO Tokenizers
 
 * Regex-based normalization and split operations have been optimized, resulting in significant 
   speed improvements, especially for long input strings.
-* Two string inputs are now supported, enabling various tasks, including RAG reranking.
+* Two-string inputs are now supported, enabling various tasks, including RAG reranking.
 * Sentencepiece char-level tokenizers are now supported to enhance the SpeechT5 TTS model.
 * The tokenization node factory has been exposed to enable OpenVINO GenAI GGUF support.
 
