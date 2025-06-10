@@ -10,19 +10,43 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset12_decl.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 
 using namespace testing;
 using namespace ov;
 using namespace ov::opset12;
+
+namespace {
+
+std::shared_ptr<ov::Node> make_dq_weights(const ov::element::Type& quant_type,
+                                          const ov::Shape& w_shape,
+                                          float scale,
+                                          float zp) {
+    auto w = ov::op::v0::Constant::create(quant_type, w_shape, {1.0f});
+    auto w_f = std::make_shared<ov::op::v0::Convert>(w, ov::element::f32);
+
+    auto zp_const = ov::op::v0::Constant::create(quant_type, {}, {zp});
+    auto zp_f = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+    auto sub = std::make_shared<ov::op::v1::Subtract>(w_f, zp_f);
+
+    std::vector<size_t> scale_shape(w_shape.size(), 1);
+    auto scale_const = ov::op::v0::Constant::create(ov::element::f32, scale_shape, {scale});
+    return std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
+}
+
+}  // namespace
 
 TEST(TransformationTests, TestModelTensorsConsistencyUseShapesTrue) {
     auto input = std::make_shared<opset12::Parameter>(element::f32, Shape{1});
@@ -139,3 +163,62 @@ TEST_F(TransformationTestsF, MOCTest) {
         EXPECT_EQ(weights->get_friendly_name(), weights_ref->get_friendly_name());
     }
 }
+
+class QuantWeightsTestP : public TransformationTestsF, public ::testing::WithParamInterface<ov::element::Type> {
+protected:
+    ov::element::Type qtype;
+
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        qtype = GetParam();
+    }
+};
+
+TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
+    {
+        const float matmul_scale = 0.02f, matmul_zp = 1.f;
+        const float conv_scale = 0.05f, conv_zp = 2.f;
+
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto matmul_weight = make_dq_weights(qtype, ov::Shape{128, 64}, matmul_scale, matmul_zp);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, matmul_weight, false, false);
+
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 64, 1, 1});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_const, false);
+        auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp);
+        auto conv = std::make_shared<ov::op::v1::Convolution>(reshape,
+                                                              conv_weight,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::Strides{1, 1});
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
+
+        auto prep = ov::preprocess::PrePostProcessor(model);
+
+        model = prep.build();
+
+        manager.register_pass<ov::pass::MOCTransformations>(false);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(QuantWeightTypes,
+                         QuantWeightsTestP,
+                         ::testing::Values(ov::element::i32,
+                                           ov::element::u32,
+                                           ov::element::i16,
+                                           ov::element::u16,
+                                           ov::element::i8,
+                                           ov::element::u8,
+                                           ov::element::u6,
+                                           ov::element::i4,
+                                           ov::element::u4,
+                                           ov::element::nf4,
+                                           ov::element::u3,
+                                           ov::element::u2,
+                                           ov::element::u1,
+                                           ov::element::f4e2m1,
+                                           ov::element::f8e4m3,
+                                           ov::element::f8e5m2,
+                                           ov::element::f8e8m0));
