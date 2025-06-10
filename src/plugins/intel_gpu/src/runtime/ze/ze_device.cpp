@@ -86,8 +86,9 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     ze_device_memory_access_properties_t device_memory_access_properties{ZE_STRUCTURE_TYPE_DEVICE_MEMORY_ACCESS_PROPERTIES};
     ZE_CHECK(zeDeviceGetMemoryAccessProperties(device, &device_memory_access_properties));
 
-    auto ddr_properies = std::find_if(device_memory_properties.begin(), device_memory_properties.end(), [](const ze_device_memory_properties_t& p) {
-        return std::string(p.name) == "DDR";
+    auto mem_properties = std::find_if(device_memory_properties.begin(), device_memory_properties.end(), [](const ze_device_memory_properties_t& p) {
+        auto name = std::string(p.name);
+        return name == "DDR" || name == "HBM";
     });
 
     ze_device_module_properties_t device_module_properties{ZE_STRUCTURE_TYPE_DEVICE_MODULE_PROPERTIES};
@@ -111,8 +112,8 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.max_work_group_size = device_compute_properties.maxTotalGroupSize;
     info.max_local_mem_size = device_compute_properties.maxSharedLocalMemory;
 
-    if (ddr_properies != device_memory_properties.end())
-        info.max_global_mem_size = ddr_properies->totalSize;
+    if (mem_properties != device_memory_properties.end())
+        info.max_global_mem_size = mem_properties->totalSize;
     else
         info.max_global_mem_size = 0;
 
@@ -172,7 +173,8 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
         ze_mutable_command_list_exp_properties_t mutable_list_props = { ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_PROPERTIES,  nullptr, 0, 0 };
         ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, &mutable_list_props};
         if (zeDeviceGetProperties(device, &device_properties) == ZE_RESULT_SUCCESS) {
-            ze_mutable_command_exp_flags_t required_features = ZE_MUTABLE_COMMAND_EXP_FLAG_KERNEL_ARGUMENTS |
+            ze_mutable_command_exp_flags_t required_features = ZE_MUTABLE_COMMAND_EXP_FLAG_KERNEL_INSTRUCTION |
+                                                               ZE_MUTABLE_COMMAND_EXP_FLAG_KERNEL_ARGUMENTS |
                                                                ZE_MUTABLE_COMMAND_EXP_FLAG_GROUP_COUNT |
                                                                ZE_MUTABLE_COMMAND_EXP_FLAG_GROUP_SIZE |
                                                                ZE_MUTABLE_COMMAND_EXP_FLAG_GLOBAL_OFFSET |
