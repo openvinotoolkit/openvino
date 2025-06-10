@@ -293,6 +293,13 @@ Known Issues
 | Description:
 |   Quantizing the Qwen3-8b model to int4 using the AWQ method results in accuracy issues on GPU.
 
+| **Component: GPU**
+| ID: 168889
+| Description:
+|    Running multiple `benchmark_app` processes simultaneously on Intel® Flex 170 or Intel® Arc™ A770 
+    may lead to a system crash. This is due to a device driver issue but appears when using 
+    `benchmark_app`.
+
 | **Component: OpenVINO GenAI**
 | ID: 167065, 168564, 168360, 168339, 168361
 | Description:
@@ -306,7 +313,6 @@ Known Issues
 |   The stable-diffusion-v1-5 model in FP16 precision shows up to a 10% degradation in the 2nd token
     latency on Intel® Xeon® Platinum 8580. Currently no workaround is available;
     a fix is planned for future releases.
-
 
 .. Previous 2025 releases
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
