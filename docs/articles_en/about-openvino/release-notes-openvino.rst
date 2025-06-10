@@ -58,7 +58,7 @@ What's new
   * Support for INT4 data-free weights compression for ONNX models implemented in the Neural
     Network Compression Framework (NNCF).
   * NPU support for FP16-NF4 precisions on Intel® Core™ 200V Series processors for models
-    with up to 8 billion parameters
+    with up to 8 billion parameters.
 
 
 OpenVINO™ Runtime 
@@ -300,6 +300,19 @@ Known Issues
     may lead to a system crash. This is due to a device driver issue but appears when using 
     `benchmark_app`.
 
+| **Component: OpenVINO GenAI**
+| ID: 167065, 168564, 168360, 168339, 168361
+| Description:
+|   Models such as Qwen-7B-Chat, Phi4-Reasoning, Llama-3.2-1B-Instruct, Qwen3-8B, and DeepSeek-R1-Distill-* 
+    show reduced accuracy in chat scenarios compared to regular generation requests. Currently 
+    no workaround is available; a fix is planned for future releases.
+
+| **Component: OpenVINO GenAI**
+| ID: 168957
+| Description:
+|   The stable-diffusion-v1-5 model in FP16 precision shows up to a 10% degradation in the 2nd token
+    latency on Intel® Xeon® Platinum 8580. Currently no workaround is available;
+    a fix is planned for future releases.
 
 .. Previous 2025 releases
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
