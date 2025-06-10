@@ -14,6 +14,10 @@
 #include "ze_memory.hpp"
 #include "ze_common.hpp"
 
+#include <ze_api.h>
+#include <ze_intel_gpu.h>
+#include <ze_stypes.h>
+
 #include <cassert>
 #include <string>
 #include <vector>
@@ -167,6 +171,7 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     , _engine(engine)
     , m_pool(engine, config.get_enable_profiling()) {
     const auto &info = engine.get_device_info();
+
     ze_command_queue_desc_t command_queue_desc = {};
     command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
     command_queue_desc.pNext = nullptr;
@@ -175,6 +180,13 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     command_queue_desc.flags = m_queue_type == QueueTypes::out_of_order ? 0 : ZE_COMMAND_QUEUE_FLAG_IN_ORDER;
     command_queue_desc.mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
     command_queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+
+    zex_intel_queue_copy_operations_offload_hint_exp_desc_t cp_offload_desc = {};
+    cp_offload_desc.stype = ZEX_INTEL_STRUCTURE_TYPE_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_PROPERTIES;
+    cp_offload_desc.copyOffloadEnabled = true;
+    cp_offload_desc.pNext = nullptr;
+    command_queue_desc.pNext = &cp_offload_desc;
+
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
 }
 
