@@ -609,12 +609,10 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     return subgraph_collector.run();
 }
 
-void ov::hetero::fix_model_with_paged_attention(std::shared_ptr<ov::Model>& model) {
+void ov::hetero::fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& model) {
     using NodePtr = std::shared_ptr<ov::Node>;
-    std::unordered_set<NodePtr> has_visited_transpose;
-    std::vector<NodePtr> vector_visited_transpose;
 
-    std::function<NodePtr(NodePtr)> find_first_transpose_before_pa = [&](NodePtr root_node) -> NodePtr {
+    auto find_first_transpose = [&](NodePtr root_node) -> NodePtr {
         auto get_output_node = [](const ov::Output<ov::Node>& output) -> NodePtr {
             return output.get_node_shared_ptr();
         };
@@ -622,53 +620,67 @@ void ov::hetero::fix_model_with_paged_attention(std::shared_ptr<ov::Model>& mode
             return get_output_node(input.get_source_output());
         };
         auto cur_node = get_input_node(root_node->inputs()[0]);
-        if (ov::is_type<ov::op::v1::Transpose>(cur_node)) {
-            return cur_node;
+        std::unordered_set<NodePtr> visited;
+        while (cur_node && visited.insert(cur_node).second) {
+            if (ov::is_type<ov::op::v1::Transpose>(cur_node))
+                return cur_node;
+            if (cur_node->inputs().empty())
+                break;
+            cur_node = get_input_node(cur_node->inputs()[0]);
         }
-        return find_first_transpose_before_pa(cur_node);
+        return nullptr;
     };
 
-    auto find_transpose_ops = [&](NodePtr node) {
+    auto insert_reshape_after_transpose = [&](NodePtr pa_op) {
+        auto node_rt_info = pa_op->get_rt_info();
+        int num_kv_heads = 0;
+        int kv_head_size = 0;
+        if (node_rt_info.count("num_k_heads") && node_rt_info.count("k_head_size")) {
+            num_kv_heads = node_rt_info["num_k_heads"].as<int>();
+            kv_head_size = node_rt_info["k_head_size"].as<int>();
+        } else {
+            return;
+        }
+        std::unordered_set<NodePtr> has_visited_transpose;
+        std::vector<NodePtr> transpose_nodes;
         for (size_t i = 0; i < 3; i++) {
-            auto first_transpose_before_pa = find_first_transpose_before_pa(node->get_input_node_shared_ptr(i));
-            if (has_visited_transpose.insert(first_transpose_before_pa).second) {
-                vector_visited_transpose.push_back(first_transpose_before_pa);
+            auto transpose_node = find_first_transpose(pa_op->get_input_node_shared_ptr(i));
+            if (transpose_node && has_visited_transpose.insert(transpose_node).second) {
+                transpose_nodes.push_back(transpose_node);
+            }
+        }
+        for (auto& transpose : transpose_nodes) {
+            std::map<size_t, NodePtr> org_users;
+            auto output_shape = transpose->get_output_partial_shape(0);
+            if (output_shape[1].is_dynamic()) {
+                for (auto u : transpose->get_users()) {
+                    for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
+                        if (u->get_input_node_shared_ptr(idx) == transpose) {
+                            org_users.insert({idx, u});
+                        }
+                    }
+                }
+                auto new_shape =
+                    ov::op::v0::Constant::create(element::Type_t::u64, {4}, {-1, 1, num_kv_heads, kv_head_size});
+                auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, new_shape, false);
+                reshape->set_friendly_name(transpose->get_friendly_name() + "_reshape");
+                for (auto& iter : org_users) {
+                    iter.second->input(iter.first).replace_source_output(reshape->output(0));
+                }
+                transpose->clear_control_dependencies();
             }
         }
     };
 
     for (auto& op : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            find_transpose_ops(op);
+            insert_reshape_after_transpose(op);
         } else if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
             for (auto& node : subgraph->get_function()->get_ordered_ops()) {
                 if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
-                    find_transpose_ops(node);
+                    insert_reshape_after_transpose(node);
                 }
             }
-        }
-    }
-
-    for (auto& node : vector_visited_transpose) {
-        std::map<size_t, NodePtr> org_users;
-        auto output_shape = node->get_output_partial_shape(0);
-        int num_key_value_heads = static_cast<int>(output_shape[2].get_length());
-        int head_dim = static_cast<int>(output_shape[3].get_length());
-        if (output_shape[1].is_dynamic()) {
-            for (auto u : node->get_users()) {
-                for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
-                    if (u->get_input_node_shared_ptr(idx) == node) {
-                        org_users.insert({idx, u});
-                    }
-                }
-            }
-            auto new_shape =
-                ov::op::v0::Constant::create(element::Type_t::u64, {4}, {-1, 1, num_key_value_heads, head_dim});
-            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(node, new_shape, false);
-            for (auto& iter : org_users) {
-                iter.second->input(iter.first).replace_source_output(new_reshape->output(0));
-            }
-            node->clear_control_dependencies();
         }
     }
 }
@@ -758,7 +770,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
     merge_submodels(submodels, mapping_info._submodels_input_to_prev_output);
 
     model = submodels[0];
-    fix_model_with_paged_attention(model);
+    fix_submodel_with_paged_attention(model);
     // Finally update mapping information according to the new operation order
     std::map<size_t, size_t> subgraph_id_map;
     std::map<size_t, std::map<size_t, size_t>> input_id_map;
