@@ -241,7 +241,7 @@ OpenVINO GenAI
     ``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
     while ignoring other images. See VLMPipeline’s docstrings for more details.
   * VLM uses Continuous batching by default, improving Performance.
-  * VLMPipeleine can now be constructed from in-memory `ov::Model`.
+  * VLMPipeline can now be constructed from in-memory `ov::Model`.
   * Qwen2.5-VL support has been added.
 
 * JavaScript: 
