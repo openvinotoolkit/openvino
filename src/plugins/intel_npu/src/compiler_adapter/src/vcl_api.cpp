@@ -312,6 +312,8 @@ bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
         if (ret != VCL_RESULT_SUCCESS) {
             _logger.debug("Failed to get content of option list 0x%x", ret);
             return false;
+        } else {
+            return true;
         }
     }
 
