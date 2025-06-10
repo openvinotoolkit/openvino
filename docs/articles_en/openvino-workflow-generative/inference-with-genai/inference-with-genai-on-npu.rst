@@ -62,7 +62,7 @@ Currently, the Whisper pipeline (using:
 `whisper-base <https://huggingface.co/openai/whisper-base>`__,
 `whisper-small <https://huggingface.co/openai/whisper-small>`__, or
 `whisper-large <https://huggingface.co/openai/whisper-large>`__)
-only accepts models generated with the ``--disable-stateful`` flag.
+only accepts stateless models. The pipeline will convert stateful models to stateless models automatically or you can manually generate stateless models with the ``--disable-stateful`` flag.
 Here is a conversion example:
 
 .. code:: console
