@@ -808,6 +808,10 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
             // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of
             // the ov::Model object with the init inputs
             runOVPasses(originalModel);
+            _logger.warning(
+                "OV common model passes were applied inside the NPU plugin as part of the \"weights separation\" flow. "
+                "This "
+                "might lead to mismatches between weights and inputs depending on the version of the compiler.");
         }
     }
 
