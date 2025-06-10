@@ -4,4 +4,4 @@
 
 #pragma once
 
-#include "openvino/pch/precomp_core.hpp"
+#include "openvino/pch/precomp_std.hpp"
