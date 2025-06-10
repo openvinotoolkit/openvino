@@ -960,6 +960,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             updated_params.output_layouts[i] = updated_layouts[i];
         }
 
+        auto& memory_pool = get_network().get_memory_pool();
         if (can_reuse_buffer) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
                                    << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
@@ -982,10 +983,23 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 set_flag(ExecutionFlags::SHAPE_CHANGED);
             } else {
                 bool mem_from_padded_pool = _outputs[i]->is_mem_from_padded_pool();
+                if (mem_from_padded_pool) {
+                    memory_pool.update_recent_layout_from_padded_pool(actual_layouts[i],
+                                                                      _node->get_unique_id(),
+                                                                      get_network_id());
+                }
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
                 _outputs[i]->mem_from_padded_pool(mem_from_padded_pool);
             }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
+            if (need_reset_output_memory() && !can_be_optimized()) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory from padded pool" << std::endl;
+                auto& stream = get_network().get_stream();
+                if (stream.get_queue_type() == QueueTypes::out_of_order) {
+                    stream.wait_for_events({_deps[0].first->_impl_params->out_event});
+                }
+                add_dep_event(_outputs[i]->fill(stream));
+            }
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] "
@@ -1010,17 +1024,20 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
-        }
 
-        // TODO: check if memory from non_padded_pool is needed reset
-        if (need_reset_output_memory() && !can_be_optimized() && _outputs[i]->is_mem_from_padded_pool()) {
-            GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory from padded pool" << std::endl;
-            auto& stream = get_network().get_stream();
-            auto queue_type = stream.get_queue_type();
-            if (queue_type == QueueTypes::out_of_order) {
-                stream.wait_for_events({_deps[0].first->_impl_params->out_event});
+            if (need_reset_output_memory() && _outputs[i]->is_mem_from_padded_pool()) {
+                bool need_reset_padded = memory_pool.update_recent_layout_from_padded_pool(actual_layouts[i],
+                                                                                    _node->get_unique_id(),
+                                                                                    get_network_id());
+                if (need_reset_padded) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory from padded pool" << std::endl;
+                    auto& stream = get_network().get_stream();
+                    if (stream.get_queue_type() == QueueTypes::out_of_order) {
+                        stream.wait_for_events({_deps[0].first->_impl_params->out_event});
+                    }
+                    add_dep_event(_outputs[i]->fill(stream));
+                }
             }
-            add_dep_event(_outputs[i]->fill(stream, false));
         }
     }
 
