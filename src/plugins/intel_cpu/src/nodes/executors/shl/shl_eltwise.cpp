@@ -12,20 +12,15 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "csinn/csi_nn.h"
-#include "csinn_data_structure.h"
-#include "memory_desc/cpu_memory_desc.h"
-#include "nodes/executors/eltwise.hpp"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/shl/shl.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/type/element_type.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "nodes/executors/memory_arguments.hpp"
 #include "shl_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
-bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
+static bool isEltwiseAlgorithmSupported(Algorithm algorithm) {
     return one_of(algorithm,
                   Algorithm::EltwiseAdd,
                   Algorithm::EltwiseSubtract,
@@ -39,12 +34,22 @@ bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
                   Algorithm::EltwisePrelu);
 }
 
-bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
-                                            const std::vector<MemoryDescPtr>& srcDescs,
-                                            const std::vector<MemoryDescPtr>& dstDescs) const {
-    if (!ShlEltwiseExecutor::isEltwiseAlgorithmSupported(eltwiseAttrs.algorithm)) {
+bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
+    const auto& eltwiseAttrs = config.attrs;
+    if (!isEltwiseAlgorithmSupported(eltwiseAttrs.algorithm)) {
         DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
         return false;
+    }
+
+    std::vector<MemoryDescPtr> srcDescs(config.descs.size() - 1);
+    std::vector<MemoryDescPtr> dstDescs{config.descs.at(ARG_DST)};
+
+    for (const auto& [argId, desc] : config.descs) {
+        if (argId == ARG_DST) {
+            continue;
+        }
+
+        srcDescs[argId - ARG_SRC] = desc;
     }
 
     constexpr auto supported_prec = ov::element::f32;
@@ -107,16 +112,18 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
     return true;
 }
 
-ShlEltwiseExecutor::ShlEltwiseExecutor(const ExecutorContext::CPtr& context) : EltwiseExecutor(context) {}
+ShlEltwiseExecutor::ShlEltwiseExecutor(const EltwiseAttrs& attrs,
+                                       const MemoryArgs& memory,
+                                       const ExecutorContext::CPtr& context)
+    : shlEltwiseAttrs(attrs) {}
 
-bool ShlEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
-                              const std::vector<MemoryDescPtr>& srcDescs,
-                              const std::vector<MemoryDescPtr>& dstDescs,
-                              const std::vector<EltwisePostOp>& postOps) {
+bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs,
+                              const std::vector<MemoryDescPtr>& dstDescs) {
+    const auto& postOps = shlEltwiseAttrs.postOps;
+    
     if (!postOps.empty()) {
         return false;
     }
-    shlEltwiseAttrs = eltwiseAttrs;
 
     srcTensors = std::vector<ShlTensor>(srcDescs.size());
     dstTensors = std::vector<ShlTensor>(dstDescs.size());
@@ -239,7 +246,7 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
         };
         break;
     case Algorithm::EltwiseClamp:
-        params = ov::intel_cpu::make_unique<ShlClipParams>(sess, shl_api, eltwiseAttrs.alpha, eltwiseAttrs.beta);
+        params = ov::intel_cpu::make_unique<ShlClipParams>(sess, shl_api, shlEltwiseAttrs.alpha, shlEltwiseAttrs.beta);
         initFunc = [&]() {
             return csinn_clip_init(srcTensors[0].get(),
                                    dstTensors[0].get(),
@@ -263,7 +270,7 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
                                   static_cast<csinn_relu_params*>(params->get()));
             };
         } else {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, eltwiseAttrs.alpha);
+            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, shlEltwiseAttrs.alpha);
             initFunc = [&]() {
                 return csinn_leaky_relu_init(srcTensors[0].get(),
                                              dstTensors[0].get(),
@@ -299,17 +306,40 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
     return initFunc != nullptr && initFunc() == CSINN_TRUE;
 }
 
-void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
-                                     const std::vector<MemoryPtr>& dst,
-                                     [[maybe_unused]] const void* post_ops_data_) {
-    for (size_t i = 0; i < src.size(); i++) {
-        srcTensors[i].setData(src[i]->getData());
-    }
-    for (size_t i = 0; i < dst.size(); i++) {
-        dstTensors[i].setData(dst[i]->getData());
+bool ShlEltwiseExecutor::update(const MemoryArgs& memory) {
+    std::vector<MemoryDescPtr> srcDescs(memory.size() - 1);
+    for (const auto& [argId, mem] : memory) {
+        if (argId == ARG_DST) {
+            continue;
+        }
+
+        srcDescs[argId - ARG_SRC] = mem->getDescPtr();
     }
 
-    OPENVINO_ASSERT(shlExecFunc != nullptr && shlExecFunc() == CSINN_TRUE, "ShlEltwiseExecutor: failed to execute");
+    std::vector<MemoryDescPtr> dstDescs{memory.at(ARG_DST)->getDescPtr()};
+
+    if (!init(srcDescs, dstDescs)) {
+        return false;
+    }
+
+    return true;
+}
+
+void ShlEltwiseExecutor::execute(const MemoryArgs& memory) {
+    for (const auto& [argId, mem] : memory) {
+        if (argId == ARG_DST) {
+            continue;
+        }
+
+        const int i = argId - ARG_SRC;
+        srcTensors[i].setData(mem->getData());
+    }
+
+    dstTensors[0].setData(memory.at(ARG_DST)->getData());
+
+    assert(shlExecFunc);
+
+    OPENVINO_ASSERT(shlExecFunc() == CSINN_TRUE, "ShlEltwiseExecutor: failed to execute");
 }
 
 }  // namespace ov::intel_cpu

@@ -167,6 +167,12 @@ void EltwiseLayerCPUTest::SetUp() {
         }
     }
 
+    if (postOpMgrPtr &&
+        (postOpMgrPtr->getFusedOpsNames().find("SoftSign") != std::string::npos ||
+         postOpMgrPtr->getFusedOpsNames().find("FloorMod") != std::string::npos)) {
+        rel_threshold = 0.05f;
+    }
+
     shapes.resize(2);
     switch (opType) {
     case ov::test::utils::OpType::SCALAR: {

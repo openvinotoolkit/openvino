@@ -35,6 +35,7 @@
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -73,45 +74,18 @@ inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
               " is not supported");
 }
 
-bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
-    if (one_of(algorithm,
-               Algorithm::EltwiseSqrt,
-               Algorithm::EltwiseDivide,
-               Algorithm::EltwiseRelu,
-#ifdef OPENVINO_ARCH_ARM64
-               Algorithm::EltwiseGeluErf,
-#endif
-               Algorithm::EltwiseElu,
-               Algorithm::EltwiseTanh,
-               Algorithm::EltwiseSigmoid,
-               Algorithm::EltwiseSoftRelu,
-               Algorithm::EltwiseClamp,
-               Algorithm::EltwiseSwish,
-               Algorithm::EltwisePrelu,
-               Algorithm::EltwiseHswish,
-               Algorithm::EltwiseAbs,
-               Algorithm::EltwiseExp,
-               Algorithm::EltwiseLog,
-               Algorithm::EltwiseMaximum,
-               Algorithm::EltwiseMinimum,
-               Algorithm::EltwiseSquaredDifference,
-               Algorithm::EltwiseAdd,
-               Algorithm::EltwiseSubtract,
-               Algorithm::EltwiseMultiply,
-               Algorithm::EltwiseEqual,
-               Algorithm::EltwiseNotEqual,
-               Algorithm::EltwiseGreater,
-               Algorithm::EltwiseGreaterEqual,
-               Algorithm::EltwiseLess,
-               Algorithm::EltwiseLessEqual)) {
-        return true;
-    }
-    return false;
-}
+bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
+    std::vector<MemoryDescPtr> srcDescs(config.descs.size() - 1);
+    std::vector<MemoryDescPtr> dstDescs{config.descs.at(ARG_DST)};
 
-bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
-                                            const std::vector<MemoryDescPtr>& srcDescs,
-                                            const std::vector<MemoryDescPtr>& dstDescs) const {
+    for (const auto& [argId, desc] : config.descs) {
+        if (argId == ARG_DST) {
+            continue;
+        }
+
+        srcDescs[argId - ARG_SRC] = desc;
+    }
+
     auto checkPrecision = [&srcDescs, &dstDescs](std::vector<ov::element::Type> srcVecPrc,
                                                  ov::element::Type dstPrc) -> bool {
         for (size_t i = 0; i < srcDescs.size(); i++) {
@@ -124,6 +98,8 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         }
         return true;
     };
+
+    const auto eltwiseAttrs = config.attrs;
 
     switch (eltwiseAttrs.algorithm) {
     case Algorithm::EltwiseSqrt:
@@ -227,16 +203,17 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
     return true;
 }
 
-AclEltwiseExecutor::AclEltwiseExecutor(ExecutorContext::CPtr context) : EltwiseExecutor(std::move(context)) {}
+AclEltwiseExecutor::AclEltwiseExecutor(const EltwiseAttrs& attrs,
+                                       [[maybe_unused]] const MemoryArgs& memory,
+                                       [[maybe_unused]] const ExecutorContext::CPtr& context)
+    : aclEltwiseAttrs(attrs) {}
 
-bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
-                              const std::vector<MemoryDescPtr>& srcDescs,
-                              const std::vector<MemoryDescPtr>& dstDescs,
-                              const std::vector<EltwisePostOp>& postOps) {
+bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const std::vector<MemoryDescPtr>& dstDescs) {
+    auto postOps = aclEltwiseAttrs.postOps;
+
     if (!postOps.empty()) {
         return false;
     }
-    aclEltwiseAttrs = eltwiseAttrs;
 
     std::vector<arm_compute::TensorShape> srcVecDims(srcDescs.size()), dstVecDims(dstDescs.size());
     std::vector<arm_compute::DataLayout> srcDataLayout(srcDescs.size()), dstDataLayout(dstDescs.size());
@@ -533,23 +510,44 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
     return true;
 }
 
-void AclEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
-                              const std::vector<MemoryPtr>& dst,
-                              [[maybe_unused]] const void* post_ops_data_) {
-    for (size_t i = 0; i < src.size(); i++) {
-        srcTensors[i].allocator()->import_memory(src[i]->getData());
+bool AclEltwiseExecutor::update(const MemoryArgs& memory) {
+    std::vector<MemoryDescPtr> srcDescs(memory.size() - 1);
+    std::vector<MemoryDescPtr> dstDescs{memory.at(ARG_DST)->getDescPtr()};
+
+    for (const auto& [argId, mem] : memory) {
+        if (argId == ARG_DST) {
+            continue;
+        }
+
+        srcDescs[argId - ARG_SRC] = mem->getDescPtr();
     }
-    for (size_t i = 0; i < dst.size(); i++) {
-        dstTensors[i].allocator()->import_memory(dst[i]->getData());
+
+    if (!init(srcDescs, dstDescs)) {
+        return false;
     }
+
+    return true;
+}
+
+void AclEltwiseExecutor::execute(const MemoryArgs& memory) {
+    for (const auto& [argId, mem] : memory) {
+        if (argId == ARG_DST) {
+            continue;
+        }
+
+        srcTensors[argId - ARG_SRC].allocator()->import_memory(mem->getData());
+    }
+
+    dstTensors[0].allocator()->import_memory(memory.at(ARG_DST)->getData());
 
     ifunc->run();
 
-    for (size_t i = 0; i < src.size(); i++) {
+    for (size_t i = 0; i < srcTensors.size(); i++) {
         srcTensors[i].allocator()->free();
     }
-    for (size_t i = 0; i < dst.size(); i++) {
+    for (size_t i = 0; i < dstTensors.size(); i++) {
         dstTensors[i].allocator()->free();
     }
 }
+
 }  // namespace ov::intel_cpu
