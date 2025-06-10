@@ -59,8 +59,8 @@ if(ENABLE_VCL_FOR_COMPILER)
             set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}")
 
             download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_ZIP}" "${VCL_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
-
-            file(COPY "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/npu_driver_compiler.dll"
+            set(VCL_COMPILER_LIB "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/npu_driver_compiler.dll")
+            file(COPY "${VCL_COMPILER_LIB}"
                 DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
             message(STATUS "Copying prebuilt VCL compiler libraries npu_driver_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for windows")
         else()
@@ -80,7 +80,8 @@ if(ENABLE_VCL_FOR_COMPILER)
 
                         download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
 
-                        file(COPY "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu/libnpu_driver_compiler.so"
+                        set(VCL_COMPILER_LIB "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu/libnpu_driver_compiler.so")
+                        file(COPY "${VCL_COMPILER_LIB}"
                             DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
                         message(STATUS "Copying prebuilt VCL compiler libraries libnpu_driver_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 22.04")
                     elseif(OS_VERSION STREQUAL "24.04")
@@ -93,7 +94,8 @@ if(ENABLE_VCL_FOR_COMPILER)
 
                         download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
 
-                        file(COPY "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu/libnpu_driver_compiler.so"
+                        set(VCL_COMPILER_LIB "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu/libnpu_driver_compiler.so")
+                        file(COPY "${VCL_COMPILER_LIB}"
                             DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
                         message(STATUS "Copying prebuilt VCL compiler libraries libnpu_driver_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 24.04")
                     else()
@@ -107,4 +109,7 @@ if(ENABLE_VCL_FOR_COMPILER)
             endif()
         endif()
     endif()
+
+    install(FILES ${VCL_COMPILER_LIB}
+        DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_INTERNAL_COMPONENT})
 endif()
