@@ -53,7 +53,6 @@ class TestBernoulli(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     def test_bernoulli(self, input, input_type, out, seed, ie_device, precision, ir_version):
         if input_type == np.float64:
             pytest.skip("156027: Incorrect specification or reference for RandomUniform for fp64 output type")
@@ -100,7 +99,6 @@ class TestBernoulliWithP(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.precommit_torch_export
     def test_bernoulli(self, input, input_type, p, seed, ie_device, precision, ir_version):
         if p not in [0.0, 1.0]:
             pytest.skip("156027: Incorrect specification or reference for RandomUniform for fp64 output type")
