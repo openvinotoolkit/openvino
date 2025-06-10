@@ -67,7 +67,7 @@ OpenVINO™ Runtime
 Common
 ---------------------------------------------------------------------------------------------
 
-* Better developer experience with shorter build times, due to optimizations and source code
+* Better developer experience with shorter build times, due to optimizations and source code 
   refactoring. Code readability has been improved, helping developers understand the 
   components included between different C++ files.
 * Memory consumption has been optimized by expanding the usage of mmap for the GenAI
