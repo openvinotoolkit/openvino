@@ -295,7 +295,8 @@ Known Issues
 | ID: 168889
 | Description:
 |    Running multiple `benchmark_app` processes simultaneously on Intel® Flex 170 or Intel® Arc™ A770 
-    may lead to a system crash.
+    may lead to a system crash. This is due to a device driver issue but appears when using 
+    `benchmark_app`.
 
 
 .. Previous 2025 releases
@@ -925,7 +926,7 @@ Discontinued in 2025
 
 Deprecated and to be removed in the future
 --------------------------------------------
-
+* Python 3.9 is now deprecated and will be unavailable after OpenVINO version 2025.4.
 * ``openvino.Type.undefined`` is now deprecated and will be removed with version 2026.0.
   ``openvino.Type.dynamic`` should be used instead.
 * APT & YUM Repositories Restructure:
@@ -946,13 +947,8 @@ Deprecated and to be removed in the future
   Full support will be removed later in 2025.
 * The `openvino` namespace of the OpenVINO Python API has been redesigned, removing the nested
   `openvino.runtime` module. The old namespace is now considered deprecated and will be
-  discontinued in 2026.0.
-
-
-
-
-
-
+  discontinued in 2026.0. A new namespace structure is available for immediate migration.
+  Details will be provided through warnings and documentation.
 
 
 
