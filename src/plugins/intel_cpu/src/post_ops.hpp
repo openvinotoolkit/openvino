@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
 #include <vector>
 
@@ -49,7 +50,13 @@ struct ActivationPostOp {
         round_half_to_even,
         round_half_away_from_zero,
         linear,
-        powerstatic
+        powerstatic,
+        floor,
+        negative,
+        ceiling,
+        erf,
+        soft_sign,
+        log
     };
 
     ActivationPostOp(const Type type,
@@ -93,6 +100,14 @@ struct ScaleShiftPostOp {
         multiply,
         muladd,
         prelu,
+        select,
+        maximum,
+        minimum,
+        squared_difference,
+        logical_and,
+        logical_or,
+        logical_xor,
+        logical_not
     };
 
     ScaleShiftPostOp(const Type m_type, std::vector<float> _scales, std::vector<float> _shifts)
@@ -263,6 +278,8 @@ ScaleShiftPostOp::Type convertToScaleShiftOpt(Algorithm alg);
 ActivationPostOp::Type convertToActivationPostOpt(Algorithm alg);
 
 Algorithm convertToEltwiseAlgorithm(ActivationPostOp::Type m_type);
+Algorithm convertToEltwiseAlgorithm(ScaleShiftPostOp::Type type);
+dnnl::algorithm convertToDnnlAlgorithm(ActivationPostOp::Type m_type);
 
 FakeQuantizePostOp::Type convertToFqPostOp(Algorithm alg);
 
