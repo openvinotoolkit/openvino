@@ -5,6 +5,7 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -621,6 +622,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
+    store_bf16_consts(kvcache_model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
@@ -750,7 +752,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, is_weightless);
 
     if (!encryption_required) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         return serialize(stream, ctx);
     }
 
@@ -758,18 +760,18 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     std::stringstream non_encrypted_stream;
     if (is_weightless) {
         non_encrypted_stream.copyfmt(stream);
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         serialize(non_encrypted_stream, ctx);
         std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
         write(stream, encrypted);
     } else {
         // In case of blob with weights only encrypt XML part of the model
-        EncryptContext ctx(true, enc_callbacks.encrypt, nullptr);
+        CompiledContext ctx(true, enc_callbacks.encrypt, nullptr);
         serialize(stream, ctx);
     }
 }
 
-void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& ctx) const {
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -803,7 +805,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
-        EncryptContext enc_ctx(false, nullptr, nullptr);
+        CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
         m_prefill_compiled->serialize(model_stream, enc_ctx);
     };
@@ -914,7 +916,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     };
 
     if (!encrypted) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_banks(stream, compiled_model);
@@ -937,10 +939,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
-        EncryptContext ctx(true, nullptr, enc_callbacks.decrypt);
+        CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
@@ -956,7 +958,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
-    const ov::npuw::s11n::EncryptContext& ctx) {
+    const ov::npuw::s11n::CompiledContext& ctx) {
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
@@ -989,7 +991,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
         // Deserialize CompiledModels
         // Note: no need to pass any encryption here as it's done in import_model()
-        EncryptContext enc_ctx(false, nullptr, nullptr);
+        CompiledContext enc_ctx(false, nullptr, nullptr);
         compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
 
@@ -1009,6 +1011,23 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
     return compiled;
+}
+
+void ov::npuw::LLMCompiledModel::store_bf16_consts(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& node_ptr : model->get_ordered_ops()) {
+        if (ov::op::util::is_constant(node_ptr)) {
+            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
+            auto rt_info = c->get_rt_info();
+            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightless_cache_attr == rt_info.end()) {
+                continue;
+            }
+            if (c->get_element_type() == ov::element::bf16) {
+                std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+                m_bf16_consts.insert({offset, c->get_byte_size()});
+            }
+        }
+    }
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {

@@ -9,6 +9,7 @@
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "spatial.hpp"
@@ -20,13 +21,14 @@ ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
     : is_weightless(_is_weightless),
       const_to_offset(_const_to_offset) {}
 
-// NOTE: This construtor can and should only be used when importing weightless blobs
+// NOTE: This construtor can and should only be used when importing blobs
 ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
-                                               const s11n::WeightsContext::ConstsCache& _consts_cache)
-    : is_weightless(true),
-      weights(_weights),
-      consts_cache(_consts_cache) {
-    NPUW_ASSERT(_weights || !_consts_cache.empty());
+                                               const s11n::WeightsContext::ConstsCache& _consts_cache,
+                                               const BF16Cache& _bf16_consts)
+    : weights(_weights),
+      consts_cache(_consts_cache),
+      bf16_consts(_bf16_consts) {
+    is_weightless = _weights || !_consts_cache.empty();
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
@@ -434,7 +436,20 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             ov::Tensor t(type, shape);
 
             if (ctx.weights) {
-                std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
+                if (ctx.bf16_consts.find({offset, byte_size}) != ctx.bf16_consts.end()) {
+                    NPUW_ASSERT(type == ov::element::f16);
+                    // Read original bf16 weight
+                    auto bf16_tensor = ov::Tensor(ov::element::bf16, shape);
+                    std::memcpy(bf16_tensor.data(), ctx.weights->get_ptr(offset), byte_size);
+
+                    // Transform bf16 to f16 tensor
+                    using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
+                    auto src_data = bf16_tensor.data<ov::bfloat16>();
+                    auto dst_data = t.data<dst_type>();
+                    ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, t.get_size());
+                } else {
+                    std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
+                }
             } else {
                 auto it = ctx.consts_cache.find({offset, byte_size});
                 NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
