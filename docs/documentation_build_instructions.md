@@ -44,5 +44,6 @@ $ source env/bin/activate
 Depending on the needs, following variables can be added to first cmake call:
 - building C/C++ API:  `-DENABLE_CPP_API=ON`
 - building Python API: `-DENABLE_PYTHON_API=ON`
+- building GenAI API:  `-DENABLE_GENAI_API=ON`
 - building Notebooks:  `-DENABLE_NOTEBOOKS=ON`
 - building OVMS:       `-DENABLE_OVMS=ON -DOVMS_DOCS_DIR=<path_to_OVMS_repo>`
