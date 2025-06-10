@@ -17,14 +17,20 @@ if(ENABLE_VCL_FOR_COMPILER)
 
             # Check if the prebuilt VCL compiler libraries not exist
             if(NOT EXISTS "${VCL_COMPILER_LIBS_DIR_UNZIPPED}")
-                # Download the prebuilt VCL compiler libraries, if failure, show error message
-                # and exit
+                # Update proxy
+                set(original_no_proxy $ENV{NO_PROXY})
+                set(ENV{NO_PROXY} "")
+
+                # Download the prebuilt VCL compiler libraries, if failure, show error message and exit
                 message(STATUS "Downloading prebuilt VCL compiler libraries from ${VCL_COMPILER_LIBS_URL}")
                 file(DOWNLOAD "${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_ZIP}"
                     TIMEOUT 3600
                     LOG log_output
                     STATUS download_status
                     SHOW_PROGRESS)
+                # Restore proxy
+                set(ENV{NO_PROXY} ${original_no_proxy})
+
                 list(GET download_status 0 download_result)
                 if(NOT download_result EQUAL 0)
                     message(FATAL_ERROR "Download failed!\nStatus: ${download_status}\nLog: ${log_output}")
@@ -33,15 +39,14 @@ if(ENABLE_VCL_FOR_COMPILER)
                 endif()
 
                 message(STATUS "Unzipping prebuilt VCL compiler libraries to ${VCL_COMPILER_LIBS_DIR_UNZIPPED}")
-		file(ARCHIVE_EXTRACT INPUT "${VCL_COMPILER_LIBS_ZIP}" DESTINATION "${VCL_COMPILER_LIBS_DIR_UNZIPPED}")
+                file(ARCHIVE_EXTRACT INPUT "${VCL_COMPILER_LIBS_ZIP}" DESTINATION "${VCL_COMPILER_LIBS_DIR_UNZIPPED}")
                 file(REMOVE "${VCL_COMPILER_LIBS_ZIP}")
             else()
                 message(STATUS "Prebuilt VCL compiler libraries already exist, skip download")
             endif()
 
             file(COPY ${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/npu_driver_compiler.dll
-	      DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}
-            )
+	            DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE})
             message(STATUS "Copying prebuilt VCL compiler libraries npu_driver_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
         else()
             set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_libs/ubuntu22")
@@ -75,8 +80,7 @@ if(ENABLE_VCL_FOR_COMPILER)
                 message(STATUS "Prebuilt VCL compiler libraries already exist, skip download")
             endif()
             file(COPY ${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu/libnpu_driver_compiler.so
-                DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-            )
+                DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
             message(STATUS "Copying prebuilt VCL compiler libraries libnpu_driver_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
         endif()
     endif()
