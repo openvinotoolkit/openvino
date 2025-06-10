@@ -188,7 +188,7 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
             return false;
 
         if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic)
             return false;
     } catch (...) {
         return false;

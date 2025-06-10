@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "cpu_types.h"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
@@ -51,6 +51,25 @@ struct jit_eltwise_params {
     bool use_runtime_ptrs;
 };
 
+// inline std::ostream& operator<<(std::ostream& os, const jit_eltwise_params& jep) {
+//     os << "jit_eltwise_params(inputs_number: " << jep.inputs_number << ", input_size: " << jep.input_size
+//        << ", src_prc: [";
+//     for (size_t i = 0; i < jep.inputs_number; ++i) {
+//         os << jep.src_prc[i] << (i < jep.inputs_number - 1 ? ", " : "");
+//     }
+//     os << "], dst_prc: " << jep.dst_prc << ", dims: " << jep.dims << ", src_offsets: [";
+//     for (size_t i = 0; i < jep.inputs_number; ++i) {
+//         os << jep.src_offsets[i] << (i < jep.inputs_number - 1 ? ", " : "");
+//     }
+//     os << "], dst_offsets: " << jep.dst_offsets << ", oc_offsets: " << jep.oc_offsets << ", src_size: [";
+//     for (size_t i = 0; i < jep.inputs_number; ++i) {
+//         os << jep.src_size[i] << (i < jep.inputs_number - 1 ? ", " : "");
+//     }
+//     os << "], dst_size: " << jep.dst_size << ", oc_size: " << jep.oc_size << ", work_amount: " << jep.work_amount
+//        << ", use_runtime_ptrs: " << std::boolalpha << jep.use_runtime_ptrs << ")";
+//     return os;
+// }
+
 struct jit_eltwise_call_args_indexes {
     size_t indexes[MAX_ELTWISE_DIM_RANK];
 };
@@ -58,10 +77,7 @@ struct jit_eltwise_call_args_indexes {
 struct jit_uni_eltwise_kernel {
     void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*) = nullptr;
 
-    void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) const {
-        assert(ker_);
-        ker_(const_args, indexes);
-    }
+    void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) const;
 
     explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : jep_(std::move(jep)) {}
     virtual ~jit_uni_eltwise_kernel() = default;

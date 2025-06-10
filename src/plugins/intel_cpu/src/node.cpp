@@ -342,9 +342,21 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
                     getName(),
                     " type: ",
                     NameFromType(getType()));
-
+    // int hasChannelLastId = -1;
+    // for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
+    //     const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
+    //     if (supportedPrimitiveDesc.getConfig().outConfs.front().getMemDesc()->hasLayoutType(LayoutType::nspc)) {
+    //         hasChannelLastId = i;
+    //         break;
+    //     }
+    // }
+    // if (hasChannelLastId != -1 && context->getConfig().modelType == Config::ModelType::CNN) {
+    //     selectPrimitiveDescriptorByIndex(hasChannelLastId);
+    // } else {
+    // std::cout << getName() << ":" << getTypeStr() << " Falling back to the first primitive descriptor" << "\n";
     // fallback. If there are no primitives from priority list just select a first
     selectPrimitiveDescriptorByIndex(0);
+    // }
 }
 
 bool Node::isOneDimShape(const ov::PartialShape& pshape) {
