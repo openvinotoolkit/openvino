@@ -16,6 +16,13 @@ struct GemmKernelKaiConfig : public BrgemmGenericKernelConfig {
 public:
     GemmKernelKaiConfig() = default;
 
+    bool operator==(const GemmKernelKaiConfig& rhs) const;
+    bool operator!=(const GemmKernelKaiConfig& rhs) const {
+        return !(*this == rhs);
+    }
+
+    void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
+
     std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
         return std::make_unique<GemmKernelKaiConfig>(*this);
     }

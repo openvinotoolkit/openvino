@@ -20,8 +20,6 @@ public:
     GemmCopyBKernelKaiConfig() = default;
     GemmCopyBKernelKaiConfig(const size_t n_blk_size);
 
-    GemmCopyBKernelKaiConfig& operator=(GemmCopyBKernelKaiConfig other);
-
     bool operator==(const GemmCopyBKernelKaiConfig& rhs) const;
     bool operator!=(const GemmCopyBKernelKaiConfig& rhs) const {
         return !(*this == rhs);
@@ -32,6 +30,7 @@ public:
     }
 
     [[nodiscard]] bool is_completed() const override;
+    [[nodiscard]] bool is_empty() const;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     virtual std::string to_string() const override;
@@ -50,15 +49,34 @@ public:
         return m_K;
     }
     [[nodiscard]] size_t get_n_blk_size() const {
-        return m_n_blk_size;
+        return m_static_params->wei_N_blk;
     }
 
 private:
+    struct StaticParams {
+        StaticParams(size_t wei_n_blk);
+
+        const size_t wei_N_blk{0};
+        const size_t hash{0};
+
+        bool operator==(const StaticParams& rhs) const;
+        bool operator!=(const StaticParams& rhs) const {
+            return !(*this == rhs);
+        }
+
+#ifdef SNIPPETS_DEBUG_CAPS
+        [[nodiscard]] std::string to_string() const;
+#endif
+
+    private:
+        static size_t init_hash(size_t wei_n_blk);
+    };
+
     [[nodiscard]] size_t compute_hash() const;
 
+    std::shared_ptr<StaticParams> m_static_params;
     size_t m_N = 0;
     size_t m_K = 0;
-    const size_t m_n_blk_size = 0;
     size_t m_hash{SIZE_MAX};
 };
 

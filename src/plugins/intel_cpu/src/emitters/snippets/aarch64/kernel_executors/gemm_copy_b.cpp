@@ -11,31 +11,32 @@
 
 namespace ov::intel_cpu::aarch64 {
 
-GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t n_blk_size) : m_n_blk_size(n_blk_size) {
+GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t n_blk_size)
+    : m_static_params(std::make_shared<StaticParams>(n_blk_size)) {
     OPENVINO_ASSERT(n_blk_size != 0, "n_blk_size can not be zero in GemmCopyBKernelKaiConfig.");
-}
-
-GemmCopyBKernelKaiConfig& GemmCopyBKernelKaiConfig::operator=(GemmCopyBKernelKaiConfig other) {
-    m_N = other.get_N();
-    m_K = other.get_K();
     m_hash = compute_hash();
-    return *this;
 }
 
 bool GemmCopyBKernelKaiConfig::operator==(const GemmCopyBKernelKaiConfig& rhs) const {
-    return m_N == rhs.m_N && m_K == rhs.m_K && m_n_blk_size == rhs.m_n_blk_size;
+    return m_N == rhs.m_N && m_K == rhs.m_K && m_hash == rhs.m_hash &&
+           (m_static_params == rhs.m_static_params || *m_static_params == *(rhs.m_static_params));
 }
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
-    return !ov::snippets::utils::one_of(0ul, m_N, m_K, m_n_blk_size);
+    return !ov::snippets::utils::one_of(0ul, m_N, m_K) || is_empty();
 }
+
+bool GemmCopyBKernelKaiConfig::is_empty() const {
+    return everyone_is(0ul, m_N, m_K);
+}
+
 #ifdef SNIPPETS_DEBUG_CAPS
 #    define PRINT(X) ss << #X << " = " << (X) << "\n"
 std::string GemmCopyBKernelKaiConfig::to_string() const {
     std::stringstream ss;
+    ss << m_static_params->to_string() << "\n";
     PRINT(m_N);
     PRINT(m_K);
-    PRINT(m_n_blk_size);
     return ss.str();
 }
 #    undef PRINT
@@ -55,12 +56,35 @@ void GemmCopyBKernelKaiConfig::update(size_t N, size_t K) {
 }
 
 size_t GemmCopyBKernelKaiConfig::compute_hash() const {
-    size_t seed = 0;
+    size_t seed = m_static_params->hash;
     seed = dnnl::impl::hash_combine(seed, m_N);
     seed = dnnl::impl::hash_combine(seed, m_K);
-    seed = dnnl::impl::hash_combine(seed, m_n_blk_size);
     return seed;
 }
+
+GemmCopyBKernelKaiConfig::StaticParams::StaticParams(size_t wei_n_blk)
+    : wei_N_blk(wei_n_blk),
+      hash(init_hash(wei_N_blk)) {}
+
+bool GemmCopyBKernelKaiConfig::StaticParams::operator==(const StaticParams& rhs) const {
+    return wei_N_blk == rhs.wei_N_blk && hash == rhs.hash;
+}
+
+size_t GemmCopyBKernelKaiConfig::StaticParams::init_hash(size_t wei_n_blk) {
+    size_t seed = 0;
+    seed = dnnl::impl::hash_combine(seed, wei_n_blk);
+    return seed;
+}
+
+#ifdef SNIPPETS_DEBUG_CAPS
+#    define PRINT(X) ss << #X << " = " << (X) << "\n"
+std::string GemmCopyBKernelKaiConfig::StaticParams::to_string() const {
+    std::stringstream ss;
+    PRINT(wei_N_blk);
+    return ss.str();
+}
+#    undef PRINT
+#endif
 
 GemmCopyBKaiKernelExecutor::GemmCopyBKaiKernelExecutor(GemmCopyBKernelKaiConfig config)
     : snippets::KernelExecutor<GemmCopyBKernelKaiConfig, GemmCopyBCompiledKernel>(std::move(config)) {}
@@ -70,7 +94,8 @@ void GemmCopyBKaiKernelExecutor::update_kernel(const GemmCopyBKernelKaiConfig& c
     if (kernel == nullptr) {
         // GemmCopyBCompiledKernel is an universal kernel, which could be used in any config and shape.
         // 1. It's executed block by block with binary call and config passed as parameters.
-        // 2. In each block, at most n_blk_size bias is needed. n_blk_size is a fixed value in brgemm blocking pass.
+        // 2. In each block, at most n_blk_size bias is needed. n_blk_size is a fixed value in gemm blocking pass.
+        // if N block size changed in gemm blocking in future and based on shape, bias_buffer should be updated
         kernel = std::make_shared<GemmCopyBCompiledKernel>();
         const auto& n_blk_size = config.get_n_blk_size();
         kernel->bias_buffer->resize(n_blk_size * sizeof(float), 0);

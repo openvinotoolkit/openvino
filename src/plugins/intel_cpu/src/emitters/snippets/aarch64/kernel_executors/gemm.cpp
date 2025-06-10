@@ -10,6 +10,15 @@
 
 namespace ov::intel_cpu::aarch64 {
 
+void GemmKernelKaiConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) {
+    BrgemmGenericKernelConfig::update(M, N, K, LDA, LDB, LDC, beta);
+    m_hash = BrgemmGenericKernelConfig::compute_hash();
+}
+
+bool GemmKernelKaiConfig::operator==(const GemmKernelKaiConfig& rhs) const {
+    return BrgemmGenericKernelConfig::operator==(rhs) && m_hash == rhs.m_hash;
+}
+
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
     : snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernel>(std::move(config)) {}
 
