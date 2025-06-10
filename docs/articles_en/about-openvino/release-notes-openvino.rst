@@ -61,7 +61,7 @@ What's new
     for models with fewer than 4 billion parameters.
 
 
-OpenVINO™ Runtime
+OpenVINO™ Runtime 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 Common 
