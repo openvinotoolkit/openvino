@@ -199,7 +199,7 @@ std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const N
 }
 template <>
 ov::PartialShape js_to_cpp<ov::PartialShape>(const Napi::Env& env, const Napi::Value& value) {
-    // TODO Support Napi:Array
+    // TODO Support Napi:Array 169009
     if (ov::js::validate_value<PartialShapeWrap>(env, value)) {
         return Napi::ObjectWrap<PartialShapeWrap>::Unwrap(value.ToObject())->get_value();
     } else if (value.IsString()) {

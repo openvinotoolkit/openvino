@@ -301,24 +301,15 @@ interface Model {
   setFriendlyName(name: string): void;
   /** Reshapes model input.
    * @param partialShape The {@link PartialShape} object
-   * to reshape the model input.
+   * or its string representation to reshape the model input.
    * @param variablesShapes New shapes for variables.
    */
   reshape(
-    partialShape: PartialShape,
-    variablesShapes: Record<string, PartialShape | string>
-  ): Model;
-  /** Reshapes model input.
-   * @param partialShape A string representation of {@link PartialShape}
-   * to reshape the model input.
-   * @param variablesShapes New shapes for variables.
-   */
-  reshape(
-    partialShape: string,
-    variablesShapes: Record<string, PartialShape | string>
+    partialShape: PartialShape | string,
+    variablesShapes?: Record<string, PartialShape | string>
   ): Model;
   /** Reshapes model inputs.
-   * @param partialShapes A dictionary with partial shapes.
+   * @param partialShapes A Map with partial shapes.
    * @param key The key is a model input index, tensor name
    * or {@link Output} object.
    * @param value The value is a {@link PartialShape} or
@@ -326,11 +317,8 @@ interface Model {
    * @param variablesShapes New shapes for variables.
    */
   reshape(
-    partialShapes: {
-      key: number | string | Output,
-      value: PartialShape | string
-    },
-    variablesShapes: Record<string, PartialShape | string>
+    partialShapes: Map<number | string | Output, PartialShape | string>,
+    variablesShapes?: Record<string, PartialShape | string>
   ): Model;
   /**
    * It gets all the model inputs as an array.
