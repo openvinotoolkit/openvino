@@ -9,7 +9,6 @@
 #include "llm_compiled_model.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-#include "base_sync_infer_request.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB)
 # include "tbb/task_group.h"

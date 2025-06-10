@@ -702,22 +702,20 @@ ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const 
     return m_now_idx;
 }
 
-void ov::npuw::IBaseInferRequest::subscribe_subrequests(std::shared_ptr<ov::npuw::IInferRequestListener> new_listener) {
-    m_subscribers.push_back(new_listener);
-}
-
-void ov::npuw::IBaseInferRequest::subscribe_subrequest(std::size_t idx, ov::npuw::IBaseInferRequest::Completed cb) {
-    std::for_each(m_subscribers.begin(), m_subscribers.end(), [idx, cb](RListenerPtr& subreq) {
-        subreq->on_submit(idx);
-    });
-}
-
-void ov::npuw::IBaseInferRequest::complete_subrequest(std::size_t idx) {
-    if (m_subscribers.empty()) {
-        LOG_DEBUG("IBaseInferRequest::complete_subrequest " << idx << " ... SKIP");
+void ov::npuw::IBaseInferRequest::notify_subrequest_prepare(std::size_t idx) {
+    if (!m_on_submit_cb) {
+        LOG_DEBUG("IBaseInferRequest::notify_subrequest_prepare " << idx << " ... SKIP");
         return;
     }
-    LOG_DEBUG("IBaseInferRequest::complete_subrequest " << idx );
+    m_on_submit_cb(idx);
+}
+
+void ov::npuw::IBaseInferRequest::notify_subrequest_complete(std::size_t idx) {
+    if (!m_on_output_ready_cb) {
+        LOG_DEBUG("IBaseInferRequest::notify_subrequest_complete " << idx << " ... SKIP");
+        return;
+    }
+    LOG_DEBUG("IBaseInferRequest::notify_subrequest_complete " << idx );
 
     const auto& iodesc = m_subrequests_gio.at(idx);
     for (auto&& it : iodesc.global_results) {
@@ -727,8 +725,6 @@ void ov::npuw::IBaseInferRequest::complete_subrequest(std::size_t idx) {
         const auto& produced = m_npuw_model->outputs()[result_idx];
         auto tensor = m_port_to_tensor.at(produced).tensor;
 
-        std::for_each(m_subscribers.begin(), m_subscribers.end(), [idx, produced, tensor](RListenerPtr& subreq) {
-            subreq->on_output_ready(idx, produced.get_any_name(), tensor);
-        });
+        m_on_output_ready_cb(idx, produced.get_any_name(), tensor);
     }
 }

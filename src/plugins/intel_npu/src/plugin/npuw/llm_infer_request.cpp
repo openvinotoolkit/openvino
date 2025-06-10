@@ -9,29 +9,10 @@
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "base_sync_infer_request.hpp"
 #include "util_xarch.hpp"
 
 namespace {
-
-// dispatcher implementation of inferrequest listener
-class InferRequestEventsDispatch final :
-    public ::ov::npuw::IInferRequestListener {
-  std::function<void(std::size_t)> m_submit_dispatch;
-  std::function<void(std::size_t idx, std::string, ::ov::SoPtr<ov::ITensor>)> m_output_ready_dispatch;
-
-public:
-    InferRequestEventsDispatch() = delete;
-    template <class CB1, class CB2>
-    InferRequestEventsDispatch(CB1 cb1, CB2 cb2)
-        : m_submit_dispatch(cb1), m_output_ready_dispatch(cb2) { }
-
-    void on_output_ready(std::size_t idx, std::string name, ov::SoPtr<ov::ITensor> tensor) override {
-        m_output_ready_dispatch(idx, name, tensor);
-    }
-    void on_submit(std::size_t idx) override {
-        m_submit_dispatch(idx);
-    }
-  };
 
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
@@ -166,15 +147,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_kvcache_request = compiled_model->m_kvcache_compiled->create_infer_request();
 
     if (m_copy_cache_inline) {
-        // shared_dispatcher opject
-        auto prefill_requests_dispatch = std::make_shared<InferRequestEventsDispatch>(
-            [this](std::size_t idx) {
-                on_prefill_request_prepare(idx);
-            },
-            [this](std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) {
-                on_prefill_output_ready(idx, name, tensor);
-            });
-
         // reusing outputs for prefill model
         std::map<std::string, std::string> npuw_props;
         npuw_props[std::string(::intel_npu::NPUW_FUNCALL_OUTS_REUSE::key())] = "YES";
@@ -182,7 +154,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
         auto sync_request = compiled_model->m_prefill_compiled->create_sync_infer_request();
         if (auto npuw_sync_request = std::dynamic_pointer_cast<ov::npuw::IBaseInferRequest>(sync_request)) {
-            npuw_sync_request->subscribe_subrequests(prefill_requests_dispatch);
+            npuw_sync_request->on_submit_subrequest([this](std::size_t idx) {
+                on_prefill_request_prepare(idx);
+            });
+            npuw_sync_request->on_output_ready([this](std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) {
+                on_prefill_output_ready(idx, name, tensor);
+            });
         }
 
         m_prefill_request = std::make_shared<ov::IAsyncInferRequest>(sync_request,
