@@ -67,15 +67,16 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     , memory(engine, layout, type, nullptr)
     , _buffer(engine->get_context(), engine->get_device())
     , _host_buffer(engine->get_context(), engine->get_device()) {
+    auto mem_ordinal = engine->get_device_info().device_memory_ordinal;
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
         _buffer.allocateHost(_bytes_count);
         break;
     case allocation_type::usm_shared:
-        _buffer.allocateShared(_bytes_count);
+        _buffer.allocateShared(_bytes_count, mem_ordinal);
         break;
     case allocation_type::usm_device:
-        _buffer.allocateDevice(_bytes_count);
+        _buffer.allocateDevice(_bytes_count, mem_ordinal);
         break;
     default:
         OPENVINO_THROW("[GPU] Unknown unified shared memory type!");

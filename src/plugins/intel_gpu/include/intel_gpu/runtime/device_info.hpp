@@ -133,6 +133,8 @@ struct device_info {
 
     uint64_t timer_resolution;                  ///< Resolution of device timer used for profiling in cycles/sec
     uint32_t kernel_timestamp_valid_bits;       ///< Number of valid bits in the kernel timestamp values
+    uint32_t compute_queue_group_ordinal;       ///< Ordinal of the command queue group with compute support
+    uint32_t device_memory_ordinal;             ///< Ordinal of the selected global device memory
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device

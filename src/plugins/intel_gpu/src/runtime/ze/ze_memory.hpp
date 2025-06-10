@@ -72,10 +72,11 @@ public:
         _allocate(memory);
     }
 
-    void allocateShared(size_t size) {
+    void allocateShared(size_t size, uint32_t ordinal) {
         ze_device_mem_alloc_desc_t device_desc = {};
         device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
         device_desc.flags = 0;
+        device_desc.ordinal = ordinal;
         device_desc.pNext = nullptr;
 
         ze_host_mem_alloc_desc_t host_desc = {};
@@ -88,10 +89,11 @@ public:
         _allocate(memory);
     }
 
-    void allocateDevice(size_t size) {
+    void allocateDevice(size_t size, uint32_t ordinal) {
         ze_device_mem_alloc_desc_t device_desc = {};
         device_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC;
         device_desc.flags = 0;
+        device_desc.ordinal = ordinal;
         device_desc.pNext = nullptr;
 
         void* memory = nullptr;

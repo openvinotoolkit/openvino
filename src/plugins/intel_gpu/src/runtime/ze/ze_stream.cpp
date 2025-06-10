@@ -166,11 +166,12 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
     , _engine(engine)
     , m_pool(engine, config.get_enable_profiling()) {
+    const auto &info = engine.get_device_info();
     ze_command_queue_desc_t command_queue_desc = {};
     command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
     command_queue_desc.pNext = nullptr;
     command_queue_desc.index = 0;
-    command_queue_desc.ordinal = 0;
+    command_queue_desc.ordinal = info.compute_queue_group_ordinal;
     command_queue_desc.flags = m_queue_type == QueueTypes::out_of_order ? 0 : ZE_COMMAND_QUEUE_FLAG_IN_ORDER;
     command_queue_desc.mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
     command_queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
