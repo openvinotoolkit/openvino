@@ -57,7 +57,8 @@ What's new
     included. 
   * Support for INT4 data-free weights compression for ONNX models implemented in the Neural
     Network Compression Framework (NNCF).
-  * NPU support for FP16-NF4 precisions on Intel® Core™ Processors (Series 1 and Series 2)
+  * NPU support for FP16-NF4 precisions on Intel® Core™ 200V Series processors for models
+    with up to 8 billion parameters
     for models with fewer than 4 billion parameters. 
 
 
