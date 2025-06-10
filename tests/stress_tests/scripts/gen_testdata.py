@@ -141,17 +141,45 @@ def main():
                     "name": file_name,
                     "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
                     "framework": path_parts[-6] if path_parts[-2] != "optimized" else path_parts[-8],
-                    "path": subdirectory,
+                    "path": full_path, #subdirectory,
                     "full_path": full_path
                 })
                 model_element.tail = '\n\t'
                 model_recs.append(model_element)
                 
                 reference_element = eET.Element("model", {
-                    "path": subdirectory,
+                    "path": full_path, #subdirectory,
                     #"full_path": full_path,
                     "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
                     "test": "create_exenetwork",
+                    "device": "CPU",
+                    "vmsize": str(random.randint(1, 1103949)),
+                    "vmpeak": str(random.randint(1, 1103949)),
+                    "vmrss" : str(random.randint(1, 129329)),
+                    "vmhwm" : str(random.randint(1, 129329))
+                })
+                reference_element.tail = '\n\t'
+                ref_recs.append(reference_element)
+                
+                reference_element = eET.Element("model", {
+                    "path": full_path, #subdirectory,
+                    #"full_path": full_path,
+                    "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
+                    "test": "inference_with_streams",
+                    "device": "CPU",
+                    "vmsize": str(random.randint(1, 1103949)),
+                    "vmpeak": str(random.randint(1, 1103949)),
+                    "vmrss" : str(random.randint(1, 129329)),
+                    "vmhwm" : str(random.randint(1, 129329))
+                })
+                reference_element.tail = '\n\t'
+                ref_recs.append(reference_element)
+
+                reference_element = eET.Element("model", {
+                    "path": full_path, #subdirectory,
+                    #"full_path": full_path,
+                    "precision": path_parts[-4] if path_parts[-2] != "optimized" else path_parts[-5],
+                    "test": "infer_request_inference",
                     "device": "CPU",
                     "vmsize": str(random.randint(1, 1103949)),
                     "vmpeak": str(random.randint(1, 1103949)),
