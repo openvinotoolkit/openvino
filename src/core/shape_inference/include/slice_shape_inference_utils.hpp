@@ -60,7 +60,7 @@ inline int64_t get_sliced_value(const int64_t dim, const int64_t start, const in
 
         lb = ov::util::clip(ov::util::normalize(start, norm_dim), min_bound, lower_max);
         if (is_stop_max) {
-            ub = upper_min;
+            ub = is_reverse_step ? upper_min : norm_dim;
         } else {
             ub = ov::util::clip(ov::util::normalize(stop, norm_dim), upper_min, norm_dim);
         }
