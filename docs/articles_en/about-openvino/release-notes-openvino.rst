@@ -70,7 +70,7 @@ Common
 * Better developer experience with shorter build times, due to optimizations and source code
   refactoring. Code readability has been improved, helping developers understand the 
   components included between different C++ files.
-* Memory consumption has been optimized, by expanding the usage of mmap for the GenAI
+* Memory consumption has been optimized by expanding the usage of mmap for the GenAI
   component and introducing the delayed constant weights mechanism.
 * Support for ISTFT operator for GPU has been expanded, improving support of text-to-speech,
   speech-to-text, and speech-to-speech models, like AudioShake and Kokoro.
@@ -241,7 +241,7 @@ OpenVINO GenAI
     `<ov_genai_image_0>What’s in the image?` will prepend the corresponding image to the prompt 
     while ignoring other images. See VLMPipeline’s docstrings for more details.
   * VLM uses Continuous batching by default, improving Performance.
-  * VLMPipleine can now be constructed from in-memory `ov::Model`.
+  * VLMPipeleine can now be constructed from in-memory `ov::Model`.
   * Qwen2.5-VL support has been added.
 
 * JavaScript 
@@ -280,17 +280,22 @@ Jupyter Notebooks
 Known Issues
 -----------------------------
 
-| **Component: NPU**
-| ID: n/a
+| **Component: GPU**
+| ID: 168284
 | Description:
-|   For LLM runs with prompts longer than the user may set through the MAX_PROMPT_LEN parameter,
-    an exception occurs, with a note providing the reason. In the current version of OpenVINO,
-    the message is not correct. in future releases, the explanation will be fixed.
+|   Using the phi-3 or phi-3.5 model for speculative decoding with large input sequences on GPU 
+    may cause an `OpenCL out of resources` error.
 
+| **Component: GPU**
+| ID: 168637
+| Description:
+|   Quantizing the Qwen3-8b model to int4 using the AWQ method results in accuracy issues on GPU.
 
-
-
-
+| **Component: GPU**
+| ID: 168889
+| Description:
+|    Running multiple `benchmark_app` processes simultaneously on Intel® Flex 170 or Intel® Arc™ A770 
+    may lead to a system crash.
 
 
 .. Previous 2025 releases
@@ -871,8 +876,7 @@ Deprecation And Support
 +++++++++++++++++++++++++++++
 
 Using deprecated features and components is not advised. They are available to enable a smooth
-transition to new solutions and will be discontinued in the future. To keep using discontinued
-features, you will have to revert to the last LTS OpenVINO version supporting them.
+transition to new solutions and will be discontinued in the future.
 For more details, refer to:
 `OpenVINO Legacy Features and Components <https://docs.openvino.ai/2025/documentation/legacy-features.html>`__.
 
