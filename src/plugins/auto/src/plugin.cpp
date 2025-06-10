@@ -545,8 +545,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                                                        auto_s_context,
                                                        scheduler);
     } else {
-        if (std::static_pointer_cast<AutoSchedule>(scheduler)->m_compile_context[ACTUALDEVICE].m_is_already) {
-            // release all the models here if actual device finish compiling model.
+        if (std::static_pointer_cast<AutoSchedule>(scheduler)->m_compile_context[ACTUALDEVICE].m_is_already &&
+            !auto_s_context->m_runtime_fallback) {
+            // release all the models here if actual device finish compiling model and no fallback is needed
             auto_s_context->m_model.reset();
         }
         impl = std::make_shared<AutoCompiledModel>(auto_s_context->m_model,
@@ -775,9 +776,11 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                                     ? properties.at(ov::cache_dir.name()).as<std::string>()
                                     : get_core()->get_property("", ov::cache_dir);
 
-        auto& device_blob_hash_ids = properties.at(ov::intel_auto::devices_blob_hash_id.name())
-                                         .as<std::map<std::string, std::pair<std::string, bool>>>();
         bool if_need_cache_check = !is_cumulative_tput && (model || !model_path.empty()) && !cache_dir.empty();
+        auto device_blob_hash_ids = if_need_cache_check && properties.count(ov::intel_auto::devices_blob_hash_id.name())
+                                        ? properties.at(ov::intel_auto::devices_blob_hash_id.name())
+                                              .as<std::map<std::string, std::pair<std::string, bool>>>()
+                                        : std::map<std::string, std::pair<std::string, bool>>{};
         auto compute_device_hash_id = [&](const std::string& device) {
             try {
                 auto dev_properties = get_core()->get_supported_property(device, properties);

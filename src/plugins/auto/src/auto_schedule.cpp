@@ -353,11 +353,14 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         auto compile_start_time = std::chrono::high_resolution_clock::now();
-        // compile model by model first if it is not empty,
-        if (model) {
-            context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
+        if (model || m_context->m_model) {
+            // Clone the model from m_context->m_model if the provided model is empty, to handle runtime fallback
+            // scenarios with multiple times of compilation.
+            std::shared_ptr<ov::Model> model_to_use = model ? model : m_context->m_model->clone();
+            context.m_compiled_model = m_context->m_ov_core->compile_model(model_to_use, device, device_config);
         } else {
-            context.m_compiled_model = m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
+            context.m_compiled_model =
+                m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         }
         context.m_is_load_success = true;
         auto compile_end_time = std::chrono::high_resolution_clock::now();
