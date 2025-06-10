@@ -560,9 +560,6 @@ layout network::get_output_layout(const primitive_id& output_id) const {
 void network::allocate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("allocate_primitives");
     const auto& ao = _program->get_allocating_order();
-    for (auto& node_id : ao) {
-        allocate_primitive_instance(_program->get_node(node_id));
-    }
 
     auto& po = _program->get_processing_order();
 
@@ -579,16 +576,15 @@ void network::allocate_primitives() {
                         continue;
                     eltw_dep = fused_op.outer_dep_start_idx;
                     auto& eltw_in = node->get_dependency(eltw_dep);
-                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                        auto& eltw_inst = _primitives.at(eltw_in.id());
-                        auto& prim_inst = _primitives.at(node->id());
-                        auto& eltw_mem = eltw_inst->output_memory();
-                        auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
-                        prim_inst->set_output_memory(new_mem);
-                    }
+                    node->set_reuse_id(eltw_in.id());
+                    node->set_reuse_flag(true);
                 }
             }
         }
+    }
+
+    for (auto& node_id : ao) {
+        allocate_primitive_instance(_program->get_node(node_id));
     }
 
     // Update the output memory address of optimized-out layer if it is not valid.

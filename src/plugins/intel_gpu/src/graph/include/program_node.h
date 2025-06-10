@@ -69,6 +69,8 @@ struct program_node {
 
 public:
     virtual const primitive_id& id() const { return desc->id; }
+    virtual const primitive_id& reuse_id() const { return reuse_primitive_id; }
+    
     virtual primitive_type_id type() const { return desc->type; }
     virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
 
@@ -163,6 +165,10 @@ public:
 
     primitive_impl* get_selected_impl() const { return selected_impl.get(); }
     void set_selected_impl(std::unique_ptr<primitive_impl> impl);
+
+    void set_reuse_id(primitive_id id) { reuse_primitive_id = id; }
+
+    void set_reuse_flag(bool value) { has_reused_memory = value; }
 
     void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
     impl_types get_preferred_impl_type() const { return impl_type; }
@@ -381,7 +387,7 @@ public:
         reused_memory_color = color;
     }
 
-    bool is_reusing_memory() { return has_reused_memory; }
+    bool is_reusing_memory() const { return has_reused_memory; }
     uint32_t get_reused_memory_color() {
         return reused_memory_color;
     }
@@ -518,6 +524,7 @@ protected:
     bool output = false;
     uint8_t user_mark = 0;
     bool optimized = false;
+    primitive_id reuse_primitive_id = "";
     bool share_buffer = true;
     std::array<bool, tensor_dim_max> _support_padding_in_axis;
 
