@@ -103,10 +103,13 @@ int main(int argc, char* argv[]) {
                     latencies.push_back(std::chrono::duration_cast<Ms>(time_point - timedIreq.start).count());
                 }
                 ireq.set_callback(
-                    [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv](std::exception_ptr ex) {
+                    [&ireq, time_point, lock = std::move(lock), &finished_ireqs, &callback_exception, &cv](
+                        std::exception_ptr ex) mutable {
                         // Keep callback small. This improves performance for fast (tens of thousands FPS) models
                         {
-                            std::unique_lock<std::mutex> lock(mutex);
+                            if (!lock.owns_lock()) {
+                                lock.lock();
+                            }
                             try {
                                 if (ex) {
                                     std::rethrow_exception(ex);
