@@ -1502,23 +1502,6 @@ struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, uin
 };
 
 //
-// BENCHMARK_INIT
-//
-struct BENCHMARK_INIT final : OptionBase<BENCHMARK_INIT, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::benchmark_init.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-};
-
-//
 // WS_COMPILE_CALL_NUMBER
 //
 struct WS_COMPILE_CALL_NUMBER final : OptionBase<WS_COMPILE_CALL_NUMBER, uint32_t> {

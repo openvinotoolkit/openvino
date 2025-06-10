@@ -54,40 +54,23 @@ constexpr std::string_view ONNX_EXTENSION = ".onnx";
  * @returns The dummy "ov::Model" composed of "parameter" and "result" nodes built using the given descriptors.
  */
 std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& inputDescriptors,
-                                              const std::vector<IODescriptor>& outputDescriptors,
-                                              const bool benchmarkInit = false) {
+                                              const std::vector<IODescriptor>& outputDescriptors) {
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
     for (const IODescriptor& inputDescriptor : inputDescriptors) {
-        if (!benchmarkInit) {
-            if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
-                inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
-                continue;
-            }
-
-            std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
-                inputDescriptor.precision,
-                inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
-                                                             : inputDescriptor.shapeFromCompiler);
-            parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
-            parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
-            parameters.push_back(parameter);
-        } else {
-            if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
-                inputDescriptor.isMainInputWeights) {
-                continue;
-            }
-
-            std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
-                inputDescriptor.precision,
-                inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
-                                                             : inputDescriptor.shapeFromCompiler);
-            parameter->set_friendly_name(inputDescriptor.nameFromCompiler);
-            parameter->output(0).get_tensor().set_names(
-                std::unordered_set<std::string>{inputDescriptor.nameFromCompiler});
-            parameters.push_back(std::move(parameter));
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
+            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
+            continue;
         }
+
+        std::shared_ptr<ov::op::v0::Parameter> parameter = std::make_shared<ov::op::v0::Parameter>(
+            inputDescriptor.precision,
+            inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
+                                                         : inputDescriptor.shapeFromCompiler);
+        parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
+        parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
+        parameters.push_back(parameter);
     }
 
     // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
@@ -95,42 +78,23 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
     for (const IODescriptor& outputDescriptor : outputDescriptors) {
-        if (!benchmarkInit) {
-            if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
-                outputDescriptor.isInitOutputWeights) {
-                continue;
-            }
-
-            std::shared_ptr<ov::Node> constantDummy =
-                std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
-
-            const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
-                std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
-                                                         outputDescriptor.shapeFromCompiler,
-                                                         outputDescriptor.outputTensorNames);
-
-            auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
-            result->output(0).set_tensor_ptr(tensorDummy);
-
-            result->set_friendly_name(outputDescriptor.nodeFriendlyName);
-        } else {
-            if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
-                continue;
-            }
-
-            std::shared_ptr<ov::Node> constantDummy =
-                std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
-
-            const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
-                outputDescriptor.precision,
-                outputDescriptor.shapeFromCompiler,
-                std::unordered_set<std::string>{outputDescriptor.nameFromCompiler});
-
-            auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
-            result->output(0).set_tensor_ptr(tensorDummy);
-
-            result->set_friendly_name(outputDescriptor.nameFromCompiler);
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
+            outputDescriptor.isInitOutputWeights) {
+            continue;
         }
+
+        std::shared_ptr<ov::Node> constantDummy =
+            std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
+
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
+            std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
+                                                     outputDescriptor.shapeFromCompiler,
+                                                     outputDescriptor.outputTensorNames);
+
+        auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
+        result->output(0).set_tensor_ptr(tensorDummy);
+
+        result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
 
     return std::make_shared<ov::Model>(results, parameters);
@@ -280,7 +244,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(WEIGHTLESS_BLOB);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
     REGISTER_OPTION(WS_COMPILE_CALL_NUMBER);
-    REGISTER_OPTION(BENCHMARK_INIT);
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
             REGISTER_OPTION(TURBO);

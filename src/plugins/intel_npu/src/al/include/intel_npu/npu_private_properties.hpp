@@ -318,12 +318,6 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
 
 /**
  * @brief [Experimental, only for NPU Plugin]
- * Type: bool. Default is "false".
- */
-static constexpr ov::Property<bool> benchmark_init{"NPU_BENCHMARK_INIT"};
-
-/**
- * @brief [Experimental, only for NPU Plugin]
  * Type: integer.
  *
  * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
