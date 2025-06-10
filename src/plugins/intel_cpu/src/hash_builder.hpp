@@ -44,7 +44,7 @@ struct Builder {
         return *this;
     }
 
-    size_t generate() const {
+    [[nodiscard]] size_t generate() const {
         return m_seed;
     }
 

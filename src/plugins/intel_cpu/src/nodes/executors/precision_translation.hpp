@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -80,20 +81,17 @@ class TypeMappingEntry {
 public:
     using EnabledPredicate = std::function<bool(void)>;
 
-    TypeMappingEntry(InOutTypeMask mask, TypeTranslationFunction translation, EnabledPredicate enabled = {})
+    TypeMappingEntry(InOutTypeMask mask, std::vector<policy> policies, EnabledPredicate enabled = {})
         : m_mask(std::move(mask)),
-          m_translation(std::move(translation)),
+          m_policies(std::move(policies)),
           m_enabled(std::move(enabled)) {}
 
     [[nodiscard]] const InOutTypeMask& mask() const {
         return m_mask;
     }
 
-    [[nodiscard]] InOutTypes translate(const InOutTypes& types) const {
-        if (m_translation) {
-            return m_translation(types);
-        }
-        return {};
+    [[nodiscard]] ov::element::Type translate(const InOutTypes& types, size_t idx) const {
+        return m_policies[idx](types, idx);
     }
 
     [[nodiscard]] bool enabled() const {
@@ -105,16 +103,17 @@ public:
 
 private:
     InOutTypeMask m_mask;
-    TypeTranslationFunction m_translation;
+    std::vector<policy> m_policies;
     EnabledPredicate m_enabled;
 };
 
 using TypeMapping = std::vector<TypeMappingEntry>;
-using MappingNotation = std::vector<int>;
+using MappingNotation = std::unordered_map<int, size_t>;
 using pt = PortsTranslation;
+using TypeOfArg = std::unordered_map<int, ov::element::Type>;
 
-InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors,
-                                const TypeMapping& mapping,
-                                const MappingNotation& notation);
+TypeOfArg getTypeConfiguration(const MemoryDescArgs& descriptors,
+                               const TypeMapping& mapping,
+                               const MappingNotation& notation);
 
 }  // namespace ov::intel_cpu
