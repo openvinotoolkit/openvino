@@ -11,7 +11,7 @@
 
 #include "openvino/core/parallel.hpp"
 
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
 #    include <tbb/enumerable_thread_specific.h>
 #else
 #    include <functional>
@@ -25,7 +25,7 @@
 namespace ov {
 namespace threading {
 
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
 
 /**
  * @brief A wrapper class to keep object to be thread local.

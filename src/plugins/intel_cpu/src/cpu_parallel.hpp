@@ -25,7 +25,7 @@ public:
 
     template <typename T0, typename F>
     void parallel_simple(const T0& D0, const F& func) const {
-#if OV_THREAD == OV_THREAD_TBB
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         const int nthr = static_cast<size_t>(D0);
         if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
             tbb::parallel_for(
@@ -50,7 +50,7 @@ public:
                       const F& func,
                       const ov::intel_cpu::TbbPartitioner& partitioner,
                       const size_t multiplier) const {
-#if OV_THREAD == OV_THREAD_TBB
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         auto work_amount = static_cast<size_t>(D0);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
@@ -87,7 +87,7 @@ public:
                         const F& func,
                         const ov::intel_cpu::TbbPartitioner& partitioner,
                         const size_t multiplier) {
-#if OV_THREAD == OV_THREAD_TBB
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         auto work_amount = static_cast<size_t>(D0 * D1);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
@@ -125,7 +125,7 @@ public:
                         const F& func,
                         const ov::intel_cpu::TbbPartitioner& partitioner,
                         const size_t multiplier) {
-#if OV_THREAD == OV_THREAD_TBB
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         auto work_amount = static_cast<size_t>(D0 * D1 * D2);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
@@ -164,7 +164,7 @@ public:
                         const F& func,
                         const ov::intel_cpu::TbbPartitioner& partitioner,
                         const size_t multiplier) {
-#if OV_THREAD == OV_THREAD_TBB
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
@@ -203,7 +203,7 @@ public:
                         const F& func,
                         const ov::intel_cpu::TbbPartitioner& partitioner,
                         const size_t multiplier) {
-#if OV_THREAD == OV_THREAD_TBB
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
@@ -243,7 +243,7 @@ public:
                         const F& func,
                         const ov::intel_cpu::TbbPartitioner& partitioner,
                         const size_t multiplier) {
-#if OV_THREAD == OV_THREAD_TBB
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;

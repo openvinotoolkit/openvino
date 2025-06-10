@@ -79,7 +79,7 @@
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
 #    include <tbb/task.h>
 #endif
 
@@ -1402,7 +1402,7 @@ private:
 using UpdateNodes = UpdateNodesSeq;
 #endif
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO || OV_THREAD == OV_THREAD_OMP)
 
 class UpdateNodesBase {
 public:
@@ -1449,7 +1449,7 @@ protected:
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
 #        if (TBB_VERSION_MAJOR > 2020)
 template <typename Body>
 class AsyncTask : public tbb::detail::d1::task {

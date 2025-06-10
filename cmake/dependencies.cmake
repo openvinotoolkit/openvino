@@ -68,7 +68,7 @@ unset(_ov_download_tbb_done CACHE)
 # or ENABLE_SYSTEM_TBB is OFF
 #
 function(ov_download_tbb)
-    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO)$")
+    if(_ov_download_tbb_done OR NOT THREADING MATCHES "^(TBB|TBB_AUTO|TBB_PARTITIONER_AUTO)$")
         return()
     endif()
     set(_ov_download_tbb_done ON CACHE INTERNAL "Whether prebuilt TBB is already downloaded")
