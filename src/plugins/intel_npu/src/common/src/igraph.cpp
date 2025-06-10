@@ -118,6 +118,10 @@ std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<o
         return std::nullopt;  // Return std::nullopt if the shape is empty
     }
 
+    // TODO This is incorrect, the first dimension may be appeared 'C' as well.
+    // We need to get layout somehow and determine a true batch dimension here
+    // or extract it from get_input_descriptors()/get_output_descriptors()
+    // in this case we need to pass IO type and IO index
     const size_t candidateBatchSize = first_shape.at(0);  // Assume batch size is the first dimension
 
     auto checkBatchSizeConsistency = [candidateBatchSize](const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
@@ -135,11 +139,11 @@ std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<o
     };
 
     if (!checkBatchSizeConsistency(tensors)) {
-        _logger.info("Inconsistent batch sizes in input tensors");
+        _logger.warning("Inconsistent batch sizes in input tensors");
         return std::nullopt;  // Return std::nullopt if batch sizes are inconsistent
     }
 
-    _logger.debug("Dynamic Batching is handled by the plugin");
+    _logger.debug("Determined batch size: %zu", candidateBatchSize);
 
     return candidateBatchSize;
 }
@@ -153,7 +157,7 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata,
 
     const ov::PartialShape& firstOutputShape = *metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
-        _logger.warning("Networks using dynamic batch are handled by the plugin");
+        _logger.debug("Networks using dynamic batch are handled by the plugin. Let's determine batch size over tensors: %zu", tensors.size());
         return !tensors.empty() ? determine_batch_size(tensors) : std::nullopt;
     }
     if (firstOutputShape.rank().get_length() == 0) {
