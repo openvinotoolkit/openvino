@@ -7,7 +7,6 @@
 #include "cpu_isa_traits.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "jit_generator.hpp"
-#include "nodes/executors/eltwise.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"

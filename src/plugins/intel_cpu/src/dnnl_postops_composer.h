@@ -37,7 +37,9 @@ public:
                         dnnl::memory::data_type outDataType,
                         const std::vector<float>& legacyDqScales = {},
                         bool useLegacyPostOps = false,
-                        bool useLegacyZeroPoints = false);
+                        bool useLegacyZeroPoints = false,
+                        bool forceLegacyPostOps = false,
+                        dnnl::post_ops ops = dnnl::post_ops());
     DnnlPrimitiveAttrs compose();
     void appendDecompressionScales(const MemoryCPtr& scales_ptr,
                                    bool needTranspose,
@@ -95,6 +97,7 @@ private:
     const dnnl::memory::data_type outDataType;
     bool useLegacyPostOps;
     bool useLegacyZeroPoints;
+    bool forceLegacyPostOps;
 
     dnnl::primitive_attr attr;
     MemoryArgs cpuArgs;
