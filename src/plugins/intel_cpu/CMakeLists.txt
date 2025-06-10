@@ -361,7 +361,17 @@ ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-ov_build_target_faster(${TARGET_NAME} PCH)
+set(PCH_EXCLUDE_FILES
+    src/emitters/plugin/x64/debug_capabilities.cpp
+    src/nodes/executors/printers.cpp
+    src/emitters/snippets/x64/jit_debug_emitter.cpp
+    src/emitters/snippets/x64/jit_debug_emitter.cpp
+    src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
+    src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
+    src/emitters/snippets/x64/verbose.cpp
+    src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)
+
+ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
 
 #
 # add test object library
@@ -419,7 +429,7 @@ if(BUILD_SHARED_LIBS)
     # LTO
     set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-    ov_build_target_faster(${TARGET_NAME}_obj PCH)
+    ov_build_target_faster(${TARGET_NAME}_obj PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
 endif()
 
 if(ENABLE_TESTS)
