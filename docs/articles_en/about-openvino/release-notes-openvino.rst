@@ -59,7 +59,6 @@ What's new
     Network Compression Framework (NNCF).
   * NPU support for FP16-NF4 precisions on Intel® Core™ 200V Series processors for models
     with up to 8 billion parameters
-    for models with fewer than 4 billion parameters. 
 
 
 OpenVINO™ Runtime 
