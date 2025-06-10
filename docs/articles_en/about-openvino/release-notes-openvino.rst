@@ -139,7 +139,9 @@ NPU Device Plugin
   for a compiled blob.
 * Weightless caching and compilation for LLMs are now available when used with OpenVINO GenAI.
 * LLM accuracy issues with BF16 models have been resolved.
-
+* The NPU driver is now included in OpenVINO Docker images for Ubuntu, enabling out-of-the-box NPU 
+  support without manual driver installation. For instructions, refer to the
+  `OpenVINO Docker documentation <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/npu_accelerator.md>`__.
 
 
 OpenVINO Python API
