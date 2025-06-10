@@ -32,6 +32,8 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 # developer package
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

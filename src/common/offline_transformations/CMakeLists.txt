@@ -32,6 +32,8 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 # install & export
 
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}

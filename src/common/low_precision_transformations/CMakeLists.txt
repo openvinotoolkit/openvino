@@ -22,7 +22,7 @@ add_library(${TARGET_NAME}_obj OBJECT
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ov_build_target_faster(${TARGET_NAME}_obj UNITY)
+ov_build_target_faster(${TARGET_NAME}_obj UNITY PCH)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::core::dev)
 

@@ -96,6 +96,8 @@ add_custom_command(TARGET ${PROJECT_NAME}
 ov_python_minimal_api(${PROJECT_NAME})
 ov_add_clang_format_target(${PROJECT_NAME}_clang FOR_TARGETS ${PROJECT_NAME})
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 # install steps
 
 ov_cpack_add_component(${OV_CPACK_COMP_PYTHON_OPENVINO}_${pyversion}

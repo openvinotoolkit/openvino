@@ -19,3 +19,5 @@ ov_add_test_target(
     LABELS
         OV UNIT LP_TRANSFORMATIONS
 )
+
+ov_build_target_faster(${TARGET_NAME} PCH)
