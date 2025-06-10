@@ -115,8 +115,10 @@ void Graph::initialize(const Config& config) {
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
             _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            _logger.debug("got pfnGetArgumentProperties3 for input: %s", _input_descriptors.back().to_string().c_str());
         } else {
             _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            _logger.debug("got pfnGetArgumentProperties3 for output: %s", _output_descriptors.back().to_string().c_str());
         }
     }
 
@@ -163,7 +165,7 @@ void Graph::initialize(const Config& config) {
 
     const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape[0].is_dynamic()) {
-        _logger.debug("Dynamic batch, will initialize command_lists later");
+        _logger.info("Dynamic batch, will initialize command_lists later");
         return;
     }
 
