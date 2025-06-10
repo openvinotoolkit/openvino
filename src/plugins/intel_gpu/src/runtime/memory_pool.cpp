@@ -28,7 +28,7 @@ memory_record::memory_record(memory_set users,
                              std::shared_ptr<memory>& memory,
                              uint32_t net_id,
                              allocation_type type)
-    : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
+    : _users(users), _memory(memory), _network_id(net_id), _type(type), _recent_layout(memory->get_layout()) {}
 
 memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, bool reset) {
     return _engine->allocate_memory(layout, type, reset);
@@ -216,13 +216,14 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 layout.format != format::fs_b_yx_fsv32 &&
                 !has_conflict(rec_list._users, restrictions)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
-                rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
                 ret_mem->mem_from_padded_pool(true);
+                rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
                 GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
             }
         }
         auto mem = alloc_memory(layout, type);
+        mem->mem_from_padded_pool(true);
         first_level_cache->second.emplace_back(
             memory_record({{MEM_USER(unique_id, network_id, prim_id, mem->size())}}, mem, network_id, type));
 #ifdef GPU_DEBUG_CONFIG
@@ -239,6 +240,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
     }
     GPU_DEBUG_LOG << "[" << prim_id << "(" << unique_id << ")" << ": output]" << std::endl;
     auto mem = alloc_memory(layout, type);
+    mem->mem_from_padded_pool(true);
     std::list<memory_record> list = {memory_record({{MEM_USER(unique_id, network_id, prim_id, mem->size())}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
 #ifdef GPU_DEBUG_CONFIG
