@@ -22,7 +22,8 @@ OutputVector make_split(const Output<ov::Node>& value, const std::vector<int64_t
 
 OutputVector make_split(const Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
     auto value_shape = value.get_partial_shape();
-    if (value_shape.rank().is_static() && value_shape.size() > axis && value_shape[axis].is_static()) {
+    if (value_shape.rank().is_static() && value_shape.size() > static_cast<size_t>(axis) &&
+        value_shape[axis].is_static()) {
         auto axis_len = value_shape[axis].get_length();
         // In ONNX definition, if the tensor is not evenly splittable the last chunk will be smaller.
         // Handle the case when axis_len is not divisible by num_splits
