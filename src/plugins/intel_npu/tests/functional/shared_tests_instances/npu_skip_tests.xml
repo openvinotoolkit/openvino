@@ -5,7 +5,7 @@ Example:
         <enable_rules>
             <backend>LEVEL0</backend>
             <backend>IMD</backend>
-            <backend></backend>  (special case for empty backend)
+            <backend></backend> (empty brackets denote no backend)
             <device>3720</device>
             <device>4000</device>
             <operating_system>windows</operating_system>
