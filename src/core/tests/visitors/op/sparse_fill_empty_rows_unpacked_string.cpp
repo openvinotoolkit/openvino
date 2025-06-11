@@ -12,7 +12,7 @@ TEST(attributes, sparse_fill_empty_rows_unpacked_string_op) {
     const auto begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{3, 2});
     const auto ends = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{3, 2});
     const auto symbols = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{10});
-    const auto default_value = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{});
+    const auto default_value = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{5});
 
     const auto sparse_fill_empty_rows_unpacked_string =
         std::make_shared<ov::op::v16::SparseFillEmptyRowsUnpackedString>(begins, ends, symbols, default_value);
