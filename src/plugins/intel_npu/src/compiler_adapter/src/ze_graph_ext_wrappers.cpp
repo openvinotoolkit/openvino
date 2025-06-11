@@ -407,7 +407,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs) const {
     if (NotSupportArgumentMetadata(_graphExtVersion)) {
-        ze_graph_argument_properties_3_t arg;
+        ze_graph_argument_properties_3_t arg = {};
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
@@ -425,7 +425,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         }
         }
     } else {
-        ze_graph_argument_properties_3_t arg;
+        ze_graph_argument_properties_3_t arg = {};
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
@@ -434,7 +434,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
             _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
-            ze_graph_argument_metadata_t metadata;
+            ze_graph_argument_metadata_t metadata = {};
             result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
             THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _zeroInitStruct->getGraphDdiTable());
 
