@@ -260,6 +260,9 @@ public:
     ConvToMatmul(Context::Ref ctx);
 };
 
+// UntangleConst
+void untangleConst(std::shared_ptr<ov::Model> model);
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw

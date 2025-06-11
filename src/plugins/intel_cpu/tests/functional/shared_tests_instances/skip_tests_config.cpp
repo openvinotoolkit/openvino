@@ -6,6 +6,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/precision_support.h"
+#include "snippets/utils.hpp"
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
@@ -499,16 +500,8 @@ std::vector<std::string> disabledTestPatterns() {
 #if !defined(OPENVINO_ARCH_ARM64)
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
-    // Issue: 126738
-    retVector.emplace_back(R"(smoke_Snippets.*\[.*\?.*\].*)");
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise.*\[1.1..10.1..8.1..4\].*)");
     // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise
     retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_).*)");
-    // arm snippets doesn't support sve_128 that required by dnnl injector jit_uni_eltwise_injector_f32 yet
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise_TwoResults.*)");
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise/TwoInputsAndOutputs.*)");
-    // arm jit_eltwise_emitters doesn't support jit_power_dynamic_emitter yet
-    retVector.emplace_back(R"(smoke_Snippets_Eltwise/MaxNumParamsEltwise.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
@@ -600,10 +593,7 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue 167685
     retVector.emplace_back(R"(.*importExportModelWithTypeRelaxedExt.*)");
 #endif
-    if (!ov::with_cpu_x86_avx512_core_vnni() &&
-        !ov::with_cpu_x86_avx2_vnni() &&
-        !ov::with_cpu_x86_avx512_core_amx_int8()) {
-        // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
+    if (!ov::test::snippets::is_i8_supported_by_brgemm()) {
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
         retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
         retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
@@ -611,28 +601,28 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*Snippets.*MHAQuant.*)");
         retVector.emplace_back(R"(.*Snippets.*MLP.*Quantized.*)");
     }
+    // MHA BF16 precision is only supported on BF16 supported platform
+    if (!ov::test::snippets::is_bf16_supported_by_brgemm()) {
+        // ignored for not supported bf16 platforms
+        retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_FullyConnected_EnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
+        retVector.emplace_back(R"(.*smoke_Snippets_.*MLP.*bf16.*)");
+        retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
+    }
+    if (!ov::test::snippets::is_fp16_supported_by_brgemm()) {
+        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
+    }
     if (!ov::with_cpu_x86_avx512_core_amx_int8())
         // TODO: Issue 92895
         // on platforms which do not support AMX, we are disabling I8 input tests
         retVector.emplace_back(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)");
-    // MHA BF16 precision is only supported on BF16 supported platform
-    if (!ov::with_cpu_x86_avx512_core_amx_bf16() && !ov::with_cpu_x86_bfloat16() && !CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
-        retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*EnforceBF16.*)");
-        retVector.emplace_back(R"(.*smoke_Snippets_MLP.*bf16.*)");
-        retVector.emplace_back(R"(.*ConcatSDPTest.*bf16.*)");
-    }
     // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
     if (ov::with_cpu_x86_avx512_core() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
         retVector.emplace_back(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|RNNCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
         retVector.emplace_back(R"(nightly.*bf16.*(AUGRUSequenceCPUTest|GRUSequenceCPUTest|LSTMSequenceCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)");
     }
-    // MHA FP16 precision is only supported on amx_fp16 and avx2_vnni_2 platform
-    if (!ov::with_cpu_x86_avx512_core_amx_fp16() && !CPUTestUtils::with_cpu_x86_avx2_vnni_2()) {
-        retVector.emplace_back(R"(.*smoke_Snippets_MHA.*FP16.*)");
-    }
-
 #ifdef SNIPPETS_LIBXSMM_TPP
     // GN in TPP requires exposing tmp Buffer results outside the loop (ticket: 151234)
     retVector.emplace_back(R"(.*smoke_Snippets_GroupNormalization.*)");
