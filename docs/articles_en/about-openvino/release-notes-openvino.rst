@@ -27,7 +27,7 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported:Phi-4, Mistral-7B-Instruct-v0.3, SD-XL Inpainting 0.1, Stable Diffusion 
+  * New models supported: Phi-4, Mistral-7B-Instruct-v0.3, SD-XL Inpainting 0.1, Stable Diffusion 
     3.5 Large Turbo, Phi-4-reasoning, Qwen3 and Qwen2.5-VL-3B-Instruct.
   * Preview: OpenVINO ™ GenAI introduces a text-to-speech pipeline for the SpeechT5 TTS model, 
     while the new RAG backend offers developers a simplified API that delivers reduced memory 
