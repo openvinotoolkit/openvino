@@ -7,45 +7,49 @@
 #define VPUX_COMPILER_L0_H
 
 #if defined(__cplusplus)
-#    include <cstdint>
-#    include <cstdlib>
+#include <cstdint>
+#include <cstdlib>
 #else
-#    include <stdint.h>
-#    include <stdlib.h>
+#include <stdint.h>
+#include <stdlib.h>
 #endif
 
 #if defined(__cplusplus)
-#    pragma once
+#pragma once
 #endif
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#define VCL_COMPILER_VERSION_MAJOR  7
-#define VCL_COMPILER_VERSION_MINOR  3
+#define VCL_COMPILER_VERSION_MAJOR 7
+#define VCL_COMPILER_VERSION_MINOR 4
 #define VCL_PROFILING_VERSION_MAJOR 2
 #define VCL_PROFILING_VERSION_MINOR 0
 
+#ifndef DEPRECATED
+#define DEPRECATED  // for documentation only
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 #ifndef VCL_APICALL
-#    if defined(_WIN32)
+#if defined(_WIN32)
 /// @brief Calling convention for all API functions
-#        define VCL_APICALL __cdecl
-#    else
-#        define VCL_APICALL
-#    endif  // defined(_WIN32)
-#endif      // VCL_APICALL
+#define VCL_APICALL __cdecl
+#else
+#define VCL_APICALL
+#endif  // defined(_WIN32)
+#endif  // VCL_APICALL
 
 ///////////////////////////////////////////////////////////////////////////////
 #ifndef VCL_APIEXPORT
-#    if defined(_WIN32)
+#if defined(_WIN32)
 /// @brief Windows-specific dllexport storage-class attribute
-#        define VCL_APIEXPORT __declspec(dllexport)
-#    else
-#        define VCL_APIEXPORT
-#    endif  // defined(_WIN32)
-#endif      // VCL_APIEXPORT
+#define VCL_APIEXPORT __declspec(dllexport)
+#else
+#define VCL_APIEXPORT
+#endif  // defined(_WIN32)
+#endif  // VCL_APIEXPORT
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Compiler handle
@@ -211,8 +215,7 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclGetVersion(vcl_version_info_t* compile
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Creates a compiler object and returns the compiler handle
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerCreate(vcl_compiler_desc_t* compilerDesc,
-                                                         vcl_device_desc_t* deviceDesc,
-                                                         vcl_compiler_handle_t* compiler,
+                                                         vcl_device_desc_t* deviceDesc, vcl_compiler_handle_t* compiler,
                                                          vcl_log_handle_t* logHandle);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -226,8 +229,7 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclCompilerGetProperties(vcl_compiler_han
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Create an querynetwork object and return the handle
-VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetworkCreate(vcl_compiler_handle_t compiler,
-                                                             vcl_query_desc_t desc,
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetworkCreate(vcl_compiler_handle_t compiler, vcl_query_desc_t desc,
                                                              vcl_query_handle_t* query);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -242,20 +244,29 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetworkDestroy(vcl_query_handle_t
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Creates an executable object and returns the executable handle.
 /// Parse modelIRData in the executable descriptor to blob and store it in the executable.
-VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableCreate(vcl_compiler_handle_t compiler,
-                                                           vcl_executable_desc_t desc,
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_executable_desc_t desc,
                                                            vcl_executable_handle_t* executable);
 
-typedef struct __vcl_allocator_t {
+DEPRECATED typedef struct __vcl_allocator_t {
     uint8_t* (*allocate)(uint64_t);
     void (*deallocate)(uint8_t*);
 } vcl_allocator_t;
 
-VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate(vcl_compiler_handle_t compiler,
-                                                                    vcl_executable_desc_t desc,
-                                                                    const vcl_allocator_t* allocator,
-                                                                    uint8_t** blobBuffer,
-                                                                    uint64_t* blobSize);
+typedef struct __vcl_allocator2_t {
+    uint8_t* (*allocate)(struct __vcl_allocator2_t*, uint64_t);
+    void (*deallocate)(struct __vcl_allocator2_t*, uint8_t*);
+} vcl_allocator2_t;
+
+DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate(vcl_compiler_handle_t compiler,
+                                                                               vcl_executable_desc_t desc,
+                                                                               vcl_allocator_t const* allocator,
+                                                                               uint8_t** blobBuffer,
+                                                                               uint64_t* blobSize);
+
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate2(vcl_compiler_handle_t compiler,
+                                                                     vcl_executable_desc_t desc,
+                                                                     vcl_allocator2_t* allocator, uint8_t** blobBuffer,
+                                                                     uint64_t* blobSize);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Destroys the executable and releases the cached blob.
@@ -265,8 +276,7 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableDestroy(vcl_executable_handl
 /// @brief If blobBuffer is null, the function returns the size of the blob stored in the executable.
 /// Otherwise the function copies the executable cached blob to the blobBuffer provided by the caller.
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableGetSerializableBlob(vcl_executable_handle_t executable,
-                                                                        uint8_t* blobBuffer,
-                                                                        uint64_t* blobSize);
+                                                                        uint8_t* blobBuffer, uint64_t* blobSize);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Creates a buffer with decoded profiling info.
@@ -307,15 +317,13 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclLogHandleGetString(vcl_log_handle_t lo
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Retrieve the list of supported compiler options
 /// @attention Should be called twice, first time to retrieve data size, second time to get data.
-VCL_APIEXPORT vcl_result_t VCL_APICALL vclGetCompilerSupportedOptions(vcl_compiler_handle_t compiler,
-                                                                      char* result,
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclGetCompilerSupportedOptions(vcl_compiler_handle_t compiler, char* result,
                                                                       uint64_t* size);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Verifies if a given config option (or option-value pair) is supported by the compiler
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclGetCompilerIsOptionSupported(vcl_compiler_handle_t compiler,
-                                                                       const char* option,
-                                                                       const char* value);
+                                                                       const char* option, const char* value);
 
 #if defined(__cplusplus)
 }  // extern "C"
