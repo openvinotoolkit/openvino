@@ -68,6 +68,9 @@ public:
     /// of appearence
     ///
     static std::vector<std::string> extract_labels(const std::string& subscript);
+    
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
 
 private:
     std::string m_equation;
