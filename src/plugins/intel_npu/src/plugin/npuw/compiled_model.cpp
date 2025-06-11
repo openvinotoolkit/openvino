@@ -167,7 +167,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_loaded_from_cache(false) {
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
-    store_bf16_consts(model);
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     pre_load_transform(model, properties);
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);
@@ -1188,23 +1188,6 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
             if (!inserted.second) {
                 NPUW_ASSERT(inserted.first->second == offset &&
                             "Model contains two constants with same pointer and different offset!");
-            }
-        }
-    }
-}
-
-void ov::npuw::CompiledModel::store_bf16_consts(const std::shared_ptr<ov::Model>& model) {
-    for (auto&& node_ptr : model->get_ordered_ops()) {
-        if (ov::op::util::is_constant(node_ptr)) {
-            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
-            }
-            if (c->get_element_type() == ov::element::bf16) {
-                std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                m_bf16_consts.insert({offset, c->get_byte_size()});
             }
         }
     }

@@ -7,6 +7,7 @@
 #include "intel_npu/config/config.hpp"
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
@@ -29,6 +30,25 @@ ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _w
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts) {
     is_weightless = _weights || !_consts_cache.empty();
+}
+
+ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<ov::Model>& model) {
+    ov::npuw::s11n::BF16Cache bf16_cache;
+    for (auto&& node_ptr : model->get_ordered_ops()) {
+        if (const auto c = ov::as_type_ptr<ov::op::v0::Constant>(node_ptr)) {
+            if (c->get_element_type() != ov::element::bf16) {
+                continue;
+            }
+            auto rt_info = c->get_rt_info();
+            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightless_cache_attr == rt_info.end()) {
+                continue;
+            }
+            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+            bf16_cache.insert({offset, c->get_byte_size()});
+        }
+    }
+    return bf16_cache;
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
@@ -440,7 +460,10 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
                     NPUW_ASSERT(type == ov::element::f16);
                     // Read original bf16 weight
                     auto bf16_tensor = ov::Tensor(ov::element::bf16, shape);
+                    NPUW_ASSERT(bf16_tensor.get_byte_size() == byte_size);
                     std::memcpy(bf16_tensor.data(), ctx.weights->get_ptr(offset), byte_size);
+
+                    NPUW_ASSERT(bf16_tensor.get_size() == t.get_size());
 
                     // Transform bf16 to f16 tensor
                     using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;

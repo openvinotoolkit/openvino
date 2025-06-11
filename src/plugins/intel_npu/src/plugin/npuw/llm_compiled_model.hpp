@@ -50,7 +50,6 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
-    void store_bf16_consts(const std::shared_ptr<ov::Model>& model);
     void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,

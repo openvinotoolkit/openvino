@@ -130,6 +130,8 @@ struct WeightsContext {
     BF16Cache bf16_consts;
 };
 
+BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
+
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
 void write(std::ostream& stream, const std::string& var);

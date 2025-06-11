@@ -66,9 +66,11 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             NPUW_ASSERT(m_cached_type == ov::element::f16);
             // Read original bf16 weight
             auto bf16_tensor = ov::Tensor(ov::element::bf16, m_cached_shape);
+            NPUW_ASSERT(bf16_tensor.get_byte_size() == m_byte_size);
             std::memcpy(bf16_tensor.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
 
             m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
+            NPUW_ASSERT(bf16_tensor.get_size() == m_read_from_bin.get_size());
             // Transform bf16 to f16 tensor
             using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
             auto src_data = bf16_tensor.data<ov::bfloat16>();

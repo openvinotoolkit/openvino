@@ -5,7 +5,6 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -622,7 +621,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
-    store_bf16_consts(kvcache_model);
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
@@ -1011,23 +1012,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
     return compiled;
-}
-
-void ov::npuw::LLMCompiledModel::store_bf16_consts(const std::shared_ptr<ov::Model>& model) {
-    for (auto&& node_ptr : model->get_ordered_ops()) {
-        if (ov::op::util::is_constant(node_ptr)) {
-            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
-                continue;
-            }
-            if (c->get_element_type() == ov::element::bf16) {
-                std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                m_bf16_consts.insert({offset, c->get_byte_size()});
-            }
-        }
-    }
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {

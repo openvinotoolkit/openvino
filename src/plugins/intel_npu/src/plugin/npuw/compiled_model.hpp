@@ -103,7 +103,6 @@ private:
     void reconstruct_closure();
     // For weightless serialization flow
     void store_const_offsets(const std::shared_ptr<ov::Model>& model);
-    void store_bf16_consts(const std::shared_ptr<ov::Model>& model);
 
     void finalize_weights_bank();
     void detach_memory();
