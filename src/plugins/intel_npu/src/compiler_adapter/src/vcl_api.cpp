@@ -12,10 +12,10 @@
 
 namespace intel_npu {
 VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
-    const std::string baseName = "npu_driver_compiler";
+    const std::string baseName = "npu_vcl_compiler";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
-        _logger.debug("Try to load npu_driver_compiler");
+        _logger.debug("Try to load npu_vcl_compiler");
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
@@ -23,15 +23,17 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
         this->lib = ov::util::load_shared_object(libpath.c_str());
 #endif
     } catch (const std::runtime_error& error) {
+        _logger.debug("Failed to load npu_vcl_compiler");
         OPENVINO_THROW(error.what());
     }
 
     try {
 #define vcl_symbol_statement(vcl_symbol) \
     this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol));
-        vcl_symbols_list();
+    vcl_symbols_list();
 #undef vcl_symbol_statement
     } catch (const std::runtime_error& error) {
+        _logger.debug("Failed to get formal symbols from npu_vcl_compiler");
         OPENVINO_THROW(error.what());
     }
 
@@ -39,12 +41,15 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
     try {                                                                                                     \
         this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
     } catch (const std::runtime_error&) {                                                                     \
+        _logger.debug("Failed to get %s from npu_vcl_compiler", #vcl_symbol);                              \
         this->vcl_symbol = nullptr;                                                                           \
     }
+    vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 
 #define vcl_symbol_statement(vcl_symbol) vcl_symbol = this->vcl_symbol;
     vcl_symbols_list();
+    vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 }
 
@@ -109,7 +114,7 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 }
 
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
-    _logger.debug("VCLCompilerImpl compile start");
+    _logger.debug("compile start");
     vcl_result_t ret = VCL_RESULT_SUCCESS;
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
@@ -156,12 +161,12 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
     // Use empty metadata as VCL does not support metadata extraction
     NetworkMetadata metadata;
 
-    _logger.debug("VCLCompilerImpl compile end, blob size:%d", compiledNetwork.size());
+    _logger.debug("compile end, blob size:%d", compiledNetwork.size());
     return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
-    _logger.debug("VCLCompilerImpl parse start");
+    _logger.debug("parse start");
     // VCL does not support parse, return empty metadata
     return intel_npu::NetworkMetadata();
 }
@@ -169,7 +174,7 @@ intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& ne
 std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const std::vector<uint8_t>& profData,
                                                                          const std::vector<uint8_t>& network,
                                                                          const intel_npu::Config& config) const {
-    _logger.debug("VCLCompilerImpl process_profiling_output start");
+    _logger.debug("process_profiling_output start");
     vcl_result_t ret = VCL_RESULT_SUCCESS;
 
     vcl_profiling_handle_t profilingHandle;
@@ -230,7 +235,7 @@ uint32_t VCLCompilerImpl::get_version() const {
 }
 
 ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
-    _logger.debug("VCLCompilerImpl query start");
+    _logger.debug("query start");
     vcl_result_t ret = VCL_RESULT_SUCCESS;
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -281,53 +286,54 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 }
 
 bool VCLCompilerImpl::get_supported_options(std::vector<char>& options) const {
-    _logger.debug("VCLCompilerImpl get_supported_options start");
+    _logger.debug("get_supported_options start");
     vcl_result_t ret = VCL_RESULT_SUCCESS;
     // 1. get size of compiler supported options list
     size_t str_size = 0;
     try {
         ret = vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size);
-    } catch (const std::runtime_error& e) {
-        _logger.error("Failed to get size of option list: %s", e.what());
-        return false;
-    }
-
-    if (ret != VCL_RESULT_SUCCESS) {
-        _logger.warning("Failed to get size of option list %x", ret);
-        return false;
-    }
-
-    if (str_size > 0) {
-        _logger.debug("VCLCompilerImpl - obtain list");
-        // 2. allocate buffer for it
-        options.resize(str_size);
-        // 3. populate char list
-        try {
-            ret = vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size);
-        } catch (const std::runtime_error& e) {
-            _logger.error("Failed to get content of option list: %s", e.what());
-            return false;
-        }
 
         if (ret != VCL_RESULT_SUCCESS) {
-            _logger.debug("Failed to get content of option list 0x%x", ret);
+            _logger.debug("Failed to get size of option list %x", ret);
             return false;
-        } else {
-            return true;
         }
-    }
 
-    _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
+        if (str_size > 0) {
+            _logger.debug("obtain list");
+            // 2. allocate buffer for it
+            options.resize(str_size);
+            // 3. populate char list
+            ret = vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size);
+
+            if (ret == VCL_RESULT_SUCCESS) {
+                _logger.debug("pfnCompilerGetSupportedOptions - list size %d, got option list", str_size);
+                return true;
+            } else {
+                _logger.debug("Failed to get content of option list 0x%x", ret);
+            }
+        } else {
+            _logger.debug("pfnCompilerGetSupportedOptions - list size 0 - skipping!");
+        }
+    } catch (const std::exception& e) {
+        // The API is only supported in new version, just add log here
+        _logger.debug("Exception in get_supported_options: %s", e.what());
+    }
+    _logger.debug("get_supported_options end, no options found");
     return false;
 }
 
 bool VCLCompilerImpl::is_option_supported(const std::string& option) const {
-    const char* optname_ch = option.c_str();
-    auto result = vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, nullptr);
-    if (result == VCL_RESULT_SUCCESS) {
-        return true;
+    try {
+        const char* optname_ch = option.c_str();
+        _logger.debug("is_option_supported start for option: %s", optname_ch);
+        auto result = vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, nullptr);
+        if (result == VCL_RESULT_SUCCESS) {
+            return true;
+        }
+    } catch (const std::exception& e) {
+        // The API is only supported in new version, just add log here
+        _logger.debug("Exception in is_option_supported: %s", e.what());
     }
-
     return false;
 }
 

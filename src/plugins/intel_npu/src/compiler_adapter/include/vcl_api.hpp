@@ -14,25 +14,29 @@ namespace intel_npu {
 
 // clang-format off
 #define vcl_symbols_list()                                  \
-    vcl_symbol_statement(vclCompilerCreate)                 \
     vcl_symbol_statement(vclGetVersion)                     \
+    vcl_symbol_statement(vclCompilerCreate)                 \
     vcl_symbol_statement(vclCompilerDestroy)                \
     vcl_symbol_statement(vclCompilerGetProperties)          \
+    vcl_symbol_statement(vclQueryNetworkCreate)             \
+    vcl_symbol_statement(vclQueryNetwork)                   \
+    vcl_symbol_statement(vclQueryNetworkDestroy)            \
     vcl_symbol_statement(vclExecutableCreate)               \
     vcl_symbol_statement(vclAllocatedExecutableCreate)      \
     vcl_symbol_statement(vclExecutableDestroy)              \
     vcl_symbol_statement(vclExecutableGetSerializableBlob)  \
-    vcl_symbol_statement(vclQueryNetworkCreate)             \
-    vcl_symbol_statement(vclQueryNetwork)                   \
-    vcl_symbol_statement(vclQueryNetworkDestroy)            \
     vcl_symbol_statement(vclProfilingCreate)                \
-    vcl_symbol_statement(vclProfilingGetProperties)         \
     vcl_symbol_statement(vclGetDecodedProfilingBuffer)      \
     vcl_symbol_statement(vclProfilingDestroy)               \
-    vcl_symbol_statement(vclLogHandleGetString)             \
+    vcl_symbol_statement(vclProfilingGetProperties)         \
+    vcl_symbol_statement(vclLogHandleGetString)
+
+
+//unsupported symbols with older ze_loader versions
+#define vcl_weak_symbols_list()                             \
+    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)
-
 // clang-format on
 
 class VCLApi {
@@ -50,6 +54,7 @@ public:
 
 #define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
     vcl_symbols_list();
+    vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 
 private:
@@ -67,9 +72,11 @@ private:
         return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
     }
 vcl_symbols_list();
+vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 #define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
 vcl_symbols_list();
+vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 
 class VCLCompilerImpl final : public intel_npu::ICompiler {
