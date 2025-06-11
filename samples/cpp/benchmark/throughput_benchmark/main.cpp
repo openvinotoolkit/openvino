@@ -102,24 +102,24 @@ int main(int argc, char* argv[]) {
                 if (timedIreq.has_start_time) {
                     latencies.push_back(std::chrono::duration_cast<Ms>(time_point - timedIreq.start).count());
                 }
-                ireq.set_callback([&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv](
-                                      std::exception_ptr ex) mutable {
-                    // Keep callback small. This improves performance for fast (tens of thousands FPS) models
-                    {
-                        std::unique_lock<std::mutex> lock(mutex);
-                        try {
-                            if (ex) {
-                                std::rethrow_exception(ex);
-                            }
-                            finished_ireqs.push_back({ireq, time_point, true});
-                        } catch (const std::exception&) {
-                            if (!callback_exception) {
-                                callback_exception = std::current_exception();
+                ireq.set_callback(
+                    [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv](std::exception_ptr ex) {
+                        // Keep callback small. This improves performance for fast (tens of thousands FPS) models
+                        {
+                            std::unique_lock<std::mutex> lock(mutex);
+                            try {
+                                if (ex) {
+                                    std::rethrow_exception(ex);
+                                }
+                                finished_ireqs.push_back({ireq, time_point, true});
+                            } catch (const std::exception&) {
+                                if (!callback_exception) {
+                                    callback_exception = std::current_exception();
+                                }
                             }
                         }
-                    }
-                    cv.notify_one();
-                });
+                        cv.notify_one();
+                    });
                 ireq.start_async();
             }
         }
