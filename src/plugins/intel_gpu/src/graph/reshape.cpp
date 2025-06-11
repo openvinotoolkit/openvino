@@ -160,8 +160,15 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
         if (prim->output_shape.count() != 0) {
             return { layout{input_layout.data_type, input_layout.format, prim->output_shape} };
         } else {
-            auto fm = format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
-            return { layout{prim->output_partial_shape, input_layout.data_type, fm} };
+            return { layout{prim->output_partial_shape, input_layout.data_type,
+                [&]() -> format {
+                    try {
+                        return format::adjust_to_rank(input_layout.format, prim->output_partial_shape.size());
+                    } catch (const ov::Exception&) {
+                        return format::get_default_format(prim->output_partial_shape.size());
+                    }
+                }()
+            } };
         }
     }
 
