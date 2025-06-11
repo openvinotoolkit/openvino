@@ -344,6 +344,7 @@ class LoraOptFirstTokenA : public LoraOptFirstTokenBase<LT> {
 public:
     explicit LoraOptFirstTokenA(std::string suffix, size_t reg_m, size_t reg_n) : LoraOptFirstTokenBase<LT>("first_token_a_" + suffix, reg_m, reg_n) {}
 
+protected:
     using LoraOptFirstTokenBase<LT>::reg_m;
     using LoraOptFirstTokenBase<LT>::reg_n;
 
@@ -369,7 +370,6 @@ public:
         return {sg_m, sg_n};
     }
 
-protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit_constants = LoraOptFirstTokenBase<LT>::get_jit_constants(params);
 
@@ -451,15 +451,14 @@ protected:
 template <LoraType LT>
 class LoraOptFirstTokenB : public LoraOptFirstTokenBase<LT> {
 public:
-    explicit LoraOptFirstTokenB(std::string suffix, size_t reg_m, size_t reg_n, size_t sg_m, size_t sg_n)
+    explicit LoraOptFirstTokenB(std::string suffix, size_t reg_m, size_t reg_n, size_t sg_m)
         : LoraOptFirstTokenBase<LT>("first_token_b_" + suffix, reg_m, reg_n),
-          sg_m(sg_m),
-          sg_n(sg_n) {}
+          sg_m(sg_m) {}
 
+protected:
     using LoraOptFirstTokenBase<LT>::reg_m;
     using LoraOptFirstTokenBase<LT>::reg_n;
 
-protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit_constants = LoraOptFirstTokenBase<LT>::get_jit_constants(params);
 
@@ -520,7 +519,7 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{
-            [reg_m = reg_m, reg_n = reg_n, sg_m = sg_m, sg_n = sg_n](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            [reg_m = reg_m, reg_n = reg_n, sg_m = sg_m](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
                 assert(!params.is_dynamic());
                 auto& wgs = kd.params.workGroups;
 
@@ -546,6 +545,8 @@ protected:
                 }
 
                 size_t subgroup_size = LoraOptBase<LT>::get_subgroup_size(params);
+                size_t max_sg_num = params.get_device_info().max_work_group_size / subgroup_size;
+                size_t sg_n = max_sg_num / sg_m;
 
                 size_t bm = reg_m * sg_m;
                 size_t bn = reg_n * sg_n * subgroup_size;
@@ -556,7 +557,6 @@ protected:
     }
 
     size_t sg_m;
-    size_t sg_n;
 };
 
 template <LoraType LT>
@@ -790,15 +790,7 @@ std::vector<size_t> get_stages_execution_order_single_lora(const cldnn::primitiv
                 size_t feature = extract_channel(ChannelName::FEATURE, lora_input);
 
                 if (batch * feature < 256) {
-                    size_t max_workgroup_size = params.get_device_info().max_work_group_size;
-                    size_t subgroup_size = LoraOptBase<>::get_subgroup_size(params);
-                    size_t b_medium_sg_m = 16;
-                    size_t b_medium_sg_n = 4;
-                    if (b_medium_sg_m * b_medium_sg_n * subgroup_size > max_workgroup_size) {
-                        stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_B_LARGE);
-                    } else {
-                        stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_B_MEDIUM);
-                    }
+                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_B_MEDIUM);
                 } else {
                     stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_B_LARGE);
                 }
@@ -855,14 +847,7 @@ std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_in
 
         if (output_state % (2 * subgroup_size) == 0) {
             if (batch * feature < 256) {
-                size_t max_workgroup_size = params.get_device_info().max_work_group_size;
-                size_t b_medium_sg_m = 16;
-                size_t b_medium_sg_n = 4;
-                if (b_medium_sg_m * b_medium_sg_n * subgroup_size > max_workgroup_size) {
-                    stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_LARGE);
-                } else {
-                    stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_MEDIUM);
-                }
+                stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_MEDIUM);
             } else {
                 stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_LARGE);
             }
@@ -885,8 +870,8 @@ public:
     Stage::Ptr lora_opt_first_token_a_small = make_stage<LoraOptFirstTokenA<SINGLE>>("small", 4, 1);
     Stage::Ptr lora_opt_first_token_a_medium = make_stage<LoraOptFirstTokenA<SINGLE>>("medium", 8, 2);
     Stage::Ptr lora_opt_first_token_a_large = make_stage<LoraOptFirstTokenA<SINGLE>>("large", 16, 2);
-    Stage::Ptr lora_opt_first_token_b_medium = make_stage<LoraOptFirstTokenB<SINGLE>>("medium", 8, 2, 16, 4);
-    Stage::Ptr lora_opt_first_token_b_large = make_stage<LoraOptFirstTokenB<SINGLE>>("large", 16, 2, 8, 4);
+    Stage::Ptr lora_opt_first_token_b_medium = make_stage<LoraOptFirstTokenB<SINGLE>>("medium", 8, 2, 16);
+    Stage::Ptr lora_opt_first_token_b_large = make_stage<LoraOptFirstTokenB<SINGLE>>("large", 16, 2, 8);
     Stage::Ptr lora_opt_second_token_a = make_stage<LoraOptSecondTokenA<SINGLE>>();
     Stage::Ptr lora_opt_second_token_b = make_stage<LoraOptSecondTokenB<SINGLE>>();
     Stage::Ptr fused_ops = make_stage<LoraFusedOps>();
@@ -894,9 +879,9 @@ public:
     Stage::Ptr lora_hf_ref = make_stage<LoraRef<HORIZONTAL_FUSED>>();
     Stage::Ptr lora_opt_hf_first_token_a_medium = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("medium", 8, 1);
     Stage::Ptr lora_opt_hf_first_token_a_large = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("large", 16, 2);
-    Stage::Ptr lora_opt_hf_first_token_b_small = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("small", 8, 1, 8, 4);
-    Stage::Ptr lora_opt_hf_first_token_b_medium = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("medium", 8, 2, 16, 4);
-    Stage::Ptr lora_opt_hf_first_token_b_large = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("large", 16, 2, 8, 4);
+    Stage::Ptr lora_opt_hf_first_token_b_small = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("small", 8, 1, 8);
+    Stage::Ptr lora_opt_hf_first_token_b_medium = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("medium", 8, 2, 16);
+    Stage::Ptr lora_opt_hf_first_token_b_large = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("large", 16, 2, 8);
     Stage::Ptr lora_opt_hf_second_token_a = make_stage<LoraOptSecondTokenA<HORIZONTAL_FUSED>>();
     Stage::Ptr lora_opt_hf_second_token_b = make_stage<LoraOptSecondTokenB<HORIZONTAL_FUSED>>();
 
