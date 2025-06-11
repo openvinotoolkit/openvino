@@ -100,11 +100,11 @@ private:
 class jit_equal_emitter : public jit_emitter {
 public:
     jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
-                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                     const ov::element::Type exec_prc = ov::element::f32);
+                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      const ov::element::Type exec_prc = ov::element::f32);
     jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
-                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                     const std::shared_ptr<ov::Node>& node);
+                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
     size_t aux_fp_gprs_count() const override;
