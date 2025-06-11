@@ -8,7 +8,13 @@
 #include "core/operator_set.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/select.hpp"
+
 using namespace ov::op;
 using ov::Shape;
 
@@ -16,6 +22,31 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace ai_onnx {
+
+namespace details {
+
+ov::Output<ov::Node> update_stops_node(const ov::Output<ov::Node>& stops, const ov::Output<ov::Node>& steps) {
+    auto element_type = stops.get_node_shared_ptr()->get_output_element_type(0);
+    auto int_max_constant = v0::Constant::create(ov::element::i64, Shape{}, {std::numeric_limits<int64_t>::max()});
+    auto int_min_constant = v0::Constant::create(ov::element::i64, Shape{}, {std::numeric_limits<int64_t>::min()});
+    auto zero_constant = v0::Constant::create(ov::element::i64, Shape{}, {0});
+
+    // Convert stops to i64
+    auto typed_int_max = std::make_shared<v0::Convert>(stops, element_type);
+    auto typed_int_min = std::make_shared<v0::Convert>(int_min_constant, element_type);
+    auto typed_zero = std::make_shared<v0::Convert>(zero_constant, element_type);
+
+    auto is_max_stops = std::make_shared<v1::Equal>(stops, typed_int_max);
+    auto is_reversed = std::make_shared<v1::Less>(steps, typed_zero);
+
+    auto is_max_reverse = std::make_shared<v1::LogicalAnd>(is_max_stops, is_reversed);
+    auto updated_stops = std::make_shared<v1::Select>(
+        is_max_reverse, int_min_constant, std::make_shared<v1::Select>(is_reversed, typed_zero, stops));
+    return updated_stops;
+}
+
+} // namespace details
+
 namespace opset_10 {
 ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
     using ov::op::util::is_null;
@@ -36,11 +67,13 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
         steps = std::make_shared<v3::Broadcast>(default_step, std::make_shared<v3::ShapeOf>(starts, ov::element::i64));
     }
 
+    auto updated_ends = details::update_stops_node(ends, steps);
+
     if (axes_input_provided) {
         const auto axes = inputs.at(3);
-        return {std::make_shared<v8::Slice>(data, starts, ends, steps, axes)};
+        return {std::make_shared<v8::Slice>(data, starts, updated_ends, steps, axes)};
     } else {
-        return {std::make_shared<v8::Slice>(data, starts, ends, steps)};
+        return {std::make_shared<v8::Slice>(data, starts, updated_ends, steps)};
     }
 }
 ONNX_OP("Slice", OPSET_SINCE(10), ai_onnx::opset_10::slice);
@@ -59,11 +92,12 @@ ov::OutputVector slice(const ov::frontend::onnx::Node& node) {
                                             ov::Shape{starts_atr.size()},
                                             std::vector<int64_t>(starts_atr.size(), 1));
 
+    auto updated_ends = details::update_stops_node(ends->output(0), steps->output(0));
     if (axes_atr.empty()) {
-        return {std::make_shared<v8::Slice>(data, starts, ends, steps)};
+        return {std::make_shared<v8::Slice>(data, starts, updated_ends, steps)};
     } else {
         const auto& axes = std::make_shared<v0::Constant>(ov::element::i64, ov::Shape{axes_atr.size()}, axes_atr);
-        return {std::make_shared<v8::Slice>(data, starts, ends, steps, axes)};
+        return {std::make_shared<v8::Slice>(data, starts, updated_ends, steps, axes)};
     }
 }
 ONNX_OP("Slice", OPSET_RANGE(1, 9), ai_onnx::opset_1::slice);
