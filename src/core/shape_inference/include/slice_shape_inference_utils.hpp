@@ -59,11 +59,7 @@ inline int64_t get_sliced_value(const int64_t dim, const int64_t start, const in
         const int64_t upper_min = is_reverse_step ? dim::inf_bound : min_bound;
 
         lb = ov::util::clip(ov::util::normalize(start, norm_dim), min_bound, lower_max);
-        if (is_stop_max) {
-            ub = upper_min;
-        } else {
-            ub = ov::util::clip(ov::util::normalize(stop, norm_dim), upper_min, norm_dim);
-        }
+        ub = ov::util::clip(ov::util::normalize(stop, norm_dim), upper_min, norm_dim);
     }
 
     // Calculate sliced value from bounds and step.
