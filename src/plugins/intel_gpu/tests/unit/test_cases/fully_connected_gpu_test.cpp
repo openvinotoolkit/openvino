@@ -4000,12 +4000,13 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         long int ofm_num = ofm;
         long int wzp_num = is_wzp_scalar ? 1 : ofm_num;
         long int wzp_ifm_num = is_wzp_scalar ? 1 : (ifm_num / wzp_group_size);
+        long int scale_num = ifm_num / scales_group_size;
 
         auto input_ps = ov::PartialShape{ 1, batch_num, ifm_num };
         auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
 
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u8, format::bfyx });
-        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::fbyx });
+        auto scale_mem = engine.allocate_memory({ {ofm_num, scale_num}, data_types::f16, format::fbyx });
         auto dcomp_zp_mem = engine.allocate_memory({ {wzp_num, wzp_ifm_num}, data_types::u8, format::fbyx });
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.f, 2.f);
@@ -4014,7 +4015,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 4);
         set_values(weights_mem, weigths_data);
 
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -2.f, 2.f);
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * scale_num, -2.f, 2.f);
         set_values(scale_mem, scale_data);
 
         if (is_wzp_test) {
@@ -5465,6 +5466,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_dynamic_quantize_grouped_wzp_t
 }
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_scale_zp) {
+    this->test_comp_weight_int8_scale_accuracy(false, 64, 896, 4096, 0, 1, true, false, 32);
+}
+
+TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_scale_zp) {
     this->test_comp_weight_int8_scale_accuracy(false, 64, 896, 4096, 0, 32, true, false, 32);
 }
 
