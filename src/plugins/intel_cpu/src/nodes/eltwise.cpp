@@ -128,6 +128,10 @@
 #    include "kernels/riscv64/jit_uni_eltwise_generic.hpp"
 #endif
 
+#if defined(OV_CPU_WITH_SHL)
+#    include "nodes/executors/shl/shl_eltwise.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 
@@ -1882,19 +1886,22 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     auto addDesc = [&initDesc, &useAcl](std::vector<NodeDesc>& supportedPrimitiveDescriptors,
                                         const LayoutType layoutType) {
         auto nodeDesc = initDesc(layoutType, useAcl);
-        if (nodeDesc.getExecutorFactory())
+        if (nodeDesc.getExecutorFactory()) {
             supportedPrimitiveDescriptors.emplace_back(nodeDesc);
+        }
     };
 
     // @todo should be handled in scope of selectPreferPrimitiveDescriptor
     if (context->getConfig().modelType == Config::ModelType::CNN) {
-        if (isChannelsFirstApplicable)
+        if (isChannelsFirstApplicable) {
             addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
+        }
         addDesc(supportedPrimitiveDescriptors, Planar);
     } else {
         addDesc(supportedPrimitiveDescriptors, Planar);
-        if (isChannelsFirstApplicable)
+        if (isChannelsFirstApplicable) {
             addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
+        }
     }
 
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty() && useAcl;
@@ -1907,17 +1914,20 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     auto addDesc = [&](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
         auto nodeDesc = initDesc(layoutType, useSHL);
-        if (nodeDesc.getExecutorFactory())
+        if (nodeDesc.getExecutorFactory()) {
             supportedPrimitiveDescriptors.emplace_back(nodeDesc);
+        }
     };
 
-    if (isChannelsFirstApplicable)
+    if (isChannelsFirstApplicable) {
         addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
+    }
     addDesc(supportedPrimitiveDescriptors, Planar);
 
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty() && useSHL;
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 #endif
 
     if (context->getConfig().modelType == Config::ModelType::CNN) {
@@ -2493,7 +2503,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     }
 
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
-    const auto eltwise = dynamic_cast<const Eltwise*>(node.get());
+    const auto* const eltwise = dynamic_cast<const Eltwise*>(node.get());
     if ((eltwise == nullptr) ||
         (!EltwiseJitExecutor::isSupportedOp(eltwise, eltwise->getAlpha(), eltwise->getBeta(), eltwise->getGamma()))) {
         return false;

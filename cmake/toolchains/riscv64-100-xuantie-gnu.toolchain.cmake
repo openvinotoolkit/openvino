@@ -45,3 +45,9 @@ set(CMAKE_SHARED_LINKER_FLAGS_INIT "-pthread")
 # Set target triple for cross-compilation
 set(CMAKE_C_COMPILER_TARGET "riscv64-unknown-linux-gnu")
 set(CMAKE_CXX_COMPILER_TARGET "riscv64-unknown-linux-gnu")
+
+set(OV_CLANG_TIDY_TOOLCHAIN_FLAGS
+    "--extra-arg=-isystem${RISCV_TOOLCHAIN_ROOT}/riscv64-unknown-linux-gnu/include"
+    "--extra-arg=-isystem${RISCV_TOOLCHAIN_ROOT}/riscv64-unknown-linux-gnu/include/c++/10.4.0"
+    "--extra-arg=-isystem${RISCV_TOOLCHAIN_ROOT}/riscv64-unknown-linux-gnu/include/c++/10.4.0/riscv64-unknown-linux-gnu"
+)
