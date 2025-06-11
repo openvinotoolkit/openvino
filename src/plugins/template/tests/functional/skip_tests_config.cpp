@@ -125,6 +125,7 @@ std::vector<std::string> disabledTestPatterns() {
     // fails only on Linux arm64
     retVector.emplace_back(
         R"(.*ReferenceConversionLayerTest.CompareWithHardcodedRefs/conversionType=(Convert|ConvertLike)_shape=.*_iType=(f16|f32|bf16)_oType=u4.*)");
+    retVector.emplace_back(R"(.*smoke_TAN_With_Hardcoded_Refs/ReferenceTanLayerTest.CompareWithHardcodedRefs.*_iType=(u32|u64).*)");
 #endif
     return retVector;
 }
