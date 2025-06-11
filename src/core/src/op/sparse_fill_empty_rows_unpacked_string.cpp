@@ -40,16 +40,19 @@ void SparseFillEmptyRowsUnpackedString::validate_and_infer_types() {
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
 
-    set_output_type(0, begins_element_type, output_shapes[0]);          // output_begins
-    set_output_type(1, ends_element_type, output_shapes[1]);            // output_ends
-    set_output_type(2, get_input_element_type(2), output_shapes[2]);    // output_symbols
-    set_output_type(3, element::boolean, output_shapes[3]);             // empty_row_indicator
+    set_output_type(0, begins_element_type, output_shapes[0]);        // output_begins
+    set_output_type(1, ends_element_type, output_shapes[1]);          // output_ends
+    set_output_type(2, get_input_element_type(2), output_shapes[2]);  // output_symbols
+    set_output_type(3, element::boolean, output_shapes[3]);           // empty_row_indicator
 }
 
 std::shared_ptr<Node> SparseFillEmptyRowsUnpackedString::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(v16_SparseFillEmptyRowsUnpackedString_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<SparseFillEmptyRowsUnpackedString>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
+    return std::make_shared<SparseFillEmptyRowsUnpackedString>(new_args.at(0),
+                                                               new_args.at(1),
+                                                               new_args.at(2),
+                                                               new_args.at(3));
 }
 
 }  // namespace ov::op::v16

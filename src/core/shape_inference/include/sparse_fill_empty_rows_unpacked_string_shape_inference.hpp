@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <unordered_set>
-
 #include "openvino/op/sparse_fill_empty_rows_unpacked_string.hpp"
 #include "utils.hpp"
 
@@ -42,48 +40,43 @@ std::vector<TRShape> shape_infer(const SparseFillEmptyRowsUnpackedString* op,
     auto& output_ends_shape = output_shapes[1];
     auto& output_symbols_shape = output_shapes[2];
     auto& empty_row_indicator_shape = output_shapes[3];
-    
+
     output_begins_shape = begins_shape;
     output_ends_shape = ends_shape;
     output_symbols_shape = symbols_shape;
     empty_row_indicator_shape.resize(1);
 
-    const auto& number_of_rows = begins_shape[0].get_length();
-    if (begins_shape.rank().is_static() && begins_shape[0].is_static()) {
-        empty_row_indicator_shape[0] = number_of_rows;
+    if (begins_shape.rank().is_static()) {
+        empty_row_indicator_shape[0] = begins_shape[0];
     }
 
     const auto& begins_value = get_input_const_data_as<TRShape, int64_t>(op, 0, tensor_accessor);
     const auto& ends_value = get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
-    const auto& default_value_data = get_input_const_data_as<TRShape, uint8_t>(op, 3, tensor_accessor);
 
-    if (begins_value && ends_value && default_value_data) {
-        bool has_empty_rows = false;
+    if (begins_value && ends_value && symbols_shape.rank().is_static() && symbols_shape[0].is_static()) {
         const auto& begins_data = *begins_value;
         const auto& ends_data = *ends_value;
-        const auto& cols_per_row = begins_shape[1].get_length();
+        const auto cols_per_row = begins_shape[1].get_length();
+        using TVal = typename TShape::value_type::value_type;
 
-        for (int64_t row = 0; row < number_of_rows && !has_empty_rows; row++) {
+        for (TVal row = 0; row < begins_shape[0].get_length(); row++) {
             bool row_has_non_empty_string = false;
-            for (int64_t col = 0; col < cols_per_row; col++) {
-                const int64_t idx = row * cols_per_row + col;
+            const TVal row_start_idx = row * cols_per_row;
+
+            for (TVal col = 0; col < cols_per_row; col++) {
+                const TVal idx = row_start_idx + col;
                 if (static_cast<size_t>(idx) < begins_data.size() && begins_data[idx] < ends_data[idx]) {
                     row_has_non_empty_string = true;
                     break;
                 }
             }
+
             if (!row_has_non_empty_string) {
-                has_empty_rows = true;
-                break; // Stop checking as soon as we find one empty row
+                output_symbols_shape[0] = symbols_shape[0].get_length() + default_value_shape[0].get_length();
+                break;  // No reason to keep checking other rows, we store the default value only once
             }
         }
-
-        if (has_empty_rows && symbols_shape[0].is_static()) {
-            // Add the length of the default_value tensor to symbols shape
-            output_symbols_shape[0] = symbols_shape[0].get_length() + default_value_shape[0].get_length();
-        }
     }
-    
     return output_shapes;
 }
 }  // namespace ov::op::v16
