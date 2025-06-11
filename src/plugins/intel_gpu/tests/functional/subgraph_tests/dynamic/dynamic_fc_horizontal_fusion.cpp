@@ -587,9 +587,10 @@ std::vector<ov::Shape> lora_weights2 = {{1, 16, 16}, {1, 16, 16}, {1, 16, 16}};
 const std::vector<ShapeParams> lora_input_shapes = {
     {{{-1, -1, 32}, {{1, 1, 32}}}, lora_weights1, -1, 15},    // reference kernel
     {{{-1, -1, 32}, {{1, 1, 32}}}, lora_weights1, -1, 16},    // second token
-    {{{-1, -1, 32}, {{1, 16, 32}}}, lora_weights1, -1, 16},   // first token a_medium/b_medium_f32/b_large_f16
+    {{{-1, -1, 32}, {{1, 16, 32}}}, lora_weights1, -1, 16},   // first token a_small/b_medium
     {{{-1, -1, 32}, {{1, 1024, 32}}}, lora_weights1, -1, 32}, // first token a_large/b_large
-    {{{-1, -1, 16}, {{1, 16, 16}}}, lora_weights2, -1, 16},   // first token a_medium/b_medium_f32/b_small_f16
+    {{{-1, -1, 32}, {{1, 16, 32}}}, lora_weights1, -1, 256},  // first token a_medium/b_medium
+    {{{-1, -1, 16}, {{1, 16, 16}}}, lora_weights2, -1, 16},   // first token a_small/b_medium_f32/b_small_f16
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LoRA_HorizontalFusion,

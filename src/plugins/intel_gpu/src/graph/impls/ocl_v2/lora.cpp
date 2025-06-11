@@ -32,6 +32,7 @@ enum SingleKernelTypes {
 
 enum FusedKernelTypes {
     HF_REFERENCE = 9,
+    HF_FIRST_TOKEN_A_SMALL,
     HF_FIRST_TOKEN_A_MEDIUM,
     HF_FIRST_TOKEN_A_LARGE,
     HF_FIRST_TOKEN_B_SMALL,
@@ -518,42 +519,41 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{
-            [reg_m = reg_m, reg_n = reg_n, sg_m = sg_m](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-                assert(!params.is_dynamic());
-                auto& wgs = kd.params.workGroups;
+        return DispatchDataFunc{[reg_m = reg_m, reg_n = reg_n, sg_m = sg_m](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
 
-                const auto& lora_input_lo = params.input_layouts[1];
-                size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
-                size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
+            const auto& lora_input_lo = params.input_layouts[1];
+            size_t batch = extract_channel(ChannelName::BATCH, lora_input_lo);
+            size_t feature = extract_channel(ChannelName::FEATURE, lora_input_lo);
 
-                const auto& state_b_lo = params.input_layouts[4];
-                size_t output_state = extract_channel(ChannelName::BATCH, state_b_lo);
+            const auto& state_b_lo = params.input_layouts[4];
+            size_t output_state = extract_channel(ChannelName::BATCH, state_b_lo);
 
-                size_t lora_count = LoraRefBase<LT>::get_lora_count(params);
+            size_t lora_count = LoraRefBase<LT>::get_lora_count(params);
 
-                if (lora_count > 1) {
-                    size_t kv_state = extract_channel(ChannelName::BATCH, params.input_layouts[7]);
-                    size_t fused_mlp_output = kv_state * 2;
+            if (lora_count > 1) {
+                size_t kv_state = extract_channel(ChannelName::BATCH, params.input_layouts[7]);
+                size_t fused_mlp_output = kv_state * 2;
 
-                    if (lora_count == 2) {
-                        output_state = fused_mlp_output;
-                    } else {
-                        size_t q_state = extract_channel(ChannelName::FEATURE, params.input_layouts[2]);
-                        output_state = fused_mlp_output + q_state;
-                    }
+                if (lora_count == 2) {
+                    output_state = fused_mlp_output;
+                } else {
+                    size_t q_state = extract_channel(ChannelName::FEATURE, params.input_layouts[2]);
+                    output_state = fused_mlp_output + q_state;
                 }
+            }
 
-                size_t subgroup_size = LoraOptBase<LT>::get_subgroup_size(params);
-                size_t max_sg_num = params.get_device_info().max_work_group_size / subgroup_size;
-                size_t sg_n = max_sg_num / sg_m;
+            size_t subgroup_size = LoraOptBase<LT>::get_subgroup_size(params);
+            size_t max_sg_num = params.get_device_info().max_work_group_size / subgroup_size;
+            size_t sg_n = max_sg_num / sg_m;
 
-                size_t bm = reg_m * sg_m;
-                size_t bn = reg_n * sg_n * subgroup_size;
+            size_t bm = reg_m * sg_m;
+            size_t bn = reg_n * sg_n * subgroup_size;
 
-                wgs.global = {round_up_to(batch * feature, bm) / reg_m, round_up_to(output_state, bn) / reg_n, 1};
-                wgs.local = {sg_m, sg_n * subgroup_size, 1};
-            }};
+            wgs.global = {round_up_to(batch * feature, bm) / reg_m, round_up_to(output_state, bn) / reg_n, 1};
+            wgs.local = {sg_m, sg_n * subgroup_size, 1};
+        }};
     }
 
     size_t sg_m;
@@ -575,7 +575,7 @@ protected:
 
         jit_constants.make("MAX_GEMMA_SGK", LoraOptBase<LT>::get_max_gemma_sgk(params));
 
-        jit_constants.make("GEMMA_SGK", "min(MAX_WORKGROUP_SIZE / (LORA_RANK * LORA_COUNT), MAX_GEMMA_SGK)");
+        jit_constants.make("GEMMA_SGK", "min(MAX_WORKGROUP_SIZE / LORA_RANK, MAX_GEMMA_SGK)");
 
         jit_constants.make("GEMMA_SG_BK", LoraOptBase<LT>::gemm_a_sg_bk);
 
@@ -624,13 +624,20 @@ protected:
 
             size_t max_workgroup_size = params.get_device_info().max_work_group_size;
             size_t lora_count = LoraRefBase<LT>::get_lora_count(params);
-            size_t gemma_sgK = max_workgroup_size / (lora_rank * lora_count);
+
+            size_t gemma_sgK = max_workgroup_size / lora_rank;
+            size_t lws_2 = lora_rank;
+
+            if (lora_rank * lora_count <= max_workgroup_size) {
+                gemma_sgK /= lora_count;
+                lws_2 *= lora_count;
+            }
 
             size_t input_state = extract_channel(ChannelName::FEATURE, params.input_layouts[2]);
             size_t gemma_wgs = ceil_div(input_state, LoraOptBase<LT>::gemm_a_sg_bk * gemma_sgK);
 
             wgs.global = {gemma_wgs, gemma_sgK, lora_rank * lora_count};
-            wgs.local = {1, gemma_sgK, lora_rank * lora_count};
+            wgs.local = {1, gemma_sgK, lws_2};
         }};
     }
 };
@@ -824,14 +831,19 @@ std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_in
     if (is_first_token) {
         const auto& state_alpha_lo = instance.get_input_layout(3);
         size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
+        size_t lora_count = LoraRefBase<>::get_lora_count(params);
+        size_t max_workgroup_size = params.get_device_info().max_work_group_size;
 
         if (batch * feature > 1000 && lora_rank > 16) {
             stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_LARGE);
         } else {
-            stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_MEDIUM);
+            if (lora_rank * lora_count > max_workgroup_size) {
+                stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_MEDIUM);
+            } else {
+                stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_SMALL);
+            }
         }
 
-        size_t lora_count = LoraRefBase<>::get_lora_count(params);
         size_t subgroup_size = LoraOptBase<>::get_subgroup_size(params);
 
         size_t kv_state = extract_channel(ChannelName::BATCH, instance.get_input_layout(7));
@@ -877,7 +889,8 @@ public:
     Stage::Ptr fused_ops = make_stage<LoraFusedOps>();
 
     Stage::Ptr lora_hf_ref = make_stage<LoraRef<HORIZONTAL_FUSED>>();
-    Stage::Ptr lora_opt_hf_first_token_a_medium = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("medium", 8, 1);
+    Stage::Ptr lora_opt_hf_first_token_a_small = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("small", 8, 1);
+    Stage::Ptr lora_opt_hf_first_token_a_medium = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("medium", 8, 2);
     Stage::Ptr lora_opt_hf_first_token_a_large = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("large", 16, 2);
     Stage::Ptr lora_opt_hf_first_token_b_small = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("small", 8, 1, 8);
     Stage::Ptr lora_opt_hf_first_token_b_medium = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("medium", 8, 2, 16);
@@ -901,6 +914,7 @@ public:
             add_stage(fused_ops, params);
         } else {
             add_stage(lora_hf_ref, params);
+            add_stage(lora_opt_hf_first_token_a_small, params);
             add_stage(lora_opt_hf_first_token_a_medium, params);
             add_stage(lora_opt_hf_first_token_a_large, params);
             add_stage(lora_opt_hf_first_token_b_small, params);
