@@ -6,10 +6,12 @@
 function(download_and_extract url dest_dir zip_file extracted_dir modify_proxy)
     # Check if the prebuilt VCL compiler libraries not exist
     if(NOT EXISTS "${extracted_dir}")
-        if(modify_change STREQUAL "MODIFY")
+        if(modify_proxy STREQUAL "MODIFY")
             # Update proxy to enable download for windows url
-            set(original_no_proxy $ENV{NO_PROXY})
+	    set(original_NO_PROXY $ENV{NO_PROXY})
+            set(original_no_proxy $ENV{no_proxy})
             set(ENV{NO_PROXY} "")
+            set(ENV{no_proxy} "")
         endif()
 
         # Download the prebuilt VCL compiler libraries, if failure, show error message and exit
@@ -20,9 +22,10 @@ function(download_and_extract url dest_dir zip_file extracted_dir modify_proxy)
             STATUS download_status
             SHOW_PROGRESS)
 
-        if(modify_change STREQUAL "MODIFY")
+        if(modify_proxy STREQUAL "MODIFY")
             # Restore proxy
-            set(ENV{NO_PROXY} ${original_no_proxy})
+	    set(ENV{NO_PROXY} ${original_NO_PROXY})
+            set(ENV{no_proxy} ${original_no_proxy})
         endif()
 
         list(GET download_status 0 download_result)
@@ -56,7 +59,7 @@ if(ENABLE_VCL_FOR_COMPILER)
             set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_lib/win")
             set(VCL_COMPILER_LIBS_URL "https://downloadmirror.intel.com/854488/npu_win_32.0.100.4023.zip")
             set(VCL_COMPILER_LIBS_ZIP "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4023.zip")
-            set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}")
+            set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4023")
 
             download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_ZIP}" "${VCL_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
             set(VCL_COMPILER_LIB "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/npu_driver_compiler.dll")
