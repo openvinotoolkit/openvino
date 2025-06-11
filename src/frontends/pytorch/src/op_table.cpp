@@ -915,6 +915,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.expand_copy.default", op::translate_expand},
         {"aten.eye.m", op::translate_eye_fx},
         {"aten.fake_quantize_per_channel_affine_cachemask.default", op::translate_fake_quantize_per_channel_affine_fx},
+        {"aten.fake_quantize_per_tensor_affine_cachemask.default", op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten.fill.Scalar", op::translate_fill},
         {"aten.fill_.Scalar", op::inplace_op<op::translate_fill>},
         {"aten.fill.Tensor", op::translate_fill},

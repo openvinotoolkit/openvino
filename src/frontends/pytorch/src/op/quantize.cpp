@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "pt_framework_node.hpp"
 #include "utils_quantize.hpp"
 
 namespace ov {
@@ -69,19 +70,70 @@ OutputVector translate_quantize_per_channel_fx(const NodeContext& context) {
 }
 
 OutputVector translate_fake_quantize_per_tensor_affine_fx(const NodeContext& context) {
-    num_inputs_check(context, 6, 6);
-    auto out = translate_quantize_per_tensor(context);
-    auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    num_inputs_check(context, 5, 6);
 
-    return {context.mark_node(std::make_shared<v0::Unsqueeze>(out[0], axis_0))};
+    const auto input = context.get_input(0);
+    const auto scale = context.get_input(1);
+    const auto zero_point = context.get_input(2);
+    const auto num_inputs = context.get_input_size();
+    OutputVector res;
+    if (num_inputs == 5) {
+        const auto low = context.const_input<int64_t>(3);
+        const auto high = context.const_input<int64_t>(4);
+        const auto quantized = quantize_fx(context,
+                                           input,
+                                           scale,
+                                           zero_point,
+                                           Output<Node>{},
+                                           low,
+                                           high,
+                                           element::f32,
+                                           QuantizedPtNodeType::QUANTIZE_PER_TENSOR);
+        res = {quantized};
+    } else {
+        const auto fake_quant_enabled = context.const_input<bool>(3);
+        PYTORCH_OP_CONVERSION_CHECK(fake_quant_enabled == true, "Disabled fake_quant is not supported.");
+        const auto low = context.const_input<int64_t>(4);
+        const auto high = context.const_input<int64_t>(5);
+        const auto quantized = quantize_fx(context,
+                                           input,
+                                           scale,
+                                           zero_point,
+                                           Output<Node>{},
+                                           low,
+                                           high,
+                                           element::f32,
+                                           QuantizedPtNodeType::QUANTIZE_PER_TENSOR);
+        // Returning cache mask is not supported
+        auto cachemask = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs(), 1, false, true);
+        context.mark_node(cachemask);
+        auto attrs = cachemask->get_attrs();
+        attrs[PtFrameworkNode::failed_conversion_key] = "Cache mask is not supported for fake_quantize.";
+        cachemask->set_attrs(attrs);
+        res = {quantized, cachemask};
+    }
+    return {context.mark_node(make_list_construct(OutputVector{res}))};
 }
 
 OutputVector translate_fake_quantize_per_channel_affine_fx(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
-    auto out = translate_quantize_per_channel(context);
-    auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
 
-    return {context.mark_node(std::make_shared<v0::Unsqueeze>(out[0], axis_0))};
+    const auto input = context.get_input(0);
+    const auto scale = context.get_input(1);
+    const auto zero_point = context.get_input(2);
+    const auto axis = context.get_input(3);
+    const auto low = context.const_input<int64_t>(4);
+    const auto high = context.const_input<int64_t>(5);
+    const auto res = quantize_fx(context,
+                                 input,
+                                 scale,
+                                 zero_point,
+                                 axis,
+                                 low,
+                                 high,
+                                 element::f32,
+                                 QuantizedPtNodeType::QUANTIZE_PER_CHANNEL);
+    return {context.mark_node(make_list_construct(OutputVector{res}))};
 }
 
 }  // namespace op
