@@ -6,14 +6,19 @@
 
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <cassert>
 #include <common/primitive_attr.hpp>
-#include <common/primitive_desc_iface.hpp>
-#include <common/primitive_iface.hpp>
+#include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <utility>
+#include <vector>
 
+#include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -23,13 +28,18 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -181,11 +191,16 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 
     MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
     int ic = weightsDesc->getShape().getStaticDims()[1];
+
+    if (ic < static_cast<int>(simdWidth)) {
+        return false;
+    }
+
     if (scalesPtr && scalesPtr->getShape().getRank() != 1) {
         auto scalesDims = scalesPtr->getShape().getStaticDims();
         auto groupsNum = scalesDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
     }
@@ -194,7 +209,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
         auto zpDims = zpPtr->getShape().getStaticDims();
         int groupsNum = zpDims[1];
         size_t groupSize = ic / groupsNum;
-        if (groupsNum != 1 && groupSize % std::min(dqGroupSize, groupSize)) {
+        if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;
         }
     }

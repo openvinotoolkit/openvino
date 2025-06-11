@@ -13,6 +13,7 @@
 #include "openvino/op/less.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 namespace test {

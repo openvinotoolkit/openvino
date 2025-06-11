@@ -3,12 +3,9 @@
 //
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 
-#include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -36,6 +33,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& slot_mapping,
                         ov::intel_cpu::PlainTensor& temp_buffer,
                         const bool quant_key_by_channel,
+                        const bool quant_value_by_channel,
                         const size_t key_group_size,
                         const size_t value_group_size);
 

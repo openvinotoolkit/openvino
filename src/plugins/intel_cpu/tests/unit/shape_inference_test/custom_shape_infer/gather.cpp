@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gather.hpp"
+
 #include <gtest/gtest.h>
+
 #include "custom_shape_infer.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -23,7 +27,8 @@ protected:
         this->output_shapes.resize(0);
     }
 
-    std::shared_ptr<TGather> make_gather(const unit_test::ShapeVector& shapes, const int32_t* const axis_val_ptr = nullptr) {
+    std::shared_ptr<TGather> make_gather(const unit_test::ShapeVector& shapes,
+                                         const int32_t* const axis_val_ptr = nullptr) {
         const auto p_dims = std::vector<Dimension>(shapes[0].size(), -1);
         const auto i_dims = std::vector<Dimension>(shapes[1].size(), -1);
         auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{p_dims});
@@ -42,14 +47,14 @@ protected:
 };
 
 // Parameters for typed test used test case internal loop.
-const auto GatherTestParams =
-    std::vector<TestParams>{make_tuple(0, unit_test::ShapeVector{{3, 2}, {2, 2}, {1}}, StaticShape({2, 2, 2})),
-                            make_tuple(1, unit_test::ShapeVector{{3, 2}, {2, 2}, {1}}, StaticShape({3, 2, 2})),
-                            make_tuple(-1, unit_test::ShapeVector{{3, 2}, {2, 2}, {1}}, StaticShape({3, 2, 2})),
-                            make_tuple(0, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {1}}, StaticShape({2, 1, 2, 2, 4})),
-                            make_tuple(1, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {1}}, StaticShape({3, 2, 1, 2, 4})),
-                            make_tuple(-1, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {}}, StaticShape({3, 2, 2, 1, 2})),
-                            make_tuple(-2, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {}}, StaticShape({3, 2, 1, 2, 4}))};
+const auto GatherTestParams = std::vector<TestParams>{
+    make_tuple(0, unit_test::ShapeVector{{3, 2}, {2, 2}, {1}}, StaticShape({2, 2, 2})),
+    make_tuple(1, unit_test::ShapeVector{{3, 2}, {2, 2}, {1}}, StaticShape({3, 2, 2})),
+    make_tuple(-1, unit_test::ShapeVector{{3, 2}, {2, 2}, {1}}, StaticShape({3, 2, 2})),
+    make_tuple(0, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {1}}, StaticShape({2, 1, 2, 2, 4})),
+    make_tuple(1, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {1}}, StaticShape({3, 2, 1, 2, 4})),
+    make_tuple(-1, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {}}, StaticShape({3, 2, 2, 1, 2})),
+    make_tuple(-2, unit_test::ShapeVector{{3, 2, 4}, {2, 1, 2}, {}}, StaticShape({3, 2, 1, 2, 4}))};
 
 TYPED_TEST_SUITE_P(CpuShapeInferenceGatherTest);
 
@@ -79,7 +84,7 @@ REGISTER_TYPED_TEST_SUITE_P(CpuShapeInferenceGatherTest, axis_const, axis_in_con
 using GatherTypes = Types<op::v1::Gather, op::v7::Gather, op::v8::Gather>;
 INSTANTIATE_TYPED_TEST_SUITE_P(CpuShapeInfer, CpuShapeInferenceGatherTest, GatherTypes);
 
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

@@ -3,22 +3,30 @@
 //
 #pragma once
 
-#include <array>
 #include <cfloat>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
-#include <vector>
+#include <cstring>
+#include <limits>
+#include <type_traits>
 
-#include "common.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+
+#if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
+#    include <immintrin.h>
+
+#    include "common.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    if defined(HAVE_SVE)
 #        include "arm_sve.h"
 #    endif
 #    include "arm_neon.h"
+#    include "common.hpp"
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -518,7 +526,7 @@ inline void scale_add2_reduce_max(ov::float16* a,
         i += inc;
     }
     max = svmaxv_f16(pg_f16, v_max);
-#    else
+#    elif defined(HAVE_NEON_FP16)
     float16x8_t v_max = vdupq_n_f16(static_cast<float16_t>(-FLT_MAX));
     float16x8_t v_scale = vdupq_n_f16(static_cast<float16_t>(scale));
     float16x8_t v_a;

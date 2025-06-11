@@ -5,7 +5,7 @@ USER root
 
 # Install build dependencies
 ADD install_build_dependencies.sh /install_build_dependencies.sh
-RUN chmod +x /install_build_dependencies.sh && /install_build_dependencies.sh
+RUN chmod +x /install_build_dependencies.sh && bash -e /install_build_dependencies.sh
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"

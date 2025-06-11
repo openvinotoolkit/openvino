@@ -10,10 +10,12 @@
 #pragma once
 
 #include <memory>
+#include <set>
+#include <string>
 #include <vector>
 
 #include "config.h"
-#include "graph.h"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
@@ -48,7 +50,7 @@ std::vector<std::vector<int>> get_streams_info_table(
     const int input_infer_requests,
     const int model_prefer_threads,
     const std::string& input_perf_hint,
-    const std::set<ov::hint::ModelDistributionPolicy>& hint_llm_distribution_policy,
+    const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table);
 
 /**

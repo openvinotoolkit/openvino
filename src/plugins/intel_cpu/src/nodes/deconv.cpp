@@ -5,23 +5,55 @@
 #include "deconv.h"
 
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include <nodes/common/cpu_memcpy.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
 
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "dnnl_postops_composer_legacy.h"
+#include "edge.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
 #include "input.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/runtime/make_tensor.hpp"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/common/dnnl_executor.h"
+#include "nodes/executors/deconv_list.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/node_config.h"
+#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/coordinate_diff.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "utils/cpu_utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OV_CPU_WITH_ACL)
@@ -169,8 +201,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     try {
         if (ov::as_type_ptr<const ov::op::v1::ConvolutionBackpropData>(op) == nullptr &&
             ov::as_type_ptr<const ov::op::v1::GroupConvolutionBackpropData>(op) == nullptr) {
-            errorMessage =
-                "Only opset1 ConvolutionBackpropData and GroupConvolutionBackpropData operations are supported";
+            errorMessage = "Only v1 ConvolutionBackpropData and GroupConvolutionBackpropData operations are supported";
             return false;
         }
         size_t ndims = op->get_input_partial_shape(0).rank().get_length();
@@ -320,7 +351,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent()) == nullptr) {
         return false;
     }
-    if (!one_of(getInputShapeAtPort(0).getRank(), 3ul, 4ul, 5ul)) {
+    if (!one_of(getInputShapeAtPort(0).getRank(), 3UL, 4UL, 5UL)) {
         return false;
     }
 
@@ -353,9 +384,15 @@ bool Deconvolution::canBeExecutedInInt8() const {
     }
 
     // not supported in oneDNN
-    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) ? 16
-                       : impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)      ? 8
-                                                                            : 4;
+    int channelBlock = [&]() {
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+            return 16;
+        }
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+            return 8;
+        }
+        return 4;
+    }();
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0)) {
         return false;
     }
@@ -557,7 +594,8 @@ void Deconvolution::getSupportedDescriptors() {
     if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges");
     }
-    VectorDims inDims, outDims;
+    VectorDims inDims;
+    VectorDims outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     inShape = Shape(inDims);
     outShape = Shape(outDims);
@@ -617,9 +655,15 @@ void Deconvolution::getSupportedDescriptors() {
 
     if (isInt8) {
         const auto& rank = getInputShapeAtPort(0).getRank();
-        auto format = rank == 5   ? dnnl::memory::format_tag::ndhwc
-                      : rank == 4 ? dnnl::memory::format_tag::nhwc
-                                  : dnnl::memory::format_tag::nwc;
+        dnnl::memory::format_tag format = [&]() {
+            if (rank == 5) {
+                return dnnl::memory::format_tag::ndhwc;
+            }
+            if (rank == 4) {
+                return dnnl::memory::format_tag::nhwc;
+            }
+            return dnnl::memory::format_tag::nwc;
+        }();
         MemoryDescPtr in_candidate =
             std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
         MemoryDescPtr out_candidate =
@@ -909,7 +953,7 @@ void Deconvolution::prepareParams() {
     if (!wghMemPtr || !wghMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("Weight memory is undefined.");
     }
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
@@ -1111,7 +1155,7 @@ void Deconvolution::prepareParams() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
@@ -1256,13 +1300,14 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    VectorDims inDims, outDims;
+    VectorDims inDims;
+    VectorDims outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     auto tmpInShape = Shape(inDims);
     auto tmpOutShape = Shape(outDims);
     initPaddingR(tmpInShape, tmpOutShape);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) {
         NodeConfig config;
         config.inConfs.resize(getParentEdges().size());

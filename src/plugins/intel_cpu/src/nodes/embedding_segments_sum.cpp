@@ -5,10 +5,27 @@
 #include "embedding_segments_sum.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <vector>
 
-#include "openvino/opsets/opset3.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/embedding_bag.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -17,7 +34,7 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ov::
     try {
         const auto embBagSegSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingSegmentsSum>(op);
         if (!embBagSegSumOp) {
-            errorMessage = "Node is not an instance of the EmbeddingSegmentsSum operation from opset v3.";
+            errorMessage = "Node is not an instance of the v3 EmbeddingSegmentsSum operation";
             return false;
         }
     } catch (...) {
@@ -28,17 +45,17 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ov::
 
 EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      EmbeddingBag(op, 4lu, 1lu, 5lu, 4lu) {
+      EmbeddingBag(op, 4LU, 1LU, 5LU, 4LU) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     _reduction = Reduction::SUM;
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul) {
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1UL) {
         THROW_CPU_NODE_ERR("has indices data with invalid rank: ", getInputShapeAtPort(INDICES_IDX).getRank());
     }
 
-    if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1ul) {
+    if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1UL) {
         THROW_CPU_NODE_ERR("has invalid segmentID data rank: ", getInputShapeAtPort(SEGMENT_ID_IDX).getRank());
     }
 }
@@ -126,7 +143,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex,
 
     // Empty bag
     if (size == 0) {
-        size = 1lu;
+        size = 1LU;
         withWeight = false;
         if (defaultIndices_) {
             indices = defaultIndices_;

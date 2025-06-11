@@ -4,25 +4,33 @@
 
 #include "convert_to_leaky_relu.hpp"
 
-#include "itt.hpp"
+#include <memory>
+
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 
 ov::intel_cpu::ConvertToLeakyRelu::ConvertToLeakyRelu() {
     MATCHER_SCOPE(ConvertToLeakyRelu);
     auto input = ov::pass::pattern::any_input();
-    auto slope_constant = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    auto prelu = ov::pass::pattern::wrap_type<ov::opset1::PRelu>({input, slope_constant});
+    auto slope_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto prelu = ov::pass::pattern::wrap_type<ov::op::v0::PRelu>({input, slope_constant});
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto prelu = ov::as_type_ptr<ov::opset1::PRelu>(m.get_match_root());
+        auto prelu = ov::as_type_ptr<ov::op::v0::PRelu>(m.get_match_root());
         if (!prelu) {
             return false;
         }
-        auto slopeNode = ov::as_type_ptr<ov::opset1::Constant>(prelu->get_input_node_shared_ptr(1));
+        auto slopeNode = ov::as_type_ptr<ov::op::v0::Constant>(prelu->get_input_node_shared_ptr(1));
         if (slopeNode != nullptr && ov::shape_size(slopeNode->get_shape()) == 1) {
             const float slope = slopeNode->cast_vector<float>()[0];
             const auto leakyRelu = std::make_shared<ov::intel_cpu::LeakyReluNode>(prelu->input(0).get_source_output(),

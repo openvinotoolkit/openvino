@@ -4,25 +4,32 @@
 
 #include "convert_to_swish_cpu.hpp"
 
-#include "itt.hpp"
+#include <memory>
+
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset4.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
 ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
     MATCHER_SCOPE(ConvertToSwishCPU);
-    auto swish = ov::pass::pattern::wrap_type<ov::opset4::Swish>();
+    auto swish = ov::pass::pattern::wrap_type<ov::op::v4::Swish>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto swish = ov::as_type_ptr<ov::opset4::Swish>(m.get_match_root());
+        auto swish = ov::as_type_ptr<ov::op::v4::Swish>(m.get_match_root());
         if (!swish) {
             return false;
         }
         float beta_value = 1.0;
         if (swish->input_values().size() == 2) {
-            auto beta = ov::as_type_ptr<ov::opset4::Constant>(swish->get_input_node_shared_ptr(1));
+            auto beta = ov::as_type_ptr<ov::op::v0::Constant>(swish->get_input_node_shared_ptr(1));
 
             if (!beta || ov::shape_size(swish->get_input_shape(1)) != 1) {
                 return false;

@@ -8,8 +8,9 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset7.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 using namespace ov;

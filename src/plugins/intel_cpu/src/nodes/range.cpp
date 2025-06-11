@@ -4,10 +4,25 @@
 
 #include "range.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <type_traits>
+#include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/range.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
@@ -18,7 +33,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std:
         if (!one_of(op->get_type_info(),
                     ov::op::v0::Range::get_type_info_static(),
                     ov::op::v4::Range::get_type_info_static())) {
-            errorMessage = "Only opset1 and opset4 Range operation is supported";
+            errorMessage = "Only v0 and v4 Range operation is supported";
             return false;
         }
     } catch (...) {
@@ -67,14 +82,14 @@ void Range::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     std::vector<PortConfigurator> outDataConf;
 
-    if (!(getOriginalInputPrecisionAtPort(RANGE_START) == ov::element::i32 &&
-          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::i32 &&
-          getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::i32 &&
-          getOriginalOutputPrecisionAtPort(0) == ov::element::i32) &&
-        !(getOriginalInputPrecisionAtPort(RANGE_START) == ov::element::f32 &&
-          getOriginalInputPrecisionAtPort(RANGE_LIMIT) == ov::element::f32 &&
-          getOriginalInputPrecisionAtPort(RANGE_DELTA) == ov::element::f32 &&
-          getOriginalOutputPrecisionAtPort(0) == ov::element::f32)) {
+    if ((getOriginalInputPrecisionAtPort(RANGE_START) != ov::element::i32 ||
+         getOriginalInputPrecisionAtPort(RANGE_LIMIT) != ov::element::i32 ||
+         getOriginalInputPrecisionAtPort(RANGE_DELTA) != ov::element::i32 ||
+         getOriginalOutputPrecisionAtPort(0) != ov::element::i32) &&
+        (getOriginalInputPrecisionAtPort(RANGE_START) != ov::element::f32 ||
+         getOriginalInputPrecisionAtPort(RANGE_LIMIT) != ov::element::f32 ||
+         getOriginalInputPrecisionAtPort(RANGE_DELTA) != ov::element::f32 ||
+         getOriginalOutputPrecisionAtPort(0) != ov::element::f32)) {
         inDataConf.reserve(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); ++i) {
             inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
@@ -116,7 +131,9 @@ void Range::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 template <typename data_t>
 size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) const {
-    data_t start = 0, limit = 0, delta = 0;
+    data_t start = 0;
+    data_t limit = 0;
+    data_t delta = 0;
     if (startPtr == nullptr) {
         startPtr = &start;
     }
@@ -141,7 +158,8 @@ size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) 
 
 template <typename data_t>
 Range::StatusCode Range::rangeKernel() {
-    data_t start = 0, delta = 0;
+    data_t start = 0;
+    data_t delta = 0;
     size_t work_amount_dst = getWorkAmount<data_t>(&start, nullptr, &delta);
     if (isDynamicNode()) {
         VectorDims newOutputShape{work_amount_dst};
@@ -149,7 +167,8 @@ Range::StatusCode Range::rangeKernel() {
     }
     auto* dst_data = getDstDataAtPortAs<data_t>(0);
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t iwork = 0, end = 0;
+        size_t iwork = 0;
+        size_t end = 0;
         splitter(work_amount_dst, nthr, ithr, iwork, end);
         data_t dst_value = start + iwork * delta;
         for (; iwork < end; ++iwork, dst_value += delta) {

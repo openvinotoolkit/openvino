@@ -6,9 +6,10 @@
 
 #include <memory>
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset7.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
 #include <transformations/cpu_opset/common/pass/convert_matmul_to_fc.hpp>
@@ -19,6 +20,13 @@
 #include "openvino/op/constant.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "transformations/rt_info/decompression.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/random_uniform.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -535,5 +543,40 @@ TEST_F(TransformationTestsF, ConvertMatMulToFCTest_compressed_u8_weights) {
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFCTest_WithRandomUniform) {
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
+
+        auto random_uniform_shape = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {2, 2});
+        auto random_uniform_min = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1}, {0.0});
+        auto random_uniform_max = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1}, {1.0});
+        auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(random_uniform_shape,
+                                                                          random_uniform_min,
+                                                                          random_uniform_max,
+                                                                          ov::element::f32);
+
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input1, random_uniform, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
+
+        manager.register_pass<ConvertMatMulToFC>();
+    }
+    {
+        auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, -1});
+
+        auto random_uniform_shape = ov::opset1::Constant::create(ov::element::i32, ov::Shape{2}, {2, 2});
+        auto random_uniform_min = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1}, {0.0});
+        auto random_uniform_max = ov::opset1::Constant::create(ov::element::f32, ov::Shape{1}, {1.0});
+        auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(random_uniform_shape,
+                                                                          random_uniform_min,
+                                                                          random_uniform_max,
+                                                                          ov::element::f32);
+
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input1, random_uniform, false, false);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input1});
     }
 }

@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
+#include <vector>
 
-#include "node.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 enum { MAX_INPUT_INTERPOLATE = 8 };
 
@@ -36,6 +49,14 @@ struct InterpolateAttrs {
     InterpolateLayoutType layout;
     std::vector<float> dataScales;
     bool hasPad = false;
+    // Some FEs or preprocessing step resize spatial dimension for tensors with NHWC layout memory,
+    // but import them with a planar layout[abcd] with axis[1,2] for convenience. In this case, for pillow modes without
+    // pad, the nhwc layout path and the specific kernel(nhwc layout executor) can be used for this planar layout and
+    // axis settings(NCHWAsNHWC is true) to get better perf. To this end the following mapping is used:
+    // 1. logical shape alignment [abcd-nhwc] to [adbc-nchw].
+    // 2. axis alignment [1,2] to [2,3].
+    // 3. config planar layout support and treated it as channel_first layout.
+    bool NCHWAsNHWC = false;
 };
 
 inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
@@ -142,7 +163,7 @@ private:
                        InterpolateLayoutType layout);
 
     [[nodiscard]] float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
-    [[nodiscard]] int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+    [[nodiscard]] static int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode);
     void linearOnnxCF(int outCoord,
                       float scale,
                       int inShape,
@@ -151,7 +172,7 @@ private:
                       int& index1,
                       float& weight0,
                       float& weight1);
-    std::vector<float> getCubicCoeffs(float mantissa, float a);
+    static std::vector<float> getCubicCoeffs(float mantissa, float a);
 
 protected:
     InterpolateAttrs interpAttrs;

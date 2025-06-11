@@ -5,11 +5,18 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/opsets/opset6.hpp"
 
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;

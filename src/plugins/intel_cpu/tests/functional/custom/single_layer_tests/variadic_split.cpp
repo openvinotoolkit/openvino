@@ -7,6 +7,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;

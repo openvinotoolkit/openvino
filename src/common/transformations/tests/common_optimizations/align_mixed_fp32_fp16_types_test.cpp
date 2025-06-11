@@ -8,7 +8,15 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/random_uniform.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
@@ -190,8 +198,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_with_rand_uniform) {
         auto minval = Constant::create(element::f32, Shape{}, {1});
         auto maxval = Constant::create(element::f32, Shape{}, {10});
         auto rand_uniform = make_shared<RandomUniform>(out_shape, minval, maxval, element::f32);
-        auto rand_uniform_decompressed = make_shared<Convert>(rand_uniform, element::f32);
-        auto rand_uniform_add_factor = make_shared<Add>(rand_uniform_decompressed, factor_const_decompressed);
+        auto rand_uniform_add_factor = make_shared<Add>(rand_uniform, factor_const_decompressed);
 
         auto mul_1 = make_shared<Multiply>(reduce_sum_1, rand_uniform_add_factor);
         auto convert_to_f16_1 = make_shared<Convert>(mul_1, element::f32);

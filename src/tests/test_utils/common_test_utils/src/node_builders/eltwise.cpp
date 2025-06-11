@@ -13,6 +13,7 @@
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
@@ -41,6 +42,8 @@ std::shared_ptr<ov::Node> make_eltwise(const ov::Output<Node>& in0,
         return std::make_shared<ov::op::v1::Power>(in0, in1);
     case ov::test::utils::EltwiseTypes::FLOOR_MOD:
         return std::make_shared<ov::op::v1::FloorMod>(in0, in1);
+    case ov::test::utils::EltwiseTypes::FLOOR:
+        return std::make_shared<ov::op::v0::Floor>(in0);
     case ov::test::utils::EltwiseTypes::MOD:
         return std::make_shared<ov::op::v1::Mod>(in0, in1);
     case ov::test::utils::EltwiseTypes::ERF:

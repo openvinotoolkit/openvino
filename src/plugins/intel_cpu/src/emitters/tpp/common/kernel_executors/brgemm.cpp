@@ -4,8 +4,30 @@
 
 #include "brgemm.hpp"
 
+#include <libxsmm.h>
+#include <libxsmm_macros.h>
+#include <libxsmm_typedefs.h>
+
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/brgemm_generic.hpp"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/tpp/common/utils.hpp"
-#include "transformations/tpp/common/op/brgemm.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 #define PRINT(X) ss << #X << " = " << X << "\n"
 #define HASH(X)  seed = dnnl::impl::hash_combine(seed, X)
@@ -13,8 +35,7 @@
 namespace ov::intel_cpu::tpp {
 
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype)
-    : BrgemmGenericKernelConfig(),
-      m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
+    : m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype)) {}
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
     return BrgemmGenericKernelConfig::operator==(rhs) &&
@@ -39,17 +60,16 @@ void BrgemmKernelConfig::update(int64_t M, int64_t N, int64_t K, int64_t LDA, in
     m_hash = compute_hash();
 }
 
-BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype) {
-    m_type_in0 = tpp::utils::ov_to_xsmm_dtype(in0_dtype);
-    m_type_in1 = tpp::utils::ov_to_xsmm_dtype(in1_dtype);
-    m_type_exec = LIBXSMM_DATATYPE_F32;
-    m_type_out0 = LIBXSMM_DATATYPE_F32;
-    m_compile_flags = LIBXSMM_GEMM_FLAGS('N', 'N');
-    m_prefetching_flags = false;
-    m_hash = compute_hash();
-}
+BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype)
+    : m_type_in0(tpp::utils::ov_to_xsmm_dtype(in0_dtype)),
+      m_type_in1(tpp::utils::ov_to_xsmm_dtype(in1_dtype)),
+      m_type_out0(LIBXSMM_DATATYPE_F32),
+      m_type_exec(LIBXSMM_DATATYPE_F32),
+      m_compile_flags(LIBXSMM_GEMM_FLAGS('N', 'N')),
+      m_prefetching_flags(false),
+      m_hash(compute_hash()) {}
 
-size_t BrgemmKernelConfig::StaticParams::compute_hash() {
+size_t BrgemmKernelConfig::StaticParams::compute_hash() const {
     size_t seed = 0;
     HASH(m_type_in0);
     HASH(m_type_in1);
@@ -119,8 +139,7 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
-    int64_t M, N, K, beta;
-    std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
+    auto [M, N, K, beta] = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {
         if (ov::snippets::utils::is_full_dim_value(dim)) {

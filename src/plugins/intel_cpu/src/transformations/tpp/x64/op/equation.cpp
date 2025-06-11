@@ -4,6 +4,25 @@
 
 #include "equation.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
+#include "transformations/tpp/x64/op/descriptor.hpp"
+
 namespace ov::intel_cpu::tpp::op {
 
 EquationTPP::EquationTPP(const OutputVector& arguments, std::vector<OpDescTPP> op_descs)
@@ -28,8 +47,9 @@ std::shared_ptr<Node> EquationTPP::clone_with_new_inputs(const OutputVector& new
 
 bool EquationTPP::visit_attributes(AttributeVisitor& visitor) {
     std::ostringstream ss;
-    for (size_t i = 0; i + 1 < m_op_descs.size(); i++)
+    for (size_t i = 0; i + 1 < m_op_descs.size(); i++) {
         ss << m_op_descs[i] << ", ";
+    }
     ss << m_op_descs.back();
     std::string str = ss.str();
     visitor.on_attribute("op_descs", str);
