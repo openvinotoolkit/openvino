@@ -27,7 +27,7 @@ The following environment variables can be set up for the run of test binary `ov
 Skip filters are used to select which tests can run on specific devices, backends or Operating Systems.
 By default `ov_npu_func_tests` does not have any skips filters configured, to enable them it's necessary to set an environment variable with the path to the skip config file.
 
-By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set find skip_tests.xml in the current working folder.
+By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to find skip_tests.xml in the current working folder.
 `OV_NPU_TESTS_SKIP_CONFIG_FILE` has to be set with a valid path to an .xml file containing filters with the following structure:
 
 ```xml
@@ -37,7 +37,7 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set find
         <enable_rules>
             <backend>LEVEL0</backend>
             <backend>IMD</backend>
-            <backend></backend> (emptry brackets denote no backend)
+            <backend></backend> (empty brackets denote no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
             <operating_system>windows</operating_system>
