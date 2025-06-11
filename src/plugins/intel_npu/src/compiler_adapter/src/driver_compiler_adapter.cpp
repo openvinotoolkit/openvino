@@ -19,6 +19,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
+#include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "weightless_graph.hpp"
@@ -310,6 +311,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     size_t callNumber = 0;
 
     // Convention: run until the main schedule has been returned.
+    auto compile_model_mem_start = get_peak_memory_usage();
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
         updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
@@ -339,6 +341,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
             break;
         }
     }
+    auto compile_model_mem_end = get_peak_memory_usage();
+
+    std::cout << "Start of compilation memory usage: Peak " << compile_model_mem_start << " KB" << std::endl;
+    std::cout << "End of compilation memory usage: Peak " << compile_model_mem_end << " KB" << std::endl;
+    std::cout << "Compilation memory usage: Peak " << compile_model_mem_end - compile_model_mem_start << " KB"
+              << std::endl;
 
     // If "WeightlessCacheAttribute" fields have not been added to the Constant nodes, then we have to fallback to the
     // approach that relies on running the common OV passes inside the plugin as well

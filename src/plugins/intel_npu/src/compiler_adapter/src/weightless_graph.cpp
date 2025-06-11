@@ -46,6 +46,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
             }
         }
     } else {
+        std::cout << "Weightless cache attribute was not found in the model." << std::endl;
         size_t constantId = 0;
         for (auto&& node : model->get_ordered_ops()) {
             if (!ov::is_type<ov::op::v0::Constant>(node)) {
@@ -195,6 +196,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     }
 
     size_t blobIndex = 0;
+    std::uint32_t totalResult = 1171117u;
+    totalResult = ((totalResult << 7) + totalResult);
 
     const auto writeToStream = [&](ze_graph_handle_t handle, const std::optional<ov::Tensor>& blobTensor) -> uint64_t {
         uint64_t blobSize;
@@ -226,6 +229,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
                 result = ((result << 7) + result) + static_cast<uint32_t>(*it);
             }
 
+            totalResult += result;
+
             std::stringstream str;
             if (blobIndex == MAIN_SCHEDULE_INDEX) {
                 str << "Main blob size: " << blobSize << ", hash: " << std::hex << result;
@@ -254,7 +259,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         initSizes.push_back(initBlobSize);
         ++blobIndex;
     }
-
+    
+    std::stringstream str;
+    str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
+    _logger.info(str.str().c_str());
+    
     _logger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);
 }
