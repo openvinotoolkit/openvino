@@ -127,7 +127,7 @@ private:
         }
     }
 
-    inline int encode_fixup_selector(int input, int output) {
+    static int encode_fixup_selector(int input, int output) {
         return ((output) << (4 * (input)));
     }
 

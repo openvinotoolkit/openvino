@@ -46,8 +46,7 @@ public:
                 dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : Emitter(),
-          h(host),
+        : h(host),
           host_isa_(host_isa),
           exec_prc_(exec_prc),
           l_table(new Xbyak::Label()),
@@ -98,7 +97,7 @@ protected:
     virtual void register_table_entries() {}
 
     void load_table_addr() const {
-        h->mov(p_table, *l_table.get());
+        h->mov(p_table, *l_table);
     }
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
@@ -168,7 +167,8 @@ protected:
         }
     }
 
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+    virtual void validate_arguments(const std::vector<size_t>& /*unused*/,
+                                    const std::vector<size_t>& /*unused*/) const {}
 
 #ifdef SNIPPETS_DEBUG_CAPS
     mutable jit_emitter_info_t info_;
