@@ -440,7 +440,7 @@ void for_1d(const int& ithr, const int& nthr, const T0& D0, const F& func) {
 
 template <typename T0, typename F>
 void parallel_for(const T0& D0, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -490,7 +490,7 @@ void for_2d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename F>
 void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -558,7 +558,7 @@ void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -630,7 +630,7 @@ void for_4d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename T2, typename T3, typename F>
 void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -690,7 +690,7 @@ void for_5d(const int& ithr,
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
 void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -752,7 +752,7 @@ void for_6d(const int& ithr,
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
 void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const T5& D5, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
