@@ -27,38 +27,39 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported: Phi-4, Mistral-7B-Instruct-v0.3, SD-XL Inpainting 0.1, Stable 
-    Diffusion 3.5 Large Turbo, Phi-4-reasoning, Qwen3 and Qwen2.5-VL-3B-Instruct.
-  * Preview: OpenVINO™ GenAI now supports the text-to-speech pipeline and the SpeechT5 TTS 
-    model, with APIs available for both C++ and Python applications.
-  * Preview: The new OpenVINO™ GenAI backend for the RAG pipeline offers developers a
-    simplified API for text embeddings, a smaller memory footprint, and improved performance.
+  * New models supported:Phi-4, Mistral-7B-Instruct-v0.3, SD-XL Inpainting 0.1, Stable Diffusion 
+    3.5 Large Turbo, Phi-4-reasoning, Qwen3 and Qwen2.5-VL-3B-Instruct.
+  * Preview: OpenVINO ™ GenAI introduces a text-to-speech pipeline for the SpeechT5 TTS model, 
+    while the new RAG backend offers developers a simplified API that delivers reduced memory 
+    usage and improved performance.
+  * Preview: OpenVINO™ GenAI offers a GGUF Reader for seamless integration of llama.cpp based 
+    LLMs, with Python and C++ pipelines that load GGUF models, build OpenVINO graphs, and run 
+    GPU inference on-the-fly.
 
 * Broader LLM model support and more model compression techniques
 
-  * Further optimization of LoRA adapters in OpenVINO GenAI for improved LLM, VLM, and
-    text-to-image model performance on both built-in and discrete GPUs. Developers can use
-    LoRA adapters to quickly customize models for specialized tasks.
-  * KV cache compression for CPUs is enabled by default for INT8, providing a reduced memory
-    footprint while maintaining accuracy compared to FP16. Additionally, it delivers 
-    substantial memory savings for LLMs with INT4 support compared to INT8.
+  * Further optimization of LoRA adapters in OpenVINO GenAI for improved LLM, VLM, and 
+    text-to-image model performance on built-in GPUs. Developers can use LoRA adapters to 
+    quickly customize models for specialized tasks.
+  * KV cache compression for CPUs is enabled by default for INT8, providing a reduced memory 
+    footprint while maintaining accuracy compared to FP16. Additionally, it delivers substantial 
+    memory savings for LLMs with INT4 support compared to INT8.
   * Optimizations for Intel® Core™ Ultra Processor Series 2 built-in GPUs and Intel® Arc™ B 
-    Series Graphics with the Intel® XMX systolic platform to enhance the performance of VLM
-    models and hybrid quantized image generation models, as well as improve first-token
-    latency for LLMs through dynamic quantization. 
+    Series Graphics with the Intel® XMX systolic platform to enhance the performance of VLM 
+    models and hybrid quantized image generation models, as well as improve first-token latency 
+    for LLMs through dynamic quantization.
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
-  * Enhanced Linux* support with the latest GPU driver for built-in GPUs on Intel® Core™ Ultra
+  * Enhanced Linux* support with the latest GPU driver for built-in GPUs on Intel® Core™ Ultra 
     Processor Series 2 (formerly codenamed Arrow Lake H).
-  * OpenVINO™ Model Server now offers a streamlined C++ version for Windows and enables
-    improved performance for long-context models through prefix caching, and a smaller Windows
-    package that eliminates the Python dependency. Support for Hugging Face models is now
-    included. 
-  * Support for INT4 data-free weights compression for ONNX models implemented in the Neural
+  * OpenVINO™ Model Server now offers a streamlined C++ version for Windows and enables improved 
+    performance for long-context models through prefix caching, and a smaller Windows package 
+    that eliminates the Python dependency. Support for Hugging Face models is now included.
+  * Support for INT4 data-free weights compression for ONNX models implemented in the Neural 
     Network Compression Framework (NNCF).
-  * NPU support for FP16-NF4 precisions on Intel® Core™ 200V Series processors for models
-    with up to 8 billion parameters.
+  * NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with 
+    up to 8 billion parameters.
 
 
 OpenVINO™ Runtime 
