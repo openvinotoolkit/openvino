@@ -3413,12 +3413,15 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
 
 inline void Reduce::create_hybrid_working_memory() {
     auto rank = getInputShapeAtPort(REDUCE_DATA).getRank();
-    memory::format_tag format =
-        (layout == ReduceLayoutType::reduce_nspc)
-            ? (rank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc)
-            : (rank == 4
-                   ? (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
-                   : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
+    memory::format_tag format = [&]() {
+        if (layout == ReduceLayoutType::reduce_nspc) {
+            return (rank == 4) ? memory::format_tag::nhwc : memory::format_tag::ndhwc;
+        }
+        if (rank == 4) {
+            return mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
+        }
+        return mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
+    }();
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims),
                                    DnnlExtensionUtils::ElementTypeToDataType(output_prec),
@@ -3669,8 +3672,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
     VectorDims src_strides =
         getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        int j;
-        size_t i;
+        int j = 0;
+        size_t i = 0;
         size_t start = 0;
         size_t end = 0;
         VectorDims dst_counters(process_dst_dims.size(), 0);
