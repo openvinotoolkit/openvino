@@ -85,12 +85,12 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
             const auto input = node->input(0);
             const auto output = node->output(0);
             const auto kernels = node->input(1);
-            const auto& shapeOutput = output.get_shape();
-            const auto& shapeInput1 = kernels.get_shape();
 
             total_convs++;
 
             if (kernels.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
+                const auto& shapeOutput = output.get_shape();
+                const auto& shapeInput1 = kernels.get_shape();
                 dataSizeOutput =
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 long unsigned int conv_indicator = dataSizeOutput * data_type_size;
@@ -112,6 +112,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
             }
             if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
                 const auto& shapeInput = input.get_shape();
+                const auto& shapeOutput = output.get_shape();
 
                 if (shapeInput.size() > 4 /*5D*/ && isINT8) {
                     compute_convs++;
@@ -119,6 +120,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 }
                 dataSizeInput =
                     std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>());
+                dataSizeOutput =
+                    dataSizeOutput == 0
+                        ? std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>())
+                        : dataSizeOutput;
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
