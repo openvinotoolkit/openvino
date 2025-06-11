@@ -16,12 +16,19 @@ KERNEL(horizontal_fused_second_token_a)(OPTIONAL_SHAPE_INFO_ARG
                                         __global ACCUMULATOR_TYPE* output_a)
 {
     int gid0 = get_group_id(0);
+    int gid2 = get_group_id(2);
     int sgid = get_sub_group_id();
 
-    // For 2nd token, sg in one wg would be divided by 2 dimensions to increase threads number in wg.
-    int sgN = LORA_RANK * LORA_COUNT / SUBGROUP_SIZE;
+    int sgN = LORA_RANK / SUBGROUP_SIZE;
+    int gemma_sgK = GEMMA_SGK;
+    if (LORA_RANK * LORA_COUNT <= MAX_WORKGROUP_SIZE) {
+        sgN *= LORA_COUNT;
+        gemma_sgK /= LORA_COUNT;
+    }
+
     int sgid_k = sgid / sgN;
-    int n_idx = sgid % sgN * SUBGROUP_SIZE;
+
+    int n_idx = (gid2 * sgN + sgid % sgN) * SUBGROUP_SIZE;
     int n_off = n_idx % LORA_RANK;
     int state_a_idx = n_idx / LORA_RANK;
 
@@ -35,7 +42,7 @@ KERNEL(horizontal_fused_second_token_a)(OPTIONAL_SHAPE_INFO_ARG
     int lid = get_sub_group_local_id();
 
     // How many K is accumulated in the WG.
-    int bk_wg = GEMMA_SGK * GEMMA_SG_BK;
+    int bk_wg = gemma_sgK * GEMMA_SG_BK;
     int k_start_wg = gid0 * bk_wg;
     int wg_k_len = (k_start_wg + bk_wg) > K ? (K - k_start_wg) : bk_wg;
     int sgK = (wg_k_len + GEMMA_SG_BK - 1) / GEMMA_SG_BK;
@@ -86,9 +93,9 @@ KERNEL(horizontal_fused_second_token_a)(OPTIONAL_SHAPE_INFO_ARG
     }
 
     ACCUMULATOR_TYPE sum = 0.f;
-    if (sgK == GEMMA_SGK) {
+    if (sgK == gemma_sgK) {
         __attribute__((opencl_unroll_hint))
-        for (int i = 0; i < GEMMA_SGK; i++) {
+        for (int i = 0; i < gemma_sgK; i++) {
 #if ACCUMULATOR_TYPE_SIZE == 4
             sum += AS_ACCUMULATOR_TYPE(intel_sub_group_block_read((const __local uint*)(fma_buff + i * MAX_GEMMA_N + n_idx)));
 #else
