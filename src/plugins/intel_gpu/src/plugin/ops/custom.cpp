@@ -205,6 +205,14 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
 
     std::string genericLayerName = layer_type_name_ID(op);
 
+    // Clone a new op to make sure original model can be released.
+    ov::OutputVector new_inputs;
+    for (size_t i = 0; i < op->get_input_size(); i++) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(op->get_input_element_type(i), op->get_input_partial_shape(i));
+        new_inputs.emplace_back(input);
+    }
+    std::shared_ptr<ov::Node> op_bk = op->clone_with_new_inputs(new_inputs);
+
     auto customPrim = cldnn::custom_gpu_primitive(genericLayerName,
                                                   reordered_inputs,
                                                   {layerTitle, defineTitle, layerDefines, customLayer->KernelSource()},
@@ -214,7 +222,7 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                   outputLayout,
                                                   gws,
                                                   lws,
-                                                  op,
+                                                  op_bk,
                                                   iidx,
                                                   customLayer->GlobalSizeRules(),
                                                   customLayer->LocalSizeRules());
