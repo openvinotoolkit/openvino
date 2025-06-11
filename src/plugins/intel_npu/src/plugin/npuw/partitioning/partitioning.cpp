@@ -362,6 +362,10 @@ std::shared_ptr<ov::Node> Partitioner::new_f16ic_cvt(ov::Output<ov::Node> out, o
     return new_src;
 }
 
+struct Precalculated_Bound_Const {
+    static constexpr const char* name = "NPUW::Precalculated_Bound_Const";
+};
+
 void Partitioner::identifySubgraphs() {
     LOG_INFO("Identifying subgraphs for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -468,6 +472,7 @@ void Partitioner::identifySubgraphs() {
             if (output_tensor.has_and_set_bound()) {
                 // if has_and_set_bound() == true, lower/upper values are the same tensor.
                 auto new_const = std::make_shared<ov::op::v0::Constant>(output_tensor.get_upper_value());
+                new_const->set_friendly_name(ov::npuw::util::Unique<Precalculated_Bound_Const>::name());
                 result = std::static_pointer_cast<ov::Node>(new_const);
                 LOG_VERB("Found bound value in " << output << ", substituting it with " << new_const);
             } else {
@@ -1374,6 +1379,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(u16, uint16_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
+            HANDLE_CASE(f8e4m3, uint8_t);
             HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
 #undef HANDLE_CASE
