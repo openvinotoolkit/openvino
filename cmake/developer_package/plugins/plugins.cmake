@@ -107,6 +107,7 @@ function(ov_add_plugin)
                 set(clang_tidy_args "${CLANG_TIDY};--extra-arg=-Wno-unused-command-line-argument")
                 if(DEFINED CMAKE_CXX_COMPILER_TARGET)
                     list(APPEND clang_tidy_args "--extra-arg=--target=${CMAKE_CXX_COMPILER_TARGET}")
+                    list(APPEND clang_tidy_args ${OV_CLANG_TIDY_TOOLCHAIN_FLAGS})
                 endif()
                 set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
                     CXX_CLANG_TIDY "${clang_tidy_args}")
