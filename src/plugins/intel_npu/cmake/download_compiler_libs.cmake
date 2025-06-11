@@ -62,10 +62,16 @@ if(ENABLE_VCL_FOR_COMPILER)
             set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4023")
 
             download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_ZIP}" "${VCL_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
-            set(VCL_COMPILER_LIB "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/npu_driver_compiler.dll")
+            set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/")
+            configure_file(
+                ${VCL_COMPILER_LIB_PATH}/npu_driver_compiler.dll
+                ${VCL_COMPILER_LIB_PATH}/npu_vcl_compiler.dll
+                COPYONLY
+            )
+            set(VCL_COMPILER_LIB "${VCL_COMPILER_LIB_PATH}/npu_vcl_compiler.dll")
             file(COPY "${VCL_COMPILER_LIB}"
                 DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}")
-            message(STATUS "Copying prebuilt VCL compiler libraries npu_driver_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for windows")
+            message(STATUS "Copying prebuilt VCL compiler libraries npu_vcl_compiler.dll to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for windows")
         else()
             # Check if the operating system is Linux and not macOS
             if(UNIX AND NOT APPLE)
@@ -83,10 +89,16 @@ if(ENABLE_VCL_FOR_COMPILER)
 
                         download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
 
-                        set(VCL_COMPILER_LIB "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu/libnpu_driver_compiler.so")
+                        set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
+                        configure_file(
+                            ${VCL_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
+                            ${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so
+                            COPYONLY
+                        )
+                        set(VCL_COMPILER_LIB "${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so")
                         file(COPY "${VCL_COMPILER_LIB}"
                             DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-                        message(STATUS "Copying prebuilt VCL compiler libraries libnpu_driver_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 22.04")
+                        message(STATUS "Copying prebuilt VCL compiler libraries libnpu_vcl_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 22.04")
                     elseif(OS_VERSION STREQUAL "24.04")
                         message(STATUS "This is Ubuntu 24.04")
                         # Ubuntu 24.04-specific settings or actions
@@ -97,10 +109,16 @@ if(ENABLE_VCL_FOR_COMPILER)
 
                         download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
 
-                        set(VCL_COMPILER_LIB "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu/libnpu_driver_compiler.so")
+                        set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_EXTRACTED}/usr/lib/x86_64-linux-gnu")
+                        configure_file(
+                            ${VCL_COMPILER_LIB_PATH}/libnpu_driver_compiler.so
+                            ${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so
+                            COPYONLY
+                        )
+                        set(VCL_COMPILER_LIB "${VCL_COMPILER_LIB_PATH}/libnpu_vcl_compiler.so")
                         file(COPY "${VCL_COMPILER_LIB}"
                             DESTINATION "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-                        message(STATUS "Copying prebuilt VCL compiler libraries libnpu_driver_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 24.04")
+                        message(STATUS "Copying prebuilt VCL compiler libraries libnpu_vcl_compiler.so to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} for Ubuntu 24.04")
                     else()
                         message(STATUS "This is another version of Ubuntu: ${OS_VERSION}")
                         # Other Ubuntu-specific settings or actions
@@ -114,5 +132,5 @@ if(ENABLE_VCL_FOR_COMPILER)
     endif()
 
     install(FILES ${VCL_COMPILER_LIB}
-      DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_INTERNAL_COMPONENT})
+        DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_INTERNAL_COMPONENT})
 endif()
