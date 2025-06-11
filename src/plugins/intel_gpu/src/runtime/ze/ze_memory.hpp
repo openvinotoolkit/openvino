@@ -53,10 +53,10 @@ public:
         : _context(context)
         , _device(device) {}
 
-    UsmMemory(ze_context_handle_t context, ze_device_handle_t device, void* usm_ptr)
+    UsmMemory(ze_context_handle_t context, ze_device_handle_t device, void* usm_ptr, size_t offset = 0)
         : _context(context)
         , _device(device)
-        , _usm_pointer(std::make_shared<UsmHolder>(_context, usm_ptr, true)) {}
+        , _usm_pointer(std::make_shared<UsmHolder>(_context, reinterpret_cast<uint8_t*>(usm_ptr) + offset, true)) {}
 
     // Get methods returns original pointer allocated by openCL.
     void* get() const { return _usm_pointer->ptr(); }
