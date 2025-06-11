@@ -12,7 +12,16 @@
 #include "intel_npu/icompiler.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
 #include "ze_graph_ext_wrappers.hpp"
+
+int parseLine(char* line);
+
+int getVirtualValue();
+
+int getPhysicalValue();
 
 namespace intel_npu {
 

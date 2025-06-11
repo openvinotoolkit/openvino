@@ -192,7 +192,9 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
         return;
     }
 
+    std::cout << "Before WeightlessGraph initialize " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
     initialize(config);
+    std::cout << "After WeightlessGraph initialize " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {
@@ -315,7 +317,11 @@ void WeightlessGraph::initialize(const Config& config) {
             command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
 
+        std::cout << "Before WeightlessGraph initializeGraph " << getVirtualValue() << " " << getPhysicalValue()
+                  << std::endl;
         _zeGraphExt->initializeGraph(initHandle, initCommandQueueOrdinal);
+        std::cout << "After WeightlessGraph initializeGraph " << getVirtualValue() << " " << getPhysicalValue()
+                  << std::endl;
         _logger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
@@ -515,12 +521,20 @@ void WeightlessGraph::run_init_single_threaded() {
     const auto constants = get_all_constants_in_topological_order(_model);
 
     for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
+        std::cout << "Before WeightlessGraph allocate_inputs " << getVirtualValue() << " " << getPhysicalValue()
+                  << std::endl;
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
+        std::cout << "After WeightlessGraph allocate_inputs " << getVirtualValue() << " " << getPhysicalValue()
+                  << std::endl;
 
         auto [initOutputsViewTensors, initOutputsAllocatedTensor, initOutputsViewTensorsMap] =
             allocate_outputs(initIndex);
+        std::cout << "After WeightlessGraph allocate_outputs " << getVirtualValue() << " " << getPhysicalValue()
+                  << std::endl;
 
         // Create zero-pipeline and run it (infer init schedule)
+        std::cout << "Before WeightlessGraph create_pipeline " << getVirtualValue() << " " << getPhysicalValue()
+                  << std::endl;
         begin = std::chrono::steady_clock::now();
         create_pipeline(initIndex, initInputsViewTensors, initOutputsViewTensors);
         end = std::chrono::steady_clock::now();
@@ -530,6 +544,8 @@ void WeightlessGraph::run_init_single_threaded() {
 
         begin = std::chrono::steady_clock::now();
         run_pipeline(initIndex);
+        std::cout << "After WeightlessGraph run_pipeline " << getVirtualValue() << " " << getPhysicalValue()
+                  << std::endl;
         end = std::chrono::steady_clock::now();
         std::cout << "Running the pipeline "
                   << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
