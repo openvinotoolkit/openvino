@@ -27,6 +27,7 @@ which can generate a Dockerfile, build, test, and deploy an image using the Inte
 
 You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs.
 The Docker CI repository includes the following guides:
+
 * `Get started with docker images <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__ 
 *  How to use OpenVINO™ Toolkit containers with `GPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__ and `NPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/npu_accelerator.md>`__.
 
