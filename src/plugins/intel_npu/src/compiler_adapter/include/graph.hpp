@@ -34,7 +34,8 @@ public:
           std::optional<ov::Tensor> blob,
           bool blobAllocatedByPlugin,
           const Config& config,
-          const ov::SoPtr<ICompiler>& compiler = {nullptr});
+          const ov::SoPtr<ICompiler>& compiler = {nullptr},
+          const bool callFromWeightlessGraph = false);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 

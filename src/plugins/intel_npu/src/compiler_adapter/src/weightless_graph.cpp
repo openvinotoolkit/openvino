@@ -182,7 +182,8 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainBlob),
             blobAllocatedByPlugin,
             config,
-            compiler),
+            compiler,
+            true),
       _initsHandles(initGraphHandles),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
@@ -330,6 +331,33 @@ void WeightlessGraph::initialize(const Config& config) {
         release_init_blob(initIndex, config);
     }
 
+    _command_queue_group_ordinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+
+    uint32_t command_queue_options = 0;
+
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
+            OPENVINO_THROW("Turbo is not supported by the current driver");
+        }
+        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
+        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+
+    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                    _command_queue_group_ordinal,
+                                                    command_queue_options);
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        set_workload_type(config.get<WORKLOAD_TYPE>());
+    }
+
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
@@ -340,8 +368,6 @@ void WeightlessGraph::initialize(const Config& config) {
               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin).count()
               << "[ms]" << std::endl;
 
-    set_weights_inputs();
-
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
     _initsCommandQueueOrdinals.clear();
@@ -350,6 +376,12 @@ void WeightlessGraph::initialize(const Config& config) {
     _initsMetadata.clear();
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
+
+    std::cout << "Before Graph initialize " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
+    Graph::initialize(config);
+    std::cout << "After Graph initialize " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
+
+    set_weights_inputs();
 }
 
 WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
