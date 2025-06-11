@@ -367,7 +367,7 @@ inline bool less_or_equal(double a, double b) {
 }
 
 template <typename T>
-inline bool value_is_out_of_limits(double value, bool upper_bound_check) {
+inline bool value_is_out_of_limits(T value, bool upper_bound_check) {
     bool out_of_limits = std::isnan(value) || std::isinf(value);
     out_of_limits |=
         upper_bound_check ? value >= std::numeric_limits<T>::max() : value <= std::numeric_limits<T>::lowest();
@@ -375,7 +375,7 @@ inline bool value_is_out_of_limits(double value, bool upper_bound_check) {
 }
 
 template <typename T1, typename T2>
-inline bool is_value_suitable_for_comparation(const double value1, const double value2) {
+inline bool is_value_suitable_for_comparation(const T1 value1, const T2 value2) {
     bool res = true;
 
     if (value_is_out_of_limits<T1>(value1, true) && value_is_out_of_limits<T2>(value2, true)) {
@@ -581,8 +581,8 @@ void compare(const ov::Tensor& expected,
     const auto expected_data = expected.data<ExpectedT>();
     const auto actual_data = actual.data<ActualT>();
     for (size_t i = 0; i < shape_size_cnt; ++i) {
-        double expected_value = expected_data[i];
-        double actual_value = actual_data[i];
+        auto expected_value = expected_data[i];
+        auto actual_value = actual_data[i];
         if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
         }
