@@ -186,6 +186,12 @@ void ScatterElementsUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) c
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
             kd.kernels[i].skip_execution = SkipKernelExecution(prim_params, i);
+            if (i == 1) {
+                kd.internalBuffers.clear();
+                kd.internalBuffers.push_back(prim_params.inputs[1].PhysicalSizeInBytes());
+                kd.internalBuffers.push_back(prim_params.inputs[1].PhysicalSizeInBytes());
+                kd.internalBufferDataType = prim_params.inputs[1].GetDType();
+            }
         }
     };
 }
@@ -206,9 +212,13 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
 
         if (i == 1) {
+            auto maxAllocatableMemSize = params.engineInfo.maxLocalMemSize / 8 / 2;    // 8 is for allocatable local memory size.
+                                                                                       // 2 is for k and v of count.
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
-            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", params.engineInfo.maxLocalMemSize));
-            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", newParams.inputs[1].LogicalSize()));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", maxAllocatableMemSize));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", newParams.inputs[1].LogicalSize() != 0 ?
+                                                                  newParams.inputs[1].LogicalSize() :
+                                                                  maxAllocatableMemSize));
         }
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -216,6 +226,18 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1,
             params.is_shape_agnostic);
+
+        if (i == 1) {
+            bool is_dynamic = newParams.has_dynamic_tensors();
+            if (is_dynamic) {
+                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+                kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+                kd.internalBuffers.clear();
+                kd.internalBuffers.push_back(newParams.inputs[1].PhysicalSizeInBytes());
+                kd.internalBuffers.push_back(newParams.inputs[1].PhysicalSizeInBytes());
+                kd.internalBufferDataType = newParams.inputs[1].GetDType();
+            }
+        }
     }
 
     return {kd};

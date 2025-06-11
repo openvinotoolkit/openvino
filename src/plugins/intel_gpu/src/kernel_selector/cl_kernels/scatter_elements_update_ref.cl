@@ -99,34 +99,27 @@
         #endif
         }
 
-        inline uint add_count(
-            #if COUNT_LENGTH > COUNT_LIMIT
-            __global int count_k[], __global int count_v[], 
-            #else
-            __local int count_k[], __local int count_v[], 
-            #endif
-            int idx, uint valid_count)
-        {
-            for (int i = 0; i < valid_count; ++i) {
-                if (count_k[i] == idx) {
-                    count_v[i] += 1;
-                    return valid_count;
-                }
-            }
-            count_k[valid_count] = idx;
-            count_v[valid_count] += 1;
-            return valid_count + 1;
-        }
-    
-        inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
-        {
-            if (count_k[it] != -1) {
-                *idx = count_k[it];
-                count_k[it] = -1;
-                return count_v[it];
-            }
-            return -1;
-        }
+        #define add_count(count_k, count_v, idx, valid_count) ({                      \
+            for (int i = 0; i < (valid_count); ++i) {                                 \
+                if ((count_k)[i] == (idx)) {                                          \
+                    (count_v)[i] += 1;                                                \
+                    break;                                                            \
+                }                                                                     \
+            }                                                                         \
+            (count_k)[valid_count] = (idx);                                           \
+            (count_v)[valid_count] += 1;                                              \
+            (valid_count) = (valid_count) + 1;                                        \
+        })
+
+        #define get_count(count_k, count_v, it, idx, count) ({                        \
+            if ((count_k)[(it)] != -1) {                                              \
+                (idx) = (count_k)[(it)];                                              \
+                (count_k)[(it)] = -1;                                                 \
+                (count) = (count_v)[(it)];                                            \
+            } else {                                                                  \
+                (count) = -1;                                                         \
+            }                                                                         \
+        })
     #endif
 #endif
 
@@ -135,6 +128,10 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
                    __global OUTPUT_TYPE* output
+#if defined IS_SECOND_ITER && defined IS_DYNAMIC
+                   , __global INPUT1_TYPE* tmp_buffer0
+                   , __global INPUT1_TYPE* tmp_buffer1
+#endif
 #if HAS_FUSED_OPS_DECLS
                    , FUSED_OPS_DECLS
 #endif
@@ -185,20 +182,26 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
             const uint tgx = INPUT2_SIZE_X * INPUT2_SIZE_Y;
             const uint tgy = INPUT2_SIZE_Z * INPUT2_SIZE_W;
         #endif
-        #if COUNT_LENGTH > COUNT_LIMIT
-            __global int count_k[COUNT_LENGTH];
-            __global int count_v[COUNT_LENGTH];
-        #elif COUNT_LENGTH == 0
-            __local int count_k[1];
-            __local int count_v[1];
+        #ifdef IS_DYNAMIC
+            INPUT1_TYPE* count_k = tmp_buffer0;
+            INPUT1_TYPE* count_v = tmp_buffer1;
+            for (int i = 0; i < INPUT1_BATCH_NUM; ++i) {
+                count_k[i] = -1;
+                count_v[i] = 0;
+            }
         #else
-            __local int count_k[COUNT_LENGTH];
-            __local int count_v[COUNT_LENGTH];
+            #if COUNT_LENGTH > COUNT_LIMIT
+                __global INPUT1_TYPE count_k[COUNT_LENGTH];
+                __global INPUT1_TYPE count_v[COUNT_LENGTH];
+            #else
+                __local INPUT1_TYPE count_k[COUNT_LENGTH];
+                __local INPUT1_TYPE count_v[COUNT_LENGTH];
+            #endif
+            for (int i = 0; i < COUNT_LENGTH; ++i) {
+                count_k[i] = -1;
+                count_v[i] = 0;
+            }
         #endif
-        for (int i = 0; i < COUNT_LENGTH; ++i) {
-            count_k[i] = -1;
-            count_v[i] = 0;
-        }
         #if USE_INIT_VAL == 0
             for (uint gz = 0; gz < tgz; gz++) {
                 for (uint gy = 0; gy < tgy; gy++) {
@@ -258,13 +261,14 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                      const uint output_idx = GET_OUTPUT_INDEX(ORDER);
                      val = FUNC_CALL(reduce)(output[output_idx], val);
                      output[output_idx] = val;
-                     valid_count = add_count(count_k, count_v, output_idx, valid_count);
+                     add_count(count_k, count_v, output_idx, valid_count);
                  }
              }
          }
         for (int i = 0; i < valid_count; ++i) {
             int output_idx;
-            const int count = get_count(count_k, count_v, i, &output_idx);
+            int count;
+            get_count(count_k, count_v, i, output_idx, count);
             #if REDUCE_MODE==MEAN_MODE
                 output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
             #endif
