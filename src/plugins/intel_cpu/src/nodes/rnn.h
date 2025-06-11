@@ -25,9 +25,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class RNN : public Node {
 public:
@@ -46,7 +44,7 @@ public:
 
     void execute(const dnnl::stream& strm) override;
 
-    inline bool hasNativeOrder() const {
+    bool hasNativeOrder() const {
         return nativeOrder;
     }
 
@@ -117,7 +115,7 @@ private:
 
         Interval(Dim min, Dim max) : minVal(min), maxVal(max) {}
 
-        bool isStatic() {
+        bool isStatic() const {
             return minVal == maxVal;
         }
 
@@ -173,6 +171,4 @@ private:
     std::unordered_set<MemoryPtr> m_weights_pull;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

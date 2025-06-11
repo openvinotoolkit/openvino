@@ -27,9 +27,7 @@
 #    include "nodes/executors/reduce.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 enum ReduceLayoutType { reduce_ncsp, reduce_nspc, reduce_blocked };
 
@@ -71,15 +69,15 @@ struct jit_reduce_post_call_args {
 };
 
 struct jit_uni_reduce_kernel {
-    void (*ker_)(const jit_reduce_call_args*);
+    void (*ker_)(const jit_reduce_call_args*){nullptr};
 
-    void operator()(const jit_reduce_call_args* args) {
+    void operator()(const jit_reduce_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_reduce_kernel(jit_reduce_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_reduce_kernel() {}
+    explicit jit_uni_reduce_kernel(jit_reduce_config_params jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_reduce_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -87,18 +85,17 @@ struct jit_uni_reduce_kernel {
 };
 
 struct jit_uni_reduce_post_kernel {
-    void (*ker_)(const jit_reduce_post_call_args*);
+    void (*ker_)(const jit_reduce_post_call_args*){nullptr};
 
-    void operator()(const jit_reduce_post_call_args* args) {
+    void operator()(const jit_reduce_post_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
     explicit jit_uni_reduce_post_kernel(jit_reduce_config_params jcp, const dnnl_primitive_attr& attr)
-        : ker_(nullptr),
-          jcp_(jcp),
+        : jcp_(jcp),
           attr_(attr) {}
-    virtual ~jit_uni_reduce_post_kernel() {}
+    virtual ~jit_uni_reduce_post_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -137,7 +134,7 @@ private:
                                       size_t work_amount,
                                       size_t reduce_w = 2,
                                       size_t work_batch = 1,
-                                      const int* tab_idx = NULL);
+                                      const int* tab_idx = nullptr);
     inline void reduce_kernel_post_process(uint8_t* out_ptr);
     inline void reduce_kernel_reassign();
     inline void reduce_kernel_restore();
@@ -225,6 +222,4 @@ private:
 #endif
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

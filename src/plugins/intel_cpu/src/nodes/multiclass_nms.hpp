@@ -9,7 +9,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -101,12 +100,12 @@ private:
 
     std::vector<filteredBoxes> m_filtBoxes;  // rois after nms for each class in each image
 
-    void checkPrecision(const ov::element::Type prec,
+    void checkPrecision(ov::element::Type prec,
                         const std::vector<ov::element::Type>& precList,
                         const std::string& name,
                         const std::string& type);
 
-    static float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
+    static float intersectionOverUnion(const float* boxesI, const float* boxesJ, bool normalized);
 
     void nmsWithEta(const float* boxes,
                     const float* scores,
@@ -114,7 +113,7 @@ private:
                     const VectorDims& boxesStrides,
                     const VectorDims& scoresStrides,
                     const VectorDims& roisnumStrides,
-                    const bool shared);
+                    bool shared);
 
     void nmsWithoutEta(const float* boxes,
                        const float* scores,
@@ -122,16 +121,16 @@ private:
                        const VectorDims& boxesStrides,
                        const VectorDims& scoresStrides,
                        const VectorDims& roisnumStrides,
-                       const bool shared);
+                       bool shared);
 
-    static const float* slice_class(const int batch_idx,
-                                    const int class_idx,
+    static const float* slice_class(int batch_idx,
+                                    int class_idx,
                                     const float* dataPtr,
                                     const VectorDims& dataStrides,
-                                    const bool is_boxes,
+                                    bool is_boxes,
                                     const int* roisnum,
                                     const VectorDims& roisnumStrides,
-                                    const bool shared);
+                                    bool shared);
 };
 
 }  // namespace ov::intel_cpu::node

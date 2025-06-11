@@ -13,16 +13,13 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 enum TopKLayoutType { topk_ncsp, topk_nspc, topk_blocked };
 
@@ -67,15 +64,15 @@ struct jit_topk_call_args {
 };
 
 struct jit_uni_topk_kernel {
-    void (*ker_)(const jit_topk_call_args*);
+    void (*ker_)(const jit_topk_call_args*){nullptr};
 
-    void operator()(const jit_topk_call_args* args) {
+    void operator()(const jit_topk_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_topk_kernel(jit_topk_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_topk_kernel() {}
+    explicit jit_uni_topk_kernel(jit_topk_config_params jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_topk_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -158,6 +155,4 @@ private:
     std::shared_ptr<jit_uni_topk_kernel> topk_kernel = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

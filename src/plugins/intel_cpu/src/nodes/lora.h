@@ -18,9 +18,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class LoRA : public Node {
 public:
@@ -37,7 +35,7 @@ public:
     int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
     void prepareParams() override;
-    void execute(const dnnl::stream&) override;
+    void execute(const dnnl::stream& /*strm*/) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
@@ -46,6 +44,4 @@ private:
     Graph m_graph;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

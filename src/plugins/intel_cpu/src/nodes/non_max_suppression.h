@@ -8,19 +8,18 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "kernels/x64/jit_kernel_base.hpp"
 #include "kernels/x64/non_max_suppression.hpp"
 #include "node.h"
 #include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 enum NMSCandidateStatus { SUPPRESSED = 0, SELECTED = 1, UPDATED = 2 };
 
@@ -36,7 +35,7 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -59,10 +58,10 @@ public:
         int suppress_begin_index;
     };
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
 
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     }
 
@@ -103,7 +102,7 @@ private:
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ);
 
-    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1) const;
+    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], float area_0, const float* box_1) const;
 
     void nmsWithSoftSigma(const float* boxes,
                           const float* scores,
@@ -123,9 +122,9 @@ private:
                     const VectorDims& scores_strides,
                     std::vector<FilteredBox>& filtered_boxes);
 
-    void check1DInput(const Shape& shape, const std::string& name, const size_t port);
+    void check1DInput(const Shape& shape, const std::string& name, size_t port);
 
-    void checkOutput(const Shape& shape, const std::string& name, const size_t port);
+    void checkOutput(const Shape& shape, const std::string& name, size_t port);
 
     void createJitKernel();
 
@@ -159,6 +158,4 @@ private:
     std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

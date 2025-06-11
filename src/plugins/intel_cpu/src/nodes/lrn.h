@@ -9,7 +9,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "common/dnnl_executor.h"
 #include "graph_context.h"
@@ -17,9 +16,7 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Lrn : public Node {
 public:
@@ -31,9 +28,10 @@ public:
     size_t descInputNumbers() override {
         return getOriginalInputsNumber();
     }
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
-    bool created() const override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc,
+                                                            size_t idx) const override;
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
@@ -53,6 +51,4 @@ private:
     float beta = 1.0f;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

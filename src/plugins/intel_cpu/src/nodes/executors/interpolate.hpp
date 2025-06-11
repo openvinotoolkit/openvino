@@ -21,7 +21,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-enum { MAX_INPUT_INTERPOLATE = 8 };
+static constexpr int MAX_INPUT_INTERPOLATE = 8;
 
 namespace ov::intel_cpu {
 

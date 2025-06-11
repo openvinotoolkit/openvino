@@ -13,7 +13,6 @@
 #include <random>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"

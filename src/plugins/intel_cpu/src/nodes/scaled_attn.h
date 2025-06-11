@@ -20,9 +20,7 @@
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/plain_tensor.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class ScaledDotProductAttention : public Node {
 public:
@@ -60,8 +58,9 @@ public:
     const std::vector<size_t> getKVCacheOrder() const {
         const auto& permute_axes = m_config.config.permute_axes;
         std::vector<size_t> real_order = m_kvstate_layout;
-        if (!permute_axes.empty())
+        if (!permute_axes.empty()) {
             real_order = {permute_axes[2], permute_axes[0], permute_axes[1], permute_axes[3]};
+        }
         return real_order;
     }
     struct SDPAQuantParam {
@@ -88,10 +87,10 @@ private:
         virtual void execute(const dnnl::stream& strm,
                              const Config& config,
                              const std::vector<MemoryPtr>& inputs,
-                             const MemoryPtr output,
-                             const MemoryPtr presentk_input,
-                             const MemoryPtr presentv_input,
-                             const MemoryPtr beam_input,
+                             MemoryPtr output,
+                             MemoryPtr presentk_input,
+                             MemoryPtr presentv_input,
+                             MemoryPtr beam_input,
                              const PlainTensor& k_scale_zp,
                              const PlainTensor& v_scale_zp) = 0;
         virtual ~Executor() = default;
@@ -113,6 +112,4 @@ private:
     SDPAQuantParam m_value_quant_param;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

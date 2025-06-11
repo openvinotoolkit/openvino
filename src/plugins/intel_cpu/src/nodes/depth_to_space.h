@@ -17,9 +17,7 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class DepthToSpace : public Node {
 public:
@@ -30,7 +28,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     void prepareParams() override;
 
@@ -43,7 +41,7 @@ public:
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
         VectorDims srcBlockedDims;
-        size_t hash() const;
+        [[nodiscard]] size_t hash() const;
         bool operator==(const DepthToSpaceAttrs& rhs) const;
     };
 
@@ -54,7 +52,7 @@ private:
     DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
         DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
-        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB);
         ~DepthToSpaceExecutor() = default;
 
     private:
@@ -64,6 +62,4 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

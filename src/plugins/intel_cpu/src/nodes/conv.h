@@ -64,21 +64,21 @@ public:
     std::vector<int32_t> legacyOutputCompensation;
     // Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
     std::vector<int32_t> inputZeroPoints;
-    void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
+    void initializeInputZeroPoints(const uint8_t* inputZpData, size_t inputZpSize);
 
     const VectorDims& getWeightDims() {
         return getInputShapeAtPort(WEIGHTS).getDims();
     }
-    const std::vector<size_t>& getStride() {
+    const std::vector<size_t>& getStride() const {
         return m_attrs.stride;
     }
-    const std::vector<size_t>& getDilation() {
+    const std::vector<size_t>& getDilation() const {
         return m_attrs.dilation;
     }
-    const std::vector<ptrdiff_t>& getPaddingL() {
+    const std::vector<ptrdiff_t>& getPaddingL() const {
         return m_attrs.paddingL;
     }
-    const std::vector<ptrdiff_t>& getPaddingR() {
+    const std::vector<ptrdiff_t>& getPaddingR() const {
         return m_attrs.paddingR;
     }
 

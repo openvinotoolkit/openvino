@@ -16,9 +16,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 enum class ScatterUpdateMode { ScatterUpdate, ScatterNDUpdate, ScatterElementsUpdate };
 
@@ -87,17 +85,17 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     void execute(const dnnl::stream& strm) override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     using Reduction = scatter_reductions::CommonReduction;
@@ -147,6 +145,4 @@ private:
     bool isUpdateScalar = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
