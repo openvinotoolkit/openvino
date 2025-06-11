@@ -307,8 +307,7 @@ TEST(OvSerializationTests, SerializeRawMeta) {
     }
 }
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 TEST(RTInfoSerialization, custom_info) {
     std::string ref_ir_xml = R"V0G0N(<?xml version="1.0"?>
@@ -482,5 +481,4 @@ TEST(RTInfoSerialization, AnyMap_info) {
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
     EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
 }
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

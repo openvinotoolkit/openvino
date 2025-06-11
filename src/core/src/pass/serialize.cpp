@@ -982,7 +982,7 @@ bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const 
     if (data.is<ov::AnyMap>()) {
         const auto& any_map = data.as<ov::AnyMap>();
         for (const auto& it : any_map)
-            appended |= append_custom_rt_info(custom_node, it.first, it.second);
+            appended = append_custom_rt_info(custom_node, it.first, it.second) || appended;
 
     } else {
         const auto& value = data.as<std::string>();
@@ -1089,7 +1089,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
             for (const auto& item : attributes)
                 if (!item.second.is<ov::RuntimeAttribute>())
-                    has_attrs |= append_custom_rt_info(rt_node, item.first, item.second);
+                    has_attrs = append_custom_rt_info(rt_node, item.first, item.second) || has_attrs;
 
             if (!has_attrs) {
                 node.remove_child(rt_node);
