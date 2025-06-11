@@ -8,47 +8,6 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
-int parseLine(char* line) {
-    // This assumes that a digit will be found and the line ends in " Kb".
-    int i = strlen(line);
-    const char* p = line;
-    while (*p < '0' || *p > '9')
-        p++;
-    line[i - 3] = '\0';
-    i = atoi(p);
-    return i;
-}
-
-int getVirtualValue() {  // Note: this value is in KB!
-    FILE* file = fopen("/proc/self/status", "r");
-    int result = -1;
-    char line[128];
-
-    while (fgets(line, 128, file) != NULL) {
-        if (strncmp(line, "VmSize:", 7) == 0) {
-            result = parseLine(line);
-            break;
-        }
-    }
-    fclose(file);
-    return result;
-}
-
-int getPhysicalValue() {  // Note: this value is in KB!
-    FILE* file = fopen("/proc/self/status", "r");
-    int result = -1;
-    char line[128];
-
-    while (fgets(line, 128, file) != NULL) {
-        if (strncmp(line, "VmRSS:", 6) == 0) {
-            result = parseLine(line);
-            break;
-        }
-    }
-    fclose(file);
-    return result;
-}
-
 namespace intel_npu {
 
 Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
@@ -59,7 +18,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              bool blobAllocatedByPlugin,
              const Config& config,
              const ov::SoPtr<ICompiler>& compiler,
-             const bool callFromWeightlessGraph)
+             const bool calledFromWeightlessGraph)
     : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -71,10 +30,9 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
         return;
     }
 
-    if (!callFromWeightlessGraph) {
-        std::cout << "Before Graph initialize " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
+    if (!calledFromWeightlessGraph) {
+        // Will be called at a later stage from WeightlessGraph::initialize() in order to save some memory
         initialize(config);
-        std::cout << "After Graph initialize " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
     }
 }
 
@@ -169,6 +127,8 @@ void Graph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
+    // This condition is met only if the current object is not of type "WeightlessGraph". If it was, the command queue
+    // would have been created within WeightlessGraph::initialize().
     if (_command_queue == nullptr) {
         _command_queue_group_ordinal =
             zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
@@ -198,10 +158,7 @@ void Graph::initialize(const Config& config) {
         }
     }
 
-    std::cout << "Before Graph initializeGraph " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
     _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
-    std::cout << "After Graph initializeGraph " << getVirtualValue() << " " << getPhysicalValue() << std::endl;
-
     _logger.debug("Graph initialize finish");
 
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
