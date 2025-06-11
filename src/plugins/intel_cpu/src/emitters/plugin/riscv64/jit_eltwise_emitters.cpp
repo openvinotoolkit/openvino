@@ -248,7 +248,6 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
     VReg src0 = VReg(in_vec_idxs[0]);
