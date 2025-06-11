@@ -249,7 +249,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<group_normalization>() && is_dynamic &&
-        fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::bfyx)
+        fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::bfyx &&
+        !prev_output_layout.data_padding && !next_output_layout.data_padding)
         return true;
 
     if (next.is_type<permute>() && is_dynamic &&
@@ -395,7 +396,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
 
     if (prev.is_type<group_normalization>() && is_dynamic &&
-        fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
+        fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16 &&
+        !prev.get_output_layout().data_padding && !next->get_output_layout().data_padding)
         return true;
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
