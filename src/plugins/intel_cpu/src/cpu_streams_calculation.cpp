@@ -636,15 +636,17 @@ int get_model_prefer_threads(const int num_streams,
         std::cout << "total_loops = " << networkToleranceForLowCache.total_loops << std::endl;
         std::cout << "total_nodes = " << networkToleranceForLowCache.total_nodes << std::endl;
         std::cout << "total_G_T = " << networkToleranceForLowCache.total_G_T << std::endl;
+        std::cout << "add_list: ";
         for (auto i = 0; i < networkToleranceForLowCache.conv_list.size(); i++) {
-            std::cout << "conv_list["<< i << "] = " << networkToleranceForLowCache.conv_list[i] << std::endl;
-        }
-        for (auto i = 0; i < networkToleranceForLowCache.gemm_list.size(); i++) {
-            std::cout << "add_list["<< i << "] = " << networkToleranceForLowCache.add_list[i] << std::endl;
+            std::cout << networkToleranceForLowCache.conv_list[i] << ",";
         }
         for (auto i = 0; i < networkToleranceForLowCache.add_list.size(); i++) {
-            std::cout << "gemm_list["<< i << "] = " << networkToleranceForLowCache.gemm_list[i] << std::endl;
+            std::cout << networkToleranceForLowCache.add_list[i] << ",";
         }
+        for (auto i = 0; i < networkToleranceForLowCache.gemm_list.size(); i++) {
+            std::cout << networkToleranceForLowCache.gemm_list[i] << ",";
+        }
+        std::cout << "\n";
 
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
