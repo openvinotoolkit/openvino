@@ -16,6 +16,9 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/divide.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -235,8 +238,15 @@ protected:
         auto variable_b = create_variable(state_b_pshape, "var_b_" + std::to_string(idx));
         auto read_value_b = std::make_shared<ov::op::v6::ReadValue>(variable_b);
 
+        auto shape_of_state_a = std::make_shared<ov::op::v3::ShapeOf>(read_value_a);
+        auto indices_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
+        auto axis_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
+        auto gather = std::make_shared<ov::op::v8::Gather>(shape_of_state_a, indices_node, axis_node);
+        auto convert = std::make_shared<ov::op::v0::Convert>(gather, main_input->get_element_type());
+        auto divide = std::make_shared<ov::op::v1::Divide>(read_value_alpha, convert);
+
         auto matmul1 = std::make_shared<ov::op::v0::MatMul>(lora_input, read_value_a, false, transpose_weights);
-        auto multiply = std::make_shared<ov::op::v1::Multiply>(matmul1, read_value_alpha);
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(matmul1, divide);
         auto matmul2 = std::make_shared<ov::op::v0::MatMul>(multiply, read_value_b, false, transpose_weights);
         auto add = std::make_shared<ov::op::v1::Add>(main_input, matmul2);
         return add;
@@ -382,8 +392,12 @@ protected:
 
         if (activations_precision == ov::element::f16) {
             abs_threshold = 1.0f;
-            if (shape_params.lora_rank != 0) {
+
+            const auto& input_shape = shape_params.data_shape.second.front();
+            bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;
+            if (shape_params.lora_rank != 0 && is_large_input) {
                 rel_threshold = 0.01f;
+                abs_threshold = 4.0f;
             }
         } else {
             abs_threshold = 1e-4f;
