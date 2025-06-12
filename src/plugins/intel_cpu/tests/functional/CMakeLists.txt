@@ -111,6 +111,8 @@ ov_add_test_target(
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 include(cmake/specific_tests.cmake)
 include(cmake/target_per_test.cmake)
 
