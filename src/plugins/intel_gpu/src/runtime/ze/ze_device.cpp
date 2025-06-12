@@ -145,7 +145,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.gfx_ver = {0, 0, 0}; // could find how to retrieve this from L0 so far
     info.arch = gpu_arch::unknown;
     info.ip_version = ip_version_properties.ipVersion;
-    info.sub_device_idx = std::numeric_limits<uint32_t>::max();
+    info.sub_device_idx = (std::numeric_limits<uint32_t>::max)();
 
     info.device_id = device_properties.deviceId;
     info.num_slices = device_properties.numSlices;
