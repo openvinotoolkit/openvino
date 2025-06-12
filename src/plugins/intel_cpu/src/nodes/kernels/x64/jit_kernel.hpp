@@ -239,8 +239,8 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base([[maybe_unused]] const variable_base& rhs);
-    variable_base([[maybe_unused]] variable_base&& rhs) noexcept;
+    variable_base(const variable_base& rhs);
+    variable_base(variable_base&& rhs) noexcept;
 
     [[nodiscard]] reg_type& reg() const {
         return *_reg;
@@ -273,8 +273,8 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base([[maybe_unused]] const variable_base& rhs);
-    variable_base([[maybe_unused]] variable_base&& rhs) noexcept;
+    variable_base(const variable_base& rhs);
+    variable_base(variable_base&& rhs) noexcept;
 
     reg_type& reg() const {
         return *_addr;

@@ -119,7 +119,7 @@ private:
      */
     void add_postop_input(const ov::Output<Node>& postop_input);
 
-    const BrgemmConfig m_config;
+    BrgemmConfig m_config;
 
     PostopsConfig m_post_ops_config;
 

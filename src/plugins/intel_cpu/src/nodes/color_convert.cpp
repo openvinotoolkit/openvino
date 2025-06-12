@@ -208,9 +208,9 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
             return mask;
         };
 
-        r.permute(genPermutationMask(0));
-        g.permute(genPermutationMask(1));
-        b.permute(genPermutationMask(2));
+        r = r.permute(genPermutationMask(0));
+        g = g.permute(genPermutationMask(1));
+        b = b.permute(genPermutationMask(2));
 
         auto blendWithMask = [&](int offset, const variable<float[N]>& result) {
             static const uint32_t blendMasks[2] = {0x92492492, 0x24924924};
@@ -218,8 +218,8 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
             const auto mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
 
             result = r;
-            result.blend(g, mask0);
-            result.blend(b, mask1);
+            result = result.blend(g, mask0);
+            result = result.blend(b, mask1);
         };
 
         blendWithMask(0, r0);
@@ -854,8 +854,8 @@ JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y,
 template <typename T, size_t N>
 void JitConverter<T[N]>::unpack_uv(const variable<float[N]>& u, const variable<float[N]>& v) {
     static const uint8_t order[] = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7};
-    u.permute(order);
-    v.permute(order);
+    std::ignore = u.permute(order);
+    std::ignore = v.permute(order);
 }
 
 template <typename T>

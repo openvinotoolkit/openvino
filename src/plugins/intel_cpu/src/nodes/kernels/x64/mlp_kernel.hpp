@@ -246,7 +246,6 @@ struct Work {
     // input : weight [N, K], setup repacks range of N [n_start, n_end)
     template <typename Tsrc, typename Tdst>
     void setup(Tdst* dst, Tsrc* p_weight, int stride_in_bytes, bool do_sum_per_oc = false) {
-        auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
         auto* pw = p_weight + n0 * stride_in_bytes / sizeof(Tsrc);
 
@@ -282,7 +281,6 @@ struct Work {
     // in each Bpair, p_weight1 stored in B0, p_weight2 stored in B1
     template <typename Tsrc, typename Tdst>
     void setup(Tdst* dst, Tsrc* p_weight1, Tsrc* p_weight2, int stride_in_bytes, bool do_sum_per_oc = false) {
-        auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
         auto* pw1 = p_weight1 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);
         auto* pw2 = p_weight2 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);

@@ -85,7 +85,7 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
     static void validate_element_type(const ov::element::Type& element_type);
 
-    const BrgemmConfig m_config;
+    BrgemmConfig m_config;
     element::Type m_src_type = ov::element::dynamic;  // src element type of the corresponding BRGEMM
 };
 }  // namespace ov::intel_cpu

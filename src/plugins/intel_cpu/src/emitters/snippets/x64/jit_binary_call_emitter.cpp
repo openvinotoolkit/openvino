@@ -67,7 +67,7 @@ const Xbyak::Reg64& jit_binary_call_emitter::get_call_address_reg() const {
 }
 const Xbyak::Reg64& jit_binary_call_emitter::get_callee_saved_reg() const {
     OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "You should call init_binary_call_regs() before using this method");
-    return get_callee_saved_reg();
+    return m_callee_saved_reg;
 }
 
 const std::set<snippets::Reg>& jit_binary_call_emitter::get_regs_to_spill() const {
