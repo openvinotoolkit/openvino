@@ -26,21 +26,19 @@ public:
                "custom_gpu_primitive_node!");
         layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;
 
-        bool is_dynamic = false;
+        bool is_dynamic_input = false;
         const auto inp_sz = impl_param.get_input_layout_size();
         for (size_t i = 0; i < inp_sz; i++) {
             if (impl_param.get_input_layout(i).is_dynamic()) {
-                is_dynamic = true;
+                is_dynamic_input = true;
                 break;
             }
         }
 
-        if (!is_dynamic && output_layout.is_dynamic()) {
+        if (!is_dynamic_input && output_layout.is_dynamic()) {
             ov::OutputVector new_inputs;
             for (size_t i = 0; i < inp_sz; i++) {
-                auto dt = impl_param.get_input_layout(i).data_type;
-                // std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0])
-                auto input = std::make_shared<ov::op::v0::Parameter>(dt, impl_param.get_input_layout(i).get_shape());
+                auto input = std::make_shared<ov::op::v0::Parameter>(impl_param.get_input_layout(i).data_type, impl_param.get_input_layout(i).get_shape());
                 new_inputs.emplace_back(input);
             }
 

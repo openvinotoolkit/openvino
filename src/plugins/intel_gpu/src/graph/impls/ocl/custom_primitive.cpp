@@ -72,7 +72,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
-        // OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
+        OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();
         _kernels.resize(kernel_vec.size());

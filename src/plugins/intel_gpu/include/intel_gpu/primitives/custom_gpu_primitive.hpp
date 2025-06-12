@@ -91,15 +91,6 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
             expr.SetExpression(rule);
             lws.push_back(expr.Evaluate());
         }
-        // std::cout << "======= New gws: ";
-        // for (auto tmp : gws) {
-        //     std::cout << tmp << ", ";
-        // }
-        // std::cout << std::endl << " lws: ";
-        // for (auto tmp : gws) {
-        //     std::cout << tmp << ", ";
-        // }
-        // std::cout << std::endl;
     }
 
     /// @brief Constructs custom_gpu_primitive primitive
