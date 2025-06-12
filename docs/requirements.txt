@@ -31,7 +31,7 @@ pytest-metadata==1.11.0
 py>=1.11.0
 pytz==2022.7
 pyyaml==6.0.1
-requests==2.32.3
+requests==2.32.4
 six==1.15.0
 snowballstemmer==3.0.1
 soupsieve==2.7
