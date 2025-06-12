@@ -40,7 +40,7 @@ ov::Output<ov::Node> update_stops_node(const ov::Output<ov::Node>& stops, const 
     auto is_reversed = std::make_shared<v1::Less>(steps, typed_zero);
 
     auto is_max_reverse = std::make_shared<v1::LogicalAnd>(is_max_stops, is_reversed);
-    auto updated_stops = std::make_shared<v1::Select>(is_max_reverse, int_min_constant, stops);
+    auto updated_stops = std::make_shared<v1::Select>(is_max_reverse, typed_int_min, stops);
     return updated_stops;
 }
 
