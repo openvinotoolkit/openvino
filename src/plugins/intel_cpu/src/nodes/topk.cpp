@@ -868,6 +868,21 @@ private:
         vpcmpgtd(x1, x2, op);
     }
 
+    void uni_vpcmpeqd(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
+        if (is_valid_isa(cpu::x64::avx)) {
+            vpcmpeqd(x1, x2, op);
+        } else {
+            if (x1.getIdx() != x2.getIdx()) {
+                uni_vmovups(x1, x2);
+            }
+            pcmpeqd(x1, op);
+        }
+    }
+
+    void uni_vpcmpeqd(const Xbyak::Ymm& x1, const Xbyak::Ymm& x2, const Xbyak::Operand& op) {
+        vpcmpeqd(x1, x2, op);
+    }
+
     void compare_node_xmm(Xmm xmm_val_a,
                           Xmm xmm_idx_a,
                           Xmm xmm_val_b,
@@ -886,7 +901,11 @@ private:
                     vpcmpd(k_mask, xmm_val_a, xmm_val_b, val_cmp_flg);
                 }
                 if (stable) {
-                    vcmpps(k_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    if (isFloatCompatible(data_type)) {
+                        vcmpps(k_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    } else {
+                        vpcmpd(k_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    }
                     kortestw(k_eq_mask, k_eq_mask);  // all zero check
                     jz(compare_end_label, T_NEAR);
                     vpcmpd(k_gt_mask, xmm_idx_a, xmm_idx_b, idx_cmp_flg);
@@ -908,7 +927,11 @@ private:
                     }
                 }
                 if (stable) {
-                    uni_vcmpps(xmm_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    if (isFloatCompatible(data_type)) {
+                        uni_vcmpps(xmm_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    } else {
+                        uni_vpcmpeqd(xmm_eq_mask, xmm_val_a, xmm_val_b);
+                    }
                     ptest(xmm_eq_mask, xmm_eq_mask);  // all zero check
                     jz(compare_end_label, T_NEAR);
                     uni_vpcmpgtd(xmm_gt_mask, xmm_idx_a, xmm_idx_b);
