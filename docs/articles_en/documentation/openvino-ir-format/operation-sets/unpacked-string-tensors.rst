@@ -25,7 +25,7 @@ The `begins` and `ends` tensors have the same shape, which matches the shape of 
 
 When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to, but not including, ``b``. 
 
-The UnpackedStringTensor format can be produced from regular string tensors using the `StringTensorUnpack` operation, and it can be converted back to a regular string tensor using the `StringTensorPack` operation.
+The `UnpackedStringTensor` format can be produced from regular string tensors using the `StringTensorUnpack` operation, and it can be converted back to a regular string tensor using the `StringTensorPack` operation.
 
 **Examples**:
 

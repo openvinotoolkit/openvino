@@ -1,4 +1,5 @@
-# SparseFillEmptyRowsUnpackedString
+SparseFillEmptyRowsUnpackedString
+==========================================
 
 .. meta::
   :description: Learn about SparseFillEmptyRowsUnpackedString-16 - a sparse operation that fills empty rows 
@@ -64,46 +65,47 @@ Rows 1 and 4 are empty. The output will be:
 
 `default_value` is stored only once in the `output_symbols`, and the `output_begins` and `output_ends` are adjusted accordingly to include the default value for the empty rows. In this particular case, the `default_value` is represented by indices 35 to 40.
 
-```xml
-<layer ... type="SparseFillEmptyRowsUnpackedString" ... >
-    <input>
-        <port id="0" precision="I32">       <!-- begins -->
-            <dim>6</dim>
-        </port>
-        <port id="1" precision="I32">       <!-- ends -->
-            <dim>6</dim>
-        </port>
-        <port id="2" precision="U8">        <!-- symbols -->
-            <dim>35</dim>
-        </port>
-        <port id="3" precision="I32">       <!-- indices -->
-            <dim>6</dim>
-            <dim>2</dim>
-        </port>
-        <port id="4" precision="I32">       <!-- dense_shape -->
-            <dim>2</dim>
-        </port>
-        <port id="5" precision="U8">        <!-- default_value -->
-            <dim>5</dim>
-        </port>
-    </input>
-    <output>
-        <port id="0" precision="I32">       <!-- output_begins -->
-            <dim>8</dim>
-        </port>
-        <port id="1" precision="I32">       <!-- output_ends -->
-            <dim>8</dim>
-        </port>
-        <port id="2" precision="I32">       <!-- output_indices -->
-            <dim>8</dim>
-            <dim>2</dim>
-        </port>
-        <port id="3" precision="U8">        <!-- output_symbols -->
-            <dim>40</dim>
-        </port>
-        <port id="4" precision="BOOL">      <!-- empty_row_indicator -->
-            <dim>5</dim>
-        </port>
-    </output>
-</layer>
-```
+.. code-block:: xml
+   :force:
+
+    <layer ... type="SparseFillEmptyRowsUnpackedString" ... >
+        <input>
+            <port id="0" precision="I32">       <!-- begins -->
+                <dim>6</dim>
+            </port>
+            <port id="1" precision="I32">       <!-- ends -->
+                <dim>6</dim>
+            </port>
+            <port id="2" precision="U8">        <!-- symbols -->
+                <dim>35</dim>
+            </port>
+            <port id="3" precision="I32">       <!-- indices -->
+                <dim>6</dim>
+                <dim>2</dim>
+            </port>
+            <port id="4" precision="I32">       <!-- dense_shape -->
+                <dim>2</dim>
+            </port>
+            <port id="5" precision="U8">        <!-- default_value -->
+                <dim>5</dim>
+            </port>
+        </input>
+        <output>
+            <port id="0" precision="I32">       <!-- output_begins -->
+                <dim>8</dim>
+            </port>
+            <port id="1" precision="I32">       <!-- output_ends -->
+                <dim>8</dim>
+            </port>
+            <port id="2" precision="I32">       <!-- output_indices -->
+                <dim>8</dim>
+                <dim>2</dim>
+            </port>
+            <port id="3" precision="U8">        <!-- output_symbols -->
+                <dim>40</dim>
+            </port>
+            <port id="4" precision="BOOL">      <!-- empty_row_indicator -->
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
