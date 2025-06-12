@@ -1989,14 +1989,186 @@ void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
-    if (any_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
+    if (any_of(inferPrec, element::f32, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (inferPrec == ov::element::f16) {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         return;  // precision of configured by ov::pass::ConvertPrecision
-    }
 #endif
+        std::function<void(const NodePtr&, std::unordered_map<NodePtr, bool>&)> searchForTailNodes;
+        searchForTailNodes = [&](const NodePtr& node, std::unordered_map<NodePtr, bool>& tailNodes) -> void {
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                const auto& parent = node->getParentEdgeAt(i)->getParent();
+                /* list of node types that must be forced to be executed in F16 precision
+                 * because of performance gains */
+                if (one_of(parent->getType(),
+                           Type::Convolution,     // conv nets
+                           Type::FullyConnected,  // conv / bert nets
+                           Type::RNNCell,         // recurrent nets
+                           Type::RNNSeq,          // recurrent nets
+                           Type::MatMul,          // bert nets
+                           Type::ROIPooling,      // object detection nets
+                           Type::Interpolate,     // super resolution nets
+                           Type::PagedAttention,  // page attention
+                           Type::QKVProjection,
+                           Type::LLMMLP,
+                           Type::Pooling)) {
+                    continue;  // stop at significant nodes
+                }
+                const auto res = tailNodes.insert({parent, false});
+                if (res.second) {  // node not visited yet
+                    searchForTailNodes(parent, tailNodes);
+                }
+            }
+        };
+        // collect the tail nodes
+        std::unordered_map<NodePtr, bool> tailNodesMap;
+        std::unordered_set<ov::element::Type_t> outputPrecisions;
+        // starting from output nodes
+        for (const auto& entry : outputNodesMap) {
+            const auto& output = entry.second;
+            if (output->getOriginalInputPrecisionAtPort(0) == inferPrec) {
+                continue;
+            }
+            outputPrecisions.insert(output->getOriginalInputPrecisionAtPort(0));
+            searchForTailNodes(output, tailNodesMap);
+        }
+        if (outputPrecisions.empty()) {
+            return;
+        }
+
+        const std::vector<Type> kStartTypes = {Type::Eltwise, Type::MVN};
+        const std::vector<Type> kPathTypes = {Type::Reshape, Type::Concatenation, Type::Split};
+        std::function<bool(const NodePtr&)> suitableForTailOptimization;
+        suitableForTailOptimization = [&](const NodePtr& node) -> bool {
+            const NodePtr& cur = node;
+            std::unordered_set<NodePtr> visited;
+            while (cur) {
+                if (visited.count(cur)) {
+                    break;
+                }
+                visited.insert(cur);
+
+                size_t parentNum = cur->getParentEdges().size();
+                if (parentNum == 0) {
+                    return false;
+                }
+                bool allParentSuitable = true;
+                for (size_t i = 0; i < parentNum; ++i) {
+                    auto parent = cur->getParentEdgeAt(i)->getParent();
+                    if (!parent) {
+                        return false;
+                    }
+                    if ((std::find(kStartTypes.begin(), kStartTypes.end(), parent->getType()) != kStartTypes.end()) &&
+                        tailNodesMap.count(parent) != 0u) {
+                        continue;
+                    }
+                    if ((std::find(kPathTypes.begin(), kPathTypes.end(), parent->getType()) != kPathTypes.end()) &&
+                        tailNodesMap.count(parent) != 0u) {
+                        if (!suitableForTailOptimization(parent)) {
+                            allParentSuitable = false;
+                            break;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+                return allParentSuitable;
+            }
+            return false;
+        };
+        std::function<void(const NodePtr&, const ov::element::Type_t&)> resetTailPrecision;
+        resetTailPrecision = [&](const NodePtr& node, const ov::element::Type_t& outputPrecision) -> void {
+            // traverse upwards until encountering the first kStartTypes
+            for (size_t i = 0; i < node->getParentEdges().size(); ++i) {
+                auto parent = node->getParentEdgeAt(i)->getParent();
+                if (!parent) {
+                    continue;
+                }
+                OPENVINO_ASSERT(tailNodesMap.count(parent),
+                                "resetTailPrecision: node ",
+                                parent->getName(),
+                                " with type ",
+                                NameFromType(parent->getType()),
+                                " is not in suitableForTailOptimization set");
+                if (tailNodesMap[parent]) {
+                    continue;
+                }
+                tailNodesMap[parent] = true;
+                if (std::find(kStartTypes.begin(), kStartTypes.end(), parent->getType()) != kStartTypes.end()) {
+                    // set the output precision of kStartTypes nodes to f32, input precision remains unchanged
+                    for (size_t j = 0; j < parent->getOriginalOutputsNumber(); ++j) {
+                        parent->setOriginalOutputPrecisionAtPort(j, outputPrecision);
+                    }
+                } else {
+                    // recursively process upwards
+                    // set all input and output precisions of the current nodes to f32
+                    for (size_t j = 0; j < parent->getOriginalInputsNumber(); ++j) {
+                        parent->setOriginalInputPrecisionAtPort(j, outputPrecision);
+                    }
+                    for (size_t j = 0; j < parent->getOriginalOutputsNumber(); ++j) {
+                        parent->setOriginalOutputPrecisionAtPort(j, outputPrecision);
+                    }
+                    resetTailPrecision(parent, outputPrecision);
+                }
+            }
+        };
+
+        std::function<void(const NodePtr&)> tailNodesPrecisionOptimizeMain;
+        tailNodesPrecisionOptimizeMain = [&](const NodePtr& node) -> void {
+            for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                const auto& parent = node->getParentEdgeAt(i)->getParent();
+                if (!tailNodesMap.count(parent)) {
+                    continue;
+                }
+                if (one_of(parent->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
+                    continue;
+                }
+                if (parent->keepOrigPrecision()) {
+                    continue;
+                }
+                if ((parent->getType() == Type::Convert) && (parent->getOriginalInputPrecisionAtPort(0) == inferPrec) &&
+                    outputPrecisions.count(parent->getOriginalOutputPrecisionAtPort(0)) != 0u) {
+                    bool suitableCase = false;
+                    auto outprecision = parent->getOriginalOutputPrecisionAtPort(0);
+                    for (size_t i = 0; i < parent->getParentEdges().size(); ++i) {
+                        auto p = parent->getParentEdgeAt(i)->getParent();
+                        if (!p) {
+                            continue;
+                        }
+                        if (std::find(kPathTypes.begin(), kPathTypes.end(), p->getType()) != kPathTypes.end()) {
+                            if (suitableForTailOptimization(p)) {
+                                suitableCase = true;
+                                continue;
+                            }
+                        } else if (std::find(kStartTypes.begin(), kStartTypes.end(), p->getType()) !=
+                                   kStartTypes.end()) {
+                            suitableCase = true;
+                            continue;
+                        }
+                    }
+                    if (suitableCase) {
+                        // suitable case for tail optimization
+                        resetTailPrecision(parent, outprecision);
+                        DropNode(parent);
+                    }
+                    continue;
+                }
+                tailNodesPrecisionOptimizeMain(parent);
+            }
+        };
+        // tail optimization main process
+        for (const auto& entry : outputNodesMap) {
+            const auto& output = entry.second;
+            if (output->getOriginalInputPrecisionAtPort(0) == inferPrec) {
+                continue;
+            }
+            tailNodesPrecisionOptimizeMain(output);
+        }
+        return;
+    }
+
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
@@ -2015,18 +2187,6 @@ void Graph::EnforceInferencePrecision() {
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
                            Type::LLMMLP)) {
-                    continue;  // stop at significant nodes
-                }
-            } else if (inferPrec == ov::element::f16) {
-                /* list of node types that must be forced to be executed in FP16 precision
-                 * because of performance gains */
-                if (any_of(parent->getType(),
-                           Type::Convolution,     // conv nets
-                           Type::Deconvolution,   // deconv
-                           Type::FullyConnected,  // conv / bert nets
-                           Type::MatMul,          // bert nets
-                           Type::Pooling,
-                           Type::MVN)) {
                     continue;  // stop at significant nodes
                 }
             }
