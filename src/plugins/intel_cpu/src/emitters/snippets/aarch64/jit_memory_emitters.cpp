@@ -25,7 +25,7 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator_t;
+using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -95,7 +95,7 @@ void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const 
 
 template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in[0]);
     auto dst = TReg(out[0]);
 

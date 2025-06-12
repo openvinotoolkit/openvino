@@ -121,7 +121,7 @@ namespace ov {
             }                                                                                        \
     }
 
-class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator_t {
+class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
@@ -134,7 +134,7 @@ public:
 
 namespace intel_cpu::aarch64 {
 
-CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator_t> h)
+CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator> h)
     : h_compiled(std::move(h)) {
     OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
 }
@@ -257,7 +257,7 @@ snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
     OPENVINO_ASSERT(h->create_kernel() == dnnl::impl::status::success, "Failed to create jit_kernel in get_snippet()");
 
     const auto& result =
-        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator_t>(h.release()));
+        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::aarch64::jit_generator>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
     h = std::make_unique<jit_snippet>();
     return result;
@@ -266,7 +266,7 @@ snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
 size_t CPUTargetMachine::get_lanes() const {
     switch (isa) {
     case dnnl::impl::cpu::aarch64::asimd:
-        return dnnl::impl::cpu::aarch64::cpu_isa_traits_t<dnnl::impl::cpu::aarch64::asimd>::vlen / sizeof(float);
+        return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::asimd>::vlen / sizeof(float);
     default:
         OPENVINO_THROW("unknown isa ", isa);
     }
@@ -299,7 +299,7 @@ std::vector<snippets::Reg> CPUTargetMachine::get_vec_reg_pool() const {
     const auto num_vec_regs = [this]() {
         switch (isa) {
         case dnnl::impl::cpu::aarch64::asimd:
-            return dnnl::impl::cpu::aarch64::cpu_isa_traits_t<dnnl::impl::cpu::aarch64::asimd>::n_vregs;
+            return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::asimd>::n_vregs;
         default:
             OPENVINO_THROW("unknown isa ", isa);
         }

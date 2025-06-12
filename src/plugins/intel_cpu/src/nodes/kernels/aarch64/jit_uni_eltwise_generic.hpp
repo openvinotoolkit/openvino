@@ -40,7 +40,7 @@ using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::aarch64;
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator_t {
+struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
@@ -50,7 +50,7 @@ public:
                             dnnl::post_ops post_ops);
 
     void create_ker() override {
-        jit_generator_t::create_kernel();
+        jit_generator::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -64,8 +64,8 @@ private:
     XReg reg_const_params = abi_param1;
     XReg reg_indexes = abi_param2;
 
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
-    using TRegS = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TRegS;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    using TRegS = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TRegS;
 
     // Scalar architecture specific registers mapping
     // aarch64| function     | x64 | function
