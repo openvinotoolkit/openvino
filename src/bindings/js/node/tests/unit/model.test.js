@@ -5,10 +5,7 @@
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
-const {
-  testModels,
-  isModelAvailable,
-} = require('../utils.js');
+const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.Model tests', () => {
   const { testModelFP32, addModel, addModelWithVar } = testModels;
