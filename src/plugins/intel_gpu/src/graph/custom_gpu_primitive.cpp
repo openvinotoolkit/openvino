@@ -47,9 +47,8 @@ kernel_impl_params custom_gpu_primitive_inst::get_fake_aligned_params(kernel_imp
                                                  gws,
                                                  lws);
 
-    //  GPU_DEBUG_TRACE_DETAIL
-    std::cout << "Apply fake alignment: gws(" << ov::Shape(updated_param.custom_op_dynamic_gws).to_string() << " -> " << ov::Shape(gws).to_string() << "), lws("
-              << ov::Shape(updated_param.custom_op_dynamic_lws).to_string() << " -> " << ov::Shape(lws).to_string() << ")\n";
+    GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: gws(" << ov::Shape(op->gws).to_string() << " -> " << ov::Shape(gws).to_string() << "), lws("
+                           << ov::Shape(op->lws).to_string() << " -> " << ov::Shape(lws).to_string() << ")\n";
 
     updated_param.custom_op_dynamic_gws = gws;
     updated_param.custom_op_dynamic_lws = lws;

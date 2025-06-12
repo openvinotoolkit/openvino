@@ -147,9 +147,9 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief The output layout declared by the primitive
     const layout output_layout;
     /// @brief The global working sizes
-    std::vector<size_t> gws;
+    const std::vector<size_t> gws;
     /// @brief The local working sizes
-    std::vector<size_t> lws;
+    const std::vector<size_t> lws;
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
     /// @brief Original IR op
