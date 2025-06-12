@@ -9,7 +9,7 @@ const {
   checkIfPathExists,
 } = require('../scripts/lib/utils');
 
-const modelDir = 'tests/unit/test_models/';
+const modelDir = path.join(__dirname, 'unit', 'test_models');
 
 function getModelPath(fileName) {
   return path.join(modelDir, fileName);
@@ -36,12 +36,16 @@ const testModels = {
     binURL:
       'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.bin',
   },
+  addModel: {
+    xml: getModelPath('add_model.xml'),
+  },
+  addModelWithVar: {
+    xml: getModelPath('add_model_with_var.xml'),
+  },
 };
 
 module.exports = {
   compareModels,
-  getAddModel,
-  getAddModelWithVar,
   sleep,
   downloadTestModel,
   isModelAvailable,
@@ -125,139 +129,4 @@ async function isModelAvailable(model) {
     '\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n',
   );
   process.exit(1);
-}
-
-function getAddModel() {
-  return Buffer.from(`<?xml version="1.0"?>
-<net name="TestModel" version="11">
-	<layers>
-		<layer id="1" name="data1" type="Parameter" version="opset1">
-			<data shape="2,1" element_type="f32" />
-			<output>
-				<port id="0" precision="FP32" names="data1">
-					<dim>2</dim>
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="0" name="data2" type="Parameter" version="opset1">
-			<data shape="2,1" element_type="f32" />
-			<output>
-				<port id="0" precision="FP32" names="data2">
-					<dim>2</dim>
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="Add_361" type="Add" version="opset1">
-			<data auto_broadcast="numpy" />
-			<input>
-				<port id="0" precision="FP32">
-					<dim>2</dim>
-					<dim>1</dim>
-				</port>
-				<port id="1" precision="FP32">
-					<dim>2</dim>
-					<dim>1</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>2</dim>
-					<dim>1</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="Result_362" type="Result" version="opset1">
-			<input>
-				<port id="0" precision="FP32">
-					<dim>2</dim>
-					<dim>1</dim>
-				</port>
-			</input>
-		</layer>
-	</layers>
-	<edges>
-		<edge from-layer="0" from-port="0" to-layer="2" to-port="1" />
-		<edge from-layer="1" from-port="0" to-layer="2" to-port="0" />
-		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
-	</edges>
-	<rt_info />
-</net>`, 'utf8');
-}
-
-function getAddModelWithVar() {
-  return Buffer.from(`<?xml version="1.0"?>
-<net name="Model37" version="11">
-	<layers>
-		<layer id="1" name="data1" type="Parameter" version="opset1">
-			<data shape="1,5" element_type="f32" />
-			<output>
-				<port id="0" precision="FP32" names="data1">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="0" name="data2" type="Parameter" version="opset1">
-			<data shape="1,5" element_type="f32" />
-			<output>
-				<port id="0" precision="FP32" names="data2">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="ReadValue_5097" type="ReadValue" version="opset6">
-			<data variable_id="ID1" variable_type="f32" variable_shape="1,5" />
-			<input>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-			</input>
-			<output>
-				<port id="1" precision="FP32">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="Add_5098" type="Add" version="opset1">
-			<data auto_broadcast="numpy" />
-			<input>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-				<port id="1" precision="FP32">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32" names="Result_5099">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="4" name="Result_5099" type="Result" version="opset1" 
-		output_names="Result_5099">
-			<input>
-				<port id="0" precision="FP32">
-					<dim>1</dim>
-					<dim>5</dim>
-				</port>
-			</input>
-		</layer>
-	</layers>
-	<edges>
-		<edge from-layer="0" from-port="0" to-layer="3" to-port="1" />
-		<edge from-layer="1" from-port="0" to-layer="2" to-port="0" />
-		<edge from-layer="2" from-port="1" to-layer="3" to-port="0" />
-		<edge from-layer="3" from-port="2" to-layer="4" to-port="0" />
-	</edges>
-	<rt_info />
-</net>`, 'utf8');
 }
