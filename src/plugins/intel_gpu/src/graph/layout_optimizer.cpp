@@ -380,7 +380,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     if (prev.is_type<reorder>())
         return true;
 
-    if (prev.is_type<group_normalization>() && is_dynamic &&
+    if (prev.is_type<group_normalization>() && is_dynamic && !prev.has_fused_primitives() &&
         fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16 &&
         !prev.get_output_layout().data_padding && !next->get_output_layout().data_padding)
         return true;
@@ -408,7 +408,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
 
     if (prev.is_type<permute>()) {
         if (is_dynamic) {
-            if (fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
+            if (!prev.has_fused_primitives() &&
+                fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
                 return true;
 
             return false;
