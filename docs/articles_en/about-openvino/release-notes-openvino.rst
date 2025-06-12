@@ -40,7 +40,7 @@ What's new
 * Broader LLM model support and more model compression techniques
 
   * Further optimization of LoRA adapters in OpenVINO GenAI for improved LLM, VLM, and text-to-image 
-    model performance on. Developers can use LoRA adapters to built-in GPUs quickly customize 
+    model performance on built-in GPUs. Developers can use LoRA adapters to quickly customize 
     models for specialized tasks. 
   * KV cache compression for CPUs is enabled by default for INT8, providing a reduced memory 
     footprint while maintaining accuracy compared to FP16. Additionally, it delivers substantial 
