@@ -48,8 +48,8 @@ MatcherState::~MatcherState() {
         }
 
         if (!m_matcher->m_pattern_value_maps.empty()) {
-            m_matcher->m_pattern_value_maps.erase(m_pattern_value_maps.begin() + m_capture_size,
-                                                  m_pattern_value_maps.end());
+            m_matcher->m_pattern_value_maps.erase(m_matcher->m_pattern_value_maps.begin() + m_capture_size,
+                                                  m_matcher->m_pattern_value_maps.end());
         }
 
         m_matcher->m_pattern_map = m_pattern_value_map;
@@ -83,9 +83,9 @@ Output<Node> Matcher::get_match_value() {
 void Matcher::capture(const std::set<Node*>& static_nodes) {
     m_pattern_value_maps.push_back(m_pattern_map);
     m_pattern_map.clear();
-    for (auto key_value : m_pattern_value_maps.back()) {
-        if (static_nodes.count(key_value.first.get()) > 0) {
-            m_pattern_map.insert(key_value);
+    for (const auto& [key, value] : m_pattern_value_maps.back()) {
+        if (static_nodes.count(key.get()) > 0) {
+            m_pattern_map.insert(std::make_pair(key, value));
         }
     }
 }

@@ -111,6 +111,13 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.run_on_model(model);
     }
 
+    if (cfg_get<::intel_npu::NPUW_FOLD>(props)) {
+        // Having folding enabled assumes Scalar bank matching,
+        // make this procedure a little bit more reliable by untangling
+        // the excess tiny Const connections
+        ov::npuw::patterns::opt::untangleConst(model);
+    }
+
     if (cfg_get<::intel_npu::NPUW_SLICE_OUT>(props)) {
         // Add Slice before last MatMul for the prefill model
         ov::pass::GraphRewrite rewr;
@@ -985,7 +992,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
 
         // Initialize weights stream if weightless flow
         std::string weights_path;
-        std::shared_ptr<const ov::Model> model_ptr;
+        std::shared_ptr<ov::Model> model_ptr;
         // Cache model's constants
         WeightsContext::ConstsCache consts_cache;
         if (is_weightless) {
@@ -994,10 +1001,17 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                 NPUW_ASSERT(!weights_path.empty() &&
                             "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
             } else if (properties.find(ov::hint::model.name()) != properties.end()) {
-                model_ptr = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+                model_ptr = std::const_pointer_cast<ov::Model>(
+                                properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
+                                ->clone();
                 NPUW_ASSERT(
                     model_ptr &&
                     "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
+                // NOTE: very important to do preprocessing here since MODEL_PTR contains the original model
+                // without any plugin preprocessing. Due to some passes (e.g. bf16_to_f16) we might get
+                // modified weights and thus mismatch during weights read.
+                // FIXME: consider adding a config it will influence weight modification in the future
+                pre_load_transform(model_ptr, {});
                 // Fill the cache
                 for (const auto& node : model_ptr->get_ordered_ops()) {
                     if (ov::op::util::is_constant(node)) {

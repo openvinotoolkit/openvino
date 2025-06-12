@@ -38,7 +38,7 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
  * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
- * This path allows making use of the already written funtions/attributes for handling the I/O infromation.
+ * This path allows making use of the already written functions/attributes for handling the I/O information.
  *
  * Note that a stored compiled model does not hold the original IR model within it. The only related information
  * which may be extracted is the original model's "parameter"/"result" nodes. Thus, we need to build a dummy model
@@ -195,7 +195,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
     REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
-    REGISTER_OPTION(DPU_GROUPS);
     REGISTER_OPTION(COMPILATION_MODE);
     REGISTER_OPTION(COMPILER_TYPE);
     REGISTER_OPTION(PLATFORM);
@@ -622,7 +621,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         }
         if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
-            stream.read(tensor.data<char>(), tensor.get_byte_size());
+            if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+                OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+            }
+            stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
         } else {
             tensor = ov::Tensor(tensor,
                                 ov::Coordinate{0},
