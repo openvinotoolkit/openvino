@@ -14,9 +14,9 @@ and end indices of the strings and another containing the concatenated string da
 
 **Detailed description**
 
-*StringTensorUnpack* transforms a string tensor into the `UnpackedString` Tensor format. For detailed information about the `UnpackedString` Tensor format, see the :doc:`UnpackedStringTensor Formats <../../unpacked-string-tensors>` specification.
+*StringTensorUnpack* transforms a string tensor into the ``UnpackedString`` Tensor format. For detailed information about the ``UnpackedString`` Tensor format, see the :doc:`UnpackedStringTensor Formats <../../unpacked-string-tensors>` specification.
 
-The operation produces three outputs: `begins` and `ends` tensors defining the indices for each string, and a `symbols` tensor containing the concatenated string data.
+The operation produces three outputs: ``begins`` and ``ends`` tensors defining the indices for each string, and a ``symbols`` tensor containing the concatenated string data.
 
 **Inputs**
 

@@ -14,9 +14,9 @@ a string tensor using *begins* and *ends* indices.
 
 **Detailed description**
 
-*StringTensorPack* takes data in the `UnpackedStringTensor` format and transforms it into a regular string tensor. For detailed information about the `UnpackedStringTensor` format, see the :doc:`Unpacked String Tensor Formats <../../unpacked-string-tensors>` specification.
+*StringTensorPack* takes data in the ``UnpackedStringTensor`` format and transforms it into a regular string tensor. For detailed information about the ``UnpackedStringTensor`` format, see the :doc:`Unpacked String Tensor Formats <../../unpacked-string-tensors>` specification.
 
-The input consists of `begins` and `ends` indices and a `symbols` tensor containing the concatenated string data. The operation uses these to construct a string tensor where each element corresponds to a substring defined by the respective begin and end indices.
+The input consists of ``begins`` and ``ends`` indices and a ``symbols`` tensor containing the concatenated string data. The operation uses these to construct a string tensor where each element corresponds to a substring defined by the respective begin and end indices.
 
 **Inputs**
 
