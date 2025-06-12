@@ -8,6 +8,17 @@
 
 namespace ov {
 namespace reference {
+namespace helpers {
+template <typename T>
+T handle_negative_indices(const T* indices, size_t idx, T axis_dim_size) {
+    const T index = indices[idx];
+    OPENVINO_ASSERT(index < axis_dim_size && index >= -axis_dim_size,
+                    "indices values of GatherElement exceed data size");
+    const T fixedIdx = index < 0 ? axis_dim_size + index : index;
+    return fixedIdx;
+}
+}  // namespace helpers
+
 template <typename T, typename U>
 void gather_elements(const T* data,
                      const U* indices,
@@ -23,13 +34,13 @@ void gather_elements(const T* data,
         throw std::domain_error{"axis for GatherElements exceeds allowed range [0, data_rank)"};
     }
 
+    const U axis_dim_size = static_cast<U>(data_shape[axis]);
+
     // in 1D case results can be achieved without additional calculations
     if (data_shape.size() == 1) {
         for (size_t i = 0; i < indices_shape[0]; i++) {
-            if (static_cast<size_t>(indices[i]) >= data_shape[0]) {
-                throw std::domain_error{"indices values of GatherElement exceed data size"};
-            }
-            out[i] = data[indices[i]];
+            const U idx = helpers::handle_negative_indices<U>(indices, i, axis_dim_size);
+            out[i] = data[idx];
         }
         return;
     }
@@ -40,14 +51,10 @@ void gather_elements(const T* data,
     size_t num_columns = indices_shape[1];
     size_t data_num_columns = data_shape[1];
     if (data_shape.size() == 2) {
-        size_t idx;
         if (axis == 0) {
             for (size_t i = 0; i < num_rows; i++)
                 for (size_t j = 0; j < num_columns; j++) {
-                    idx = indices[num_columns * i + j];
-                    if (idx < 0 || idx >= data_shape[0]) {
-                        throw std::domain_error{"indices values of GatherElement exceed data size"};
-                    }
+                    const U idx = helpers::handle_negative_indices<U>(indices, num_columns * i + j, axis_dim_size);
                     out[num_columns * i + j] = data[data_num_columns * idx + j];
                 }
             return;
@@ -55,11 +62,7 @@ void gather_elements(const T* data,
         {
             for (size_t i = 0; i < num_rows; i++)
                 for (size_t j = 0; j < num_columns; j++) {
-                    idx = indices[num_columns * i + j];
-                    if (idx < 0 || idx >= data_shape[1]) {
-                        throw std::domain_error{"indices values of GatherElement exceed data size"};
-                    }
-
+                    const U idx = helpers::handle_negative_indices<U>(indices, num_columns * i + j, axis_dim_size);
                     out[num_columns * i + j] = data[data_num_columns * i + idx];
                 }
             return;
@@ -99,10 +102,8 @@ void gather_elements(const T* data,
     for (size_t outer_sum = 0, i = 0; outer_sum < max_outer_sum; outer_sum += outer_sum_inc)
         for (size_t k = 0; k < indices_shape[axis]; k++)
             for (size_t inner_sum = 0; inner_sum < max_inner_sum; inner_sum++) {
-                if (indices[i] < 0 || static_cast<size_t>(indices[i]) >= data_shape[axis]) {
-                    throw std::domain_error{"indices values of GatherElement exceed data size"};
-                }
-                out[i] = data[outer_sum + max_inner_sum * indices[i] + inner_sum];
+                const U idx = helpers::handle_negative_indices<U>(indices, i, axis_dim_size);
+                out[i] = data[outer_sum + max_inner_sum * idx + inner_sum];
                 i++;
             }
 }
