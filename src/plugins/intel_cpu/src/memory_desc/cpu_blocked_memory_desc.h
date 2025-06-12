@@ -4,8 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
 #include "blocked_memory_desc.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace intel_cpu {

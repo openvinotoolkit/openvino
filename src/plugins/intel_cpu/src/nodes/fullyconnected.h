@@ -7,18 +7,24 @@
 #include <node.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
-#include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
+#include "config.h"
 #include "cpu_memory.h"
+#include "graph_context.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "post_ops.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "sub_memory_manager.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -72,7 +78,7 @@ public:
                                                size_t IC,
                                                size_t OC,
                                                size_t G,
-                                               ov::element::Type inferencePrecision) noexcept;
+                                               const Config& config) noexcept;
     static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
     static ov::element::TypeVector getSupportedCompressedActivationsTypes();
 

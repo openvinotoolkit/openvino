@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "transformations_visibility.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::intel_cpu {
 

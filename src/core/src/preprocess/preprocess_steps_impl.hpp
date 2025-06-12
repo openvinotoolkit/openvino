@@ -63,7 +63,7 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
 /// This is internal structure which is not shared to custom operations yet.
 class PrePostProcessingContextBase {
 public:
-    explicit PrePostProcessingContextBase(Layout layout) : m_layout(std::move(layout)) {}
+    explicit PrePostProcessingContextBase(const Layout& layout) : m_layout(layout) {}
 
     const Layout& layout() const {
         return m_layout;
