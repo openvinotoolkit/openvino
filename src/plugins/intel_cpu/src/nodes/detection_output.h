@@ -64,7 +64,7 @@ private:
     int coordOffset = 0;
     int cacheSizeL3 = 0;
 
-    enum CodeType {
+    enum CodeType : uint8_t {
         CORNER = 1,
         CENTER_SIZE = 2,
     };

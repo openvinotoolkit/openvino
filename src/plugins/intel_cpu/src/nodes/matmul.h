@@ -70,7 +70,7 @@ private:
                                                                const Shape& in1,
                                                                const Shape& out) const;
 
-    bool withBiases;
+    bool withBiases{false};
 
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights);
 

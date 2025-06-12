@@ -29,7 +29,7 @@
 
 namespace ov::intel_cpu::node {
 
-enum ReduceLayoutType { reduce_ncsp, reduce_nspc, reduce_blocked };
+enum ReduceLayoutType : uint8_t { reduce_ncsp, reduce_nspc, reduce_blocked };
 
 struct jit_reduce_config_params {
     ReduceLayoutType layout;

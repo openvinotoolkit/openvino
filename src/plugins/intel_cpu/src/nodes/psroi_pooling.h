@@ -37,7 +37,7 @@ private:
     size_t pooledWidth = 0;
     size_t spatialBinsX = 0;
     size_t spatialBinsY = 0;
-    std::string mode = "";
+    std::string mode;
 
     int channels = 0;
     int height = 0;

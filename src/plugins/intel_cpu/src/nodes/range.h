@@ -32,7 +32,7 @@ public:
     void executeDynamicImpl(const dnnl::stream& strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum StatusCode : int {
+    enum StatusCode : int8_t {
         OK = 0,
         PARAMETER_MISMATCH = -1,
     };

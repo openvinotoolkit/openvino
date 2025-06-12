@@ -42,7 +42,7 @@ protected:
 private:
     using VectorIdxs = std::vector<int32_t>;
 
-    enum PadMode { CONSTANT = 0, EDGE = 1, REFLECT = 2, SYMMETRIC = 3 };
+    enum PadMode : uint8_t { CONSTANT = 0, EDGE = 1, REFLECT = 2, SYMMETRIC = 3 };
 
     struct PadAttrs {
         PadMode padMode = CONSTANT;

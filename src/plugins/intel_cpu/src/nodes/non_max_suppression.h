@@ -21,7 +21,7 @@
 
 namespace ov::intel_cpu::node {
 
-enum NMSCandidateStatus { SUPPRESSED = 0, SELECTED = 1, UPDATED = 2 };
+enum NMSCandidateStatus : uint8_t { SUPPRESSED = 0, SELECTED = 1, UPDATED = 2 };
 
 class NonMaxSuppression : public Node {
 public:
@@ -71,7 +71,7 @@ public:
         float x, y;
         Point2D(const float px = 0.f, const float py = 0.f) : x(px), y(py) {}
         Point2D operator+(const Point2D& p) const {
-            return Point2D(x + p.x, y + p.y);
+            return {x + p.x, y + p.y};
         }
         Point2D& operator+=(const Point2D& p) {
             x += p.x;
@@ -79,16 +79,16 @@ public:
             return *this;
         }
         Point2D operator-(const Point2D& p) const {
-            return Point2D(x - p.x, y - p.y);
+            return {x - p.x, y - p.y};
         }
         Point2D operator*(const float coeff) const {
-            return Point2D(x * coeff, y * coeff);
+            return {x * coeff, y * coeff};
         }
     };
 
 private:
     // input
-    enum {
+    enum : uint8_t {
         NMS_BOXES,
         NMS_SCORES,
         NMS_MAX_OUTPUT_BOXES_PER_CLASS,
@@ -98,7 +98,7 @@ private:
     };
 
     // output
-    enum { NMS_SELECTED_INDICES, NMS_SELECTED_SCORES, NMS_VALID_OUTPUTS };
+    enum : uint8_t { NMS_SELECTED_INDICES, NMS_SELECTED_SCORES, NMS_VALID_OUTPUTS };
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ);
 

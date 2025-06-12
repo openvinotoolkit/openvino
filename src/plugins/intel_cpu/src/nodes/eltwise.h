@@ -28,7 +28,7 @@
 
 namespace ov::intel_cpu::node {
 
-enum class EltwiseImplType { reference = 0, optimized = 1, optimizedShapeAgnostic = 2 };
+enum class EltwiseImplType : uint8_t { reference = 0, optimized = 1, optimizedShapeAgnostic = 2 };
 class Eltwise : public Node {
 public:
     class IEltwiseExecutor {
@@ -99,7 +99,7 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    enum BroadcastingPolicy {
+    enum BroadcastingPolicy : uint8_t {
         PerChannel,
         PerTensor,
         Undefined,
@@ -113,7 +113,7 @@ public:
 
 private:
     executorPtr execPtr = nullptr;
-    BroadcastingPolicy broadcastingPolicy;
+    BroadcastingPolicy broadcastingPolicy{Undefined};
 
     dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 

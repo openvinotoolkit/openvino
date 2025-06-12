@@ -64,7 +64,7 @@ public:
     void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    enum class ExtImgPatcherPadType { VALID, SAME_LOWER, SAME_UPPER };
+    enum class ExtImgPatcherPadType : uint8_t { VALID, SAME_LOWER, SAME_UPPER };
 
 private:
     std::vector<size_t> _ksizes;

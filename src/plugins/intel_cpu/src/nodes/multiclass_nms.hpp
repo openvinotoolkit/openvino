@@ -18,7 +18,7 @@
 
 namespace ov::intel_cpu::node {
 
-enum class MulticlassNmsSortResultType {
+enum class MulticlassNmsSortResultType : uint8_t {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
     SCORE,    // sort selected boxes by score (descending) in each batch element
     NONE      // do not guarantee the order in each batch element

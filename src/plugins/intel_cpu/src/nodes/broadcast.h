@@ -38,7 +38,7 @@ protected:
 private:
     void plainExecute(const dnnl::stream& strm);
 
-    enum AutoBroadcastType { NUMPY, EXPLICIT };
+    enum AutoBroadcastType : uint8_t { NUMPY, EXPLICIT };
     AutoBroadcastType broadcastType = NUMPY;
 
     static constexpr size_t INPUT_DATA_IDX = 0;

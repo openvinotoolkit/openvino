@@ -107,7 +107,7 @@ public:
     bool neverExecute() const override;
     bool isExecutable() const override;
 
-    enum class NormEpsMode { ADD, MAX };
+    enum class NormEpsMode : uint8_t { ADD, MAX };
 
     struct NormalizeL2Attrs {
         LayoutType layout = LayoutType::ncsp;

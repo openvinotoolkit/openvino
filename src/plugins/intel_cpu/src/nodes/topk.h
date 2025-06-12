@@ -21,9 +21,9 @@
 
 namespace ov::intel_cpu::node {
 
-enum TopKLayoutType { topk_ncsp, topk_nspc, topk_blocked };
+enum TopKLayoutType : uint8_t { topk_ncsp, topk_nspc, topk_blocked };
 
-enum TopKAlgorithm { topk_bubble_sort, topk_bitonic_sort, topk_heap_sort };
+enum TopKAlgorithm : uint8_t { topk_bubble_sort, topk_bitonic_sort, topk_heap_sort };
 
 struct jit_topk_config_params {
     bool mode_max;          // which of the two elements to select. ture: max; false: min

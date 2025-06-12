@@ -73,7 +73,7 @@ private:
         std::deque<MemoryPtr> dstMemPtrs;
         std::deque<MemoryDescPtr> originalDstMemDescs;
 
-        ptrdiff_t size;
+        ptrdiff_t size{0};
     };
 
     Graph m_thenGraph;

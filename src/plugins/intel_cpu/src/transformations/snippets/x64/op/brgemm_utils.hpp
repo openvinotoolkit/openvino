@@ -33,30 +33,30 @@ public:
                  bool are_wei_constant,
                  bool transposed_b);
 
-    dnnl::impl::cpu::x64::cpu_isa_t isa() const {
+    [[nodiscard]] dnnl::impl::cpu::x64::cpu_isa_t isa() const {
         return m_isa;
     }
-    bool is_amx() const;
-    bool with_wei_repacking() const {
+    [[nodiscard]] bool is_amx() const;
+    [[nodiscard]] bool with_wei_repacking() const {
         return m_with_wei_repacking;
     }
-    bool with_compensations() const {
+    [[nodiscard]] bool with_compensations() const {
         return m_with_compensations;
     }
-    bool with_scratchpad() const {
+    [[nodiscard]] bool with_scratchpad() const {
         return is_amx() || with_compensations();
     }
-    bool are_wei_blocked() const {
+    [[nodiscard]] bool are_wei_blocked() const {
         return m_are_wei_blocked;
     }
-    bool are_wei_constant() const {
+    [[nodiscard]] bool are_wei_constant() const {
         return m_are_wei_constant;
     }
 
-    size_t wei_n_blk() const {
+    [[nodiscard]] size_t wei_n_blk() const {
         return m_wei_n_blk;
     }
-    size_t wei_k_blk() const {
+    [[nodiscard]] size_t wei_k_blk() const {
         return m_wei_k_blk;
     }
 

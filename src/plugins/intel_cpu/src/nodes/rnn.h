@@ -50,7 +50,7 @@ public:
 
     void cleanup() override;
 
-    enum InOutKind { Layer = 0, HiddenState = 1, CellState = 2, Attention = 2 };
+    enum InOutKind : uint8_t { Layer = 0, HiddenState = 1, CellState = 2, Attention = 2 };
 
 protected:
     void prepareParams() override;
@@ -115,7 +115,7 @@ private:
 
         Interval(Dim min, Dim max) : minVal(min), maxVal(max) {}
 
-        bool isStatic() const {
+        [[nodiscard]] bool isStatic() const {
             return minVal == maxVal;
         }
 

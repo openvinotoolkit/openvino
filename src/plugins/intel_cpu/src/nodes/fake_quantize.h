@@ -25,7 +25,15 @@
 
 namespace ov::intel_cpu::node {
 
-enum class FQ_add_input_type { CROP_LOW, CROP_HIGH, INPUT_SCALE, INPUT_SHIFT, OUTPUT_SCALE, OUTPUT_SHIFT, INPUTS_SIZE };
+enum class FQ_add_input_type : uint8_t {
+    CROP_LOW,
+    CROP_HIGH,
+    INPUT_SCALE,
+    INPUT_SHIFT,
+    OUTPUT_SCALE,
+    OUTPUT_SHIFT,
+    INPUTS_SIZE
+};
 
 struct jit_quantize_params {
     bool is_planar;
@@ -98,10 +106,10 @@ public:
     void createPrimitive() override;
 
     const float* getBinarizationTresholdsPtr() const {
-        return &binarizationThresholds[0];
+        return binarizationThresholds.data();
     }
     const float* getBinarizationOutputMaskPtr() const {
-        return reinterpret_cast<const float*>(&binarizationOutputMask[0]);
+        return reinterpret_cast<const float*>(binarizationOutputMask.data());
     }
     size_t getBinarizationTresholdsSize() const {
         return binarizationThresholds.size();
@@ -203,7 +211,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum BroadcastingPolicy {
+    enum BroadcastingPolicy : uint8_t {
         PerChannel,  // all FQ operations are per channel
         PerTensor,   // all FQ operations are per tensor
         Mixed,       // some per channel, some per tensor

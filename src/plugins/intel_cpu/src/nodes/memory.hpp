@@ -141,7 +141,7 @@ protected:
 
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
-    enum class mode { read_value_assign, single_read_value };
+    enum class mode : uint8_t { read_value_assign, single_read_value };
 
     MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx);
 

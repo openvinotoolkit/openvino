@@ -18,9 +18,9 @@
 
 namespace ov::intel_cpu::node {
 
-enum ROIAlignLayoutType { ncsp, blk, nspc };
+enum ROIAlignLayoutType : uint8_t { ncsp, blk, nspc };
 
-enum ROIAlignedMode { ra_asymmetric, ra_half_pixel_for_nn, ra_half_pixel };
+enum ROIAlignedMode : uint8_t { ra_asymmetric, ra_half_pixel_for_nn, ra_half_pixel };
 
 struct jit_roi_align_params {
     Algorithm alg;

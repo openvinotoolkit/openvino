@@ -42,7 +42,7 @@ struct jit_uni_logistic_kernel {
 
     virtual void create_ker() = 0;
 
-    jit_uni_logistic_kernel() {}
+    jit_uni_logistic_kernel() = default;
     virtual ~jit_uni_logistic_kernel() = default;
 };
 

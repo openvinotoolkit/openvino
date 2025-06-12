@@ -32,7 +32,7 @@ public:
 
     void prepareParams() override;
 
-    enum Mode { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
+    enum Mode : uint8_t { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
 
     struct SpaceToDepthAttrs {
         LayoutType layoutType;

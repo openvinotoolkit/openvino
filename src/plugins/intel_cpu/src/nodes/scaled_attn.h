@@ -51,7 +51,7 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum KernelTypes { KT_REF, KT_ONEDNN, KT_MLAS, KT_ACL };
+    enum KernelTypes : uint8_t { KT_REF, KT_ONEDNN, KT_MLAS, KT_ACL };
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 

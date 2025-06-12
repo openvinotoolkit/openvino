@@ -18,8 +18,8 @@
 
 namespace ov::intel_cpu {
 
-enum class GridSampleInterpolationMode { BILINEAR, BICUBIC, NEAREST };
-enum class GridSamplePaddingMode { ZEROS, BORDER, REFLECTION };
+enum class GridSampleInterpolationMode : uint8_t { BILINEAR, BICUBIC, NEAREST };
+enum class GridSamplePaddingMode : uint8_t { ZEROS, BORDER, REFLECTION };
 
 namespace kernel {
 
@@ -68,12 +68,12 @@ struct GridSamplesKernelExecArgs {
     uint64_t workAmount = 0lu;
 };
 
-enum coord { w, h };
+enum coord : uint8_t { w, h };
 
 class GridSampleKernelBase : public JitKernelBase {
 public:
     void (*ker_)(const GridSamplesKernelExecArgs*){nullptr};
-    void operator()(const GridSamplesKernelExecArgs* args) {
+    void operator()(const GridSamplesKernelExecArgs* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -91,13 +91,13 @@ public:
           gridElPerVec(vlen / gridTypeSize) {}
 
     virtual void create_ker() = 0;
-    uint64_t getVecLen() {
+    uint64_t getVecLen() const {
         return vlen;
     }
-    uint64_t getDataElPerVec() {
+    uint64_t getDataElPerVec() const {
         return dataElPerVec;
     }
-    uint64_t getGridElPerVec() {
+    uint64_t getGridElPerVec() const {
         return gridElPerVec;
     }
 
@@ -189,9 +189,9 @@ private:
     void zerosPadding(const Vmask& kDst, const Vmm& vHCoord, const Vmm& vWCoord);
     void zerosPaddingW(const Vmask& kDst, const Vmm& vCoord);
     void zerosPaddingH(const Vmask& kDst, const Vmm& vCoord, const Vmask& kMaskW);
-    void borderPadding(const Vmm& vCoordDst, const Vmm& vCoordOrigin, const coord dim);
-    void reflectionPadding(const Vmm& vCoordDst, const Vmm& vCoordOrigin, const coord dim);
-    void bicubicCoefficients(const Vmm& vCoef, const Vmm& vDX, const uint8_t idx);
+    void borderPadding(const Vmm& vCoordDst, const Vmm& vCoordOrigin, coord dim);
+    void reflectionPadding(const Vmm& vCoordDst, const Vmm& vCoordOrigin, coord dim);
+    void bicubicCoefficients(const Vmm& vCoef, const Vmm& vDX, uint8_t idx);
     void tail();
 
     // Aux

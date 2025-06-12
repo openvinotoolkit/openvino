@@ -10,7 +10,7 @@
 
 namespace ov::intel_cpu {
 
-enum ACLArgs { ACL_SRC_0, ACL_SRC_1, ACL_SRC_2, ACL_BIAS, ACL_WEI, ACL_DST, ACL_DST_DEQ_SCALE, COUNT_OF_ARGS };
+enum ACLArgs : uint8_t { ACL_SRC_0, ACL_SRC_1, ACL_SRC_2, ACL_BIAS, ACL_WEI, ACL_DST, ACL_DST_DEQ_SCALE, COUNT_OF_ARGS };
 
 using ACLFunction = std::unique_ptr<arm_compute::IFunction>;
 using ACLShapes = std::array<arm_compute::TensorShape, ACLArgs::COUNT_OF_ARGS>;

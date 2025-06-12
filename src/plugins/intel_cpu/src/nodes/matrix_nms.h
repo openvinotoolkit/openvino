@@ -17,13 +17,13 @@
 
 namespace ov::intel_cpu::node {
 
-enum class MatrixNmsSortResultType {
+enum class MatrixNmsSortResultType : uint8_t {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
     SCORE,    // sort selected boxes by score (descending) in each batch element
     NONE      // do not guarantee the order in each batch element
 };
 
-enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
+enum MatrixNmsDecayFunction : uint8_t { GAUSSIAN, LINEAR };
 
 class MatrixNms : public Node {
 public:

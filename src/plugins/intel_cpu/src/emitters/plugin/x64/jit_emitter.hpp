@@ -28,7 +28,7 @@
 
 namespace ov::intel_cpu {
 
-enum emitter_in_out_map {
+enum emitter_in_out_map : uint8_t {
     vec_to_vec,
     vec_to_gpr,
     gpr_to_vec,
@@ -38,6 +38,7 @@ enum emitter_in_out_map {
 // structure for storage of emitter parameters to hash in map
 struct emitter_params {
     [[nodiscard]] virtual size_t hash() const = 0;
+    virtual ~emitter_params() = default;
 };
 
 class jit_emitter : public ov::snippets::Emitter {
@@ -118,7 +119,7 @@ protected:
     mutable Xbyak::Reg64 p_table;
     mutable std::shared_ptr<Xbyak::Label> l_table;
 
-    enum {
+    enum : uint8_t {
         _cmp_eq_oq = dnnl::impl::cpu::x64::jit_generator::_cmp_eq_oq,
         _cmp_neq_uq = dnnl::impl::cpu::x64::jit_generator::_cmp_neq_uq,
         _cmp_lt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_lt_os,

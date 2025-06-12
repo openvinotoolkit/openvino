@@ -46,7 +46,7 @@ private:
 
     [[nodiscard]] size_t getAxis(const IMemory& _axis, const IMemory& _data) const;
 
-    enum { CUM_SUM_DATA, AXIS, numOfInputs };
+    enum : uint8_t { CUM_SUM_DATA, AXIS, numOfInputs };
     bool exclusive;
     bool reverse;
     size_t numOfDims;

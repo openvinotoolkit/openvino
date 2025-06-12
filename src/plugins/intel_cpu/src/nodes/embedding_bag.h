@@ -18,8 +18,8 @@ namespace ov::intel_cpu::node {
 
 class EmbeddingBag {
 public:
-    enum class Reduction { SUM, MEAN };
-    EmbeddingBag(const std::shared_ptr<ov::Node>&,
+    enum class Reduction : uint8_t { SUM, MEAN };
+    EmbeddingBag([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
                  size_t requiredInputNum,
                  size_t indicesIdx,
                  size_t perSampleWeightsIdx,
@@ -31,7 +31,7 @@ public:
                  const VectorDims& inDims,
                  const MemoryPtr& outMemory);
 
-    ~EmbeddingBag() = default;
+    virtual ~EmbeddingBag() = default;
 
 protected:
     virtual void initFromInputs() = 0;
