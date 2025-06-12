@@ -105,7 +105,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
             from torch._subclasses.fake_tensor import FakeTensorMode
 
             decompositions = _get_decompositions(options) + get_inf_decomposition_list()
-            with FakeTensorMode() as fakemode:
+            with FakeTensorMode(allow_non_fake_inputs=True) as fakemode:
                 fake_inputs = [fakemode.from_tensor(x) for x in example_inputs]
                 model = make_fx(subgraph, decomposition_table=get_decompositions(decompositions))(*fake_inputs)
 
