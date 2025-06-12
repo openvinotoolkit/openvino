@@ -23,3 +23,5 @@ ov_add_test_target(
     LABELS
         OV UNIT TRANSFORMATIONS
 )
+
+ov_build_target_faster(${TARGET_NAME} PCH)

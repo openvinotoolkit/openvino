@@ -65,6 +65,8 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 
 ov_install_pdb(${TARGET_NAME})
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 install(DIRECTORY ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/
         DESTINATION ${OV_CPACK_INCLUDEDIR}/openvino
         COMPONENT ${OV_CPACK_COMP_CORE_C_DEV}
