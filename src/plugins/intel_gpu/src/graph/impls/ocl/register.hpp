@@ -52,7 +52,6 @@
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
-#include "intel_gpu/primitives/scatter_nd_update.hpp"
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "intel_gpu/primitives/slice.hpp"
@@ -132,7 +131,6 @@ REGISTER_OCL(rms);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);
-REGISTER_OCL(scatter_nd_update);
 REGISTER_OCL(select);
 REGISTER_OCL(shuffle_channels);
 REGISTER_OCL(slice);

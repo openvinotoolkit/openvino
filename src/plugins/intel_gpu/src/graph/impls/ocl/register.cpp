@@ -60,7 +60,6 @@ void register_implementations() {
     REGISTER_OCL(roi_align);
     REGISTER_OCL(roi_pooling);
     REGISTER_OCL(roll);
-    REGISTER_OCL(scatter_nd_update);
     REGISTER_OCL(select);
     REGISTER_OCL(shuffle_channels);
     REGISTER_OCL(space_to_batch);
