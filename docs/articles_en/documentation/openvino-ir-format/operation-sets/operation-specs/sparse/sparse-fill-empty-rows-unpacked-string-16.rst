@@ -1,11 +1,8 @@
 # SparseFillEmptyRowsUnpackedString
 
-## Meta
-```
 .. meta::
   :description: Learn about SparseFillEmptyRowsUnpackedString-16 - a sparse operation that fills empty rows 
-                in a sparse unpacked string tensor with a default string value.
-```
+                in a `SparseUnpackedString` tensor with a default string value.
 
 **Versioned name**: *SparseFillEmptyRowsUnpackedString-16*
 
@@ -15,9 +12,9 @@
 
 **Detailed description**:
 
-Operation SparseFillEmptyRowsUnpackedString works with string tensor data represented in the unpacked format (begins, ends, symbols). It is similar to SparseFillEmptyRows but processes unpacked string data instead of numeric values.
+Operation `SparseFillEmptyRowsUnpackedString` works with string tensor data represented in the `SparseUnpackedString` Tensor format. For detailed information about this format, see the :doc:`Unpacked String Tensor Formats <../../unpacked-string-tensors>` specification.
 
-For each row in the input sparse tensor, this operator checks if the row is empty. A row is considered empty if it contains no entries (no indices with the row number). If the row is empty, the operator adds an entry with the specified default string value at index `[row, 0]`. The output will have updated indices and values represented as `output_indices`, `output_begins`, `output_ends`, and `output_symbols`.
+For each row in the input sparse tensor, this operator checks if the row is empty. If the row is empty, the operator adds an entry with the specified default string value at index `[row, 0]`. The output will have updated indices and values in the `SparseUnpackedString` Tensor format.
 
 This operator also returns a boolean vector indicating which rows were filled with the default value: `empty_row_indicator[i] = True` if row `i` was an empty row.
 
@@ -49,6 +46,7 @@ This operator also returns a boolean vector indicating which rows were filled wi
 *Example: sparse string tensor with shape [5, 2].*
 
 Input:
+
 * `begins = [0, 5, 15, 20, 25, 30]`
 * `ends = [5, 10, 20, 25, 30, 35]`
 * `symbols = "HelloWorldOpenVINOTensorProcessing"` (encoded in utf-8 bytes)

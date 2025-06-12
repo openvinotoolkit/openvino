@@ -14,18 +14,9 @@ a string tensor using *begins* and *ends* indices.
 
 **Detailed description**
 
-Consider inputs:
+*StringTensorPack* takes data in the `UnpackedStringTensor` format and transforms it into a regular string tensor. For detailed information about the `UnpackedStringTensor` format, see the :doc:`Unpacked String Tensor Formats <../../unpacked-string-tensors>` specification.
 
-* *begins* = [0, 5]
-* *ends* = [5, 13]
-* *symbols* = "IntelOpenVINO"
-
-*StringTensorPack* uses indices from ``begins`` and ``ends`` to transform concatenated string ``symbols`` into ``output``,
-a string tensor. The ``output.shape`` is equal to ``begins.shape`` and ``ends.shape``,
-and in this case ``output`` holds values ``["Intel", "OpenVINO"]``.
-
-When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to,
-but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13. The shapes of ``begins`` and ``ends`` are required to be equal.
+The input consists of `begins` and `ends` indices and a `symbols` tensor containing the concatenated string data. The operation uses these to construct a string tensor where each element corresponds to a substring defined by the respective begin and end indices.
 
 **Inputs**
 

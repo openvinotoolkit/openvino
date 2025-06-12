@@ -14,26 +14,9 @@ and end indices of the strings and another containing the concatenated string da
 
 **Detailed description**
 
-Consider an ``input`` string tensor containing values ``["Intel", "OpenVINO"]``.
+*StringTensorUnpack* transforms a string tensor into the `UnpackedString` Tensor format. For detailed information about the `UnpackedString` Tensor format, see the :doc:`UnpackedStringTensor Formats <../../unpacked-string-tensors>` specification.
 
-The operator will transform the tensor into three outputs:
-
-* *begins* = [0, 5]
-    * ``begins[0]`` is equal to 0, because the first string starts at the beginning index.
-    * ``begins[1]`` is equal to 5, because length of the string "Intel" is equal to 5.
-    * ``begins.shape`` is equal to [2], because the ``input`` is a batch of 2 strings.
-
-* *ends* = [5, 13]
-    * ``ends[0]`` is equal to 5, because length of the string "Intel" is equal to 5.
-    * ``ends[1]`` is equal to 13, because length of the string "OpenVINO" is 8, and it needs to be summed up with length of the string "Intel".
-    * ``ends.shape`` is equal to ``[2]``, because the ``input`` is a batch of 2 strings.
-
-* *symbols* = "IntelOpenVINO"
-    * ``symbols`` contains concatenated string data encoded in utf-8 bytes, interpretable using ``begins`` and ``ends``.
-    * ``symbols.shape`` is equal to ``[13]``, because it's the length of concatenated ``input`` strings.
-
-When defining *begins* and *ends*, the notation ``[a, b)`` is used. This means that the range starts with ``a`` and includes all values up to,
-but not including, ``b``. That is why in the example given the length of "IntelOpenVINO" is 12, but *ends* vector contains 13.
+The operation produces three outputs: `begins` and `ends` tensors defining the indices for each string, and a `symbols` tensor containing the concatenated string data.
 
 **Inputs**
 
