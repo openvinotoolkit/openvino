@@ -13,7 +13,7 @@ Description
 OpenVINO supports two formats for representing string data in an unpacked manner: the ``UnpackedStringTensor`` format and the ``SparseUnpackedStringTensor`` format.
 
 ``UnpackedStringTensor`` Format
-*****************************
+********************************
 
 The ``UnpackedStringTensor`` format represents a string tensor as three separate tensors:
 
@@ -54,7 +54,7 @@ For a string tensor ``["OMZ", "", "GenAI", " ", "2024"]``, the unpacked represen
 * *symbols* = "OMZGenAI 2024"
 
 ``SparseUnpackedStringTensor`` Format
-************************************
+**************************************
 
 The ``SparseUnpackedStringTensor`` format extends the ``UnpackedStringTensor`` format by adding sparse tensor representation, where no redundant indices in ``begins`` and ``ends`` tensors are reserved for empty strings. It consists of five tensors:
 
