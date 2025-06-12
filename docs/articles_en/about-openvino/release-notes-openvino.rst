@@ -219,6 +219,7 @@ Neural Network Compression Framework
   accurate 4-bit compression of LLMs on downstream tasks is now available.
   `See example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/torch/downstream_qat_with_nls>`__.
 * Weight compression time for NF4 data type has been reduced.
+* NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with up to 8B parameters is enabled through symmetrical and channel-wise quantization, improving accuracy while maintaining performance efficiency. FP16-NF4 is not supported on CPUs and GPUs.
 
 
 OpenVINO Tokenizers
