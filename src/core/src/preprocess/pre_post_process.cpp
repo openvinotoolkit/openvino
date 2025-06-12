@@ -81,6 +81,8 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     REGISTER_PASS(manager, SharedOpOptimization)
 
     // 1. Set "disable_const_folding" attribute
+    // we have to add a call into the PrePostProcessing, it runs before compile_model call
+    REGISTER_PASS(manager, MarkGatherSubgraph, element::TypeVector{element::f8e4m3}, element::TypeVector{element::u4});
     REGISTER_PASS(manager,
                   MarkDequantization,
                   TypeVector{i32, u32, i16, u16, i8, u8, i4, u4, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});

@@ -24,7 +24,6 @@ std::string stringifySqueezeArgs(const std::vector<float>& axes);
 typedef std::tuple<
     ov::element::Type,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     SqueezeTransformationParam
 > SqueezeTransformationParams;
 

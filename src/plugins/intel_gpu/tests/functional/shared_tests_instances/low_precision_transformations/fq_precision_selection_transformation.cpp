@@ -17,10 +17,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
-};
-
 const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testValues = {
     {
         { ov::element::u8, ov::element::i8 },
@@ -61,7 +57,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizePrecisionSelectionTransformation
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(testValues)),
     FakeQuantizePrecisionSelectionTransformation::getTestCaseName);
 }  // namespace

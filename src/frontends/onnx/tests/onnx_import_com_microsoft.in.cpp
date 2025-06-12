@@ -1331,6 +1331,40 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17_solid_b) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x17_solid_b.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6,
+                                7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1});
+
+    test_case.add_expected_output<float>(Shape{3, 3},
+                                         {-322.52954f,
+                                          -312.34253f,
+                                          345.20667f,
+                                          -381.87994f,
+                                          -343.7008f,
+                                          472.23425f,
+                                          -509.08466f,
+                                          -420.32483f,
+                                          532.11615f});
+
+    test_case.run_with_tolerance_as_fp(1.f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x32_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4, 5, 6,  7, 8,  9, 10, 1, 2, 3, 4, 5, 6,  7, 8,  9, 10, 1, 2,
+                                3, 4, 5, 6, 7, 8,  9, 10, 1, 2,  3, 4, 5, 6, 7, 8,  9, 10, 1, 2,  3, 4,
+                                5, 6, 7, 8, 9, 10, 1, 2,  3, 4,  5, 6, 7, 8, 9, 10, 1, 2,  3, 4});
+    test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+
+    test_case.add_expected_output<float>(Shape{2, 3}, {312, -24, -192, 370, 26, -146});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     const auto model = convert_model("com.microsoft/quick_gelu.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -1440,6 +1474,36 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_skip_simplified_layer_normalization) {
     test_case.add_input<float>(Shape{3, 2, 4}, input);
     test_case.add_input<float>(Shape{3, 2, 4}, skip);
     test_case.add_expected_output<float>({3, 2, 4}, expected_output);
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_simplified_layer_normalization) {
+    const auto model = convert_model("com.microsoft/simplified_layer_normalization.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    const std::vector<float> input =
+        {1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f};
+
+    const std::vector<float> expected_output = {0.19802947f,
+                                                0.39605895f,
+                                                0.59408844f,
+                                                0.7921179f,
+                                                0.9901474f,
+                                                1.1881769f,
+                                                1.3862064f,
+                                                1.5842358f,
+                                                0.7082005f,
+                                                0.78688943f,
+                                                0.8655784f,
+                                                0.94426733f,
+                                                1.0229563f,
+                                                1.1016452f,
+                                                1.1803342f,
+                                                1.2590232f};
+
+    test_case.add_input<float>(Shape{2, 8}, input);
+    test_case.add_expected_output<float>(Shape{2, 8}, expected_output);
 
     test_case.run();
 }

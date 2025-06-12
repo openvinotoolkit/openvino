@@ -4,19 +4,32 @@
 
 #include "grn.h"
 
+#include <cmath>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/grn.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool GRN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto grn = ov::as_type_ptr<const ov::opset1::GRN>(op);
+        const auto grn = ov::as_type_ptr<const ov::op::v0::GRN>(op);
         if (!grn) {
-            errorMessage = "Only opset1 GRN operation is supported";
+            errorMessage = "Only v0 GRN operation is supported";
             return false;
         }
     } catch (...) {
@@ -32,9 +45,9 @@ GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto grn = ov::as_type_ptr<const ov::opset1::GRN>(op);
+    const auto grn = ov::as_type_ptr<const ov::op::v0::GRN>(op);
     if (grn == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of GRN from opset1.");
+        THROW_CPU_NODE_ERR("is not an instance of GRN from v0.");
     }
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1) {
@@ -110,7 +123,7 @@ void GRN::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (int c = 0; c < C; c++) {
             variance += std::pow(src_data[b * C * H * W + c * H * W + h * W + w], 2);
         }
-        variance = std::pow(variance + bias, 0.5f);
+        variance = std::pow(variance + bias, 0.5F);
         for (int c = 0; c < C; c++) {
             dst_data[b * C * H * W + c * H * W + h * W + w] =
                 src_data[b * C * H * W + c * H * W + h * W + w] / static_cast<float>(variance);

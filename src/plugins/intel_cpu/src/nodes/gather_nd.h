@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -45,6 +54,7 @@ private:
         template <typename dataType>
         void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
         void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
+        int32_t HandleNegativeIndices(const int32_t* indices, size_t idx) const;
 
         size_t batchSize = 1lu;
         size_t dataSize = 1lu;
@@ -57,6 +67,9 @@ private:
         size_t idxBatchStride = 1lu;
         size_t dstBatchStride = 1lu;
         VectorDims srcShifts;
+
+        size_t batchDims = 0lu;
+        VectorDims srcDims;
 
         struct GatherNDContext {
             GatherNDExecutor* executor;
