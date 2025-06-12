@@ -20,11 +20,13 @@ namespace pass {
  * one cluster.
  *         - If Buffer is in the Loop which read or write from/to the other Buffers, this Buffer can emulate `window`
  * slidings. It means that Buffer inside can reuse memory of Buffers outside in bounds of full Loop work. Demonstration:
- *                               |-----------------------------------------------------|
- *                               | |------------|                       |------------| | InnerLoops have work amount 128
- *             Buffer0 [3x128]-> | | InnerLoop0 | -> Buffer1 [3x128] -> | InnerLoop1 | | -> Buffer2 [3x128] OuterLoop
- * has work amount 3 | |------------|      OuterLoop        |------------| |
- *                               |-----------------------------------------------------|
+ *                                 |-----------------------------------------------------|
+ *                                 | |------------|                       |------------| |
+ *               Buffer0 [3x128]-> | | InnerLoop0 | -> Buffer1 [3x128] -> | InnerLoop1 | | -> Buffer2 [3x128]
+ *                                 | |------------|      OuterLoop        |------------| |
+ *                                 |-----------------------------------------------------|
+ *           InnerLoops have work amount 128
+ *           OuterLoop has work amount 3
  *           Buffer1 can reuse memory [128] of Buffer0 or Buffer2 in each iteration of OuterLoop
  *           Note: The pass requires expression enumeration and buffer identification (for nested Buffers inplace).
  *                 These passes should be executed separately before this pass!
