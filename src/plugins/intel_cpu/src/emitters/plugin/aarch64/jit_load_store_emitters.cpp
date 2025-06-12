@@ -19,10 +19,10 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator_t;
+using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 
-jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                    ov::element::Type src_prc,
                                    ov::element::Type dst_prc,
@@ -48,7 +48,7 @@ void jit_load_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::
 
 template <cpu_isa_t isa>
 void jit_load_emitter::load_qbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in_idxs[0]);
     auto dst = TReg(out_idxs[0]);
     auto dst_s = SReg(out_idxs[0]);
@@ -80,7 +80,7 @@ void jit_load_emitter::load_qbyte(const std::vector<size_t>& in_idxs, const std:
 
 template <cpu_isa_t isa>
 void jit_load_emitter::load_dbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in_idxs[0]);
     auto dst = TReg(out_idxs[0]);
     auto dst_h = HReg(out_idxs[0]);
@@ -113,7 +113,7 @@ void jit_load_emitter::load_dbyte(const std::vector<size_t>& in_idxs, const std:
 
 template <cpu_isa_t isa>
 void jit_load_emitter::load_byte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = XReg(in_idxs[0]);
     auto dst = TReg(out_idxs[0]);
     auto dst_b = BReg(out_idxs[0]);
@@ -176,7 +176,7 @@ size_t jit_load_emitter::get_aux_gprs_count() const {
     return 0;
 }
 
-jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      ov::element::Type src_prc,
                                      ov::element::Type dst_prc,
@@ -203,7 +203,7 @@ void jit_store_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std:
 
 template <cpu_isa_t isa>
 void jit_store_emitter::store_qbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_idxs[0]);
     auto src_s = SReg(in_idxs[0]);
     auto src_d = DReg(in_idxs[0]);
@@ -236,7 +236,7 @@ void jit_store_emitter::store_qbyte(const std::vector<size_t>& in_idxs, const st
 
 template <cpu_isa_t isa>
 void jit_store_emitter::store_dbyte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_idxs[0]);
     auto src_h = HReg(in_idxs[0]);
     auto src_s = SReg(in_idxs[0]);
@@ -269,7 +269,7 @@ void jit_store_emitter::store_dbyte(const std::vector<size_t>& in_idxs, const st
 
 template <cpu_isa_t isa>
 void jit_store_emitter::store_byte(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
-    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits_t<isa>::TReg;
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_idxs[0]);
     auto src_b = BReg(in_idxs[0]);
     auto src_h = HReg(in_idxs[0]);

@@ -37,7 +37,7 @@ jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep,
                                                       std::vector<ov::intel_cpu::Type> ops_list,
                                                       dnnl::post_ops post_ops)
     : jit_uni_eltwise_kernel(std::move(jep)),
-      jit_generator_t(),
+      jit_generator(),
       eltwise_data_(std::move(eltwise_data)),
       ops_list_(std::move(ops_list)),
       post_ops_(std::move(post_ops)) {}
@@ -170,7 +170,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
         L(unroll_loop_label);
         {
             const size_t loop_step = min_src_size;
-            const size_t vec_step = cpu_isa_traits_t<isa>::vlen / exec_prc.size();
+            const size_t vec_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
 
             cmp(reg_work_amount, loop_step);
             b(LO, unroll_loop_end_label);
@@ -235,7 +235,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (min_src_size == jep.dst_size) {
         L(main_loop_label);
         {
-            const size_t vlen = cpu_isa_traits_t<isa>::vlen;
+            const size_t vlen = cpu_isa_traits<isa>::vlen;
             const size_t exec_prc_size = exec_prc.size();
             const size_t loop_step = vlen / exec_prc_size;
 
@@ -322,7 +322,7 @@ void load_vector(const T1& data_lane,
                  const Xbyak_aarch64::XReg& ptr_reg,
                  const int64_t offset,
                  const bool broadcast,
-                 jit_generator_t* h) {
+                 jit_generator* h) {
     if (broadcast) {
         if (offset == 0) {
             h->ld1r(data_lane, ptr(ptr_reg));
@@ -356,9 +356,9 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
     case ov::element::f32:
     case ov::element::i32: {
         if (broadcast) {
-            jit_generator_t::uni_ld1rw(data.s, ptr_reg, ptr_offset);
+            jit_generator::uni_ld1rw(data.s, ptr_reg, ptr_offset);
         } else {
-            jit_generator_t::uni_ldr(data, ptr_reg, ptr_offset);
+            jit_generator::uni_ldr(data, ptr_reg, ptr_offset);
         }
         break;
     }
@@ -609,7 +609,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
 
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
-    dnnl::impl::cpu::aarch64::jit_generator_t* host;
+    dnnl::impl::cpu::aarch64::jit_generator* host;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa;
     const EltwiseData& opData;
     ov::element::Type exec_prc;
