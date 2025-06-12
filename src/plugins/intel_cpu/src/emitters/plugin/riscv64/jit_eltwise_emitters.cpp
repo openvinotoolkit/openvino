@@ -257,7 +257,7 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     load_table_val("one", one);
 
     h->vmv_v_x(dst, zero);                   // set dst to 0
-    h->vmfeq_vv(mask_vreg(), src0, src1);     // compare, result in mask
+    h->vmfeq_vv(mask_vreg(), src0, src1);    // compare, result in mask
     h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
 }
 
