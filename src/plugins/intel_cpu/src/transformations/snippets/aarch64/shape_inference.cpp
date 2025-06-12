@@ -11,6 +11,8 @@
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
@@ -49,6 +51,8 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
     SHAPE_INFER_PREDEFINED(ov::intel_cpu::FusedMulAdd, NumpyBroadcastShapeInfer),
     SHAPE_INFER_PREDEFINED(ov::intel_cpu::SwishNode, PassThroughShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer),
+    SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::aarch64::GemmCPU, BrgemmShapeInfer),
+    SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::aarch64::GemmCopyB),
 };
 #undef SHAPE_INFER_OP_SPECIFIC
 #undef SHAPE_INFER_PREDEFINED
