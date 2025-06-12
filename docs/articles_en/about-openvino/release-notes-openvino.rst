@@ -60,8 +60,8 @@ What's new
   * Support for INT4 data-free weights compression for ONNX models implemented in the 
     Neural Network Compression Framework (NNCF).
   * NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models 
-   with up to 8B parameters is enabled through symmetrical and channel-wise quantization, 
-   improving accuracy while maintaining performance efficiency.
+    with up to 8B parameters is enabled through symmetrical and channel-wise quantization, 
+    improving accuracy while maintaining performance efficiency.
 
 
 OpenVINO™ Runtime 
