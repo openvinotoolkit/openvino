@@ -208,6 +208,59 @@ std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precision
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
+/// EQUAL ///
+jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                     const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+
+jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                                     ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                     const ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_equal_emitter::get_inputs_num() const {
+    return 2;
+}
+size_t jit_equal_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
+void jit_equal_emitter::register_table_entries() {
+    push_arg_entry_of("one", CONST_1_F);
+}
+
+std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>&) {
+    return {{element::f32, element::f32}};
+}
+
+void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs) const {
+    VReg src0 = VReg(in_vec_idxs[0]);
+    VReg src1 = VReg(in_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+    FReg one = FReg(aux_fp_gpr_idxs[0]);
+    load_table_val("one", one);
+
+    h->vmv_v_x(dst, zero);                   // set dst to 0
+    h->vmfeq_vv(mask_vreg(), src0, src1);    // compare, result in mask
+    h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
+}
+
 /// Exp ///
 jit_exp_emitter::jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
