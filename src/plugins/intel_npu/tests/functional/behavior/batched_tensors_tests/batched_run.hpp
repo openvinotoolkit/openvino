@@ -474,6 +474,100 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer)
     }
 }
 
+
+void executeMutlipleTensorsBatchInfer(ov::InferRequest req, size_t batch_value,
+                                       const Shape& non_batched_shape,
+                                       ov::RemoteContext &context) {
+    auto non_batched_shape_size = ov::shape_size(non_batched_shape);
+    std::vector<ov::Tensor> tensors;
+    tensors.reserve(batch_value);
+    ASSERT_TRUE(batch_value != 0);
+    for (size_t i = 0; i < batch_value; ++i) {
+        // non contiguous memory
+        auto tensor = context.create_host_tensor(ov::element::f32, non_batched_shape);
+        tensors.push_back(std::move(tensor));
+    }
+    req.set_tensors("tensor_input0", tensors);
+
+    auto actual_tensor = req.get_tensor("tensor_output0");
+    ASSERT_EQ(actual_tensor.get_byte_size(), tensors.back().get_byte_size() * tensors.size() ) << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
+    auto* actual = actual_tensor.data<float>();
+    for (auto testNum = 0; testNum < 1; testNum++) {
+        for (size_t i = 0; i < batch_value; ++i) {
+            auto* f = tensors[i].data<float>();
+            for (size_t j = 0; j < non_batched_shape_size; ++j) {
+                f[j] = static_cast<float>(testNum + 20 * (i + 1));
+            }
+        }
+        req.infer();
+        for (size_t i = 0; i < batch_value; i ++) {
+            for (size_t j = 0; j < non_batched_shape_size; ++j) {
+                auto expected =  testNum + 20 * (i + 1) + 1;
+                EXPECT_EQ(actual[i * non_batched_shape_size + j], expected) << "Infer " << testNum << ": Expected=" << expected
+                                                << ", actual=" << actual[j] << " for index " << j << ", batch: " << i;
+            }
+        }
+    }
+}
+
+TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchInflation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    size_t model_batch_bottom_bound = 1;
+    size_t model_batch_upper_bound = 10;
+    auto modelShape = PartialShape{ov::Dimension(model_batch_bottom_bound, model_batch_upper_bound), 2, 2, 2};
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+
+    const std::string tensor_name_0 = "tensor_input0";
+    const std::string tensor_name_1 = "tensor_input1";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name_0] = modelShape;
+    shapes[tensor_name_1] = modelShape;
+    model->reshape(shapes);
+    auto execNet = core->compile_model(model, target_device, configuration);
+    auto context = core->get_default_context(target_device);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+    std::vector<ov::Tensor> tensors;
+    for (size_t tensor_batch = model_batch_bottom_bound; tensor_batch <= model_batch_upper_bound; ++tensor_batch) {
+        executeMutlipleTensorsBatchInfer(req, tensor_batch, one_shape, context);
+    }
+}
+
+TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchDeflation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    size_t model_batch_bottom_bound = 1;
+    size_t model_batch_upper_bound = 10;
+    auto modelShape = PartialShape{ov::Dimension(model_batch_bottom_bound, model_batch_upper_bound), 2, 2, 2};
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+
+    const std::string tensor_name_0 = "tensor_input0";
+    const std::string tensor_name_1 = "tensor_input1";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name_0] = modelShape;
+    shapes[tensor_name_1] = modelShape;
+    model->reshape(shapes);
+    auto execNet = core->compile_model(model, target_device, configuration);
+    auto context = core->get_default_context(target_device);
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+    std::vector<ov::Tensor> tensors;
+    for (size_t tensor_batch = model_batch_upper_bound; tensor_batch >= model_batch_bottom_bound; tensor_batch--) {
+        executeMutlipleTensorsBatchInfer(req, tensor_batch, one_shape, context);
+    }
+}
+
 TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorSingleInfer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -520,6 +614,100 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorSingleInf
             EXPECT_EQ(actual[j], expected) << "Infer " << testNum << ": Expected=" << expected
                                             << ", actual=" << actual[j] << " for index " << j << ", batch: " << j / one_shape_size;
         }
+    }
+}
+
+void executeContiguousTensorBatchInfer(ov::InferRequest req, size_t batch_value,
+                                       const Shape& non_batched_shape,
+                                       ov::RemoteContext &context) {
+    auto non_batched_shape_size = ov::shape_size(non_batched_shape);
+    auto tensor_shape = non_batched_shape;
+    tensor_shape[0] = batch_value;
+    auto tensor_shape_size = ov::shape_size(tensor_shape);
+    auto tensor = context.create_host_tensor(ov::element::f32, tensor_shape);
+
+    std::vector<ov::Tensor> tensors;
+    tensors.push_back(std::move(tensor));
+
+    req.set_tensors("tensor_input0", tensors);
+    auto actual_tensor = req.get_tensor("tensor_output0");
+    ASSERT_EQ(actual_tensor.get_byte_size(), tensor.get_byte_size()) << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
+
+    auto* actual = actual_tensor.data<float>();
+    auto* f = tensors.back().data<float>();
+    for (size_t j = 0; j < tensor_shape_size; ++j) {
+        f[j] = static_cast<float>(batch_value + 20 * (j / non_batched_shape_size + 1));
+    }
+    req.infer();
+    // check that we got valid inference results on each lines of N
+    for (size_t j = 0; j < tensor_shape_size; ++j) {
+        auto expected = batch_value + 20 * ( j / non_batched_shape_size + 1) + 1;
+        EXPECT_EQ(actual[j], expected) << "Infer " << batch_value << ": Expected=" << expected
+                                       << ", actual=" << actual[j] << " for index " << j << ", batch: " << j / non_batched_shape_size;
+    }
+}
+
+TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBatchInflation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    size_t model_batch_bottom_bound = 1;
+    size_t model_batch_upper_bound = 10;
+    auto modelShape = PartialShape{ov::Dimension(model_batch_bottom_bound, model_batch_upper_bound), 2, 2, 2};
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+
+    const std::string tensor_name_0 = "tensor_input0";
+    const std::string tensor_name_1 = "tensor_input1";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name_0] = modelShape;
+    shapes[tensor_name_1] = modelShape;
+    model->reshape(shapes);
+    auto execNet = core->compile_model(model, target_device, configuration);
+    auto context = core->get_default_context(target_device);
+
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+    std::vector<ov::Tensor> tensors;
+    for (size_t tensor_batch = model_batch_bottom_bound; tensor_batch <= model_batch_upper_bound; tensor_batch++ ) {
+        // dynamically change N of contiduous memory tensor in [model_batch_bottom_bound..model_batch_upper_bound]
+        // and check that the output tensor kept modified accordingly
+        executeContiguousTensorBatchInfer(req, tensor_batch, one_shape, context);
+    }
+}
+
+TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBatchDeflation) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    size_t model_batch_bottom_bound = 1;
+    size_t model_batch_upper_bound = 10;
+    auto modelShape = PartialShape{ov::Dimension(model_batch_bottom_bound, model_batch_upper_bound), 2, 2, 2};
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+
+    const std::string tensor_name_0 = "tensor_input0";
+    const std::string tensor_name_1 = "tensor_input1";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name_0] = modelShape;
+    shapes[tensor_name_1] = modelShape;
+    model->reshape(shapes);
+    auto execNet = core->compile_model(model, target_device, configuration);
+    auto context = core->get_default_context(target_device);
+
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+    std::vector<ov::Tensor> tensors;
+    for (size_t tensor_batch = model_batch_upper_bound; tensor_batch >= model_batch_bottom_bound ; tensor_batch-- ) {
+        // dynamically change N of contiduous memory tensor in [model_batch_bottom_bound..model_batch_upper_bound]
+        // and check that the output tensor kept modified accordingly
+        executeContiguousTensorBatchInfer(req, tensor_batch, one_shape, context);
     }
 }
 
