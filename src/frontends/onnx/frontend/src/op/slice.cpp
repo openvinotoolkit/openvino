@@ -31,8 +31,8 @@ ov::Output<ov::Node> update_stops_node(const ov::Output<ov::Node>& stops, const 
     auto int_min_constant = v0::Constant::create(ov::element::i64, Shape{}, {std::numeric_limits<int64_t>::min()});
     auto zero_constant = v0::Constant::create(ov::element::i64, Shape{}, {0});
 
-    // Convert stops to i64
-    auto typed_int_max = std::make_shared<v0::Convert>(stops, element_type);
+    // Align const type to the input type
+    auto typed_int_max = std::make_shared<v0::Convert>(int_max_constant, element_type);
     auto typed_int_min = std::make_shared<v0::Convert>(int_min_constant, element_type);
     auto typed_zero = std::make_shared<v0::Convert>(zero_constant, element_type);
 
