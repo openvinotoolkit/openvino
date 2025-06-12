@@ -22,7 +22,6 @@ namespace intel_npu {
 namespace {
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
-constexpr char INIT_INPUT_DELIMITER = '_';
 
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
@@ -398,28 +397,19 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         const size_t currentInputSize =
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
-        size_t id;
         std::shared_ptr<ov::op::v0::Constant> constant;
-        if (foundWeightlessCacheAttribute) {
-            const size_t delimiterPosition = descriptor.nameFromCompiler.find(INIT_INPUT_DELIMITER);
-            OPENVINO_ASSERT(delimiterPosition > 0, "Invalid name for init inpu ", descriptor.nameFromCompiler);
-            id = std::stoi(descriptor.nameFromCompiler.substr(0, delimiterPosition));
-            OPENVINO_ASSERT(constants.count(id) > 0,
-                            "Weights ID ",
-                            id,
-                            " not found in the model constants. This may indicate a mismatch between the model and the "
-                            "metadata of the compiled model.");
-            constant = constants.at(id);
-        } else {
-            id = std::stoi(descriptor.nameFromCompiler);
 
+        const size_t id = std::stoi(descriptor.nameFromCompiler);
+        OPENVINO_ASSERT(constants.count(id) > 0,
+                        "Weights ID ",
+                        id,
+                        " not found in the model constants. This may indicate a mismatch between the model and the "
+                        "metadata of the compiled model.");
+
+        constant = constants.at(id);
+
+        if (!foundWeightlessCacheAttribute) {
             // Asserts checking the metadata match
-            OPENVINO_ASSERT(constants.count(id) > 0,
-                            "Weights ID ",
-                            id,
-                            " not found in the model constants. This may indicate a mismatch between the model and the "
-                            "metadata of the compiled model.");
-            constant = constants.at(id);
             OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
                             "Byte size mismatch for ",
                             descriptor.nameFromCompiler,

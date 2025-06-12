@@ -162,9 +162,10 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
             ov::RTMap& runtimeInfoMap = node->get_rt_info();
             const auto& weightlessCacheAttrIt =
                 runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            
+            const std::string constantIdString = std::to_string(constantId++);
             if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
                 auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
-                const std::string constantIdString = std::to_string(constantId++);
                 model->set_rt_info(weightlessCacheAttr.bin_offset, "ws_bin_offset_" + constantIdString);
                 model->set_rt_info(weightlessCacheAttr.original_size, "ws_original_size_" + constantIdString);
                 model->set_rt_info(weightlessCacheAttr.original_dtype, "ws_original_dtype_" + constantIdString);
