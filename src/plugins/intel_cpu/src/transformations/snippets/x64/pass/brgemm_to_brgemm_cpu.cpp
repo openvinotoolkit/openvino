@@ -35,20 +35,9 @@ namespace ov::intel_cpu {
 using namespace snippets::lowered;
 using PortDescriptor = ov::snippets::modifier::MemoryAccess::PortDescriptor;
 
-namespace {
-template <typename T>
-void set_full_port_desc(const T& port) {
-    const auto& shape_rank = port.get_partial_shape().size();
-    const std::vector<size_t> full_dim_subtensor(std::min(shape_rank, static_cast<size_t>(2)),
-                                                 ov::snippets::utils::get_full_dim_value());
-    PortDescriptorUtils::set_port_descriptor(port, full_dim_subtensor);
-}
-}  // namespace
-
 bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(BrgemmToBrgemmCPU);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmCPU")
-
     auto is_not_tpp = [](const Output<Node>& out) {
         return !std::dynamic_pointer_cast<const intel_cpu::tpp::modifier::TensorProcessingPrimitive>(
             out.get_node_shared_ptr());
@@ -113,7 +102,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
                                                      brgemm_in1_desc->get_subtensor(),
                                                      layout_b);
             for (const auto& out : brgemm_copy_b->outputs()) {
-                set_full_port_desc(out);
+                snippets::utils::set_full_port_desc(out);
             }
 
             brgemm_in1 = brgemm_copy_b->output(0);
@@ -131,8 +120,8 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
                                                      layout_b,
                                                      layout_c);
 
-            set_full_port_desc(scratch->output(0));
-            set_full_port_desc(brgemm_cpu->input(2));
+            snippets::utils::set_full_port_desc(scratch->output(0));
+            snippets::utils::set_full_port_desc(brgemm_cpu->input(2));
         } else if (brgemm_config.with_compensations()) {
             OPENVINO_ASSERT(brgemm_copy_b, "BrgemmCopyB is required");
             brgemm_cpu = std::make_shared<BrgemmCPU>(ov::OutputVector{brgemm_in0, brgemm_in1, brgemm_copy_b->output(1)},
@@ -151,11 +140,10 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
                                                      layout_b,
                                                      layout_c);
         }
-
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
         if (brgemm_copy_b) {
-            set_full_port_desc(brgemm_cpu->input(1));
+            snippets::utils::set_full_port_desc(brgemm_cpu->input(1));
             brgemm_copy_b->validate_and_infer_types();
         } else {
             PortDescriptorUtils::set_port_descriptor(brgemm_cpu->input(1), brgemm_in1_desc->get_subtensor(), layout_b);

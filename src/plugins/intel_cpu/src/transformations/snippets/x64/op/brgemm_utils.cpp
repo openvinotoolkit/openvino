@@ -17,12 +17,12 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
+#include "transformations/snippets/x64/pass/lowered/expressions/brgemm_copy_b_buffer_expressions.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak;
@@ -166,9 +166,9 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
     if (ov::is_type<BrgemmCopyB>(b_input_expr->get_node())) {
         return b_input_expr;
     }
-    if (ov::is_type<snippets::lowered::BufferExpression>(b_input_expr)) {
+    if (ov::is_type<RepackedWeightsBufferExpression>(b_input_expr)) {
         OPENVINO_ASSERT(b_input_expr->get_input_count() >= 1,
-                        "BufferExpression on brgemm's B input must have at least one input");
+                        "RepackedWeightsBufferExpression on brgemm's B input must have at least one input");
         auto input_buffer_expr = b_input_expr->get_input_port_connector(0)->get_source().get_expr();
         if (ov::is_type<BrgemmCopyB>(input_buffer_expr->get_node())) {
             return input_buffer_expr;
