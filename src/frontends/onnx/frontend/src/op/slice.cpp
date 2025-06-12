@@ -12,8 +12,8 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_and.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace ov::op;
 using ov::Shape;
