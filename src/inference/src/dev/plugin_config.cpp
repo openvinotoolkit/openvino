@@ -118,9 +118,7 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
 
     finalize_impl(context);
 
-#ifdef ENABLE_DEBUG_CAPS
     apply_env_options();
-#endif
 
     // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side
     // finalization

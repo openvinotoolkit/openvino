@@ -1,0 +1,106 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+producer_version: ""
+model_version: 0
+graph {
+  name: "test_qlinear_reducemean_i8"
+
+  node {
+    input: "data"
+    input: "data_scale"
+    input: "data_zero_point"
+    input: "reduced_scale"
+    input: "reduced_zero_point"
+    output: "reduced"
+    op_type: "QLinearReduceMean"
+    attribute {
+      name: "axes"
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "keepdims"
+      i: 1
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "data_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "data_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "reduced_scale"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  input {
+    name: "reduced_zero_point"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+
+  output {
+    name: "reduced"
+    type {
+      tensor_type {
+        elem_type: 3
+        shape {
+          dim { dim_value: 2 }
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+}
+
+opset_import {
+  version: 1
+}

@@ -44,11 +44,9 @@ class TestStringToHashBucketFast(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_string_to_hash_bucket_fast(self, input_shape, num_buckets, strings_dictionary, ie_device, precision,
-                                        ir_version, temp_dir,
-                                        use_legacy_frontend):
+                                        ir_version, temp_dir):
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_string_to_hash_bucket_fast_net(input_shape=input_shape, num_buckets=num_buckets,
                                                                strings_dictionary=strings_dictionary),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

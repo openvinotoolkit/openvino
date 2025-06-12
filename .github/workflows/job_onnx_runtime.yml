@@ -44,7 +44,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
@@ -112,11 +112,6 @@ jobs:
       - name: Run onnxruntime_test_all
         if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277
         run: |
-          # see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
-          apt-get update && apt-get install --assume-yes --no-install-recommends language-pack-en
-          locale-gen en_US.UTF-8
-          update-locale LANG=en_US.UTF-8
-
           source ${INSTALL_DIR}/setupvars.sh
           skip_tests=$(tr -s '\n ' ':' < ${ONNX_RUNTIME_UTILS}/skip_tests)
 

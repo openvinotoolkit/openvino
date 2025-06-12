@@ -316,7 +316,7 @@ TEST(plugin_config, can_read_from_env_with_debug_caps) {
         NotEmptyTestConfig cfg;
         ASSERT_EQ(cfg.get_int_property(), -1);
         set_env("OV_INT_PROPERTY", "10");
-        ASSERT_EQ(cfg.get_int_property(), -1);  // env is applied after finalization only for build with debug caps
+        ASSERT_EQ(cfg.get_int_property(), -1);  // env is applied after finalization
 
 #ifdef ENABLE_DEBUG_CAPS
         set_env("OV_DEBUG_PROPERTY", "20");
@@ -326,11 +326,9 @@ TEST(plugin_config, can_read_from_env_with_debug_caps) {
         cfg.finalize(nullptr, nullptr);
 
 #ifdef ENABLE_DEBUG_CAPS
-        ASSERT_EQ(cfg.get_int_property(), 10);
         ASSERT_EQ(cfg.get_debug_property(), 20);
-#else
-        ASSERT_EQ(cfg.get_int_property(), -1);  // no effect
 #endif
+        ASSERT_EQ(cfg.get_int_property(), 10);
     } catch (std::exception&) {
     }
 

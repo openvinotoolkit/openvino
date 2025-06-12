@@ -21,7 +21,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
 ov_build_target_faster(${TARGET_NAME}_obj
     UNITY
-    PCH PRIVATE "src/precomp.hpp"
+    PCH_HEADER "src/precomp.hpp"
 )
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::core::dev openvino::shape_inference)

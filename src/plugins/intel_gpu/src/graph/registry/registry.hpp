@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2024-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -138,8 +138,10 @@ REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
+REGISTER_IMPLS(lora);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
+REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
@@ -150,6 +152,7 @@ REGISTER_IMPLS(rope);
 REGISTER_IMPLS(select);
 REGISTER_IMPLS(scatter_update);
 REGISTER_IMPLS(scatter_elements_update);
+REGISTER_IMPLS(scatter_nd_update);
 REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
@@ -202,7 +205,6 @@ REGISTER_DEFAULT_IMPLS(rms, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(roi_align, OCL_S);
 REGISTER_DEFAULT_IMPLS(roi_pooling, OCL_S);
 REGISTER_DEFAULT_IMPLS(roll, OCL_S);
-REGISTER_DEFAULT_IMPLS(scatter_nd_update, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(shuffle_channels, OCL_S);
 REGISTER_DEFAULT_IMPLS(slice, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(space_to_batch, OCL_S);
@@ -224,3 +226,4 @@ REGISTER_DEFAULT_IMPLS(unique_gather, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(scaled_dot_product_attention, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(search_sorted, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(STFT, OCL_S, OCL_D);
+REGISTER_DEFAULT_IMPLS(ISTFT, OCL_S, OCL_D);

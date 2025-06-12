@@ -3,11 +3,16 @@
 //
 #pragma once
 
-#include "cpu_types.h"
-#include "openvino/util/env_util.hpp"
-#ifdef CPU_DEBUG_CAPS
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <map>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
+#include <vector>
 
-#    include <dnnl_debug.h>
+#include "cpu_shape.h"
+#ifdef CPU_DEBUG_CAPS
 
 #    include <chrono>
 #    include <iostream>
@@ -19,7 +24,6 @@
 #    include "edge.h"
 #    include "memory_control.hpp"
 #    include "nodes/node_config.h"
-#    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/model.hpp"
 #    include "utils/general_utils.h"
@@ -49,7 +53,7 @@ public:
     operator bool() const {
         return enabled;
     }
-    void break_at(const std::string& log);
+    static void break_at(const std::string& log);
 };
 
 class NodeDesc;
@@ -110,8 +114,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T> vec) {
         os << element << "x";
     return os;
 }
-std::ostream& operator<<(std::ostream& os, const PortConfig& desc);
-std::ostream& operator<<(std::ostream& os, const NodeConfig& desc);
+std::ostream& operator<<(std::ostream& os, const PortConfig& config);
+std::ostream& operator<<(std::ostream& os, const NodeConfig& config);
 std::ostream& operator<<(std::ostream& os, const NodeDesc& desc);
 std::ostream& operator<<(std::ostream& os, const Node& node);
 std::ostream& operator<<(std::ostream& os, const ov::intel_cpu::Graph& graph);
@@ -119,7 +123,7 @@ std::ostream& operator<<(std::ostream& os, const Shape& shape);
 std::ostream& operator<<(std::ostream& os, const MemoryDesc& desc);
 std::ostream& operator<<(std::ostream& os, const IMemory& mem);
 std::ostream& operator<<(std::ostream& os, const PrintableModel& model);
-std::ostream& operator<<(std::ostream& os, const PrintableDelta& us);
+std::ostream& operator<<(std::ostream& os, const PrintableDelta& d);
 std::ostream& operator<<(std::ostream& os, const Edge::ReorderStatus reorderStatus);
 std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
 
@@ -127,7 +131,7 @@ std::ostream& operator<<(std::ostream& os, const dnnl::primitive_desc& desc);
 std::ostream& operator<<(std::ostream& os, const dnnl::memory::desc& desc);
 std::ostream& operator<<(std::ostream& os, const impl_desc_type impl_type);
 std::ostream& operator<<(std::ostream& os, const dnnl::memory::data_type dtype);
-std::ostream& operator<<(std::ostream& os, const dnnl::memory::format_tag dtype);
+std::ostream& operator<<(std::ostream& os, const dnnl::memory::format_tag format_tag);
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_attr& attr);
 std::ostream& operator<<(std::ostream& os, const dnnl::algorithm& alg);
 

@@ -4,15 +4,20 @@
 
 #pragma once
 
-#include <bitset>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <map>
-#include <mutex>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
-#include "internal_properties.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "openvino/util/common_util.hpp"
 #include "utils/debug_caps_config.h"
 
 namespace ov {
@@ -76,6 +81,7 @@ struct Config {
     size_t keyCacheGroupSize = 0ul;
     size_t valueCacheGroupSize = 0ul;
     CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
+    CacheQuantMode valueCacheQuantMode = CacheQuantMode::AUTO;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;
@@ -114,7 +120,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const ov::AnyMap& config, const ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& prop, const ModelType modelType = ModelType::Unknown);
 
     void updateProperties();
 

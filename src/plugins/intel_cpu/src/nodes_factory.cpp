@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "cpu_types.h"
+#include "node.h"
 #include "nodes/adaptive_pooling.h"
 #include "nodes/batch_to_space.h"
 #include "nodes/bin_conv.h"
@@ -57,7 +59,6 @@
 #include "nodes/matmul.h"
 #include "nodes/matrix_nms.h"
 #include "nodes/memory.hpp"
-#include "nodes/mha.h"
 #include "nodes/multiclass_nms.hpp"
 #include "nodes/multinomial.hpp"
 #include "nodes/mvn.h"
@@ -78,7 +79,6 @@
 #include "nodes/range.h"
 #include "nodes/rdft.h"
 #include "nodes/reduce.h"
-#include "nodes/reference.h"
 #include "nodes/region_yolo.h"
 #include "nodes/reorder.h"
 #include "nodes/reorg_yolo.h"
@@ -100,6 +100,7 @@
 #include "nodes/softmax.h"
 #include "nodes/space_to_batch.h"
 #include "nodes/space_to_depth.h"
+#include "nodes/sparse_fill_empty_rows.h"
 #include "nodes/split.h"
 #include "nodes/stft.h"
 #include "nodes/strided_slice.h"
@@ -111,6 +112,8 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
+#include "openvino/cc/factory.h"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 
@@ -126,6 +129,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(BatchToSpace, Type::BatchToSpace);
     INTEL_CPU_NODE(DepthToSpace, Type::DepthToSpace);
     INTEL_CPU_NODE(SpaceToDepth, Type::SpaceToDepth);
+    INTEL_CPU_NODE(SparseFillEmptyRows, Type::SparseFillEmptyRows);
     INTEL_CPU_NODE(If, Type::If);
     INTEL_CPU_NODE(Broadcast, Type::Broadcast);
     INTEL_CPU_NODE(ExperimentalDetectronTopKROIs, Type::ExperimentalDetectronTopKROIs);
@@ -232,7 +236,6 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(LLMMLP, Type::LLMMLP);
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
-    INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
 #elif defined(OPENVINO_ARCH_ARM64)
