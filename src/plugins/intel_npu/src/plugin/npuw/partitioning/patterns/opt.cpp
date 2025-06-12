@@ -1847,6 +1847,41 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul"), std::move(callback));
 }
 
+struct Untangled_Const {
+    static constexpr const char* name = "NPUW::Untangled_Const";
+};
+
+void untangleConst(std::shared_ptr<ov::Model> model) {
+    // Duplicate small Constants which are consumed by multiple operators
+    // to simplify match bank validation in the future
+    for (const auto& ov_node : model->get_ordered_ops()) {
+        if (!ov::op::util::is_constant(ov_node)) {
+            continue;
+        }
+
+        const auto readers = ov_node->output(0).get_target_inputs();
+        if (readers.size() <= 1) {
+            continue;
+        }
+        auto this_const = std::static_pointer_cast<ov::op::v0::Constant>(ov_node);
+        auto this_type = this_const->get_element_type();
+        auto this_shape = ov_node->output(0).get_shape();
+
+        const bool is_single = (this_shape.size() == 0u) || (this_shape.size() == 1u && this_shape[0] == 1);
+        if (this_type == ov::element::i64 && is_single) {
+            // Keep the first reader with the original const, but redirect
+            // all others to use their individual instance
+            auto this_val = this_const->get_tensor_view();
+            auto it = readers.begin();
+            while (++it != readers.end()) {
+                auto new_const = std::make_shared<ov::op::v0::Constant>(this_val);
+                new_const->set_friendly_name(util::Unique<Untangled_Const>::name());
+                it->replace_source_output(new_const);
+            }
+        }
+    }
+}
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw
