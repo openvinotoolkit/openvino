@@ -623,9 +623,7 @@ TEST_P(permute_redundant_reorder_dynamic, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_redundant_reorder_dynamic, ::testing::ValuesIn(std::vector<permute_reorder_params>{
-    permute_reorder_params{ CASE_PERMUTE_REORDER_F32_0, 3, 4 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_F32_3, 3, 4 },
-    permute_reorder_params{ CASE_PERMUTE_REORDER_F16_0, 3, 4 },
     permute_reorder_params{ CASE_PERMUTE_REORDER_F16_3, 3, 4 },
 }));
 

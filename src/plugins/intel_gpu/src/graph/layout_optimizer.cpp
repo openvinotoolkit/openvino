@@ -138,14 +138,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_dt = next.get_output_layout().data_type;
     auto use_onednn_impls = has_all_enabled_onednn_impls_optimization_attribute();
 
-    bool is_dynamic = false;
-    if (prev.is_dynamic() || next.is_dynamic()) {
-        if (!next.is_type<permute>() &&
-            !next.is_type<group_normalization>()) {
-            return false;
-        }
-        is_dynamic = true;
-    }
+    if (prev.is_dynamic() || next.is_dynamic())
+        return false;
 
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
@@ -246,15 +240,6 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
         prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
-        return true;
-
-    if (next.is_type<group_normalization>() && is_dynamic &&
-        fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::bfyx &&
-        !prev_output_layout.data_padding && !next_output_layout.data_padding)
-        return true;
-
-    if (next.is_type<permute>() && is_dynamic &&
-        fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::bfyx)
         return true;
 
     if (!use_onednn_impls || next.get_preferred_impl_type() == impl_types::ocl) {
