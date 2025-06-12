@@ -40,27 +40,53 @@ f8_type get_f8_type() {
     return f8_type::none;
 }
 
+
+
+
 template <typename src_t, typename dst_t>
 void convert_vec(jit_generator& gen, const RegExp& src, const RegExp& dst);
 
-template <>
-void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    const auto& f16vec = gen.xmm3;
-    const auto& f32vec = gen.ymm4;
 
-    gen.movdqu(f16vec, gen.xword[src]);
-    gen.vcvtph2ps(f32vec, f16vec);
-    gen.vmovups(gen.yword[dst], f32vec);
+template <typename src_t, typename dst_t>
+void convert_vec_avx512(jit_generator& gen, const RegExp& src, const RegExp& dst);
+
+template <typename src_t, typename dst_t>
+void convert_vec_meta(jit_generator& gen, const RegExp& src, const RegExp& dst) 
+{
+    if constexpr (std::is_same_v<src_t, float> && std::is_same_v<dst_t, ov::float16> ) {
+        convert_vec_avx512<src_t, dst_t>(gen, src, dst);
+
+    } else if constexpr (std::is_same_v<src_t, ov::float16> && std::is_same_v<dst_t, float>) {
+        convert_vec_avx512<src_t, dst_t>(gen, src, dst);
+    }
+    else 
+    {
+            convert_vec<src_t, dst_t>( gen,  src, dst);
+    }
+    
 }
 
 template <>
-void convert_vec<float, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    const auto& f16vec = gen.xmm3;
-    const auto& f32vec = gen.ymm4;
+void convert_vec_avx512<ov::float16, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+    const auto& f16vec = gen.ymm3;
+    const auto& f32vec = gen.zmm4;
 
-    gen.vmovups(f32vec, gen.yword[src]);
+   // gen.movdqu(f16vec, gen.yword[src]);
+    gen.vmovaps(f16vec, gen.zword[src]);
+    gen.vcvtph2ps(f32vec, f16vec);
+    gen.vmovaps(gen.zword[dst], f32vec);
+}
+
+template <>
+void convert_vec_avx512<float, ov::float16>(jit_generator& gen,
+                                                               const RegExp& src,
+                                                               const RegExp& dst) {
+    const auto& f16vec = gen.ymm3;
+    const auto& f32vec = gen.zmm4;
+
+    gen.vmovaps(f32vec, gen.zword[src]);
     gen.vcvtps2ph(f16vec, f32vec, 0);
-    gen.movdqu(gen.xword[dst], f16vec);
+    gen.vmovaps(gen.yword[dst], f16vec);
 }
 
 template <typename src_t, typename dst_t>
@@ -167,6 +193,14 @@ public:
             auto& generator = static_cast<jit_generator&>(converter);
             generator.create_kernel();
             return (fn_t)generator.jit_ker();
+        }
+        else if(mayiuse(cpu_isa_t::avx512_core))
+        {
+            static jit_convert_array converter(convert_vec_meta<src_t, dst_t>);
+            auto& generator = static_cast<jit_generator&>(converter);
+            generator.create_kernel();
+            return (fn_t)generator.jit_ker();
+
         }
         return nullptr;
     }
