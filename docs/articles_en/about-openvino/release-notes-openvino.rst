@@ -53,7 +53,7 @@ What's new
 * More portability and performance to run AI at the edge, in the cloud or locally
 
   * Enhanced Linux* support with the latest GPU driver for built-in GPUs on Intel® Core™ Ultra 
-    Processor Series 2 (formerly codenamed Arrow Lake H) .
+    Processor Series 2 (formerly codenamed Arrow Lake H).
   * OpenVINO™ Model Server now offers a streamlined C++ version for Windows and enables improved 
     performance for long-context models through prefix caching, and a smaller Windows package 
     that eliminates the Python dependency. Support for Hugging Face models is now included.
