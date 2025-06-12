@@ -24,10 +24,10 @@ using namespace ov::snippets::lowered::pass;
 #ifdef SNIPPETS_DEBUG_CAPS
 std::string RuntimeConfig::to_string() const {
     std::stringstream out;
-    out << " ========== RuntimeConfig state ==========\n" <<
-           "tensor_rank: " << tensor_rank << "\n" <<
-           "tile_rank: " << tile_rank << "\n" <<
-           "master_shape: " << ov::Shape(master_shape) << "\n";
+    out << " ========== RuntimeConfig state ==========\n"
+        << "tensor_rank: " << tensor_rank << "\n"
+        << "tile_rank: " << tile_rank << "\n"
+        << "master_shape: " << ov::Shape(master_shape) << "\n";
     out << "io_data_offsets: " << "\n";
     for (size_t i = 0; i < io_data_offsets.size(); ++i)
         out << "\t[" << i << "]" << ov::Shape(io_data_offsets[i]) << "\n";
@@ -39,8 +39,7 @@ std::string RuntimeConfig::to_string() const {
 }
 #endif
 
-RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c)
-    : m_config(std::move(c)) {
+RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) : m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 
@@ -120,14 +119,15 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
         const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(param);
         ExpressionPtr mem_desc_expr = param;
         if (!shape_infer_seq.empty()) {
-            // [160048] Reorder, as any another ShapeInferOp, should just propagate input shape to output using target order
+            // [160048] Reorder, as any another ShapeInferOp, should just propagate input shape to output using target
+            // order
             //          without data movement. However, currently we have to save desc of input of the Reorder
             //          to support correct input data offsets calculations and MHAParallelWAOptimizer pass work.
             //          Please, remove this code part when the mentioned ticket is completed.
-            const auto& reorder_it = std::find_if(shape_infer_seq.cbegin(), shape_infer_seq.cend(),
-                                                  [](const ExpressionPtr& expr) {
-                                                     return ov::is_type<op::Reorder>(expr->get_node());
-                                                  });
+            const auto& reorder_it =
+                std::find_if(shape_infer_seq.cbegin(), shape_infer_seq.cend(), [](const ExpressionPtr& expr) {
+                    return ov::is_type<op::Reorder>(expr->get_node());
+                });
             if (reorder_it != shape_infer_seq.cend()) {
                 const auto& reorder = *reorder_it;
                 const auto& etype = reorder->get_node()->get_output_element_type(0);
@@ -140,7 +140,8 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
 
         auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
         for (const auto& child_input : consumer_inputs) {
-            const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
+            const auto ma =
+                std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(child_input.get_expr()->get_node());
             if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
                 desc = child_input.get_descriptor_ptr();
                 break;
@@ -166,7 +167,8 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
     // All needed checks are in Validate pass
     const auto& buffer_expressions = linear_ir->get_buffers();
     for (const auto& buffer_expr : buffer_expressions) {
-        // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without any `is_defined()`
+        // TODO [143395] : MemoryManager should provide exact containers with needed buffers (static or dynamic) without
+        // any `is_defined()`
         auto& clusters = buffer_expr->is_defined() ? static_buffer_clusters : dynamic_buffer_clusters;
         clusters[buffer_expr->get_cluster_id()].insert(buffer_expr);
     }
@@ -191,7 +193,8 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
                                                     LoopInfoRuntimeParamsMap& initialized_info) {
     const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
 
-    OPENVINO_ASSERT(initialized_info.count(current_unified_loop_info) > 0, "UnifiedLoopInfo must be updated before ExpandedLoopInfo");
+    OPENVINO_ASSERT(initialized_info.count(current_unified_loop_info) > 0,
+                    "UnifiedLoopInfo must be updated before ExpandedLoopInfo");
     auto& cur_initialized_info = initialized_info.at(current_unified_loop_info);
     auto& current_work_amount = cur_initialized_info.work_amount;
     const auto& ptr_increments = cur_initialized_info.ptr_increments;
@@ -200,7 +203,9 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
     const auto& decomposed_loop_type = expanded_loop_info->get_type();
 
     // If the specific iteration is not needed, we skip loop evaluation - set zero as work amount is enough
-    if (!lowered::pass::InsertSpecificIterations::is_decomposed_loop_needed(current_unified_loop_info, decomposed_loop_type, current_work_amount)) {
+    if (!lowered::pass::InsertSpecificIterations::is_decomposed_loop_needed(current_unified_loop_info,
+                                                                            decomposed_loop_type,
+                                                                            current_work_amount)) {
         expanded_loop_info->set_work_amount(0);
         if (expanded_loop_info->is_evaluate_once())
             expanded_loop_info->set_increment(0);
@@ -208,13 +213,16 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
     }
 
     const auto work_amount =
-        lowered::pass::InsertSpecificIterations::get_decomposed_loop_work_amount(current_unified_loop_info, decomposed_loop_type, current_work_amount);
+        lowered::pass::InsertSpecificIterations::get_decomposed_loop_work_amount(current_unified_loop_info,
+                                                                                 decomposed_loop_type,
+                                                                                 current_work_amount);
     expanded_loop_info->set_work_amount(work_amount);
     // Update remaining Loop work amount
     current_work_amount -= work_amount;
 
     // Update only `finalization offsets`. `Ptr increments` are always zeroed in this case
-    auto updated_finalization_offsets = current_work_amount > 0 ? std::vector<int64_t>(finalization_offsets.size(), 0) : finalization_offsets;
+    auto updated_finalization_offsets =
+        current_work_amount > 0 ? std::vector<int64_t>(finalization_offsets.size(), 0) : finalization_offsets;
     if (expanded_loop_info->is_evaluate_once()) {
         expanded_loop_info->set_increment(work_amount);
         // work_amount is equal to increment in cases with `evaluate_once`
@@ -251,12 +259,14 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
 void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRCPtr& linear_ir) const {
     const auto& loop_manager = linear_ir->get_loop_manager();
     // Align initial buffer scratchpad size with cache line size
-    m_config->buffer_scratchpad_size = utils::rnd_up(linear_ir->get_static_buffer_scratchpad_size(), lowered::pass::SolveBufferMemory::byte_alignment);
+    m_config->buffer_scratchpad_size =
+        utils::rnd_up(linear_ir->get_static_buffer_scratchpad_size(), lowered::pass::SolveBufferMemory::byte_alignment);
 
     auto is_not_executed = [&loop_manager](const lowered::ExpressionPtr& buffer_expr) {
         const auto& loop_ids = buffer_expr->get_loop_ids();
-        return std::any_of(loop_ids.cbegin(), loop_ids.cend(),
-                          [&loop_manager](size_t loop_id) { return loop_manager->get_loop_info(loop_id)->get_work_amount() == 0; });
+        return std::any_of(loop_ids.cbegin(), loop_ids.cend(), [&loop_manager](size_t loop_id) {
+            return loop_manager->get_loop_info(loop_id)->get_work_amount() == 0;
+        });
     };
 
     for (const auto& p : m_dynamic_buffer_clusters) {
@@ -268,13 +278,15 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
 
         size_t additional_size = 0;
         for (const auto& buffer_expr : cluster) {
-            // No need to calculate allocation size of Buffers which are in Loops with `work_amount = 0` - they won't be executed
+            // No need to calculate allocation size of Buffers which are in Loops with `work_amount = 0` - they won't be
+            // executed
             if (is_not_executed(buffer_expr))
                 continue;
             buffer_expr->init_allocation_size(loop_manager, m_config->tile_rank);
             const auto& allocation_size = buffer_expr->get_allocation_size();
             OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
-            additional_size = std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
+            additional_size =
+                std::max(allocation_size * buffer_expr->get_node()->get_element_type().size(), additional_size);
         }
 
         // Align with cache line size. The experiments shows that it affects performance.
@@ -285,7 +297,8 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
         m_config->buffer_scratchpad_size += additional_size;
     }
 
-    OPENVINO_ASSERT(!utils::is_dynamic_value(m_config->buffer_scratchpad_size), "Buffer scratchpad size must be defined!");
+    OPENVINO_ASSERT(!utils::is_dynamic_value(m_config->buffer_scratchpad_size),
+                    "Buffer scratchpad size must be defined!");
 }
 
 void RuntimeConfigurator::update_data_offsets() const {
@@ -350,7 +363,8 @@ void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecut
     m_config->kernel_executor_table = std::move(table);
 }
 
-RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::get_loop_runtime_params(const lowered::UnifiedLoopInfoPtr& loop_info) {
+RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::get_loop_runtime_params(
+    const lowered::UnifiedLoopInfoPtr& loop_info) {
     RuntimeConfigurator::UnifiedLoopInfoRtParams rt_params;
     rt_params.work_amount = loop_info->get_work_amount();
     const auto count = loop_info->get_input_count() + loop_info->get_output_count();
@@ -358,13 +372,12 @@ RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::get_loop_runti
     rt_params.finalization_offsets.resize(count);
 
     size_t idx = 0;
-    loop_info->iterate_through_descs(
-        [&rt_params, &idx](const lowered::UnifiedLoopInfo::LoopPortDesc& desc) {
-            rt_params.ptr_increments[idx] = desc.ptr_increment;
-            rt_params.finalization_offsets[idx] = desc.finalization_offset;
-            ++idx;
-        });
+    loop_info->iterate_through_descs([&rt_params, &idx](const lowered::UnifiedLoopInfo::LoopPortDesc& desc) {
+        rt_params.ptr_increments[idx] = desc.ptr_increment;
+        rt_params.finalization_offsets[idx] = desc.finalization_offset;
+        ++idx;
+    });
     return rt_params;
 }
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov
