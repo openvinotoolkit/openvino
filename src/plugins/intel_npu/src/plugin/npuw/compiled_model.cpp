@@ -20,6 +20,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
+#include "partitioning/patterns/pre_compute.hpp"
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
@@ -125,6 +126,11 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulAdd>();
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
+        rewr.run_on_model(model);
+    }
+    if (cfg_get<::intel_npu::NPUW_PRECOMPUTE_LPKERNELS) {
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::pre_compute::SinCos>();
         rewr.run_on_model(model);
     }
     model->validate_nodes_and_infer_types();
@@ -1687,6 +1693,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
                           BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
+                          BIND(npuw::partitioning::pre_compute_lp_kernels, NPUW_PRECOMPUTE_LPKERNELS),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
