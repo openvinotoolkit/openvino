@@ -23,7 +23,7 @@ namespace pass {
  *           * It's possible only if other consumers of Loop_0 are after Loop_1 in Linear IR.
  *             Because Upper Loop_0 will be explicitly moved before Current Loop_1 in linear IR,
  *             and we must save control dependency (to avoid cases when after fusion some consumers of Loop_0 are before
- * this Loop)
+ *             this Loop)
  *
  *        - Lower Loop is fused into the Current Loop
  *              Loop_0 (Current)    Loop_0 + Loop_1 => new `Loop_0`

@@ -253,15 +253,15 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             //     for scalar case. It means that these increments are not proportional => Each Buffer should have the
             //     own register
             // For that we can just check the following "branches":
-            //  - Between MatMul0 and MatMul1 - Softmax is sync point. The operations between MatMul0 -> Softmax and
-            //  Softmax -> MatMul1
-            //                                  will be fused into one loop after conversion to snippet dialect (Because
-            //                                  it's just FQ, Eltwise nodes)
-            //  - Between MatMul0 and Transpose1 - At the moment operations after Transpose1 cannot be fused in inner
-            //  Transpose Loop
-            //                                     (to avoid performance regressions due to scalar calculations).
-            //                                     But operations after Transpose1 and before MatMul0  will be fused
-            //                                     into one loop as well (look at first point)
+            //  - Between MatMul0 and MatMul1:
+            //        Softmax is sync point. The operations between MatMul0 -> Softmax and Softmax -> MatMul1
+            //        will be fused into one loop after conversion to snippet dialect (Because it's just FQ, Eltwise
+            //        nodes)
+            //  - Between MatMul0 and Transpose1:
+            //        At the moment operations after Transpose1 cannot be fused in inner Transpose Loop
+            //        (to avoid performance regressions due to scalar calculations).
+            //        But operations after Transpose1 and before MatMul0  will be fused into one loop as well (look at
+            //        first point)
             size_t uniqie_buffer_reg_group_count = 1;  // After MatMul0 there is always one Buffer
             std::string fused_names;
             ov::NodeVector ordered_ops;

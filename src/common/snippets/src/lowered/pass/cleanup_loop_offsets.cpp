@@ -64,8 +64,9 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir,
                         // Inner Loop: WA = 32, Inc = 1, ptr_increment[0] = 20, final_offset[0] = -640
                         // Outer Loop: WA = 70, Inc = 32, ptr_increment[0] = 20, final_offset[0] = -1400
                         // To save data ptr shift proportionality, we have to calculate so:
-                        //    outer_ptr_increment[0] = (inner_final_offset[0] + outer_ptr_increment[0] * outer_Inc) /
-                        //    outer_Inc outer_ptr_increment[0] = (-640 + 20 x 32) / 32 = 0
+                        //     outer_ptr_increment[0] = (
+                        //         inner_final_offset[0] + outer_ptr_increment[0] * outer_Inc) / outer_Inc
+                        //     outer_ptr_increment[0] = (-640 + 20 x 32) / 32 = 0
 
                         const auto full_outer_increment = outer_ptr_increments[i] * outer_increment;
                         const auto new_final_outer_increment = full_outer_increment + fin_offsets[found->second];

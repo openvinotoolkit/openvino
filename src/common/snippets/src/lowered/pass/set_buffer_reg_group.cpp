@@ -50,8 +50,8 @@ bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const Buf
         return !can_be_in_one_reg_group(lhs.second, rhs.second);
     } else {  // Buffers are connected to the same Loop, but one of Buffers - inside this Loop, another - outside
         // Buffers are adjacent if outer Buffer has non-zero data shift params
-        if (lhs_ids.size() ==
-            rhs_ids.size())  // If the count of outer Loops are equal, it means that outer loops are already different
+        // If the count of outer Loops are equal, it means that outer loops are already different
+        if (lhs_ids.size() == rhs_ids.size())
             return true;
         const auto& outer_buffer = lhs_ids.size() < rhs_ids.size() ? lhs : rhs;
         const auto count_outer_loops = std::min(lhs_ids.size(), rhs_ids.size());

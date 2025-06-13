@@ -18,8 +18,8 @@ namespace pass {
  *        The pass collapses two last dimensions while none of them is broadcasted and the resulting dim size
  *        1. Dimension collapsing: If none of the last two dimensions are broadcasted, the last dimension's size
  *           is less than min_kernel_work_amount and the remaining dimensions provide work amount larger than
- *           min_parallel_work_amount (min_kernel_work_amount and min_parallel_work_amount specified in LireanIR
- * config), then these two dimensions are collapsed into one and the collapsing attempt is repeated.
+ *           min_parallel_work_amount (min_kernel_work_amount and min_parallel_work_amount specified in LinearIR
+ *           config), then these two dimensions are collapsed into one and the collapsing attempt is repeated.
  *        2. Tile rank increment: Tile rank is the rank of a tensor that processed during one call. If all except
  *           for the last two dimensions provide work_amount larger than min_parallel_work_amount, then tile_rank
  *           is incremented. This effectively increases kernel work_amount.

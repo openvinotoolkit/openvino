@@ -428,8 +428,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
                 // and if all of them are inside body, we can explicitly add Constant to the body_inputs, otherwise we
                 // should make a copy and add copy of Constant to body_inputs For example, this case is especially valid
                 // for Transposes nodes
-                //              (several Transposes have the same order so there can be the common Constant with this
-                //              order)
+                //     (several Transposes have the same order so there can be the common Constant with this order)
                 if (constant->get_output_target_inputs(0).size() == 1) {
                     body_inputs.push_back(input.get_source_output());
                 } else {

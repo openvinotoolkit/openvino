@@ -115,8 +115,8 @@ protected:
     size_t m_output_num = 0;
     size_t m_id = 0;  // the corresponding Loop identificator in LoopManager
 
-    bool m_evaluate_once =
-        false;  // true if the Loop is executed only once, used to skip setting and testing the loop counter
+    // m_evaluate_once is true if the Loop is executed only once, used to skip setting and testing the loop counter
+    bool m_evaluate_once = false;
 };
 
 }  // namespace op
