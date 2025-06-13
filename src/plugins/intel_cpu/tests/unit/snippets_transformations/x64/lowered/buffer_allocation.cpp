@@ -153,7 +153,12 @@ protected:
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
-        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core, ov::element::f32, ov::element::f32, false, false);
+        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core,
+                                         ov::element::f32,
+                                         ov::element::f32,
+                                         ov::element::f32,
+                                         false,
+                                         false);
 
         // Dims are selected in order to have blocking loops by each dim
         OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
@@ -209,7 +214,12 @@ protected:
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
         const auto subtensor_flat = std::vector<size_t>(1, ov::snippets::utils::get_full_dim_value());
 
-        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx, ov::element::bf16, ov::element::bf16, false, false);
+        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx,
+                                         ov::element::bf16,
+                                         ov::element::bf16,
+                                         ov::element::bf16,
+                                         false,
+                                         false);
 
         OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, shapes[0]);
@@ -223,7 +233,7 @@ protected:
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(convert0);
         const auto convert1 = std::make_shared<ov::snippets::op::ConvertSaturation>(relu0, ov::element::bf16);
 
-        const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, ov::element::bf16, brgemm_config);
+        const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, brgemm_config);
         const auto scratch0 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu0 =
             std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{parameter0, brgemm_copyb0->output(0), scratch0},
@@ -244,7 +254,7 @@ protected:
 
         const auto convert2 = std::make_shared<ov::snippets::op::ConvertSaturation>(multiply, ov::element::bf16);
 
-        const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, ov::element::bf16, brgemm_config);
+        const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, brgemm_config);
         const auto scratch1 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
         const auto brgemm_cpu1 =
             std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{convert2, brgemm_copyb1->output(0), scratch1},

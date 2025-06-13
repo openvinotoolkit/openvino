@@ -23,6 +23,7 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -70,7 +71,13 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
         const auto etype_b = brgemm->get_input_element_type(1);
 
         bool are_wei_constant = false;
-        auto brgemm_parent_1 = brgemm->input_value(1).get_node_shared_ptr();
+        auto brgemm_parent_1 = brgemm->get_input_node_shared_ptr(1);
+        auto orig_wei_type = etype_b;
+        // EnforcePrecision pass might insert ConvertSaturation before Brgemm
+        if (ov::is_type<ov::snippets::op::ConvertSaturation>(brgemm_parent_1)) {
+            orig_wei_type = brgemm_parent_1->get_input_element_type(0);
+            brgemm_parent_1 = brgemm_parent_1->get_input_node_shared_ptr(0);
+        }
         const auto shape_infer_leaf =
             ov::snippets::utils::get_leaf_node_of_first_parent_shape_infer_seq(brgemm_parent_1);
         if (shape_infer_leaf) {
@@ -83,8 +90,11 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
             are_wei_constant = m_constant_inputs_idxs.count(param_idx) > 0;
         }
 
-        const bool transpose_b = BrgemmCopyB::is_transposed(layout_b);
-        const auto brgemm_config = brgemm_utils::BrgemmConfig(etype_a, etype_b, are_wei_constant, transpose_b);
+        const auto brgemm_config = brgemm_utils::BrgemmConfig(etype_a,
+                                                              etype_b,
+                                                              orig_wei_type,
+                                                              are_wei_constant,
+                                                              BrgemmCopyB::is_transposed(layout_b));
 
         auto offset_a = brgemm->get_offset_a();
         auto offset_b = brgemm->get_offset_b();
@@ -97,7 +107,12 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
         std::shared_ptr<BrgemmCopyB> brgemm_copy_b = nullptr;
 
         if (brgemm_config.with_wei_repacking()) {
-            brgemm_copy_b = std::make_shared<BrgemmCopyB>(brgemm_in1, etype_a, brgemm_config, offset_b, 0, 0, layout_b);
+            // BrgemmCopyB supports precision conversion, so we can skip explicit convert in this case
+            if (auto* convert = ov::as_type<ov::snippets::op::ConvertSaturation>(brgemm_in1.get_node())) {
+                brgemm_in1 = convert->input_value(0);
+            }
+            brgemm_copy_b =
+                std::make_shared<BrgemmCopyB>(brgemm_in1, brgemm_config, layout_b, PortDescriptor{0, offset_b});
             PortDescriptorUtils::set_port_descriptor(brgemm_copy_b->input(0),
                                                      brgemm_in1_desc->get_subtensor(),
                                                      layout_b);

@@ -304,16 +304,13 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         NodeConfig config;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
-            const auto precision =
-                ((originalInputPrecision == ov::element::f32) &&
-                 one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
-                 subgraph_attrs->snippet->has_domain_sensitive_ops())
-                    ? context->getConfig().inferencePrecision
-                    : originalInputPrecision;
-            if (supportedPrecisions.count(precision) == 0) {
-                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
-            }
+            const auto precision = getOriginalInputPrecisionAtPort(i);
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
+                            "Subgraph doesn't support ",
+                            precision,
+                            " precision at input port ",
+                            i,
+                            ".");
 
             const auto equalPrecisions =
                 getOriginalOutputPrecisions().size() == 1 && precision == getOriginalOutputPrecisionAtPort(0);
@@ -330,10 +327,13 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto precision = getOriginalOutputPrecisionAtPort(i);
-            if (supportedPrecisions.count(precision) == 0) {
-                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
-            }
+            const auto precision = getOriginalOutputPrecisionAtPort(i);
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
+                            "Subgraph doesn't support ",
+                            precision,
+                            " precision at input port ",
+                            i,
+                            ".");
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
