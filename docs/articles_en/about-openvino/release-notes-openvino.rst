@@ -28,19 +28,20 @@ What's new
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
   * New models supported: Phi-4, Mistral-7B-Instruct-v0.3, SD-XL Inpainting 0.1, Stable Diffusion 
-    3.5 Large Turbo, Phi-4-reasoning, Qwen3 and Qwen2.5-VL-3B-Instruct.
-  * Preview: OpenVINO ™ GenAI introduces a text-to-speech pipeline for the SpeechT5 TTS model, 
+    3.5 Large Turbo, Phi-4-reasoning, Qwen3, Qwen2.5-VL-3B-Instruct, and Gemma-3-1b-it.
+  * Preview: OpenVINO™ GenAI introduces a text-to-speech pipeline for the SpeechT5 TTS model, 
     while the new RAG backend offers developers a simplified API that delivers reduced memory 
     usage and improved performance.
   * Preview: OpenVINO™ GenAI offers a GGUF Reader for seamless integration of llama.cpp based 
     LLMs, with Python and C++ pipelines that load GGUF models, build OpenVINO graphs, and run 
-    GPU inference on-the-fly.
+    GPU inference on-the-fly. Validated for popular models: DeepSeek-R1-Distill-Qwen (1.5B, 7B), 
+    Qwen2.5 Instruct (1.5B, 3B, 7B) & llama-3.2 Instruct (1B, 3B, 8B).
 
 * Broader LLM model support and more model compression techniques
 
-  * Further optimization of LoRA adapters in OpenVINO GenAI for improved LLM, VLM, and 
-    text-to-image model performance on built-in GPUs. Developers can use LoRA adapters to 
-    quickly customize models for specialized tasks.
+  * Further optimization of LoRA adapters in OpenVINO GenAI for improved LLM, VLM, and text-to-image 
+    model performance on built-in GPUs. Developers can use LoRA adapters to quickly customize 
+    models for specialized tasks. 
   * KV cache compression for CPUs is enabled by default for INT8, providing a reduced memory 
     footprint while maintaining accuracy compared to FP16. Additionally, it delivers substantial 
     memory savings for LLMs with INT4 support compared to INT8.
@@ -56,10 +57,11 @@ What's new
   * OpenVINO™ Model Server now offers a streamlined C++ version for Windows and enables improved 
     performance for long-context models through prefix caching, and a smaller Windows package 
     that eliminates the Python dependency. Support for Hugging Face models is now included.
-  * Support for INT4 data-free weights compression for ONNX models implemented in the Neural 
-    Network Compression Framework (NNCF).
-  * NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with 
-    up to 8 billion parameters.
+  * Support for INT4 data-free weights compression for ONNX models implemented in the 
+    Neural Network Compression Framework (NNCF).
+  * NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models 
+    with up to 8B parameters is enabled through symmetrical and channel-wise quantization, 
+    improving accuracy while maintaining performance efficiency.
 
 
 OpenVINO™ Runtime 
@@ -262,6 +264,7 @@ OpenVINO GenAI
   * support for the SnapKV method for more accurate KV cache eviction, enabled by default when 
     KV cache eviction is used,
   * preview support for `GGUF models (GGML Unified Format) <https://huggingface.co/models?library=gguf>`__.
+    See the `OpenVINO blog <https://blog.openvino.ai/blog-posts/openvino-genai-supports-gguf-models>`__ for details. 
   
 
 Other Changes and Known Issues
@@ -314,6 +317,13 @@ Known Issues
 |   The stable-diffusion-v1-5 model in FP16 precision shows up to a 10% degradation in the 2nd token
     latency on Intel® Xeon® Platinum 8580. Currently no workaround is available;
     a fix is planned for future releases.
+
+| **Component: ARM**
+| ID: 166178
+| Description:
+|   Performance regression of models on ARM due to an upgrade to the latest ACL. A corresponding issue has 
+    been created in the ACL and oneDNN repositories. 
+
 
 .. Previous 2025 releases
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
