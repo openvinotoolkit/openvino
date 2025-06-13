@@ -48,7 +48,7 @@ public:
         return 0;
     }
 
-    bool hasLayoutType(LayoutType /*layoutType*/) const override {
+    bool hasLayoutType([[maybe_unused]] LayoutType layoutType) const override {
         return false;
     }
 
