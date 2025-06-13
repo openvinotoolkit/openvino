@@ -26,8 +26,6 @@ class TestScalarTensor(PytorchLayerTest):
 
         return aten_scalar_tensor(), ref_net, f"aten::scalar_tensor"
 
-    @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_scalar_tensor(self, ie_device, precision, ir_version):
