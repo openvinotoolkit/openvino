@@ -4,10 +4,9 @@
 
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/itt.hpp"
-
 
 namespace ov {
 namespace snippets {
@@ -33,7 +32,8 @@ void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMa
 
         previous_loop_ids.first = expr_loop_ids;
         std::for_each(expr_loop_ids.begin(), expr_loop_ids.end(), [&loop_id_map](size_t& id) {
-            OPENVINO_ASSERT(loop_id_map.count(id) > 0, "Expression is marked by LoopID that has not been found in the map!");
+            OPENVINO_ASSERT(loop_id_map.count(id) > 0,
+                            "Expression is marked by LoopID that has not been found in the map!");
             id = loop_id_map.at(id);
         });
         expr->set_loop_ids(expr_loop_ids);
@@ -55,7 +55,8 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
                 loop_id_map[old_id] = new_id;
                 continue;
             }
-            OPENVINO_ASSERT(m_has_specific_loops, "NormalizeLoopIDs failed: LinearIR contains unified loops with the same IDs!");
+            OPENVINO_ASSERT(m_has_specific_loops,
+                            "NormalizeLoopIDs failed: LinearIR contains unified loops with the same IDs!");
         }
     }
 
@@ -70,7 +71,7 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

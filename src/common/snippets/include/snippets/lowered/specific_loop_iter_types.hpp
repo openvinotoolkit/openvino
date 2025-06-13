@@ -8,9 +8,7 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-enum class SpecificLoopIterType {
-    FIRST_ITER, MAIN_BODY, LAST_ITER
-};
+enum class SpecificLoopIterType { FIRST_ITER, MAIN_BODY, LAST_ITER };
 
 inline std::ostream& operator<<(std::ostream& out, const SpecificLoopIterType& type) {
     switch (type) {
@@ -29,6 +27,6 @@ inline std::ostream& operator<<(std::ostream& out, const SpecificLoopIterType& t
     return out;
 }
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

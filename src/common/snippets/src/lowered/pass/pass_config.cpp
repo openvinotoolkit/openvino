@@ -4,7 +4,6 @@
 
 #include "snippets/lowered/pass/pass_config.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -36,7 +35,7 @@ bool operator!=(const PassConfig& lhs, const PassConfig& rhs) {
     return !(lhs == rhs);
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

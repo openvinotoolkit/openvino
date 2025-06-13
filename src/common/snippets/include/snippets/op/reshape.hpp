@@ -32,6 +32,7 @@ public:
     class ShapeInfer : public IShapeInferSnippets {
         VectorDims target_shape;
         size_t target_shape_volume = 0;
+
     public:
         explicit ShapeInfer(const std::shared_ptr<Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
@@ -41,6 +42,6 @@ private:
     ov::PartialShape m_target_shape = {};
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

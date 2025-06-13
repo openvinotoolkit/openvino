@@ -4,17 +4,18 @@
 
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
-
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool ComputeBufferAllocationSize::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool ComputeBufferAllocationSize::run(LinearIR& linear_ir,
+                                      lowered::LinearIR::constExprIt begin,
+                                      lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ComputeBufferAllocationSize")
 
     const auto& allocation_rank = linear_ir.get_config().m_loop_depth;
@@ -29,7 +30,7 @@ bool ComputeBufferAllocationSize::run(LinearIR& linear_ir, lowered::LinearIR::co
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

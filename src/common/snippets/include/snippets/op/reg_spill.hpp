@@ -6,9 +6,8 @@
 
 #include <cassert>
 
-#include "snippets/emitter.hpp"
-
 #include "openvino/op/op.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
@@ -42,14 +41,18 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
     std::shared_ptr<RegSpillEnd> get_reg_spill_end() const;
-    const std::set<Reg>& get_regs_to_spill() const override { return m_regs_to_spill; }
+    const std::set<Reg>& get_regs_to_spill() const override {
+        return m_regs_to_spill;
+    }
 
     class ShapeInfer : public IShapeInferSnippets {
         size_t num_out_shapes = 0;
+
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
+
 protected:
     void validate_and_infer_types_except_RegSpillEnd();
     std::set<Reg> m_regs_to_spill = {};
@@ -78,6 +81,6 @@ public:
     }
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

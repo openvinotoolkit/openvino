@@ -8,16 +8,14 @@
  */
 #pragma once
 
-#include "snippets_isa.hpp"
-
-#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets_isa.hpp"
 #include "target_machine.hpp"
 
 namespace ov {
 namespace snippets {
-
 
 class Generator;
 /**
@@ -29,7 +27,8 @@ class Generator;
 class LoweringResult {
     friend class Generator;
     // Some emitters rely on other precompiled kernels.
-    // We need to keep the pointers to such emitters alive, so the kernels or nodes would still be accessible at runtime.
+    // We need to keep the pointers to such emitters alive, so the kernels or nodes would still be accessible at
+    // runtime.
     std::vector<std::shared_ptr<Emitter>> m_saved_emitters{};
 
 public:
@@ -53,11 +52,12 @@ public:
     /**
      * @brief Returns callable instanse of code pointer
      */
-    template<typename K> K get_callable() const {
+    template <typename K>
+    K get_callable() const {
         return reinterpret_cast<K>(const_cast<unsigned char*>(lowering_result.compiled_snippet->get_code()));
     }
 
-    LoweringResult lowering_result {};
+    LoweringResult lowering_result{};
 };
 
 /**
@@ -65,7 +65,7 @@ public:
  * @brief Target independent code generator interface
  * @ingroup snippets
  */
-class Generator : public std::enable_shared_from_this<Generator>{
+class Generator : public std::enable_shared_from_this<Generator> {
 public:
     /**
      * @brief Default constructor
@@ -100,18 +100,20 @@ public:
 
 protected:
     /**
-    * @brief gets register type by specific plugin op type
-    * @return register type
-    */
+     * @brief gets register type by specific plugin op type
+     * @return register type
+     */
     virtual RegType get_specific_op_out_reg_type(const ov::Output<Node>& out) const;
     /**
-    * @brief returns true if an emitter can use precompiled kernel.
-    * @return bool
-    */
-    virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& emitter) const { return false; }
+     * @brief returns true if an emitter can use precompiled kernel.
+     * @return bool
+     */
+    virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& emitter) const {
+        return false;
+    }
 
     std::shared_ptr<TargetMachine> target;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov

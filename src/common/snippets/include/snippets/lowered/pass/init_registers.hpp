@@ -21,8 +21,7 @@ namespace pass {
 class InitRegisters : public Pass {
 public:
     OPENVINO_RTTI("InitRegisters", "0", Pass)
-    InitRegisters(const std::shared_ptr<const Generator>& generator,
-                  const std::shared_ptr<PassConfig>& pass_config);
+    InitRegisters(const std::shared_ptr<const Generator>& generator, const std::shared_ptr<PassConfig>& pass_config);
     bool run(LinearIR& linear_ir) override;
 
 private:
@@ -30,7 +29,7 @@ private:
     const std::shared_ptr<PassConfig>& m_pass_config;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

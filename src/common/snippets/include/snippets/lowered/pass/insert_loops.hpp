@@ -5,9 +5,8 @@
 #pragma once
 
 #include "pass.hpp"
-
-#include "snippets/op/loop.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/loop.hpp"
 
 namespace ov {
 namespace snippets {
@@ -24,11 +23,12 @@ public:
     OPENVINO_RTTI("InsertLoops", "", RangedPass);
     InsertLoops() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+
 private:
     static void insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

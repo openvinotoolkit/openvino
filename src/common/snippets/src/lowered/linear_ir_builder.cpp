@@ -65,7 +65,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 }
 }  // namespace
 
-void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst,  ExpressionMap& expression_map) const {
+void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst, ExpressionMap& expression_map) const {
     OPENVINO_ASSERT(src && dst, "Invalid pointers were provided for LinearIRBuilder::clone");
     dst->m_config = src->m_config;
 
@@ -77,12 +77,14 @@ void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst,  ExpressionMap& 
     dst->m_loop_manager = src->m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     dst->m_shape_infer_factory = src->m_shape_infer_factory;
-    dst->m_shape_infer = std::make_shared<LinearIR::LIRShapeInfer>(dst->m_expressions, dst->m_parameter_expressions,
+    dst->m_shape_infer = std::make_shared<LinearIR::LIRShapeInfer>(dst->m_expressions,
+                                                                   dst->m_parameter_expressions,
                                                                    dst->m_result_expressions);
     dst->m_is_dynamic = src->m_is_dynamic;
 }
 
-LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end,
+LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iterator begin,
+                                                 LinearIR::container::const_iterator end,
                                                  ExpressionMap& expression_map) const {
     OPENVINO_ASSERT(expression_map.empty(), " LinearIRBuilder::clone_range expects empty expression_map as an input");
     LinearIR::container result;
@@ -102,27 +104,29 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
         expression_map[expr.get()] = new_expr;
     }
 
-    for (auto result_it = result.cbegin(), original_it = begin; result_it != result.cend(); ++result_it, ++original_it) {
+    for (auto result_it = result.cbegin(), original_it = begin; result_it != result.cend();
+         ++result_it, ++original_it) {
         const auto& result_expr = *result_it;
         const auto& original_expr = *original_it;
         // Checking that the cloning was successful: the cloned part of LinearIR is identical to the original one
         OPENVINO_ASSERT(result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
-                        result_expr->get_input_count() == original_expr->get_input_count() &&
-                        result_expr->get_output_count() == original_expr->get_output_count(),
+                            result_expr->get_input_count() == original_expr->get_input_count() &&
+                            result_expr->get_output_count() == original_expr->get_output_count(),
                         "Expressions after copying aren't matched!");
         // Copy tensor shapes as shared pointer if needed
         if (!m_config.deep_copy_of_shapes) {
             for (size_t i = 0; i < original_expr->get_input_count(); ++i)
-                result_expr->get_input_port_descriptor(i)->m_tensor_shape = original_expr->get_input_port_descriptor(i)->m_tensor_shape;
+                result_expr->get_input_port_descriptor(i)->m_tensor_shape =
+                    original_expr->get_input_port_descriptor(i)->m_tensor_shape;
             for (size_t i = 0; i < original_expr->get_output_count(); ++i)
-                result_expr->get_output_port_descriptor(i)->m_tensor_shape = original_expr->get_output_port_descriptor(i)->m_tensor_shape;
+                result_expr->get_output_port_descriptor(i)->m_tensor_shape =
+                    original_expr->get_output_port_descriptor(i)->m_tensor_shape;
         }
     }
 
     return result;
 }
 
-
-}// namespace lowered
-}// namespace snippets
-}// namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

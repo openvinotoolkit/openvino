@@ -52,7 +52,8 @@ inline void init_work_amount(const LoopInfoPtr& loop_info) {
             const auto& shape = desc->get_shape();
             const auto& layout = desc->get_layout();
             const auto is_input = loop_port.get_expr_port()->get_type() == ExpressionPort::Input;
-            const auto dim_idx = is_input ? get_input_dim_idx(layout, loop_port.get_dim_idx()) : get_output_dim_idx(layout, loop_port.get_dim_idx());
+            const auto dim_idx = is_input ? get_input_dim_idx(layout, loop_port.get_dim_idx())
+                                          : get_output_dim_idx(layout, loop_port.get_dim_idx());
             OPENVINO_ASSERT(broadcast_merge_dim(work_amount, work_amount, shape[dim_idx]),
                             "Failed to broadcast work_amount");
         }
@@ -67,9 +68,12 @@ void update_data_pointer_shifts(const UnifiedLoopInfoPtr& loop_info) {
     const auto input_count = loop_info->get_input_count();
     const auto output_count = loop_info->get_output_count();
 
-    auto update_shifts = [&work_amount, &input_count, &output_count](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
-        ptr_shifts_params.ptr_increment = get_ptr_increment(loop_port, work_amount,
-                                                            loop_port.get_expr_port()->get_type() == ExpressionPort::Input ? input_count : output_count);
+    auto update_shifts = [&work_amount, &input_count, &output_count](LoopPort& loop_port,
+                                                                     UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+        ptr_shifts_params.ptr_increment = get_ptr_increment(
+            loop_port,
+            work_amount,
+            loop_port.get_expr_port()->get_type() == ExpressionPort::Input ? input_count : output_count);
         ptr_shifts_params.finalization_offset = get_finalization_offset(work_amount, ptr_shifts_params.ptr_increment);
     };
     loop_info->iterate_through_infos(update_shifts);
@@ -84,13 +88,12 @@ void update_runtime_parameters(const UnifiedLoopInfoPtr& loop_info) {
 
 bool should_be_loop_port(const ov::snippets::lowered::ExpressionPort& port, size_t loop_id) {
     const auto& connected_ports = port.get_connected_ports();
-    return std::any_of(connected_ports.cbegin(), connected_ports.cend(),
-                       [&](const ExpressionPort& connected_port) {
-                           const auto& loops = connected_port.get_expr()->get_loop_ids();
-                           return std::find(loops.cbegin(), loops.cend(), loop_id) == loops.cend();
-                       });
+    return std::any_of(connected_ports.cbegin(), connected_ports.cend(), [&](const ExpressionPort& connected_port) {
+        const auto& loops = connected_port.get_expr()->get_loop_ids();
+        return std::find(loops.cbegin(), loops.cend(), loop_id) == loops.cend();
+    });
 }
 
-} // namespace utils
-} // namespace snippets
-} // namespace ov
+}  // namespace utils
+}  // namespace snippets
+}  // namespace ov

@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/pass/positioned_pass.hpp"
-#include "openvino/core/rtti.hpp"
-#include "openvino/core/type.hpp"
 
 namespace ov {
 namespace snippets {
@@ -27,7 +27,7 @@ public:
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"snippets::lowered::pass::PassBase"};
+        static ::ov::DiscreteTypeInfo type_info_static{"snippets::lowered::pass::PassBase"};
         type_info_static.hash();
         return type_info_static;
     }
@@ -99,7 +99,9 @@ public:
      * @param end end of the range on which the pass is performed
      * @return status of the pass
      */
-    virtual bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) = 0;
+    virtual bool run(lowered::LinearIR& linear_ir,
+                     lowered::LinearIR::constExprIt begin,
+                     lowered::LinearIR::constExprIt end) = 0;
 };
 
 class PassPipeline {
@@ -109,20 +111,29 @@ public:
     PassPipeline();
     PassPipeline(const std::shared_ptr<PassConfig>& pass_config);
 
-    const std::vector<std::shared_ptr<PassBase>>& get_passes() const { return m_passes; }
-    const std::shared_ptr<PassConfig>& get_pass_config() const { return m_pass_config; }
-    bool empty() const { return m_passes.empty(); }
+    const std::vector<std::shared_ptr<PassBase>>& get_passes() const {
+        return m_passes;
+    }
+    const std::shared_ptr<PassConfig>& get_pass_config() const {
+        return m_pass_config;
+    }
+    bool empty() const {
+        return m_passes.empty();
+    }
 
     void register_pass(const snippets::pass::PassPosition& position, const std::shared_ptr<PassBase>& pass);
     void register_pass(const std::shared_ptr<PassBase>& pass);
 
-    template<typename T, class... Args>
+    template <typename T, class... Args>
     void register_pass(Args&&... args) {
         static_assert(std::is_base_of<PassBase, T>::value, "Pass not derived from lowered::Pass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         register_pass(pass);
     }
-    template<typename T, class Pos, class... Args, std::enable_if<std::is_same<snippets::pass::PassPosition, Pos>::value, bool>() = true>
+    template <typename T,
+              class Pos,
+              class... Args,
+              std::enable_if<std::is_same<snippets::pass::PassPosition, Pos>::value, bool>() = true>
     void register_pass(const snippets::pass::PassPosition& position, Args&&... args) {
         static_assert(std::is_base_of<PassBase, T>::value, "Pass not derived from lowered::Pass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
@@ -133,14 +144,17 @@ public:
 
     void run(lowered::LinearIR& linear_ir) const;
     void run(const lowered::LinearIR& linear_ir) const;
-    void run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) const;
+    void run(lowered::LinearIR& linear_ir,
+             lowered::LinearIR::constExprIt begin,
+             lowered::LinearIR::constExprIt end) const;
 
     /**
      * @brief Merges 2 pass pipelines into one
      * @param lhs first pass pipeline
      * @param rhs second pass pipeline
      * @return the merged pass pipeline
-     * @attention the function can not be used in case when one of the pipelines contains passes whose running order is important.
+     * @attention the function can not be used in case when one of the pipelines contains passes whose running order is
+     * important.
      */
     static PassPipeline merge_pipelines(const PassPipeline& lhs, const PassPipeline& rhs);
 
@@ -149,7 +163,7 @@ private:
     std::vector<std::shared_ptr<PassBase>> m_passes;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

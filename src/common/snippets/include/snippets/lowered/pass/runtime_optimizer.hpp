@@ -25,7 +25,8 @@ public:
         OPENVINO_ASSERT(configurator, "RuntimeConfigurator musn't be nullptr");
     }
     /**
-     * @brief Defines if this pass is applicable. If it is not applicable, its registration in pass pipeline can be skipped.
+     * @brief Defines if this pass is applicable. If it is not applicable, its registration in pass pipeline can be
+     * skipped.
      */
     virtual bool applicable() const = 0;
 
@@ -35,7 +36,9 @@ public:
      * @param pipeline The pipeline in which the pass should be registered.
      * @param args The arguments to be forwarded to the pass constructor.
      */
-    template <typename OptimizerType, typename... Args, typename = std::enable_if<std::is_base_of<RuntimeOptimizer, OptimizerType>::value>>
+    template <typename OptimizerType,
+              typename... Args,
+              typename = std::enable_if<std::is_base_of<RuntimeOptimizer, OptimizerType>::value>>
     static void register_if_applicable(PassPipeline& pipeline, Args&&... args) {
         auto pass = std::make_shared<OptimizerType>(std::forward<Args>(args)...);
         if (pass->applicable()) {
@@ -47,7 +50,7 @@ protected:
     const RuntimeConfigurator* m_configurator = nullptr;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

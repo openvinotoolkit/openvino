@@ -30,6 +30,6 @@ private:
     ov::element::Type m_element_type;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

@@ -4,19 +4,21 @@
 
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 
-#include "snippets/lowered/pass/insert_load_store.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool SetLoadStoreScalar::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool SetLoadStoreScalar::run(LinearIR& linear_ir,
+                             lowered::LinearIR::constExprIt begin,
+                             lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetLoadStoreScalar")
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
@@ -42,7 +44,7 @@ bool SetLoadStoreScalar::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

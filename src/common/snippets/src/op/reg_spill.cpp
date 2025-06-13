@@ -10,9 +10,9 @@ namespace ov {
 namespace snippets {
 namespace op {
 
-RegSpillBase::RegSpillBase(const std::vector<Output<Node>> &args) : Op(args) {}
+RegSpillBase::RegSpillBase(const std::vector<Output<Node>>& args) : Op(args) {}
 
-bool RegSpillBase::visit_attributes(AttributeVisitor &visitor) {
+bool RegSpillBase::visit_attributes(AttributeVisitor& visitor) {
     std::stringstream ss;
     const auto& regs_to_spill = get_regs_to_spill();
     for (auto reg_it = regs_to_spill.begin(); reg_it != regs_to_spill.end(); reg_it++) {
@@ -38,7 +38,8 @@ void RegSpillBegin::validate_and_infer_types() {
     validate_and_infer_types_except_RegSpillEnd();
     OPENVINO_ASSERT(get_output_size() == 1, "RegSpillBegin must have only one output");
     const auto& last_output_inputs = get_output_target_inputs(0);
-    OPENVINO_ASSERT(last_output_inputs.size() == 1, "RegSpillBegin must have exactly one input attached to the last output");
+    OPENVINO_ASSERT(last_output_inputs.size() == 1,
+                    "RegSpillBegin must have exactly one input attached to the last output");
     OPENVINO_ASSERT(ov::is_type<RegSpillEnd>(last_output_inputs.begin()->get_node()),
                     "RegSpillBegin must have RegSpillEnd connected to its last output");
 }
@@ -71,8 +72,9 @@ RegSpillEnd::RegSpillEnd(const Output<Node>& reg_spill_begin) : RegSpillBase({re
 }
 
 void RegSpillEnd::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this, get_input_size() == 1 && ov::is_type<RegSpillBegin>(get_input_node_shared_ptr(0)),
-                         "RegSpillEnd must have one input of RegSPillBegin type");
+    NODE_VALIDATION_CHECK(this,
+                          get_input_size() == 1 && ov::is_type<RegSpillBegin>(get_input_node_shared_ptr(0)),
+                          "RegSpillEnd must have one input of RegSPillBegin type");
     set_output_type(0, element::f32, ov::PartialShape{});
 }
 
@@ -81,7 +83,6 @@ std::shared_ptr<Node> RegSpillEnd::clone_with_new_inputs(const OutputVector& inp
     return std::make_shared<RegSpillEnd>(inputs.at(0));
 }
 
-
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

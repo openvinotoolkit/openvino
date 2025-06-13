@@ -4,10 +4,10 @@
 
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -66,7 +66,7 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

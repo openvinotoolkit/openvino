@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "pass.hpp"
-
 #include "openvino/runtime/memory_solver.hpp"
+#include "pass.hpp"
 
 namespace ov {
 namespace snippets {
@@ -26,7 +25,8 @@ class SolveBufferMemory : public Pass {
 public:
     OPENVINO_RTTI("SolveBufferMemory", "", Pass);
 
-    SolveBufferMemory(size_t& static_buffer_scratchpad_size) : m_static_buffer_scratchpad_size(static_buffer_scratchpad_size) {}
+    SolveBufferMemory(size_t& static_buffer_scratchpad_size)
+        : m_static_buffer_scratchpad_size(static_buffer_scratchpad_size) {}
     /**
      * @brief Apply the pass to the Linear IR
      * @param linear_ir the target Linear IR
@@ -70,7 +70,7 @@ private:
     size_t& m_static_buffer_scratchpad_size;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

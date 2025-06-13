@@ -28,7 +28,8 @@ public:
     void validate_and_infer_types() override;
 
     class ShapeInfer : public IShapeInferSnippets {
-        std::vector<size_t> m_target_order {};
+        std::vector<size_t> m_target_order{};
+
     public:
         explicit ShapeInfer(const std::shared_ptr<Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
@@ -38,6 +39,6 @@ private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> order);
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

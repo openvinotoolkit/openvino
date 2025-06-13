@@ -7,10 +7,10 @@
 #include "openvino/pass/serialize.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/linear_ir_builder.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/serialization_node.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/linear_ir_builder.hpp"
 
 namespace ov {
 namespace snippets {
@@ -57,7 +57,9 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
                     OPENVINO_THROW("Unknown LoopInfo type");
                 }
             }
-            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node, loop_begin_serialization_node}, expr);
+            serialization_node = std::make_shared<op::SerializationNode>(
+                ov::OutputVector{serialization_node, loop_begin_serialization_node},
+                expr);
         } else {
             serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node}, expr);
             if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(node)) {
@@ -67,11 +69,12 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
     }
     auto last_node = std::make_shared<ov::op::v0::Result>(serialization_node);
     last_node->set_friendly_name("End");
-    const auto model = std::make_shared<ov::Model>(ResultVector{last_node}, ParameterVector{first_node}, "Lowered_IR_Control_Flow");
+    const auto model =
+        std::make_shared<ov::Model>(ResultVector{last_node}, ParameterVector{first_node}, "Lowered_IR_Control_Flow");
     return ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(model);
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

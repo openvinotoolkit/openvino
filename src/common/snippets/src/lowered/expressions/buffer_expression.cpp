@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/buffer.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
 
-BufferExpression::BufferExpression(const std::shared_ptr<Node>& n, const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
+BufferExpression::BufferExpression(const std::shared_ptr<Node>& n,
+                                   const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
     : Expression(n, factory) {
     const auto& buffer = ov::as_type_ptr<op::Buffer>(get_node());
     OPENVINO_ASSERT(buffer, "BufferExpression expects Buffer op");
@@ -24,7 +23,7 @@ ExpressionPtr BufferExpression::clone() const {
     return std::shared_ptr<BufferExpression>(new BufferExpression(*this));
 }
 
-bool BufferExpression::visit_attributes(AttributeVisitor &visitor) {
+bool BufferExpression::visit_attributes(AttributeVisitor& visitor) {
     Expression::visit_attributes(visitor);
     auto allocation_size = utils::value2str(m_allocation_size);
     auto offset = utils::value2str(m_offset);
@@ -52,7 +51,8 @@ size_t BufferExpression::get_byte_size() const {
 }
 
 namespace {
-std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loops, const std::vector<size_t>& current_loops) {
+std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loops,
+                                           const std::vector<size_t>& current_loops) {
     const auto common_rank = std::min(parent_loops.size(), current_loops.size());
     size_t i = 0;
     while (i < common_rank && parent_loops[i] == current_loops[i])
@@ -64,8 +64,8 @@ std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loo
 // Ticket: 113744
 // TODO: This logic covers only several specific cases so it should be generalized.
 void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& loop_manager, size_t allocation_rank) {
-    // Note: Buffer expressions can have more than one parent after the loops splitting transformation, but only the last parent
-    // can be used to access valid loop ports. More info in the ticket: 146646
+    // Note: Buffer expressions can have more than one parent after the loops splitting transformation, but only the
+    // last parent can be used to access valid loop ports. More info in the ticket: 146646
     const auto buffer_in_idx = get_input_count() - 1;
     const auto& parent_port = get_input_port_connector(buffer_in_idx)->get_source();
     const auto& parent_loop_ids = get_parent_inner_loops(parent_port.get_expr()->get_loop_ids(), get_loop_ids());
@@ -106,7 +106,8 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
         //            and ports are not mapped on the original ExpressionPorts
         if (it == output_ports.end()) {
             it = std::find_if(output_ports.begin(), output_ports.end(), soft_equal);
-            OPENVINO_ASSERT(it != output_ports.end(), "compute_allocation_shape: output port of parent loop can not be found");
+            OPENVINO_ASSERT(it != output_ports.end(),
+                            "compute_allocation_shape: output port of parent loop can not be found");
         }
         const auto& loop_port = *it;
         if (!loop_port.is_processed())
@@ -116,13 +117,16 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
             if (const auto& unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info))
                 m_allocation_size = utils::dynamic_safe_mul(m_allocation_size, unified_loop_info->get_work_amount());
             else if (const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info))
-                m_allocation_size = utils::dynamic_safe_mul(m_allocation_size, expanded_loop_info->get_unified_loop_info()->get_work_amount());
+                m_allocation_size =
+                    utils::dynamic_safe_mul(m_allocation_size,
+                                            expanded_loop_info->get_unified_loop_info()->get_work_amount());
             else
                 OPENVINO_THROW("Unknown LoopInfo type");
             processed_dim_idxs.insert(dim_idx);
         }
     }
-    const auto processing_rank = !processed_dim_idxs.empty() ? std::max(*processed_dim_idxs.rbegin(), subtensor.size()) : subtensor.size();
+    const auto processing_rank =
+        !processed_dim_idxs.empty() ? std::max(*processed_dim_idxs.rbegin(), subtensor.size()) : subtensor.size();
     for (size_t i = 0; i < std::min(processing_rank, rank); ++i) {
         if (processed_dim_idxs.count(i) == 0) {
             const auto multiplier = i < subtensor.size() ? *(subtensor.rbegin() + i) : *(planar_shape.rbegin() + i);
@@ -138,6 +142,6 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
     }
 }
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

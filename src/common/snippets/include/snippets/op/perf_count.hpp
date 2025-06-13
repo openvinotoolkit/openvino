@@ -4,19 +4,19 @@
 
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include <chrono>
+#    include <chrono>
 
-#include "openvino/op/op.hpp"
-#include "openvino/runtime/threading/thread_local.hpp"
+#    include "openvino/op/op.hpp"
+#    include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov {
 namespace snippets {
 
 namespace op {
 class PerfCountEnd;
-} // namespace op
+}  // namespace op
 
 namespace utils {
 
@@ -30,8 +30,9 @@ public:
     Dumper() = default;
     virtual ~Dumper() = default;
 
-    void init(const std::string &params);
+    void init(const std::string& params);
     virtual void update(const op::PerfCountEnd* node) = 0;
+
 protected:
     std::map<std::string, std::string> m_debug_params_map;
     std::string m_params;
@@ -70,7 +71,7 @@ private:
     const std::string csv_path;
 };
 
-} // namespace utils
+}  // namespace utils
 
 namespace op {
 
@@ -145,11 +146,11 @@ public:
     void init_pc_begin();
     void set_accumulated_time();
 
-    const ov::threading::ThreadLocal<uint64_t> &get_accumulation() const {
+    const ov::threading::ThreadLocal<uint64_t>& get_accumulation() const {
         return accumulation;
     }
 
-    const ov::threading::ThreadLocal<uint32_t> &get_iteration() const {
+    const ov::threading::ThreadLocal<uint32_t>& get_iteration() const {
         return iteration;
     }
 
@@ -161,7 +162,7 @@ private:
     std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov
 #endif  // SNIPPETS_DEBUG_CAPS

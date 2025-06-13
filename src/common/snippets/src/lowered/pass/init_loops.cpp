@@ -26,9 +26,11 @@ inline void init_is_incremented(LoopPort& port) {
 inline int64_t get_data_size(const LoopPort& loop_port) {
     const auto& expr_port = loop_port.get_expr_port();
     if (expr_port->get_type() == ExpressionPort::Input) {
-        return static_cast<int64_t>(expr_port->get_expr()->get_node()->get_input_element_type(expr_port->get_index()).size());
+        return static_cast<int64_t>(
+            expr_port->get_expr()->get_node()->get_input_element_type(expr_port->get_index()).size());
     } else if (expr_port->get_type() == ExpressionPort::Output) {
-        return static_cast<int64_t>(expr_port->get_expr()->get_node()->get_output_element_type(expr_port->get_index()).size());
+        return static_cast<int64_t>(
+            expr_port->get_expr()->get_node()->get_output_element_type(expr_port->get_index()).size());
     } else {
         OPENVINO_THROW("Unsupported expression port type!");
     }
@@ -37,11 +39,10 @@ inline int64_t get_data_size(const LoopPort& loop_port) {
 
 void InitLoops::update_compile_parameters(const UnifiedLoopInfoPtr& loop_info) {
     OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
-    loop_info->iterate_through_infos(
-        [](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
-            init_is_incremented(loop_port);
-            ptr_shifts_params.data_size = get_data_size(loop_port);
-        });
+    loop_info->iterate_through_infos([](LoopPort& loop_port, UnifiedLoopInfo::LoopPortDesc& ptr_shifts_params) {
+        init_is_incremented(loop_port);
+        ptr_shifts_params.data_size = get_data_size(loop_port);
+    });
 }
 
 bool InitLoops::run(LinearIR& linear_ir) {
@@ -59,7 +60,7 @@ bool InitLoops::run(LinearIR& linear_ir) {
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -4,7 +4,6 @@
 
 #include "snippets/pass/manager.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace pass {
@@ -35,6 +34,6 @@ std::shared_ptr<Manager::PassBase> Manager::insert_pass_instance(const PassPosit
     return pass;
 }
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

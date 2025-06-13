@@ -4,10 +4,10 @@
 
 #include "snippets/lowered/pass/mark_loops.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -86,7 +86,7 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

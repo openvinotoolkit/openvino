@@ -7,7 +7,6 @@
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/itt.hpp"
 
-
 bool ov::snippets::pass::ExtractConstants::run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractConstants");
     auto body = subgraph->body_ptr();

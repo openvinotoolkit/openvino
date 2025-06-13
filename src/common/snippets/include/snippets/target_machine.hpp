@@ -23,13 +23,15 @@ struct CompiledSnippet {
 using CompiledSnippetPtr = std::shared_ptr<CompiledSnippet>;
 
 typedef std::pair<std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)>,
-        std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>> jitters_value;
+                  std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>>
+    jitters_value;
 
 class RuntimeConfigurator;
 
 /**
  * @interface TargetMachine
- * @brief Base class Target machine representation. Target derives from this class to provide generator information about supported emitters
+ * @brief Base class Target machine representation. Target derives from this class to provide generator information
+ * about supported emitters
  * @ingroup snippets
  */
 class TargetMachine {
@@ -70,22 +72,25 @@ public:
      */
     virtual std::vector<snippets::Reg> get_gp_reg_pool() const = 0;
     /**
-    * @brief Get all available vector registers.
+     * @brief Get all available vector registers.
      * Returns only registers that are not reserved for special purposes
      * @return  vector os snippets::Reg
-    */
+     */
     virtual std::vector<snippets::Reg> get_vec_reg_pool() const = 0;
 
     /**
      * @brief called by generator to all the emitter for a target machine
-     * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type
+     * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation
+     * type
      */
     std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> get(const ov::DiscreteTypeInfo& type) const;
     /**
      * @brief called by generator to all the emitter for a target machine
-     * @return a map by node's type info with callbacks to create an set of supported precisions for corresponding operation type
+     * @return a map by node's type info with callbacks to create an set of supported precisions for corresponding
+     * operation type
      */
-    std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(const ov::DiscreteTypeInfo& type) const;
+    std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)> get_supported_precisions(
+        const ov::DiscreteTypeInfo& type) const;
 
     /**
      * @brief checks if emitter for a specific operation is supported
@@ -110,5 +115,5 @@ protected:
     std::shared_ptr<RuntimeConfigurator> configurator;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov

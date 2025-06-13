@@ -23,7 +23,7 @@ std::string SerializeBase::get_bin_path_from_xml(const std::string& xml_path) {
 #endif
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -3,11 +3,10 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include "pass.hpp"
-
-#include "snippets/op/perf_count.hpp"
+#    include "pass.hpp"
+#    include "snippets/op/perf_count.hpp"
 
 namespace ov {
 namespace snippets {
@@ -21,7 +20,7 @@ namespace pass {
  *  Developers could modify this to insert perf count pairs around interested sequence of nodes.
  * @ingroup snippets
  */
-class InsertPerfCount: public RangedPass {
+class InsertPerfCount : public RangedPass {
 public:
     OPENVINO_RTTI("InsertPerfCount", "", RangedPass);
     InsertPerfCount(std::map<std::string, std::string> boundary_op_names);
@@ -31,8 +30,8 @@ private:
     std::map<std::string, std::string> m_boundary_op_names;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov
 #endif  // SNIPPETS_DEBUG_CAPS

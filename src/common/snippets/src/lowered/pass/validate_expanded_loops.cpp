@@ -4,18 +4,17 @@
 
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-#define INFORMATIVE_ASSERT(cond, ...) \
-    OPENVINO_ASSERT((cond), "Failed to validate ExpandedLoops: ", __VA_ARGS__)
+#define INFORMATIVE_ASSERT(cond, ...) OPENVINO_ASSERT((cond), "Failed to validate ExpandedLoops: ", __VA_ARGS__)
 
 namespace {
 bool is_inner_splitted_tail(const ExpressionPtr& loop_expr, const LoopManagerPtr& loop_manager) {
@@ -37,7 +36,7 @@ bool is_inner_splitted_tail(const ExpressionPtr& loop_expr, const LoopManagerPtr
            expanded_loop_info->get_dim_idx() == outer_expanded_loop_info->get_dim_idx();
 }
 
-} // namespace
+}  // namespace
 
 void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir) {
     const auto& loop_manager = linear_ir.get_loop_manager();
@@ -60,16 +59,18 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         INFORMATIVE_ASSERT(current_unified_loop_info, "expects non nullptr UnifiedLoopInfo in ExpandedLoopInfo");
 
         auto& current_info = initializated_info_map[current_unified_loop_info];
-        if (current_info.num_ports == 0) { // the info was just default constructed
-            current_info.num_ports = current_unified_loop_info->get_input_count() + current_unified_loop_info->get_output_count();
+        if (current_info.num_ports == 0) {  // the info was just default constructed
+            current_info.num_ports =
+                current_unified_loop_info->get_input_count() + current_unified_loop_info->get_output_count();
             current_info.finalization_offsets.resize(current_info.num_ports, 0);
         }
 
         INFORMATIVE_ASSERT(current_unified_loop_info->get_input_count() == expanded_loop_info->get_input_count() &&
-                           current_unified_loop_info->get_output_count() == expanded_loop_info->get_output_count(),
+                               current_unified_loop_info->get_output_count() == expanded_loop_info->get_output_count(),
                            "incompatible loop ports with UnifiedLoopInfo");
 
-        current_info.work_amount = utils::dynamic_safe_add(current_info.work_amount, expanded_loop_info->get_work_amount());
+        current_info.work_amount =
+            utils::dynamic_safe_add(current_info.work_amount, expanded_loop_info->get_work_amount());
         INFORMATIVE_ASSERT(current_unified_loop_info->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
                            "incompatible pointer increments with UnifiedLoopInfo");
 
@@ -77,17 +78,22 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         INFORMATIVE_ASSERT(finalization_offsets.size() == current_info.finalization_offsets.size(),
                            "incompatible finalization offset count");
         for (size_t i = 0; i < current_info.num_ports; ++i)
-            current_info.finalization_offsets[i] = utils::dynamic_safe_add(current_info.finalization_offsets[i], finalization_offsets[i]);
+            current_info.finalization_offsets[i] =
+                utils::dynamic_safe_add(current_info.finalization_offsets[i], finalization_offsets[i]);
     }
 
     // Validation of total information
     for (const auto& p : initializated_info_map) {
         const auto loop_info = p.first;
         const auto total_info = p.second;
-        INFORMATIVE_ASSERT(total_info.work_amount == loop_info->get_work_amount(),
-                           "total work amount of expanded loops is not equal to work amount of undefined loop with ID: " + std::to_string(total_info.id));
-        INFORMATIVE_ASSERT(total_info.finalization_offsets == loop_info->get_finalization_offsets(),
-                           "total finalization offsets are not equal to finalization offsets of undefined loop with ID: " + std::to_string(total_info.id));
+        INFORMATIVE_ASSERT(
+            total_info.work_amount == loop_info->get_work_amount(),
+            "total work amount of expanded loops is not equal to work amount of undefined loop with ID: " +
+                std::to_string(total_info.id));
+        INFORMATIVE_ASSERT(
+            total_info.finalization_offsets == loop_info->get_finalization_offsets(),
+            "total finalization offsets are not equal to finalization offsets of undefined loop with ID: " +
+                std::to_string(total_info.id));
     }
 }
 
@@ -121,7 +127,7 @@ void ValidateExpandedLoops::validate_loop_expressions(const LinearIR& linear_ir)
         }
     }
     INFORMATIVE_ASSERT(unique_loop_ids.size() == loop_manager->get_map().size(),
-                      "incompatible loopIDs of inserted LoopEnd expressions and LoopInfo in LoopManager");
+                       "incompatible loopIDs of inserted LoopEnd expressions and LoopInfo in LoopManager");
 }
 
 bool ValidateExpandedLoops::run(LinearIR& linear_ir) {
@@ -137,7 +143,7 @@ bool ValidateExpandedLoops::run(LinearIR& linear_ir) {
 
 #undef INFORMATIVE_ASSERT
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

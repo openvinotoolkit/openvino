@@ -7,7 +7,6 @@
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -62,7 +61,8 @@ public:
         m_last_iter_handlers.register_pass<T>(args...);
     }
 
-    static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs, const SpecificIterationHandlers& rhs);
+    static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs,
+                                                    const SpecificIterationHandlers& rhs);
 
 private:
     pass::PassPipeline m_first_iter_handlers;
@@ -70,6 +70,6 @@ private:
     pass::PassPipeline m_last_iter_handlers;
 };
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

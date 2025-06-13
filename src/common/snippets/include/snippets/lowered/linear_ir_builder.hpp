@@ -10,7 +10,6 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-
 /* The helper class that can make a copy of LinearIR or range of it by specific rules.
  * The rules are described in config.
  */
@@ -32,7 +31,8 @@ public:
      * @param expression_map expression map
      * @return clone of `linear_ir`
      */
-    inline std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir,  ExpressionMap& expression_map) const {
+    inline std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir,
+                                           ExpressionMap& expression_map) const {
         auto result = std::make_shared<LinearIR>();
         clone(linear_ir.get(), result.get(), expression_map);
         return result;
@@ -54,14 +54,15 @@ public:
      * @param expression_map expression map
      * @return cloned range of `linear_ir`
      */
-    LinearIR::container clone_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end,
+    LinearIR::container clone_range(LinearIR::container::const_iterator begin,
+                                    LinearIR::container::const_iterator end,
                                     ExpressionMap& expression_map) const;
 
 private:
-    void clone(const LinearIR* src, LinearIR* dst,  ExpressionMap& expression_map) const;
+    void clone(const LinearIR* src, LinearIR* dst, ExpressionMap& expression_map) const;
     Config m_config = {};
 };
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

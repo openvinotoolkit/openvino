@@ -24,7 +24,7 @@ public:
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"RuntimeConfig"};
+        static ::ov::DiscreteTypeInfo type_info_static{"RuntimeConfig"};
         type_info_static.hash();
         return type_info_static;
     }
@@ -50,7 +50,7 @@ public:
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
-    std::vector<size_t> buffer_cluster_offsets {};
+    std::vector<size_t> buffer_cluster_offsets{};
     KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
     std::vector<ov::snippets::VectorDims> latest_shapes = {};
 };
@@ -74,7 +74,9 @@ public:
      * @brief Returns pointer to KernelExecutorTable owned by the config
      * @return updated KernelExecutorTable
      */
-    const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const { return m_config->kernel_executor_table; }
+    const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const {
+        return m_config->kernel_executor_table;
+    }
     /**
      * @brief Set new KernelExecutorTable to the config
      * @param table new KernelExecutorTable
@@ -87,12 +89,24 @@ public:
     void reset_kernel_executor_table() const;
 
     // Getters for private members
-    std::shared_ptr<RuntimeConfig> get_config() const { return m_config; }
-    size_t get_io_num() const { return m_io_num; }
-    size_t get_in_num() const { return m_in_num; }
-    const std::vector<snippets::lowered::PortDescriptorPtr>& get_io_descs() const { return m_io_descs; }
-    const std::vector<size_t>& get_io_data_sizes() const { return m_io_data_sizes; }
-    const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const { return m_dynamic_buffer_clusters; }
+    std::shared_ptr<RuntimeConfig> get_config() const {
+        return m_config;
+    }
+    size_t get_io_num() const {
+        return m_io_num;
+    }
+    size_t get_in_num() const {
+        return m_in_num;
+    }
+    const std::vector<snippets::lowered::PortDescriptorPtr>& get_io_descs() const {
+        return m_io_descs;
+    }
+    const std::vector<size_t>& get_io_data_sizes() const {
+        return m_io_data_sizes;
+    }
+    const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const {
+        return m_dynamic_buffer_clusters;
+    }
 
     /**
      * @brief Computes the offsets for each dimension of a tensor shape.
@@ -207,5 +221,5 @@ protected:
     lowered::pass::PassPipeline m_final_optimizers;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov

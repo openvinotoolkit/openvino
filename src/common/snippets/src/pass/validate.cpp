@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "snippets/pass/validate.hpp"
+
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -14,7 +16,6 @@
 #include "snippets/op/convert_truncation.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/pass/validate.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -22,13 +23,14 @@ namespace snippets {
 namespace pass {
 
 namespace {
-#define VALIDATE(op, op_type, validator) \
-    if (ov::is_type<op_type>(op)) \
-        OPENVINO_ASSERT(validator(op), "Snippets validation of OV body has been failed: " + \
-                        std::string(op->get_type_name()) + " op " + op->get_friendly_name() + " is not supported"); \
+#define VALIDATE(op, op_type, validator)                                                                        \
+    if (ov::is_type<op_type>(op))                                                                               \
+        OPENVINO_ASSERT(validator(op),                                                                          \
+                        "Snippets validation of OV body has been failed: " + std::string(op->get_type_name()) + \
+                            " op " + op->get_friendly_name() + " is not supported");                            \
     else
 
-} // namespace
+}  // namespace
 
 bool Validate::is_supported_constant(const std::shared_ptr<const ov::Node>& op) {
     const auto constant = ov::as_type_ptr<const ov::op::v0::Constant>(op);
