@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
