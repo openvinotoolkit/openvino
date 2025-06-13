@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/shared_matmul_weights_decompression.hpp"
+#include "subgraph/shared_matmul_weights_decompression.hpp"
 
 #include "common_test_utils/test_constants.hpp"
 

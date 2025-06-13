@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
+#include "subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 
 namespace ov {
 namespace test {

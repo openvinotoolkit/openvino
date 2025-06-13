@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/ctc_greedy_decoder_seq_len.hpp"
+#include "single_op/ctc_greedy_decoder_seq_len.hpp"
 
 namespace ov {
 namespace test {

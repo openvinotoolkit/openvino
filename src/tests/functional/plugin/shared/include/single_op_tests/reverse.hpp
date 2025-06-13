@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/reverse.hpp"
+#include "single_op/reverse.hpp"
 
 namespace ov {
 namespace test {

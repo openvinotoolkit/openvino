@@ -5,7 +5,7 @@
 #pragma once
 
 #include <string>
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 
 namespace ONNXTestsDefinitions {
 

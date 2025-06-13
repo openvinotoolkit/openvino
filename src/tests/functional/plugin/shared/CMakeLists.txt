@@ -66,7 +66,7 @@ ov_add_target(
                 common_test_utils
                 func_test_utils
                 ov_lpt_models
-                sharedTestClasses
+                base_func_tests
             PRIVATE
                 ${LINK_LIBRARIES_PRIVATE}
         DEPENDENCIES

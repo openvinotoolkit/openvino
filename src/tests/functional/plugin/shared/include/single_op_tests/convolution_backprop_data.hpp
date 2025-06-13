@@ -5,7 +5,7 @@
 // DEPRECATED, can't be removed currently due to arm and kmb-plugin dependency (#55568)
 #pragma once
 
-#include "shared_test_classes/single_op/convolution_backprop_data.hpp"
+#include "single_op/convolution_backprop_data.hpp"
 
 namespace ov {
 namespace test {

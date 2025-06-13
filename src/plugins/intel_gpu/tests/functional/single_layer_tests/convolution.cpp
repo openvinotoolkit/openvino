@@ -3,7 +3,7 @@
 //
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "shared_test_classes/single_op/convolution.hpp"
+#include "single_op/convolution.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 
 #include "openvino/op/parameter.hpp"

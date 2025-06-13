@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/group_normalization_fusion.hpp"
+#include "subgraph/group_normalization_fusion.hpp"
 
 namespace ov {
 namespace test {

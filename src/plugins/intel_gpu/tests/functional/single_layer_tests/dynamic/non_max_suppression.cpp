@@ -4,8 +4,8 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_op/non_max_suppression.hpp"
+#include "base/ov_subgraph.hpp"
+#include "single_op/non_max_suppression.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"

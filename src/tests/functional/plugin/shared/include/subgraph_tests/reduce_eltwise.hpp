@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/reduce_eltwise.hpp"
+#include "subgraph/reduce_eltwise.hpp"
 
 namespace ov {
 namespace test {

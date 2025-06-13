@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/strided_slice.hpp"
+#include "single_op/strided_slice.hpp"
 
 namespace ov {
 namespace test {

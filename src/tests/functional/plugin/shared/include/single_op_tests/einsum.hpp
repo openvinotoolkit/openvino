@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/einsum.hpp"
+#include "single_op/einsum.hpp"
 
 namespace ov {
 namespace test {

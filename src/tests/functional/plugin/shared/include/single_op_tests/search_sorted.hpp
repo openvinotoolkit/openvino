@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/search_sorted.hpp"
+#include "single_op/search_sorted.hpp"
 
 namespace ov {
 namespace test {

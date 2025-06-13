@@ -3,7 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/convolution_backprop_data.hpp"
-#include "shared_test_classes/single_op/convolution_backprop_data.hpp"
+#include "single_op/convolution_backprop_data.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"

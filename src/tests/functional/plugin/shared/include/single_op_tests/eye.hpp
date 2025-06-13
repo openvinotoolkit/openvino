@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include "shared_test_classes/single_op/eye.hpp"
+#include "single_op/eye.hpp"
 
 namespace ov {
 namespace test {

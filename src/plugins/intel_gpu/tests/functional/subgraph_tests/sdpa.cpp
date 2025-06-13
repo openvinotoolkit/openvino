@@ -20,7 +20,7 @@
 #include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "intel_gpu/runtime/engine.hpp"

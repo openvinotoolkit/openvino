@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/binary_convolution.hpp"
+#include "single_op/binary_convolution.hpp"
 
 namespace ov {
 namespace test {

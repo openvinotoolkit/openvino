@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/scaleshift.hpp"
+#include "subgraph/scaleshift.hpp"
 
 namespace ov {
 namespace test {

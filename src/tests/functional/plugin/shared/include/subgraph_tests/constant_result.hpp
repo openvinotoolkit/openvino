@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/constant_result.hpp"
+#include "subgraph/constant_result.hpp"
 
 namespace ov {
 namespace test {

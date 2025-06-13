@@ -3,7 +3,7 @@
 //
 
 #include "common_test_utils/file_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
