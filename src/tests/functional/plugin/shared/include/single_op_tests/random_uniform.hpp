@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/random_uniform.hpp"
+#include "single_op/random_uniform.hpp"
 
 namespace ov {
 namespace test {

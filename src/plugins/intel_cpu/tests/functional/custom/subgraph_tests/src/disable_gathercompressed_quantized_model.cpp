@@ -5,7 +5,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"

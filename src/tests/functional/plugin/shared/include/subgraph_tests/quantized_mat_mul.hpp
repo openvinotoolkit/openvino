@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/quantized_mat_mul.hpp"
+#include "subgraph/quantized_mat_mul.hpp"
 
 namespace ov {
 namespace test {

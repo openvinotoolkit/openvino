@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
+#include "subgraph/quantized_group_convolution.hpp"
 
 namespace ov {
 namespace test {

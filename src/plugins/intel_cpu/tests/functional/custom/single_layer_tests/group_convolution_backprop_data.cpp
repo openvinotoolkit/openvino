@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_op/group_convolution_backprop_data.hpp"
+#include "single_op/group_convolution_backprop_data.hpp"
 
 #include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "utils/convolution_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"

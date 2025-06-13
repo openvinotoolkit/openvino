@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/broadcast_eltwise_eliminated.hpp"
+#include "subgraph/broadcast_eltwise_eliminated.hpp"
 
 namespace ov {
 namespace test {

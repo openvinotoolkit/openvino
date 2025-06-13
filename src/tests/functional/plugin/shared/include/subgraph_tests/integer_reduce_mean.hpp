@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/integer_reduce_mean.hpp"
+#include "subgraph/integer_reduce_mean.hpp"
 
 namespace ov {
 namespace test {

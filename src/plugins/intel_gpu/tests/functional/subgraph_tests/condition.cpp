@@ -4,7 +4,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 

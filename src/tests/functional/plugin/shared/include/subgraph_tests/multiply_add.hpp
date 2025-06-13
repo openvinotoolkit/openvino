@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/multiply_add.hpp"
+#include "subgraph/multiply_add.hpp"
 
 namespace ov {
 namespace test {

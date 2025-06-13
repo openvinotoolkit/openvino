@@ -5,7 +5,7 @@
 #include "col2im.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "utils/precision_support.h"
 #include "openvino/op/col2im.hpp"
 

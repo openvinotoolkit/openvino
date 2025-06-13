@@ -6,8 +6,8 @@
 
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "openvino/core/visibility.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_op/convolution.hpp"
+#include "base/ov_subgraph.hpp"
+#include "single_op/convolution.hpp"
 #include "utils/convolution_params.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"

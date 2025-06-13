@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/convert_color_nv12.hpp"
+#include "single_op/convert_color_nv12.hpp"
 
 namespace ov {
 namespace test {

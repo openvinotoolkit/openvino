@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/mvn_multiply_add.hpp"
+#include "subgraph/mvn_multiply_add.hpp"
 
 namespace ov {
 namespace test {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/rotary_pos_emb.hpp"
+#include "subgraph/rotary_pos_emb.hpp"
 
 namespace ov {
 namespace test {

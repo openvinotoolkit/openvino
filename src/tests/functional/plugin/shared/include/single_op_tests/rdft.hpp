@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/rdft.hpp"
+#include "single_op/rdft.hpp"
 
 namespace ov {
 namespace test {

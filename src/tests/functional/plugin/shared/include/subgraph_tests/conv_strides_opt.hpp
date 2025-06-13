@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/conv_strides_opt.hpp"
+#include "subgraph/conv_strides_opt.hpp"
 
 namespace ov {
 namespace test {

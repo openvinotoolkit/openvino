@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_op/logical.hpp"
+#include "single_op/logical.hpp"
 
 #include "common_test_utils/node_builders/logical.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
 using namespace CPUTestUtils;
