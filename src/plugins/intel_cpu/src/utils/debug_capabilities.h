@@ -259,7 +259,7 @@ struct EnforceInferPrcDebug {
         }
     }
 
-    bool enabled(const std::string& type, const std::string& /*name*/, const std::string& org_names) {
+    bool enabled(const std::string& type, [[maybe_unused]] const std::string& name, const std::string& org_names) {
         std::string tag = type + "@" + org_names;
         std::smatch match;
         bool matched = true;

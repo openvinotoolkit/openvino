@@ -48,7 +48,7 @@ public:
     void getSupportedDescriptors() override{};
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
-    void execute(const dnnl::stream& /*strm*/) override;
+    void execute([[maybe_unused]] const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
     int registerToAllocationContext(int offset, AllocationContext& context) override;

@@ -57,7 +57,7 @@ public:
     }
 
 private:
-    constexpr bfloat16_t(uint16_t x, bool /*unused*/) : m_value{x} {}
+    constexpr bfloat16_t(uint16_t x, [[maybe_unused]] bool flag) : m_value{x} {}
     union alignas(16) F32 {
         F32(float val) : vfloat{val} {}
 

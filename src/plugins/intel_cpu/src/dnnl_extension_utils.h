@@ -41,7 +41,7 @@ public:
                                                          throw_tag tag = throw_tag{});
 
     static std::optional<dnnl::memory::data_type> ElementTypeToDataType(const ov::element::Type& elementType,
-                                                                        nothrow_tag /*unused*/) noexcept;
+                                                                        nothrow_tag tag) noexcept;
 
     static ov::element::Type DataTypeToElementType(const dnnl::memory::data_type& dataType);
     static Dim convertToDim(const dnnl::memory::dim& dim);

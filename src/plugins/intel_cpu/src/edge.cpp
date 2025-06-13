@@ -529,7 +529,7 @@ EdgePtr Edge::getSharedEdge() const {
     return memoryFromEdgePtr;
 }
 
-EdgePtr Edge::getSharedEdge(std::nothrow_t /*unused*/) const {
+EdgePtr Edge::getSharedEdge([[maybe_unused]] std::nothrow_t nothrow_tag) const {
     return memoryFromEdge.lock();
 }
 

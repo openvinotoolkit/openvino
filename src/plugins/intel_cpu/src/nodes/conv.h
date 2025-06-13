@@ -128,21 +128,21 @@ private:
     ExecutorPtr m_executor = nullptr;
     ExecutorPtr fallbackExecutor = nullptr;
 
-    bool withSum{false};
-    bool withDWConv{false};
+    bool withSum = false;
+    bool withDWConv = false;
     bool withSumBroadcast = false;
 
-    size_t dw_conv_oc{0};
-    size_t dw_conv_ih{0};
-    size_t dw_conv_iw{0};
+    size_t dw_conv_oc = 0;
+    size_t dw_conv_ih = 0;
+    size_t dw_conv_iw = 0;
     std::vector<size_t> dw_conv_kernel;
     std::vector<size_t> dw_conv_strides;
     dnnl::memory::data_type dw_conv_in_dt{dnnl::impl::data_type::undef};
 
-    size_t groupNum{1LU};
-    size_t IC{1};
-    size_t groupIC{1};
-    size_t groupOC{1};
+    size_t groupNum = 1LU;
+    size_t IC = 1;
+    size_t groupIC = 1;
+    size_t groupOC = 1;
 
     FusedSubgraphPtr subgraph;
     std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;

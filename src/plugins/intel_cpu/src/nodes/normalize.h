@@ -52,7 +52,7 @@ struct jit_normalize_call_args {
 };
 
 struct jit_uni_normalize_modulo_kernel {
-    void (*ker_)(const jit_normalize_call_args*){nullptr};
+    void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
     void operator()(const jit_normalize_call_args* args) const {
         assert(ker_);
@@ -68,7 +68,7 @@ struct jit_uni_normalize_modulo_kernel {
 };
 
 struct jit_uni_normalize_kernel {
-    void (*ker_)(const jit_normalize_call_args*){nullptr};
+    void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
     void operator()(const jit_normalize_call_args* args) const {
         assert(ker_);

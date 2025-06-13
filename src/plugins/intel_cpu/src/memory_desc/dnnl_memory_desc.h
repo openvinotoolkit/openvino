@@ -37,7 +37,7 @@ public:
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const DnnlMemoryDesc& rhs) const;
 
-    bool hasLayoutType(LayoutType /*layoutType*/) const override {
+    bool hasLayoutType([[maybe_unused]] LayoutType layoutType) const override {
         return false;
     }
 
@@ -45,7 +45,7 @@ public:
 
     size_t getMaxMemSize() const override;
 
-    virtual bool isSame(dnnl::memory::format_tag /*fmt*/) const {
+    virtual bool isSame([[maybe_unused]] dnnl::memory::format_tag fmt) const {
         return false;
     }
 

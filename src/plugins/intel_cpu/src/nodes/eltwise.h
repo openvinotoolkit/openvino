@@ -113,7 +113,7 @@ public:
 
 private:
     executorPtr execPtr = nullptr;
-    BroadcastingPolicy broadcastingPolicy{Undefined};
+    BroadcastingPolicy broadcastingPolicy = Undefined;
 
     dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 

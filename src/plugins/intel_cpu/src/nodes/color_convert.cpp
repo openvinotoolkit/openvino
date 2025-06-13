@@ -854,8 +854,8 @@ JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y,
 template <typename T, size_t N>
 void JitConverter<T[N]>::unpack_uv(const variable<float[N]>& u, const variable<float[N]>& v) {
     static const uint8_t order[] = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7};
-    std::ignore = u.permute(order);
-    std::ignore = v.permute(order);
+    u = u.permute(order);
+    v = v.permute(order);
 }
 
 template <typename T>

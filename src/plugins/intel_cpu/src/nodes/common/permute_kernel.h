@@ -43,7 +43,7 @@ struct jit_args_permute {
 };
 
 struct jit_uni_permute_kernel {
-    void (*ker_)(const jit_args_permute*){nullptr};
+    void (*ker_)(const jit_args_permute*) = nullptr;
 
     void operator()(const jit_args_permute* args) const {
         assert(ker_);

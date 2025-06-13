@@ -72,7 +72,7 @@ enum coord : uint8_t { w, h };
 
 class GridSampleKernelBase : public JitKernelBase {
 public:
-    void (*ker_)(const GridSamplesKernelExecArgs*){nullptr};
+    void (*ker_)(const GridSamplesKernelExecArgs*) = nullptr;
     void operator()(const GridSamplesKernelExecArgs* args) const {
         assert(ker_);
         ker_(args);

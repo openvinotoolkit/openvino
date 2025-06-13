@@ -72,7 +72,7 @@ public:
     StaticShapeAdapter(std::vector<value_type> dims) noexcept : m_dims(dims.begin(), dims.end()) {}
 
     StaticShapeAdapter(const StaticShape& other);
-    StaticShapeAdapter(const ov::PartialShape& /*unused*/);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     const TDims& operator*() const& noexcept {
         return m_dims;
@@ -228,7 +228,7 @@ public:
     constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) = default;
 
     StaticShapeAdapter(const StaticShape& shape);
-    StaticShapeAdapter(const ov::PartialShape& /*unused*/);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     operator StaticShape() const {
         return m_dims ? StaticShape(*m_dims) : StaticShape();

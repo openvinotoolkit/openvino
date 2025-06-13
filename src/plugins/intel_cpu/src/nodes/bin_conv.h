@@ -64,7 +64,7 @@ struct jit_bin_conv_call_args {
 };
 
 struct jit_uni_bin_conv_kernel {
-    void (*ker_)(const jit_bin_conv_call_args*){nullptr};
+    void (*ker_)(const jit_bin_conv_call_args*) = nullptr;
 
     void operator()(const jit_bin_conv_call_args* args) const {
         assert(ker_);

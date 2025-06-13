@@ -33,7 +33,7 @@ public:
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
-    StaticDimension(const Dimension& /*unused*/) {
+    StaticDimension(const Dimension& /*dim*/) {
         OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
     }
 

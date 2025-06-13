@@ -33,7 +33,7 @@ struct jit_logistic_config_params {
 };
 
 struct jit_uni_logistic_kernel {
-    void (*ker_)(const jit_args_logistic*){nullptr};
+    void (*ker_)(const jit_args_logistic*) = nullptr;
 
     void operator()(const jit_args_logistic* args) const {
         assert(ker_);

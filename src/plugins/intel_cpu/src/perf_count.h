@@ -11,8 +11,8 @@
 namespace ov::intel_cpu {
 
 class PerfCount {
-    uint64_t total_duration{0};
-    uint32_t num{0};
+    uint64_t total_duration = 0;
+    uint32_t num = 0;
 
     std::chrono::high_resolution_clock::time_point _start;
     std::chrono::high_resolution_clock::time_point _finish;

@@ -91,7 +91,7 @@ public:
 
     void sharedMemFrom(const EdgePtr& edge);
     [[nodiscard]] EdgePtr getSharedEdge() const;
-    [[nodiscard]] EdgePtr getSharedEdge(std::nothrow_t /*unused*/) const;
+    [[nodiscard]] EdgePtr getSharedEdge(std::nothrow_t nothrow_tag) const;
 
     [[nodiscard]] bool hasDefinedMaxSize() const {
         return getOriginalDesc().hasDefinedMaxSize();

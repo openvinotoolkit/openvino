@@ -80,7 +80,7 @@ struct gatherJitExecArgs {
 };
 
 struct jitGatherKernelBase {
-    void (*ker_)(const gatherJitExecArgs*){nullptr};
+    void (*ker_)(const gatherJitExecArgs*) = nullptr;
     void operator()(const gatherJitExecArgs* args) const {
         assert(ker_);
         ker_(args);

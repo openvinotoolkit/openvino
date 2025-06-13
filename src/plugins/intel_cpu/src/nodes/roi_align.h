@@ -45,7 +45,7 @@ struct jit_roi_align_call_args {
 };
 
 struct jit_uni_roi_align_kernel {
-    void (*ker_)(const jit_roi_align_call_args*){nullptr};
+    void (*ker_)(const jit_roi_align_call_args*) = nullptr;
 
     void operator()(const jit_roi_align_call_args* args) const {
         assert(ker_);

@@ -48,7 +48,7 @@ struct jit_mvn_call_args {
 };
 
 struct jit_uni_mvn_mean_variance_kernel {
-    void (*ker_)(const jit_mvn_call_args*){nullptr};
+    void (*ker_)(const jit_mvn_call_args*) = nullptr;
 
     void operator()(const jit_mvn_call_args* args) const {
         assert(ker_);
@@ -64,7 +64,7 @@ struct jit_uni_mvn_mean_variance_kernel {
 };
 
 struct jit_uni_mvn_kernel {
-    void (*ker_)(const jit_mvn_call_args*){nullptr};
+    void (*ker_)(const jit_mvn_call_args*) = nullptr;
 
     void operator()(const jit_mvn_call_args* args) const {
         assert(ker_);

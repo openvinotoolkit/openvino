@@ -168,8 +168,8 @@ protected:
         }
     }
 
-    virtual void validate_arguments(const std::vector<size_t>& /*unused*/,
-                                    const std::vector<size_t>& /*unused*/) const {}
+    virtual void validate_arguments([[maybe_unused]] const std::vector<size_t>& in,
+                                    [[maybe_unused]] const std::vector<size_t>& out) const {}
 
 #ifdef SNIPPETS_DEBUG_CAPS
     mutable jit_emitter_info_t info_;

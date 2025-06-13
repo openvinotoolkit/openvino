@@ -50,7 +50,7 @@ struct jit_interpolate_call_args {
 };
 
 struct jit_uni_interpolate_kernel {
-    void (*ker_)(const jit_interpolate_call_args*){nullptr};
+    void (*ker_)(const jit_interpolate_call_args*) = nullptr;
 
     void operator()(const jit_interpolate_call_args* args) const {
         assert(ker_);
@@ -79,7 +79,6 @@ public:
     static constexpr int CUBIC_GRID_LEN = 4;
     static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0f;
     static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
-    static constexpr int MAX_INPUT_INTERPOLATE = 8;
 
     Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
