@@ -321,8 +321,8 @@ Known Issues
 | **Component: ARM**
 | ID: 166178
 | Description:
-| Performance regression of models on ARM due to an upgrade to the latest ACL. A corresponding issue has 
-  been created in the ACL and oneDNN repositories. 
+|   Performance regression of models on ARM due to an upgrade to the latest ACL. A corresponding issue has 
+    been created in the ACL and oneDNN repositories. 
 
 
 .. Previous 2025 releases
