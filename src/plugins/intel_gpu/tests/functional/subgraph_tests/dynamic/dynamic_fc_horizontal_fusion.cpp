@@ -476,13 +476,11 @@ protected:
         }
 
         auto&& states = inferRequest.query_state();
-        size_t state_idx = 0;
         for (auto&& item : states) {
             const auto& shape = stateShapes.at(item.get_name());
 
             // Small values ​​are used to avoid overflow
             ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(net_type, shape, ov::test::utils::InputGenerateData{0, 1, 10});
-            state_idx++;
 
             item.set_state(tensor);
 
