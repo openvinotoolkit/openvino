@@ -165,7 +165,7 @@ void Graph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    _batch_size = get_batch_size(_metadata, {});
+    _batch_size = get_batch_size(_metadata, {}, {});
 
     const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape[0].is_dynamic()) {
