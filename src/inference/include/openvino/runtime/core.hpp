@@ -453,7 +453,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void add_extension(const Path& model_path) {
-        add_extension(model_path.string());
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return add_extension(model_path.wstring());
+        else
+            return add_extension(model_path.string());
     }
     /// @}
 
