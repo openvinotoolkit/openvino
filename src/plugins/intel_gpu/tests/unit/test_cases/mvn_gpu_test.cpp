@@ -1019,9 +1019,7 @@ TEST(mvn_bfyx_opt_fused_ops, basic_fused) {
 
     ExecutionConfig config_unfused = get_test_default_config(engine);
     config_unfused.set_property(ov::intel_gpu::optimize_data(false));
-    config_unfused.set_property(ov::intel_gpu::disable_post_ops_fusions(true));
     config_unfused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config_unfused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}} }));
 
     network network_unfused(engine, topo, config_unfused);
     network_unfused.set_input_data("input0", input0);
@@ -1033,9 +1031,11 @@ TEST(mvn_bfyx_opt_fused_ops, basic_fused) {
     ASSERT_EQ(outputs_unfused.begin()->first, "reorder");
     auto output_unfused = outputs_unfused.begin()->second.get_memory();
 
-    cldnn::mem_lock<ov::float16> buff_fused(output_fused, get_test_stream());
-    cldnn::mem_lock<ov::float16> buff_unfused(output_unfused, get_test_stream());
+    ASSERT_NE(network_fused.get_executed_primitive_ids().size(), network_unfused.get_executed_primitive_ids().size());
     ASSERT_EQ(output_fused->get_layout(), output_unfused->get_layout());
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> buff_fused(output_fused, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> buff_unfused(output_unfused, get_test_stream());
     float tolerance = 0.002f;
     for (size_t i = 0; i < output_fused->get_layout().count(); ++i) {
         ASSERT_NEAR(buff_fused[i], buff_unfused[i], tolerance) << " at index: " << i
