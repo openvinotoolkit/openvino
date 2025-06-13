@@ -174,6 +174,23 @@ protected:
     }
 };
 
+/**
+ *  Model structure for MatMul_Conv_QuantWeights test
+ *
+ *   Input
+ *     │
+ *   MatMul  ◀── DQ (MatMul weights)
+ *     │
+ *  Reshape
+ *     │
+ *   Conv    ◀── DQ (Conv weights)
+ *     │
+ *   Output
+ *
+ *  Test checks that DQ subgraphs for MatMul and Conv weights
+ *  are not modified by MOC and PrePostProcessing passes.
+ *
+ */
 TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
     {
         const float matmul_scale = 0.02f, matmul_zp = 1.f;
@@ -201,6 +218,30 @@ TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
 
         manager.register_pass<ov::pass::MOCTransformations>(false);
     }
+
+    {
+        const float matmul_scale = 0.02f, matmul_zp = 1.f;
+        const float conv_scale = 0.05f, conv_zp = 2.f;
+
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 128});
+        auto matmul_weight = make_dq_weights(qtype, ov::Shape{128, 64}, matmul_scale, matmul_zp);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, matmul_weight, false, false);
+
+        auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 64, 1, 1});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_const, false);
+        auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp);
+        auto conv = std::make_shared<ov::op::v1::Convolution>(reshape,
+                                                              conv_weight,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::CoordinateDiff{1, 1},
+                                                              ov::Strides{1, 1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{input});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 INSTANTIATE_TEST_SUITE_P(QuantWeightTypes,
