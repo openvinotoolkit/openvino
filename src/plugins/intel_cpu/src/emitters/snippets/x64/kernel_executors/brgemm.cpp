@@ -23,6 +23,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak;
@@ -31,14 +32,15 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::x64 {
 
-BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype,
-                                       const element::Type& in1_dtype,
+BrgemmKernelConfig::BrgemmKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
                                        const element::Type& out_dtype,
-                                       bool is_with_comp,
-                                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                                        const dnnl_post_ops& post_ops)
-    : m_static_params(
-          std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, is_with_comp, primitive_isa, post_ops)) {
+    : m_static_params(std::make_shared<StaticParams>(brgemm_config.src_dt(),
+                                                     brgemm_config.wei_dt(),
+                                                     out_dtype,
+                                                     brgemm_config.with_compensations(),
+                                                     brgemm_config.isa(),
+                                                     post_ops)) {
     m_hash = compute_hash();
 }
 
