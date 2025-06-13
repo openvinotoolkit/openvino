@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-
 #include "snippets/op/subgraph.hpp"
 
 namespace ov {
@@ -14,15 +13,16 @@ namespace pass {
 
 /*
  NotSet - default value returned by GetSnippetsNodeType(...) if the node wasn't marked
- SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via SetSnippetsNodeType(...).
+ SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via
+ SetSnippetsNodeType(...).
  */
-enum class SnippetsNodeType : int64_t {NotSet, SkippedByPlugin};
+enum class SnippetsNodeType : int64_t { NotSet, SkippedByPlugin };
 /*
  NotSet - default value returned if the subgraph wasn't marked and snippets can include nodes in this subgraph
  Completed - indicate that snippets can't include any nodes in this subgraph.
              It's used in separate tokenization pass, for example, tokenization by matcher (MHA Tokenization).
  */
-enum class SnippetsSubgraphType : int64_t {NotSet, Completed};
+enum class SnippetsSubgraphType : int64_t { NotSet, Completed };
 void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
 void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>&, SnippetsSubgraphType);
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);
@@ -42,7 +42,6 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
-
 /**
  * @interface SnippetsTokenization
  * @brief  Splits model to supported subgraphs
@@ -54,7 +53,8 @@ public:
  *           - During tokenization new Subgraph op takes the name of the last tokenized op.
  *             It's needed to save output names of model in cases when tokenized op was before model Result.
  *           - If some transformation (for example, SplitDimensionM) insert new op after Subgraph,
- *             the op should be called as this Subgraph to save output name. The Subgraph name is updated using suffix "_original".
+ *             the op should be called as this Subgraph to save output name. The Subgraph name is updated using suffix
+ *             "_original".
  * @ingroup snippets
  */
 class SnippetsTokenization : public ov::pass::ModelPass {
@@ -138,7 +138,7 @@ public:
         // Set of supported Transpose shape ranks for tokenization in MHATokenization pass.
         // Note that in general Snippets support Transpose of any ranks.
         // But at the moment Transpose is used only in MHA pattern where 3D and 4D tensors are supported.
-        std::set<size_t> m_mha_supported_transpose_ranks = { 3, 4 };
+        std::set<size_t> m_mha_supported_transpose_ranks = {3, 4};
         // Predicate that checks if the node can be fused as MatMul post-op.
         // It is currently used only in TokenizeMLPSeqSnippets
         CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
@@ -150,7 +150,6 @@ public:
 private:
     Config m_config;
 };
-
 
 }  // namespace pass
 }  // namespace snippets
