@@ -93,13 +93,13 @@ def test_add_output_port():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
     relu2 = ops.relu(relu1, name="relu2")
     model = Model(relu2, [param], "TestModel")
     assert len(model.results) == 1
     new_outs = model.add_outputs(relu1.output(0))
     assert len(model.results) == 2
     assert len(new_outs) == 1
+    assert len(new_outs[0].names) != 0
     assert new_outs[0].get_node().get_instance_id() == model.outputs[1].get_node().get_instance_id()
     assert new_outs[0].get_index() == model.outputs[1].get_index()
 
@@ -165,7 +165,7 @@ def test_get_result_index_invalid():
     ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
 ])
 def test_result_index(shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index):
-    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i+1}") for i, shape in enumerate(shapes)]
+    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i + 1}") for i, shape in enumerate(shapes)]
     relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
 
     model = Model(relus[0], [params[0]], model_name)

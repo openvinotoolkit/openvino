@@ -4,17 +4,27 @@
 
 #pragma once
 
+#include <atomic>
+#include <deque>
 #include <memory>
+#include <mutex>
+#include <ostream>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "config.h"
 #include "graph.h"
-#include "graph_context.h"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 #include "sub_memory_manager.hpp"
+#include "weights_cache.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -93,6 +103,7 @@ private:
     std::vector<std::shared_ptr<CompiledModel>> m_sub_compiled_models;
     std::shared_ptr<SubMemoryManager> m_sub_memory_manager = nullptr;
     bool m_has_sub_compiled_models = false;
+    bool m_optimized_single_stream = false;
 };
 
 // This class provides safe access to the internal CompiledModel structures and helps to decouple SyncInferRequest and

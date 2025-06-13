@@ -44,6 +44,9 @@ RUN apt-get update && \
         python3-full \
         # For Java API
         default-jdk \
+        # For clang-tidy validation
+        clang-format-18 \
+        clang-tidy-18 \
         && \
     rm -rf /var/lib/apt/lists/*
 

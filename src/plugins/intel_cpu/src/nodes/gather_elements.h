@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,6 +40,7 @@ private:
     size_t dataTypeSize_ = 0;
     int strideAxDst_ = 0;
     int dstAxDim_ = 0;
+    int dataAxDim_ = 0;
     int strideAx1Diff_ = 0;
 
     template <typename dataType>
