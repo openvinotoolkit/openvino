@@ -2206,7 +2206,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         }
 
         if (node.is_reusing_memory() ) {      
-                auto& eltw_inst = _network.get_primitive(node.reuse_id());
+                const auto& eltw_inst = _network.get_primitive(node.reuse_id());
                 auto& eltw_mem = eltw_inst->output_memory();
                 auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
                 _outputs.push_back(new_mem);
