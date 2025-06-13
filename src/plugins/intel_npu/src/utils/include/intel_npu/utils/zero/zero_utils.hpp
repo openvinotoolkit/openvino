@@ -22,32 +22,38 @@ struct ArgumentDescriptor {
 
 namespace zeroUtils {
 
-#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)              \
-    if (ZE_RESULT_SUCCESS != result) {                                                  \
-        OPENVINO_THROW("L0 ",                                                           \
-                       step,                                                            \
-                       " result: ",                                                     \
-                       ze_result_to_string(result),                                     \
-                       ", code 0x",                                                     \
-                       std::hex,                                                        \
-                       uint64_t(result),                                                \
-                       " - ",                                                           \
-                       ze_result_to_description(result),                                \
-                       " . ",                                                           \
-                       intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
+#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)                  \
+    {                                                                                       \
+        ze_result_t ret = (result);                                                         \
+        if (ZE_RESULT_SUCCESS != ret) {                                                     \
+            OPENVINO_THROW("L0 ",                                                           \
+                           step,                                                            \
+                           " result: ",                                                     \
+                           ze_result_to_string(ret),                                        \
+                           ", code 0x",                                                     \
+                           std::hex,                                                        \
+                           uint64_t(ret),                                                   \
+                           " - ",                                                           \
+                           ze_result_to_description(ret),                                   \
+                           " . ",                                                           \
+                           intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
+        }                                                                                   \
     }
 
-#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)         \
-    if (ZE_RESULT_SUCCESS != result) {                    \
-        OPENVINO_THROW("L0 ",                             \
-                       step,                              \
-                       " result: ",                       \
-                       ze_result_to_string(result),       \
-                       ", code 0x",                       \
-                       std::hex,                          \
-                       uint64_t(result),                  \
-                       " - ",                             \
-                       ze_result_to_description(result)); \
+#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)          \
+    {                                                      \
+        ze_result_t ret = (result);                        \
+        if (ZE_RESULT_SUCCESS != ret) {                    \
+            OPENVINO_THROW("L0 ",                          \
+                           step,                           \
+                           " result: ",                    \
+                           ze_result_to_string(ret),       \
+                           ", code 0x",                    \
+                           std::hex,                       \
+                           uint64_t(ret),                  \
+                           " - ",                          \
+                           ze_result_to_description(ret)); \
+        }                                                  \
     }
 
 static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
