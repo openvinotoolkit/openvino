@@ -15,7 +15,7 @@ namespace op {
 /**
  * @interface Buffer
  * @brief This is a class for memory storage.
- *        The buffers can have source (called as "IntermediateMemory") and can be without source (called as
+ * The buffers can have source (called as "IntermediateMemory") and can be without source (called as
  * "NewMemory"). First one contains memory which was stored by source -> these buffers propagate output shape and
  * element type from parents to output. Second one has passed `element_type` and `shape` by user - these attributes
  * describe independent empty memory. The both behaviors are implemented via the corresponding classes which are derived

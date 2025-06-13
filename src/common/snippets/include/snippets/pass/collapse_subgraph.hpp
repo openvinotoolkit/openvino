@@ -26,12 +26,13 @@ namespace pass {
  *       1. all input bodies are merged and
  *       1. this new operation is added to a body of input subgraph
  *       1. outputs are collected subgraph (outputs consumed by some other node & subgraph outputs consumed by the node
- * to be merged)
+ *          to be merged)
  *       1. finally current node is replaced with the new subgraph. We cannot use replace_node because multiple nodes
- * are replaced so make the replacement manually by redirecting ports New subgraph is introduced, if there is a loop
- * introduced New subgraph is introduced, if number of inputs and outputs exceeds 7 due to scheduling limitation New
- * subgraph is introduced, if multiple outputs of merged nodes are not broadcastable to each other (equality of all
- * outputs is too much on the other hand) Scalar constants are placed as is into subgraph due to optimization purpose
+ *          are replaced so make the replacement manually by redirecting ports New subgraph is introduced, if
+ *          there is a loop introduced New subgraph is introduced, if number of inputs and outputs exceeds 7 due
+ *          to scheduling limitation New subgraph is introduced, if multiple outputs of merged nodes are
+ *          not broadcastable to each other (equality of all outputs is too much on the other hand)
+ *          Scalar constants are placed as is into subgraph due to optimization purpose
  * @ingroup snippets
  */
 class TokenizeSnippets : public ov::pass::MatcherPass {

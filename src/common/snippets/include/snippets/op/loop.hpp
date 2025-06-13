@@ -52,13 +52,13 @@ protected:
  * @interface LoopEnd
  * @brief Marks the end of the Loop region and defines the loop properties.
  *        Number of outputs always equals to the number of inputs (bypassed values) - 1 (edge to the corresponding
- * LoopEnd)
+ *        LoopEnd)
  * @param args vector of input values + LoopBegin, all values except for the LoopBegin are passed directly to output.
  * @param work_amount total number of evaluations to be processed by the loop
  * @param increment number of evaluations processed in one iteration of the loop.
  * @param is_incremented describes which data pointers attributed to the loop should be incremented on every iteration.
  * @param ptr_increments specifies i/o pointer increment performed on every iteration if the following is_incremented[i]
- * is true
+ *                       is true
  * @param finalization_offsets pointer increments that are be applied to i/o pointers before exiting the loop
  * @param id the identifier of Loop in Loop system in LoopManager
  * @ingroup snippets

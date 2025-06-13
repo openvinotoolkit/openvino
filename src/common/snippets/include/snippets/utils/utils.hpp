@@ -217,7 +217,7 @@ ov::PartialShape get_planar_pshape(const ov::PartialShape& shape, const std::vec
 /**
  * @brief Returns original shape before applying the order.
  *        It means that the shape dimensions have been already reordered in accordance with order indices to produce
- * planar shape
+ *        planar shape
  * @param shape planar (ordered) partial shape
  * @param order order
  * @return preordered partial shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the
@@ -227,7 +227,7 @@ ov::PartialShape get_preordered_pshape(const ov::PartialShape& shape, const std:
 /**
  * @brief Returns a dense shape of node input.
  *        It means that the node input shape dimensions will be reordered in accordance with order indices to produce
- * planar shape
+ *        planar shape
  * @param in input of node
  * @return new reordered partial shape: `planar_shape[i]` = `shape[order[i]]`
  */
@@ -235,7 +235,7 @@ ov::PartialShape get_planar_pshape(const Input<Node>& in);
 /**
  * @brief Returns original shape of node output before applying the order.
  *        It means that the preordered output shape dimensions have been already reordered in accordance with order
- * indices to produce planar shape
+ *        indices to produce planar shape
  * @param out output of node
  * @return preordered partial shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the
  * order.
@@ -254,7 +254,7 @@ VectorDims get_planar_vdims(const VectorDims& shape, const std::vector<size_t>& 
 /**
  * @brief Returns original shape before applying the order.
  *        It means that the preordered shape dimensions have been already reordered in accordance with order indices to
- * produce planar shape
+ *        produce planar shape
  * @param shape planar (ordered) shape
  * @param order order
  * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
@@ -265,7 +265,7 @@ VectorDims get_preordered_vdims(const VectorDims& shape, const std::vector<size_
 /**
  * @brief Returns a dense shape of expression input port.
  *        It means that the input shape dimensions will be reordered in accordance with order indices to produce planar
- * shape
+ *        shape
  * @param expr_port input expression port
  * @return new reordered partial shape: `planar_shape[i]` = `shape[order[i]]`
  */
@@ -273,7 +273,7 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
 /**
  * @brief Returns original shape before applying the order of expression output port.
  *        It means that the preordered output shape dimensions has been already reordered in accordance with order
- * indices to produce planar shape
+ *        indices to produce planar shape
  * @param out input of node
  * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
  */
@@ -313,7 +313,7 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
 /**
  * @brief Get leaf shape infer node in first child shape infer sequence from(include) start_node.
  *        If start_node is a not shape infer node and start_node has no child shape infer node, function will return
- * nullptr.
+ *        nullptr.
  * @param start_node Search from start_node.
  * @return the leaf shape infer node of first child shape infer sequence or nullptr.
  */
@@ -322,7 +322,7 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
 /**
  * @brief Get leaf shape infer node in first parent shape infer sequence from(include) start_node.
  *        If start_node is a not shape infer node and start_node has no parent shape infer node, function will return
- * nullptr.
+ *        nullptr.
  * @param start_node Search from start_node.
  * @return the first leaf shape infer node or nullptr.
  */
@@ -376,7 +376,7 @@ void visit_path(const lowered::ExpressionPtr& expr,
 /**
  * @brief Converts a tensor to a string representation.
  *        Each value in the tensor is converted to a string. If the value is a full dimension, it is represented as
- * "FULL_DIM". If the value is dynamic, it is represented as "?".
+ *        "FULL_DIM". If the value is dynamic, it is represented as "?".
  * @param tensor The tensor to be converted to a string.
  * @return A string representation of the tensor.
  */

@@ -127,7 +127,7 @@ public:
      * @param entries input loop ports
      * @param exits output loop ports
      * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or
-     * not
+     *                             not
      * @return new loop ID
      */
     template <typename T>
@@ -151,10 +151,10 @@ public:
      * @param linear_ir linear IR
      * @param loop_begin_pos the first expression iterator. Must be the iterator of the `linear_ir`.
      *                       If there is explicit LoopBegin expressions in IR, loop_begin_pos must be the iterator of
-     * the LoopBegin
+     *                       the LoopBegin
      * @param loop_end_pos the next iterator after last expression iterator. Must be the iterator of the `linear_ir`.
      *                     If there is explicit LoopEnd expressions in IR, loop_end_pos must be the next iterator of the
-     * LoopEnd
+     *                     LoopEnd
      * @param loop_info information about new Loop
      * @param old_id loop ID of the previos loop
      * @return new loop ID
@@ -180,7 +180,7 @@ public:
      * @param loop_id_upper Loop ID of the Loop that is earlier in the linear IR
      * @param loop_id_lower Loop ID of the Loop that is later in the linear IR
      * @param fuse_into_upper True if the Loop with `loop_id_upper` ID is left and the Loop with `loop_id_lower` is
-     * removed
+     *                        removed
      */
     void fuse_loops(LinearIR::constExprIt loop_begin_target,
                     LinearIR::constExprIt loop_end_target,
@@ -192,7 +192,7 @@ public:
      *        Note:
      *         - Update LoopPort - insert new loop target ports instead of existing.
      *         - Update ExpressionPort in the LoopPort - with saving of port parameters. It's softer method since
-     * ExpressionPort may not be port of Loop
+     *        ExpressionPort may not be port of Loop
      * @param loop_id the target Loop ID
      * @param actual_port the current port
      * @param target_ports vector of the new ports
@@ -224,15 +224,18 @@ public:
      * @brief The method checks the loops (LoopInfo) that the target expression is marked with and update the
      * corresponding loop ports if needed:
      *           - If parent of the target expression and this expression are marked by one Loop and the parent is an
-     * output port of this Loop, the method replace parent output port with the target expression output ports as new
-     * output LoopPorts. If there are other consumers of parent output port that are not by the same Loop (like in the
-     * example below), the method just adds inserted expression output ports to existing parent output port as new
-     * output LoopPorts. Parent [1, 0] /              \                        <- Adds the target expression outputs to
-     * the existing LoopPort (parent output) of Loop[1] Another expr [2]   Target expression [1, 3]     (If Another expr
-     * is marked by Loop [1] too, the method will replace loop ports (not add))
+     *             output port of this Loop, the method replace parent output port with the target expression output
+     *             ports as new output LoopPorts. If there are other consumers of parent output port that are not
+     *             by the same Loop (like in the example below), the method just adds inserted expression output ports
+     *             to existing parent output port as new output LoopPorts.
+     *                     Parent [1, 0]
+     *                    /              \                        <- Adds the target expression outputs to the existing
+     *               Another expr [2]   Target expression [1, 3]     LoopPort (parent output) of Loop[1]
+     *                                                               (If Another expr is marked by Loop [1] too,
+     *                                                               the method will replace loop ports (not add))
      *           - If the target expression and its consumers have the same outer loop ids and some of consumers are
-     * input ports of these Loops, the method just replace the existing input loop ports (that contains consumer input
-     * ports) with the target expression input ports.
+     *             input ports of these Loops, the method just replace the existing input loop ports (that contains
+     *             consumer input ports) with the target expression input ports.
      * @param expr the target expression
      */
     void update_loop_ports(const ExpressionPtr& expr);
@@ -265,8 +268,8 @@ public:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
      *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
      *        - Otherwise Loop bounds are iterators of the first input loop port (or Scalar, VectorBuffer and another
-     * LoopBegin that are in this Loop but have another `loop_id`) and the next iterator of the last output loop port
-     * (or another LoopEnd that are in this Loop but have another `loop_id`).
+     *          LoopBegin that are in this Loop but have another `loop_id`) and the next iterator of the last output
+     *          loop port (or another LoopEnd that are in this Loop but have another `loop_id`).
      * @param linear_ir linear IR
      * @param loop_id target Loop ID
      * @return the pair of loop_begin_pos and loop_end_pos iterators
@@ -277,8 +280,8 @@ public:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
      *          Loop bounds are these iterators of the corresponding LoopBegin and LoopEnd.
      *        - Otherwise Loop bounds are iterators of the first input loop port (or Scalar, VectorBuffer and another
-     * LoopBegin that are in this Loop but have another `loop_id`) and the next iterator of the last output loop port
-     * (or another LoopEnd that are in this Loop but have another `loop_id`).
+     *          LoopBegin that are in this Loop but have another `loop_id`) and the next iterator of the last output
+     *          loop port (or another LoopEnd that are in this Loop but have another `loop_id`).
      * @param linear_ir linear IR
      * @param loop_id target Loop ID
      * @param entries input loop ports

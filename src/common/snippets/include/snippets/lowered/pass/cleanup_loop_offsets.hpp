@@ -15,7 +15,7 @@ namespace pass {
  * @interface CleanupLoopOffsets
  * @brief Loops are inserted with finalization offsets that reset all managed pointers to their initial values.
  *        This transformation "fuses" the offsets with an outer loop's ptr_increments, and zeroes the offsets before
- * Results.
+ *        Results.
  * @ingroup snippets
  */
 class CleanupLoopOffsets : public RangedPass {

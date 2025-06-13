@@ -23,7 +23,7 @@ namespace pass {
  *                   The buffers are connected to the same Loop - are adjacent in graph sense bounds.
  *          - The vertices (buffers) are adjacent if they are connected to the same Loop and
  *            their data pointers cannot be proportionally incremented in Loops: different ptr increments or data sizes
- * - or one of the Buffers is in some a Loop but another Buffer is not;
+ *          - or one of the Buffers is in some a Loop but another Buffer is not;
  *          - Firstly, create adjacency matrix using the definition above;
  *          - Secondly, assign the same color to non-adjacent vertices of graph (buffers), and use different colors
  * otherwise.
@@ -85,13 +85,13 @@ private:
      * @brief Update the adjacency matrix:
      *         - If Buffers are from the same Loops and connected to the same Loop and
      *           they have not proportionally ptr shift params for this Loop, the Buffers are adjacent - set value True
-     * in the matrix;
+     *           in the matrix;
      *         - If one of Buffer inside Loop but another Buffer is connected to this Loop and this Buffer has not zero
-     * data shift params, the Buffers are adjacent - set value True in the matrix;
+     *           data shift params, the Buffers are adjacent - set value True in the matrix;
      * @param lhs Pair where first value if Expression with first Buffer and second value is data pointer shift params
-     * for its
+     *            for its
      * @param rhs Pair where first value if Expression with second Buffer and second value is data pointer shift params
-     * for its
+     *            for its
      * @param buffers set of Buffers from the Linear IR
      * @param adj Target adjacency matrix
      */

@@ -32,7 +32,7 @@ namespace pass {
  *           * It's possible only if other parents of Loop_1 are before Loop_0 in Linear IR.
  *             Because Lower Loop_1 will be explicitly moved after Current Loop_0 in linear IR,
  *             and we must save control dependency (to avoid cases when after fusion some parents of Loop_1 are after
- * this Loop)
+ *             this Loop)
  *
  *        The main conditions of possible fusion is the equal increments and the equal/broadcastable work amounts.
  * @ingroup snippets

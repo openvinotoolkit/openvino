@@ -24,7 +24,7 @@ void update_runtime_parameters(const ov::snippets::lowered::UnifiedLoopInfoPtr& 
 /**
  * @brief Check if the passed expression port should be port of the Loop with ID `loop_id`:
  *        the target expression port should be connected to an expression from another Loop (missed in the loop with ID
- * `loop_id`),
+ *        `loop_id`),
  */
 bool should_be_loop_port(const ov::snippets::lowered::ExpressionPort& port, size_t loop_id);
 

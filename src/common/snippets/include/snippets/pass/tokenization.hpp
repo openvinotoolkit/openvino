@@ -54,7 +54,7 @@ public:
  *             It's needed to save output names of model in cases when tokenized op was before model Result.
  *           - If some transformation (for example, SplitDimensionM) insert new op after Subgraph,
  *             the op should be called as this Subgraph to save output name. The Subgraph name is updated using suffix
- * "_original".
+ *             "_original".
  * @ingroup snippets
  */
 class SnippetsTokenization : public ov::pass::ModelPass {
