@@ -22,7 +22,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/codec_xor.hpp"
-#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
+#include "subgraph/weights_decompression_builders.hpp"
 #include "openvino/op/matmul.hpp"
 #ifndef WIN32
 #    include <unistd.h>

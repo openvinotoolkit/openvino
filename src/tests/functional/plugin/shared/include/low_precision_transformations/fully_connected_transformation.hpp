@@ -6,7 +6,7 @@
 
 #include <string>
 #include <memory>
-#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "base/low_precision_transformations/layer_transformation.hpp"
 
 class FullyConnectedShapes {
 public:

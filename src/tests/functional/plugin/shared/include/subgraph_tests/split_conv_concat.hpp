@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/split_conv_concat.hpp"
+#include "subgraph/split_conv_concat.hpp"
 
 namespace ov {
 namespace test {

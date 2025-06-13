@@ -8,7 +8,7 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "common_test_utils/node_builders/reshape.hpp"
 #include "openvino/openvino.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"

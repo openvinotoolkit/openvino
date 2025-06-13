@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/base/snippets_test_utils.hpp"
+#include "base/snippets_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 
 namespace ov {

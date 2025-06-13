@@ -3,7 +3,7 @@
 //
 
 #include "utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/broadcast.hpp"

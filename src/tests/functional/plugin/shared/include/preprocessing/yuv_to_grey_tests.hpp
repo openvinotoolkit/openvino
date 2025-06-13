@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 
 using TParams = std::tuple<std::string>;
 

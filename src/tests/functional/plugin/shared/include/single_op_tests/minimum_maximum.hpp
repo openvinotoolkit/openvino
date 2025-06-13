@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/minimum_maximum.hpp"
+#include "single_op/minimum_maximum.hpp"
 
 namespace ov {
 namespace test {

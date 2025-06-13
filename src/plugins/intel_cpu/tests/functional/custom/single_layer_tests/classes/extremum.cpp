@@ -5,7 +5,7 @@
 #include "extremum.hpp"
 #include "internal_properties.hpp"
 #include "common_test_utils/node_builders/extremum.hpp"
-#include "shared_test_classes/single_op/minimum_maximum.hpp"
+#include "single_op/minimum_maximum.hpp"
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif

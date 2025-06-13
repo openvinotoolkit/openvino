@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/cum_sum.hpp"
+#include "single_op/cum_sum.hpp"
 
 namespace ov {
 namespace test {

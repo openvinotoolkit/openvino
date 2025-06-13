@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/tensor_iterator.hpp"
+#include "single_op/tensor_iterator.hpp"
 
 namespace ov {
 namespace test {

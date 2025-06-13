@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/extract_image_patches.hpp"
+#include "single_op/extract_image_patches.hpp"
 
 namespace ov {
 namespace test {

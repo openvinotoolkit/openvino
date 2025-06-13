@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/single_op/ctc_loss.hpp"
+#include "single_op/ctc_loss.hpp"
 
 namespace ov {
 namespace test {

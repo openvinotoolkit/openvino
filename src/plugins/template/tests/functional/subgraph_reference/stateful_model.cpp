@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/stateful_model.hpp"
+#include "subgraph/stateful_model.hpp"
 
 using namespace ov::test;
 

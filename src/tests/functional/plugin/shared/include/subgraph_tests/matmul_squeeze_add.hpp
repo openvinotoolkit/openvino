@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/matmul_squeeze_add.hpp"
+#include "subgraph/matmul_squeeze_add.hpp"
 
 namespace ov {
 namespace test {

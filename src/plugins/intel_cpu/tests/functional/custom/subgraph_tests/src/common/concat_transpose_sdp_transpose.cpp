@@ -7,7 +7,7 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/pass/manager.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"

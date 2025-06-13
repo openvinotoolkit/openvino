@@ -6,7 +6,7 @@
 
 #include "common_test_utils/node_builders/reduce.hpp"
 #include "gtest/gtest.h"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
 

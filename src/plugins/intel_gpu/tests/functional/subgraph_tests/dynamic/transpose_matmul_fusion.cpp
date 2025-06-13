@@ -5,7 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/transpose.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "base/ov_subgraph.hpp"
 
 namespace {
 
