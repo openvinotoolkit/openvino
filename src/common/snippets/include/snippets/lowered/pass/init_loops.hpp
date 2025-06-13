@@ -5,7 +5,6 @@
 #pragma once
 
 #include "pass.hpp"
-
 #include "snippets/lowered/loop_manager.hpp"
 
 namespace ov {
@@ -28,7 +27,7 @@ private:
     static void update_compile_parameters(const UnifiedLoopInfoPtr& loop_info);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

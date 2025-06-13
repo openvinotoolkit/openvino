@@ -54,6 +54,11 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
+#    include "snippets/lowered/pass/insert_reg_spills.hpp"
+#    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
 #    include "transformations/snippets/aarch64/shape_inference.hpp"
 #else
 #    include "emitters/snippets/x64/cpu_generator.hpp"
@@ -558,6 +563,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                repacked_constant_input_config);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::pass::BrgemmToGemmCPU);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -588,11 +596,10 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP))
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif
-
 #if defined(OPENVINO_ARCH_X86_64)
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)             \
         backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
@@ -639,6 +646,15 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                            ov::intel_cpu::pass::InitRepackedConstantInputs,
                                            context->getParamsCache(),
                                            repacked_constant_input_config);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::MarkLoops,
+                                          ov::intel_cpu::pass::GemmCPUBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::InitLoops,
+                                          ov::intel_cpu::pass::aarch64::AdjustGemmCopyBLoopPorts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::lowered::pass::InsertBuffers,
+                                          ov::intel_cpu::pass::aarch64::InsertGemmCopyBuffers);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
@@ -715,6 +731,10 @@ void Subgraph::optimizeIR() {
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
+#if defined(OPENVINO_ARCH_ARM64)
+    // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
+    control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
+#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved

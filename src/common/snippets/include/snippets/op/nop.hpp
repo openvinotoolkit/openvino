@@ -27,6 +27,6 @@ public:
     }
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov
