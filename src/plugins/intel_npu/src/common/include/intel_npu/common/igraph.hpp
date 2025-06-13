@@ -18,6 +18,13 @@
 
 namespace intel_npu {
 
+struct IONodeMetadata {
+    IONodeMetadata() = default;
+    IONodeMetadata(const ArgumentDescriptor&d);
+    std::optional<ArgumentDescriptor> descriptor;
+    std::optional<size_t> extract_batch(const ov::Shape &shape) const;
+};
+
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
@@ -59,15 +66,16 @@ public:
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const;
     void resize_last_submitted_event(size_t batch);
     void set_batch_size(std::size_t batch);
+    void reset_last_batch_size();
 
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
     uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
-    std::optional<size_t> determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& input_tensors) const;
+    std::optional<size_t> determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& input_tensors, const IONodeMetadata &input_output_info) const;
 
-    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata, const std::vector<ov::SoPtr<ov::ITensor>>& tensors);
+    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata, const std::vector<ov::SoPtr<ov::ITensor>>& tensors, const IONodeMetadata &input_output_info);
 
 protected:
     /**

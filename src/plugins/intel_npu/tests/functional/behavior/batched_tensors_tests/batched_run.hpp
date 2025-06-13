@@ -631,7 +631,7 @@ void executeContiguousTensorBatchInfer(ov::InferRequest req, size_t batch_value,
 
     req.set_tensors("tensor_input0", tensors);
     auto actual_tensor = req.get_tensor("tensor_output0");
-    ASSERT_EQ(actual_tensor.get_byte_size(), tensor.get_byte_size()) << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
+    ASSERT_EQ(actual_tensor.get_byte_size(), tensors.back().get_byte_size()) << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
 
     auto* actual = actual_tensor.data<float>();
     auto* f = tensors.back().data<float>();
