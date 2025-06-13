@@ -102,6 +102,25 @@ void ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& d
     }
 }
 
+void ov::hetero::Plugin::model_transformations(std::shared_ptr<ov::Model>& model, bool hetero_query_model_by_device) const {
+    ResultVector new_outputs;
+    for (auto& param : model->get_parameters()) {
+        if (param->get_users().size() == 0) {
+            auto result = std::make_shared<ov::op::v0::Result>(param);
+            ov::copy_runtime_info(param->shared_from_this(), result);
+            new_outputs.push_back(result);
+            independent_submodel_size++;
+        }
+    }
+    model->add_results(new_outputs);
+    if (hetero_query_model_by_device) {
+        // Apply transformation before splitting the graph
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
+        manager.run_passes(model);
+    }
+}
+
 std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plugin::query_model_update(
     std::shared_ptr<ov::Model>& model,
     const ov::AnyMap& properties,
@@ -176,7 +195,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                                             ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
                                                                  available_discrete_device_memory)
                                             : 1.0f;
-                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
+                    device_config[ov::internal::query_model_ratio.name()] = 0.5f;
                 }
                 // Remove the current device
                 available_device_mem_map.erase(device_name);
@@ -189,20 +208,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     ov::SupportedOpsMap supported_ops_final;
     std::map<std::string, ov::SupportedOpsMap> query_results;
     ov::hetero::SubgraphsMappingInfo mapping_info;
-    ResultVector new_outputs;
-    for (auto& param : model->get_parameters()) {
-        if (param->get_users().size() == 0) {
-            auto result = std::make_shared<ov::op::v0::Result>(param);
-            ov::copy_runtime_info(param->shared_from_this(), result);
-            new_outputs.push_back(result);
-            independent_submodel_size++;
-        }
-    }
-    model->add_results(new_outputs);
-    // Apply transformation before splitting the graph
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
-    manager.run_passes(model);
+    model_transformations(model, hetero_query_model_by_device);
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed
