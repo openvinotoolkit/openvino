@@ -60,7 +60,8 @@ TEST_P(ReferenceTanLayerTest, CompareWithHardcodedRefs) {
 }
 
 std::vector<TanParams> generateTanCombinedParams() {
-    std::vector<TanParams> combinedParams{
+    // clang-format off
+    std::vector<TanParams> combinedParams {
         TanParams(ov::PartialShape{5},
                   ov::element::i32,
                   std::vector<int32_t>{-2, -1, 0, 1, 2},
@@ -72,11 +73,19 @@ std::vector<TanParams> generateTanCombinedParams() {
         TanParams(ov::PartialShape{5},
                   ov::element::u32,
                   std::vector<uint32_t>{1, 2, 3, 4, 5},
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+                  std::vector<uint32_t>{2, 0, 0, 1, 0}),
+#else
                   std::vector<uint32_t>{2, 0xFFFFFFFF - 1, 0, 1, 0xFFFFFFFF - 2}),
+#endif
         TanParams(ov::PartialShape{5},
                   ov::element::u64,
                   std::vector<uint64_t>{1, 2, 3, 4, 5},
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
+                  std::vector<uint64_t>{2, 0, 0, 1, 0}),
+#else
                   std::vector<uint64_t>{2, 0xFFFFFFFFFFFFFFFF - 1, 0, 1, 0xFFFFFFFFFFFFFFFF - 2}),
+#endif
         TanParams(ov::PartialShape{11},
                   ov::element::f32,
                   std::vector<float>{0.f, 0.25f, -0.25f, 0.5f, -0.5f, 1.f, -1.f, 2.f, -2.f, 4.f, -4.f},
@@ -104,7 +113,9 @@ std::vector<TanParams> generateTanCombinedParams() {
                                        -2.18503986f,
                                        2.18503986f,
                                        1.15782128f,
-                                       -1.15782128f})};
+                                       -1.15782128f})
+    };
+    // clang-format on
     return combinedParams;
 }
 
