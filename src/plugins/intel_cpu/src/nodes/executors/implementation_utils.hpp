@@ -98,7 +98,7 @@ size_t postOpsNumbers(const Config& config) {
 }
 
 template <typename Attrs>
-struct RequiredNoFallback {
+struct HasNoOptimalConfig {
     std::optional<executor::Config<Attrs>> operator()([[maybe_unused]] const executor::Config<Attrs>& attrs) const {
         return {};
     }
@@ -159,10 +159,10 @@ private:
 };
 
 template <typename Attrs>
-std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Config<Attrs>& config,
-                                                              const TypeMapping& typeMapping,
-                                                              const std::vector<LayoutType>& layoutConfig,
-                                                              const MappingNotation& notation) {
+std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor::Config<Attrs>& config,
+                                                                 const TypeMapping& typeMapping,
+                                                                 const std::vector<LayoutType>& layoutConfig,
+                                                                 const MappingNotation& notation) {
     // @todo lambdas inside a template function can potentially increase binary size
     auto fullyMatchConfiguration = [](const MemoryDescArgs& currentDescriptors,
                                       const InOutTypes& typeConfig,
@@ -229,6 +229,22 @@ std::optional<executor::Config<Attrs>> requiresFallbackCommon(const executor::Co
     const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
 
     return std::optional<executor::Config<Attrs>>(executor::Config<Attrs>{optimalDescriptors, config.attrs});
+}
+
+inline MemoryDescArgs memoryDescsFromMemory(const MemoryArgs& memory) {
+    MemoryDescArgs memoryDescs;
+    memoryDescs.reserve(memory.size());
+
+    for (const auto& mem : memory) {
+        memoryDescs[mem.first] = mem.second->getDescPtr();
+    }
+
+    return memoryDescs;
+}
+
+template <typename Attrs>
+executor::Config<Attrs> createConfig(const MemoryArgs& memory, const Attrs& attrs) {
+    return executor::Config<Attrs>{memoryDescsFromMemory(memory), attrs};
 }
 
 }  // namespace ov::intel_cpu
