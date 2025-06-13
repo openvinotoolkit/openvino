@@ -32,7 +32,7 @@ You can run inference on a single device or use automated modes that manage mult
 |    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`  across different device types
 |    :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`: automatically groups inference requests to improve throughput
 
- To learn how to configure devices for these modes, see the :doc:`Query device properties <inference-devices-and-modes/query-device-properties>` article.
+Learn how to configure devices in the :doc:`Query device properties <inference-devices-and-modes/query-device-properties>` article.
 
 Enumerating Available Devices
 #######################################
