@@ -13,6 +13,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "internal_properties.hpp"
 
 #include <algorithm>
 
@@ -54,6 +55,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::intel_cpu::denormals_optimization.name()),
         RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RW_property(ov::hint::dynamic_quantization_group_size.name()),
         RW_property(ov::hint::kv_cache_precision.name()),
         RW_property(ov::key_cache_precision.name()),
