@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "itt.hpp"
+#include "openvino/core/log_dispatch.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -204,9 +205,9 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (is_pass_manager) {
-                std::cout << std::setw(25) << std::left;
-                std::cout << "PassManager started: " << m_manager_name << std::endl;
-                std::cout << std::right;
+                ov_cout << std::setw(25) << std::left;
+                ov_cout << "PassManager started: " << m_manager_name << std::endl;
+                ov_cout << std::right;
             }
         }
     }
@@ -218,15 +219,15 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (m_profile_pass.is_bool()) {
-                std::cout << std::setw(25) << std::left;
+                ov_cout << std::setw(25) << std::left;
                 if (is_pass_manager) {
-                    std::cout << "PassManager finished: ";
+                    ov_cout << "PassManager finished: ";
                 } else {
-                    std::cout << "  ";
+                    ov_cout << "  ";
                 }
-                std::cout << std::setw(60) << std::left << name;
-                std::cout << std::setw(5) << std::right << stopwatch.get_milliseconds() << "ms "
-                          << (applied ? "+" : "-") << std::endl;
+                ov_cout << std::setw(60) << std::left << name;
+                ov_cout << std::setw(5) << std::right << stopwatch.get_milliseconds() << "ms " << (applied ? "+" : "-")
+                        << std::endl;
             } else if (m_file.is_open()) {
                 if (is_pass_manager) {
                     m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
