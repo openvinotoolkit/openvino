@@ -45,8 +45,8 @@ namespace riscv64 {
 class jit_generator_t : public Xbyak_riscv::CodeGenerator {
 public:
     jit_generator_t(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
-                  void* userPtr = Xbyak_riscv::DontSetProtectRWE,
-                  Xbyak_riscv::Allocator* allocator = 0)
+                    void* userPtr = Xbyak_riscv::DontSetProtectRWE,
+                    Xbyak_riscv::Allocator* allocator = 0)
         : Xbyak_riscv::CodeGenerator(maxSize, userPtr, allocator) {}
     virtual ~jit_generator_t() {}
 
@@ -77,8 +77,8 @@ public:
         Xbyak_riscv::CodeGenerator::L(label);
     }
 
-    jit_generator_t(const jit_generator&) = delete;
-    jit_generator_t& operator=(const jit_generator&) = delete;
+    jit_generator_t(const jit_generator_t&) = delete;
+    jit_generator_t& operator=(const jit_generator_t&) = delete;
 
     virtual const char* name() const = 0;
     virtual const char* source_file() const = 0;
