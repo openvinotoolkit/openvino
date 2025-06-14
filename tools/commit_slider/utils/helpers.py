@@ -59,6 +59,13 @@ def getParams():
         help="run utility with specified name",
         default="no_utility",
     )
+    parser.add_argument(
+        "-t",
+        "--template",
+        dest="template",
+        help="launched with template",
+        default="undefined",
+    )
 
     parser.add_argument(
         "-x",
@@ -84,6 +91,20 @@ def getParams():
         presetCfgData = loadJSONToObject(presetCfgPath)
         return argHolder, presetCfgData, presetCfgPath
 
+    if argHolder.template != "undefined":
+        it = iter(additionalArgs)
+        addDict = dict(zip(it, it))
+        mergedArgs = {**(args.__dict__), **addDict}
+        argHolder = DictHolder(mergedArgs)
+        customCfgPath = "custom_cfg_on_run.json"
+        jsonObj = {"template" : {"name" : argHolder.template}}
+        for k, v in addDict.items():
+            jsonObj['template'][k] = v
+            curTempl = jsonObj['template']
+            curTempl[k.replace('-', '')] = v
+            jsonObj['template'] = curTempl
+        saveJSON(jsonObj, customCfgPath)
+
     customCfgData = loadJSONToString(customCfgPath)
     if mulKey in customCfgData:
         customCfgData = multiplyCfgByKey(json.loads(customCfgData))
@@ -108,6 +129,9 @@ def loadJSONToObject(path):
     file.close()
     return obj
 
+def saveJSON(obj, path):
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=4)
 
 def customizeCfg(customCfg, presetCfg: str):
     if isinstance(customCfg, list):
@@ -362,6 +386,14 @@ def runCommandList(commit, cfgData):
 
 
 def fetchAppOutput(cfg, commit):
+    appCmd = cfg["appCmd"]
+    if isinstance(appCmd, list):
+        aggregatedOutput = ""
+        for cmd in appCmd:
+            curCfg = deepCopyJSON(cfg)
+            curCfg["appCmd"] = cmd
+            aggregatedOutput = aggregatedOutput + fetchAppOutput(curCfg, commit)
+        return aggregatedOutput
     commitLogger = getCommitLogger(cfg, commit)
     appPath = cfg["appPath"]
     # format appPath if it was cashed
@@ -378,7 +410,6 @@ def fetchAppOutput(cfg, commit):
             envKey = env["name"]
             envVal = env["val"]
             newEnv[envKey] = envVal
-    appCmd = cfg["appCmd"]
     commitLogger.info("Run command: {command}".format(
         command=appCmd)
     )
@@ -727,6 +758,12 @@ def checkAndGetSubclass(clName, parentClass):
     else:
         return cl[0]
 
+def getClassByMethod(method, methodRes, parentClass):
+    cl = [cl for cl in parentClass.__subclasses__() if getattr(cl, method)() == methodRes]
+    if not (cl.__len__() == 1):
+        raise CfgError("Class returning {} doesn't exist".format(methodRes))
+    else:
+        return cl[0]
 
 class DictHolder:
     def __init__(self, dict: dict = None):
@@ -893,6 +930,20 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
             )
         )
         cfg = deepMapUpdate(cfg, pathToDst, dstPos)
+
+def simpleSubstitute(cfg: map, placeholder: str,
+                     fromPath: str, toPath: str):
+    rules = [
+            {
+                "name": "simple rule",
+                "enabled": True,
+                "type": "static",
+                "placeholder": placeholder,
+                "from": fromPath,
+                "to": toPath
+            }
+        ]
+    applySubstitutionRules(cfg, rules)
 
 def getMapValueByShortHash(map: dict, commit: str):
     for k in map:

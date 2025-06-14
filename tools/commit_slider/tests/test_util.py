@@ -116,7 +116,7 @@ def commitPatchList(versionList, innerPath, fileName):
             textFile.write(version['content'])
 
         runCmd("git add {}".format(fileName), innerPath)
-        runCmd("git commit -m \"{}\"".format(version['comment']), innerPath)
+        runCmd("git commit -m \"{}\"".format(version['comment'].replace(" ", "_")), innerPath)
         hash = runCmd("git rev-parse HEAD", innerPath)[0]
 
         markedVersion = {
@@ -147,6 +147,23 @@ def getExpectedCommit(td: TestData):
     td.actualDataReceived = True
 
     return breakCommit, td
+
+def createRepoAndUpdateData(td: TestData):
+    markedVersionList = createRepo(td)
+
+    td.fillActualData(markedVersionList)
+    td.actualDataReceived = True
+
+    return td
+
+def runCSAndCheckPattern(td: TestData, pattern: list):
+    sliderOutput = runCS(td)
+    pattern = '((.|\n)*)'.join(pattern)
+    matcher = re.search(
+            pattern, sliderOutput, flags=re.MULTILINE
+        )
+    print(sliderOutput)
+    return matcher is not None
 
 def getActualCommit(td: TestData):
     sliderOutput = runCS(td)

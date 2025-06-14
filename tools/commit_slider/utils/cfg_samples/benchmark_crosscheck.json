@@ -1,0 +1,16 @@
+{
+    "appCmd":"{actualPar}",
+    "appPath": "{appPath}",
+    "gitPath" : "{gitPath}",
+    "buildPath" : "{buildPath}",
+    "verboseOutput":false,
+    "runConfig" : {
+        "commitList" : {
+            "explicitList" : [ "{start}", "{end}" ]
+        },
+        "mode" : "crossCheck",
+        "par_1" : "{appCmd}",
+        "par_2" : "{appCmd}",
+        "traversal" : "bruteForce"
+    }
+}
