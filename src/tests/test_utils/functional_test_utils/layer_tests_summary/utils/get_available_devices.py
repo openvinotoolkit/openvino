@@ -23,7 +23,7 @@ except:
 
         env = set_env_variable(env, "PYTHONPATH", py_ov)
         env = set_env_variable(env, LD_LIB_PATH_NAME, ov_bin_path)
-        logger.warning("Set the following env varibles to rename conformance ir based on hash: ")
+        logger.warning("Set the following env variables to rename conformance ir based on hash: ")
         logger.warning(f'PYTHONPATH={env["PYTHONPATH"]}')
         logger.warning(f'{LD_LIB_PATH_NAME}={env[LD_LIB_PATH_NAME]}')
         exit(0)
