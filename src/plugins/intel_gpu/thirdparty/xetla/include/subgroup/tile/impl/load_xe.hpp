@@ -724,8 +724,8 @@ tile_load(tile_t &tile, payload_t &payload, oob_check_tag tag = {}) {
                         payload.base_ptr,
                         payload.channel_offset + payload.base_offset
                                 + address_offset,
-                        pred_x && pred_y);
-                reg_tmp.xetla_merge(reg_tmp, 0, pred_x && pred_y);
+                        pred_x & pred_y);
+                reg_tmp.xetla_merge(reg_tmp, 0, pred_x & pred_y);
 
                 reg_sub.xetla_select<load_elems * scale_factor, 1>(
                                sub_block_y * tile_desc::block_size_x)
@@ -772,9 +772,9 @@ tile_load(tile_t &tile, payload_t &payload, oob_check_tag tag = {}) {
                         payload.base_ptr,
                         payload.channel_offset + payload.base_offset
                                 + address_offset,
-                        pred_x && pred_y);
+                        pred_x & pred_y);
 
-                reg_tmp.xetla_merge(reg_tmp, 0, pred_x && pred_y);
+                reg_tmp.xetla_merge(reg_tmp, 0, pred_x & pred_y);
 
                 reg_sub.xetla_select<load_elems * scale_factor, 1>(
                                sub_block_y * tile_desc::block_size_x)
