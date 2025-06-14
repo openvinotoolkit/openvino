@@ -30,7 +30,7 @@ KERNEL(second_token_a)(OPTIONAL_SHAPE_INFO_ARG
     __local ACCUMULATOR_TYPE *sg_fma_buff = fma_buff + sgid_k * MAX_LORA_RANK;
 
     // Put all need input activation into SLM. 'sgN' sgs would share same input.
-    __local ACCUMULATOR_TYPE local_input[MAX_GEMMA_SGK * MAX_GEMMA_SG_BK];
+    __local ACCUMULATOR_TYPE local_input[MAX_GEMMA_SGK * GEMMA_SG_BK];
 
     // sg could diverge here. Not all the sgs can satisfy 'offset < k_len'.
     int local_sz = get_num_sub_groups() * SUBGROUP_SIZE;
