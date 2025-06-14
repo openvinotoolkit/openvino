@@ -199,6 +199,7 @@
 #include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/space_to_depth.hpp"
 #include "openvino/op/sparse_fill_empty_rows.hpp"
+#include "openvino/op/sparse_fill_empty_rows_unpacked_string.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/stft.hpp"
@@ -254,6 +255,7 @@
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
 #include "sparse_fill_empty_rows_shape_inference.hpp"
+#include "sparse_fill_empty_rows_unpacked_string_shape_inference.hpp"
 #include "split_shape_inference.hpp"
 #include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
@@ -580,6 +582,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::ISTFT, ShapeInferTA, util::bit::mask(2, 3, 4)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SegmentMax, ShapeInferTA, util::bit::mask(1, 2)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v16::SparseFillEmptyRows, ShapeInferTA, util::bit::mask(1, 2)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v16::SparseFillEmptyRowsUnpackedString, ShapeInferTA, util::bit::mask(0, 1, 3)),
     // opset15
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::Squeeze, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v15::SearchSorted, ShapeInferTA, util::bit::mask()),
