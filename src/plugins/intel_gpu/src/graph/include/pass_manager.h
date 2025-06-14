@@ -322,17 +322,18 @@ public:
             return;
         }
 
-        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
-            || !dep->can_be_optimized())) {
+        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) &&
+            ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized())) {
             node->add_memory_dependency(*dep);
+            dep->add_memory_dependency(*node);
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
                 node->add_memory_dependency(*dep);
+                dep->add_memory_dependency(*node);
             }
 
             for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
-                add_memory_dependency(subdep.first, node);
             }
         }
     }
