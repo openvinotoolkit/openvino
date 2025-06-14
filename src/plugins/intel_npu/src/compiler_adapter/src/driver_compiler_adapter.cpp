@@ -105,6 +105,8 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "U64";
     case ov::element::Type_t::u1:
         return "BIN";
+    case ov::element::Type_t::u2:
+        return "U2";
     case ov::element::Type_t::boolean:
         return "BOOL";
     case ov::element::Type_t::dynamic:
