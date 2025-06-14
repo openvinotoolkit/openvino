@@ -8,7 +8,6 @@ import os
 import sys
 import filecmp
 import difflib
-from typing import List, Set
 
 # Due to numerous issues with stub generation reproducibility we need some skips.
 # The inconsistencies between generations most likely come from different environment/CMake setups.
@@ -21,9 +20,9 @@ SKIPS = [
     "openvino/tools/ovc/moc_frontend/extractor.pyi"
 ]
 
-def find_pyi_files(directory: str) -> Set[str]:
+def find_pyi_files(directory: str) -> set[str]:
     """Recursively find all .pyi files in a directory."""
-    pyi_files: List[str] = []
+    pyi_files: list[str] = []
     for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith(".pyi"):
@@ -35,8 +34,8 @@ def find_pyi_files(directory: str) -> Set[str]:
 def compare_pyi_files(generated_dir: str, committed_dir: str) -> None:
     """Compare .pyi files between two directories."""
     # Find all .pyi files in both directories
-    generated_files: Set[str] = find_pyi_files(generated_dir)
-    committed_files: Set[str] = find_pyi_files(committed_dir)
+    generated_files: set[str] = find_pyi_files(generated_dir)
+    committed_files: set[str] = find_pyi_files(committed_dir)
 
     # Assert that the number of .pyi files matches
     if len(generated_files) != len(committed_files):

@@ -246,7 +246,7 @@ void regclass_frontend_InputModel(py::module m) {
                 Returns all inputs for a model.
 
                 :return: A list of input places.
-                :rtype: List[openvino.frontend.Place]
+                :rtype: list[openvino.frontend.Place]
             )");
 
     im.def("get_outputs",
@@ -255,7 +255,7 @@ void regclass_frontend_InputModel(py::module m) {
                 Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow.
 
                 :return: A list of output places.
-                :rtype: List[openvino.frontend.Place]
+                :rtype: list[openvino.frontend.Place]
             )");
 
     im.def("extract_subgraph",
@@ -266,9 +266,9 @@ void regclass_frontend_InputModel(py::module m) {
                 Leaves only subgraph that are defined by new inputs and new outputs.
 
                 :param inputs: Array of new input places.
-                :type inputs: List[openvino.frontend.Place]
+                :type inputs: list[openvino.frontend.Place]
                 :param outputs: Array of new output places.
-                :type outputs: List[openvino.frontend.Place]
+                :type outputs: list[openvino.frontend.Place]
             )");
 
     im.def("override_all_inputs",
@@ -279,7 +279,7 @@ void regclass_frontend_InputModel(py::module m) {
                 should completely satisfy all existing outputs.
 
                 :param inputs: Array of new input places.
-                :type inputs: List[openvino.frontend.Place]
+                :type inputs: list[openvino.frontend.Place]
             )");
 
     im.def("override_all_outputs",
@@ -290,7 +290,7 @@ void regclass_frontend_InputModel(py::module m) {
                 is not required for new outputs.
 
                 :param outputs: Vector with places that will become new outputs; may intersect existing outputs.
-                :type outputs: List[openvino.frontend.Place]
+                :type outputs: list[openvino.frontend.Place]
             )");
 
     im.def("set_element_type",
