@@ -81,6 +81,7 @@ ov_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of fail
 ov_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ${STYLE_CHECKS_DEFAULT})
 
 ov_option (ENABLE_CLANG_TIDY "Enable clang-tidy checks during the build" OFF)
+ov_dependent_option (ENABLE_CLANG_TIDY_FIX "Enable clang-tidy automatic fixes during the build" OFF "ENABLE_CLANG_TIDY" OFF)
 
 ov_option (ENABLE_NCC_STYLE "Enable ncc style check" ${STYLE_CHECKS_DEFAULT})
 
