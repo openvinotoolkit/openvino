@@ -185,7 +185,7 @@ const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) 
 
 void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num) {
     const auto& node = expr->get_node();
-    OPENVINO_ASSERT(io_allowed || (!is_type<ov::op::v0::Result>(node) && !is_type<ov::op::v0::Parameter>(node)),
+    OPENVINO_ASSERT(io_allowed || (!is_type_any_of<ov::op::v0::Result, ov::op::v0::Parameter>(node)),
                     "LinearIR::insert can't be used to add Parameters or Results to IR");
     const auto& res = m_node2expression_map.insert({node, expr});
     OPENVINO_ASSERT(res.second, "Duplicate node is detected in linear IR: ", node);
