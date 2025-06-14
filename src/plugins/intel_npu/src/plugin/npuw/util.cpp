@@ -495,9 +495,10 @@ ov::Tensor ov::npuw::util::to_f16(const ov::Tensor& t) {
 
 inline uint8_t tread_4b(const ov::Tensor& t, std::size_t r, std::size_t c, std::size_t COLS) {
     const uint8_t* tdata = static_cast<const uint8_t*>(t.data());
-    const uint8_t* trow = tdata + r * COLS / 2;
-    const uint8_t* telem = trow + c / 2;
-    if (c % 2 == 0) {
+    std::size_t toffset4 = r * COLS + c;
+    std::size_t toffset8 = toffset4 / 2;
+    const uint8_t* telem = tdata + toffset8;
+    if ((toffset4 % 2) == 0) {
         return lo4(*telem);
     }
     return hi4(*telem);
