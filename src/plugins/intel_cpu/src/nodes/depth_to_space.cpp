@@ -333,7 +333,7 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
+void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB) {
     if (!permuteKernel) {
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
     }

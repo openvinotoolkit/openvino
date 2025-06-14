@@ -72,7 +72,7 @@ inline arm_compute::TensorShape shapeCast(const VectorDims& dims) {
     return tensorShape;
 }
 
-enum ACLAxisCastMode { NO_LAYOUT_CONVERSION, NHWC_TO_NCHW, NCHW_TO_NHWC };
+enum ACLAxisCastMode : uint8_t { NO_LAYOUT_CONVERSION, NHWC_TO_NCHW, NCHW_TO_NHWC };
 
 /**
  * @brief Return reverted axis used in ACL. If axis cast mode is

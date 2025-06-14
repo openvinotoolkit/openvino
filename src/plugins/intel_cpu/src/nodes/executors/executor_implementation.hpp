@@ -65,7 +65,8 @@ public:
           m_acceptsShape(std::move(acceptsShape)),
           m_create(std::move(create)) {}
 
-    bool supports(const executor::Config<Attrs>& config, const MemoryFormatFilter& memoryFormatFilter) const {
+    [[nodiscard]] bool supports(const executor::Config<Attrs>& config,
+                                const MemoryFormatFilter& memoryFormatFilter) const {
         if (m_supports) {
             return m_supports(config, memoryFormatFilter);
         }
@@ -73,7 +74,7 @@ public:
         return false;
     }
 
-    std::optional<executor::Config<Attrs>> requiresFallback(const executor::Config<Attrs>& config) const {
+    [[nodiscard]] std::optional<executor::Config<Attrs>> requiresFallback(const executor::Config<Attrs>& config) const {
         if (m_requiresFallback) {
             return m_requiresFallback(config);
         }
@@ -89,7 +90,9 @@ public:
         return false;
     }
 
-    ExecutorPtr create(const Attrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context) const {
+    [[nodiscard]] ExecutorPtr create(const Attrs& attrs,
+                                     const MemoryArgs& memory,
+                                     const ExecutorContext::CPtr context) const {
         DEBUG_LOG("Creating executor using implementation: ", m_name);
 
         if (m_create) {

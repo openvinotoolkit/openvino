@@ -36,19 +36,18 @@ public:
     struct throw_tag {};
     struct nothrow_tag {};
 
-public:
     static uint8_t sizeOfDataType(dnnl::memory::data_type dataType);
     static dnnl::memory::data_type ElementTypeToDataType(const ov::element::Type& elementType,
                                                          throw_tag tag = throw_tag{});
 
     static std::optional<dnnl::memory::data_type> ElementTypeToDataType(const ov::element::Type& elementType,
-                                                                        nothrow_tag) noexcept;
+                                                                        nothrow_tag tag) noexcept;
 
     static ov::element::Type DataTypeToElementType(const dnnl::memory::data_type& dataType);
     static Dim convertToDim(const dnnl::memory::dim& dim);
     static dnnl::memory::dim convertToDnnlDim(const Dim& dim);
     static VectorDims convertToVectorDims(const dnnl::memory::dims& dims);
-    static VectorDims convertToVectorDims(const dnnl::impl::dims_t dims, const int ndims);
+    static VectorDims convertToVectorDims(const dnnl::impl::dims_t dims, int ndims);
     static std::vector<dnnl::memory::dim> convertToDnnlDims(const VectorDims& dims);
     static dnnl::memory::format_tag GetPlainFormatByRank(size_t rank);
 
@@ -85,7 +84,7 @@ public:
         while (itpd) {
             const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
 
-            if (comparator(descImplType)) {
+            if (std::forward<T>(comparator)(descImplType)) {
                 return true;
             }
 
@@ -104,8 +103,8 @@ public:
         while (itpd) {
             const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
 
-            if (comparator(descImplType)) {
-                func(itpd);
+            if (std::forward<T>(comparator)(descImplType)) {
+                std::forward<L>(func)(itpd);
                 if (first_match) {
                     break;
                 }
@@ -115,8 +114,6 @@ public:
                 break;
             }
         }
-
-        return;
     }
 
     static bool find_implementation(dnnl::primitive_desc& desc, impl_desc_type impl_type);

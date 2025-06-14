@@ -12,8 +12,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class TileBroadcastCommon {
 protected:
@@ -35,7 +34,7 @@ private:
                                                VectorDims& optimizedSrcStrides);
     static void broadcastScalar(const char* srcData, char* dstData, size_t elt_cnt, size_t data_size);
 
-    static bool canBeExecutedInBlockedLayout(VectorDims srcBlockedDims, VectorDims repeats, const size_t elemsInBlock);
+    static bool canBeExecutedInBlockedLayout(VectorDims srcBlockedDims, VectorDims repeats, size_t elemsInBlock);
     static bool canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, VectorDims repeats);
 
     struct {
@@ -46,5 +45,4 @@ private:
     } optimizedParams;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

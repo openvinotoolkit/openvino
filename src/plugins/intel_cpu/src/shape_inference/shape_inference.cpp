@@ -351,7 +351,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {op::copy_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -364,7 +364,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {op::eltwise_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -443,7 +443,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes)};
     }
 };
@@ -498,7 +498,7 @@ public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end)};
     }
 };

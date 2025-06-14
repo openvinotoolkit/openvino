@@ -40,7 +40,7 @@ public:
     [[nodiscard]] ov::Any merge(const ov::NodeVector& nodes) const override {
         std::set<std::string> unique_mem_format;
 
-        for (auto& node : nodes) {
+        for (const auto& node : nodes) {
             auto it_info = node->get_rt_info().find(MemoryFormat::get_type_info_static());
             if (it_info != node->get_rt_info().end()) {
                 std::string mem_format = it_info->second.template as<MemoryFormat>().to_string();

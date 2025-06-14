@@ -8,7 +8,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "graph_context.h"
 #include "node.h"
@@ -17,9 +16,7 @@
 
 using proposal_conf = ov::Extensions::Cpu::proposal_conf;
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Proposal : public Node {
 public:
@@ -28,9 +25,9 @@ public:
     void getSupportedDescriptors() override{};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
-    bool needPrepareParams() const override {
+    [[nodiscard]] bool needPrepareParams() const override {
         return false;
     };
     void executeDynamicImpl(const dnnl::stream& strm) override;
@@ -50,6 +47,4 @@ private:
     bool store_prob;  // store blob with proposal probabilities
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -13,9 +13,7 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class ExperimentalDetectronGenerateProposalsSingleImage : public Node {
 public:
@@ -57,6 +55,4 @@ private:
     std::vector<int> roi_indices_;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

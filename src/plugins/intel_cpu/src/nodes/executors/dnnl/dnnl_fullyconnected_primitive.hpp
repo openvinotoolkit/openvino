@@ -64,11 +64,11 @@ public:
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
-    static bool useWeightsDecompressionImpl(const ov::element::Type inputType,
-                                            const ov::element::Type weightsType,
-                                            const Config::ModelType modelType);
+    static bool useWeightsDecompressionImpl(ov::element::Type inputType,
+                                            ov::element::Type weightsType,
+                                            Config::ModelType modelType);
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,

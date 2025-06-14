@@ -18,7 +18,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-enum class shapeNodeType { Reshape, Squeeze, Unsqueeze, ReshapeWithNonZero };
+enum class shapeNodeType : uint8_t { Reshape, Squeeze, Unsqueeze, ReshapeWithNonZero };
 
 inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
     switch (type) {

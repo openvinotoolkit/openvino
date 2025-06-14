@@ -41,7 +41,7 @@ protected:
         }
     };
     /** Compile kernel managed by KernelExecutor instance. Will be called only if Kernel is not found in the cache */
-    virtual std::shared_ptr<KernelType> compile_kernel(const Conf& c) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<KernelType> compile_kernel(const Conf& c) const = 0;
     /** CPU plugin cache implementation is used to avoid redundant recompilations */
     ov::intel_cpu::MultiCacheWeakPtr m_kernel_cache;
 };

@@ -31,7 +31,7 @@ public:
                            const MemoryDescPtr& dstDesc,
                            const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getConvertExecutorsList()) {
+        for (const auto& desc : getConvertExecutorsList()) {
             if (desc.builder->isSupported(convertParams, srcDesc, dstDesc)) {
                 supportedDescs.push_back(desc);
             }

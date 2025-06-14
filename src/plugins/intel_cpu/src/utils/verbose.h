@@ -11,8 +11,7 @@
 #    include <sstream>
 #    include <string>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Verbose {
 public:
@@ -20,15 +19,17 @@ public:
         : node(_node),
           lvl(atoi(_lvl.c_str()) % 10),
           /* 1,  2,  3,  etc -> no color. 11, 22, 33, etc -> colorize */
-          colorUp(atoi(_lvl.c_str()) / 10) {
-        if (!shouldBePrinted())
+          colorUp((atoi(_lvl.c_str()) / 10) != 0) {
+        if (!shouldBePrinted()) {
             return;
+        }
         printInfo();
     }
 
     ~Verbose() {
-        if (!shouldBePrinted())
+        if (!shouldBePrinted()) {
             return;
+        }
 
         printDuration();
         flush();
@@ -48,8 +49,8 @@ private:
 
 // use heap allocation instead of stack to align with PERF macro (to have proper destruction order)
 #    define VERBOSE(...) const auto verbose = std::unique_ptr<Verbose>(new Verbose(__VA_ARGS__));
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
+
 #else
 #    define VERBOSE(...)
 #endif  // CPU_DEBUG_CAPS

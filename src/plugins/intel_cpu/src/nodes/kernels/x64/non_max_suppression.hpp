@@ -23,7 +23,7 @@
 
 namespace ov::intel_cpu {
 
-enum class NMSBoxEncodeType { CORNER, CENTER };
+enum class NMSBoxEncodeType : uint8_t { CORNER, CENTER };
 
 #if defined(OPENVINO_ARCH_X86_64)
 
@@ -137,7 +137,7 @@ private:
 
     inline void horizontal_mul();
 
-    inline void prepare_table() {
+    void prepare_table() {
         auto broadcast_d = [&](int val) {
             for (size_t d = 0; d < vlen / sizeof(int); ++d) {
                 dd(val);

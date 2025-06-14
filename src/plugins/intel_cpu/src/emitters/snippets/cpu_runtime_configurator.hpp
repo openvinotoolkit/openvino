@@ -27,15 +27,15 @@ public:
     std::string to_string() const override;
 #endif
 
-    enum class RepackingImplType {
+    enum class RepackingImplType : uint8_t {
         NONE,         // no kernel-outside repacking
         IN_PARALLEL,  // should be executed in parallel_nt by each thread
         SEPARATE,     // should be separathy from kernel executed
     };
     RepackingImplType repacking_impl_type = RepackingImplType::NONE;
 
-    RepackedInputConfig repacked_input_config = {};
-    std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    RepackedInputConfig repacked_input_config;
+    std::vector<jit_snippets_call_args::loop_args_t> loop_args;
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {

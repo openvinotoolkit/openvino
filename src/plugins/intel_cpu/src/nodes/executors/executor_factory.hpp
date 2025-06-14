@@ -34,7 +34,7 @@ public:
                     const MemoryDescArgs& descriptors,
                     const MemoryFormatFilter& memoryFormatFilter = {},
                     const std::string& implementationPriority = {})
-        : m_attrs(attrs),
+        : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
           m_suitableImplementations(filter(m_attrs, descriptors, memoryFormatFilter, implementationPriority)) {
         OPENVINO_ASSERT(!m_suitableImplementations.empty(), "No suitable implementations found");
@@ -70,6 +70,7 @@ public:
         };
 
         std::vector<MemoryDescArgs> memoryDescArgs;
+        memoryDescArgs.reserve(m_suitableImplementations.size());
         for (const auto& impl : m_suitableImplementations) {
             memoryDescArgs.emplace_back(getProperMemoryDescArgs(impl, config));
         }

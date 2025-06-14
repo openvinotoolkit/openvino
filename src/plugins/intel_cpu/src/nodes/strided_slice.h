@@ -10,7 +10,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -18,9 +17,7 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class StridedSlice : public Node {
 public:
@@ -140,6 +137,4 @@ private:
     std::vector<MemoryCPtr> dstMemory;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

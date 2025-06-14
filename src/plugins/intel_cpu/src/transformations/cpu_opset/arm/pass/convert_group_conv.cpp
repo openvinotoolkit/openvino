@@ -24,7 +24,7 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        enum Inputs { Data, Weights };
+        enum Inputs : uint8_t { Data, Weights };
         auto gconv = ov::as_type_ptr<ov::op::v1::GroupConvolution>(m.get_match_root());
         if (!gconv) {
             return false;

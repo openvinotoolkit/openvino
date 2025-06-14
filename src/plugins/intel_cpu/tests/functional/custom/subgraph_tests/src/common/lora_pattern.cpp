@@ -25,7 +25,7 @@ constexpr auto t5_name = "lora/MatMul.alpha";
 constexpr auto t6_name = "lora/MatMul.A";
 constexpr auto netType = ov::element::f32;
 
-enum class StatesPolicy {
+enum class StatesPolicy : uint8_t {
     EMPTY_TENSORS,
     RANDOM_TENSORS,
     UNDEFINED

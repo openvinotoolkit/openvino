@@ -47,7 +47,7 @@ public:
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override;
 
-    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override;
+    [[nodiscard]] TransposeExecutorPtr makeExecutor(ExecutorContext::CPtr context) const override;
 };
 
 }  // namespace ov::intel_cpu

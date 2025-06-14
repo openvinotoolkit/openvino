@@ -19,9 +19,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct jit_def_conv_params {
     int ndims;
@@ -64,15 +62,15 @@ struct jit_def_conv_call_args {
 };
 
 struct jit_uni_def_conv_kernel {
-    void (*ker_)(const jit_def_conv_call_args*);
+    void (*ker_)(const jit_def_conv_call_args*) = nullptr;
 
-    void operator()(const jit_def_conv_call_args* args) {
+    void operator()(const jit_def_conv_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_def_conv_kernel(const jit_def_conv_params& jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_def_conv_kernel() {}
+    explicit jit_uni_def_conv_kernel(const jit_def_conv_params& jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_def_conv_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -100,8 +98,8 @@ public:
         size_t group = 1;
         int deformable_group = 1;
         bool with_bilinear_pad = false;
-        std::vector<ptrdiff_t> stride = {};
-        std::vector<ptrdiff_t> dilation = {};
+        std::vector<ptrdiff_t> stride;
+        std::vector<ptrdiff_t> dilation;
         std::vector<ptrdiff_t> padL;
     } defConvAttr;
 
@@ -178,6 +176,4 @@ private:
     bool autoPadding = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

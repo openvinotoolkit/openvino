@@ -10,7 +10,6 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/op/constant.hpp>
 #include <string>
-#include <utility>
 
 #include "cpu_memory.h"
 #include "cpu_shape.h"
@@ -18,11 +17,10 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Input : public Node {
 public:
@@ -97,7 +95,6 @@ private:
     void initSupportedPdDefault();
     void initSupportedPdFromMemDesc();
 
-private:
     std::shared_ptr<ov::op::v0::Constant> m_constOp;
     MemoryCPtr memoryPtr;
     bool isMeanImage = false;
@@ -106,6 +103,4 @@ private:
     bool m_isInPlace = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

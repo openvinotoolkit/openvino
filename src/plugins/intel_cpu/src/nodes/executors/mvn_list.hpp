@@ -32,7 +32,7 @@ public:
                        const std::vector<MemoryDescPtr>& dstDescs,
                        const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getMVNExecutorsList()) {
+        for (const auto& desc : getMVNExecutorsList()) {
             if (desc.builder->isSupported(mvnAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

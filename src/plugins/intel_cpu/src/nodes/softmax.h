@@ -8,7 +8,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "common/dnnl_executor.h"
 #include "graph_context.h"
@@ -16,9 +15,7 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class SoftMax : public Node {
 public:
@@ -28,7 +25,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     void getSupportedDescriptors() override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     AttrPtr initPrimitiveAttr() override;
     void prepareParams() override;
     void execute(const dnnl::stream& strm) override;
@@ -42,6 +39,4 @@ private:
     size_t axis = 0;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

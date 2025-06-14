@@ -15,11 +15,10 @@
 #include "nodes/executors/convert.hpp"
 #include "nodes/node_config.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Convert : public Node {
 public:
@@ -35,8 +34,8 @@ public:
     void prepareParams() override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool created() const override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
@@ -49,14 +48,14 @@ public:
         this->output = output.clone();
     }
 
-    const MemoryDesc& getInput() const {
+    [[nodiscard]] const MemoryDesc& getInput() const {
         return *input;
     }
-    const MemoryDesc& getOutput() const {
+    [[nodiscard]] const MemoryDesc& getOutput() const {
         return *output;
     }
 
-    bool needPrepareParams() const override {
+    [[nodiscard]] bool needPrepareParams() const override {
         return inputShapesModified();
     }
 
@@ -72,6 +71,4 @@ private:
     NodeConfig config;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

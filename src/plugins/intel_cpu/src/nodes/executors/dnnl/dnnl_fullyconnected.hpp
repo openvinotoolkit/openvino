@@ -27,12 +27,12 @@ template <typename Primitive, typename Attrs, typename ShapeAgnosticData, typena
 class DnnlExecutor : public Executor {
 public:
     using PrimitivePtr = std::shared_ptr<Primitive>;
-    DnnlExecutor(const Attrs& attrs,
+    DnnlExecutor(Attrs attrs,
                  const MemoryArgs& memory,
                  ExecutorContext::CPtr context,
                  const bool cacheWeights,
                  const bool fc3Das2D = false)
-        : m_attrs(attrs),
+        : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
           m_shapeAgnosticData(Primitive::createShapeAgnosticData(m_attrs, memory, m_context, cacheWeights)),
           m_primArgs(m_shapeAgnosticData->m_primAttrs.dnnlArgs),

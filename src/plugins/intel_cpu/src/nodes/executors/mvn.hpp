@@ -17,10 +17,10 @@
 
 namespace ov::intel_cpu {
 
-enum MVNLayoutType { mvn_planar, mvn_block, mvn_by_channel };
+enum MVNLayoutType : uint8_t { mvn_planar, mvn_block, mvn_by_channel };
 
 // Defines way to add epsilon: inside sqrt or outside.
-enum MVNEpsMode { INSIDE_SQRT, OUTSIDE_SQRT };
+enum MVNEpsMode : uint8_t { INSIDE_SQRT, OUTSIDE_SQRT };
 
 struct MVNAttrs {
     MVNLayoutType layout = mvn_planar;
@@ -64,7 +64,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const MVNAttrs& mvnAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual MVNExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using MVNExecutorBuilderPtr = std::shared_ptr<MVNExecutorBuilder>;

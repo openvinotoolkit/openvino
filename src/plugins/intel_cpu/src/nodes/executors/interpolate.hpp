@@ -21,19 +21,25 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-enum { MAX_INPUT_INTERPOLATE = 8 };
+static constexpr int MAX_INPUT_INTERPOLATE = 8;
 
 namespace ov::intel_cpu {
 
-enum InterpolateLayoutType { planar, block, by_channel };
+enum InterpolateLayoutType : uint8_t { planar, block, by_channel };
 
-enum InterpolateMode { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
+enum InterpolateMode : uint8_t { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
 
-enum InterpolateCoordTransMode { half_pixel, pytorch_half_pixel, asymmetric, tf_half_pixel_for_nn, align_corners };
+enum InterpolateCoordTransMode : uint8_t {
+    half_pixel,
+    pytorch_half_pixel,
+    asymmetric,
+    tf_half_pixel_for_nn,
+    align_corners
+};
 
-enum class InterpolateNearestMode { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
+enum class InterpolateNearestMode : uint8_t { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
 
-enum class InterpolateShapeCalcMode { sizes, scales };
+enum class InterpolateShapeCalcMode : uint8_t { sizes, scales };
 
 struct InterpolateAttrs {
     InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
@@ -71,7 +77,7 @@ inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
 }
 
 inline int clipCoord(int pos, int length) {
-    return std::max(static_cast<int>(0), std::min(pos, length - 1));
+    return std::max(0, std::min(pos, length - 1));
 }
 
 inline size_t getSpatialDimsNum(const Dim rank) {
@@ -193,7 +199,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const InterpolateAttrs& InterpolateAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual InterpolateExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual InterpolateExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using InterpolateExecutorBuilderPtr = std::shared_ptr<InterpolateExecutorBuilder>;

@@ -10,7 +10,7 @@
 using namespace CPUTestUtils;
 namespace ov {
 namespace test {
-enum OffsetType { ZERO, NATURAL, REAL_POSITIVE, REAL_NEGATIVE, REAL_MISC };
+enum OffsetType : uint8_t { ZERO, NATURAL, REAL_POSITIVE, REAL_NEGATIVE, REAL_MISC };
 
 typedef std::tuple<bool,       // with_bilinear_interpolation_pad
                    bool,       // with_modulation

@@ -72,7 +72,6 @@ public:
 protected:
     virtual void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm);
 
-protected:
     dnnl::primitive execPrim;
     // key is the port number for the primitive that needs memory reordering
     std::unordered_map<int, IntermReorder> inputReorders;
