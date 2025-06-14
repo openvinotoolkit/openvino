@@ -26,8 +26,11 @@
 // ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
 #define SupportAPIGraphQueryNetworkV2(T) ((!NotSupportQuery(T) && !SupportAPIGraphQueryNetworkV1(T)))
 
-// For ext version >= 1.5, pfnCreate2 api is avaible
+// For ext version >= 1.5 and < 1.12, pfnCreate2 api is avaible
 #define NotSupportGraph2(T) (T < ZE_GRAPH_EXT_VERSION_1_5)
+
+// For ext version >= 1.12, pfnCreate3 api is avaible
+#define NotSupportGraph3(T) (T < ZE_GRAPH_EXT_VERSION_1_12)
 
 // A bug inside the driver makes the "pfnGraphGetArgumentMetadata" call not safe for use prior to
 // "ze_graph_dditable_ext_1_6_t".
@@ -35,6 +38,62 @@
 #define NotSupportArgumentMetadata(T) (T < ZE_GRAPH_EXT_VERSION_1_6)
 
 #define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
+
+
+namespace {
+
+ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
+    switch (zeElementType) {
+    case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
+        return ov::element::Type_t::dynamic;
+    case ZE_GRAPH_ARGUMENT_PRECISION_DYNAMIC:
+        return ov::element::Type_t::dynamic;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
+        return ov::element::Type_t::boolean;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return ov::element::Type_t::nf4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E4M3:
+        return ov::element::Type_t::f8e4m3;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E5M2:
+        return ov::element::Type_t::f8e5m2;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E8M0:
+        return ov::element::Type_t::f8e8m0;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
+        return ov::element::Type_t::bf16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
+        return ov::element::Type_t::f16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
+        return ov::element::Type_t::f32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
+        return ov::element::Type_t::f64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
+        return ov::element::Type_t::i4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
+        return ov::element::Type_t::i8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
+        return ov::element::Type_t::i16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+        return ov::element::Type_t::i32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
+        return ov::element::Type_t::i64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
+        return ov::element::Type_t::u1;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
+        return ov::element::Type_t::u4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
+        return ov::element::Type_t::u8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
+        return ov::element::Type_t::u16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
+        return ov::element::Type_t::u32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
+        return ov::element::Type_t::u64;
+    default:
+        return ov::element::Type_t::dynamic;
+    }
+}
+}  // namespace
+
 
 namespace intel_npu {
 
@@ -50,6 +109,7 @@ ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHold
     _logger.debug("-SupportAPIGraphQueryNetworkV1: %d", SupportAPIGraphQueryNetworkV1(_graphExtVersion));
     _logger.debug("-SupportAPIGraphQueryNetworkV2 :%d", SupportAPIGraphQueryNetworkV2(_graphExtVersion));
     _logger.debug("-SupportpfnCreate2 :%d", !NotSupportGraph2(_graphExtVersion));
+    _logger.debug("-SupportpfnCreate3 :%d", !NotSupportGraph3(_graphExtVersion));
     _logger.debug("-SupportArgumentMetadata :%d", !NotSupportArgumentMetadata(_graphExtVersion));
     _logger.debug("-UseCopyForNativeBinary :%d", UseCopyForNativeBinary(_graphExtVersion));
 }
@@ -279,24 +339,43 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
                                                      const std::string& buildFlags,
                                                      const uint32_t& flags) const {
     ze_graph_handle_t graphHandle;
-    if (NotSupportGraph2(_graphExtVersion)) {
-        // For ext version <1.5, calling pfnCreate api in _zeroInitStruct->getGraphDdiTable()
-        ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                                nullptr,
-                                ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                                serializedIR.first,
-                                serializedIR.second.get(),
-                                buildFlags.c_str()};
+    if (NotSupportGraph3(_graphExtVersion)) {
+        if (NotSupportGraph2(_graphExtVersion)) {
+            // For ext version <1.5, calling pfnCreate api in _zeroInitStruct->getGraphDdiTable()
+            ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                                    nullptr,
+                                    ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                                    serializedIR.first,
+                                    serializedIR.second.get(),
+                                    buildFlags.c_str()};
+    
+            
+            // Create querynetwork handle
+            auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
+                                                                        _zeroInitStruct->getDevice(),
+                                                                        &desc,
+                                                                        &graphHandle);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _zeroInitStruct->getGraphDdiTable());
+        } else {
+            // For ext 1.12 > version >= 1.5, calling pfnCreate2 api in _zeroInitStruct->getGraphDdiTable()
+            ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                                    nullptr,
+                                    ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                                    serializedIR.first,
+                                    serializedIR.second.get(),
+                                    buildFlags.c_str(),
+                                    flags};
 
-        _logger.debug("getGraphHandle - perform pfnCreate");
-        // Create querynetwork handle
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
-                                                                    _zeroInitStruct->getDevice(),
-                                                                    &desc,
-                                                                    &graphHandle);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _zeroInitStruct->getGraphDdiTable());
+            _logger.debug("getGraphHandle - perform pfnCreate2");
+            // Create querynetwork handle
+            auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
+                                                                        _zeroInitStruct->getDevice(),
+                                                                        &desc,
+                                                                        &graphHandle);
+            THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+        }
     } else {
-        // For ext version >= 1.5, calling pfnCreate2 api in _zeroInitStruct->getGraphDdiTable()
+        // For ext version >= 1.12, calling pfnCreate3 api in _zeroInitStruct->getGraphDdiTable()
         ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                                   nullptr,
                                   ZE_GRAPH_FORMAT_NGRAPH_LITE,
@@ -304,14 +383,18 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
                                   serializedIR.second.get(),
                                   buildFlags.c_str(),
                                   flags};
+        _logger.debug("getGraphHandle - perform pfnCreate3");
 
-        _logger.debug("getGraphHandle - perform pfnCreate2");
+        ze_graph_properties_3_t graphProperties = {};
+
         // Create querynetwork handle
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
-                                                                     _zeroInitStruct->getDevice(),
-                                                                     &desc,
-                                                                     &graphHandle);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+        ze_graph_build_log_handle_t graphBuildLogHandle = nullptr;
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate3(_zeroInitStruct->getContext(),
+                                                                _zeroInitStruct->getDevice(),
+                                                                &desc,
+                                                                &graphHandle,
+                                                                &graphBuildLogHandle);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate3", result, _zeroInitStruct->getGraphDdiTable());
     }
     return graphHandle;
 }
