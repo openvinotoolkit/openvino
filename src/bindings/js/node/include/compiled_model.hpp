@@ -33,6 +33,9 @@ public:
      * object on node-addon side. */
     void set_compiled_model(const ov::CompiledModel& compiled_model);
 
+    /** @brief Gets a _compiled_model property of a CompiledModelWrap object.  */
+    ov::CompiledModel& get_compiled_model();
+
     /** @return A Javascript InferRequest */
     Napi::Value create_infer_request(const Napi::CallbackInfo& info);
 
@@ -91,7 +94,7 @@ private:
     /** @brief Gets node of a compiled model specified in CallbackInfo. */
     Napi::Value get_node(const Napi::CallbackInfo& info,
                          const ov::Output<const ov::Node>& (ov::CompiledModel::*func)() const,
-                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const,
+                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&) const,
                          const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const);
 
     ov::CompiledModel _compiled_model;
