@@ -99,34 +99,27 @@
         #endif
         }
 
-        inline uint add_count(
-            #if COUNT_LENGTH > COUNT_LIMIT
-            __global int count_k[], __global int count_v[], 
-            #else
-            __local int count_k[], __local int count_v[], 
-            #endif
-            int idx, uint valid_count)
-        {
-            for (int i = 0; i < valid_count; ++i) {
-                if (count_k[i] == idx) {
-                    count_v[i] += 1;
-                    return valid_count;
-                }
-            }
-            count_k[valid_count] = idx;
-            count_v[valid_count] += 1;
-            return valid_count + 1;
-        }
-    
-        inline int get_count(__local int count_k[], __local int count_v[], int it, int *idx)
-        {
-            if (count_k[it] != -1) {
-                *idx = count_k[it];
-                count_k[it] = -1;
-                return count_v[it];
-            }
-            return -1;
-        }
+        #define add_count(count_k, count_v, idx, valid_count) ({                      \
+            for (int i = 0; i < (valid_count); ++i) {                                 \
+                if ((count_k)[i] == (idx)) {                                          \
+                    (count_v)[i] += 1;                                                \
+                    break;                                                            \
+                }                                                                     \
+            }                                                                         \
+            (count_k)[valid_count] = (idx);                                           \
+            (count_v)[valid_count] += 1;                                              \
+            (valid_count) = (valid_count) + 1;                                        \
+        })
+
+        #define get_count(count_k, count_v, it, idx, count) ({                        \
+            if ((count_k)[(it)] != -1) {                                              \
+                (idx) = (count_k)[(it)];                                              \
+                (count_k)[(it)] = -1;                                                 \
+                (count) = (count_v)[(it)];                                            \
+            } else {                                                                  \
+                (count) = -1;                                                         \
+            }                                                                         \
+        })
     #endif
 #endif
 
@@ -188,9 +181,6 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         #if COUNT_LENGTH > COUNT_LIMIT
             __global int count_k[COUNT_LENGTH];
             __global int count_v[COUNT_LENGTH];
-        #elif COUNT_LENGTH == 0
-            __local int count_k[1];
-            __local int count_v[1];
         #else
             __local int count_k[COUNT_LENGTH];
             __local int count_v[COUNT_LENGTH];
@@ -258,13 +248,14 @@ KERNEL(scatter_elements_update_ref)(OPTIONAL_SHAPE_INFO_ARG
                      const uint output_idx = GET_OUTPUT_INDEX(ORDER);
                      val = FUNC_CALL(reduce)(output[output_idx], val);
                      output[output_idx] = val;
-                     valid_count = add_count(count_k, count_v, output_idx, valid_count);
+                     add_count(count_k, count_v, output_idx, valid_count);
                  }
              }
          }
         for (int i = 0; i < valid_count; ++i) {
             int output_idx;
-            const int count = get_count(count_k, count_v, i, &output_idx);
+            int count;
+            get_count(count_k, count_v, i, output_idx, count);
             #if REDUCE_MODE==MEAN_MODE
                 output[output_idx] = output[output_idx] / (count + USE_INIT_VAL);
             #endif
