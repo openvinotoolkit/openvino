@@ -6,8 +6,8 @@
 
 #include <pugixml.hpp>
 #include <regex>
-#include <string_view>
 #include <stack>
+#include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/except.hpp"
