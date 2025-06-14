@@ -21,6 +21,9 @@ core.add_extension(ov.OpExtension(Identity))
 #! [add_extension]
 
 #! [add_frontend_extension]
+# Register mapping for new frontends: FW's "TemplateIdentity" operation to Identity
+core.add_extension(ov.frontend.OpExtension(Identity, "Identity"))
+
 # Register more sophisticated mapping with decomposition
 def conversion(node):
     input_node = node.get_input(0)
