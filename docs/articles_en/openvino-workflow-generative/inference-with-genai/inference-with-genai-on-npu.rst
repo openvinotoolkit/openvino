@@ -360,7 +360,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
             .. code-block:: python
 
-               pipeline_config = { "BLOB_PATH": ".npucache\\compiled_model.blob" }
+               pipeline_config = { "BLOB_PATH": ".npucache\\compiled_model.blob", "WEIGHTS_PATH": "model_path\\openvino_model.bin" }
                pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
 
 
@@ -369,7 +369,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
             .. code-block:: cpp
 
-               ov::AnyMap pipeline_config = { { "BLOB_PATH",  ".npucache\\compiled_model.blob" } };
+               ov::AnyMap pipeline_config = { { "BLOB_PATH",  ".npucache\\compiled_model.blob" }, { "WEIGHTS_PATH",  "model_path\\openvino_model.bin" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 
