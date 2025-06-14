@@ -1,0 +1,132 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+namespace KERNEL_NAME {
+
+#include <cm/cm.h>
+#include "cm/cmtl.h"
+#define FP32_MIN (-1e+38)
+#define FP16_MIN ((fp16)-65504.0f)
+
+using fp16 = half;
+constexpr uint32_t baseOffsetInc8[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+constexpr uint32_t baseOffsetInc16[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+#define XMX_PRECISION CM_PRECISION_HF
+
+// Shape Q [num_head, activation token length, 80]  fp16,
+// Shape K:  [num_head, kv len, 80] Bf16,
+// Shape V : [num_head, kv len, 80] Bf16,
+// output: [activation token length, 16, 80]  Bf,
+// atten = mat_mul(q, k), shape = [first token length, kv len]
+// atten = softmax(atten)
+// output = mat_mul(atten, V)
+_GENX_MAIN_ void KERNEL_NAME(
+  uint8_t* qState [[type("svmptr_t")]],
+  uint8_t* kState [[type("svmptr_t")]],
+  uint8_t* vState [[type("svmptr_t")]],
+  uint8_t* batchInfo [[type("svmptr_t")]],
+  uint8_t* out [[type("svmptr_t")]],
+  uint32_t batchSize,
+  uint32_t hasMask) {
+  constexpr uint32_t headChannel = 80;
+  constexpr uint32_t numberOfHead = 16;
+  constexpr uint32_t hiddenDim = headChannel * numberOfHead;
+
+  int32_t sub_group_id = cm_local_id(0);
+  int32_t h = cm_group_id(0);
+  int32_t macro_group_id = cm_group_id(1);
+  int32_t v = macro_group_id & 0x7;
+  int32_t _b_ = macro_group_id >> 3;
+  int32_t _hh_ = sub_group_id & 0x1f; // [0, 1)
+  int32_t __vv_ = sub_group_id >> 5;
+  int32_t _head = v * 2;
+  uint32_t start_offset;
+  uint32_t seq_len;
+
+  vector<uint32_t, 8> simdOffsets;
+  vector<uint32_t, 8> simdBase(baseOffsetInc8);
+  vector<uint32_t, 2> seqDim;
+  simdOffsets.select<8, 1>(0) = simdBase + 2 * _b_;
+  simdOffsets.select<8, 1>(0) = simdOffsets.select<8, 1>(0) * sizeof(uint32_t);
+  seqDim =
+    cm_ptr_load<
+    uint32_t,
+    VectorSize::N1,
+    DataSize::U32,
+    CacheHint::Cached,
+    CacheHint::Cached,
+    2
+    >((uint32_t*)batchInfo, simdOffsets.select<2, 1>(0));
+  seq_len = seqDim[1];
+  start_offset = seqDim[0];
+
+  uint32_t startOutputId = h * 256 + _hh_ * 8;
+  uint32_t startOutputBase = start_offset * hiddenDim * sizeof(fp16) + (_head + __vv_) * headChannel * sizeof(fp16) + startOutputId * hiddenDim * sizeof(fp16);
+#pragma unroll
+  for (int32_t kk = 0; kk < 8; kk++) {
+    vector<uint16_t, 80> combinedFp16Output;
+    if (startOutputId + kk < seq_len) {
+      combinedFp16Output.select<32, 1>(32) = start_offset;
+      combinedFp16Output.select<32, 1>(32) = seq_len;
+      combinedFp16Output.select<16, 1>(64) = 0;
+      cm_ptr_store<
+        uint32_t,
+        32,
+        DataSize::U32,
+        CacheHint::WriteBack,
+        CacheHint::WriteBack,
+        CacheHint::Default
+      >((uint32_t*)out, startOutputBase, combinedFp16Output.format<uint32_t>().select<32, 1>(0));
+
+      cm_ptr_store<
+        uint32_t,
+        8,
+        DataSize::U32,
+        CacheHint::WriteBack,
+        CacheHint::WriteBack,
+        CacheHint::Default
+      >((uint32_t*)out, startOutputBase + 32 * sizeof(uint32_t), combinedFp16Output.format<uint32_t>().select<8, 1>(32));
+      startOutputBase += hiddenDim * sizeof(fp16);
+    }
+    if (macro_group_id >= 0xffff) {
+      cm_ptr_store<
+        uint32_t,
+        32,
+        DataSize::U32,
+        CacheHint::WriteBack,
+        CacheHint::WriteBack,
+        CacheHint::Default
+      >((uint32_t*)qState, 0, combinedFp16Output.format<uint32_t>().select<32, 1>(0));
+      cm_ptr_store<
+        uint32_t,
+        32,
+        DataSize::U32,
+        CacheHint::WriteBack,
+        CacheHint::WriteBack,
+        CacheHint::Default
+      >((uint32_t*)kState, 0, combinedFp16Output.format<uint32_t>().select<32, 1>(0));
+      cm_ptr_store<
+        uint32_t,
+        32,
+        DataSize::U32,
+        CacheHint::WriteBack,
+        CacheHint::WriteBack,
+        CacheHint::Default
+      >((uint32_t*)vState, 0, combinedFp16Output.format<uint32_t>().select<32, 1>(0));
+    }
+  }
+}
+
+}  // NAMESPACE
