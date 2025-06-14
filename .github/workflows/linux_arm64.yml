@@ -123,8 +123,8 @@ jobs:
     if: ${{ 'false' }}
     uses: ./.github/workflows/job_debian_packages.yml
     with:
-      runner: 'aks-linux-4-cores-8gb-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      runner: 'ubuntu-22.04'
+      image: 'ubuntu:20.04'
 
   Samples:
     needs: [ Build, Docker, Smart_CI ]
@@ -175,7 +175,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-8-cores-16gb-arm'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'ubuntu_20_04'
 

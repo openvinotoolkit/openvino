@@ -3,6 +3,15 @@ FROM ${REGISTRY}/library/fedora:29
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
+RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+
 # dnf configuration
 RUN echo "timeout=60" >> /etc/dnf/dnf.conf && \
     echo "retries=10" >> /etc/dnf/dnf.conf
@@ -88,7 +97,6 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 # Use Python 3.9 as default
 RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-RUN alternatives --install /usr/bin/python python /usr/bin/python3.9 10
 
 # Setup pip
 ENV PIP_VERSION="24.0"
@@ -132,3 +140,17 @@ RUN wget -O git-2.49.0.tar.gz https://github.com/git/git/archive/refs/tags/v2.49
     tar -zxf git-2.49.0.tar.gz
 RUN cd git-2.49.0 && \
     make configure && ./configure --prefix=/usr && make install
+
+# Use python3.9 instead of /usr/bin/python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
+
+# Change ownership of the venv directory to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} /venv
+
+# Change ownership of node to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

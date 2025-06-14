@@ -3,6 +3,15 @@ FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
+RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
@@ -23,6 +32,8 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        # to build samples
+        clang \
         # parallel gzip
         pigz \
         # Samples
@@ -64,3 +75,11 @@ ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages
+
+# Change ownership of the venv directory to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} /venv
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}
