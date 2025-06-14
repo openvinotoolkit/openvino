@@ -34,9 +34,12 @@ def patch_quantized(model: torch.nn.Module) -> None:
     Raises:
         RuntimeError: If the quantization type is unknown.
     """
+    def fp32_tensor(*shape):
+        return torch.full(shape, 0.5, dtype=torch.float32)
+
     quant_type = detect_quantized_model(model)
+    extensions = {}
     if quant_type == "awq":
-        extensions = {}
         try:
             from awq.modules.linear import WQLinear_GEMM
             extensions[WQLinear_GEMM] = ModuleExtension(
@@ -45,18 +48,34 @@ def patch_quantized(model: torch.nn.Module) -> None:
                     args[0], module.qweight, module.qzeros, module.scales,
                     torch.tensor(module.group_size),
                     torch.tensor(module.w_bit), module.bias),
-                evaluate=lambda module, *args, **kwargs: torch.full(
-                    list(args[0].shape[:-1]) + [module.out_features], 0.5,
-                    dtype=torch.float32))  # type: ignore
+                evaluate=lambda module, *args, **kwargs: fp32_tensor(
+                    *args[0].shape[:-1], module.out_features))  # type: ignore
         except ImportError:
             pass
-        patch_model(model, extensions,
-                    "_openvino_quantized_patch_orig_forward")  # type: ignore
+    elif quant_type == "bitnet":
+        try:
+            from transformers.integrations.bitnet import AutoBitLinear
+            extensions[AutoBitLinear] = ModuleExtension(
+                AutoBitLinear, "ov_ext::bit_linear",
+                convert=lambda module, target_op, *args, **kwargs: target_op(
+                    module.rms_norm(
+                        args[0]) if module.rms_norm is not None else args[0],
+                    getattr(module, "original_weight", module.weight),
+                    module.weight_scale,
+                    module.bias),
+                evaluate=lambda module, *args, **kwargs: fp32_tensor(
+                    *args[0].shape[:-1], module.out_features))  # type: ignore
+        except ImportError:
+            pass
     elif quant_type == "gptq":
         model._openvino_gptq_patched = True  # type: ignore[assignment]
         gptq.patch_model(model)  # type: ignore
+        return
     else:
         raise RuntimeError(f"Unknown quantization type: {quant_type}.")
+
+    patch_model(model, extensions,
+                "_openvino_quantized_patch_orig_forward")  # type: ignore
 
 
 def unpatch_quantized(model: torch.nn.Module) -> None:
