@@ -765,3 +765,24 @@ ov::npuw::util::range_1d ov::npuw::util::validMaskRange(const ov::SoPtr<ov::ITen
     }
 #undef HNDL
 }
+
+#ifdef _WIN32
+#include <windows.h>
+void ov::npuw::util::MemLoger::logMemoryLoop(std::atomic<bool> &keep_running, size_t interval_ms) {
+    MEMORYSTATUSEX memStatus;
+    memStatus.dwLength = sizeof(memStatus);
+
+    while (keep_running.load()) {
+        if (GlobalMemoryStatusEx(&memStatus)) {
+            DWORDLONG availPhysMB = memStatus.ullAvailPhys / (1024 * 1024);
+            DWORDLONG totalPhysMB = memStatus.ullTotalPhys / (1024 * 1024);
+
+            LOG_INFO("[MEM] Free: " << availPhysMB << " MB / Total: " << totalPhysMB << " MB");
+        } else {
+            std::cerr << "[MEM] Failed to get memory status.\n";
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
+    }
+}
+#endif
