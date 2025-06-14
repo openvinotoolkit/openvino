@@ -67,11 +67,12 @@ using namespace ov::intel_cpu;
 
 #    endif
 
-template <typename T,
-          ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> ||
-                            std::is_same_v<T, float>)&&(SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
-                           bool> = true>
+template <
+    typename T,
+    ov::element::Type_t SRC_PREC,
+    std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> || std::is_same_v<T, float>) &&
+                         (SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
+                     bool> = true>
 static void attn_acc_value_block(float* out,
                                  const float* weight,
                                  T* v,
