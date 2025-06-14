@@ -375,7 +375,7 @@ void ov::npuw::s11n::read(std::istream& stream, ov::AnyMap& var) {
         read(stream, k);
         ov::Any v;
         read_any(stream, v);
-        var[k] = v;
+        var[k] = std::move(v);
     }
 }
 
