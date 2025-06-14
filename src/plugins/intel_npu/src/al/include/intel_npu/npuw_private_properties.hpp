@@ -331,6 +331,14 @@ static constexpr ov::Property<double> threshold{"NPUW_ACC_THRESH"};
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> reference_device{"NPUW_ACC_DEVICE"};
+
+/**
+ * @brief
+ * Type: bool.
+ * Enable dumps of model(s) with their inputs and outputs, that fail accuracy check.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> dump_failures{"NPUW_ACC_DUMP_FAILS"};
 }  // namespace accuracy
 
 namespace dump {
