@@ -34,7 +34,8 @@ static bool can_compile_rvv100() {
         siglongjmp(jmpbuf, 1);
     };
 
-    struct sigaction new_sa, old_sa;
+    struct sigaction new_sa {
+    }, old_sa{};
     new_sa.sa_handler = signal_handler;
     sigemptyset(&new_sa.sa_mask);
     new_sa.sa_flags = SA_RESETHAND;
