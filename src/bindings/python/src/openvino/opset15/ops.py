@@ -4,7 +4,7 @@
 
 """Factory functions for ops added to openvino opset15."""
 from functools import partial
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 import numpy as np
 from openvino import Node, Type
@@ -49,10 +49,10 @@ def col2im(
     data: NodeInput,
     output_size: NodeInput,
     kernel_size: NodeInput,
-    strides: Optional[List[int]] = None,
-    dilations: Optional[List[int]] = None,
-    pads_begin: Optional[List[int]] = None,
-    pads_end: Optional[List[int]] = None,
+    strides: Optional[list[int]] = None,
+    dilations: Optional[list[int]] = None,
+    pads_begin: Optional[list[int]] = None,
+    pads_end: Optional[list[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Perform data movement operation which combines sliding blocks into an image tensor.
