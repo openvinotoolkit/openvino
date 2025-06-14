@@ -43,7 +43,7 @@ all checks have passed. CI checks are composed of both functional tests and code
 
 Remember to follow [our codestyle](../docs/CODESTYLE.md).
 By following the provided guide and using an automotive code style checking tool, like
-**eslint** and **clang-format-9**, you will save some time and help with the code review of proposed changes.
+**eslint** and **clang-format-18**, you will save some time and help with the code review of proposed changes.
 
 
 ## Description of the Pull Request

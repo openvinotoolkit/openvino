@@ -39,7 +39,7 @@ public:
     Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Subgraph() override = default;
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     ov::element::Type getRuntimePrecision() const override;
