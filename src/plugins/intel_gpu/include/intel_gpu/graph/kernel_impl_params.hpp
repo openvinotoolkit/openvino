@@ -47,6 +47,8 @@ struct kernel_impl_params final {
     size_t unique_id;
     bool _can_be_optimized = false;
     bool _runtime_skippable = false;
+    std::vector<size_t> custom_op_dynamic_gws;
+    std::vector<size_t> custom_op_dynamic_lws;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
@@ -136,6 +138,9 @@ struct kernel_impl_params final {
         return output_layouts[idx];
     }
 
+    size_t get_input_layout_size() const {
+        return input_layouts.size();
+    }
 
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
