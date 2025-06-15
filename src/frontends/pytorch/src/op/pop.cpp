@@ -3,9 +3,9 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "utils.hpp"
-#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace frontend {
