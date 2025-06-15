@@ -703,9 +703,6 @@ size_t jit_logical_not_emitter::get_inputs_num() const {
 size_t jit_logical_not_emitter::aux_fp_gprs_count() const {
     return 2;
 }
-size_t jit_logical_not_emitter::aux_vecs_count() const {
-    return 1;
-}
 
 void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                         const std::vector<size_t>& out_vec_idxs) const {
@@ -726,19 +723,14 @@ void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     load_table_val("one", fone);
     h->fmv_w_x(fzero, zero);
     h->vfmv_v_f(dst, fone);
-    switch (exec_prc_) {
-    case ov::element::f32:
-        h->vmfne_vf(mask_vreg(), src0, fzero);
-        h->vfsub_vf(dst, dst, fone, VM::masked);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
-    }
+    OPENVINO_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision");
+    h->vmfne_vf(mask_vreg(), src0, fzero);
+    h->vfsub_vf(dst, dst, fone, VM::masked);
 }
 
 std::set<std::vector<element::Type>> jit_logical_not_emitter::get_supported_precisions(
     const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32}};
 }
 
 void jit_logical_not_emitter::register_table_entries() {
