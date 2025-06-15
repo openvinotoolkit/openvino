@@ -188,6 +188,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/gated_mlp_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
@@ -210,8 +211,9 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#else
-#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
@@ -236,6 +238,8 @@
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#else
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -1154,7 +1158,7 @@ void Transformations::MainSnippets() {
     // ARM doesn't even support MHA yet
     is_dynamic_mha_token_enabled = false;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
-#else
+#elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
@@ -1169,11 +1173,11 @@ void Transformations::MainSnippets() {
             one_of(config.inferencePrecision, element::f16, element::bf16)) {
             return false;
         }
-        // After postop itself is checked, need to check if matmul before the op can fuse it
-        const auto brgemm_type =
-            brgemm_utils::get_brgemm_type(matmul->get_input_element_type(0), matmul->get_transpose_b());
-        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(brgemm_type, matmul->get_input_element_type(0));
+        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(matmul->get_input_element_type(0));
     };
+#else
+    size_t data_ptr_gpr_count = 0;
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
@@ -1196,6 +1200,7 @@ void Transformations::MainSnippets() {
         CPU_REGISTER_PASS_ARM64(snippetsManager, SnippetsMarkSkipped);
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeGatedMLPSnippets);
     }
     CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
