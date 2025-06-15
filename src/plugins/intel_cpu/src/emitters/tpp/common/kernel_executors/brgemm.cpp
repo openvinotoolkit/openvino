@@ -94,8 +94,9 @@ std::shared_ptr<BrgemmTppCompiledKernel> BrgemmKernelExecutor::compile_kernel(co
     std::shared_ptr<BrgemmTppCompiledKernel> compiled_kernel = std::make_shared<BrgemmTppCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
-    if (config.is_empty())
+    if (config.is_empty()) {
         return compiled_kernel;
+    }
     // data is row major, but libxsmm gemm suppose column major. in0 and in1 are exchanged to avoid data repack(kernel
     // call args aligned).
     libxsmm_gemm_shape m_shape = libxsmm_create_gemm_shape(config.get_N(),
@@ -122,8 +123,9 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     std::tie(M, N, K, beta) = BrgemmKernelExecutorHelper::get_runtime_brgemm_params(expr, linear_ir);
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(expr->get_node());
     auto replace_full_dim = [](size_t dim, size_t replace_dim) {
-        if (ov::snippets::utils::is_full_dim_value(dim))
+        if (ov::snippets::utils::is_full_dim_value(dim)) {
             return replace_dim;
+        }
         return dim;
     };
 

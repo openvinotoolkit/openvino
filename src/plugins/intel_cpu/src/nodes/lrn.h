@@ -34,7 +34,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
     executorPtr execPtr = nullptr;
     dnnl::algorithm alg;
     size_t size = 1;

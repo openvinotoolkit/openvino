@@ -271,12 +271,7 @@ void serializeToCout(const Graph& graph) {
 }
 
 void summary_perf(const Graph& graph) {
-    if (!graph.getGraphContext()) {
-        return;
-    }
-    const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
-
-    if (summaryPerf.empty() || !std::stoi(summaryPerf)) {
+    if (!graph.getGraphContext() || !graph.getConfig().debugCaps.summaryPerf) {
         return;
     }
 

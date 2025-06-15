@@ -14,7 +14,7 @@ FusedMulAdd::FusedMulAdd(const Output<Node>& a, const Output<Node>& b, const Out
     constructor_validate_and_infer_types();
 }
 
-bool FusedMulAdd::visit_attributes(AttributeVisitor& visitor) {
+bool FusedMulAdd::visit_attributes([[maybe_unused]] AttributeVisitor& visitor) {
     return true;
 }
 

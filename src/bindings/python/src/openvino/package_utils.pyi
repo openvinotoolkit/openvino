@@ -1,7 +1,7 @@
 # type: ignore
+from __future__ import annotations
 from builtins import module as ModuleType
 from functools import wraps
-from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import importlib as importlib

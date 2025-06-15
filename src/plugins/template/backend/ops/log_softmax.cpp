@@ -5,6 +5,8 @@
 #include "openvino/reference/log_softmax.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/log_softmax.hpp"
 
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v5::LogSoftmax>& op,

@@ -96,7 +96,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     if (axesNode) {
         axes = axesNode->cast_vector<int>();
         isAxesConstant = true;
-        auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
+        auto rank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         normalizeAxes(axes, rank);
     }
 
@@ -150,7 +150,7 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
-void RDFT::execute(const dnnl::stream& strm) {
+void RDFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& inputMem = getParentEdgeAt(DATA_INDEX)->getMemory();
     const auto& outputMem = getChildEdgeAt(0)->getMemory();
     const auto& inputShape = inputMem.getStaticDims();
@@ -159,7 +159,7 @@ void RDFT::execute(const dnnl::stream& strm) {
     auto inputPtr = inputMem.getDataAs<float>();
     auto outputPtr = outputMem.getDataAs<float>();
 
-    auto rank = inputShape.size() - inverse;
+    auto rank = inputShape.size() - static_cast<size_t>(inverse);
 
     const auto& inputStrides = inputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& outputStrides = outputMem.getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -192,7 +192,7 @@ void RDFT::prepareParams() {
             axes.resize(newAxesSize);
         }
         auto axesPtr = axesMem->getDataAs<const int>();
-        auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+        auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         }
@@ -237,7 +237,7 @@ bool RDFT::axesChanged() const {
         return true;
     }
     auto axesPtr = axesMem->getDataAs<const int>();
-    auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
+    auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
         if (static_cast<size_t>(axes[i]) != newAxis) {
@@ -285,12 +285,11 @@ bool RDFT::needShapeInfer() const {
 }
 
 bool RDFT::needPrepareParams() const {
-    return axesChanged() || signalSizesChanged() || twiddles.size() == 0;
+    return axesChanged() || signalSizesChanged() || twiddles.empty();
 }
 
 static void adjustInputSize(VectorDims& inputShape,
                             std::vector<int>& signalSizes,
-                            const VectorDims& outputShape,
                             const std::vector<int>& axes,
                             bool isInverse) {
     for (size_t i = 0; i < axes.size(); i++) {
@@ -318,7 +317,7 @@ void RDFTExecutor::execute(float* inputPtr,
                            const VectorDims& outputShape,
                            const VectorDims& inputStrides,
                            const VectorDims& outputStrides) {
-    adjustInputSize(inputShape, signalSizes, outputShape, axes, isInverse);
+    adjustInputSize(inputShape, signalSizes, axes, isInverse);
 
     if (rank == 1) {
         auto twiddlesPtr = twiddles[0].data();
@@ -950,7 +949,9 @@ struct RDFTRefExecutor : public RDFTExecutor {
     RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
 private:
-    std::vector<float> generateTwiddlesDFT(size_t inputSize, size_t outputSize, enum dft_type type) override {
+    std::vector<float> generateTwiddlesDFT(size_t inputSize,
+                                           size_t outputSize,
+                                           [[maybe_unused]] enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         parallel_for2d(outputSize, inputSize, [&](size_t k, size_t n) {
             double angle = 2 * PI * k * n / inputSize;

@@ -89,7 +89,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs& interpo
 
 void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
                                                  const std::vector<MemoryPtr>& dst,
-                                                 const void* post_ops_data_) {
+                                                 [[maybe_unused]] const void* post_ops_data_) {
     auto in_ptr_ = padPreprocess(src, dst);
     srcTensor.allocator()->import_memory(const_cast<void*>(reinterpret_cast<const void*>(in_ptr_)));
     dstTensor.allocator()->import_memory(dst[0]->getData());

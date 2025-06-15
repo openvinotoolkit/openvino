@@ -5,6 +5,7 @@
 #include "openvino/reference/extract_image_patches.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v3::ExtractImagePatches>& op,

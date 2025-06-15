@@ -161,9 +161,9 @@ TEST(skip_reorder_at_runtime, correct_memory_reuse) {
 
     auto reshape_memory_deps = reshape_inst->get_runtime_memory_dependencies();
     auto fc_unique_id = network.get_primitive("fc")->get_node().get_unique_id();
-    ASSERT_TRUE(reshape_memory_deps.find(fc_unique_id) != reshape_memory_deps.end());
+    ASSERT_TRUE(reshape_memory_deps.contains(static_cast<uint32_t>(fc_unique_id)));
 
     auto reorder_fsv16_memory_deps = reorder_fsv16_inst->get_runtime_memory_dependencies();
-    ASSERT_TRUE(reorder_fsv16_memory_deps.find(fc_unique_id) != reorder_fsv16_memory_deps.end());
+    ASSERT_TRUE(reorder_fsv16_memory_deps.contains(static_cast<uint32_t>(fc_unique_id)));
 }
 }  // memory_realloc_tests

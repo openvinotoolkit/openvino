@@ -39,13 +39,12 @@ class TestTFEqual(CommonTFLayerTest):
         return inputs_dict
 
     # ir_version - common parameter
-    # use_legacy_frontend - common parameter
     # x_shape - first argument, should be an array (shape)
     # output_type - type of operands (numpy types: int32, int64, float16, etc...), different types for operands are not suppoted by TF
     # y_shape - second argument, should be an array (shape). Might be None if y_value is passed
     # x_value - fills x_shape by chosen value, uses randint instead
     # y_value - if y_shape is None - uses y_value as scalar, otherwise fills y_shape by chosen value, uses randint instead
-    def create_tf_equal_net(self, ir_version, use_legacy_frontend, x_shape, output_type, y_shape=None, x_value=None,
+    def create_tf_equal_net(self, ir_version, x_shape, output_type, y_shape=None, x_value=None,
                             y_value=None):
         self.x_value = x_value
         self.y_value = y_value
@@ -111,11 +110,11 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_int32)
     @pytest.mark.nightly
-    def test_tf_equal_int32(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_tf_equal_int32(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_legacy_frontend=use_legacy_frontend, output_type=np.int32),
+                                             output_type=np.int32),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_data_int64 = [
@@ -136,11 +135,11 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_int64)
     @pytest.mark.nightly
-    def test_tf_equal_int64(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_tf_equal_int64(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_legacy_frontend=use_legacy_frontend, output_type=np.int64),
+                                             output_type=np.int64),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     # Values for checking important corner cases for float values
@@ -163,11 +162,11 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_float16)
     @pytest.mark.nightly
-    def test_tf_equal_float16(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_tf_equal_float16(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_legacy_frontend=use_legacy_frontend, output_type=np.float16),
+                                             output_type=np.float16),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_data_float32 = [
@@ -185,11 +184,11 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_tf_equal_float32(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_tf_equal_float32(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_legacy_frontend=use_legacy_frontend, output_type=np.float32),
+                                             output_type=np.float32),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
     test_data_float64 = [
@@ -207,11 +206,11 @@ class TestTFEqual(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_float64)
     @pytest.mark.nightly
-    def test_tf_equal_float64(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+    def test_tf_equal_float64(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_legacy_frontend=use_legacy_frontend, output_type=np.float64),
+                                             output_type=np.float64),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version,
                    **params)
 
 
@@ -250,15 +249,13 @@ class TestEqualStr(CommonTFLayerTest):
                                                                                                      'arm64', 'ARM64'],
                        reason='126314, 132699: Build tokenizers for ARM and MacOS')
     def test_equal_str(self, x_shape, y_shape,
-                       ie_device, precision, ir_version, temp_dir,
-                       use_legacy_frontend):
+                       ie_device, precision, ir_version, temp_dir):
         if x_shape == [] and y_shape == []:
             pytest.skip("156746: EqualStr operation outputs 1D tensor for two input scalars")
         if ie_device == 'GPU' or run_in_jenkins():
             pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestComplexEqual(CommonTFLayerTest):
@@ -306,10 +303,7 @@ class TestComplexEqual(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_equal(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_legacy_frontend):
+    def test_complex_equal(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(
             *self.create_complex_equal_net(**params),
-            ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend
-        )
+            ie_device, precision, ir_version, temp_dir=temp_dir)

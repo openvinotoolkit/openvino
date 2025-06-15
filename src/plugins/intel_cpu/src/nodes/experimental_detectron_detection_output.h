@@ -30,7 +30,6 @@ private:
     const int INPUT_ROIS{0};
     const int INPUT_DELTAS{1};
     const int INPUT_SCORES{2};
-    const int INPUT_IM_INFO{3};
 
     const int OUTPUT_BOXES{0};
     const int OUTPUT_CLASSES{1};

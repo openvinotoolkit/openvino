@@ -22,7 +22,8 @@
 #include "dnnl_types.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -1860,7 +1861,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
 
     if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
-        parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, dim_t d) {
+        parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, [[maybe_unused]] dim_t d) {
             auto arg = jit_quantize_call_args();
 
             int c = cb * blk_size;
@@ -1968,7 +1969,7 @@ void FakeQuantize::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void FakeQuantize::execute(const dnnl::stream& strm) {
+void FakeQuantize::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (getSelectedPrimitiveDescriptor()->getImplementationType() != impl_desc_type::ref) {
         execPtr->exec(*this);
     } else {
@@ -2059,9 +2060,9 @@ void FakeQuantize::appendMemory(const size_t dataSize,
     }
 }
 
-void FakeQuantize::appendMemory(const size_t dataSize,
+void FakeQuantize::appendMemory([[maybe_unused]] const size_t dataSize,
                                 const void* data,
-                                MemoryPtr& memPtr,
+                                [[maybe_unused]] MemoryPtr& memPtr,
                                 std::vector<const void*>& postOpsMem) {
     postOpsMem.push_back(data);
 }
@@ -2130,7 +2131,7 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims& post
 void FakeQuantize::appendPostOps(dnnl::post_ops& ops,
                                  const VectorDims& postOpDims,
                                  std::unordered_map<int, MemoryPtr>& postOpsMem,
-                                 const int channelAxis) {
+                                 [[maybe_unused]] const int channelAxis) {
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs);
 
@@ -2144,7 +2145,7 @@ void FakeQuantize::appendPostOps(dnnl::post_ops& ops,
 void FakeQuantize::appendPostOps(dnnl::post_ops& ops,
                                  const VectorDims& postOpDims,
                                  std::vector<const void*>& postOpsMem,
-                                 const int channelAxis) {
+                                 [[maybe_unused]] const int channelAxis) {
     appendPostOpsImpl(ops, postOpDims, postOpsMem);
 }
 

@@ -54,7 +54,7 @@ private:
                                                  const element::Type& HSigmoidected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
         const auto HSigmoid = std::make_shared<op::v5::HSigmoid>(in);
-        return std::make_shared<ov::Model>(NodeVector{HSigmoid}, ParameterVector{in});
+        return std::make_shared<ov::Model>(OutputVector{HSigmoid}, ParameterVector{in});
     }
 };
 

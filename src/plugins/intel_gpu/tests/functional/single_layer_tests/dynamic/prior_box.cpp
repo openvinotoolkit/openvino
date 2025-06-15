@@ -10,6 +10,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/prior_box_clustered.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
 
 namespace {
 using ov::test::InputShape;

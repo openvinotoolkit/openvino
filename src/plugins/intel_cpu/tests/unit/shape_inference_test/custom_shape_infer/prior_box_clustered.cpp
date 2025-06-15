@@ -8,7 +8,7 @@
 #include "custom_shape_infer.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/constant.hpp"
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {

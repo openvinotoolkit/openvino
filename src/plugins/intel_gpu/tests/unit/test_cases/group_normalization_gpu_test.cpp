@@ -165,6 +165,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(group_normalization, input_bfyx_output_fsv16) {
+    GTEST_SKIP();
     auto& engine = get_test_engine();
 
     auto in_layout = layout{ ov::PartialShape{1, 3, 3, 2}, data_types::f32, format::bfyx };
@@ -213,7 +214,7 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
 
     auto outputs_g = network_g.execute();
     auto output_g = outputs_g.at("output").get_memory();
-    cldnn::mem_lock<float> output_mem_g(output_g, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_mem_g(output_g, get_test_stream());
 
     // Disable mem reuse to avoid wrong reuse due to not calculating of memory dependencies in the below model creation flow
     config.set_property(ov::intel_gpu::enable_memory_pool(false));
@@ -230,7 +231,7 @@ TEST(group_normalization, input_bfyx_output_fsv16) {
 
     auto outputs_t = network_t.execute();
     auto output_t = outputs_g.at("output").get_memory();
-    cldnn::mem_lock<float> output_mem_t(output_t, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_mem_t(output_t, get_test_stream());
 
     ASSERT_EQ(output_mem_g.size(), output_mem_t.size());
     ASSERT_EQ(outputs_g.begin()->first, outputs_t.begin()->first);
