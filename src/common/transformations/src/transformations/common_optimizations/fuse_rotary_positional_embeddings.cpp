@@ -819,6 +819,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
         config.is_chatglm = true;
         config.support_2d_rope = support_2d_rope;
+        config.use_rope_cache = true;
         config.head_cnt = static_cast<size_t>(validator["head_cnt"]);
         config.head_size = static_cast<size_t>(validator["head_size"]);
 
