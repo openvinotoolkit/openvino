@@ -9,7 +9,6 @@
 #include "convolution_inst.h"
 #include "mvn_inst.h"
 #include "col2im_inst.h"
-#include "grid_sample_inst.hpp"
 #include "sliding_window_utils.hpp"
 #include <algorithm>
 
