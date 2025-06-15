@@ -53,8 +53,13 @@ void GatherElementsLayerTest::SetUp() {
 
     auto axis_dim = targetStaticShapes[0][0][axis < 0 ? axis + targetStaticShapes[0][0].size() : axis];
     ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = 0;
-    in_data.range = axis_dim - 1;
+    if (targetDevice == "CPU") {
+        in_data.start_from = -static_cast<double>(axis_dim);
+        in_data.range = (2 * axis_dim) - 1;
+    } else {
+        in_data.start_from = 0;
+        in_data.range = axis_dim - 1;
+    }
     auto indices_node_tensor = ov::test::utils::create_and_fill_tensor(indices_type, indices_shape, in_data);
     auto indices_node = std::make_shared<ov::op::v0::Constant>(indices_node_tensor);
 

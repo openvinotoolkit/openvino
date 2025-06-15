@@ -21,6 +21,8 @@ if(Python3_Interpreter_FOUND)
     endif()
 endif()
 
+ov_build_target_faster(openvino_onnx_frontend PCH)
+
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()

@@ -175,8 +175,8 @@ private:
             load(a, a_ptr);
             load(b, b_ptr);
 
-            a.blend(b, 0xAAAA);
-            a.permute(order);
+            std::ignore = a.blend(b, 0xAAAA);
+            std::ignore = a.permute(order);
 
             store(result, a);
 
