@@ -632,21 +632,10 @@ int get_model_prefer_threads(const int num_streams,
         std::cout << "total_gemms = " << networkToleranceForLowCache.total_gemms << std::endl;
         std::cout << "total_convs = " << networkToleranceForLowCache.total_convs << std::endl;
         std::cout << "total_adds = " << networkToleranceForLowCache.total_adds << std::endl;
-        std::cout << "total_lstms = " << networkToleranceForLowCache.total_lstms << std::endl;
-        std::cout << "total_loops = " << networkToleranceForLowCache.total_loops << std::endl;
+        std::cout << "total_light_convs = " << networkToleranceForLowCache.total_light_convs << std::endl;
+        std::cout << "total_light_gemms = " << networkToleranceForLowCache.total_light_gemms << std::endl;
         std::cout << "total_nodes = " << networkToleranceForLowCache.total_nodes << std::endl;
-        std::cout << "total_G_T = " << networkToleranceForLowCache.total_G_T << std::endl;
-        std::cout << "add_list: ";
-        for (auto i = 0; i < networkToleranceForLowCache.conv_list.size(); i++) {
-            std::cout << networkToleranceForLowCache.conv_list[i] << ",";
-        }
-        for (auto i = 0; i < networkToleranceForLowCache.add_list.size(); i++) {
-            std::cout << networkToleranceForLowCache.add_list[i] << ",";
-        }
-        for (auto i = 0; i < networkToleranceForLowCache.gemm_list.size(); i++) {
-            std::cout << networkToleranceForLowCache.gemm_list[i] << ",";
-        }
-        std::cout << "\n";
+
 
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
@@ -703,26 +692,25 @@ int get_model_prefer_threads(const int num_streams,
                             proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
                         if (config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::DEFAULT) {
                             config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::AUTO;
-                            if (networkToleranceForLowCache.max_mem_tolerance == 0) {
+                            if (networkToleranceForLowCache.total_nodes == 0) {
                                 config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-                            } else {
-                                if (networkToleranceForLowCache.ratio_mem_limited_gemms > 0) {
-                                    if (networkToleranceForLowCache.ratio_compute_convs == 0) {
-                                        config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-                                    }
-                                } else {
-                                    if (networkToleranceForLowCache.ratio_mem_limited_deconvs == 0 &&
-                                        networkToleranceForLowCache.ratio_compute_convs < 1) {
-                                        if (networkToleranceForLowCache.total_gemms > 10) {
-                                            config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-                                        } else {
-                                            if (networkToleranceForLowCache.ratio_mem_limited_convs == 0 &&
-                                                networkToleranceForLowCache.total_convs > 0) {
-                                                config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
-                                            }
-                                        }
-                                    }
+                            } else if (networkToleranceForLowCache.total_convs == 0) {
+                                if (static_cast<float>(networkToleranceForLowCache.total_light_gemms) /
+                                        networkToleranceForLowCache.total_gemms >
+                                    0.7) {
+                                    config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
                                 }
+                            } else if (static_cast<float>(networkToleranceForLowCache.total_light_convs) /
+                                           networkToleranceForLowCache.total_convs >
+                                       0.6) {
+                                config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+                            } else if ((networkToleranceForLowCache.ratio_compute_convs +
+                                            networkToleranceForLowCache.ratio_mem_limited_convs <
+                                        0.9) &&
+                                       (networkToleranceForLowCache.ratio_mem_limited_convs < 0.1) &&
+                                       (networkToleranceForLowCache.ratio_mem_limited_gemms == 0) &&
+                                       (networkToleranceForLowCache.ratio_mem_limited_adds < 0.2)) {
+                                config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
                             }
                         }
                     }

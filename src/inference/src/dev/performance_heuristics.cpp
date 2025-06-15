@@ -12,10 +12,11 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                                                       const ov::element::Type& target_type) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0, total_adds = 0, mem_limited_adds = 0,
-        total_G_T = 0, total_nodes = 0, total_lstms = 0, total_loops = 0;
-    std::vector<int> conv_list(10,0);
-    std::vector<int> gemm_list(10,0);
-    std::vector<int> add_list(10,0);
+        total_nodes = 0, total_light_convs = 0, total_light_gemms = 0;
+
+    constexpr int light_convs_threshold = 16777216;
+    constexpr int light_gemms_threshold = 131072;
+
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
         return (cache_size / (size_data_moved * datatype_size));
     };
@@ -34,10 +35,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
         total_nodes++;
 
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name) &&
-            std::strcmp("LSTMSequence", node_name) && std::strcmp("Loop", node_name) && std::strcmp("Add", node_name) &&
-            std::strcmp("ConvolutionBackpropData", node_name)) {
+            std::strcmp("Add", node_name) && std::strcmp("ConvolutionBackpropData", node_name)) {
             if (!std::strcmp("GRUSequence", node_name) || !std::strcmp("TensorIterator", node_name)) {
-                total_G_T++;
                 MemBandwidthPressure res;
                 res.max_mem_tolerance = MemBandwidthPressure::UNKNOWN;
                 return res;
@@ -74,11 +73,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto factor = memLimitedFactor(total_data, data_type_size);
                 mem_limited_gemms += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
-                const long unsigned int gemm_indicator = dataSizeOutput * data_type_size;
-                const long unsigned int base_threshold = 16 * 6 * 49 * 49 / 8;
-                int index = log2(gemm_indicator / base_threshold);
-                index = index > 9 ? 9 : index < 0 ? 0 : index;
-                gemm_list[index]++;
+
+                if(dataSizeOutput * data_type_size < light_gemms_threshold) {
+                    total_light_gemms++;
+                }
             }
         } else if (!std::strcmp("Convolution", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
@@ -93,14 +91,13 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto& shapeInput1 = kernels.get_shape();
                 dataSizeOutput =
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
-                long unsigned int conv_indicator = dataSizeOutput * data_type_size;
+                auto conv_indicator = dataSizeOutput * data_type_size;
                 for (size_t n = 1; n < shapeInput1.size(); n++) {
                     conv_indicator = conv_indicator * shapeInput1[n];
                 }
-                const long unsigned int base_threshold = 1327104;
-                int index = log2(conv_indicator / base_threshold);
-                index = index > 9 ? 9 : index < 0 ? 0 : index;
-                conv_list[index]++;
+                if (conv_indicator < light_convs_threshold) {
+                    total_light_convs++;
+                }
             }
 
             if (kernels.get_partial_shape().is_static()) {
@@ -163,16 +160,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_adds += factor < mem_threshold_assume_limited;
-                const long unsigned int add_indicator = dataSizeOutput * data_type_size;
-                const long unsigned int base_threshold = 100 * 256 / 8;
-                int index = log2(add_indicator / base_threshold);
-                index = index > 9 ? 9 : index < 0 ? 0 : index;
-                add_list[index]++;
             }
-        } else if (!std::strcmp("LSTMSequence", node_name)) {
-            total_lstms++;
-        } else if (!std::strcmp("Loop", node_name)) {
-            total_loops++;
         }
     }
     MemBandwidthPressure res;
@@ -186,13 +174,9 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
     res.total_gemms = total_gemms;
     res.total_convs = total_convs;
     res.total_adds = total_adds;
-    res.total_lstms = total_lstms;
-    res.total_loops = total_loops;
+    res.total_light_convs = total_light_convs;
+    res.total_light_gemms = total_light_gemms;
     res.total_nodes = total_nodes;
-    res.total_G_T = total_G_T;
-    res.add_list = add_list;
-    res.gemm_list = gemm_list;
-    res.conv_list = conv_list;
     return res;
 }
 
