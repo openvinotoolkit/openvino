@@ -31,6 +31,15 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
     if (!TBase::Validate(params))
         return false;
 
+    auto PaddedSpatial = [](const MultiDataTensor& tensors) -> bool {
+        bool is_padded = false;
+        for (auto tensor : tensors) {
+            is_padded |= tensor.X().pad.Total() != 0;
+            is_padded |= tensor.Y().pad.Total() != 0;
+        }
+        return is_padded;
+    };
+
     const auto& kernel_params = static_cast<const grid_sample_params&>(params);
     if (kernel_params.interpolation_mode != grid_sample_params::InterpolationMode::BILINEAR)
         return false;
