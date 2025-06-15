@@ -6,6 +6,7 @@
 
 #include <pugixml.hpp>
 #include <regex>
+#include <stack>
 #include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
@@ -529,15 +530,31 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         edges[toLayer].push_back({fromLayer, fromPort, toPort});
     }
 
-    // Run DFS starting from outputs to get nodes topological order
-    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes, &dfs](const size_t id) {
-        if (dfs_used_nodes.count(id))
-            return;
-        dfs_used_nodes.insert(id);
-        for (auto& edge : edges[id]) {
-            dfs(edge.fromLayerId);
+    // Run DFS starting from outputs to get nodes topological order without recursion
+    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes](const size_t start_id) {
+        std::stack<size_t> stack;
+        std::unordered_set<size_t> visited;
+        stack.push(start_id);
+
+        while (!stack.empty()) {
+            size_t id = stack.top();
+            if (dfs_used_nodes.count(id)) {
+                stack.pop();
+                continue;
+            }
+            if (visited.count(id)) {
+                dfs_used_nodes.insert(id);
+                order.push_back(id);
+                stack.pop();
+                continue;
+            }
+            visited.insert(id);
+            for (auto& edge : edges[id]) {
+                if (!dfs_used_nodes.count(edge.fromLayerId)) {
+                    stack.push(edge.fromLayerId);
+                }
+            }
         }
-        order.push_back(id);
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
 
