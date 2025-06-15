@@ -8,6 +8,7 @@
 #include "pass_manager.h"
 #include "convolution_inst.h"
 #include "mvn_inst.h"
+#include "col2im_inst.h"
 #include "sliding_window_utils.hpp"
 #include <algorithm>
 
