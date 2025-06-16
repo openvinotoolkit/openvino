@@ -58,9 +58,9 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
         weights_layout.format = format::get_default_format(weights_layout.get_rank() + 1, true, true);
     }
 
-    auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
+    auto input_md   = onednn::layout_to_memory_desc(input_layout, tag_in_out);
     auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
-    auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
+    auto output_md  = onednn::layout_to_memory_desc(output_layout, tag_in_out);
 
     // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
     for (size_t i = 0; i < dilation.size(); i++) {
