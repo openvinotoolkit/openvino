@@ -47,7 +47,8 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
     if (kernel_params.padding_mode != grid_sample_params::PaddingMode::ZEROS)
         return false;
 
-    if (PaddedSpatial(kernel_params.inputs) || PaddedSpatial(kernel_params.outputs))
+    if (kernel_params.inputs[0].GetDims().size() != 4 || kernel_params.outputs[0].GetDims().size() != 4 ||
+        PaddedSpatial(kernel_params.inputs) || PaddedSpatial(kernel_params.outputs))
         return false;
 
     return true;
