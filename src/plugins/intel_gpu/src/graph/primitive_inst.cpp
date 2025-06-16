@@ -1916,7 +1916,7 @@ void primitive_inst::prepare_primitive() {
         GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
-    auto start1 = std::chrono::high_resolution_clock::now();
+    // auto start1 = std::chrono::high_resolution_clock::now();
 
     // If it is optimized out or skipped for zero dimension at the previous iteration,
     // Set this flag true to reset output memory in realloc_if_needed.
@@ -1926,8 +1926,8 @@ void primitive_inst::prepare_primitive() {
     if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         update_shape();
-        auto end1 = std::chrono::high_resolution_clock::now();
-        auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1);
+        // auto end1 = std::chrono::high_resolution_clock::now();
+        // auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1);
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
@@ -1977,8 +1977,8 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_lora();
         do_runtime_in_place_crop();
 
-        auto end2 = std::chrono::high_resolution_clock::now();
-        auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start1);
+        // auto end2 = std::chrono::high_resolution_clock::now();
+        // auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start1);
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
             get_unfused_subgraph();
@@ -1989,21 +1989,21 @@ void primitive_inst::prepare_primitive() {
         // Only try update weight and realloc when impl is updated.
         const bool can_use_async_compilation = use_async_compilation();
         const bool shape_changed = get_flag(ExecutionFlags::SHAPE_CHANGED);
-        auto end3 = std::chrono::high_resolution_clock::now();
-        auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
-        auto duration4 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
-        auto duration5 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
+        // auto end3 = std::chrono::high_resolution_clock::now();
+        // auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
+        // auto duration4 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
+        // auto duration5 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
         if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation)) {
             update_impl(can_use_async_compilation);
-            auto end3 = std::chrono::high_resolution_clock::now();
-            duration3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
+            // auto end3 = std::chrono::high_resolution_clock::now();
+            // duration3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
             if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
                 update_weights();
-                auto end4 = std::chrono::high_resolution_clock::now();
-                duration4 = std::chrono::duration_cast<std::chrono::microseconds>(end4 - start1);
+                // auto end4 = std::chrono::high_resolution_clock::now();
+                // duration4 = std::chrono::duration_cast<std::chrono::microseconds>(end4 - start1);
                 realloc_if_needed(prev_execution_skipped);
-                auto end5 = std::chrono::high_resolution_clock::now();
-                duration5 = std::chrono::duration_cast<std::chrono::microseconds>(end5 - start1);
+                // auto end5 = std::chrono::high_resolution_clock::now();
+                // duration5 = std::chrono::duration_cast<std::chrono::microseconds>(end5 - start1);
             }
         }
 
@@ -2014,10 +2014,10 @@ void primitive_inst::prepare_primitive() {
 
             realloc_if_needed(prev_execution_skipped);
         }
-        if (get_node().is_type<convolution>()) {
-            GPU_DEBUG_INFO << "conv_prepare_primitive: " << id() << " : " << duration1.count() << ", " << duration2.count() << ", "
-                            << duration3.count() << ", " << duration4.count() << ", " << duration5.count() << " ";
-        }
+        // if (get_node().is_type<convolution>()) {
+        //     GPU_DEBUG_INFO << "conv_prepare_primitive: " << id() << " : " << duration1.count() << ", " << duration2.count() << ", "
+        //                     << duration3.count() << ", " << duration4.count() << ", " << duration5.count() << " ";
+        // }
         OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
                         "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
@@ -2047,8 +2047,8 @@ void primitive_inst::prepare_primitive() {
         set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
         set_arguments();
     }
-    auto end6 = std::chrono::high_resolution_clock::now();
-    auto duration6 = std::chrono::duration_cast<std::chrono::microseconds>(end6 - start1);
+    // auto end6 = std::chrono::high_resolution_clock::now();
+    // auto duration6 = std::chrono::duration_cast<std::chrono::microseconds>(end6 - start1);
     on_execute();
 
     if (!get_node().is_type<condition>() && !get_node().is_type<loop>()) {
@@ -2081,19 +2081,19 @@ void primitive_inst::prepare_primitive() {
         }
     }
 
-    auto end7 = std::chrono::high_resolution_clock::now();
-    auto duration7 = std::chrono::duration_cast<std::chrono::microseconds>(end7 - start1);
+    // auto end7 = std::chrono::high_resolution_clock::now();
+    // auto duration7 = std::chrono::duration_cast<std::chrono::microseconds>(end7 - start1);
     // Replace multiple events with single grouped event in case of barriers synchronization to prevent `_last_barrier_ev` usage as a dependency
     // event of optimized_out instance's users, which may lead to unwanted extra synchronization of CPU impls with GPU kernels
     if (get_node().is_in_shape_of_subgraph() && can_be_optimized() && _impl_params->dep_events.size() > 1 && out_of_order_queue) {
         auto grouped_ev = get_network().get_stream().group_events(_impl_params->dep_events);
         _impl_params->dep_events = {grouped_ev};
     }
-    auto end8 = std::chrono::high_resolution_clock::now();
-    auto duration8 = std::chrono::duration_cast<std::chrono::microseconds>(end8 - start1);
-    if (get_node().is_type<convolution>()) {
-        GPU_DEBUG_INFO << duration6.count() << ", " << duration7.count() << ", " << duration8.count() << std::endl;
-    }
+    // auto end8 = std::chrono::high_resolution_clock::now();
+    // auto duration8 = std::chrono::duration_cast<std::chrono::microseconds>(end8 - start1);
+    // if (get_node().is_type<convolution>()) {
+    //     GPU_DEBUG_INFO << duration6.count() << ", " << duration7.count() << ", " << duration8.count() << std::endl;
+    // }
 }
 
 void primitive_inst::execute() {

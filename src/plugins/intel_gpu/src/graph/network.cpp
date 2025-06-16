@@ -800,22 +800,22 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
             inst->add_dep_events(events);
         }
 
-        auto start1 = std::chrono::high_resolution_clock::now();
+        // auto start1 = std::chrono::high_resolution_clock::now();
         inst->prepare_primitive();
-        auto end1 = std::chrono::high_resolution_clock::now();
-        auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1);
+        // auto end1 = std::chrono::high_resolution_clock::now();
+        // auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1);
 
-        auto start2 = std::chrono::high_resolution_clock::now();
+        // auto start2 = std::chrono::high_resolution_clock::now();
         inst->execute();
 
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
-        auto end2 = std::chrono::high_resolution_clock::now();
-        auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start2);
-        if (inst->get_node().is_type<convolution>()) {
-            GPU_DEBUG_INFO << inst->id() << " , " << duration1.count() << " , " << duration2.count() << std::endl;
-        }
+        // auto end2 = std::chrono::high_resolution_clock::now();
+        // auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start2);
+        // if (inst->get_node().is_type<convolution>()) {
+        //     GPU_DEBUG_INFO << inst->id() << " , " << duration1.count() << " , " << duration2.count() << std::endl;
+        // }
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
