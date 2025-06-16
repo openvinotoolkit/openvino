@@ -91,8 +91,10 @@ endif()
 
 if(ENABLE_SSE42)
   ov_sse42_optimization_flags(sse4_2_flags)
-  set_source_files_properties(${SOURCES_ALL} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+  target_compile_options(${TARGET_NAME} PRIVATE ${sse4_2_flags})
 endif()
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests

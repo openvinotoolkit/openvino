@@ -5587,6 +5587,84 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
                 }
 }
 
+TEST(convolution_f16_fsv16, preload_groups_when_groups_is_not_greater_than_one) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+    const int batch_num = 1;
+    const int input_xy = 5;
+    const int input_f = 1;
+    const int output_f = 8;
+    const int filter_xy = 1;
+    const int stride = 1;
+    const int pad = 0;
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
+    VVVVF<ov::float16> weights_data(output_f, VVVF<ov::float16>(input_f,
+                                            VVF<ov::float16>(filter_xy,
+                                                             VF<ov::float16>(filter_xy, ov::float16(1.f)))));
+    for (int ofi = 0; ofi < output_f; ++ofi)
+        for (int ifi = 0; ifi < input_f; ++ifi)
+            for (int y = 0; y < filter_xy; ++y)
+                for (int x = 0; x < filter_xy; ++x)
+                    weights_data[ofi][ifi][y][x] = ov::float16(1.0f);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
+    for (int bi = 0; bi < batch_num; ++bi)
+        for (int ofi = 0; ofi < output_f; ++ofi)
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],
+                stride, stride,
+                0,
+                1, 1,
+                pad, pad);
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem));
+    topology.add(reorder("input_fsv16", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+    auto conv_fsv16 = convolution("conv_fsv16",
+                                  input_info("input_fsv16"),
+                                  "weights",
+                                  no_bias,
+                                  1,
+                                  { stride, stride },
+                                  { 1, 1 },
+                                  { pad, pad },
+                                  { pad, pad },
+                                  false);
+    topology.add(conv_fsv16);
+    topology.add(reorder("out", input_info("conv_fsv16"), format::bfyx, data_types::f16));
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv16", conv_impl } }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out"}));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    auto out_mem = outputs.at("out").get_memory();
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+    for (size_t i = 0; i < flatten_ref.size(); i++) {
+        auto equal = are_equal(flatten_ref[i], out_ptr[i], 1e-3f);
+        ASSERT_TRUE(equal);
+        if (!equal) {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
 using TestParamType_convolution_gpu_with_crop = ::testing::tuple<int,   // 0 - Filter size
     int,   // 1 - Input size
     int,   // 2 - Input/output features
