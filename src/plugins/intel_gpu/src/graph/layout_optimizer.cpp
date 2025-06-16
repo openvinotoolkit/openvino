@@ -952,11 +952,15 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
                 mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
             }
             // shallow channel
-            if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 4) {
+            if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
                 mutable_node.set_preferred_input_fmt(0, cldnn::format::byxf);
                 // mutable_node.set_preferred_input_fmt(0, cldnn::format::bfyx);
             }
-            if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 4) {
+            // GPU_DEBUG_COUT << node.id() << ", " << output_layout.get_partial_shape()[1].is_static()
+            //                 << ", " << output_layout.get_partial_shape()[1].get_length()
+            //                 << ", " << output_layout.to_short_string() << std::endl;
+            //                 //<< ", " << output_layout.feature() << std::endl;
+            if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
                 mutable_node.set_preferred_output_fmt(0, cldnn::format::byxf);
                 // mutable_node.set_preferred_input_fmt(0, cldnn::format::bfyx);
             }
