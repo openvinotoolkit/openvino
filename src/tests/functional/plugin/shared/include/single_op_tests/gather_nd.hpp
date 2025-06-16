@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/gather_nd.hpp"
+#include "shared_test_classes/single_op/gather_nd.hpp"
 
 namespace ov {
 namespace test {

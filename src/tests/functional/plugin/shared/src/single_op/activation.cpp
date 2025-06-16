@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/activation.hpp"
+#include "shared_test_classes/single_op/activation.hpp"
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "openvino/op/parameter.hpp"

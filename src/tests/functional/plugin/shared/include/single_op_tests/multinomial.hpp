@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/multinomial.hpp"
+#include "shared_test_classes/single_op/multinomial.hpp"
 
 namespace ov {
 namespace test {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/multiple_LSTMCell.hpp"
+#include "shared_test_classes/subgraph/multiple_LSTMCell.hpp"
 
 namespace ov {
 namespace test {

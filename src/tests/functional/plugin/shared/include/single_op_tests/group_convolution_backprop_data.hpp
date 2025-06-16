@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/group_convolution_backprop_data.hpp"
+#include "shared_test_classes/single_op/group_convolution_backprop_data.hpp"
 
 namespace ov {
 namespace test {

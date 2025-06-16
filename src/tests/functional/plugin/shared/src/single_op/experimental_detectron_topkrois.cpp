@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/experimental_detectron_topkrois.hpp"
+#include "shared_test_classes/single_op/experimental_detectron_topkrois.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"
 
 namespace ov {

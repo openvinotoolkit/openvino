@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/random_uniform.hpp"
+#include "shared_test_classes/single_op/random_uniform.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/shape_of.hpp"

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/perm_conv_perm_concat.hpp"
+#include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
 
 namespace ov {
 namespace test {

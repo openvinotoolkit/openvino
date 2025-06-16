@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/prior_box_clustered.hpp"
+#include "shared_test_classes/single_op/prior_box_clustered.hpp"
 
 namespace ov {
 namespace test {

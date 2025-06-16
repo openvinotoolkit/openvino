@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/dft.hpp"
+#include "shared_test_classes/single_op/dft.hpp"
 
 #include "common_test_utils/node_builders/dft.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"

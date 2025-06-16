@@ -5,7 +5,7 @@
 #pragma once
 
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "subgraph/matmul_multiply_fusion.hpp"
+#include "shared_test_classes/subgraph/matmul_multiply_fusion.hpp"
 
 namespace ov {
 namespace test {

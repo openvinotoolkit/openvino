@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/broadcast_eltwise_eliminated.hpp"
+#include "shared_test_classes/subgraph/broadcast_eltwise_eliminated.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"

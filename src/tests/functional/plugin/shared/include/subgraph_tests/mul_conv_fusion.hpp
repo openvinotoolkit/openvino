@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/mul_conv_fusion.hpp"
+#include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
 
 namespace ov {
 namespace test {

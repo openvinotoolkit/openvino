@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/comparison.hpp"
+#include "shared_test_classes/single_op/comparison.hpp"
 
 #include "common_test_utils/node_builders/comparison.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"

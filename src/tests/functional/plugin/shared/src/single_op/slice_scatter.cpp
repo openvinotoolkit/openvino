@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/slice_scatter.hpp"
+#include "shared_test_classes/single_op/slice_scatter.hpp"
 #include "openvino/op/slice_scatter.hpp"
 
 namespace ov {

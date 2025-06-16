@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/shared_matmul_gather_weights_decompression.hpp"
+#include "shared_test_classes/subgraph/shared_matmul_gather_weights_decompression.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 

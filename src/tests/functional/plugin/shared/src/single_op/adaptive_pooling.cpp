@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/adaptive_pooling.hpp"
+#include "shared_test_classes/single_op/adaptive_pooling.hpp"
 #include "openvino/op/adaptive_avg_pool.hpp"
 #include "openvino/op/adaptive_max_pool.hpp"
 

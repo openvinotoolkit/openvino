@@ -4,7 +4,7 @@
 
 // DEPRECATED, can't be removed currently due to arm and kmb-plugin dependency (#55568)
 
-#include "single_op/convolution_backprop_data.hpp"
+#include "shared_test_classes/single_op/convolution_backprop_data.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"

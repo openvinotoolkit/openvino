@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/variadic_split_pad.hpp"
+#include "shared_test_classes/subgraph/variadic_split_pad.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/variadic_split.hpp"
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/conv_eltwise_fusion.hpp"
+#include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/core/node.hpp"

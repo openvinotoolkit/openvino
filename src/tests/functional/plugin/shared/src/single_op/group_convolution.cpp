@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/group_convolution.hpp"
+#include "shared_test_classes/single_op/group_convolution.hpp"
 
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "openvino/op/parameter.hpp"

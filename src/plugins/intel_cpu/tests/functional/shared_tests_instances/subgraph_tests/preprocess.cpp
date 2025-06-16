@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/preprocess.hpp"
+#include "shared_test_classes/subgraph/preprocess.hpp"
 
 #include <vector>
 

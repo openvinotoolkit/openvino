@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "transformations/rt_info/decompression.hpp"

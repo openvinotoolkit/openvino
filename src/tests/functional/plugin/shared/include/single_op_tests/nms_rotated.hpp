@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/nms_rotated.hpp"
+#include "shared_test_classes/single_op/nms_rotated.hpp"
 
 namespace LayerTestsDefinitions {
 

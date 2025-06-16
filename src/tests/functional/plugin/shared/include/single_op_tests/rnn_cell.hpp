@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/rnn_cell.hpp"
+#include "shared_test_classes/single_op/rnn_cell.hpp"
 
 namespace ov {
 namespace test {

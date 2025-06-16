@@ -6,7 +6,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 
 namespace ov {
 namespace test {

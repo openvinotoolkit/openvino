@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/transpose_matmul_fusion.hpp"
+#include "shared_test_classes/subgraph/transpose_matmul_fusion.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/transpose.hpp"

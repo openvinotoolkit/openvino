@@ -6,7 +6,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "subgraph/quantized_convolution_batch_norm.hpp"
+#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
 #include "openvino/op/batch_norm.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"

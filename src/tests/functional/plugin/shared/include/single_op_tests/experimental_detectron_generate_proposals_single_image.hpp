@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/experimental_detectron_generate_proposals_single_image.hpp"
+#include "shared_test_classes/single_op/experimental_detectron_generate_proposals_single_image.hpp"
 
 namespace ov {
 namespace test {

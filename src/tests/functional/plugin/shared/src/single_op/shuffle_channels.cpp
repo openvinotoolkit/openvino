@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/shuffle_channels.hpp"
+#include "shared_test_classes/single_op/shuffle_channels.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 
 namespace ov {

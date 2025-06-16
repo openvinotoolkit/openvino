@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "single_op/deformable_convolution.hpp"
+#include "shared_test_classes/single_op/deformable_convolution.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/parameter.hpp"

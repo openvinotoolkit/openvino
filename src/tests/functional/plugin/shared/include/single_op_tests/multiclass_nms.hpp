@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/multiclass_nms.hpp"
+#include "shared_test_classes/single_op/multiclass_nms.hpp"
 
 namespace ov {
 namespace test {

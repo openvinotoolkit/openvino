@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/concat.hpp"
+#include "shared_test_classes/single_op/concat.hpp"
 #include "openvino/op/concat.hpp"
 
 namespace ov {

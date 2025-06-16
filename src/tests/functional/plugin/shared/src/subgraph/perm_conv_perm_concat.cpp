@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/perm_conv_perm_concat.hpp"
+#include "shared_test_classes/subgraph/perm_conv_perm_concat.hpp"
 
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"

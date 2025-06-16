@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/parameter_result.hpp"
+#include "shared_test_classes/subgraph/parameter_result.hpp"
 
 namespace ov {
 namespace test {

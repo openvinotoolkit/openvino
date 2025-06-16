@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/non_max_suppression.hpp"
+#include "shared_test_classes/single_op/non_max_suppression.hpp"
 
 namespace ov {
 namespace test {

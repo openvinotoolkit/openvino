@@ -4,7 +4,7 @@
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "single_op/tensor_iterator.hpp"
+#include "shared_test_classes/single_op/tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/node_builders/lstm_cell.hpp"
 #include "common_test_utils/node_builders/gru_cell.hpp"

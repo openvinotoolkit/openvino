@@ -5,7 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "single_op/col2im.hpp"
+#include "shared_test_classes/single_op/col2im.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 

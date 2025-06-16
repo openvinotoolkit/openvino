@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include "single_op/group_normalization.hpp"
+#include "shared_test_classes/single_op/group_normalization.hpp"
 
 namespace ov {
 namespace test {

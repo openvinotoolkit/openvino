@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/bucketize.hpp"
+#include "shared_test_classes/single_op/bucketize.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/bucketize.hpp"

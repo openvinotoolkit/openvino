@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/squeeze_unsqueeze.hpp"
+#include "shared_test_classes/single_op/squeeze_unsqueeze.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 

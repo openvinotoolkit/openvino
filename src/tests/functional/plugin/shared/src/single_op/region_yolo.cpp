@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/region_yolo.hpp"
+#include "shared_test_classes/single_op/region_yolo.hpp"
 #include "openvino/op/region_yolo.hpp"
 
 namespace ov {

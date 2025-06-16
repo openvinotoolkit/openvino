@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/matrix_nms.hpp"
+#include "shared_test_classes/single_op/matrix_nms.hpp"
 
 namespace ov {
 namespace test {

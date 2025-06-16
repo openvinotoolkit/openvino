@@ -7,7 +7,7 @@
 #include <random>
 
 #include "common_test_utils/common_utils.hpp"
-#include "single_op/matrix_nms.hpp"
+#include "shared_test_classes/single_op/matrix_nms.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 

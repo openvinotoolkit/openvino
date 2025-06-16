@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/ctc_greedy_decoder.hpp"
+#include "shared_test_classes/single_op/ctc_greedy_decoder.hpp"
 
 namespace ov {
 namespace test {

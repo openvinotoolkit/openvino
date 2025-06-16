@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/convert_pad_to_group_conv.hpp"
+#include "shared_test_classes/subgraph/convert_pad_to_group_conv.hpp"
 
 namespace ov {
 namespace test {

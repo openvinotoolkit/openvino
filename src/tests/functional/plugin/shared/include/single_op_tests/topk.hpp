@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/topk.hpp"
+#include "shared_test_classes/single_op/topk.hpp"
 
 namespace ov {
 namespace test {

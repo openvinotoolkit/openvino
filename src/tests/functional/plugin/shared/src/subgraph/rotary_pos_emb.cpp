@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/rotary_pos_emb.hpp"
+#include "shared_test_classes/subgraph/rotary_pos_emb.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/node_vector.hpp"

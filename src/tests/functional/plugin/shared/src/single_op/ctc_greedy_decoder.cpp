@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/ctc_greedy_decoder.hpp"
+#include "shared_test_classes/single_op/ctc_greedy_decoder.hpp"
 
 #include <random>
 
