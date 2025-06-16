@@ -171,11 +171,8 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    if (!_blobAllocatedByPlugin) {
-        return false;
-    }
-
-    if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+    if (_zeroInitStruct->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 13) || !_blobAllocatedByPlugin ||
+        _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
         config.get<PERF_COUNT>()) {
         return false;
     }

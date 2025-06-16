@@ -323,15 +323,35 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, si
         OPENVINO_THROW("Empty blob");
     }
 
-    ze_graph_desc_t desc =
-        {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES, nullptr, ZE_GRAPH_FORMAT_NATIVE, blobSize, &blobData, nullptr};
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 13)) {
+        ze_graph_desc_t desc =
+            {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES, nullptr, ZE_GRAPH_FORMAT_NATIVE, blobSize, &blobData, nullptr};
 
-    _logger.debug("getGraphHandle - perform pfnCreate");
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
-                                                                _zeroInitStruct->getDevice(),
-                                                                &desc,
-                                                                &graphHandle);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _zeroInitStruct->getGraphDdiTable());
+        _logger.debug("getGraphHandle - perform pfnCreate");
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
+                                                                    _zeroInitStruct->getDevice(),
+                                                                    &desc,
+                                                                    &graphHandle);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _zeroInitStruct->getGraphDdiTable());
+    } else {
+        uint32_t flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
+
+        ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                                  nullptr,
+                                  ZE_GRAPH_FORMAT_NATIVE,
+                                  blobSize,
+                                  &blobData,
+                                  nullptr,
+                                  flags};
+
+        _logger.debug("getGraphHandle - perform pfnCreate2");
+
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
+                                                                     _zeroInitStruct->getDevice(),
+                                                                     &desc,
+                                                                     &graphHandle);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+    }
 
     return graphHandle;
 }
