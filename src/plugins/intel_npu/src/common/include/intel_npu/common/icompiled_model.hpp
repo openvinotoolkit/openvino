@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "intel_npu/common/igraph.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 
 namespace intel_npu {

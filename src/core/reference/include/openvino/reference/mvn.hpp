@@ -89,7 +89,7 @@ void mvn_6(const T* arg,
 
 template <typename T>
 AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
-    T* a = axes_input.data<T>();
+    const T* a = axes_input.data<T>();
     auto v = std::vector<T>(a, a + axes_input.get_shape()[0]);
     std::vector<size_t> axes(v.size(), 0);
     for (size_t i = 0; i < v.size(); i++) {

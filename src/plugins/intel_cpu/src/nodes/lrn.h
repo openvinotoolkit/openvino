@@ -4,12 +4,19 @@
 
 #pragma once
 
-#include "common/dnnl_executor.h"
-#include "node.h"
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "common/dnnl_executor.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class Lrn : public Node {
 public:
@@ -19,11 +26,12 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     size_t descInputNumbers() override {
-        return static_cast<size_t>(getOriginalInputsNumber());
+        return getOriginalInputsNumber();
     }
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
-    bool created() const override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc,
+                                                            size_t idx) const override;
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
@@ -34,7 +42,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
     executorPtr execPtr = nullptr;
     dnnl::algorithm alg;
     size_t size = 1;
@@ -43,6 +51,4 @@ private:
     float beta = 1.0f;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

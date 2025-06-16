@@ -4,13 +4,22 @@
 
 #pragma once
 
+#include <cassert>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <set>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "node.h"
-#include "snippets/generator.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -37,7 +46,7 @@ public:
 
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                const std::shared_ptr<ov::Node>& n,
+                [[maybe_unused]] const std::shared_ptr<ov::Node>& n,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
         : Emitter(),
@@ -64,8 +73,8 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 protected:
-    size_t get_max_vecs_count() const;
-    int32_t get_vec_length() const;
+    static size_t get_max_vecs_count();
+    static int32_t get_vec_length();
 
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;

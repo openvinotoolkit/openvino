@@ -4,7 +4,25 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <set>
 #include <utility>
+#include <vector>
+
+#include "cpu_types.h"
+#include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace aarch64 {
@@ -29,7 +47,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
     static const std::vector<element::Type> exec_precisions_priority = {element::f16, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
                                                                   exec_precisions_priority);
@@ -701,6 +719,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseNotEqual, ov::intel_cpu::aarch64::jit_not_equal_emitter),
         OV_CASE(Algorithm::EltwiseMod, ov::intel_cpu::aarch64::jit_mod_emitter),
         OV_CASE(Algorithm::EltwiseMultiply, ov::intel_cpu::aarch64::jit_multiply_emitter),
+        OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
         OV_CASE(Algorithm::EltwisePowerStatic, ov::intel_cpu::aarch64::jit_power_static_emitter),
         OV_CASE(Algorithm::EltwisePrelu, ov::intel_cpu::aarch64::jit_prelu_emitter),
         OV_CASE(Algorithm::EltwiseRelu, ov::intel_cpu::aarch64::jit_relu_emitter),
@@ -838,6 +857,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseNotEqual, jit_not_equal_emitter),
               OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
               OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
+              OV_CASE(Algorithm::EltwisePowerDynamic, jit_power_dynamic_emitter),
               OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
               OV_CASE(Algorithm::EltwiseRoundHalfAwayFromZero, jit_round_half_away_from_zero_emitter),
               OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_round_half_to_even_emitter),

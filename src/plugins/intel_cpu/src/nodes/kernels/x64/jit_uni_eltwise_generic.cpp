@@ -4,13 +4,30 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
 #include <memory>
-#include <utility>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <set>
 #include <vector>
 
+#include "cpu_types.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
-#include "nodes/eltwise.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace x64 {
@@ -36,7 +53,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     static const std::vector<element::Type> exec_precisions_priority =
         {element::u8, element::i8, element::u16, element::i16, element::bf16, element::i32, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
                                                                   exec_precisions_priority);
@@ -863,7 +880,8 @@ struct SupportedPrecisions {
 };
 }  // namespace
 
-std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(const Algorithm& algo) {
+std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(
+    [[maybe_unused]] const Algorithm& algo) {
     std::set<std::vector<element::Type>> precisions;
 
     OV_SWITCH(intel_cpu,

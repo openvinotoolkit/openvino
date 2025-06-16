@@ -6,8 +6,8 @@
 
 #include "memory.hpp"
 
-#include <memory>
 #include <vector>
+#include <ostream>
 
 namespace cldnn {
 
@@ -17,6 +17,12 @@ struct work_group_sizes {
 
     work_group_sizes() : global({1, 1, 1}), local({1, 1, 1}) {}
 };
+
+inline std::ostream& operator<<(std::ostream& os, const work_group_sizes& wgs) {
+    os << "global: [" << wgs.global[0] << " " <<  wgs.global[1] << " " << wgs.global[2] << "] ";
+    os << "local: [" << wgs.local[0] << " " <<  wgs.local[1] << " " << wgs.local[2] << "]";
+    return os;
+}
 
 enum class kernel_language {
     OCLC,

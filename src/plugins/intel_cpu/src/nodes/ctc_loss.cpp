@@ -4,10 +4,29 @@
 
 #include "openvino/op/ctc_loss.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
+#include "cpu_types.h"
 #include "ctc_loss.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -60,7 +79,7 @@ void CTCLoss::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void CTCLoss::execute(const dnnl::stream& strm) {
+void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     int32_t returnCode = 0;
 
     const auto* logits = getSrcDataAtPortAs<const float>(0);
@@ -86,7 +105,8 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     std::vector<std::string> errorMsgB(threads_num);
 
     auto threadBody_1 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(batchNum, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -105,7 +125,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
             }
             const size_t actualLogitLen = logitsLength[b];
             const size_t actualTargetLen = labelsLength[b];
-            size_t decodedTargetLen = 0lu;
+            size_t decodedTargetLen = 0LU;
 
             // Decoding target: merge repeated characters if preprocess_collapse_repeated == True,
             // find unique elemnts if unique == True.
@@ -115,7 +135,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
             auto& targetD = targetDB[b];
             if (unique) {
                 std::unordered_set<int> uniqVals;
-                for (size_t t = 0lu; t < actualTargetLen; t++) {
+                for (size_t t = 0LU; t < actualTargetLen; t++) {
                     if (uniqVals.find(target[t]) != uniqVals.end()) {
                         continue;
                     }
@@ -128,7 +148,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
                 auto prevValue = target[0];
                 targetD[decodedTargetLen++] = blankIndex;
                 targetD[decodedTargetLen++] = target[0];
-                for (size_t t = 1lu; t < actualTargetLen; t++) {
+                for (size_t t = 1LU; t < actualTargetLen; t++) {
                     if (target[t] == prevValue) {
                         continue;
                     }
@@ -137,7 +157,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
                 }
                 targetD[decodedTargetLen++] = blankIndex;
             } else {
-                for (size_t t = 0lu; t < actualTargetLen; t++) {
+                for (size_t t = 0LU; t < actualTargetLen; t++) {
                     targetD[decodedTargetLen++] = blankIndex;
                     targetD[decodedTargetLen++] = target[t];
                 }
@@ -155,7 +175,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
 
     parallel_nt(threads_num, threadBody_1);
     if (returnCode != 0) {
-        std::string resErr("");
+        std::string resErr;
         for (auto& err : errorMsgB) {
             if (!err.empty()) {
                 resErr += err + "\n";
@@ -166,19 +186,22 @@ void CTCLoss::execute(const dnnl::stream& strm) {
 
     const size_t TC = maxTime * classesNum;
 
-    size_t workAmount2 = 0lu;
+    size_t workAmount2 = 0LU;
     for (size_t b = 0; b < batchNum; b++) {
         workAmount2 += logitsLength[b];
     }
 
     auto threadBody_2 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
-        size_t sB(0lu), sT(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
+        size_t sB(0LU);
+        size_t sT(0LU);
         splitter(workAmount2, nthr, ithr, start, end);
         if (start >= end) {
             return;
         }
-        int64_t cw = 0, st = start;
+        int64_t cw = 0;
+        int64_t st = start;
         for (; sB < batchNum; sB++) {
             cw += logitsLength[sB];
             if (cw >= st) {
@@ -199,10 +222,10 @@ void CTCLoss::execute(const dnnl::stream& strm) {
             // logProbabilities = logSoftmax = logits[b][t][c] - ln(sum_c(exp(logits[b][t])))
             for (size_t t = sT; t < actualLogitLen; t++) {
                 expSum = 0.0;
-                for (size_t c = 0lu; c < classesNum; c++) {
+                for (size_t c = 0LU; c < classesNum; c++) {
                     expSum += std::exp(logits[btcT + c]);
                 }
-                for (size_t s = 0lu; s < decodedTargetLen; s++) {
+                for (size_t s = 0LU; s < decodedTargetLen; s++) {
                     logProbabilities[t][s] = logits[btcT + targetD[s]] - std::log(expSum);
                 }
                 btcT += classesNum;
@@ -210,7 +233,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
                     return;
                 }
             }
-            sT = 0lu;
+            sT = 0LU;
         }  // for batch
     };     // threadBody_2
 
@@ -232,7 +255,8 @@ void CTCLoss::execute(const dnnl::stream& strm) {
     };
 
     auto threadBody_3 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(batchNum, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -247,7 +271,7 @@ void CTCLoss::execute(const dnnl::stream& strm) {
             const int decodedTargetLen = decodedTargetLenB[b];
             std::vector<std::vector<float>> logBwd(decodedTargetLen, std::vector<float>(actualLogitLen, -float_inf));
             for (int s = decodedTargetLen - 2; s < decodedTargetLen; s++) {
-                logBwd[s][actualLogitLen - 1] = 0.f;
+                logBwd[s][actualLogitLen - 1] = 0.F;
             }
 
             for (int t = actualLogitLen - 2; t >= 0; t--) {

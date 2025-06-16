@@ -479,7 +479,7 @@ class TestParallelRunner:
             logger.warning(
                 "Look like there are not tests to run! Please check the filters!"
             )
-            sys.exit(0)
+            sys.exit(5)
         return tests_dict
 
     def __get_test_list_by_cache(self):

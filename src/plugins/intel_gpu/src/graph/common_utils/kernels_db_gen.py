@@ -191,6 +191,7 @@ class Code2CHeaders(object):
                 include_dirs = []
                 include_dirs.append(self.kernels_folder)
                 include_dirs.append(self.headers_folder)
+                include_dirs.append(os.path.join(self.headers_folder, "../"))
                 include_dirs.append(os.path.join(self.headers_folder, "batch_headers"))
                 map_entry = self.process_file(filepath, include_dirs, is_batch_header=False)
                 sources.append(map_entry)

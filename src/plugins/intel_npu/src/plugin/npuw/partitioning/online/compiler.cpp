@@ -28,9 +28,10 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {{"COMPUTE",
                                                                  "P:DQMatMulConv/compute,"
                                                                  "P:VocabMatMul/compute,"
                                                                  "P:RMSNorm/compute,P:RMSNorm2/compute,"
+                                                                 "P:RMSNorm3/compute,P:RMSNorm4/compute,"
                                                                  "P:VariadicSplit/compute"},
                                                                 {"FAKE", "P:FakeConvert/fake,P:FakeQuantize/fake"}};
-}
+}  // anonymous namespace
 
 // For missing declaration warning
 // FIXME: Instead, one should use namespace{}
@@ -452,12 +453,13 @@ public:
             break;
         }
 
-        LOG_DEBUG("Online partitioning: group sizes after compilation:");
+        LOG_VERB("Online partitioning: group sizes after compilation (in topological order):");
         auto graph = m_snapshot->getGraph();
         for (const auto& nh : graph->sorted()) {
             LOG_BLOCK();
             Group::GPtr group = graph->meta(nh).get<Group::GPtr>();
-            LOG_DEBUG("Group " << group->getId() << ", size " << group->size() << ", tag " << group->specialTags());
+            LOG_VERB("Group " << group->getId() << ", size " << group->size() << ", tag " << group->specialTags()
+                              << ", rep " << group->repeated());
         }
 
         LOG_INFO("Done");

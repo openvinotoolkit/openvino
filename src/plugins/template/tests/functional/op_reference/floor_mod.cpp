@@ -67,7 +67,7 @@ private:
         const auto in2 = std::make_shared<op::v0::Parameter>(input_type, input_shape2);
         const auto floormod = std::make_shared<op::v1::FloorMod>(in1, in2);
 
-        return std::make_shared<Model>(NodeVector{floormod}, ParameterVector{in1, in2});
+        return std::make_shared<Model>(OutputVector{floormod}, ParameterVector{in1, in2});
     }
 };
 

@@ -21,14 +21,25 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+
 #include "cpu/x64/jit_generator.hpp"
-#include "dnnl_types.h"
-#include "jit_kernel_base.hpp"
+#include "emitters/plugin/x64/jit_conversion_emitters.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
 struct jGatherConfParams {
     uint64_t dataTypeSize = 1lu;
+    ov::element::Type in_prec = ov::element::f32;
+    ov::element::Type out_prec = ov::element::f32;
     bool reverseIndexing = true;
     bool dynamicShapes = false;
     uint64_t batchDims = 0lu;
@@ -69,8 +80,8 @@ struct gatherJitExecArgs {
 };
 
 struct jitGatherKernelBase {
-    void (*ker_)(const gatherJitExecArgs*){nullptr};
-    void operator()(const gatherJitExecArgs* args) {
+    void (*ker_)(const gatherJitExecArgs*) = nullptr;
+    void operator()(const gatherJitExecArgs* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -78,17 +89,19 @@ struct jitGatherKernelBase {
         : jcp(jcp),
           vlen(vlen),
           dataElPerVec(vlen / jcp.dataTypeSize),
-          idxElPerVec(vlen / indicesTypeSize) {}
+          idxElPerVec(vlen / indicesTypeSize),
+          is_real16_to_f32((jcp.in_prec == element::f16 || jcp.in_prec == element::bf16) &&
+                           jcp.out_prec == element::f32) {}
     virtual ~jitGatherKernelBase() = default;
 
     virtual void create_ker() = 0;
-    uint64_t getVecLen() {
+    [[nodiscard]] uint64_t getVecLen() const {
         return vlen;
     }
-    uint64_t getDataElPerVec() {
+    [[nodiscard]] uint64_t getDataElPerVec() const {
         return dataElPerVec;
     }
-    uint64_t getIdxElPerVec() {
+    [[nodiscard]] uint64_t getIdxElPerVec() const {
         return idxElPerVec;
     }
     virtual bool isSupportedConfiguration(uint64_t afterAxisSize) = 0;
@@ -108,6 +121,7 @@ protected:
 
     int shortPermIdx[16];
     int shortBeforeAxisDiff[16];
+    const bool is_real16_to_f32 = false;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -212,9 +226,12 @@ protected:
     void storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux);
     void uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& vMask);
     void fillVlenVector();
+    void store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc);
 
     const unsigned* permMask8bitUni;
     const unsigned* permMask16bitUni;
+    size_t dstStep = 0;
+    std::unique_ptr<jit_convert_saturation_emitter> convert_emitter = nullptr;
 };
 
 }  // namespace ov::intel_cpu

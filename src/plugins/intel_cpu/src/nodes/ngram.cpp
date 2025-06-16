@@ -4,11 +4,28 @@
 
 #include "ngram.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/ngram.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 
@@ -97,8 +114,8 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
     return batchLenghts;
 }
 
-void Ngram::execute(const dnnl::stream& strm) {
-    auto* srcData = getSrcDataAtPortAs<const float>(0);
+void Ngram::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* srcData = getSrcDataAtPortAs<const float>(0);
     auto* dstData = getDstDataAtPortAs<float>(0);
 
     std::vector<size_t> batchLenghts;

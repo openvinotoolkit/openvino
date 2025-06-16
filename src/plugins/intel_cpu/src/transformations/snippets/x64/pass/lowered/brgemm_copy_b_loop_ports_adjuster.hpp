@@ -4,12 +4,16 @@
 
 #pragma once
 
+#include <unordered_map>
+#include <vector>
+
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 
-namespace ov::intel_cpu {
+namespace ov::intel_cpu::pass {
 
 /**
  * @class BrgemmCopyBLoopPortsAdjuster
@@ -32,4 +36,4 @@ private:
         m_affected_uni2exp_map;
 };
 
-}  // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu::pass

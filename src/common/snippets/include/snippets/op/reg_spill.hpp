@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "snippets/emitter.hpp"
+#include <cassert>
 
 #include "openvino/op/op.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov {
@@ -40,14 +41,18 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
     std::shared_ptr<RegSpillEnd> get_reg_spill_end() const;
-    const std::set<Reg>& get_regs_to_spill() const override { return m_regs_to_spill; }
+    const std::set<Reg>& get_regs_to_spill() const override {
+        return m_regs_to_spill;
+    }
 
     class ShapeInfer : public IShapeInferSnippets {
         size_t num_out_shapes = 0;
+
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
+
 protected:
     void validate_and_infer_types_except_RegSpillEnd();
     std::set<Reg> m_regs_to_spill = {};
@@ -68,7 +73,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
     std::shared_ptr<RegSpillBegin> get_reg_spill_begin() const {
         auto reg_spill_begin = ov::as_type_ptr<RegSpillBegin>(get_input_node_shared_ptr(0));
-        OPENVINO_ASSERT(reg_spill_begin, "Can't get reg_spill_begin from reg_spill_end");
+        assert(reg_spill_begin && "Can't get reg_spill_begin from reg_spill_end");
         return reg_spill_begin;
     }
     const std::set<Reg>& get_regs_to_spill() const override {
@@ -76,6 +81,6 @@ public:
     }
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

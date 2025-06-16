@@ -131,7 +131,14 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantization>(element::TypeVector{ov::element::i8,
+        // Transformation call example, to check with the real model
+        manager.register_pass<MarkGatherSubgraph>(element::TypeVector{element::f8e4m3},
+                                                  element::TypeVector{element::u4});
+        manager.register_pass<ov::pass::MarkDequantization>(element::TypeVector{ov::element::i32,
+                                                                                ov::element::u32,
+                                                                                ov::element::i16,
+                                                                                ov::element::u16,
+                                                                                ov::element::i8,
                                                                                 ov::element::u8,
                                                                                 ov::element::i4,
                                                                                 ov::element::u4,
@@ -275,7 +282,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionFusion)
     ADD_MATCHER(multiply_fusions, MultiplyConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
-    ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
     REGISTER_PASS(manager, ConstantFolding)
 

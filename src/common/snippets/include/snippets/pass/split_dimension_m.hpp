@@ -19,7 +19,7 @@ namespace pass {
  * @todo Ticket 148805: Move static cases handling in RuntimeConfigurator as well.
  * @ingroup snippets
  */
-class SplitDimensionM: public CommonOptimizations::SubgraphPass {
+class SplitDimensionM : public CommonOptimizations::SubgraphPass {
 public:
     OPENVINO_RTTI("SplitDimensionM", "0");
     SplitDimensionM(size_t concurrency) : m_concurrency(concurrency) {}
@@ -39,7 +39,10 @@ public:
      * @param new_m_dim reference on new M dim after the split
      * @return true if split was successfull, otherwise false
      */
-    static bool split(const ov::Shape& shape, size_t optimal_parallelism_work_amount, size_t& batch_m_dim, size_t& new_m_dim);
+    static bool split(const ov::Shape& shape,
+                      size_t optimal_parallelism_work_amount,
+                      size_t& batch_m_dim,
+                      size_t& new_m_dim);
 
     /**
      * @brief Splits m dimension in order
@@ -56,7 +59,10 @@ public:
      * @param new_m_dim new M dim after the split
      * @return the updated shape
      */
-    static ov::snippets::VectorDims reshape_m_dim(ov::snippets::VectorDims shape, size_t m_index, size_t batch_m_dim, size_t new_m_dim);
+    static ov::snippets::VectorDims reshape_m_dim(ov::snippets::VectorDims shape,
+                                                  size_t m_index,
+                                                  size_t batch_m_dim,
+                                                  size_t new_m_dim);
     /**
      * @brief Unsqueezes m dimension in "shape" (inserts "1" before the dimension)
      * @param shape Shape to split
@@ -70,22 +76,41 @@ private:
     /**
      * @brief Contains splitM approaches allowing to get the batch ideally divisible by optimal_parallelism_work_amount
      */
-    static std::pair<size_t, size_t> split_ideally(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
+    static std::pair<size_t, size_t> split_ideally(size_t batch_dim,
+                                                   size_t m_dim,
+                                                   size_t optimal_parallelism_work_amount);
     /**
-     * @brief Splits m_dim to minimize kernel_m in order to reduce waiting time for idle threads at the last parallel loop iteration.
+     * @brief Splits m_dim to minimize kernel_m in order to reduce waiting time for idle threads at the last parallel
+     * loop iteration.
      */
-    static std::pair<size_t, size_t> split_minimize_kernel_wa(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
+    static std::pair<size_t, size_t> split_minimize_kernel_wa(size_t batch_dim,
+                                                              size_t m_dim,
+                                                              size_t optimal_parallelism_work_amount);
     /**
-     * @brief Splits m_dim to get the batch in (optimal_parallelism_work_amount, 2 * optimal_parallelism_work_amount) interval
+     * @brief Splits m_dim to get the batch in (optimal_parallelism_work_amount, 2 * optimal_parallelism_work_amount)
+     * interval
      */
-    static std::pair<size_t, size_t> split_fallback_increase_parallel_wa(size_t batch_dim, size_t m_dim, size_t optimal_parallelism_work_amount);
+    static std::pair<size_t, size_t> split_fallback_increase_parallel_wa(size_t batch_dim,
+                                                                         size_t m_dim,
+                                                                         size_t optimal_parallelism_work_amount);
 
-    void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph, const ov::Shape& shape, size_t batch_m_dim, size_t new_m_dim);
+    void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph,
+                          const ov::Shape& shape,
+                          size_t batch_m_dim,
+                          size_t new_m_dim);
+
+    static size_t get_dim_M(const ov::Shape& shape) {
+        if (shape.size() < dim_M_index + 1) {
+            return 1;
+        }
+        return *(shape.rbegin() + dim_M_index);
+    }
 
     size_t m_concurrency;
 
     static const size_t min_kernel_m;
+    static const size_t dim_M_index;
 };
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

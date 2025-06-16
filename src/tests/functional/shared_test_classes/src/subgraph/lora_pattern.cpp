@@ -9,17 +9,17 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "template/properties.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace test {
-
-
-std::string LoraPatternBase::getTestCaseName(const testing::TestParamInfo<const char*>& obj) {
-    auto device_name = obj.param;
-    return std::string{"targetDevice="} + device_name; //NOLINT
-}
-
-constexpr ov::element::Type LoraPatternBase::netType; //redundant variable definition for C++ prior to C++17
 
 void LoraPatternBase::run_test_empty_tensors() {
     compile_model();
@@ -38,7 +38,7 @@ void LoraPatternBase::run_test_empty_tensors() {
     ov::test::utils::compare(tx_result, tz_result, 1e-4, 1e-4);
 }
 
-void LoraPatternBase::run_test_random_tensors() {
+void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t lora_rank) {
     compile_model();
     inferRequest = compiledModel.create_infer_request();
     ASSERT_TRUE(inferRequest);
@@ -57,7 +57,6 @@ void LoraPatternBase::run_test_random_tensors() {
         inferRequestRef.set_tensor(input.first, input.second);
     }
 
-    constexpr size_t lora_order = 25lu;
     constexpr int infer_count = 6lu;
 
     std::unordered_map<std::string, ov::Shape> stateShapes;
@@ -70,7 +69,7 @@ void LoraPatternBase::run_test_random_tensors() {
 
         std::for_each(var_shape.begin(), var_shape.end(), [=](ov::PartialShape::value_type& x) {
             if (x.is_dynamic()) {
-                x = lora_order;
+                x = lora_rank;
             }
         });
         stateShapes.insert({var_info.variable_id, var_shape.to_shape()});
@@ -86,7 +85,7 @@ void LoraPatternBase::run_test_random_tensors() {
                 auto&& refStates = inferRequestRef.query_state();
                 using ov::test::utils::InputGenerateData;
                 const auto& shape = stateShapes.at(item.get_name());
-                auto tensor = ov::test::utils::create_and_fill_tensor(netType, shape, InputGenerateData{0, 10, 1, i});
+                auto tensor = ov::test::utils::create_and_fill_tensor(net_type, shape, InputGenerateData{0, 10, 1, i});
                 item.set_state(tensor);
                 auto itr = std::find_if(refStates.begin(), refStates.end(), [&](const ov::VariableState& state) {
                     return state.get_name() == item.get_name();
@@ -111,8 +110,28 @@ void LoraPatternBase::run_test_random_tensors() {
     }
 }
 
+std::string LoraPatternMatmul::getTestCaseName(testing::TestParamInfo<LoraMatMulParams> obj) {
+    std::string device_name;
+    ov::element::Type net_type;
+    size_t M, N, K, lora_rank;
+    std::tie(device_name, net_type, M, N, K, lora_rank) = obj.param;
+
+    std::ostringstream result;
+    result << "M=" << M << "_";
+    result << "N=" << N << "_";
+    result << "K=" << K << "_";
+    result << "LoraRank=" << lora_rank << "_";
+    result << "netType=" << net_type << "_";
+    result << "targetDevice=" << device_name;
+
+    return result.str();
+}
+
 void LoraPatternMatmul::SetUp() {
-    targetDevice = this->GetParam();
+    ov::element::Type netType;
+    size_t M, N, K, lora_rank;
+
+    std::tie(targetDevice, netType, M, N, K, lora_rank) = this->GetParam();
 
     ov::PartialShape shape_x = {-1, -1, K};
     ov::PartialShape shape_w = {N, K};
@@ -139,9 +158,16 @@ void LoraPatternMatmul::SetUp() {
     auto t6 = std::make_shared<ov::op::v6::ReadValue>(variable_t6);
     auto t6_assign = std::make_shared<ov::op::v6::Assign>(t6, variable_t6);
 
+    auto shape_of_state_a = std::make_shared<ov::op::v3::ShapeOf>(t6);
+    auto indices_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
+    auto axis_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of_state_a, indices_node, axis_node);
+    auto convert = std::make_shared<ov::op::v0::Convert>(gather, netType);
+    auto divide = std::make_shared<ov::op::v1::Divide>(t5, convert);
+
     // Apply LoRA parameters to the current activations
     auto t5810 = std::make_shared<ov::op::v0::MatMul>(param_y, t6, false, true);
-    auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, t5);
+    auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, divide);
     auto t5812 = std::make_shared<ov::op::v0::MatMul>(t5811, t4, false, true);
 
     // Mix LoRA part into normally computed activations after the "main" MatMul
@@ -155,8 +181,26 @@ void LoraPatternMatmul::SetUp() {
                                            ov::ParameterVector({param_y, param_w}));
 }
 
+std::string LoraPatternConvolution::getTestCaseName(testing::TestParamInfo<LoraConvolutionParams> obj) {
+    std::string device_name;
+    ov::element::Type net_type;
+    size_t num_channels, lora_rank;
+    std::tie(device_name, net_type, num_channels, lora_rank) = obj.param;
+
+    std::ostringstream result;
+    result << "NumChannels=" << num_channels << "_";
+    result << "LoraRank=" << lora_rank << "_";
+    result << "netType=" << net_type << "_";
+    result << "targetDevice=" << device_name;
+
+    return result.str();
+}
+
 void LoraPatternConvolution::SetUp() {
-    targetDevice = this->GetParam();
+    ov::element::Type netType;
+    size_t num_channels, lora_rank;
+
+    std::tie(targetDevice, netType, num_channels, lora_rank) = this->GetParam();
 
     ov::PartialShape shape_x = {-1, num_channels, -1, -1};
 
@@ -189,13 +233,20 @@ void LoraPatternConvolution::SetUp() {
     auto t6 = std::make_shared<ov::op::v6::ReadValue>(variable_t6);
     auto t6_assign = std::make_shared<ov::op::v6::Assign>(t6, variable_t6);
 
+    auto shape_of_state_a = std::make_shared<ov::op::v3::ShapeOf>(t6);
+    auto indices_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
+    auto axis_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of_state_a, indices_node, axis_node);
+    auto convert = std::make_shared<ov::op::v0::Convert>(gather, netType);
+    auto divide = std::make_shared<ov::op::v1::Divide>(t5, convert);
+
     // LoRA pattern with additional Transposes to move channel dimensions into positions where MatMul can be applied
     auto t4940 =
         std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<size_t>{2, 3, 0, 1});
 
     auto t4941 = std::make_shared<ov::op::v1::Transpose>(param_y, t4940);
     auto t4942 = std::make_shared<ov::op::v0::MatMul>(t4941, t6, false, true);
-    auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, t5);
+    auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, divide);
     auto t4944 = std::make_shared<ov::op::v0::MatMul>(t4943, t4, false, true);
 
     auto t4945 =

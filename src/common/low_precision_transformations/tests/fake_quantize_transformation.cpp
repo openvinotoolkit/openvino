@@ -20,6 +20,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/fake_quantize.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "openvino/op/avg_pool.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -79,7 +80,6 @@ public:
                                 .setDefaultPrecisions(defaultPrecisions);
 
         actualFunction = ov::builder::subgraph::FakeQuantizeFunction::getOriginal(
-            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
             fakeQuantizeOnData.actual,
@@ -96,7 +96,6 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ov::builder::subgraph::FakeQuantizeFunction::getReference(
-            TestTransformationParams::toParams(fakeQuantizeOnData.params),
             precision,
             shape,
             params.updatePrecisions,

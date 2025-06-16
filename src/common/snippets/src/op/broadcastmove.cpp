@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/op/broadcastmove.hpp"
 
+#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
 namespace op {
 
-BroadcastMove::BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension) : Op({x}), bcast_dimension(std::move(bcast_dimension)) {
+BroadcastMove::BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension)
+    : Op({x}),
+      bcast_dimension(std::move(bcast_dimension)) {
     constructor_validate_and_infer_types();
 }
 
@@ -34,6 +35,6 @@ void BroadcastMove::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), broadcasted_shape);
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

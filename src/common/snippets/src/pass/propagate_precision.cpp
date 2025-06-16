@@ -4,19 +4,16 @@
 
 #include "snippets/pass/propagate_precision.hpp"
 
+#include <memory>
+
+#include "openvino/core/rt_info.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include <assert.h>
-#include <memory>
-
-
-ov::snippets::pass::PropagatePrecision::PropagatePrecision(
-    const std::shared_ptr<const TargetMachine>& target_machine) : target_machine(target_machine) {
-}
+ov::snippets::pass::PropagatePrecision::PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine)
+    : target_machine(target_machine) {}
 
 bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(PropagatePrecision);
@@ -65,31 +62,28 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
             input_precisions.push_back(input_precision);
         }
 
-        assert(std::all_of(
-            supported_precisions.begin(),
-            supported_precisions.end(),
-            [&input_precisions](const std::vector<element::Type>& precisions) {
-                return precisions.size() == input_precisions.size();
-            }) && "input precisions count is not equal for supported precisions");
+        OPENVINO_ASSERT(std::all_of(supported_precisions.begin(),
+                                    supported_precisions.end(),
+                                    [&input_precisions](const std::vector<element::Type>& precisions) {
+                                        return precisions.size() == input_precisions.size();
+                                    }),
+                        "input precisions count is not equal for supported precisions");
 
         // update input precisions
         // if possible then convert precisions to supported
         if (!supported_precisions.empty() &&
-            std::all_of(
-                supported_precisions.begin(),
-                supported_precisions.end(),
-                [&input_precisions](const std::vector<element::Type>& precisions) {
-                    return precisions != input_precisions;
-                })) {
-            auto precisions = get_precisions(input_precisions,
-                                             supported_precisions);
-            OPENVINO_ASSERT(
-                !precisions.empty(),
-                "there are no supported precisions for operation '" + std::string(type_info.version_id) + "::" + std::string(type_info.name) + "'");
+            std::all_of(supported_precisions.begin(),
+                        supported_precisions.end(),
+                        [&input_precisions](const std::vector<element::Type>& precisions) {
+                            return precisions != input_precisions;
+                        })) {
+            auto precisions = get_precisions(input_precisions, supported_precisions);
+            OPENVINO_ASSERT(!precisions.empty(),
+                            "there are no supported precisions for operation '" + std::string(type_info.version_id) +
+                                "::" + std::string(type_info.name) + "'");
 
-            auto find_convert = [](
-                const ov::Output<ov::Node> parent_output,
-                const ov::element::Type convert_type) -> snippets::op::ConvertSaturation* {
+            auto find_convert = [](const ov::Output<ov::Node> parent_output,
+                                   const ov::element::Type convert_type) -> snippets::op::ConvertSaturation* {
                 for (const auto& input : parent_output.get_target_inputs()) {
                     const auto child = ov::as_type<snippets::op::ConvertSaturation>(input.get_node());
                     if ((child != nullptr) && (child->get_output_element_type(0) == convert_type)) {
@@ -106,8 +100,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                 const auto actual_before = parent_output.get_element_type();
                 if (actual_before != required_after) {
                     was_updated = true;
-                    auto existing_convert = ov::as_type<ov::snippets::op::ConvertSaturation>(
-                        parent_output.get_node());
+                    auto existing_convert = ov::as_type<ov::snippets::op::ConvertSaturation>(parent_output.get_node());
 
                     if (existing_convert == nullptr) {
                         existing_convert = find_convert(parent_output, required_after);
@@ -120,9 +113,8 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
 
                     if (existing_convert == nullptr) {
                         // create new Convert
-                        auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                            parent_output,
-                            required_after);
+                        auto convert =
+                            std::make_shared<ov::snippets::op::ConvertSaturation>(parent_output, required_after);
                         copy_runtime_info(parent_output.get_node_shared_ptr(), convert);
                         op->set_argument(op_input.get_index(), convert);
                         continue;
@@ -148,9 +140,8 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
                     }
 
                     // create new convert
-                    auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                        existing_convert->output(0),
-                        required_after);
+                    auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(existing_convert->output(0),
+                                                                                         required_after);
                     copy_runtime_info(existing_convert->output(0).get_node()->shared_from_this(), convert);
                     op->set_argument(op_input.get_index(), convert);
                 }
@@ -170,9 +161,7 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
         const auto expected_type = it->second;
         if (actual_type != it->second) {
             was_updated = true;
-            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                result->get_input_node_shared_ptr(0),
-                expected_type);
+            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(result->input_value(0), expected_type);
             copy_runtime_info(result->get_input_node_shared_ptr(0), convert);
             result->set_argument(0, convert);
         }
@@ -181,7 +170,8 @@ bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<
     return was_updated;
 }
 
-bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restore_outputs(const std::shared_ptr<ov::Node>& op) {
+bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restore_outputs(
+    const std::shared_ptr<ov::Node>& op) {
     bool was_updated = false;
 
     // update output precision
@@ -213,9 +203,7 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
 
         if (output.get_element_type() != op_output_types[i]) {
             was_updated = true;
-            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(
-                output,
-                op_output_types[i]);
+            auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(output, op_output_types[i]);
             copy_runtime_info(output.get_node_shared_ptr(), convert);
 
             for (auto& input : output.get_target_inputs()) {
@@ -225,7 +213,6 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
                 }
 
                 input.replace_source_output(convert->output(0));
-
 
                 if (ov::is_type<ov::op::v0::Result>(input.get_node())) {
                     // Result input tensor name was changed, the name has to be restored
@@ -270,10 +257,8 @@ bool ov::snippets::pass::PropagatePrecision::can_be_fused(const element::Type& a
     }
 
     // general conditions: any new added precision will support
-    return
-        (actual.is_signed() == required.is_signed()) &&
-        (actual.is_real() == required.is_real()) &&
-        (actual.bitwidth() > required.bitwidth());
+    return (actual.is_signed() == required.is_signed()) && (actual.is_real() == required.is_real()) &&
+           (actual.bitwidth() > required.bitwidth());
 }
 
 std::vector<ov::element::Type> ov::snippets::pass::PropagatePrecision::get_precisions(

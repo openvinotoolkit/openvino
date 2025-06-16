@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/convert.hpp"
+#include "nodes/executors/executor.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -30,9 +39,9 @@ protected:
 class CommonConvertExecutorBuilder : public ConvertExecutorBuilder {
 public:
     ~CommonConvertExecutorBuilder() override = default;
-    [[nodiscard]] bool isSupported(const ConvertParams& convertParams,
-                                   const MemoryDescPtr& srcDesc,
-                                   const MemoryDescPtr& dstDesc) const override {
+    [[nodiscard]] bool isSupported([[maybe_unused]] const ConvertParams& convertParams,
+                                   [[maybe_unused]] const MemoryDescPtr& srcDesc,
+                                   [[maybe_unused]] const MemoryDescPtr& dstDesc) const override {
         return true;
     }
     [[nodiscard]] ConvertExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {

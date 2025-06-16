@@ -6,19 +6,23 @@
 
 #include <memory>
 
-#include "openvino/op/constant.hpp"
-#include "ov_ops/type_relaxed.hpp"
-
+#include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
-#include "low_precision/network_helper.hpp"
-
+#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_lpt_models/common/add.hpp"
 #include "ov_lpt_models/common/convolution.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/reshape.hpp"
 #include "ov_lpt_models/common/transpose.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov {
 namespace builder {

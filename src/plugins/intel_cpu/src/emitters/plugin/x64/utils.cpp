@@ -4,7 +4,22 @@
 
 #include "utils.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <set>
+#include <type_traits>
+#include <vector>
+
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu {
 
@@ -37,7 +52,7 @@ struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
         auto push_if_live = [&live_regs, &regs_to_spill](Xbyak::Reg&& reg) {
-            if (live_regs.empty() || live_regs.count(Xbyak2SnippetsReg(reg))) {
+            if (live_regs.empty() || (live_regs.count(Xbyak2SnippetsReg(reg)) != 0U)) {
                 regs_to_spill.emplace_back(reg);
             }
         };

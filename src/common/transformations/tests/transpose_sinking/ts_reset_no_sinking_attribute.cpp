@@ -32,7 +32,7 @@ TEST(TransformationTests, ResetNoSinkingAttribute) {
 
     auto add = std::make_shared<Add>(transpose_a, transpose_b);
     auto trans_after = make_shared<Transpose>(add, Constant::create(element::i64, Shape{4}, {1, 0, 2, 3}));
-    auto model = std::make_shared<Model>(NodeVector{trans_after}, ParameterVector{a, b});
+    auto model = std::make_shared<Model>(OutputVector{trans_after}, ParameterVector{a, b});
 
     mark_as_no_sinking_node(transpose_a);
     mark_as_no_sinking_node(transpose_b);

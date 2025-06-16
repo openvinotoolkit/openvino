@@ -4,8 +4,17 @@
 
 #include "jit_fill_emitter.hpp"
 
-#include "cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/fill.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -73,7 +82,7 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 }
 
 template <cpu_isa_t isa>
-void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_fill_emitter::fill_tail([[maybe_unused]] const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto dst = TReg(out[0]);
 

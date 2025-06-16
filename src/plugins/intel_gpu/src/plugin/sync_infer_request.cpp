@@ -362,7 +362,7 @@ void SyncInferRequest::wait() {
 
         if (is_remote_tensor_impl || is_generic_remote) {
             GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (remote) with index: " << port_idx << ": "
-                                   << remote_tensor_impl_ptr->get_original_memory()->buffer_ptr() << std::endl;
+                                   << remote_tensor_impl_ptr->get_original_memory_buf_ptr() << std::endl;
         } else {
             GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (host) with index: " << port_idx << ": "
                                    << output_tensor->data() << std::endl;
@@ -402,6 +402,8 @@ void SyncInferRequest::wait() {
                     need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
                 else if (!is_remote_tensor_impl && output_memory)
                     need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
+                else if (is_remote_tensor_impl && output_memory)
+                    need_reallocate = false;
 
                 if (need_reallocate) {
                     std::string internal_name = m_output_names_map.at(port_idx);
@@ -424,7 +426,7 @@ void SyncInferRequest::wait() {
                 bool same_mem = same_host_mem(output_memory, dst_ptr);
                 if (!same_mem && output_memory->size()) {
                     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx << " copy from: " << output_memory->buffer_ptr() << " to "
-                        << (!is_remote_tensor_impl ? output_tensor->data() : remote_tensor_impl_ptr->get_original_memory()->buffer_ptr()) << std::endl;
+                        << (!is_remote_tensor_impl ? output_tensor->data() : remote_tensor_impl_ptr->get_original_memory_buf_ptr()) << std::endl;
                     if (auto ev = copy_output_data(output_memory, *output_tensor)) {
                         copy_events.push_back(ev);
                     }
@@ -561,7 +563,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
     return { create_device_tensor(actual_memory_shape, element_type, need_lockable_mem), TensorOwner::PLUGIN };
 }
 
-cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, const ov::ITensor& dst) const {
+cldnn::event::ptr SyncInferRequest::copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::copy_output_data");
     OPENVINO_ASSERT(src->count() <= dst.get_size(),
                     "[GPU] Unexpected elements count of dst tensor: ",
@@ -958,7 +960,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
-    return network->set_output_memory(internal_name, output_memory, is_remote_tensor_impl);
+    return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
 }
 
 void SyncInferRequest::init_mappings() {

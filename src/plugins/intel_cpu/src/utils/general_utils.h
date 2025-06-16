@@ -6,12 +6,25 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "cpu_shape.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
+
+#if defined(__clang__) || defined(__GNUC__)
+#    define OV_CPU_FUNCTION_NAME __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#    define OV_CPU_FUNCTION_NAME __FUNCSIG__
+#else
+// Fallback
+#    define OV_CPU_FUNCTION_NAME __func__
+#endif
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
@@ -44,7 +57,7 @@ constexpr bool everyone_is(T val, P item, Args... item_others) {
     return val == item && everyone_is(val, item_others...);
 }
 
-constexpr inline bool implication(bool cause, bool cond) {
+constexpr bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
@@ -66,7 +79,7 @@ std::string vec2str(const std::vector<T>& vec) {
         result << vec.back() << ")";
         return result.str();
     }
-    return std::string("()");
+    return "()";
 }
 
 /**
@@ -92,12 +105,14 @@ inline bool dimsEqualStrong(size_t lhs, size_t rhs) {
 inline bool dimsEqualStrong(const std::vector<size_t>& lhs,
                             const std::vector<size_t>& rhs,
                             size_t skipAxis = Shape::UNDEFINED_DIM) {
-    if (lhs.size() != rhs.size())
+    if (lhs.size() != rhs.size()) {
         return false;
+    }
 
     for (size_t i = 0; i < lhs.size(); i++) {
-        if (i != skipAxis && !dimsEqualStrong(lhs[i], rhs[i]))
+        if (i != skipAxis && !dimsEqualStrong(lhs[i], rhs[i])) {
             return false;
+        }
     }
 
     return true;
@@ -128,12 +143,14 @@ inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
 inline bool dimsEqualWeak(const std::vector<size_t>& lhs,
                           const std::vector<size_t>& rhs,
                           size_t skipAxis = Shape::UNDEFINED_DIM) {
-    if (lhs.size() != rhs.size())
+    if (lhs.size() != rhs.size()) {
         return false;
+    }
 
     for (size_t i = 0; i < lhs.size(); i++) {
-        if (i != skipAxis && !dimsEqualWeak(lhs[i], rhs[i]))
+        if (i != skipAxis && !dimsEqualWeak(lhs[i], rhs[i])) {
             return false;
+        }
     }
 
     return true;
@@ -163,8 +180,9 @@ inline std::vector<std::string> split(const std::string& str, char delim) {
 
 template <class Container>
 inline std::string join(const Container& strs, char delim) {
-    if (strs.empty())
-        return std::string();
+    if (strs.empty()) {
+        return {};
+    }
 
     std::stringstream result;
     auto it = strs.begin();
@@ -175,5 +193,16 @@ inline std::string join(const Container& strs, char delim) {
     return result.str();
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+template <typename Container, typename T>
+inline bool any_of_values(const Container& container, const T& value) {
+    return std::find(container.begin(), container.end(), value) != container.end();
+}
+
+template <typename Container, typename T>
+inline bool all_of_values(const Container& container, const T& value) {
+    return std::all_of(container.begin(), container.end(), [&](const auto& elem) {
+        return elem == value;
+    });
+}
+
+}  // namespace ov::intel_cpu

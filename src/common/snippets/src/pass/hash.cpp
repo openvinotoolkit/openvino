@@ -42,17 +42,40 @@ struct Edge {
     int to_port = 0;
 };
 
-enum class AttrType {layers, layer, id, type, data, rt_info, attribute, name, version, input, port, precision, dimension, output, value,
-                     edges, edge, from_layer, from_port, to_layer, to_port, constant, size};
+enum class AttrType {
+    layers,
+    layer,
+    id,
+    type,
+    data,
+    rt_info,
+    attribute,
+    name,
+    version,
+    input,
+    port,
+    precision,
+    dimension,
+    output,
+    value,
+    edges,
+    edge,
+    from_layer,
+    from_port,
+    to_layer,
+    to_port,
+    constant,
+    size
+};
 
-template <typename T, typename std::enable_if<!std::is_enum<T>::value , int>::type = 0>
-static uint64_t hash_combine(uint64_t seed, const T &v) {
+template <typename T, typename std::enable_if<!std::is_enum<T>::value, int>::type = 0>
+static uint64_t hash_combine(uint64_t seed, const T& v) {
     // Hash combine formula from boost
-    return seed ^= std::hash<T> {}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    return seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-template <typename T, typename std::enable_if<std::is_enum<T>::value , int>::type = 0>
-static uint64_t hash_combine(uint64_t seed, const T &v) {
+template <typename T, typename std::enable_if<std::is_enum<T>::value, int>::type = 0>
+static uint64_t hash_combine(uint64_t seed, const T& v) {
     using underlying_t = typename std::underlying_type<T>::type;
     return hash_combine(seed, static_cast<underlying_t>(v));
 }
@@ -146,11 +169,10 @@ public:
     }
 };
 
-} // namespace rt_info
+}  // namespace rt_info
 
 void ovfunction_2_hash(uint64_t& hash, const ov::Model& model);
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 class SnippetsHasher : public ov::AttributeVisitor {
     uint64_t& m_hash;
     const std::string& m_node_type_name;
@@ -161,16 +183,14 @@ class SnippetsHasher : public ov::AttributeVisitor {
     }
 
 public:
-    SnippetsHasher(uint64_t& hash,
-                  const std::string& node_type_name)
+    SnippetsHasher(uint64_t& hash, const std::string& node_type_name)
         : m_hash(hash),
           m_node_type_name(node_type_name) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_hash = hash_combine(hash_combine(m_hash, name), a->get()->get_info().variable_id);
-        } else if (const auto& a =
-                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && m_node_type_name == "Constant") {
                 m_hash = hash_combine(m_hash, AttrType::constant);
                 const int64_t size = a->get()->size();
@@ -235,7 +255,6 @@ public:
         ovfunction_2_hash(m_hash, *adapter.get());
     }
 };
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
     std::unordered_map<ov::Node*, int> layer_ids;
@@ -246,8 +265,7 @@ std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
     return layer_ids;
 }
 
-std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids,
-                                            const ov::Model& model) {
+std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids, const ov::Model& model) {
     std::vector<Edge> edges;
     for (const auto& node : model.get_ordered_ops()) {
         if (ov::op::util::is_parameter(node)) {
@@ -295,8 +313,7 @@ void hash_rt_info(uint64_t& hash, const std::string& name, const ov::Any& data) 
     }
 }
 
-void ovfunction_2_hash(uint64_t& hash,
-                     const ov::Model& model) {
+void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
     hash = hash_combine(hash, AttrType::layers);
 
     const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(model);
@@ -319,19 +336,18 @@ void ovfunction_2_hash(uint64_t& hash,
         hash = hash_combine(hash, AttrType::data);
         auto append_runtime_info = [&](uint64_t& hash, ov::RTMap& attributes) {
             hash = hash_combine(hash, AttrType::rt_info);
-            for (auto& item : attributes) {
-                if (item.second.is<ov::RuntimeAttribute>()) {
-                    auto& rt_attribute = item.second.as<ov::RuntimeAttribute>();
-                    const auto& type_info = rt_attribute.get_type_info();
-                    if (!strcmp(type_info.name, "fused_names")) {
-                        continue;
-                    }
-                    hash = hash_combine(hash, AttrType::attribute);
-                    hash = hash_combine(hash_combine(hash, AttrType::name), type_info.name);
-                    hash = hash_combine(hash_combine(hash, AttrType::version), type_info.get_version());
+            for (const auto& [name, attribute] : attributes) {
+                if (attribute.is<ov::RuntimeAttribute>()) {
+                    if (const auto& rt_attribute = attribute.as<ov::RuntimeAttribute>();
+                        rt_attribute.is_deterministic()) {
+                        const auto& type_info = rt_attribute.get_type_info();
+                        hash = hash_combine(hash, AttrType::attribute);
+                        hash = hash_combine(hash_combine(hash, AttrType::name), type_info.name);
+                        hash = hash_combine(hash_combine(hash, AttrType::version), type_info.get_version());
 
-                    rt_info::RTInfoHasher rt_info_visitor(hash);
-                    rt_attribute.visit_attributes(rt_info_visitor);
+                        rt_info::RTInfoHasher rt_info_visitor(hash);
+                        rt_attribute.visit_attributes(rt_info_visitor);
+                    }
                 }
             }
         };

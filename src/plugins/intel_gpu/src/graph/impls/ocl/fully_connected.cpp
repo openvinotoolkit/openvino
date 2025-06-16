@@ -67,10 +67,10 @@ protected:
 
         args.inputs = { instance.input_memory_ptr(0) };
         size_t in_id = instance.bias_term() ? 3 : 2;
-        if (!desc->decompression_scale.empty())
+        if (desc->decompression_scale.is_valid())
             args.inputs.push_back(instance.dep_memory_ptr(in_id++));
 
-        if (!desc->decompression_zero_point.empty())
+        if (desc->decompression_zero_point.is_valid())
             args.inputs.push_back(instance.dep_memory_ptr(in_id));
 
         return args;
@@ -115,10 +115,10 @@ public:
 
             std::vector<layout> layouts{input0_layout, input1_layout};
 
-            bool has_zp = !primitive->decompression_zero_point.empty();
-            bool has_scale = !primitive->decompression_scale.empty();
+            bool has_zp = primitive->decompression_zero_point.is_valid();
+            bool has_scale = primitive->decompression_scale.is_valid();
 
-            size_t offset = primitive->bias.empty() ? 2 : 3;
+            size_t offset = primitive->bias.is_valid() ? 3 : 2;
             if (has_scale) {
                 auto scale_layout = input_layouts[offset++];
                 layouts.push_back(scale_layout);
@@ -175,14 +175,19 @@ public:
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         params.allowInputReordering = true;
 
-        bool commpressed = !primitive->decompression_scale.empty();
-        bool with_zp = !primitive->decompression_zero_point.empty();
+        bool commpressed = primitive->decompression_scale.is_valid();
+        bool with_zp = primitive->decompression_zero_point.is_valid();
         if (commpressed) {
             params.compressed = true;
             params.decompression_scale = convert_data_tensor(updated_impl_param.input_layouts[2]);
             if (with_zp) {
                 params.has_decompression_zp = true;
                 params.decompression_zero_point = convert_data_tensor(updated_impl_param.input_layouts[3]);
+                if (updated_impl_param.input_layouts[3].get_linear_size() == 1 &&
+                    primitive->decompression_zero_point_scalar.has_value()) {
+                    params.scalar_zp = true;
+                    params.zp_value = primitive->decompression_zero_point_scalar.value();
+                }
             } else if (primitive->decompression_zero_point_scalar.has_value()) {
                 params.has_decompression_zp = true;
                 params.scalar_zp = true;
@@ -203,7 +208,8 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_dynamic_quantization_group_size();
+        params.dynamic_quantization_group_size =
+            impl_param.get_program().get_config().get_dynamic_quantization_group_size();
 
         return params;
     }
@@ -267,6 +273,8 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
         std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
     });
 }
 
