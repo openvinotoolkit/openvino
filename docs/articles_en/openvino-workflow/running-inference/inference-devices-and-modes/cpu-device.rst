@@ -424,8 +424,7 @@ A common way to speed up computations is to treat denormals as zero, as they are
 However, this optimization does not comply with IEEE 754 standard and may reduce accuracy.
 To control this behavior, use the ``denormals_optimization`` property:
 
-* If your use case includes denormals and accuracy remains acceptable, set  ``denormals_optimization``
-to `True` to improve performance. Otherwise set it to ``False``.
+* If your use case includes denormals and accuracy remains acceptable, set  ``denormals_optimization`` to `True` to improve performance. Otherwise set it to ``False``.
 * If the property is not set and the application does not optimize denormals, the optimization is turned off by default.
 
 When ``denormals_optimization`` is enabled, OpenVINO applies a safe, cross-platform optimization
