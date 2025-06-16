@@ -216,7 +216,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
-    if ((activation_type == utils::ActivationTypes::Floor) ||
+    if ((activation_type == utils::ActivationTypes::Erf) ||
+       (activation_type == utils::ActivationTypes::Floor) ||
        (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
