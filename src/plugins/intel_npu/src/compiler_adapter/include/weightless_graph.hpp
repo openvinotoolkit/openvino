@@ -30,7 +30,7 @@ public:
                     const std::vector<ze_graph_handle_t>& initGraphHandles,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                    const std::shared_ptr<ov::Model>& model,
+                    const std::shared_ptr<const ov::Model>& model,
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
@@ -79,7 +79,7 @@ private:
     std::vector<ze_graph_handle_t> _initsHandles;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initsMetadata;
-    std::shared_ptr<ov::Model> _model;
+    std::shared_ptr<const ov::Model> _model;
 
     std::vector<std::vector<ArgumentDescriptor>> _initsInputDescriptors;
     std::vector<std::vector<ArgumentDescriptor>> _initsOutputDescriptors;

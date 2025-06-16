@@ -8,6 +8,6 @@
 
 namespace intel_npu {
 
-void runOVPasses(const std::shared_ptr<ov::Model>& model);
+std::shared_ptr<ov::Model> runOVPasses(const std::shared_ptr<const ov::Model>& model);
 
 }  // namespace intel_npu

@@ -710,7 +710,7 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
                                 ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
     }
 
-    std::shared_ptr<ov::Model> originalModel;
+    std::shared_ptr<const ov::Model> originalModel;
     std::vector<ov::Tensor> tensorsInits;
     const bool weightsSeparationEnabled = initSizes.has_value();
 
@@ -731,8 +731,8 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
         }
 
         // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
-        if (config.get<MODEL_PTR>()) {
-            originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>();
+        if (properties.count(ov::hint::model.name())) {
+            originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
         } else if (!config.get<WEIGHTS_PATH>().empty()) {
             const std::string weightsPath = config.get<WEIGHTS_PATH>();
             const size_t weightsPathLength = weightsPath.length();
@@ -770,7 +770,7 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
             !weightlessCacheAttributeMatch->second.as<bool>()) {
             // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of
             // the ov::Model object with the init inputs
-            runOVPasses(originalModel);
+            originalModel = runOVPasses(originalModel);
             _logger.warning(
                 "OV common model passes were applied inside the NPU plugin as part of the \"weights separation\" flow. "
                 "This "

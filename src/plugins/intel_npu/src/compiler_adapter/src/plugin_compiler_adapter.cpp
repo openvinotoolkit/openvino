@@ -238,11 +238,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
                                              _compiler);
 }
 
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor mainBlob,
-                                                     const bool blobAllocatedByPlugin,
-                                                     const Config& config,
-                                                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                                                     const std::optional<std::shared_ptr<ov::Model>>& model) const {
+std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
+    ov::Tensor mainBlob,
+    const bool blobAllocatedByPlugin,
+    const Config& config,
+    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");

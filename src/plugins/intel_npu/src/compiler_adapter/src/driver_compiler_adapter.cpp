@@ -162,7 +162,7 @@ void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
             ov::RTMap& runtimeInfoMap = node->get_rt_info();
             const auto& weightlessCacheAttrIt =
                 runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            
+
             const std::string constantIdString = std::to_string(constantId++);
             if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
                 auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
@@ -331,10 +331,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
     // If "WeightlessCacheAttribute" fields have not been added to the Constant nodes, then we have to fallback to the
     // approach that relies on running the common OV passes inside the plugin as well
+    std::shared_ptr<ov::Model> probablyModifiedModel = model;
     if (!weightlessCacheAttributeFound) {
         // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of the
         // ov::Model object with the init inputs
-        runOVPasses(model);
+        probablyModifiedModel = runOVPasses(model);
         _logger.warning(
             "OV common model passes were applied inside the NPU plugin as part of the \"weights separation\" flow. "
             "This "
@@ -350,15 +351,16 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                              initGraphHandles,
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
-                                             model,
+                                             probablyModifiedModel,
                                              config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor mainBlob,
-                                                     const bool blobAllocatedByPlugin,
-                                                     const Config& config,
-                                                     std::optional<std::vector<ov::Tensor>> initBlobs,
-                                                     const std::optional<std::shared_ptr<ov::Model>>& model) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
+    ov::Tensor mainBlob,
+    const bool blobAllocatedByPlugin,
+    const Config& config,
+    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
