@@ -36,7 +36,7 @@
 namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
-BrgemmCPU::BrgemmCPU() : m_config(BrgemmConfig{}), m_post_ops_config(PostopsConfig{}), m_gemm_inputs_count(0) {}
+BrgemmCPU::BrgemmCPU() : m_config(BrgemmConfig{}) {}
 
 BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      BrgemmConfig config,
