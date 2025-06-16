@@ -23,9 +23,12 @@
 #include "openvino/opsets/opset12_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 
 using namespace testing;
 using namespace ov;
+using namespace ov::element;
 using namespace ov::opset12;
 
 namespace {
@@ -33,7 +36,8 @@ namespace {
 std::shared_ptr<ov::Node> make_dq_weights(const ov::element::Type& quant_type,
                                           const ov::Shape& w_shape,
                                           float scale,
-                                          float zp) {
+                                          float zp,
+                                          bool dq_markup = false) {
     auto w = ov::op::v0::Constant::create(quant_type, w_shape, {1.0f});
     auto w_f = std::make_shared<ov::op::v0::Convert>(w, ov::element::f32);
 
@@ -43,7 +47,14 @@ std::shared_ptr<ov::Node> make_dq_weights(const ov::element::Type& quant_type,
 
     std::vector<size_t> scale_shape(w_shape.size(), 1);
     auto scale_const = ov::op::v0::Constant::create(ov::element::f32, scale_shape, {scale});
-    return std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
+    auto mul = std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
+
+    if (dq_markup) {
+        mark_as_dequantization_node(sub);
+        mark_as_dequantization_node(mul);
+        disable_constant_folding(zp_f);
+    }
+    return mul;
 }
 
 }  // namespace
@@ -224,12 +235,12 @@ TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
         const float conv_scale = 0.05f, conv_zp = 2.f;
 
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 128});
-        auto matmul_weight = make_dq_weights(qtype, ov::Shape{128, 64}, matmul_scale, matmul_zp);
+        auto matmul_weight = make_dq_weights(qtype, ov::Shape{128, 64}, matmul_scale, matmul_zp, true);
         auto matmul = std::make_shared<ov::op::v0::MatMul>(input, matmul_weight, false, false);
 
         auto reshape_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 64, 1, 1});
         auto reshape = std::make_shared<ov::op::v1::Reshape>(matmul, reshape_const, false);
-        auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp);
+        auto conv_weight = make_dq_weights(qtype, ov::Shape{8, 64, 1, 1}, conv_scale, conv_zp, true);
         auto conv = std::make_shared<ov::op::v1::Convolution>(reshape,
                                                               conv_weight,
                                                               ov::Strides{1, 1},
@@ -244,22 +255,7 @@ TEST_P(QuantWeightsTestP, MatMul_Conv_QuantWeights) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-INSTANTIATE_TEST_SUITE_P(QuantWeightTypes,
-                         QuantWeightsTestP,
-                         ::testing::Values(ov::element::i32,
-                                           ov::element::u32,
-                                           ov::element::i16,
-                                           ov::element::u16,
-                                           ov::element::i8,
-                                           ov::element::u8,
-                                           ov::element::u6,
-                                           ov::element::i4,
-                                           ov::element::u4,
-                                           ov::element::nf4,
-                                           ov::element::u3,
-                                           ov::element::u2,
-                                           ov::element::u1,
-                                           ov::element::f4e2m1,
-                                           ov::element::f8e4m3,
-                                           ov::element::f8e5m2,
-                                           ov::element::f8e8m0));
+INSTANTIATE_TEST_SUITE_P(
+    QuantWeightTypes,
+    QuantWeightsTestP,
+    ::testing::Values(i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f4e2m1, f8e4m3, f8e5m2, f8e8m0));
