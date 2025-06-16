@@ -5,7 +5,7 @@
 
 #include "overload/ov_plugin/internal_properties_tests.hpp"
 
-#include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
 namespace ov::test::behavior {
@@ -139,7 +139,6 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     {{ov::internal::exclusive_async_requests.name(), true}},
-    {{ov::intel_npu::dpu_groups.name(), 1}},
     {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
     {{ov::intel_npu::platform.name(),

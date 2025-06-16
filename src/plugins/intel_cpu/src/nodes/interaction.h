@@ -4,11 +4,22 @@
 
 #pragma once
 
-#include "node.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_memory.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+
+namespace ov::intel_cpu::node {
 
 struct jit_move_scale_compile_params {
     ov::element::Type src_prc;
@@ -25,15 +36,15 @@ struct jit_move_scale_call_args {
 };
 
 struct jit_uni_move_scale_kernel {
-    void (*ker_)(const jit_move_scale_call_args*);
+    void (*ker_)(const jit_move_scale_call_args*) = nullptr;
 
-    void operator()(const jit_move_scale_call_args* call_args) {
+    void operator()(const jit_move_scale_call_args* call_args) const {
         assert(ker_);
         ker_(call_args);
     }
 
-    explicit jit_uni_move_scale_kernel(const jit_move_scale_compile_params& jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_move_scale_kernel() {}
+    explicit jit_uni_move_scale_kernel(const jit_move_scale_compile_params& jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_move_scale_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -74,6 +85,4 @@ private:
     std::unique_ptr<jit_uni_move_scale_kernel> moveInteractKernel;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

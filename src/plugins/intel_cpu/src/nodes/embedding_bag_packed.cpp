@@ -5,11 +5,30 @@
 #include "embedding_bag_packed.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/embedding_bag.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/embeddingbag_packed.hpp"
 #include "openvino/op/embeddingbag_packedsum.hpp"
+#include "openvino/op/util/embeddingbag_packed_base.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -31,7 +50,7 @@ bool EmbeddingBagPacked::isSupportedOperation(const std::shared_ptr<const ov::No
 
 EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      EmbeddingBag(op, 2lu, 1lu, 2lu, 3lu) {
+      EmbeddingBag(op, 2LU, 1LU, 2LU, 3LU) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -51,7 +70,7 @@ EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, cons
                                ov::as_string(packed_op->get_reduction()));
         }
     }
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 2ul) {
+    if (getInputShapeAtPort(INDICES_IDX).getRank() != 2UL) {
         THROW_CPU_NODE_ERR("has indices data with invalid rank.");
     }
 }
@@ -108,7 +127,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
                                     size_t& size,
                                     int& weightsIdx,
                                     bool& withWeight) {
-    if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag) {
+    if (embIndex >= _batch * _indicesPerBag) {
         THROW_CPU_NODE_ERR("Invalid embedding bag index.");
     }
 

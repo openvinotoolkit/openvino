@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "snippets/emitter.hpp"
-
 #include "openvino/op/op.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov {
 namespace snippets {
@@ -22,13 +21,15 @@ public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
     LoopBase(const std::vector<Output<Node>>& args);
     LoopBase() = default;
+
 protected:
 };
 class LoopEnd;
 /**
  * @interface LoopBegin
  * @brief Marks the start of the Loop region.
- *        Number of outputs always equals to the number of inputs (bypassed values) + 1 (edge to the corresponding LoopEnd)
+ *        Number of outputs always equals to the number of inputs (bypassed values) + 1 (edge to the corresponding
+ * LoopEnd)
  * @param args - vector of input values, they are passed directly to output.
  * @ingroup snippets
  */
@@ -50,12 +51,14 @@ protected:
 /**
  * @interface LoopEnd
  * @brief Marks the end of the Loop region and defines the loop properties.
- *        Number of outputs always equals to the number of inputs (bypassed values) - 1 (edge to the corresponding LoopEnd)
+ *        Number of outputs always equals to the number of inputs (bypassed values) - 1 (edge to the corresponding
+ *        LoopEnd)
  * @param args vector of input values + LoopBegin, all values except for the LoopBegin are passed directly to output.
  * @param work_amount total number of evaluations to be processed by the loop
  * @param increment number of evaluations processed in one iteration of the loop.
  * @param is_incremented describes which data pointers attributed to the loop should be incremented on every iteration.
- * @param ptr_increments specifies i/o pointer increment performed on every iteration if the following is_incremented[i] is true
+ * @param ptr_increments specifies i/o pointer increment performed on every iteration if the following is_incremented[i]
+ *                       is true
  * @param finalization_offsets pointer increments that are be applied to i/o pointers before exiting the loop
  * @param id the identifier of Loop in Loop system in LoopManager
  * @ingroup snippets
@@ -64,9 +67,16 @@ class LoopEnd : public LoopBase {
 public:
     OPENVINO_OP("LoopEnd", "SnippetsOpset", LoopBase);
     LoopEnd() = default;
-    LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
-            std::vector<bool> is_incremented, std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets,
-            std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num, size_t id);
+    LoopEnd(const Output<Node>& loop_begin,
+            size_t work_amount,
+            size_t work_amount_increment,
+            std::vector<bool> is_incremented,
+            std::vector<int64_t> ptr_increments,
+            std::vector<int64_t> finalization_offsets,
+            std::vector<int64_t> element_type_sizes,
+            size_t input_num,
+            size_t output_num,
+            size_t id);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -105,9 +115,10 @@ protected:
     size_t m_output_num = 0;
     size_t m_id = 0;  // the corresponding Loop identificator in LoopManager
 
-    bool m_evaluate_once = false; // true if the Loop is executed only once, used to skip setting and testing the loop counter
+    // m_evaluate_once is true if the Loop is executed only once, used to skip setting and testing the loop counter
+    bool m_evaluate_once = false;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

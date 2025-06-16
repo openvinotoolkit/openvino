@@ -5,14 +5,14 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
-#include "defs.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 struct jit_uni_softmax_kernel;
 
@@ -24,8 +24,9 @@ static inline void softmax_many_batches(const float* src_data, float* dst_data, 
         float max = psrc[i];
         for (int c = 0; c < C; c++) {
             float val = psrc[c * H * W + i];
-            if (val > max)
+            if (val > max) {
                 max = val;
+            }
         }
 
         float expSum = 0;
@@ -50,11 +51,9 @@ private:
     template <typename in_data_t, typename out_data_t>
     void calculate(const in_data_t* src_data, out_data_t* dst_data, int B, int C, int H, int W);
 
-private:
     int block_size;
     ov::element::Type input_prec, output_prec;
     std::shared_ptr<jit_uni_softmax_kernel> softmax_kernel;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

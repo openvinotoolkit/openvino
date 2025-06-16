@@ -476,9 +476,14 @@ public:
     static std::unique_ptr<primitive_impl> create(const typed_program_node<scaled_dot_product_attention>& arg, const kernel_impl_params& impl_param) {
         std::vector<kernel_selector::kernel_data> kernels_data;
         auto& kernel_selector = kernel_selector_t::Instance();
-        auto params = impl_param.output_layouts[0].get_partial_shape().size() == 4 ? impl_param : static_canonicalize_shapes(impl_param);
+        const bool is_output_rank_4d = impl_param.output_layouts[0].get_partial_shape().size() == 4;
+        auto params = is_output_rank_4d ? impl_param : static_canonicalize_shapes(impl_param);
 
         auto sdpa_kernel_params = get_kernel_params(params, params.is_dynamic());
+        // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
+        // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
+        if (!is_output_rank_4d)
+            sdpa_kernel_params.should_use_sdpa_opt = true;
         kernels_data.push_back(kernel_selector.get_best_kernel(sdpa_kernel_params));
         if (has_indirect_inputs(params)) {
             auto indirect_kernel_params = get_kernel_params(params, params.is_dynamic(), true);

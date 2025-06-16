@@ -4,9 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <unordered_map>
+#include <vector>
+
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov::intel_cpu {
 
@@ -66,7 +75,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const PoolingAttrs& poolingAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual PoolingExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using PoolingExecutorBuilderPtr = std::shared_ptr<PoolingExecutorBuilder>;
