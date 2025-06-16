@@ -626,7 +626,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         }
         if (attrs.at(PtFrameworkNode::op_type_key) == "aten::append") {
             auto elem = input_fw_node->get_input_source_output(1);
-            if (unsqueeze_for_concat) {
+            if (unsqueeze_for_concat && !(elem.get_partial_shape().is_dynamic())) {
                 elem = std::make_shared<v0::Unsqueeze>(elem, zero);
             }
             res.push_front(elem);
@@ -643,7 +643,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         auto inputs = list_construct->inputs();
         for (auto input_it = inputs.rbegin(); input_it != inputs.rend(); ++input_it) {
             auto elem = input_it->get_source_output();
-            if (unsqueeze_for_concat) {
+            if (unsqueeze_for_concat && !(elem.get_partial_shape().is_dynamic())) {
                 elem = std::make_shared<v0::Unsqueeze>(elem, zero);
             }
             res.push_front(elem);
