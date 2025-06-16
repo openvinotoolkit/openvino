@@ -93,8 +93,11 @@ protected:
         auto pre_mvn_reshape = std::make_shared<op::v1::Reshape>(input, pre_mvn_shape_const, true);
 
         auto mvn_axes_const = op::v0::Constant::create<long long>(element::i64, Shape{1}, {2});
-        auto mvn =
-            std::make_shared<op::v6::MVN>(pre_mvn_reshape, mvn_axes_const, true, static_cast<float>(epsilon), op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn = std::make_shared<op::v6::MVN>(pre_mvn_reshape,
+                                                 mvn_axes_const,
+                                                 true,
+                                                 static_cast<float>(epsilon),
+                                                 op::MVNEpsMode::INSIDE_SQRT);
 
         std::shared_ptr<Node> opt_instance_norm_gamma_multiply = mvn;
         if (instance_norm_gamma_present)
