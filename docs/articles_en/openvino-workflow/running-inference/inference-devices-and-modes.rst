@@ -26,7 +26,7 @@ You can run inference on a single device or use automated modes that manage mult
 |    :doc:`NPU <inference-devices-and-modes/npu-device>`
 
 | **automated inference modes**
-     These modes automate device selection and workload distribution, potentially increasing 
+|     These modes automate device selection and workload distribution, potentially increasing 
      performance and portability:
 |    :doc:`Automatic Device Selection (AUTO) <inference-devices-and-modes/auto-device-selection>`
 |    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`  across different device types

@@ -75,7 +75,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - ``INT8`` (Intel® x86-64)
   - ``uINT1`` (Intel® x86-64)
 
-:doc: Use `Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>`
+Use :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>`
 to print out supported data types for all detected devices.
 
 
@@ -105,7 +105,7 @@ CPU plugin supports the following floating-point data types as inference precisi
 The default floating-point precision of a CPU primitive is ``f32``. To support the ``f16``
 OpenVINO IR on platforms that do not natively support ``float16``, the plugin internally converts
 all the ``f16`` values to ``f32``, and all calculations run using the native ``f32`` precision.
-On platforms that support half-precision calculations (``bfloat16`` or ``float16``), the plugin uses
+On platforms that support half-precision calculations (bfloat16 or float16), the plugin uses
 the half-precision type (``bf16`` or ``f16``) automatically instead of ``f32`` to improve performance
 (see the `Execution Mode Hint <#execution-mode-hint>`__).
 No special steps are required to run a model with ``bf16`` or ``f16`` inference precision.
@@ -424,9 +424,9 @@ A common way to speed up computations is to treat denormals as zero, as they are
 However, this optimization does not comply with IEEE 754 standard and may reduce accuracy.
 To control this behavior, use the ``denormals_optimization`` property:
 
-  * If your use case includes denormals and accuracy remains acceptable, set  ``denormals_optimization``
-    to `True` to improve performance. Otherwise set it to ``False``.
-  * If the property is not set and the application does not optimize denormals, the optimization is turned off by default.
+* If your use case includes denormals and accuracy remains acceptable, set  ``denormals_optimization``
+to `True` to improve performance. Otherwise set it to ``False``.
+* If the property is not set and the application does not optimize denormals, the optimization is turned off by default.
 
 When ``denormals_optimization`` is enabled, OpenVINO applies a safe, cross-platform optimization
 to handle denormals efficiently.
