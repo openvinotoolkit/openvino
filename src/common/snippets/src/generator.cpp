@@ -74,22 +74,35 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
     if (reg_type != RegType::undefined)
         return reg_type;
     const auto op = out.get_node_shared_ptr();
-    if (is_type<ov::op::v0::Parameter>(op) || is_type<ov::op::v0::Result>(op) || is_type<op::LoopBegin>(op) ||
-        is_type<op::LoopEnd>(op) || is_type<op::Brgemm>(op) || is_type<op::Buffer>(op) ||
-        is_type<op::RankNormalization>(op) || is_type<op::Reshape>(op) || is_type<op::Reorder>(op) ||
-        is_type<snippets::op::Store>(op)
+    if (is_type_any_of<ov::op::v0::Parameter,
+                       ov::op::v0::Result,
+                       op::LoopBegin,
+                       op::LoopEnd,
+                       op::Brgemm,
+                       op::Buffer,
+                       op::RankNormalization,
+                       op::Reshape,
+                       op::Reorder,
+                       snippets::op::Store>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
-        || is_type<op::PerfCountBeginBase>(op) || is_type<op::PerfCountEndBase>(op)
+        || is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(op)
 #endif
     )
         return RegType::gpr;
-    else if (is_type<snippets::op::Load>(op) || is_type<snippets::op::BroadcastLoad>(op) ||
-             ov::op::util::is_unary_elementwise_arithmetic(op) || ov::op::util::is_binary_elementwise_arithmetic(op) ||
+    else if (ov::op::util::is_unary_elementwise_arithmetic(op) || ov::op::util::is_binary_elementwise_arithmetic(op) ||
              ov::op::util::is_binary_elementwise_comparison(op) || ov::op::util::is_binary_elementwise_logical(op) ||
-             is_type<ov::op::v1::LogicalNot>(op) || is_type<ov::op::v0::PRelu>(op) ||
-             is_type<ov::op::v0::Convert>(op) || is_type<ov::op::v1::Select>(op) || is_type<op::VectorBuffer>(op) ||
-             is_type<op::BroadcastMove>(op) || is_type<op::Scalar>(op) || is_type<op::HorizonMax>(op) ||
-             is_type<op::HorizonSum>(op) || is_type<op::Fill>(op))
+             is_type_any_of<snippets::op::Load,
+                            snippets::op::BroadcastLoad,
+                            ov::op::v1::LogicalNot,
+                            ov::op::v0::PRelu,
+                            ov::op::v0::Convert,
+                            ov::op::v1::Select,
+                            op::VectorBuffer,
+                            op::BroadcastMove,
+                            op::Scalar,
+                            op::HorizonMax,
+                            op::HorizonSum,
+                            op::Fill>(op))
         return RegType::vec;
     else
         OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
