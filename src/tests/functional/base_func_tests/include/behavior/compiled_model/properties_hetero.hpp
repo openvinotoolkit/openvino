@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <base/ov_behavior_test_utils.hpp>
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>

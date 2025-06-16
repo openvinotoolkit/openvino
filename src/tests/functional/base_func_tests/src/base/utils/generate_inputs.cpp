@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <functional>
 
-#include "base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -15,7 +15,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/common_utils.hpp"

@@ -9,7 +9,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convolution.hpp"

@@ -7,7 +7,7 @@
 #include <tuple>
 #include <string>
 
-#include "base/snippets_test_utils.hpp"
+#include "shared_test_classes/base/snippets_test_utils.hpp"
 
 namespace ov {
 namespace test {

@@ -5,7 +5,7 @@
 
 #include <thread>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/2_input_subtract.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"

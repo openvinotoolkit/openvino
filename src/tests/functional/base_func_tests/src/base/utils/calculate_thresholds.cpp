@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base/utils/calculate_thresholds.hpp"
+#include "shared_test_classes/base/utils/calculate_thresholds.hpp"
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/model.hpp"

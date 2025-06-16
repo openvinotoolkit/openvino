@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include "common_test_utils/ov_plugin_cache.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {

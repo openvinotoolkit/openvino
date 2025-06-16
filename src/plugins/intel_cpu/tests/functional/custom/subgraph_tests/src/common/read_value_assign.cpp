@@ -4,7 +4,7 @@
 
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
 /* The main purpose of this test set is to test ReadValue->Assign direct connection optimizations, i.e.

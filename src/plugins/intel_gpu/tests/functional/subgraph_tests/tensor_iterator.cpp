@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base/ov_subgraph.hpp"
-#include "base/utils/ranges.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 #include "subgraphs_builders.hpp"
 
 #include "openvino/op/parameter.hpp"

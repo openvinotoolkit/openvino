@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 namespace ov {

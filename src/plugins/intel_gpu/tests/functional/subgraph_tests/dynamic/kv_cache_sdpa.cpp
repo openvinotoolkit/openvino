@@ -13,8 +13,8 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
-#include "base/ov_subgraph.hpp"
-#include "base/utils/compare_results.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
 #include "subgraphs_builders.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 

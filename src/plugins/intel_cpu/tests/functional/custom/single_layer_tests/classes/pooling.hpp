@@ -6,7 +6,7 @@
 
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "single_op/pooling.hpp"
 
 using namespace CPUTestUtils;

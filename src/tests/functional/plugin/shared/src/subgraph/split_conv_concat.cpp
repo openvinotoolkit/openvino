@@ -5,7 +5,7 @@
 #include "subgraph/split_conv_concat.hpp"
 
 #include "common_test_utils/data_utils.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/relu.hpp"

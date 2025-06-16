@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {

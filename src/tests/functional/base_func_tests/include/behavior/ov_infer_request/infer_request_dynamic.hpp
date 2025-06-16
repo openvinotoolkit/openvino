@@ -15,9 +15,9 @@
 #include "openvino/core/shape.hpp"
 #include <string>
 #include <thread>
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 // TODO [mandrono]: move current test case inside CPU plug-in and return the original tests
 namespace ov {

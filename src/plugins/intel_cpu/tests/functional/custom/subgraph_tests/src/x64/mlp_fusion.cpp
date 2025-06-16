@@ -7,7 +7,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"

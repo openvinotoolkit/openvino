@@ -3,7 +3,7 @@
 //
 
 #include "openvino/runtime/exec_model_info.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/gather.hpp"

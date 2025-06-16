@@ -8,7 +8,7 @@
 #include "internal_properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "base/utils/compare_results.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
 #include "openvino/op/convert.hpp"
 
 

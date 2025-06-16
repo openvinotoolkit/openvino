@@ -8,7 +8,7 @@
 
 #include "custom/subgraph_tests/src/classes/eltwise_chain.hpp"
 
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
