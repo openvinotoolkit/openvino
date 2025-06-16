@@ -31,7 +31,10 @@ DynamicQuantize::DynamicQuantize(const Output<Node>& data, const Attributes& att
     size_t outputs_number = 2;
     if (m_attrs.quantization_type == QuantizationType::Asymmetric &&
         m_attrs.output_storage_type == OutputStorageType::Planar)
-        outputs_number = 3;
+        outputs_number++;
+    if (m_attrs.group_sizes_partial_sum.size() > 0) {
+        outputs_number++;
+    }
 
     OPENVINO_ASSERT(
         (m_attrs.output_storage_type == OutputStorageType::Planar) ||
@@ -65,12 +68,19 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
     out_shapes.push_back(input_shapes[0]);
 
     auto scale_shape = input_shapes[0];
+    auto partial_sum_shape = input_shapes[0];
     const auto& group_sizes = op->m_attrs.group_sizes;
+    const auto& group_sizes_partial_sum = op->m_attrs.group_sizes_partial_sum;
+
     OPENVINO_ASSERT(scale_shape.size() == group_sizes.size(),
                     "Scale_shape and group_size are supposed to have same rank: ",
                     scale_shape.size(),
                     " / ",
                     group_sizes.size());
+
+    OPENVINO_ASSERT(scale_shape.size() == group_sizes_partial_sum.size() || group_sizes_partial_sum.size() == 0,
+                    "Scale_shape and group_sizes_partial_sum are supposed to have same rank");
+
     for (size_t i = 0; i < scale_shape.size(); i++) {
         if (scale_shape[i].is_dynamic() || scale_shape[i] == 0)
             continue;
@@ -87,6 +97,22 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
     if (op->m_attrs.quantization_type == QuantizationType::Asymmetric &&
         op->m_attrs.output_storage_type == OutputStorageType::Planar)
         out_shapes.push_back(scale_shape);
+
+    // Add partial sum shape
+    // FIXME: refactor it to share code with scale_shape
+    if (group_sizes_partial_sum.size() > 0) {
+        for (size_t i = 0; i < partial_sum_shape.size(); i++) {
+            if (partial_sum_shape[i].is_dynamic() || partial_sum_shape[i] == 0)
+                continue;
+
+            if (group_sizes_partial_sum[i] == UINT64_MAX) {
+                partial_sum_shape[i] = 1;
+            } else {
+                partial_sum_shape[i] = ov::util::ceil_div(partial_sum_shape[i].get_length(), static_cast<int64_t>(group_sizes_partial_sum[i]));
+            }
+        }
+        out_shapes.push_back(partial_sum_shape);
+    }
 
     auto transpose_shape = [](const ov::PartialShape& shape, const std::vector<uint64_t>& scales_zp_output_order) {
         auto transposed_shape = shape;

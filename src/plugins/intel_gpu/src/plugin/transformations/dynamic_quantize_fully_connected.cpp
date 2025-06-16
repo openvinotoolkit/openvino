@@ -61,9 +61,21 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             config.zp_dt = element::u8; // it supports u8 only now
         }
 
+        if (group_size != UINT64_MAX && group_size > 0) {
+            // FIXME: it should be aligned with wei-zp group size
+            // FIXME: weight should have ZP
+            std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
+            group_sizes_partial_sum.back() = group_size;
+            config.group_sizes_partial_sum = group_sizes_partial_sum;
+            config.partial_sum_dt = element::f16;
+        }
+
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
+                                std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
+        // FIXME: it should be next of a_zp, not output(2)
+        auto optional_partial_sum = config.group_sizes_partial_sum.size() == 0 ?
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
 
         auto output_type = m_fc->get_output_type();
@@ -77,6 +89,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      optional_w_zp->output(0),
                                                                      dyn_quan->output(1),
                                                                      optional_a_zp,
+                                                                     optional_partial_sum,
                                                                      output_type);
 
         ov::replace_node(m_fc, new_fc);

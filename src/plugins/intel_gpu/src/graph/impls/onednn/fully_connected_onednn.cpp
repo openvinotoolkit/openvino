@@ -94,6 +94,14 @@ protected:
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_zp_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_mem->get_onednn_memory(desc)});
             }
+
+            if (is_dyn_quan_input && prim->activation_partial_sum.is_valid()) {
+                auto activation_partial_sum_idx = idx++;
+                auto act_partial_sum_mem = instance.dep_memory_ptr(activation_partial_sum_idx);
+                dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_partial_sum_mem->get_layout(), dnnl::memory::format_tag::ab, true);
+                args.insert({DNNL_ARG_ATTR_USER_PRECOMP_ZERO_POINTS | DNNL_ARG_SRC_0, act_partial_sum_mem->get_onednn_memory(desc)});
+            }
+
         }
 
         return args;
@@ -343,6 +351,7 @@ public:
             if (dynamic_quantized_activation_zp)
                 _attrs->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
         }
+        // FIXME: implementation for serialization
 
         auto prim_desc = get_matmul_primitive_descriptor(*impl_params, ib.get_engine(), input_size, weights_rank, has_bias, *_attrs);
         _pd = *prim_desc;
@@ -435,9 +444,23 @@ public:
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[src_scale_idx].data_type);
                 attr->set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, act_scale_data_type);
 
-                if (prim->activation_zero_point.is_valid())
+                if (prim->activation_zero_point.is_valid()) {
+                    idx++;
                     attr->set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size}, dnnl::memory::data_type::u8);
+                }
+
+                if (prim->dynamic_quantized_partial_sum) {
+                    // ASSERT: activation_zp is not there
+                    auto activation_partial_sum_idx = ++idx;
+                    auto& src_partial_sum_shape = impl_params.input_layouts[activation_partial_sum_idx].get_partial_shape();
+                    int src_ngroups_partial_sum = src_partial_sum_shape[src_partial_sum_shape.size() - 1].get_length();
+                    int src_group_size_partial_sum = innermost_len / src_ngroups_partial_sum;
+                    auto act_partial_sum_data_type = convert_data_type(impl_params.input_layouts[activation_partial_sum_idx].data_type);
+                    GPU_DEBUG_COUT << "src_group_size_partial_sum " << src_group_size_partial_sum << " impl_params.input_layouts[activation_partial_sum_idx].data_type " << impl_params.input_layouts[activation_partial_sum_idx].data_type << "  act_partial_sum_data_type " << (int)act_partial_sum_data_type << "  f16 " << (int)dnnl::memory::data_type::f16 << std::endl;
+                    attr->set_zero_points(DNNL_ARG_ATTR_USER_PRECOMP | DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size_partial_sum}, act_partial_sum_data_type);
+                }
             }
+
 
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
