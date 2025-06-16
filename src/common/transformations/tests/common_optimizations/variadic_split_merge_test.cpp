@@ -6,8 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <fstream>
-#include <map>
 #include <memory>
 #include <queue>
 #include <sstream>
@@ -18,10 +16,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/split.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
