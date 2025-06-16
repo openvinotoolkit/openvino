@@ -140,7 +140,8 @@ def compare_memcheck_2_runs(cur_values, references, output_file=None):
     orig_data = pandas.DataFrame(comparison_data)
     data = orig_data.dropna()
     
-    devices = data["device"].unique()
+    devices = data["devices"].unique()
+    print(data)
     for device in devices:
         frame = data[data["device"] == device]
         for field, comp_op in comparison_ops.items():
