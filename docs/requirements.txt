@@ -9,7 +9,7 @@ colorama==0.4.6
 Cython==3.0.12
 docutils==0.21.2
 idna==3.7
-imagesize==1.3.0
+imagesize==1.4.1
 importlib-metadata==4.8.0
 iniconfig==1.1.1
 ipython==8.18.1
