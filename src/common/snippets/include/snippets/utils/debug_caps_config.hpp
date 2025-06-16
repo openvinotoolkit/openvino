@@ -3,16 +3,16 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include "openvino/util/common_util.hpp"
-#include "openvino/core/except.hpp"
+#    include <bitset>
+#    include <memory>
+#    include <unordered_map>
+#    include <utility>
+#    include <vector>
 
-#include <bitset>
-#include <memory>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+#    include "openvino/core/except.hpp"
+#    include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace snippets {
@@ -55,8 +55,11 @@ public:
         std::vector<PropertySetterPtr> getPropertySetters() override {
             return {PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped LIRs")),
                     format.getPropertySetter(),
-                    PropertySetterPtr(new MultipleStringPropertySetter("passes", passes,
-                    "indicate dump LIRs around the passes. Support multiple passes with comma separated and case insensitive. 'all' means dump all passes"))};
+                    PropertySetterPtr(new MultipleStringPropertySetter(
+                        "passes",
+                        passes,
+                        "indicate dump LIRs around the passes. Support multiple passes with comma separated and case "
+                        "insensitive. 'all' means dump all passes"))};
         }
     } dumpLIR;
 
@@ -118,7 +121,9 @@ private:
     };
 
     struct MultipleStringPropertySetter : PropertySetter {
-        MultipleStringPropertySetter(const std::string& name, std::vector<std::string>& ref, const std::string&& valueDescription)
+        MultipleStringPropertySetter(const std::string& name,
+                                     std::vector<std::string>& ref,
+                                     const std::string&& valueDescription)
             : PropertySetter(name),
               propertyValues(ref),
               propertyValueDescription(valueDescription) {}
@@ -197,4 +202,4 @@ private:
 }  // namespace snippets
 }  // namespace ov
 
-#endif // SNIPPETS_DEBUG_CAPS
+#endif  // SNIPPETS_DEBUG_CAPS

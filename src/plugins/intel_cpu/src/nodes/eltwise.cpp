@@ -889,6 +889,7 @@ public:
                     Algorithm::EltwiseFloor,
                     Algorithm::EltwiseGreaterEqual,
                     Algorithm::EltwiseLogicalAnd,
+                    Algorithm::EltwiseLogicalNot,
                     Algorithm::EltwiseLogicalXor,
                     Algorithm::EltwiseMaximum,
                     Algorithm::EltwiseMinimum,
@@ -1407,8 +1408,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
 }
 
 Eltwise::Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, EltwiseShapeInferFactory()),
-      broadcastingPolicy(Undefined) {
+    : Node(op, context, EltwiseShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

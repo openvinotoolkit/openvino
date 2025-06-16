@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-#include "openvino/core/rt_info.hpp"
-
 #include "snippets/pass/convert_constants.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/op/scalar.hpp"
 
+#include "openvino/core/rt_info.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/subgraph.hpp"
 
 ov::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
     MATCHER_SCOPE(ConvertConstantsToScalars);
-    auto constants = std::make_shared<ov::pass::pattern::op::Label>(ov::pass::pattern::any_input(),
-                                                                    [](std::shared_ptr<Node> n) {
-                                                                        return ov::is_type<ov::op::v0::Constant>(n);
-                                                                    });
-    ov::graph_rewrite_callback callback = [](ov::pass::pattern::Matcher &m) {
+    auto constants =
+        std::make_shared<ov::pass::pattern::op::Label>(ov::pass::pattern::any_input(), [](std::shared_ptr<Node> n) {
+            return ov::is_type<ov::op::v0::Constant>(n);
+        });
+    ov::graph_rewrite_callback callback = [](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ConvertConstantsToScalars")
         auto constant = as_type_ptr<ov::op::v0::Constant>(m.get_match_root());
         if (ov::shape_size(constant->get_output_shape(0)) != 1)
