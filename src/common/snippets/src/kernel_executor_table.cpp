@@ -27,5 +27,5 @@ KernelExecutorTable::ExecTableState KernelExecutorTable::get_state() const {
     return result;
 }
 
-}// namespace snippets
-}// namespace ov
+}  // namespace snippets
+}  // namespace ov

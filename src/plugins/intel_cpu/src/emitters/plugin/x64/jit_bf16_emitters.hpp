@@ -20,7 +20,7 @@ namespace ov::intel_cpu {
 
 class jit_uni_vcvtneps2bf16 : public jit_emitter {
 public:
-    enum class conversion_mode { default_mode, saturation_mode };
+    enum class conversion_mode : uint8_t { default_mode, saturation_mode };
     jit_uni_vcvtneps2bf16(dnnl::impl::cpu::x64::jit_generator_t* host,
                           dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                           ov::element::Type exec_prc = ov::element::bf16,
@@ -127,12 +127,12 @@ private:
         }
     }
 
-    inline int encode_fixup_selector(int input, int output) {
+    static int encode_fixup_selector(int input, int output) {
         return ((output) << (4 * (input)));
     }
 
     void register_table_entries() override {
-        enum {
+        enum : uint8_t {
             fixup_input_code_qnan_ = 0,
             fixup_input_code_snan_ = 1,
             fixup_input_code_ninf_ = 4,

@@ -46,19 +46,19 @@ private:
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
 
-    inline Xbyak::Reg64 get_src_reg(int idx) {
+    Xbyak::Reg64 get_src_reg(int idx) {
         return Xbyak::Reg64(r8.getIdx() + idx);
     }
 
-    inline Vmm get_vmm_reg(int idx) {
+    Vmm get_vmm_reg(int idx) {
         return Vmm(1 + idx);
     }
 
-    inline Vmm get_aux_vmm(int idx) {
+    Vmm get_aux_vmm(int idx) {
         return Vmm(10 + idx);
     }
 
-    inline Xbyak::Xmm get_xmm_reg(int idx) {
+    Xbyak::Xmm get_xmm_reg(int idx) {
         return Xbyak::Xmm(get_vmm_reg(idx).getIdx());
     }
 
@@ -91,10 +91,9 @@ private:
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
-    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
+    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
 
-    std::vector<std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_quantization_injector_f32<isa>>> quantization_injectors =
-        {};
+    std::vector<std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
     const std::vector<EltwiseData>& eltwise_data_;
     const std::vector<ov::intel_cpu::Type>& ops_list_;

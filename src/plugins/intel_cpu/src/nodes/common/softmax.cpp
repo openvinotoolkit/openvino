@@ -46,7 +46,7 @@ struct jit_softmax_config_params {
 };
 
 struct jit_uni_softmax_kernel {
-    void (*ker_)(const jit_args_softmax*){nullptr};
+    void (*ker_)(const jit_args_softmax*) = nullptr;
 
     void operator()(const jit_args_softmax* args) const {
         assert(ker_);

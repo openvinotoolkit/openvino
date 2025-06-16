@@ -53,15 +53,16 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto& brgOutPrc = brgemm_node->get_output_element_type(0);
-    const auto brgemm_type = brgemm_node->get_type();
+    const auto& brgemm_config = brgemm_node->get_config();
     const auto& post_ops_config = brgemm_node->get_postops_config();
-
     m_binary_postops_offset = post_ops_config.binary_postops_offset;
-    if (brgemm_utils::with_amx(brgemm_type)) {
+
+    if (brgemm_config.is_amx()) {
         BrgemmAMXKernelConfig kernel_config(brg0Prc,
                                             brg1Prc,
                                             brgOutPrc,
-                                            brgemm_utils::get_primitive_isa(brg0Prc, true),
+                                            brgemm_config.wei_k_blk(),
+                                            brgemm_config.isa(),
                                             post_ops_config.post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
@@ -69,8 +70,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
         BrgemmKernelConfig kernel_config(brg0Prc,
                                          brg1Prc,
                                          brgOutPrc,
-                                         with_compensations(brgemm_type),
-                                         brgemm_utils::get_primitive_isa(brg0Prc, false),
+                                         brgemm_config.with_compensations(),
+                                         brgemm_config.isa(),
                                          post_ops_config.post_ops);
         m_kernel_executor =
             kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
@@ -86,7 +87,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
     m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
                     utils::get_buffer_cluster_id(expr->get_input_port(1)),
                     utils::get_buffer_cluster_id(expr->get_output_port(0))};
-    m_with_scratchpad = with_scratchpad(brgemm_type);
+    m_with_scratchpad = brgemm_config.with_scratchpad();
     if (m_with_scratchpad) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
         m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
@@ -98,7 +99,7 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
-    using brgemm_utils::BRGEMM_TYPE;
+    const auto& config = brgemm->get_config();
 
     auto form_precisions = [&brgemm](const element::TypeVector& precisions) {
         OPENVINO_ASSERT(precisions.size() == brgemm->get_gemm_inputs_count(),
@@ -110,39 +111,38 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
         }
         return res;
     };
-
-    switch (brgemm->get_type()) {
-    case BRGEMM_TYPE::STAND_ALONE:
-        return {form_precisions({element::f32, element::f32})};
-    case BRGEMM_TYPE::REPACKING_ONLY: {
-        std::set<std::vector<element::Type>> supported_types = {form_precisions({element::f32, element::f32})};
-        if (mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            supported_types.insert(form_precisions({element::bf16, element::bf16}));
-        }
-        if (mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-            supported_types.insert(form_precisions({element::f16, element::f16}));
-            supported_types.insert(form_precisions({element::i8, element::i8}));
-        }
-        if (mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) || mayiuse(dnnl::impl::cpu::x64::avx2_vnni)) {
-            supported_types.insert(form_precisions({element::u8, element::i8}));
-        }
-        return supported_types;
-    }
-    case BRGEMM_TYPE::WITH_COMPENSATIONS:
-        return {form_precisions({element::i8, element::i8, element::f32})};
-    case BRGEMM_TYPE::WITH_AMX: {
+    if (config.is_amx()) {
         std::set<std::vector<element::Type>> supported_types = {
             form_precisions({element::i8, element::i8, element::u8}),
             form_precisions({element::u8, element::i8, element::u8}),
             form_precisions({element::bf16, element::bf16, element::u8})};
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+        if (config.isa() == dnnl::impl::cpu::x64::avx512_core_amx_fp16) {
             supported_types.insert(form_precisions({element::f16, element::f16, element::u8}));
         }
         return supported_types;
     }
-    default:
-        OV_CPU_JIT_EMITTER_THROW("got BrgemmCPU node with unsupported type");
+    if (config.with_compensations()) {
+        return {form_precisions({element::i8, element::i8, element::f32})};
     }
+    if (config.with_wei_repacking()) {
+        std::set<std::vector<element::Type>> supported_types = {form_precisions({element::f32, element::f32})};
+        if (snippets::utils::one_of(config.isa(),
+                                    dnnl::impl::cpu::x64::avx512_core_bf16,
+                                    dnnl::impl::cpu::x64::avx2_vnni_2)) {
+            supported_types.insert(form_precisions({element::bf16, element::bf16}));
+        }
+        if (snippets::utils::one_of(config.isa(),
+                                    dnnl::impl::cpu::x64::avx512_core_vnni,
+                                    dnnl::impl::cpu::x64::avx2_vnni)) {
+            supported_types.insert(form_precisions({element::u8, element::i8}));
+        }
+        if (config.isa() == dnnl::impl::cpu::x64::avx2_vnni_2) {
+            supported_types.insert(form_precisions({element::i8, element::i8}));
+            supported_types.insert(form_precisions({element::f16, element::f16}));
+        }
+        return supported_types;
+    }
+    return {form_precisions({element::f32, element::f32})};
 }
 
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {

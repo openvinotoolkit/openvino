@@ -66,7 +66,6 @@ private:
 
     void emit_data() const override;
 
-private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
@@ -102,7 +101,6 @@ private:
 
     void emit_data() const override;
 
-private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
