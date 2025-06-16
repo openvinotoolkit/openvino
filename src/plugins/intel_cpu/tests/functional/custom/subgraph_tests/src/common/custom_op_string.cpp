@@ -23,7 +23,7 @@
 //                              --------
 
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/op/bitwise_not.hpp"
 

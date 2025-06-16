@@ -28,11 +28,11 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 
-#include "base/ov_subgraph.hpp"
-#include "base/utils/compare_results.hpp"
-#include "base/utils/calculate_thresholds.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
+#include "shared_test_classes/base/utils/calculate_thresholds.hpp"
 
-#include "base/utils/ranges.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
 namespace test {

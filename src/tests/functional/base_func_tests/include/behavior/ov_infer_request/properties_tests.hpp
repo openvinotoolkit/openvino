@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace ov {

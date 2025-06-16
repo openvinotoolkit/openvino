@@ -6,7 +6,7 @@
 
 #include <future>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {

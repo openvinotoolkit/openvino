@@ -7,7 +7,7 @@
 #include <random>
 
 #include "common_test_utils/test_constants.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/ctc_greedy_decoder.hpp"
 
 namespace {

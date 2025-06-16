@@ -4,10 +4,10 @@
 
 #include <fstream>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "pugixml.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include "openvino/op/concat.hpp"
 #include "openvino/op/split.hpp"

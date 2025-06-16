@@ -8,7 +8,7 @@
 #include <tuple>
 #include <vector>
 
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/op/col2im.hpp"

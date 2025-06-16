@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base/utils/ranges.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 #include <map>
 #include <queue>
@@ -15,7 +15,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 namespace ov {
 namespace test {

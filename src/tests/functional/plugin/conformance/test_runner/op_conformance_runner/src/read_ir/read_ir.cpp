@@ -10,7 +10,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/postgres_link.hpp"
 
-#include "base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 
 #include "op_conformance_utils/utils/dynamism.hpp"

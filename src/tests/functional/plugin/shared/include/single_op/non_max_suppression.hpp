@@ -8,7 +8,7 @@
 #include <tuple>
 
 #include "openvino/op/non_max_suppression.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {

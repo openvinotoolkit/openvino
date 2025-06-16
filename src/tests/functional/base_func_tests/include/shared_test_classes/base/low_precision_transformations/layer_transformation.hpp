@@ -14,7 +14,7 @@
 #include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/layer_transformation.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsUtils {
 class LayerTransformation : virtual public ov::test::SubgraphBaseTest {

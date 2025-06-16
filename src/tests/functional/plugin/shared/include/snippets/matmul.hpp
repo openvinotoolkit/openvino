@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "base/snippets_test_utils.hpp"
+#include "shared_test_classes/base/snippets_test_utils.hpp"
 #include "subgraph_matmul.hpp"
 
 namespace ov {

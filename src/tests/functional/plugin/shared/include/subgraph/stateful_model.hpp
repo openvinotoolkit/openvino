@@ -10,7 +10,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace ov::test;
 

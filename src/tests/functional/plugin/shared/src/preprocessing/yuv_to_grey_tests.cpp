@@ -4,7 +4,7 @@
 
 #include "functional_test_utils/common_utils.hpp"
 #include "preprocessing/yuv_to_grey_tests.hpp"
-#include "base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 namespace ov {
 namespace preprocess {

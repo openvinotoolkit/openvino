@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 namespace ov {

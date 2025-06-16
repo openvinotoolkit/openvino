@@ -4,7 +4,7 @@
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/manager.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/op/reshape.hpp"

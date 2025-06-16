@@ -6,7 +6,7 @@
 
 #include "common_test_utils/node_builders/dft.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "base/utils/ranges.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
 namespace test {

@@ -11,7 +11,7 @@
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-#include "base/ov_subgraph.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
