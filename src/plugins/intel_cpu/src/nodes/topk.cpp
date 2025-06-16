@@ -2397,7 +2397,9 @@ inline void TopK::prepare_original_idx() {
         algorithm == TopKAlgorithm::topk_heap_sort || (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
         bool use_idx_seq =
-            stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || top_k == 1) : topk_innermost;
+            stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (!isDynamicNode() && top_k == 1))
+                   : topk_innermost;
+
         if (use_idx_seq) {
             if (vec_idx_seq.empty()) {
                 vec_idx_seq.resize(axis_dim);
