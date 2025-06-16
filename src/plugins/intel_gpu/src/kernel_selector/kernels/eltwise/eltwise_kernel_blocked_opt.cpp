@@ -59,12 +59,35 @@ ParamsKey EltwiseKernel_blocked_opt::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableTensorOffset();
     k.EnableEltwiseBroadcast();
-    k.EnableDynamicShapesSupport();
     return k;
 }
 
 KernelsData EltwiseKernel_blocked_opt::GetKernelsData(const Params& params) const {
-    return EltwiseKernelBase::GetCommonKernelsData(params);
+    if (!Validate(params)) {
+        return {};
+    }
+
+    KernelData kd = KernelData::Default<eltwise_params>(params);
+    eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
+
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
+    auto cldnn_jit = GetJitConstants(newParams);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    DispatchData dispatchData = SetDefault(newParams);
+
+    auto& kernel = kd.kernels[0];
+
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
+    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
+                                   false,
+                                   false,
+                                   GetFusedPrimitiveInputsCount(params));
+
+    return {kd};
 }
 
 KernelsPriority EltwiseKernel_blocked_opt::GetKernelsPriority(const Params& /*params*/) const {

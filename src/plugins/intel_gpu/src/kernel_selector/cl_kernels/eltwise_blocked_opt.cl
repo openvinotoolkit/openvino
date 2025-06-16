@@ -14,10 +14,8 @@
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
-KERNEL(eltwise_blocked_opt)(
-    OPTIONAL_SHAPE_INFO_ARG
-    INPUTS_DECLS
-    __global OUTPUT_TYPE* output
+KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
+                              __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
 , FUSED_OPS_DECLS
 #endif
