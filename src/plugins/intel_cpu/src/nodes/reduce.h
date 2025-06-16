@@ -44,28 +44,28 @@ struct jit_reduce_config_params {
 };
 
 struct jit_reduce_call_args {
-    const void* src;
-    const int* idx;
-    void* dst;
-    size_t work_amount;
-    size_t work_batch;
+    const void* src = nullptr;
+    const int* idx = nullptr;
+    void* dst = nullptr;
+    size_t work_amount = 0UL;
+    size_t work_batch = 0UL;
     size_t reduce_w =
         2;  // only used in planar layout  [1: reduce width dimension]   [0: reduce other dimension] [other value: N/A]
-    size_t reduce_stride;  // only used in planar layout while reducing dimensions except for width
-    size_t can_divide;     // if apply division in reduce_kernel [1: Yes] [0: No]
-    const float* divisor;  // mean = sum / divisor
+    size_t reduce_stride = 0UL;      // only used in planar layout while reducing dimensions except for width
+    size_t can_divide = 0UL;         // if apply division in reduce_kernel [1: Yes] [0: No]
+    const float* divisor = nullptr;  // mean = sum / divisor
 };
 
 struct jit_reduce_post_call_args {
-    const void* src;
-    void* dst;
-    size_t work_amount;
+    const void* src = nullptr;
+    void* dst = nullptr;
+    size_t work_amount = 0UL;
     size_t reduce_c =
         2;  // only used in blocked layout [1: reduce channel dimension] [0: reduce other dimension] [other value: N/A]
-    size_t oc_off;         // offset in byte along channel on output tensor
-    size_t channel_size;   // only for post ops fusion of nspc layout
-    const float* divisor;  // mean = sum / divisor
-    const void** post_op_data;
+    size_t oc_off = 0UL;             // offset in byte along channel on output tensor
+    size_t channel_size = 0UL;       // only for post ops fusion of nspc layout
+    const float* divisor = nullptr;  // mean = sum / divisor
+    const void** post_op_data = nullptr;
 };
 
 struct jit_uni_reduce_kernel {
