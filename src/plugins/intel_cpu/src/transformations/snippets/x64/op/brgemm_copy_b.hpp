@@ -38,7 +38,7 @@ public:
                 const MemoryAccess::PortDescriptor& desc_in = {},
                 const MemoryAccess::PortDescriptor& desc_out0 = {},
                 const MemoryAccess::PortDescriptor& desc_out1 = {});
-    BrgemmCopyB() = default;
+    BrgemmCopyB();
 
     size_t get_offset_in() const {
         return get_input_offset(0);
@@ -70,6 +70,6 @@ public:
 private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
 
-    BrgemmConfig m_config;
+    const BrgemmConfig m_config;
 };
 }  // namespace ov::intel_cpu

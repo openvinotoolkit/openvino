@@ -27,6 +27,8 @@
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu {
+intel_cpu::BrgemmCopyB::BrgemmCopyB() : m_config(brgemm_utils::BrgemmConfig{}) {}
+
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x,
                                     const BrgemmConfig& config,
                                     const std::vector<size_t>& layout_input,
