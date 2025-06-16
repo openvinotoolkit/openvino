@@ -70,6 +70,6 @@ public:
 private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
 
-    const BrgemmConfig m_config{};
+    BrgemmConfig m_config;
 };
 }  // namespace ov::intel_cpu
