@@ -409,7 +409,7 @@ void fillIdxTensor(std::vector<int>& idx, int batch_size) {
         batch_id = (batch_id + 1) % batch_size;
     }
 }
-}
+} // namespace
 
 ov::Tensor generate(const std::shared_ptr<ov::op::v3::ROIAlign>& node,
                     size_t port,
