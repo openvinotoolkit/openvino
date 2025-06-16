@@ -215,9 +215,3 @@ Recommended solutions:
 - Rebuild OpenVINO with OpenMP if other application logic uses OpenMP.
 - Limit the number of threads for OpenVINO and other parts and let OS do the scheduling.
 - If other application logic uses OpenMP, set the environment variable `OMP_WAIT_POLICY <https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fWAIT_005fPOLICY.html>`__ to `PASSIVE` to disable OpenMP `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__.
-- 
-Additional Resources
-###########################################################
-
-* :doc:`Optimization guide <../optimize-inference>`
-* `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/README.md>`__

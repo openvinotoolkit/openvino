@@ -504,7 +504,7 @@ Code examples of how to use ``sparse_weights_decompression_rate``:
 
 
 
-You can check which layers use the sparse weights decompression feature in the performance counters log
+You can check which layers use the sparse weights decompression feature in the performance counters log.
 The "exec type" field will contain the implementation type with the word "sparse".
 For example, brgemm_avx512_amx_sparse_I8:
 
