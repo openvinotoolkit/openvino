@@ -65,7 +65,13 @@ void jit_reduce_sum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, c
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_reduce_sum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    h->addv(Xbyak_aarch64::SReg(out_vec_idxs[0]), Xbyak_aarch64::VReg4S(in_vec_idxs[0]));
+    const uint32_t in = in_vec_idxs[0];
+    const uint32_t out = out_vec_idxs[0];
+
+    h->faddp(Xbyak_aarch64::VReg4S(in), Xbyak_aarch64::VReg4S(in), Xbyak_aarch64::VReg4S(in));
+    h->faddp(Xbyak_aarch64::VReg2S(in), Xbyak_aarch64::VReg2S(in), Xbyak_aarch64::VReg2S(in));
+    h->umov(Xbyak_aarch64::WReg(out), Xbyak_aarch64::VRegSElem(in, 0, /*lane=*/0));
+    h->fmov(Xbyak_aarch64::SReg(out), Xbyak_aarch64::WReg(out));
 }
 
 std::set<std::vector<element::Type>> jit_reduce_sum_emitter::get_supported_precisions(
