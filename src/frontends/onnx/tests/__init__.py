@@ -39,8 +39,6 @@ xfail_issue_33606 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "Det")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "TfIdfVectorizer")
-xfail_issue_33581 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
-                                      "GatherElements")
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
                                       "DFT, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")

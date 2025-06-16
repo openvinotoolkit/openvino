@@ -27,11 +27,19 @@ public:
     Fill(const Output<Node>& x, const size_t offset, const uint32_t fill_value = 0x0);
     Fill() = default;
 
-    size_t get_offset() const { return m_offset; }
-    uint32_t get_fill_value() const { return m_fill_value; }
+    size_t get_offset() const {
+        return m_offset;
+    }
+    uint32_t get_fill_value() const {
+        return m_fill_value;
+    }
 
-    void set_offset(const size_t offset) { m_offset = offset; }
-    void set_fill_value(const uint32_t fill_value) { m_fill_value = fill_value; }
+    void set_offset(const size_t offset) {
+        m_offset = offset;
+    }
+    void set_fill_value(const uint32_t fill_value) {
+        m_fill_value = fill_value;
+    }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -42,6 +50,6 @@ protected:
     uint32_t m_fill_value = 0x0;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov
