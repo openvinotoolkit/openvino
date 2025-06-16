@@ -350,13 +350,10 @@ struct CACHE_MODE final : OptionBase<CACHE_MODE, ov::CacheMode> {
     }
 
     static ov::CacheMode parse(std::string_view val) {
-        if (val == "OPTIMIZE_SIZE") {
-            return ov::CacheMode::OPTIMIZE_SIZE;
-        } else if (val == "OPTIMIZE_SPEED") {
-            return ov::CacheMode::OPTIMIZE_SPEED;
-        }
-
-        OPENVINO_THROW("Value '", val, "'is not a valid CACHE_MODE option");
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::CacheMode cacheMode;
+        stringStream >> cacheMode;
+        return cacheMode;
     }
 
     static std::string toString(const ov::CacheMode& val) {
