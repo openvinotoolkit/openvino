@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/memory_LSTMCell.hpp"
+#include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"

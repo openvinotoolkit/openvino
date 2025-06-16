@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/reshape.hpp"
+#include "shared_test_classes/single_op/reshape.hpp"
 
 namespace ov {
 namespace test {

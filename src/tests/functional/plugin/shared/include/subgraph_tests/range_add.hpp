@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/range_add.hpp"
+#include "shared_test_classes/subgraph/range_add.hpp"
 
 namespace ov {
 namespace test {

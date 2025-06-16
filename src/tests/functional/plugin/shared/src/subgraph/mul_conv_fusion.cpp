@@ -6,7 +6,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/pass/manager.hpp"
-#include "subgraph/mul_conv_fusion.hpp"
+#include "shared_test_classes/subgraph/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/prior_box.hpp"
+#include "shared_test_classes/single_op/prior_box.hpp"
 
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/op/parameter.hpp"

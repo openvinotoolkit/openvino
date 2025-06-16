@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/shape_of.hpp"
+#include "shared_test_classes/single_op/shape_of.hpp"
 #include "openvino/op/shape_of.hpp"
 
 namespace ov {

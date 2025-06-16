@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/simple_if.hpp"
+#include "shared_test_classes/subgraph/simple_if.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"

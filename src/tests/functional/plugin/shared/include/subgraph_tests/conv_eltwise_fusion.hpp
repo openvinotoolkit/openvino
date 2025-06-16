@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/conv_eltwise_fusion.hpp"
+#include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 
 namespace ov {
 namespace test {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/convert_color_nv12.hpp"
+#include "shared_test_classes/single_op/convert_color_nv12.hpp"
 
 #include "openvino/op/nv12_to_rgb.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"

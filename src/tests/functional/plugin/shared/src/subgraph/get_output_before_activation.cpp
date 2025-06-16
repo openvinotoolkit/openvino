@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/get_output_before_activation.hpp"
+#include "shared_test_classes/subgraph/get_output_before_activation.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/activation.hpp"

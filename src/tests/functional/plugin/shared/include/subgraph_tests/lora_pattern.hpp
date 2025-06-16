@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/lora_pattern.hpp"
+#include "shared_test_classes/subgraph/lora_pattern.hpp"
 
 namespace ov {
 namespace test {

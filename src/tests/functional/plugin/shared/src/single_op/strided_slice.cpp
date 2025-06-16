@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/strided_slice.hpp"
+#include "shared_test_classes/single_op/strided_slice.hpp"
 #include "openvino/op/strided_slice.hpp"
 
 namespace ov {

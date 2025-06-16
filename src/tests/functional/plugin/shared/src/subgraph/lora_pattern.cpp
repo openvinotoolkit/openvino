@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/lora_pattern.hpp"
+#include "shared_test_classes/subgraph/lora_pattern.hpp"
 
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"

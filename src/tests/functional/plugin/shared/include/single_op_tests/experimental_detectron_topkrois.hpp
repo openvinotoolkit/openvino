@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/experimental_detectron_topkrois.hpp"
+#include "shared_test_classes/single_op/experimental_detectron_topkrois.hpp"
 
 namespace ov {
 namespace test {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/roi_align_rotated.hpp"
+#include "shared_test_classes/single_op/roi_align_rotated.hpp"
 
 namespace ov {
 namespace test {

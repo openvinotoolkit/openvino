@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/batch_to_space.hpp"
+#include "shared_test_classes/single_op/batch_to_space.hpp"
 
 namespace ov {
 namespace test {

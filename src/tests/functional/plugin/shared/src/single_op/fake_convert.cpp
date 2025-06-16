@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/fake_convert.hpp"
+#include "shared_test_classes/single_op/fake_convert.hpp"
 
 #include <random>
 #include "openvino/opsets/opset1_decl.hpp"

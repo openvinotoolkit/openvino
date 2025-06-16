@@ -5,7 +5,7 @@
 #pragma once
 
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "subgraph/matmul_const_transposes_extraction.hpp"
+#include "shared_test_classes/subgraph/matmul_const_transposes_extraction.hpp"
 
 namespace ov {
 namespace test {

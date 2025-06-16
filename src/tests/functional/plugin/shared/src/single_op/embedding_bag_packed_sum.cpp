@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/embedding_bag_packed_sum.hpp"
+#include "shared_test_classes/single_op/embedding_bag_packed_sum.hpp"
 #include "common_test_utils/node_builders/embedding_bag_packed_sum.hpp"
 
 namespace ov {

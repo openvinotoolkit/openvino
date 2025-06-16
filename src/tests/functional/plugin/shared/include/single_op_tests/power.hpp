@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/power.hpp"
+#include "shared_test_classes/single_op/power.hpp"
 
 namespace ov {
 namespace test {

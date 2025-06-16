@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/relu_shape_of.hpp"
+#include "shared_test_classes/subgraph/relu_shape_of.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/shape_of.hpp"
 

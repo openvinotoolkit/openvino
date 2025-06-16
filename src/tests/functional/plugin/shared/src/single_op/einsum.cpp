@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/einsum.hpp"
+#include "shared_test_classes/single_op/einsum.hpp"
 #include "openvino/op/einsum.hpp"
 
 namespace ov {

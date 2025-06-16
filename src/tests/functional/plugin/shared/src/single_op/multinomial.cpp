@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/multinomial.hpp"
+#include "shared_test_classes/single_op/multinomial.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "openvino/op/multinomial.hpp"
 

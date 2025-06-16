@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/region_yolo.hpp"
+#include "shared_test_classes/single_op/region_yolo.hpp"
 
 namespace ov {
 namespace test {

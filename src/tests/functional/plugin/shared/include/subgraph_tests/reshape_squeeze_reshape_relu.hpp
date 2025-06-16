@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/reshape_squeeze_reshape_relu.hpp"
+#include "shared_test_classes/subgraph/reshape_squeeze_reshape_relu.hpp"
 
 namespace ov {
 namespace test {

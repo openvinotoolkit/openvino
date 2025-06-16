@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/stridedslice_eltwise.hpp"
+#include "shared_test_classes/subgraph/stridedslice_eltwise.hpp"
 
 namespace ov {
 namespace test {

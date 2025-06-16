@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/reshape_permute_conv_permute_reshape_act.hpp"
+#include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/tanh.hpp"

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/proposal.hpp"
+#include "shared_test_classes/single_op/proposal.hpp"
 
 namespace ov {
 namespace test {

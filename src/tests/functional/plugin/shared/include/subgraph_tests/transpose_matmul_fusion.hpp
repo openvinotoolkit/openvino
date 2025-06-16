@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/transpose_matmul_fusion.hpp"
+#include "shared_test_classes/subgraph/transpose_matmul_fusion.hpp"
 
 namespace ov {
 namespace test {

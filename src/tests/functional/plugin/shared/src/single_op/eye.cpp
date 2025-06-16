@@ -1,7 +1,7 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "single_op/eye.hpp"
+#include "shared_test_classes/single_op/eye.hpp"
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/pass/constant_folding.hpp"

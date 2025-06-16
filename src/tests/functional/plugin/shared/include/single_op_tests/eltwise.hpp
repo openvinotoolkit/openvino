@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/eltwise.hpp"
+#include "shared_test_classes/single_op/eltwise.hpp"
 
 namespace ov {
 namespace test {

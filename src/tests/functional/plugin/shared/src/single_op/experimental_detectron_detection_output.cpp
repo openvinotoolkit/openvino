@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/experimental_detectron_detection_output.hpp"
+#include "shared_test_classes/single_op/experimental_detectron_detection_output.hpp"
 
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"

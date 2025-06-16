@@ -7,7 +7,7 @@
 #include "internal_properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
-#include "single_op/activation.hpp"
+#include "shared_test_classes/single_op/activation.hpp"
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif

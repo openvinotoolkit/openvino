@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/matmul_multiply_fusion.hpp"
+#include "shared_test_classes/subgraph/matmul_multiply_fusion.hpp"
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/gather_weights_decompression.hpp"
+#include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
 
 using namespace ov::test;
 

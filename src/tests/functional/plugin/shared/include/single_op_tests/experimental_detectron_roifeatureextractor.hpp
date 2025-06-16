@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/experimental_detectron_roifeatureextractor.hpp"
+#include "shared_test_classes/single_op/experimental_detectron_roifeatureextractor.hpp"
 
 namespace ov {
 namespace test {

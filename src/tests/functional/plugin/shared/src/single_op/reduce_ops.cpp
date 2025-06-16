@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/reduce_ops.hpp"
+#include "shared_test_classes/single_op/reduce_ops.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 

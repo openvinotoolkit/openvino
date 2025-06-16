@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/bucketize.hpp"
+#include "shared_test_classes/single_op/bucketize.hpp"
 
 namespace ov {
 namespace test {

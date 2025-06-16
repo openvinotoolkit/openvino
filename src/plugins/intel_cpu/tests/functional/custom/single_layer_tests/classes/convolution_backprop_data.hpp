@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/convolution_backprop_data.hpp"
+#include "shared_test_classes/single_op/convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "cpu_shape.h"

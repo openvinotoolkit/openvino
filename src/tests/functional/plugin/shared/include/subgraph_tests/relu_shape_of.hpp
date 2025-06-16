@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/relu_shape_of.hpp"
+#include "shared_test_classes/subgraph/relu_shape_of.hpp"
 
 namespace ov {
 namespace test {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "subgraph/variadic_split_pad.hpp"
+#include "shared_test_classes/subgraph/variadic_split_pad.hpp"
 
 namespace ov {
 namespace test {

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/pooling.hpp"
+#include "shared_test_classes/single_op/pooling.hpp"
 
 namespace ov {
 namespace test {

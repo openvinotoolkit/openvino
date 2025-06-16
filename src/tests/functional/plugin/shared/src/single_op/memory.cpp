@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/memory.hpp"
+#include "shared_test_classes/single_op/memory.hpp"
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"

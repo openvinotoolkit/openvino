@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/experimental_detectron_prior_grid_generator.hpp"
+#include "shared_test_classes/single_op/experimental_detectron_prior_grid_generator.hpp"
 #include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
 
 namespace ov {

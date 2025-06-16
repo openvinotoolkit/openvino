@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/softmax.hpp"
+#include "shared_test_classes/single_op/softmax.hpp"
 
 namespace ov {
 namespace test {

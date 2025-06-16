@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/clamp.hpp"
+#include "shared_test_classes/single_op/clamp.hpp"
 #include "openvino/op/clamp.hpp"
 
 namespace ov {

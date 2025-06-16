@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/convert_color_i420.hpp"
+#include "shared_test_classes/single_op/convert_color_i420.hpp"
 #include "openvino/op/i420_to_rgb.hpp"
 #include "openvino/op/i420_to_bgr.hpp"
 #include "openvino/op/parameter.hpp"

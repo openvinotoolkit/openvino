@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/gather_nd.hpp"
+#include "shared_test_classes/single_op/gather_nd.hpp"
 
 #include "common_test_utils/node_builders/gather_nd.hpp"
 

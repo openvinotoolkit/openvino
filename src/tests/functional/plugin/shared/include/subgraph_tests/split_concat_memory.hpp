@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common_test_utils/data_utils.hpp"
-#include "subgraph/split_concat_memory.hpp"
+#include "shared_test_classes/subgraph/split_concat_memory.hpp"
 
 namespace ov {
 namespace test {

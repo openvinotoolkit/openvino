@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/gather_weights_decompression.hpp"
+#include "shared_test_classes/subgraph/gather_weights_decompression.hpp"
 
 #include "ov_ops/gather_compressed.hpp"
-#include "subgraph/weights_decompression_builders.hpp"
+#include "shared_test_classes/subgraph/weights_decompression_builders.hpp"
 #include "openvino/op/convert.hpp"
 
 namespace ov {

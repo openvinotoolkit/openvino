@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/transpose.hpp"
+#include "shared_test_classes/single_op/transpose.hpp"
 #include "openvino/op/transpose.hpp"
 
 namespace ov {

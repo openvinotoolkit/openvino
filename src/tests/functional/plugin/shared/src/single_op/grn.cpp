@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/grn.hpp"
+#include "shared_test_classes/single_op/grn.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"

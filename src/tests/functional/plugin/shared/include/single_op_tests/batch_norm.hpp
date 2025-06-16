@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_op/batch_norm.hpp"
+#include "shared_test_classes/single_op/batch_norm.hpp"
 
 namespace ov {
 namespace test {

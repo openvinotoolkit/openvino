@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "subgraph/split_concat_memory.hpp"
+#include "shared_test_classes/subgraph/split_concat_memory.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/variadic_split.hpp"

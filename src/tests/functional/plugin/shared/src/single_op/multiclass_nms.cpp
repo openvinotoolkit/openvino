@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_op/multiclass_nms.hpp"
+#include "shared_test_classes/single_op/multiclass_nms.hpp"
 
 #include "common_test_utils/test_enums.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
