@@ -14,7 +14,7 @@ set(EXCLUDED_FUNC_TESTS_DIR "")
 set(OPTIONAL_FUNC_TESTS_INCLUDES "")
 set(OPTIONAL_FUNC_TESTS_LIBS "")
 
-set(SKIP_CONFIG "npu_skip_tests.xml")
+set(SKIP_CONFIG "npu_skip_func_tests.xml")
 set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_CONFIG})
 set(LEGACY_SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests.xml)
 
