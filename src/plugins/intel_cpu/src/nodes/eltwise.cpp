@@ -850,7 +850,6 @@ public:
 #elif defined(OPENVINO_ARCH_ARM64)
         if (one_of(algorithm,
                    Algorithm::EltwiseHsigmoid,
-                   Algorithm::EltwiseErf,
                    Algorithm::EltwiseBitwiseAnd,
                    Algorithm::EltwiseBitwiseNot,
                    Algorithm::EltwiseBitwiseOr,

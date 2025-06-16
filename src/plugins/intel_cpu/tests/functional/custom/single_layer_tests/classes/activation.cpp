@@ -183,6 +183,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     if ((element_type == ov::element::f32) &&
         ((activation_type == utils::ActivationTypes::Clamp) ||
         (activation_type == utils::ActivationTypes::Elu) ||
+        (activation_type == utils::ActivationTypes::Erf) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Floor) ||
         (activation_type == utils::ActivationTypes::Ceiling) ||
@@ -269,6 +270,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Sigmoid,     {{}}},
         {Tanh,        {{}}},
         {Relu,        {{}}},
+        {Erf,         {{}}},
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
