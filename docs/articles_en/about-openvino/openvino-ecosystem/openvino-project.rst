@@ -82,7 +82,7 @@ vision AI models on computers or edge devices.
 A framework and a CLI tool for building, transforming, and analyzing datasets.
 |hr|
 
-| **Intel® Geti™**
+| **Geti™**
 | :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/geti-sdk>`
   :bdg-link-info:`Official Website <https://geti.intel.com/>`
 

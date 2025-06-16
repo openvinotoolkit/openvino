@@ -21,12 +21,12 @@ namespace pass {
  */
 class SerializeDataFlow : public SerializeBase {
 public:
-    OPENVINO_RTTI("SerializeDataFlow",  "", SerializeBase)
+    OPENVINO_RTTI("SerializeDataFlow", "", SerializeBase)
     SerializeDataFlow(const std::string& xml_path) : SerializeBase(xml_path) {}
     bool run(const LinearIR& linear_ir) override;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

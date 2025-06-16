@@ -284,12 +284,13 @@ public:
             break;
         }
 
-        LOG_DEBUG("Online partitioning: group sizes after compilation:");
+        LOG_VERB("Online partitioning: group sizes after compilation (in topological order):");
         auto graph = m_snapshot->getGraph();
         for (const auto& nh : graph->sorted()) {
             LOG_BLOCK();
             Group::GPtr group = graph->meta(nh).get<Group::GPtr>();
-            LOG_DEBUG("Group " << group->getId() << ", size " << group->size() << ", tag " << group->specialTags());
+            LOG_VERB("Group " << group->getId() << ", size " << group->size() << ", tag " << group->specialTags()
+                              << ", rep " << group->repeated());
         }
 
         LOG_INFO("Done");
