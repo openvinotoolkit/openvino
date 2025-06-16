@@ -271,7 +271,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
             all_events.push_back(tmp_events[0]);
         }
 
-        return stream.aggregate_events(all_events, false, instance.is_output());
+        return stream.aggregate_events(all_events, true, instance.is_output());
     }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
