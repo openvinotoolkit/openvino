@@ -44,12 +44,8 @@ struct VLSDPAOptImplementationManager : public ImplementationManager {
         const auto& config = node.get_program().get_config();
         const auto& info = engine.get_device_info();
 
-        if (std::getenv("OV_DISABLE_VLSDPA_OPT1")) {
-            return false;
-        }
-
-        // CM optimized for Xe2 architectures
-        if (!check_cm_jit_support(engine, config) || info.arch != gpu_arch::xe2 || !config.get_use_cm()) {
+        // CM optimized for Xe1/Xe2 architectures
+        if (!check_cm_jit_support(engine, config) || !(info.arch >= gpu_arch::xe_lp) || !config.get_use_cm()) {
             return false;
         }
 

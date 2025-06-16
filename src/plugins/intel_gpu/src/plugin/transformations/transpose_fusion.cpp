@@ -160,7 +160,7 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
         size_t input_v_output_idx = sdpa->get_input_source_output(2).get_index();
         size_t output_o_input_idx = sdpa->get_input_source_output(2).get_index();
 
-        std::cout << "----------------- TransposeVLSDPAMatcher -----------------" << std::endl;
+        // std::cout << "----------------- TransposeVLSDPAMatcher -----------------" << std::endl;
         // std::cout << "----------------- default order_q: " << order_q << std::endl;
         // std::cout << "----------------- default order_k: " << order_k << std::endl;
         // std::cout << "----------------- default order_v: " << order_v << std::endl;
@@ -225,10 +225,10 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
             inputs.push_back(sdpa->get_input_source_output(4));
         }
 
-        std::cout << "----------------- order_q: " << order_q << std::endl;
-        std::cout << "----------------- order_k: " << order_k << std::endl;
-        std::cout << "----------------- order_v: " << order_v << std::endl;
-        std::cout << "----------------- order_output: " << order_output << std::endl;
+        // std::cout << "----------------- order_q: " << order_q << std::endl;
+        // std::cout << "----------------- order_k: " << order_k << std::endl;
+        // std::cout << "----------------- order_v: " << order_v << std::endl;
+        // std::cout << "----------------- order_output: " << order_output << std::endl;
         auto sdpa_new = std::make_shared<ov::op::internal::VLSDPA>(inputs, order_q, order_k, order_v, order_output);
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name() + "_new");

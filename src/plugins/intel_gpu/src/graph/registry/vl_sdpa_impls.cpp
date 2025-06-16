@@ -8,8 +8,6 @@
 
 #if OV_GPU_WITH_CM
     #include "impls/cm/vl_sdpa_opt.hpp"
-    #include "impls/cm/vl_sdpa_opt2.hpp"
-    #include "impls/cm/vl_sdpa_opt3.hpp"
 #endif
 
 namespace ov::intel_gpu {
@@ -19,8 +17,6 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<vl_sdpa>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_CM(cm::VLSDPAOptImplementationManager, shape_types::any)
-        OV_GPU_CREATE_INSTANCE_CM(cm::VLSDPAOpt2ImplementationManager, shape_types::any)
-        OV_GPU_CREATE_INSTANCE_CM(cm::VLSDPAOpt3ImplementationManager, shape_types::any)
     };
 
     return impls;
