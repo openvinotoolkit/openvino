@@ -235,7 +235,7 @@ std::map<ov::Output<ov::Node>, ov::PartialShape> ModelWrap::get_new_shapes(const
             auto item = next.Call(iterator, {}).As<Napi::Object>();
             const auto v = item.Get("value").As<Napi::Array>();
             const Napi::Value& key = v[static_cast<uint32_t>(0)];
-            const Napi::Value& value = v[1];
+            const Napi::Value& value = v[static_cast<uint32_t>(1)];
             new_shapes.emplace_hint(new_shapes.end(),
                                     input_from_handle(env, key),
                                     js_to_cpp<ov::PartialShape>(env, value));
