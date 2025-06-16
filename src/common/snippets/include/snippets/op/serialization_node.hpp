@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
-#include <snippets/snippets_isa.hpp>
 #include <snippets/lowered/expression.hpp>
+#include <snippets/snippets_isa.hpp>
+
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace snippets {
@@ -28,14 +29,14 @@ public:
                       SerializationMode mode = SerializationMode::CONTROL_FLOW);
 
     void validate_and_infer_types() override;
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
-    bool visit_attributes(AttributeVisitor &visitor) override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
     std::shared_ptr<lowered::Expression> m_expr;
     SerializationMode m_mode;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov
