@@ -216,8 +216,6 @@ public:
 
     size_t get_aux_gprs_count() const override;
 
-    void register_table_entries() override;
-
     void emit_data() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -225,6 +223,8 @@ public:
 
 private:
     std::unique_ptr<jit_exp_emitter> exp_emitter{nullptr};
+
+    void register_table_entries() override;
 
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 

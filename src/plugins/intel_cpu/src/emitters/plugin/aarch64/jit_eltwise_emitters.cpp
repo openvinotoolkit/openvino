@@ -649,8 +649,7 @@ size_t jit_erf_emitter::get_aux_gprs_count() const {
     return exp_emitter->get_aux_gprs_count() + 1;
 }
 
-void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                const std::vector<size_t>& out_vec_idxs) const {
+void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -659,8 +658,7 @@ void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
-void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                               const std::vector<size_t>& out_vec_idxs) const {
+void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
@@ -685,8 +683,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto exp_aux_vec_idxs = aux_vec_idxs;
     exp_aux_vec_idxs.erase(
         std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(vmm_aux4.getIdx())));
-    exp_emitter->emit_code({vmm_dst.getIdx()}, {vmm_dst.getIdx()},
-                            exp_aux_vec_idxs, aux_gpr_idxs);
+    exp_emitter->emit_code({vmm_dst.getIdx()}, {vmm_dst.getIdx()}, exp_aux_vec_idxs, aux_gpr_idxs);
 
     h->ld1r(vmm_aux3.s, table_val2("sign_mask"));
     h->orr(vmm_dst.b16, vmm_dst.b16, vmm_aux3.b16);
