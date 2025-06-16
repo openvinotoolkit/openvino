@@ -559,7 +559,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                                ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                               cpu_config->repacked_input_config,
+                                               cpu_config->input_repackers,
                                                repacked_constant_input_config);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
