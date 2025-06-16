@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -171,15 +170,15 @@ struct FakeQuantizePostOp {
         return m_levels;
     }
 
-    Type type() const {
+    [[nodiscard]] Type type() const {
         return m_type;
     }
 
-    bool isInputLowBroadcast() const {
+    [[nodiscard]] bool isInputLowBroadcast() const {
         return m_isInputLowBroadcasted;
     }
 
-    bool isOutputHighBroadcast() const {
+    [[nodiscard]] bool isOutputHighBroadcast() const {
         return m_isOutputHighBroadcasted;
     }
 
@@ -204,19 +203,19 @@ struct DepthwiseConvolutionPostOp {
           m_kernel(std::move(kernel)),
           m_strides(std::move(strides)) {}
 
-    size_t ih() const {
+    [[nodiscard]] size_t ih() const {
         return m_ih;
     }
 
-    size_t iw() const {
+    [[nodiscard]] size_t iw() const {
         return m_iw;
     }
 
-    const std::vector<size_t>& kernel() const {
+    [[nodiscard]] const std::vector<size_t>& kernel() const {
         return m_kernel;
     }
 
-    const std::vector<size_t>& strides() const {
+    [[nodiscard]] const std::vector<size_t>& strides() const {
         return m_strides;
     }
 
@@ -233,15 +232,15 @@ struct SumPostOp {
           m_zero_point(zero_point),
           m_dataType(dataType) {}
 
-    float scale() const {
+    [[nodiscard]] float scale() const {
         return m_scale;
     }
 
-    int32_t zeroPoint() const {
+    [[nodiscard]] int32_t zeroPoint() const {
         return m_zero_point;
     }
 
-    ov::element::Type_t dataType() const {
+    [[nodiscard]] ov::element::Type_t dataType() const {
         return m_dataType;
     }
 
@@ -257,15 +256,15 @@ enum class EltwiseKind : uint8_t {
     // @todo Binary?
 };
 
-EltwiseKind getEltwiseKind(const Algorithm alg);
+EltwiseKind getEltwiseKind(Algorithm alg);
 
-ScaleShiftPostOp::Type convertToScaleShiftOpt(const Algorithm alg);
+ScaleShiftPostOp::Type convertToScaleShiftOpt(Algorithm alg);
 
-ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
+ActivationPostOp::Type convertToActivationPostOpt(Algorithm alg);
 
-Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
+Algorithm convertToEltwiseAlgorithm(ActivationPostOp::Type m_type);
 
-FakeQuantizePostOp::Type convertToFqPostOp(const Algorithm alg);
+FakeQuantizePostOp::Type convertToFqPostOp(Algorithm alg);
 
 PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDataType = ov::element::dynamic);
 }  // namespace ov::intel_cpu

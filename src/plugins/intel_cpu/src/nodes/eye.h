@@ -7,21 +7,16 @@
 #include <node.h>
 
 #include <cstddef>
-#include <functional>
 #include <memory>
-#include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Eye : public Node {
 public:
@@ -30,7 +25,6 @@ public:
     static constexpr size_t DIAGONAL_INDEX = 2lu;
     static constexpr size_t BATCH_SHAPE = 3lu;
 
-public:
     Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
@@ -55,49 +49,49 @@ private:
     void executeSpecified();
     template <typename T>
     struct EyeExecute;
-    inline const size_t getRowNum() const {
+    const size_t getRowNum() const {
         auto rowMem = getSrcMemoryAtPort(ROWS_NUM);
-        if (rowMem == nullptr)
+        if (rowMem == nullptr) {
             THROW_CPU_NODE_ERR("doesn't contain row_count data");
-        const int* rowPtr = rowMem->getDataAs<const int>();
+        }
+        const auto* rowPtr = rowMem->getDataAs<const int>();
 
         return rowPtr[0];
     }
-    inline const size_t getColNum() const {
+    const size_t getColNum() const {
         auto colMem = getSrcMemoryAtPort(COLS_NUM);
-        if (colMem == nullptr)
+        if (colMem == nullptr) {
             THROW_CPU_NODE_ERR("doesn't contain col_count data");
-        const int* colPtr = colMem->getDataAs<const int>();
+        }
+        const auto* colPtr = colMem->getDataAs<const int>();
 
         return colPtr[0];
     }
-    inline const int getDiagIndex() const {
+    const int getDiagIndex() const {
         auto diagIndMem = getSrcMemoryAtPort(DIAGONAL_INDEX);
-        if (diagIndMem == nullptr)
+        if (diagIndMem == nullptr) {
             THROW_CPU_NODE_ERR("doesn't contain diag_index data");
-        const int* diagIndexPtr = diagIndMem->getDataAs<const int>();
+        }
+        const auto* diagIndexPtr = diagIndMem->getDataAs<const int>();
 
         return diagIndexPtr[0];
     }
-    inline const std::vector<int> getBatchShape() const {
+    const std::vector<int> getBatchShape() const {
         if (withBatchShape) {
-            const int batchShapeSize =
+            const auto batchShapeSize =
                 static_cast<const int>(getSrcMemoryAtPort(BATCH_SHAPE)->getShape().getElementsCount());
             std::vector<int> batchShape(batchShapeSize);
-            const int* batchShapePtr = getSrcDataAtPortAs<const int>(BATCH_SHAPE);
+            const auto* batchShapePtr = getSrcDataAtPortAs<const int>(BATCH_SHAPE);
             batchShape.assign(batchShapePtr, batchShapePtr + batchShapeSize);
             return batchShape;
-        } else {
-            return std::vector<int>{};
         }
+        return std::vector<int>{};
     }
 
-    inline const size_t getBatchVolume(const std::vector<int>& batchShape) {
+    static const size_t getBatchVolume(const std::vector<int>& batchShape) {
         return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<>());
     }
     bool withBatchShape = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
