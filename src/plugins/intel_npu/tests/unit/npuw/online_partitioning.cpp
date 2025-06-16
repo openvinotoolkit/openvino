@@ -552,21 +552,13 @@ TEST(OnlinePartitioningTest, Partitioning_Avoids_Pipeline_None) {
 
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 
-    auto snap = std::make_shared<ov::npuw::online::Snapshot>(model);
-    ov::npuw::online::PassContext ctx;
-    ctx.avoids = {{ov::npuw::online::PatternType::OP, "Sin", "NPU"}, {ov::npuw::online::PatternType::OP, "Cos", "NPU"}};
-    snap->buildGraph();
-    ctx.min_graph_size = 1;
-    snap->setCtx(ctx);
-    snap->earlyAvoids();
-    snap->repeat([&] {
-        snap->repeat([&] {
-            snap->collectLHF();
-        });
-        snap->repeat([&] {
-            snap->fuseRemnantsExtended();
-        });
-    });
+    auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();
+    auto cfg = ::intel_npu::Config(opt_desc);
+    ::intel_npu::registerNPUWOptions(*opt_desc);
+    std::map<std::string, std::string> cfg_map = {{"NPUW_ONLINE_AVOID", "Op:Sin/NPU,Op:Cos/NPU"}};
+    cfg.update(cfg_map);
 
-    EXPECT_EQ(snap->graphSize(), 3);
+    auto ens = ov::npuw::online::buildPartitioning(model, cfg);
+
+    EXPECT_EQ(ens.groups.size(), 3);
 }
