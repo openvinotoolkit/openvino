@@ -258,12 +258,14 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         }
 
         std::vector<cldnn::event::ptr> tmp_events(events);
+        std::vector<cldnn::event::ptr> all_events;
         // Default impl just runs each stage in registration order
         for (const auto& stage_id : _order) {
             tmp_events = {execute_stage(tmp_events, instance, *_stages[stage_id])};
+            all_events.push_back(tmp_events[0]);
         }
 
-        return tmp_events[0];
+        return stream.aggregate_events(all_events, false, instance.is_output());
     }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
