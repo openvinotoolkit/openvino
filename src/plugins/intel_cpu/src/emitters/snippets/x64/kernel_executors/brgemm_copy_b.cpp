@@ -249,7 +249,7 @@ void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     brgCopyKernelConf.wei_dt = conf.get_wei_dt();
     brgCopyKernelConf.orig_wei_dt = conf.get_original_wei_dt();
     // WA: this hack is used to force f32->bf16 conversion (req_cvtps2bf16 flag in kernel constructor)
-    if (brgCopyKernelConf.orig_wei_dt != brgCopyKernelConf.wei_dt) {
+    if (brgCopyKernelConf.orig_wei_dt != brgCopyKernelConf.wei_dt && brgCopyKernelConf.wei_dt == dnnl_bf16) {
         brgCopyKernelConf.is_bf32 = true;
     }
     brgCopyKernelConf.wei_n_blk = static_cast<int>(conf.get_wei_N_blk());

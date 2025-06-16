@@ -53,6 +53,8 @@ bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
 void BrgemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
     INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
     OPENVINO_ASSERT(m_config.with_wei_repacking(), "Unsupported Brgemm config value");
+    OPENVINO_ASSERT(m_config.orig_wei_dt() == get_input_element_type(0),
+                    "The original weights data type must be equal to the input data type of BrgemmCopyB");
     // During ctor call, BrgemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
     const auto planar_pshape = snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_input);
@@ -66,6 +68,8 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<
 
 void BrgemmCopyB::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmRepack_validate_and_infer_types);
+    OPENVINO_ASSERT(m_config.orig_wei_dt() == get_input_element_type(0),
+                    "The original weights data type must be equal to the input data type of BrgemmCopyB");
     const auto port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0));
     const auto shape = ov::Shape(port->get_shape());
     const auto& planar_pshape = snippets::utils::get_planar_pshape(shape, port->get_layout());

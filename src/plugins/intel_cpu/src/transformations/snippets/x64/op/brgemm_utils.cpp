@@ -138,9 +138,11 @@ bool BrgemmConfig::is_amx() const {
 void BrgemmConfig::validate() const {
     OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined");
     OPENVINO_ASSERT(one_of(m_src_dt, element::f32, element::bf16, element::f16, element::u8, element::i8),
-                    "Brgemm doesn't support weights element type: " + m_wei_dt.get_type_name());
+                    "Brgemm doesn't support weights element type: " + m_src_dt.get_type_name());
     OPENVINO_ASSERT(one_of(m_wei_dt, element::f32, element::bf16, element::f16, element::i8),
                     "Brgemm doesn't support weights element type: " + m_wei_dt.get_type_name());
+    OPENVINO_ASSERT(one_of(m_orig_wei_dt, element::f32, element::bf16, element::f16, element::i8),
+                    "Brgemm doesn't support weights element type: " + m_orig_wei_dt.get_type_name());
     OPENVINO_ASSERT(ov::snippets::utils::implication(m_with_compensations, !is_amx() && m_with_wei_repacking),
                     "Compensations must be only with BrgemmCopyB on non-amx platforms");
     OPENVINO_ASSERT(m_wei_n_blk > 0 && m_wei_k_blk > 0, "Weight block sizes must be positive");
