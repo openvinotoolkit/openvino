@@ -5,17 +5,6 @@
 
 set(TARGET_NAME protopipe)
 
-if (NOT DEFINED PROJECT_NAME)
-    set(STANDALONE true)
-endif()
-
-# Enable CMP0048 policy
-if(POLICY CMP0048)
-    cmake_policy(SET CMP0048 NEW)
-endif()
-
-project(protopipe VERSION 1.0.0)
-
 execute_process(
   COMMAND git rev-parse --short HEAD
   OUTPUT_VARIABLE GIT_SHA
@@ -28,12 +17,13 @@ configure_file(
   @ONLY
 )
 
-if (STANDALONE)
+if (NOT DEFINED PROJECT_NAME)
     if(WIN32)
         cmake_minimum_required(VERSION 3.16)
     else()
         cmake_minimum_required(VERSION 3.13)
     endif()
+    project(protopipe_standalone)
     include("cmake/standalone.cmake")
     return()
 endif()
