@@ -80,6 +80,8 @@ static struct get_scalar_ret get_scalar(const std::shared_ptr<ov::Node>& node) {
 }
 
 static int64_t convert_value(int64_t value, int64_t max) {
+    if (value > max)
+        return max;
     if (value >= 0)
         return value;
     else
