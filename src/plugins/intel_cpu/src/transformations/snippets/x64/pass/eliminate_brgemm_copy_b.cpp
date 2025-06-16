@@ -61,9 +61,8 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
         OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
                         "Parameter index is invalid in EliminateBrgemmCopyB transformation");
         // Update external repacking config for the further pipeline stages to mark this input as repacked
-        auto& config =
-            brgemm_config.are_wei_constant() ? m_repacked_constant_inputs_config : m_repacked_runtime_inputs_config;
-        config[param_idx] = RepackedInput();
+        auto& config = brgemm_config.are_wei_constant() ? m_input_const_repackers : m_input_runtime_repackers;
+        config[param_idx] = InputRepacker();
 
         // Since repacking is moved out of Subgraph body,
         // the rest weights subgraph must be updated with precision after repacking

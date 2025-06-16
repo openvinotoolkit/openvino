@@ -39,14 +39,14 @@ BrgemmExternalRepackingAdjuster::BrgemmExternalRepackingAdjuster(const ov::snipp
                                                                  const CPURuntimeConfigurator* configurator)
     : snippets::lowered::pass::RuntimeOptimizer(configurator) {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
-    const auto& repacked_inputs_config = cpu_config->repacked_input_config;
+    const auto& input_repackers = cpu_config->input_repackers;
     const auto& params = linear_ir->get_parameters();
-    for (const auto& [idx, _] : repacked_inputs_config) {
+    for (const auto& [idx, _] : input_repackers) {
         OPENVINO_ASSERT(idx < params.size(), "Incorrect index of repacked input");
 
         m_executors[idx] = create_executor(params[idx], configurator->get_cache());
     }
-    OPENVINO_ASSERT(repacked_inputs_config.size() == m_executors.size(), "Incorrect count of repacked inputs");
+    OPENVINO_ASSERT(input_repackers.size() == m_executors.size(), "Incorrect count of repacked inputs");
 }
 
 BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjuster::create_executor(
@@ -158,7 +158,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
 
         const auto& shape = cpu_config->io_shapes[i];
         const auto& layout = cpu_config->io_layouts[i];
-        auto& repacked_in = cpu_config->repacked_input_config[i];
+        auto& input_repacker = cpu_config->input_repackers[i];
 
         const auto& prc = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
         auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, layout);
@@ -175,12 +175,12 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto desc = std::make_shared<CpuBlockedMemoryDesc>(prc, Shape(planar_shape), blk_shape, order);
 
         // Save original input offsets for input before repacking.
-        // If the shape has not been changed, it means that we already created `RepackedInput` for this input
+        // If the shape has not been changed, it means that we already created `InputRepacker` for this input
         // on previous pass call and now `cpu_config->io_data_offsets[i]` contains offsets not for original input -
         // they were updated for blocked shapes/zeroed for previous initialization and we cannot use them as original
         // offsets.
         const auto in_offsets =
-            shape == cpu_config->latest_shapes[i] ? repacked_in.in_offsets() : cpu_config->io_data_offsets[i];
+            shape == cpu_config->latest_shapes[i] ? input_repacker.in_offsets() : cpu_config->io_data_offsets[i];
 
         // In parallel case Kernel should not add offsets to repacked inputs because
         // they will be applied during repacking in execution stage
@@ -194,7 +194,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         }
         const auto out_offsets = cpu_config->io_data_offsets[i];
 
-        repacked_in = RepackedInput(p.second->get_kernel(), desc, in_offsets, out_offsets);
+        input_repacker = InputRepacker(p.second->get_kernel(), desc, in_offsets, out_offsets);
     }
 
     return true;

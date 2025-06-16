@@ -102,7 +102,7 @@ bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_i
         // stride
         dst_offsets.pop_back();
 
-        m_repacked_const_inputs_config.at(idx) = RepackedInput(executor->get_kernel(), desc, src_offsets, dst_offsets);
+        m_repacked_const_inputs_config.at(idx) = InputRepacker(executor->get_kernel(), desc, src_offsets, dst_offsets);
     }
 
     return modified;
