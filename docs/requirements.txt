@@ -26,8 +26,8 @@ pydata-sphinx-theme==0.14.4
 Pygments==2.15.1
 pyparsing==3.0.9
 pytest==8.4.0
-pytest-html==3.1.1
-pytest-metadata==1.11.0
+pytest-html==4.1.1
+pytest-metadata==3.1.1
 py>=1.11.0
 pytz==2022.7
 pyyaml==6.0.1
