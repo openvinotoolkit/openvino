@@ -458,6 +458,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
 NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle) const {
     ze_graph_properties_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
 
     _logger.debug("getNetworkMeta - perform pfnGetProperties");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(graphHandle, &graphProperties);
