@@ -137,7 +137,7 @@ class TestIndexPut_ManyIndicesWithNone(PytorchLayerTest):
         (
             {
                 "input_shape": [1, 8, 8, 8],
-                "values": np.random.random((8,1,8)).astype(np.float32)
+                "values": np.ones((8,1,8)).astype(np.float32)
             },
         ),
     )
@@ -151,7 +151,7 @@ class TestIndexPut_ManyIndicesWithNone(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_index_put_many_indices_with_none(self, ie_device, precision, ir_version, input_data, indices, accumulate):
-        self.input_tensor = np.random.randn(*input_data["input_shape"]).astype(np.float32)
+        self.input_tensor = np.zeros(input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
