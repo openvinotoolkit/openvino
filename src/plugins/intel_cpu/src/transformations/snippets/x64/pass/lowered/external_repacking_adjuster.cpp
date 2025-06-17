@@ -4,6 +4,8 @@
 
 #include "external_repacking_adjuster.hpp"
 
+#include <oneapi/dnnl/dnnl.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <functional>
@@ -24,10 +26,8 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
-#include "snippets/op/reorder.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -67,33 +67,10 @@ BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjust
 
         const auto& brgemm_config = brgemm->get_config();
         if (brgemm_config.with_wei_repacking() && consumer.get_index() == 1) {
-            const auto src_prc = brgemm->get_input_element_type(0);
-            const auto wei_prc = brgemm->get_input_element_type(1);
-
-            // [160048] After BrgemmCopyB elimination, there might be `Reorder` that describes repacking layout.
-            ov::snippets::VectorDims layout;
-            if (!shape_infer_consumers.empty()) {
-                const auto& reorder_it =
-                    std::find_if(shape_infer_consumers.cbegin(),
-                                 shape_infer_consumers.cend(),
-                                 [](const ov::snippets::lowered::ExpressionPtr& expr) {
-                                     return ov::is_type<ov::snippets::op::Reorder>(expr->get_node());
-                                 });
-                if (reorder_it != shape_infer_consumers.cend()) {
-                    layout = (*reorder_it)->get_input_port_descriptor(0)->get_layout();
-                }
-            }
-
-            const auto is_transposed_b = BrgemmCopyB::is_transposed(layout);
-            const auto config = BrgemmCopyBKernelConfig(src_prc,
-                                                        wei_prc,
-                                                        brgemm_config.isa(),
-                                                        false,
-                                                        is_transposed_b,
-                                                        brgemm_config.are_wei_blocked(),
-                                                        brgemm_config.wei_n_blk(),
-                                                        brgemm_config.wei_k_blk());
-            executor = std::make_shared<BrgemmCopyBKernelExecutor>(cache, config);
+            OPENVINO_ASSERT(brgemm_config.with_compensations() == false,
+                            "External repacking for BrgemmCPU with compensations is not supported.");
+            const auto kernel_config = BrgemmCopyBKernelConfig(brgemm_config);
+            executor = std::make_shared<BrgemmCopyBKernelExecutor>(cache, kernel_config);
             break;
         }
     }
@@ -125,12 +102,12 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
                                                     const VectorDims& shape,
                                                     const VectorDims& layout,
                                                     size_t N,
-                                                    size_t K,
-                                                    size_t dt_size) {
+                                                    size_t K) {
     const auto generic_config = executor->get_config().get_clone_ptr();
     auto* config = static_cast<BrgemmCopyBKernelConfig*>(generic_config.get());
     const auto idx = config->is_transposed_B() ? 0 : 1;
-    const auto copy_wei_stride = ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * dt_size;
+    const auto copy_wei_stride =
+        ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * dnnl_data_type_size(config->get_original_wei_dt());
     const auto LDB = brgemm_utils::repacking::compute_LDB(N, config->get_wei_N_blk(), config->are_wei_blocked());
     OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     config->update(N, N, K, K, copy_wei_stride, LDB);
@@ -146,21 +123,23 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto& i = p.first;
         const auto& executor = p.second;
 
-        const auto& dt_size = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0).size();
         const auto& shape = cpu_config->io_shapes[i];
         const auto& layout = cpu_config->io_layouts[i];
         const auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, layout);
         const auto& K = *++planar_shape.rbegin();
         const auto& N = *planar_shape.rbegin();
 
-        update_kernel(executor, shape, layout, N, K, dt_size);
+        update_kernel(executor, shape, layout, N, K);
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
         const auto blk_shape = get_blk_shape(planar_shape, config.get_wei_N_blk(), config.get_wei_K_blk());
 
+        const auto src_dt_size = dnnl_data_type_size(config.get_original_wei_dt());
+        const auto dst_dt_size = dnnl_data_type_size(config.get_wei_dt());
         // src data + dst data per kernel call
-        const auto src_data = N * K * dt_size;
-        const auto dst_data = std::accumulate(blk_shape.rbegin(), blk_shape.rbegin() + 3, dt_size, std::multiplies<>());
+        const auto src_data = N * K * src_dt_size;
+        const auto dst_data =
+            std::accumulate(blk_shape.rbegin(), blk_shape.rbegin() + 3, dst_dt_size, std::multiplies<>());
         data_size += src_data + dst_data;
     }
 
