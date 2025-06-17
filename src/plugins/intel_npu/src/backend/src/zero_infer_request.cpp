@@ -4,6 +4,10 @@
 
 #include "zero_infer_request.hpp"
 
+#include <ze_mem_import_system_memory_ext.h>
+
+#include <cstdint>
+
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
@@ -73,6 +77,13 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
     }
 }
 
+bool memory_aligned_to_standard_page_size(void* addr) {
+    auto addr_int = reinterpret_cast<uintptr_t>(addr);
+
+    // addr is aligned to standard page size
+    return (addr_int & 0xFFF) == 0;
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -89,6 +100,15 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _levelZeroInputTensors(_metadata.inputs.size(), std::vector<std::shared_ptr<ov::ITensor>>(1, nullptr)),
       _levelZeroOutputTensors(_metadata.outputs.size(), nullptr) {
     _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
+
+    ze_device_external_memory_properties_t desc = {};
+    desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
+    auto res = zeDeviceGetExternalMemoryProperties(_initStructs->getDevice(), &desc);
+    if (res == ZE_RESULT_SUCCESS) {
+        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
+            _externalMemoryStandardAllocationSupported = true;
+        }
+    }
 
     _outputAllocator = std::make_shared<const zeroMemory::HostMemAllocator>(_initStructs);
     _inputAllocator =
@@ -246,26 +266,40 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         levelZeroTensors = tensor;
         updateCommandListArg = true;
     } else {
-        auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
-        if (zeroTensor == nullptr || (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user())) {
-            _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
-            OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
+        if (_externalMemoryStandardAllocationSupported && memory_aligned_to_standard_page_size(tensor->data())) {
+            _logger.debug("ZeroInferRequest::set_tensor_data - import memory from a system memory pointer");
+            auto hostMemSharedAllocator = zeroMemory::HostMemSharedAllocator(_initStructs, tensor);
+            levelZeroTensors = std::make_shared<ZeroTensor>(_initStructs,
+                                                            _config,
+                                                            tensor->get_element_type(),
+                                                            tensor->get_shape(),
+                                                            hostMemSharedAllocator);
 
-            ov::SoPtr<ov::ITensor> soPtrTensor(tensor);
-            std::vector<ov::SoPtr<ov::ITensor>> tensorVector = {soPtrTensor};
-            auto batch =
-                _graph->get_batch_size(_metadata,
-                                       tensorVector,
-                                       isInput ? _graphInputDescriptors.at(index) : _graphOutputDescriptors.at(index));
+            std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors)->set_tensor_shared_with_user();
 
-            levelZeroTensors = allocate_tensor(isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index),
-                                               index,
-                                               isInput,
-                                               isInput ? *_inputAllocator : *_outputAllocator,
-                                               batch);
-            _logger.debug("ZeroInferRequest::set_tensor_data - tensor created locally, size: %zu",
-                          levelZeroTensors->get_byte_size());
             updateCommandListArg = true;
+        } else {
+            auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
+            if (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user()) {
+                _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
+                OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
+
+                ov::SoPtr<ov::ITensor> soPtrTensor(tensor);
+                std::vector<ov::SoPtr<ov::ITensor>> tensorVector = {soPtrTensor};
+
+                auto batch = _graph->get_batch_size(
+                    _metadata,
+                    tensorVector,
+                    isInput ? _graphInputDescriptors.at(index) : _graphOutputDescriptors.at(index));
+
+                levelZeroTensors = allocate_tensor(isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index),
+                                                   index,
+                                                   isInput,
+                                                   isInput ? *_inputAllocator : *_outputAllocator,
+                                                   batch);
+
+                updateCommandListArg = true;
+            }
         }
     }
 
@@ -638,6 +672,32 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                 get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_state()._ptr;
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state()._ptr;
+            } else {
+                if (_externalMemoryStandardAllocationSupported &&
+                    memory_aligned_to_standard_page_size(zeroState->get_state()->data())) {
+                    auto hostMemSharedAllocator =
+                        zeroMemory::HostMemSharedAllocator(_initStructs, zeroState->get_state()._ptr);
+
+                    get_level_zero_input(zeroState->get_tensor_index()) =
+                        std::make_shared<ZeroTensor>(_initStructs,
+                                                     _config,
+                                                     zeroState->get_state()->get_element_type(),
+                                                     zeroState->get_state()->get_shape(),
+                                                     hostMemSharedAllocator);
+
+                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) =
+                        get_level_zero_input(zeroState->get_tensor_index());
+
+                    _pipeline->update_graph_arguments(
+                        _graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
+                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
+
+                    _pipeline->update_graph_arguments(
+                        _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
+                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
+                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
+                }
             }
         }
     }
@@ -764,15 +824,16 @@ void ZeroInferRequest::infer_async() {
         const auto& levelZeroTensor = get_level_zero_input(inputIndex);
         if (!is_remote_tensor(levelZeroTensor)) {
             void* levelZeroBuffer = levelZeroTensor->data();
+            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+                OPENVINO_THROW("Empty buffer");
+            }
 
-            if (userBuffer != levelZeroBuffer) {
-                if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                    OPENVINO_THROW("Empty buffer");
+            if (!_externalMemoryStandardAllocationSupported || !memory_aligned_to_standard_page_size(userBuffer)) {
+                if (userBuffer != levelZeroBuffer) {
+                    _logger.info("Tensor is not allocated in the current Level Zero context");
+                    OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
+                    std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
                 }
-
-                _logger.info("Tensor is not allocated in the current Level Zero context");
-                OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
             }
         }
 
@@ -813,16 +874,17 @@ void ZeroInferRequest::get_result() {
         const std::shared_ptr<ov::ITensor>& levelZeroTensor = _levelZeroOutputTensors.at(outputIndex);
         if (!is_remote_tensor(levelZeroTensor)) {
             void* levelZeroBuffer = levelZeroTensor->data();
+            if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
+                OPENVINO_THROW("Empty buffer");
+            }
 
-            if (userBuffer != levelZeroBuffer) {
-                if (userBuffer == nullptr || levelZeroBuffer == nullptr) {
-                    OPENVINO_THROW("Empty buffer");
+            if (!_externalMemoryStandardAllocationSupported || !memory_aligned_to_standard_page_size(userBuffer)) {
+                if (userBuffer != levelZeroBuffer) {
+                    _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context",
+                                 outputIndex);
+                    OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
+                    std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
                 }
-
-                _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context",
-                             outputIndex);
-                OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-                std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
             }
         }
 
