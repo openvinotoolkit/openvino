@@ -24,10 +24,10 @@ protected:
 
     size_t work_amount = 0;
     size_t wa_increment = 0;
-    std::vector<bool> is_incremented = {};
-    std::vector<int64_t> ptr_increments = {};
-    std::vector<int64_t> finalization_offsets = {};
-    std::vector<int64_t> data_sizes = {};
+    std::vector<bool> is_incremented;
+    std::vector<int64_t> ptr_increments;
+    std::vector<int64_t> finalization_offsets;
+    std::vector<int64_t> data_sizes;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     size_t loop_id = 0;
