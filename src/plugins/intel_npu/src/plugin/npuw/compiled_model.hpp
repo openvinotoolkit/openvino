@@ -76,11 +76,11 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& ctx) const;
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
                                                       const ov::AnyMap& properties,
-                                                      const ov::npuw::s11n::EncryptContext& ctx);
+                                                      const ov::npuw::s11n::CompiledContext& ctx);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -189,6 +189,7 @@ private:
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
 
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
+    ov::npuw::s11n::BF16Cache m_bf16_consts;
 };
 }  // namespace npuw
 }  // namespace ov
