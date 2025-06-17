@@ -283,13 +283,6 @@ bool support_opt_kernel(const kernel_impl_params& params) {
     return true;
 }
 
-std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
-    std::vector<size_t> stages_order = {KernelsTypes::COPY_ALL};
-    auto params = instance.get_impl_params();
-    stages_order.emplace_back(support_opt_kernel(*params) ? KernelsTypes::UPDATE_OPT : KernelsTypes::UPDATE_REF);
-    return stages_order;
-}
-
 class ScatterNDUpdateImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::ScatterNDUpdateImpl)
@@ -308,21 +301,11 @@ public:
         return make_deep_copy<ScatterNDUpdateImpl>(this);
     }
 
-    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
-        cldnn::stream& stream = instance.get_network().get_stream();
-        if (instance.can_be_optimized()) {
-            return stream.aggregate_events(events, false, instance.is_output());
-        }
-
-        update_rt_params(instance);
-
-        std::vector<cldnn::event::ptr> tmp_events(events);
-        const auto& exec_stages = get_stages_execution_order(instance);
-        for (const auto& stage_id : exec_stages) {
-            tmp_events = {execute_stage(tmp_events, instance, *_stages[stage_id])};
-        }
-
-        return tmp_events[0];
+    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
+        std::vector<size_t> stages_order = {KernelsTypes::COPY_ALL};
+        auto params = instance.get_impl_params();
+        stages_order.emplace_back(support_opt_kernel(*params) ? KernelsTypes::UPDATE_OPT : KernelsTypes::UPDATE_REF);
+        return stages_order;
     }
 };
 

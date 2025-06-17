@@ -245,6 +245,10 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
     }
 
+    virtual std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const {
+        return _order;
+    }
+
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
         cldnn::stream& stream = instance.get_network().get_stream();
         if (instance.can_be_optimized()) {
@@ -253,17 +257,21 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
         update_rt_params(instance);
 
-        if (_order.size() == 1) {
-            return execute_stage(events, instance, *_stages[_order[0]]);
+        const auto& exec_stages = get_stages_execution_order(instance);
+
+        if (exec_stages.size() == 1) {
+            return execute_stage(events, instance, *_stages[exec_stages[0]]);
         }
 
         std::vector<cldnn::event::ptr> tmp_events(events);
+        std::vector<cldnn::event::ptr> all_events;
         // Default impl just runs each stage in registration order
-        for (const auto& stage_id : _order) {
+        for (const auto& stage_id : exec_stages) {
             tmp_events = {execute_stage(tmp_events, instance, *_stages[stage_id])};
+            all_events.push_back(tmp_events[0]);
         }
 
-        return tmp_events[0];
+        return stream.aggregate_events(all_events, true, instance.is_output());
     }
 
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
