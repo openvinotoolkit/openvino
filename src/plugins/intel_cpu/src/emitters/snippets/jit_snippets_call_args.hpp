@@ -57,7 +57,8 @@ struct jit_snippets_call_args::loop_args_t {
     loop_args_t() = default;
     loop_args_t(int64_t work_amount,
                 const std::vector<int64_t>& ptr_increments,
-                const std::vector<int64_t>& finalization_offsets);
+                const std::vector<int64_t>& finalization_offsets,
+                const std::vector<int64_t>& dtype_sizes = {});
     loop_args_t(const loop_args_t& other);
     ~loop_args_t();
 
@@ -66,12 +67,14 @@ struct jit_snippets_call_args::loop_args_t {
 
     void init_pointers_and_copy_data(int64_t num_elements,
                                      const int64_t* ptr_increments,
-                                     const int64_t* finalization_offsets);
+                                     const int64_t* finalization_offsets,
+                                     const int64_t* dtype_sizes);
 
     int64_t m_work_amount = 0;
     int64_t m_num_data_ptrs = 0;
     int64_t* m_ptr_increments = nullptr;
     int64_t* m_finalization_offsets = nullptr;
+    int64_t* m_dtype_sizes = nullptr;
 };
 
 struct jit_snippets_compile_args {
