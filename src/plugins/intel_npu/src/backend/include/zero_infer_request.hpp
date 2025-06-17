@@ -89,6 +89,7 @@ private:
     std::unique_ptr<Pipeline> _pipeline;
 
     bool _pipelineIsCreated = false;
+    bool _externalMemoryStandardAllocationSupported = false;
 };
 
 }  //  namespace intel_npu
