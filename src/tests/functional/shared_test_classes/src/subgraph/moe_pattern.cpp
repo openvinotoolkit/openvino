@@ -173,7 +173,8 @@ std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
                 makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract,
                                         self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale},
                                         {{"auto_broadcast", "numpy"}});
-            gate_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1}, {{"destination_type", "f32"}});
+            gate_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1},
+                {{"destination_type", "f32"}});
 
             // shape[N,K], pack K dimension
             auto self_model_model_layers_0_mlp_experts_2_up_proj_weight =
@@ -212,7 +213,8 @@ std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
                 makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract,
                                         self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale},
                                         {{"auto_broadcast", "numpy"}});
-            down_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1}, {{"destination_type", "f32"}});
+            down_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1},
+                {{"destination_type", "f32"}});
         } else {
             auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
                 makeConst(element::f16, ov::Shape({768, 16 * 128}), random<uint8_t>(0, 3, {768, 16 * 128}));

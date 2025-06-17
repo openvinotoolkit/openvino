@@ -5,8 +5,8 @@
 #pragma once
 
 #include "openvino/pass/pass.hpp"
-#include "transformations_visibility.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace snippets {
@@ -17,7 +17,7 @@ namespace pass {
  * @brief Align body precision with expected input/output precision. Insert op::ConvertSaturation if necessary.
  * @ingroup snippets
  */
-class AlignElementTypes: public ov::pass::ModelPass {
+class AlignElementTypes : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::AlignElementTypes");
     AlignElementTypes(std::vector<ov::element::Type> input_precisions,

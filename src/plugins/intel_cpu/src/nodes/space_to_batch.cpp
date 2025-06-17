@@ -218,7 +218,12 @@ void SpaceToBatch::SpaceToBatchKernel() {
             const int64_t addTmpOC = blocked ? 0LU : oAdd[1];
             const int64_t addTmpOc = blocked ? oAdd[1] : 0LU;
             indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
-            const int64_t lastI1 = i0 == indxEnd[0] ? (indxEnd[1] > finish[1] ? finish[1] : indxEnd[1]) : finish[1];
+            int64_t lastI1 = [&] {
+                if (i0 == indxEnd[0]) {
+                    return (indxEnd[1] > finish[1] ? finish[1] : indxEnd[1]);
+                }
+                return finish[1];
+            }();
             for (; indxStart[1] < lastI1 + 1; ++indxStart[1]) {
                 const int64_t block = indxStart[1] == finish[1] ? lastBlock : blockSize;
                 const int64_t tmpOC = indxStart[1] * blockShape[1] + addTmpOC;
