@@ -133,7 +133,7 @@ void SubgraphBaseExecutor::init_parallel_domain(const std::shared_ptr<CPURuntime
 void SubgraphBaseExecutor::parallel_for6d(const initializer_functor& initializer, const call_functor& caller) {
     const auto& dom = m_parallel_exec_domain;
 
-    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(1, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args, ithr);
 
