@@ -20,7 +20,7 @@ namespace pass {
  *            the same loop pointer arithmetic in runtime.
  * @ingroup snippets
  */
-class MarkInvariantShapePath: public RangedPass {
+class MarkInvariantShapePath : public RangedPass {
 public:
     OPENVINO_RTTI("MarkInvariantShapePath", "", RangedPass);
     MarkInvariantShapePath() = default;
@@ -59,7 +59,7 @@ private:
     static ov::RTMap& get_rt_info(const ExpressionPort& port);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

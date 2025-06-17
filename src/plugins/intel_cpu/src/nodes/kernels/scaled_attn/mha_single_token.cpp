@@ -888,8 +888,8 @@ template <typename TA>
 static float dot_product_by_channel(TA* a,
                                     uint8_t* b,
                                     size_t n,
-                                    float* scale,
-                                    float* zp,
+                                    const float* scale,
+                                    const float* zp,
                                     [[maybe_unused]] size_t group_size) {
     float sum = 0.0f;
     size_t i = 0;
