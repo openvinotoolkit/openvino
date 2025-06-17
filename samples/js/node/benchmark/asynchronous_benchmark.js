@@ -81,24 +81,18 @@ async function benchmark(model) {
   // Benchmark for seconds_to_run seconds and at least niter iterations
   const minSeconds = 10;
   const minIter = 10;
-  const promises = [];
+  const latencies = [];
   const start = hrtime.bigint();
   let elapsed = 0n;
   let iterations = 0;
   while (elapsed < BigInt(minSeconds) * BigInt(1e9) || iterations < minIter) {
     const iterStart = hrtime.bigint();
-    /*
-    Uncomment out the following line to avoid the error:
-    "terminate called after throwing an instance of 'std::system_error'
-    what():  Resource temporarily unavailable"
-    */
-    await new Promise(resolve => setTimeout(resolve, 1));
-    promises.push(inferRequest.inferAsync([tensor])
+    // Performs inference and does not block the event loop.
+    latencies.push(await inferRequest.inferAsync([tensor])
      .then(() => Number(hrtime.bigint() - iterStart) / 1e6));
     elapsed = hrtime.bigint() - start;
     iterations++;
   }
-  const latencies= await Promise.all(promises);
   elapsed = hrtime.bigint() - start;
 
   return { latencies, elapsed };
