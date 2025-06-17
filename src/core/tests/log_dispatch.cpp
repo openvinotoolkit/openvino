@@ -7,18 +7,40 @@
 #include <gtest/gtest.h>
 
 namespace ov::test {
-TEST(log_dispatch, ov_cout_to_console) {
-    std::cout.flush();
-    const auto cout_buf = std::cout.rdbuf();
-    std::stringstream sstr;
-    std::cout.rdbuf(sstr.rdbuf());
-    {
-        ov_cout << "TEST 123" << std::endl;
-        EXPECT_EQ(sstr.str(), "TEST 123\n");
 
-        std::cout << "test abc" << std::endl;
-        EXPECT_EQ(sstr.str(), "TEST 123\ntest abc\n");
+using BufferCaptureParams = std::pair<std::ostream*, ov::util::LogStream*>;
+
+class BufferCapture : public testing::TestWithParam<BufferCaptureParams> {
+protected:
+    void SetUp() override {
+        std::tie(out_stream, log_stream) = GetParam();
+        out_stream->flush();
+        log_stream->flush();
+        out_buf = out_stream->rdbuf();
+        out_stream->rdbuf(str_stream.rdbuf());
     }
-    std::cout.rdbuf(cout_buf);
+
+    void TearDown() override {
+        out_stream->rdbuf(out_buf);
+    }
+
+    ov::util::LogStream* log_stream;
+    std::ostream* out_stream;
+    std::streambuf* out_buf;
+    std::stringstream str_stream;
+};
+
+TEST_P(BufferCapture, default_insert) {
+    *log_stream << "TEST 123" << std::endl;
+    EXPECT_EQ(str_stream.str(), "TEST 123\n");
+
+    *out_stream << "test abc" << std::endl;
+    EXPECT_EQ(str_stream.str(), "TEST 123\ntest abc\n");
 }
+
+INSTANTIATE_TEST_SUITE_P(LogDispatching,
+                         BufferCapture,
+                         ::testing::ValuesIn(std::vector<BufferCaptureParams>{{&std::cout, &ov_cout},
+                                                                              {&std::cerr, &ov_cerr}}));
+
 }  // namespace ov::test
