@@ -11,9 +11,10 @@
 #include <mutex>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/log_dispatch.hpp"
 
 void ov::util::default_logger_handler_func(const std::string& s) {
-    std::cout << s << std::endl;
+    ov_cout << s << std::endl;
 }
 
 ov::util::LogHelper::LogHelper(LOG_TYPE type,

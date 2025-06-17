@@ -7,14 +7,11 @@
 #include <iostream>
 #include <memory>
 
-#include "openvino/core/core_visibility.hpp"
-
 namespace ov::util {
 
-class OPENVINO_API LogStream : public std::ostream {
+class LogStream : public std::ostream {
 public:
     LogStream(std::ostream* default_ostream);
-    ~LogStream();
 
     LogStream(const LogStream&) = delete;
     LogStream(LogStream&&) = delete;
@@ -22,11 +19,18 @@ public:
     LogStream& operator=(LogStream&&) = delete;
 
 private:
-    std::ostream* default_outstream;
-    std::streambuf* default_streambuf;
+    struct LogBuffer : std::streambuf {
+        LogBuffer();
+        int overflow(int c) override;
+        std::ostream* current_ostream{};
+    };
+    LogBuffer log_buffer;
+
+    std::ostream* const default_ostream{};
+    std::ostream* current_ostream{};
 };
 
-class OPENVINO_API LogDispatch {
+class LogDispatch {
 public:
     static LogStream& Err();
     static LogStream& Out();

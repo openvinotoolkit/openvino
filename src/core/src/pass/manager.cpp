@@ -15,13 +15,13 @@
 #include <utility>
 
 #include "itt.hpp"
-#include "openvino/core/log_dispatch.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
+#include "openvino/util/log_dispatch.hpp"
 #include "perf_counters.hpp"
 
 #ifdef ENABLE_PROFILING_ITT

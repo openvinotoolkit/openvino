@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/log_dispatch.hpp"
+#include "openvino/util/log_dispatch.hpp"
 
 #include <gtest/gtest.h>
 
 namespace ov::test {
-TEST(log_dispatch, output_to_buffer) {
-    auto& log_out = ov::util::LogDispatch::Out();
-    std::cout << "std::cout\n";
-    log_out << "ov::util::log_dispatch out" << std::endl;
-}
+TEST(log_dispatch, ov_cout_to_console) {
+    std::cout.flush();
+    const auto cout_buf = std::cout.rdbuf();
+    std::stringstream sstr;
+    std::cout.rdbuf(sstr.rdbuf());
+    {
+        ov_cout << "TEST 123" << std::endl;
+        EXPECT_EQ(sstr.str(), "TEST 123\n");
 
-TEST(log_dispatch, error_to_buffer) {
-    auto& log_err = ov::util::LogDispatch::Err();
-    std::cerr << "std::cerr\n";
-    log_err << "ov::util::log_dispatch err" << std::endl;
+        std::cout << "test abc" << std::endl;
+        EXPECT_EQ(sstr.str(), "TEST 123\ntest abc\n");
+    }
+    std::cout.rdbuf(cout_buf);
 }
-
 }  // namespace ov::test
