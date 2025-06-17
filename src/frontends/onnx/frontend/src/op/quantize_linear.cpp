@@ -221,13 +221,23 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& scale = inputs[1];
     const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
+    const auto& scale_shape = scale.get_partial_shape();
+    const auto& zero_point_shape = zero_point.get_partial_shape();
+
     // per-tensor quantization, axis attribute ignored
+<<<<<<< Updated upstream
     if (scale.get_partial_shape().rank().is_static() &&
         (scale.get_partial_shape().rank().get_length() == 0 ||
          (scale.get_partial_shape().rank().get_length() == 1 && scale.get_partial_shape()[0] == 1)) &&
         zero_point.get_partial_shape().rank().is_static() &&
         (zero_point.get_partial_shape().rank().get_length() == 0 ||
          (zero_point.get_partial_shape().rank().get_length() == 1 && zero_point.get_partial_shape()[0] == 1))) {
+=======
+    if ((scale.get_partial_shape().rank().is_static() && scale_shape.rank().get_length() == 0 &&
+         zero_point.get_partial_shape().rank().is_static() && zero_point_shape.rank().get_length() == 0) ||
+        (scale_shape.rank().get_length() == 1 && scale_shape[0] == 1 && zero_point_shape.rank().get_length() == 1 &&
+         zero_point_shape[0] == 1)) {
+>>>>>>> Stashed changes
         return ai_onnx::opset_1::quantize_linear(node);
     }
 
