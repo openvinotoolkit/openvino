@@ -23,7 +23,6 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
-
 LoopBase::LoopBase(const std::vector<Output<Node>>& args) : Op(args) {}
 
 LoopBegin::LoopBegin() {
@@ -273,5 +272,4 @@ std::shared_ptr<Node> LoopEndParallel::clone_with_new_inputs(const OutputVector&
     loop_end->m_evaluate_once = m_evaluate_once;
     return loop_end;
 }
-
 }  // namespace ov::snippets::op
