@@ -29,7 +29,7 @@ omitting the `gate` operation.
 
         routing_weights = F.softmax(router_logits, dim=1, dtype=torch.float)
         routing_weights, selected_experts = torch.topk(routing_weights, attrs.top_k, dim=-1)
-		routing_weights /= routing_weights.sum(dim=-1, keepdim=True)
+        routing_weights /= routing_weights.sum(dim=-1, keepdim=True)
         # we cast back to the input dtype
         routing_weights = routing_weights.to(hidden_states.dtype)
 
@@ -39,10 +39,10 @@ omitting the `gate` operation.
 
         # One hot encode the selected experts to create an expert mask
         # this will be used to easily index which expert is going to be sollicitated
-        expert_mask = torch.nn.functional.one_hot(selected_experts, num_classes=attrs.num_experts).permute(2, 1, 0)
+        expert_mask = torch.nn.functional.one_hot(selected_experts, num_classes=attrs.expert_num).permute(2, 1, 0)
 
         # Loop over all available experts in the model and perform the computation on each expert
-        for expert_idx in range(attrs.num_experts):
+        for expert_idx in range(attrs.expert_num):
             expert_layer = attrs.experts[expert_idx]
             idx, top_x = torch.where(expert_mask[expert_idx])
 
@@ -93,26 +93,29 @@ omitting the `gate` operation.
   * **Description**: Weight compression group size which is extracted from expert_layer mentioned in the pseudo-code.
   * **Range of values**: a greater than or equal to 0 integer number
   * **Type**: ``size_t``
+  * **Required**: *no*
+
+* *weight_type*
+
+  * **Description**: Weight data type which are extracted from expert_layer mentioned in the pseudo-code.
+  * **Range of values**: "f16", "f32", "u8", "u4"
   * **Required**: *yes*
 
-* *weight_type/scale_type*
+* *scale_type*
 
-  * **Description**: Weight/scale data type which are extracted from expert_layer mentioned in the pseudo-code.
-  * **Range of values**: supported type: "f16"
-  * **Type**: ``string``
-  * **Required**: *yes*
+  * **Description**: Scale data type which are extracted from expert_layer mentioned in the pseudo-code.
+  * **Range of values**: "f16", "dynamic"
+  * **Required**: *no*
 
 * *zp_type*
 
   * **Description**: Zero point data type which are extracted from expert_layer mentioned in the pseudo-code.
-  * **Range of values**: supported type: "u4"
-  * **Type**: ``string``
-  * **Required**: *yes*
+  * **Range of values**: "u8", "u4", "dynamic"
+  * **Required**: *no*
 
 * *gates/ups/downs*
 
   * **Description**: Weight data which are extracted from expert_layer mentioned in the pseudo-code.
-  * **Range of values**: valid objects
   * **Type**: ``v0::Constant``
   * **Required**: *yes*
 

@@ -63,25 +63,25 @@ ov::pass::FuseMOE::FuseMOE() {
     auto expert_no = ov::gen_pattern::Symbol("expert_no");
 
     // TODO(MOE): more patterns
-#define WEIGHT_PATTERN(idx)                                                                                         \
-    auto weight_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                            \
-    auto weight_const_convert##idx = makePattern<ov::op::v0::Convert>({weight_const##idx});                         \
-    auto zp_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                                \
-    auto zp_const_convert##idx = makePattern<ov::op::v0::Convert>({zp_const##idx});                                 \
-    auto weight_sub_zp##idx =                                                                                       \
-        makePattern<ov::op::v1::Subtract>({weight_const_convert##idx, zp_const_convert##idx | zp_const##idx},       \
-                                          {{"auto_broadcast", "numpy"}});                                           \
-    auto scale_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                             \
-    auto weight_zp##idx = weight_sub_zp##idx | weight_const_convert##idx; /* with zp | w/o zp */                    \
-    auto weight_mul_scale##idx =                                                                                    \
-        makePattern<ov::op::v1::Multiply>({weight_sub_zp##idx, scale_const##idx}, {{"auto_broadcast", "numpy"}});   \
-    auto weight_mul_scale_reshape##idx =                                                                            \
-        makePattern<ov::op::v1::Reshape>({weight_mul_scale##idx, pattern::any_input()});                            \
-    auto weight_mul_scale_reshape_convert##idx = makePattern<ov::op::v0::Convert>({weight_mul_scale_reshape##idx}); \
-    /* i4+zp+group+convert | i4+zp+group | i4+zp | f16+convert | f32 */                                             \
-    auto final_weight##idx = weight_mul_scale_reshape_convert##idx |                                                \
-                             weight_mul_scale_reshape##idx;  // weight_mul_scale##idx | weight_mul_scale##idx |
-                                                             // weight_const_convert##idx | weight_const##idx;
+#define WEIGHT_PATTERN(idx)                                                                                   \
+    auto weight_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                      \
+    auto weight_const_convert##idx = makePattern<ov::op::v0::Convert>({weight_const##idx});                   \
+    auto zp_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                          \
+    auto zp_const_convert##idx = makePattern<ov::op::v0::Convert>({zp_const##idx});                           \
+    auto weight_sub_zp##idx =                                                                                 \
+        makePattern<ov::op::v1::Subtract>({weight_const_convert##idx, zp_const_convert##idx | zp_const##idx}, \
+                                          {{"auto_broadcast", "numpy"}});                                     \
+    auto scale_const##idx = pattern::wrap_type<ov::op::v0::Constant>();                                       \
+    auto weight_zp##idx = weight_sub_zp##idx | weight_const_convert##idx; /* with zp | w/o zp */              \
+    auto weight_mul_scale##idx =                                                                              \
+        makePattern<ov::op::v1::Multiply>({weight_zp##idx, scale_const##idx}, {{"auto_broadcast", "numpy"}}); \
+    auto weight_mul_scale_reshape##idx =                                                                      \
+        makePattern<ov::op::v1::Reshape>({weight_mul_scale##idx, pattern::any_input()});                      \
+    auto weight_mul_scale_reshape_convert##idx =                                                              \
+        makePattern<ov::op::v0::Convert>({weight_mul_scale_reshape##idx | weight_mul_scale##idx});            \
+    /* i4+zp+group+reshape+convert | i4+zp+group+reshape | f16+convert | f32 */                               \
+    auto final_weight##idx = weight_mul_scale_reshape_convert##idx | weight_mul_scale_reshape##idx |          \
+                             weight_const_convert##idx | weight_const##idx;
 
     // expert_mask[expert_idx]
     auto select_Gather_2 = makePattern<ov::op::v8::Gather>({expert_mask, expert_no, 0}, {{"batch_dims", 0}});
@@ -167,10 +167,10 @@ ov::pass::FuseMOE::FuseMOE() {
         op::internal::MOE::ConstsPerExpert consts;
 #define GET_MATMUL_PARAM(mat, idx)                                                                              \
     mat[0] = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weight_const##idx).get_node_shared_ptr());    \
-    if (pattern_map.at(scale_const##idx).get_node()) {                                                          \
+    if (pattern_map.count(scale_const##idx)) {                                                                  \
         mat[1] = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scale_const##idx).get_node_shared_ptr()); \
     }                                                                                                           \
-    if (pattern_map.at(zp_const##idx).get_node()) {                                                             \
+    if (pattern_map.count(zp_const##idx)) {                                                                     \
         mat[2] = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(zp_const##idx).get_node_shared_ptr());    \
     }
 

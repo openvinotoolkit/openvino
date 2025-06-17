@@ -19,9 +19,10 @@ namespace ov {
 namespace test {
 
 std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
-                                                         bool expected_pattern,
-                                                         int expert_num,
-                                                         int topk) {
+                                             bool expected_pattern,
+                                             int expert_num,
+                                             int topk,
+                                             WeightFormat weight_format) {
     // param0: [batch*seq, 2048]
     auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
     // f32[?,128]
@@ -86,76 +87,153 @@ std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
             makeOP<opset3::Broadcast>({index_add__Reshape_2, index_add__ShapeOf_22}, {{"mode", "bidirectional"}});
         auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states, index_add__Convert_2, 1}, {{"batch_dims", 0}});
         auto reshape_Reshape_2 = makeOP<opset1::Reshape>({index_Gather_4, {-1, 2048}}, {{"special_zero", true}});
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
-            makeConst(element::u4, ov::Shape({768, 16, 128}), random<uint8_t>(0, 3, {768, 16, 128}));
-        auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight},
-                                                       {{"destination_type", "f16"}});
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point =
-            makeConst(element::u4, ov::Shape({768, 16, 1}), random<uint8_t>(1, 3, {768, 16}));
-        auto Convert_3988400 =
-            makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point},
-                                    {{"destination_type", "f16"}});
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract =
-            makeOP<opset1::Subtract>({Convert_3988397, Convert_3988400}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale =
-            makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
-        auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1 =
-            makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract,
-                                      self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale},
-                                     {{"auto_broadcast", "numpy"}});
-        auto Reshape_3988406 = makeOP<opset1::Reshape>(
-            {self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1, {768, 2048}},
-            {{"special_zero", false}});
-        auto gate_linear_Convert = makeOP<opset1::Convert>({Reshape_3988406}, {{"destination_type", "f32"}});
+        std::shared_ptr<ov::Node> gate_linear_Convert, up_linear_Convert, down_linear_Convert;
+        if (weight_format == WeightFormat_INT4) {
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
+                makeConst(element::u4, ov::Shape({768, 16, 128}), random<uint8_t>(0, 3, {768, 16, 128}));
+            auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight},
+                                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point =
+                makeConst(element::u4, ov::Shape({768, 16, 1}), random<uint8_t>(1, 3, {768, 16}));
+            auto Convert_3988400 =
+                makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point},
+                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract =
+                makeOP<opset1::Subtract>({Convert_3988397, Convert_3988400}, {{"auto_broadcast", "numpy"}});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale =
+                makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1 =
+                makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract,
+                                        self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale},
+                                        {{"auto_broadcast", "numpy"}});
+            auto Reshape_3988406 = makeOP<opset1::Reshape>(
+                {self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1, {768, 2048}},
+                {{"special_zero", false}});
+            gate_linear_Convert = makeOP<opset1::Convert>({Reshape_3988406}, {{"destination_type", "f32"}});
+
+            // shape[N,K], pack K dimension
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight =
+                makeConst(element::u4, ov::Shape({768, 16, 128}), random<uint8_t>(0, 3, {768, 16, 128}));
+            auto Convert_3984145 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight},
+                                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point =
+                makeConst(element::u4, ov::Shape({768, 16, 1}), random<uint8_t>(1, 3, {768, 16}));
+            auto Convert_3984148 =
+                makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point},
+                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract =
+                makeOP<opset1::Subtract>({Convert_3984145, Convert_3984148}, {{"auto_broadcast", "numpy"}});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale =
+                makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1 =
+                makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract,
+                                        self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale},
+                                        {{"auto_broadcast", "numpy"}});
+            auto Reshape_3984154 =
+                makeOP<opset1::Reshape>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1, {768, 2048}},
+                                        {{"special_zero", false}});
+            up_linear_Convert = makeOP<opset1::Convert>({Reshape_3984154}, {{"destination_type", "f32"}});
+
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight =
+                makeConst(element::u4, ov::Shape({2048, 6, 128}), random<uint8_t>(0, 3, {2048, 6, 128}));
+            auto Convert_3992649 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight},
+                                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point =
+                makeConst(element::u4, ov::Shape({2048, 6, 1}), random<uint8_t>(1, 3, {2048, 6}));
+            auto Convert_3992652 =
+                makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point},
+                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract =
+                makeOP<opset1::Subtract>({Convert_3992649, Convert_3992652}, {{"auto_broadcast", "numpy"}});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale =
+                makeConst(element::f16, ov::Shape({2048, 6, 1}), {0.001f});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1 =
+                makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract,
+                                        self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale},
+                                        {{"auto_broadcast", "numpy"}});
+            auto Reshape_3992658 = makeOP<opset1::Reshape>(
+                {self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1, {2048, 768}},
+                {{"special_zero", false}});
+            down_linear_Convert = makeOP<opset1::Convert>({Reshape_3992658}, {{"destination_type", "f32"}});
+        } else if (weight_format == WeightFormat_INT8) {
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
+                makeConst(element::u8, ov::Shape({768, 16 * 128}), random<uint8_t>(0, 3, {768, 16 * 128}));
+            auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight},
+                                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point =
+                makeConst(element::u8, ov::Shape({768, 1}), random<uint8_t>(1, 3, {768, 1}));
+            auto Convert_3988400 =
+                makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point},
+                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract =
+                makeOP<opset1::Subtract>({Convert_3988397, Convert_3988400}, {{"auto_broadcast", "numpy"}});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale =
+                makeConst(element::f16, ov::Shape({768, 1}), {0.01f});
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1 =
+                makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_zero_point_subtract,
+                                        self_model_model_layers_0_mlp_experts_2_gate_proj_weight_scale},
+                                        {{"auto_broadcast", "numpy"}});
+            gate_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight_fq_weights_1}, {{"destination_type", "f32"}});
+
+            // shape[N,K], pack K dimension
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight =
+                makeConst(element::u8, ov::Shape({768, 16 * 128}), random<uint8_t>(0, 3, {768, 16 * 128}));
+            auto Convert_3984145 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight},
+                                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point =
+                makeConst(element::u8, ov::Shape({768, 1}), random<uint8_t>(1, 3, {768, 1}));
+            auto Convert_3984148 =
+                makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point},
+                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract =
+                makeOP<opset1::Subtract>({Convert_3984145, Convert_3984148}, {{"auto_broadcast", "numpy"}});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale =
+                makeConst(element::f16, ov::Shape({768, 1}), {0.01f});
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1 =
+                makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract,
+                                        self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale},
+                                        {{"auto_broadcast", "numpy"}});
+            up_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1}, {{"destination_type", "f32"}});
+
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight =
+                makeConst(element::u8, ov::Shape({2048, 6 * 128}), random<uint8_t>(0, 3, {2048, 6 * 128}));
+            auto Convert_3992649 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight},
+                                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point =
+                makeConst(element::u8, ov::Shape({2048, 1}), random<uint8_t>(1, 3, {2048, 1}));
+            auto Convert_3992652 =
+                makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point},
+                                        {{"destination_type", "f16"}});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract =
+                makeOP<opset1::Subtract>({Convert_3992649, Convert_3992652}, {{"auto_broadcast", "numpy"}});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale =
+                makeConst(element::f16, ov::Shape({2048, 1}), {0.001f});
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1 =
+                makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract,
+                                        self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale},
+                                        {{"auto_broadcast", "numpy"}});
+            down_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1}, {{"destination_type", "f32"}});
+        } else {
+            auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
+                makeConst(element::f16, ov::Shape({768, 16 * 128}), random<uint8_t>(0, 3, {768, 16 * 128}));
+            gate_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight}, {{"destination_type", "f32"}});
+
+            // shape[N,K], pack K dimension
+            auto self_model_model_layers_0_mlp_experts_2_up_proj_weight =
+                makeConst(element::f16, ov::Shape({768, 16 * 128}), random<uint8_t>(0, 3, {768, 16 * 128}));
+            up_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight}, {{"destination_type", "f32"}});
+
+            auto self_model_model_layers_0_mlp_experts_2_down_proj_weight =
+                makeConst(element::f16, ov::Shape({2048, 6 * 128}), random<uint8_t>(0, 3, {2048, 6 * 128}));
+            down_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight}, {{"destination_type", "f32"}});
+        }
         auto gate_linear_MatMul = makeOP<opset1::MatMul>({reshape_Reshape_2, gate_linear_Convert},
                                                          {{"transpose_a", false}, {"transpose_b", true}});
         auto silu_Swish = makeOP<opset4::Swish>({gate_linear_MatMul});
-        // shape[N,K], pack K dimension
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight =
-            makeConst(element::u4, ov::Shape({768, 16, 128}), random<uint8_t>(0, 3, {768, 16, 128}));
-        auto Convert_3984145 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight},
-                                                       {{"destination_type", "f16"}});
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point =
-            makeConst(element::u4, ov::Shape({768, 16, 1}), random<uint8_t>(1, 3, {768, 16}));
-        auto Convert_3984148 =
-            makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point},
-                                    {{"destination_type", "f16"}});
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract =
-            makeOP<opset1::Subtract>({Convert_3984145, Convert_3984148}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale =
-            makeConst(element::f16, ov::Shape({768, 16, 1}), {0.01f});
-        auto self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1 =
-            makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_zero_point_subtract,
-                                      self_model_model_layers_0_mlp_experts_2_up_proj_weight_scale},
-                                     {{"auto_broadcast", "numpy"}});
-        auto Reshape_3984154 =
-            makeOP<opset1::Reshape>({self_model_model_layers_0_mlp_experts_2_up_proj_weight_fq_weights_1, {768, 2048}},
-                                    {{"special_zero", false}});
-        auto up_linear_Convert = makeOP<opset1::Convert>({Reshape_3984154}, {{"destination_type", "f32"}});
         auto up_linear_MatMul = makeOP<opset1::MatMul>({reshape_Reshape_2, up_linear_Convert},
                                                        {{"transpose_a", false}, {"transpose_b", true}});
         auto mul_Multiply = makeOP<opset1::Multiply>({silu_Swish, up_linear_MatMul}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight =
-            makeConst(element::u4, ov::Shape({2048, 6, 128}), random<uint8_t>(0, 3, {2048, 6, 128}));
-        auto Convert_3992649 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight},
-                                                       {{"destination_type", "f16"}});
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point =
-            makeConst(element::u4, ov::Shape({2048, 6, 1}), random<uint8_t>(1, 3, {2048, 6}));
-        auto Convert_3992652 =
-            makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point},
-                                    {{"destination_type", "f16"}});
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract =
-            makeOP<opset1::Subtract>({Convert_3992649, Convert_3992652}, {{"auto_broadcast", "numpy"}});
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale =
-            makeConst(element::f16, ov::Shape({2048, 6, 1}), {0.001f});
-        auto self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1 =
-            makeOP<opset1::Multiply>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_zero_point_subtract,
-                                      self_model_model_layers_0_mlp_experts_2_down_proj_weight_scale},
-                                     {{"auto_broadcast", "numpy"}});
-        auto Reshape_3992658 = makeOP<opset1::Reshape>(
-            {self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1, {2048, 768}},
-            {{"special_zero", false}});
-        auto down_linear_Convert = makeOP<opset1::Convert>({Reshape_3992658}, {{"destination_type", "f32"}});
+
         auto down_linear_MatMul = makeOP<opset1::MatMul>({mul_Multiply, down_linear_Convert},
                                                          {{"transpose_a", false}, {"transpose_b", true}});
         auto ListUnpack_Squeeze_2 =

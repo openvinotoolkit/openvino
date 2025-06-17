@@ -42,10 +42,17 @@ protected:
         return result;
     }
 
+    enum WeightFormat {
+        WeightFormat_FP16,
+        WeightFormat_INT8,
+        WeightFormat_INT4,
+    };
+
     std::shared_ptr<ov::Model> BuildMOE(ElementType inType,
-                                              bool expected_pattern,
-                                              int expert_num = 1,
-                                              int topk = 8);
+                                        bool expected_pattern,
+                                        int expert_num = 1,
+                                        int topk = 8,
+                                        WeightFormat weight_format = WeightFormat_INT4);
 
     void generate(float idx, size_t seq_length);
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model);
