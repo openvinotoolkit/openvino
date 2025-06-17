@@ -63,7 +63,6 @@ private:
     void initStartOffsets();
     void initPluginBlockedShapes() const;
     void optimizeIR();
-    void prepareWeights();
 
     snippets::op::Subgraph::BlockedShapeVector getSnippetsBlockedShapes() const;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> getIOPrecisions() const;
@@ -101,7 +100,6 @@ private:
     std::vector<ptrdiff_t> start_offset_in;
     std::vector<ptrdiff_t> start_offset_out;
 
-    InputRepackerMap repacked_constant_input_config;
     // Ptr indices which are not processed by the snippets kernel
     // and used directly in the specific emitters (e.g. jit_brgemm_emitter)
     std::set<size_t> external_ptrs_idces;

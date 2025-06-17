@@ -20,16 +20,12 @@
 
 namespace ov::intel_cpu::pass {
 
-class InitRepackedConstantInputs;
-
 /**
  * @class BrgemmExternalRepackingAdjuster
  * @brief A runtime optimizer that creates the memory descs for BRGEMM inputs which require external repacking.
  * The generated memory descs are stored in the CPU runtime config.
  */
 class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
-    friend class InitRepackedConstantInputs;
-
 public:
     OPENVINO_RTTI("BrgemmExternalRepackingAdjuster", "", RuntimeOptimizer)
     BrgemmExternalRepackingAdjuster() = default;
