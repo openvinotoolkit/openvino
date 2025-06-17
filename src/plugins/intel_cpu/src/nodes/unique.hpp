@@ -6,6 +6,17 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+
 namespace ov::intel_cpu::node {
 
 class Unique : public Node {

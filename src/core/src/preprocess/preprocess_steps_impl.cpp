@@ -352,14 +352,14 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
     m_last_explicit_layout = layout;
     m_last_explicit_layout_set = true;
     m_actions.emplace_back(
-        [layout](const std::vector<Output<Node>>& nodes,
-                 const std::shared_ptr<Model>& function,
-                 PreprocessingContext& context) {
+        [layout = std::make_shared<Layout>(layout)](const std::vector<Output<Node>>& nodes,
+                                                    const std::shared_ptr<Model>& function,
+                                                    PreprocessingContext& context) {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't convert layout for multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'convert_color'");
-            Layout dst_layout = layout.empty() ? context.target_layout() : layout;
+            const auto& dst_layout = layout->empty() ? context.target_layout() : *layout;
             auto node = nodes[0];
             auto shape = node.get_partial_shape();
             size_t add_cnt;
@@ -381,15 +381,15 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             auto permutation = layout::utils::find_permutation(unsqueeze_layout, shape, dst_layout);
             if (permutation.empty()) {
                 // No transpose is needed, just update layout
-                if (!layout.empty()) {
-                    context.layout() = layout;
+                if (!layout->empty()) {
+                    context.layout() = *layout;
                 }
                 return std::make_tuple(nodes, false);
             }
             auto perm_constant =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
             auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-            context.layout() = std::move(dst_layout);  // Update context's current layout
+            context.layout() = dst_layout;  // Update context's current layout
             // return false to avoid excess function revalidations as layout conversion
             // doesn't require shape or type propagation.
             return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
@@ -761,20 +761,20 @@ void PostStepsList::add_convert_impl(const element::Type& type) {
 
 void PostStepsList::add_convert_layout_impl(const Layout& layout) {
     m_actions.emplace_back(
-        [layout](const Output<Node>& node, PostprocessingContext& context) {
-            Layout dst_layout = layout.empty() ? context.target_layout() : layout;
+        [layout = std::make_shared<Layout>(layout)](const Output<Node>& node, PostprocessingContext& context) {
+            const auto& dst_layout = layout->empty() ? context.target_layout() : *layout;
             auto permutation = layout::utils::find_permutation(context.layout(), node.get_partial_shape(), dst_layout);
             if (permutation.empty()) {
                 // No transpose is needed, just update layout
-                if (!layout.empty()) {
-                    context.layout() = layout;
+                if (!layout->empty()) {
+                    context.layout() = *layout;
                 }
                 return std::make_tuple(node, false);
             }
             auto perm_constant =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
             auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-            context.layout() = std::move(dst_layout);  // Update context's current layout
+            context.layout() = dst_layout;  // Update context's current layout
             return std::make_tuple(Output<Node>(transpose), true);
         },
         "convert layout " + layout.to_string());

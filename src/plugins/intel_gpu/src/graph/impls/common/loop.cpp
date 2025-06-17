@@ -20,22 +20,22 @@ static int64_t read_scalar_value(memory::ptr mem, stream& stream) {
 
     switch (prim_layout.data_type) {
     case data_types::u8: {
-        mem_lock<uint8_t> lock_prim_output{mem, stream};
+        mem_lock<uint8_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }
     case data_types::i8: {
-        mem_lock<int8_t> lock_prim_output{mem, stream};
+        mem_lock<int8_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }
     case data_types::i32: {
-        mem_lock<int32_t> lock_prim_output{mem, stream};
+        mem_lock<int32_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }
     case data_types::i64: {
-        mem_lock<int64_t> lock_prim_output{mem, stream};
+        mem_lock<int64_t, mem_lock_type::read> lock_prim_output{mem, stream};
         trip_count = *lock_prim_output.data();
         break;
     }

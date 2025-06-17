@@ -15,16 +15,11 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithChildAndOutputTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ConcatWithChildAndOutputTransformationParam param;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, param, params) = obj.param;
+    auto [netPrecision, inputShapes, targetDevice, param] = obj.param;
 
     std::ostringstream result;
     result <<
-           get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           get_test_case_name_by_params(netPrecision, inputShapes, targetDevice) <<
            param.fqOnData1 << param.fqOnData2;
 
     return result.str();
@@ -41,11 +36,8 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testin
 */
 
 void ConcatWithChildAndOutputTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    ConcatWithChildAndOutputTransformationParam param;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
+    auto [netPrecision, inputShapes, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes({ inputShapes, inputShapes });
 

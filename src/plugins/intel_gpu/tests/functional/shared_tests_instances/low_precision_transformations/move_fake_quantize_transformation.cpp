@@ -15,10 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f16
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-};
-
 const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
     // without operation
     {
@@ -28,7 +24,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "U8",
+        "u8",
         1,
     },
     // with ReLU operation
@@ -39,7 +35,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "U8",
+        "u8",
         1
     },
     // negative axis
@@ -50,7 +46,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "FP32",
+        "i8",
         0
     },
     // Q/DQ
@@ -65,7 +61,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concat",
-        "U8",
+        "u8",
         1
     },
     // Q/DQ with ReLU
@@ -80,7 +76,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concat",
-        "U8",
+        "u8",
         1
     },
     // multi chanel
@@ -96,7 +92,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
         {},
         {},
         "Concat",
-        "U8",
+        "u8",
         1
     },
     // Q/DQ with multi-channels
@@ -118,7 +114,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { {0.01f, 0.01f, 0.01f}, ov::element::f32, {1, 3, 1, 1} }
         },
         "Concat",
-        "U8",
+        "u8",
         1
     },
     // Q/DQ with multi-channels subtruct
@@ -140,7 +136,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
             { 0.01f }
         },
         "Concat",
-        "U8",
+        "u8",
         1
     },
 };
@@ -155,7 +151,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
     ::testing::ValuesIn(netPrecisions),
     ::testing::ValuesIn(shapes),
     ::testing::Values(ov::test::utils::DEVICE_GPU),
-    ::testing::ValuesIn(trasformationParamValues),
     ::testing::ValuesIn({false, true}),
     ::testing::ValuesIn(params)),
 MoveFakeQuantizeTransformation::getTestCaseName);

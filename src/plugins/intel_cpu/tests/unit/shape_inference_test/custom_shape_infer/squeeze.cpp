@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include "custom_shape_infer.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/squeeze.hpp"
 namespace ov {
 namespace intel_cpu {

@@ -4,8 +4,27 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "emitters/snippets/repacked_input.hpp"
 #include "executors/subgraph.hpp"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/manager.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
@@ -13,9 +32,7 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Subgraph : public Node {
 public:
@@ -73,18 +90,21 @@ private:
     std::shared_ptr<SubgraphAttrs> subgraph_attrs;
 
     // Index of Paramater -> Index of broadcastable dimension from end
-    std::map<size_t, size_t> broadcastable_inputs = {};
+    std::map<size_t, size_t> broadcastable_inputs;
 
     size_t input_num = 0;
     size_t output_num = 0;
 
-    std::vector<MemoryPtr> srcMemPtrs = {};
-    std::vector<MemoryPtr> dstMemPtrs = {};
+    std::vector<MemoryPtr> srcMemPtrs;
+    std::vector<MemoryPtr> dstMemPtrs;
 
-    std::vector<ptrdiff_t> start_offset_in = {};
-    std::vector<ptrdiff_t> start_offset_out = {};
+    std::vector<ptrdiff_t> start_offset_in;
+    std::vector<ptrdiff_t> start_offset_out;
 
-    RepackedInputConfig repacked_constant_input_config = {};
+    RepackedInputConfig repacked_constant_input_config;
+    // Ptr indices which are not processed by the snippets kernel
+    // and used directly in the specific emitters (e.g. jit_brgemm_emitter)
+    std::set<size_t> external_ptrs_idces;
 
     bool is_dynamic = false;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation
@@ -93,6 +113,4 @@ private:
     std::shared_ptr<SubgraphBaseExecutor> execPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node
