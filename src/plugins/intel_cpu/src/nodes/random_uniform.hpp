@@ -13,7 +13,6 @@
 #include <random>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -77,8 +76,8 @@ private:
 
     void prepareGeneratorKernel();
 
-    enum PortIndex { SHAPE = 0, MIN_VAL, MAX_VAL };
-    enum AlgorithmType { STL = 0, PHILOX, MERSENNE_TWISTER };
+    enum PortIndex : uint8_t { SHAPE = 0, MIN_VAL, MAX_VAL };
+    enum AlgorithmType : uint8_t { STL = 0, PHILOX, MERSENNE_TWISTER };
 
     bool m_const_inputs[3] = {false, false, false};
 
@@ -87,7 +86,7 @@ private:
     uint64_t m_op_seed = 0lu;
     std::pair<uint64_t, uint64_t> m_state{0lu, 0lu};
 
-    VectorDims m_out_shape = {};
+    VectorDims m_out_shape;
     uint64_t m_output_elements_count = 1lu;
     OutputType m_min_val;
     OutputType m_max_val;
@@ -138,7 +137,7 @@ private:
     void preparePhiloxParams();
 
     std::pair<uint64_t, uint64_t> computePhilox(void* out,
-                                                size_t work_amount,
+                                                size_t output_elements_count,
                                                 const std::pair<uint64_t, uint64_t>& prev_state);
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +154,7 @@ private:
 
     void prepareMersenneTwisterParams();
 
-    void computeMersenneTwister(void* out, size_t work_amount);
+    void computeMersenneTwister(void* out, size_t output_elements_count);
 
     /////////////////////////////////////////////////////////////////////////////////
 

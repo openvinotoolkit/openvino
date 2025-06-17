@@ -4,17 +4,18 @@
 
 #pragma once
 
+#include <openvino/pass/pass.hpp>
 #include <string>
 
 #include "openvino/core/model.hpp"
-#include <openvino/pass/pass.hpp>
 
 namespace ov {
 namespace snippets {
 namespace pass {
 
 /**
- * @brief Hash transformation calculates hash value for snippets. Don't care about names as no difference from execution perspective
+ * @brief Hash transformation calculates hash value for snippets. Don't care about names as no difference from execution
+ * perspective
  */
 class Hash : public ov::pass::ModelPass {
 public:

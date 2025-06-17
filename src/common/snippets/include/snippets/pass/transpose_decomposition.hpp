@@ -15,7 +15,7 @@ namespace pass {
  * @brief Decompose Transpose to Load + Store wrapped in several loops.
  * @ingroup snippets
  */
-class TransposeDecomposition: public ov::pass::MatcherPass {
+class TransposeDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TransposeDecomposition");
     TransposeDecomposition();

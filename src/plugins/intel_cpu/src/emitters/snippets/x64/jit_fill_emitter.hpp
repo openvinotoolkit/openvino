@@ -34,9 +34,9 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
     template <typename Vmm>
-    void fill_full(const Vmm& vmm_dst) const;
+    void fill_full(const Vmm& dst_vmm) const;
     template <typename Vmm>
-    void fill_tail(const Vmm& vmm_src, const Vmm& vmm_dst) const;
+    void fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const;
 
     bool is_full_reg() const {
         return offset == 0;
