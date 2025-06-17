@@ -279,17 +279,16 @@ void Interaction::execRef(const dnnl::stream& strm) {
         // in1 dense feature
         // in2 flatted interaction features
         if (moveFeatureKernel) {
-            jit_move_scale_call_args featArgs{};
-            featArgs.p_in = inputPtrs[0] + start * featureSize * dataPrecision.size();
-            featArgs.p_out = outFeaturesPtr + start * outputFeaturesLen * outputDataType.size();
-            featArgs.p_scales = scales;
+            jit_move_scale_call_args featArgs{inputPtrs[0] + (start * featureSize * dataPrecision.size()),
+                                              outFeaturesPtr + (start * outputFeaturesLen * outputDataType.size()),
+                                              scales};
             (*moveFeatureKernel)(&featArgs);
         }
         if (moveInteractKernel) {
-            jit_move_scale_call_args interArgs{};
-            interArgs.p_in = flatMemPtr->getData();
-            interArgs.p_out = outFeaturesPtr + (start * outputFeaturesLen + featureSize) * outputDataType.size();
-            interArgs.p_scales = scales;
+            jit_move_scale_call_args interArgs{
+                flatMemPtr->getData(),
+                outFeaturesPtr + ((start * outputFeaturesLen + featureSize) * outputDataType.size()),
+                scales};
             (*moveInteractKernel)(&interArgs);
         }
     }

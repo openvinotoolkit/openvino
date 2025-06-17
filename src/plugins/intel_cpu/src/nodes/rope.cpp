@@ -91,11 +91,7 @@ static void execJitKernel([[maybe_unused]] const std::shared_ptr<kernel::JitKern
                           [[maybe_unused]] const float* sin) {
 #if defined(OPENVINO_ARCH_X86_64)
 
-    jit_rotary_call_args call_args{};
-    call_args.src = src;
-    call_args.cos = cos;
-    call_args.sin = sin;
-    call_args.dst = dst;
+    jit_rotary_call_args call_args{src, cos, sin, dst};
     (*ker)(&call_args);
 
 #endif  // OPENVINO_ARCH_X86_64

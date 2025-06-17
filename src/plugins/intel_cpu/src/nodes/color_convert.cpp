@@ -581,12 +581,14 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args{};
-            args.y = y + batch * stride_y + h * width;
-            args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            auto u_v = uv + batch * stride_uv + (h / 2) * width;
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,
+                u_v,
+                u_v,
+                dst + (batch * width * height + h * width) * 3,
+                width,
+                _colorFormat[0]};  // The first byte is enough to determine the RGB or BGR format.
             kernel(args);
         });
     }
@@ -615,12 +617,15 @@ public:
         const size_t stride_uv = height * width / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args{};
-            args.y = y + batch * stride_y + h * width;
-            args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            auto u_v = uv + batch * stride_uv + (h / 2) * width;
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,
+                u_v,
+                u_v,
+                dst + (batch * width * height + h * width) * 3,
+                width,
+                _colorFormat[0]  // The first byte is enough to determine the RGB or BGR format.
+            };
             kernel(args);
         });
     }
@@ -916,13 +921,14 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args{};
-            args.y = y + batch * stride_y + h * width;
-            args.u = u + batch * stride_uv + (h / 2) * (width / 2);
-            args.v = v + batch * stride_uv + (h / 2) * (width / 2);
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,                // y
+                u + batch * stride_uv + (h / 2) * (width / 2),   // u
+                v + batch * stride_uv + (h / 2) * (width / 2),   // v
+                dst + (batch * width * height + h * width) * 3,  // dst
+                width,                                           // width
+                _colorFormat[0]                                  // colorFormat - RGB or BGR format
+            };
             kernel(args);
         });
     }
@@ -952,13 +958,14 @@ public:
         const size_t stride_uv = height * width / 4;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args{};
-            args.y = y + batch * stride_y + h * width;
-            args.u = u + batch * stride_uv + (h / 2) * (width / 2);
-            args.v = v + batch * stride_uv + (h / 2) * (width / 2);
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,                // y
+                u + batch * stride_uv + (h / 2) * (width / 2),   // u
+                v + batch * stride_uv + (h / 2) * (width / 2),   // v
+                dst + (batch * width * height + h * width) * 3,  // dst
+                width,                                           // width
+                _colorFormat[0]                                  // colorFormat - RGB or BGR format
+            };
             kernel(args);
         });
     }
