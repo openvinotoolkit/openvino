@@ -84,8 +84,8 @@ using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemor
 
 struct EncryptContext {
     explicit EncryptContext(bool _encrypted,
-                            std::function<std::string(const std::string&)> _encrypt,
-                            std::function<std::string(const std::string&)> _decrypt)
+                            const std::function<std::string(const std::string&)>& _encrypt,
+                            const std::function<std::string(const std::string&)>& _decrypt)
         : encrypted(_encrypted),
           encrypt(_encrypt),
           decrypt(_decrypt) {}
