@@ -35,7 +35,7 @@ async function main() {
     console.log(`Usage: ${path.basename(args[1])} 
       <path_to_model> <device_name>(default: CPU)`);
 
-    return 1;
+    process.exit(1);
   }
   // Optimize for throughput.
   const tput = {'PERFORMANCE_HINT': 'THROUGHPUT'};
@@ -81,7 +81,6 @@ async function benchmark(model) {
   // Benchmark for seconds_to_run seconds and at least niter iterations
   const minSeconds = 10;
   const minIter = 10;
-  const latencies = [];
   const promises = [];
   const start = hrtime.bigint();
   let elapsed = 0n;
@@ -94,14 +93,12 @@ async function benchmark(model) {
     what():  Resource temporarily unavailable"
     */
     await new Promise(resolve => setTimeout(resolve, 1));
-    promises.push(inferRequest.inferAsync([tensor]).then(() => {
-      const iterEnd = hrtime.bigint();
-      latencies.push(Number(iterEnd - iterStart) / 1e6); // Convert to ms
-    }));
+    promises.push(inferRequest.inferAsync([tensor])
+     .then(() => Number(hrtime.bigint() - iterStart) / 1e6));
     elapsed = hrtime.bigint() - start;
     iterations++;
   }
-  await Promise.all(promises);
+  const latencies= await Promise.all(promises);
   elapsed = hrtime.bigint() - start;
 
   return { latencies, elapsed };
