@@ -33,16 +33,19 @@ std::shared_ptr<ze_event> ze_events_pool::create_event(uint64_t queue_stamp) {
     if (m_num_used >= m_capacity || !m_current_pool) {
         m_num_used = 0;
         ze_event_pool_flags_t flags = m_enable_profiling ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;
+        flags |= ZE_EVENT_POOL_FLAG_HOST_VISIBLE;
         m_current_pool = std::make_shared<ze_event_pool>(m_engine, m_capacity, flags);
     }
 
     ze_event_handle_t event;
+    // set signal scope to host to allow wait on the host
+    // TODO: avoid setting scope when event is not used for wait on the host
     ze_event_desc_t event_desc = {
         ZE_STRUCTURE_TYPE_EVENT_DESC,
         nullptr,
-        m_num_used++,              // index
-        0,                         // no additional memory/cache coherency required on signal
-        ZE_EVENT_SCOPE_FLAG_HOST   // no additional memory/cache coherency required on wait
+        m_num_used++,
+        ZE_EVENT_SCOPE_FLAG_HOST,
+        0
     };
     ZE_CHECK(zeEventCreate(m_current_pool->m_handle, &event_desc, &event));
 
@@ -56,14 +59,15 @@ std::shared_ptr<ze_event> ze_events_pool::create_user_event() {
         flags |= ZE_EVENT_POOL_FLAG_HOST_VISIBLE;
         m_current_user_pool = std::make_shared<ze_event_pool>(m_engine, m_capacity, flags);
     }
-
+    // set signal scope to host to allow wait on the host
+    // TODO: avoid setting scope when event is not used for wait on the host
     ze_event_handle_t event;
     ze_event_desc_t event_desc = {
         ZE_STRUCTURE_TYPE_EVENT_DESC,
         nullptr,
-        m_num_used_user++,         // index
-        0,                         // no additional memory/cache coherency required on signal
-        ZE_EVENT_SCOPE_FLAG_HOST   // no additional memory/cache coherency required on wait
+        m_num_used_user++,
+        ZE_EVENT_SCOPE_FLAG_HOST,
+        0
     };
     ZE_CHECK(zeEventCreate(m_current_user_pool->m_handle, &event_desc, &event));
 
