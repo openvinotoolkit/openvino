@@ -158,14 +158,17 @@ KERNEL(rope_opt)(
     uint cos_sin_p = p < INPUT1_BATCH_NUM ? p : 0;
     uint cos_sin_b = b < INPUT1_FEATURE_NUM ? b : 0;
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, cos_sin_b, 0, 0);
+#if !defined(USE_ROPE_CACHE)
+    uint cos_sin_r = r >> 1;
+#endif
 
 #if VEC_SIZE == 1
     #ifdef USE_ROPE_CACHE
     float cosv = convert_float(cos_sin[cos_sin_idx + r]);
     float sinv = convert_float(cos_sin[cos_sin_idx + r + 1]);
     #else
-    float cosv = convert_float(cos[cos_sin_idx + r]);
-    float sinv = convert_float(sin[cos_sin_idx + r]);
+    float cosv = convert_float(cos[cos_sin_idx + cos_sin_r]);
+    float sinv = convert_float(sin[cos_sin_idx + cos_sin_r]);
     #endif
 
     float in1 = convert_float(input[input_idx + r]);
@@ -192,8 +195,8 @@ KERNEL(rope_opt)(
     UNPACK_FLOAT_VEC_1(cosv, cossinv1, cossinv2);
     UNPACK_FLOAT_VEC_2(sinv, cossinv1, cossinv2);
     #else
-    INPUT_VEC_TYPE cosvv = *(INPUT_VEC_TYPE*)(cos + cos_sin_idx + r);
-    INPUT_VEC_TYPE sinvv = *(INPUT_VEC_TYPE*)(sin + cos_sin_idx + r);
+    INPUT_VEC_TYPE cosvv = *(INPUT_VEC_TYPE*)(cos + cos_sin_idx + cos_sin_r);
+    INPUT_VEC_TYPE sinvv = *(INPUT_VEC_TYPE*)(sin + cos_sin_idx + cos_sin_r);
     float8 cosv = convert_float8(cosvv);
     float8 sinv = convert_float8(sinvv);
     #endif
@@ -222,8 +225,8 @@ KERNEL(rope_opt)(
         UNPACK_HALF_VEC_1(cosv, cossinv);
         UNPACK_HALF_VEC_2(sinv, cossinv);
     #else
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) cosvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(cos + cos_sin_idx + r + i * VEC_SIZE);
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) sinvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(sin + cos_sin_idx + r + i * VEC_SIZE);
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) cosvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(cos + cos_sin_idx + cos_sin_r + i * 8);
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) sinvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(sin + cos_sin_idx + cos_sin_r + i * 8);
         float8 cosv = convert_float8(cosvv);
         float8 sinv = convert_float8(sinvv);
     #endif
