@@ -41,7 +41,7 @@ What's new
 * Broader LLM model support and more model compression techniques
 
   * Further optimization of LoRA adapters in OpenVINO GenAI for improved LLM, VLM, and text-to-image 
-    model performance on built-in GPUs . Developers can use LoRA adapters to quickly customize models 
+    model performance on built-in GPUs. Developers can use LoRA adapters to quickly customize models 
     for specialized tasks. ​
   * KV cache compression for CPUs is enabled by default for INT8, providing a reduced memory footprint
     while maintaining accuracy compared to FP16. Additionally, it delivers substantial memory savings 
@@ -249,7 +249,7 @@ OpenVINO GenAI
   * VLM prompt can now refer to specific images. For example, 
     ``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
     while ignoring other images. See VLMPipeline’s docstrings for more details.
-  * VLM uses Continuous batching by default, improving Performance.
+  * VLM uses continuous batching by default, improving performance.
   * VLMPipeline can now be constructed from in-memory `ov::Model`.
   * Qwen2.5-VL support has been added.
 
