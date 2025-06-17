@@ -59,16 +59,19 @@ BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
       m_with_compensations(src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2)),
       m_are_wei_constant(are_wei_constant),
       m_transposed_b(transposed_b),
-      m_are_wei_blocked(ov::intel_cpu::pass::BrgemmCPUBlocking::is_kn_blocking_supported(src_dt) && m_are_wei_constant),
+      m_are_wei_blocked(ov::intel_cpu::pass::BrgemmCPUBlocking::is_kn_blocking_supported(src_dt)),
       m_wei_k_blk(get_elems_in_vec(wei_dt)) {
     const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
 
     // FC always requires weight repacking
+    // BrgemmToBrgemmCPU insert BrgemmCopyB based on this flag.
+    // EliminateBrgemmCopyB remove BrgemmCopyB to outside and markup runtime config
+    // BrgemmExternalRepackingAdjuster set runtime executor for runtime config
     m_with_wei_repacking = !is_fp32 || transposed_b || m_are_wei_constant || m_are_wei_blocked;
 
     // TODO: Add more logic based on shapes and prc
     if (m_are_wei_blocked) {
-        m_wei_n_blk = is_superset(m_isa, avx512_core) ? 64 : 48;
+        m_wei_n_blk = is_superset(m_isa, avx512_core) ? 64 : 24;
     } else {
         switch (wei_dt) {
         case element::i8:
