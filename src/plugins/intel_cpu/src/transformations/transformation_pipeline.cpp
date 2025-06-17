@@ -1167,13 +1167,14 @@ void Transformations::MainSnippets() {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
             return false;
         }
-        // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
-        // Need to support precision conversion in BrgemmCopyB kernel.
-        if (matmul->get_input_element_type(1) == element::f32 &&
-            one_of(config.inferencePrecision, element::f16, element::bf16)) {
-            return false;
+        auto input_precision = matmul->get_input_element_type(0);
+        // In case of half float precision enforcement,
+        // we need to pass the precision that will be forced during lowering
+        if (input_precision == ov::element::f32 &&
+            one_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
+            input_precision = config.inferencePrecision;
         }
-        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(matmul->get_input_element_type(0));
+        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
 #else
     size_t data_ptr_gpr_count = 0;
@@ -1435,12 +1436,6 @@ void Transformations::MainSnippets() {
                     return true;
                 if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
                     return true;
-                // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
-                // Need to support precision conversion in BrgemmCopyB kernel.
-                if (n->get_input_element_type(1) == element::f32 &&
-                    one_of(config.inferencePrecision, element::f16, element::bf16)) {
-                    return true;
-                }
                 return false;
             },
             snippets::pass::TokenizeMLPSeqSnippets);

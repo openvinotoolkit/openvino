@@ -50,7 +50,7 @@ public:
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
               PostopsConfig post_ops = PostopsConfig{});
-    BrgemmCPU() = default;
+    BrgemmCPU();
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -119,7 +119,7 @@ private:
      */
     void add_postop_input(const ov::Output<Node>& postop_input);
 
-    BrgemmConfig m_config;
+    const BrgemmConfig m_config;
 
     PostopsConfig m_post_ops_config;
 

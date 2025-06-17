@@ -51,20 +51,10 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()),
                               "Jit emitter is called when the shapes are unknown");
 
-    const auto is_transposed = BrgemmCopyB::is_transposed(expr->get_input_port_descriptor(0)->get_layout());
     const auto& brgemm_config = brgemm_repack->get_config();
     m_with_comp = brgemm_config.with_compensations();
-
-    BrgemmCopyBKernelConfig kernel_config(brgemm_repack->get_src_element_type(),
-                                          brgemm_repack->get_input_element_type(0),
-                                          brgemm_config.isa(),
-                                          m_with_comp,
-                                          is_transposed,
-                                          brgemm_config.are_wei_blocked(),
-                                          brgemm_config.wei_n_blk(),
-                                          brgemm_config.wei_k_blk());
-    m_kernel_executor =
-        kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    const BrgemmCopyBKernelConfig config(brgemm_config);
+    m_kernel_executor = kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, config);
 
     m_memory_offsets = {brgemm_repack->get_offset_in(), brgemm_repack->get_offset_out()};
     m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),

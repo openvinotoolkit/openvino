@@ -41,7 +41,7 @@ std::shared_ptr<ov::intel_cpu::BrgemmCPU> make_brgemm(const ov::OutputVector& ma
     } else {
         OPENVINO_THROW("Unsupported input precisions: ", a_precision, " and ", b_precision);
     }
-    ov::intel_cpu::brgemm_utils::BrgemmConfig brgemm_config(isa, a_precision, b_precision, false, false);
+    ov::intel_cpu::brgemm_utils::BrgemmConfig brgemm_config(isa, a_precision, b_precision, b_precision, false, false);
 
     auto create_brgemm_cpu = [&brgemm_config, postop_inputs, &postops](const ov::OutputVector& postprocessed_inputs) {
         ov::OutputVector all_inputs = postprocessed_inputs;
@@ -61,13 +61,11 @@ std::shared_ptr<ov::intel_cpu::BrgemmCPU> make_brgemm(const ov::OutputVector& ma
         return create_brgemm_cpu({main_inputs[0], main_inputs[1], scratch});
     }
     if (brgemm_config.with_compensations()) {
-        auto brgemm_repacking =
-            std::make_shared<BrgemmCopyB>(main_inputs[1], a_precision, brgemm_config, 0, 0, 0, std::vector<size_t>{});
+        auto brgemm_repacking = std::make_shared<BrgemmCopyB>(main_inputs[1], brgemm_config);
         return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0), brgemm_repacking->output(1)});
     }
     if (brgemm_config.with_wei_repacking()) {
-        auto brgemm_repacking =
-            std::make_shared<BrgemmCopyB>(main_inputs[1], a_precision, brgemm_config, 0, 0, 0, std::vector<size_t>{});
+        auto brgemm_repacking = std::make_shared<BrgemmCopyB>(main_inputs[1], brgemm_config);
         return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0)});
     }
     return create_brgemm_cpu(main_inputs);

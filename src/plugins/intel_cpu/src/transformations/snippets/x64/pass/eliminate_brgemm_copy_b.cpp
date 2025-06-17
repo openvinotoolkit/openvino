@@ -65,6 +65,13 @@ bool pass::EliminateBrgemmCopyB::run_on_model(const std::shared_ptr<ov::Model>& 
             brgemm_config.are_wei_constant() ? m_repacked_constant_inputs_config : m_repacked_runtime_inputs_config;
         config[param_idx] = RepackedInput();
 
+        // Since repacking is moved out of Subgraph body,
+        // the rest weights subgraph must be updated with precision after repacking
+        param->set_element_type(copy_b_node->get_config().wei_dt());
+        if (pattern_map.count(m_rank_norm)) {
+            pattern_map.at(m_rank_norm).get_node_shared_ptr()->validate_and_infer_types();
+        }
+
         // If there is non-planar layout, we should insert reshape to support shape inference
         if (!ov::snippets::utils::is_planar_layout(layout)) {
             const auto& subtensor = in_desc->get_subtensor();

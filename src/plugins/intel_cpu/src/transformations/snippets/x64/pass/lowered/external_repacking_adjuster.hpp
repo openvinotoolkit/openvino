@@ -50,8 +50,7 @@ private:
                               const VectorDims& shape,
                               const VectorDims& layout,
                               size_t N,
-                              size_t K,
-                              size_t dt_size);
+                              size_t K);
 
     static RepackExecutorPtr create_executor(const ov::snippets::lowered::ExpressionPtr& param,
                                              const ov::intel_cpu::MultiCacheWeakPtr& cache);
