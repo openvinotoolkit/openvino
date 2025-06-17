@@ -896,6 +896,13 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVCompiledModelGraphUniqueNodeNamesTest.CheckUniqueNodeNames.*",
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
+
+        // [Tracking number: EISW-162037]
+        _skipRegistry.addPatterns("compiled_blob test use `CACHE_MOD` which is not supported on NPU", {
+                R"(.*OVCompiledModelBaseTest.*compile_from_regular_blob/.*_blob.*)",
+                R"(.*OVCompiledModelBaseTest.*compile_from_weightless_blob/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.*use_blob_hint_which_fails_load_from_cache.*)",
+        });
         return _skipRegistry;
     }();
     // clang-format on

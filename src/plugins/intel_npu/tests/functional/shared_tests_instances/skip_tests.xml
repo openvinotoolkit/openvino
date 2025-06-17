@@ -869,4 +869,14 @@ Example:
             <filter>.*OVExecGraphSerializationTest.ExecutionGraph.*</filter>
         </filters>
     </skip_config>
+
+    <!-- EISW-162037 -->
+    <skip_config>
+        <message>compiled_blob test use `CACHE_MOD` which is not supported on NPU</message>
+        <filters>
+            <filter>.*OVCompiledModelBaseTest.*compile_from_regular_blob/.*_blob.*</filter>
+            <filter>.*OVCompiledModelBaseTest.*compile_from_weightless_blob/.*</filter>
+            <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.*use_blob_hint_which_fails_load_from_cache.*</filter>
+        </filters>
+    </skip_config>
 </skip_configs>
