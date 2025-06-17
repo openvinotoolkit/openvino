@@ -23,11 +23,11 @@ int LogStream::LogBuffer::overflow(int c) {
     return c;
 }
 
-LogStream& LogDispatch::Err() {
+LogStream& LogDispatch::cerr() {
     static LogStream err_log{&std::cerr};
     return err_log;
 }
-LogStream& LogDispatch::Out() {
+LogStream& LogDispatch::cout() {
     static LogStream out_log{&std::cout};
     return out_log;
 }

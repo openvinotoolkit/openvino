@@ -32,15 +32,15 @@ private:
 
 class LogDispatch {
 public:
-    static LogStream& Err();
-    static LogStream& Out();
+    static LogStream& cerr();
+    static LogStream& cout();
 
 private:
     static LogStream err_log, out_log;
 };
 
-static auto& ov_cerr = LogDispatch::Err();
-static auto& ov_cout = LogDispatch::Out();
+static auto& ov_cerr = LogDispatch::cerr();
+static auto& ov_cout = LogDispatch::cout();
 }  // namespace ov::util
 
 using ov::util::ov_cerr;
