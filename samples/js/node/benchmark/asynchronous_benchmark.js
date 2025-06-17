@@ -88,8 +88,8 @@ async function benchmark(model) {
   while (elapsed < BigInt(minSeconds) * BigInt(1e9) || iterations < minIter) {
     const iterStart = hrtime.bigint();
     // Performs inference and does not block the event loop.
-    latencies.push(await inferRequest.inferAsync([tensor])
-     .then(() => Number(hrtime.bigint() - iterStart) / 1e6));
+    await inferRequest.inferAsync([tensor]);
+    latencies.push(Number(hrtime.bigint() - iterStart) / 1e6);
     elapsed = hrtime.bigint() - start;
     iterations++;
   }
