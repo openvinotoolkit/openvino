@@ -9,6 +9,8 @@
 #include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
+#include "emitters/snippets/aarch64/jit_gemm_copy_b_emitter.hpp"
+#include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
@@ -24,6 +26,8 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -155,6 +159,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
+    jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_broadcast_move_emitter);
@@ -217,7 +222,10 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = CREATE_CPU_EMITTER(jit_sqrt_emitter);
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
-
+    jitters[ov::intel_cpu::aarch64::GemmCPU::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_gemm_emitter, configurator->get_kernel_executor_table());
+    jitters[ov::intel_cpu::aarch64::GemmCopyB::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_gemm_copy_b_emitter, configurator->get_kernel_executor_table());
 #ifdef SNIPPETS_LIBXSMM_TPP
     // brgemm
     jitters[ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
@@ -321,7 +329,10 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (ov::as_type_ptr<intel_cpu::FusedMulAdd>(op) || ov::as_type_ptr<intel_cpu::SwishNode>(op)) {
+    if (is_type_any_of<intel_cpu::aarch64::GemmCPU, intel_cpu::aarch64::GemmCopyB>(op)) {
+        return ov::snippets::RegType::gpr;
+    }
+    if (ov::is_type_any_of<intel_cpu::FusedMulAdd, intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
     }
     return ov::snippets::RegType::undefined;

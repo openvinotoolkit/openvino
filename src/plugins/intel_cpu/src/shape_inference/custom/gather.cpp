@@ -66,11 +66,12 @@ ShapeInferPtr GatherShapeInferFactory::makeShapeInfer() const {
     int axis = isAxisInputConst
                    ? ov::as_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0]
                    : 0;
-    int batchDims = ov::is_type<ov::op::v8::Gather>(m_op)
-                        ? static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(m_op)->get_batch_dims())
-                        : (ov::is_type<ov::op::v7::Gather>(m_op)
-                               ? static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(m_op)->get_batch_dims())
-                               : 0);
+    int batchDims = 0;
+    if (ov::is_type<ov::op::v8::Gather>(m_op)) {
+        batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(m_op)->get_batch_dims());
+    } else if (ov::is_type<ov::op::v7::Gather>(m_op)) {
+        batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(m_op)->get_batch_dims());
+    }
     return std::make_shared<GatherShapeInfer>(isAxisInputConst, isIndicesScalar, axis, batchDims);
 }
 

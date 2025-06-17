@@ -254,7 +254,7 @@ TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, RefBlockRotationGive
     compare_with_tolerance(test_values_after_rotation, this->ref_values_after_rotation, get_tolerance<TypeParam>());
 }
 
-enum class TargetInstructionSet { AVX2, AVX512 };
+enum class TargetInstructionSet : uint8_t { AVX2, AVX512 };
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic push

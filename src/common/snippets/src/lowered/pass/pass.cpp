@@ -3,8 +3,8 @@
 //
 
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/utils/linear_ir_pass_dumper.hpp"
 
+#include "snippets/utils/linear_ir_pass_dumper.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -74,13 +74,15 @@ void PassPipeline::register_positioned_passes(const std::vector<PositionedPassLo
 }
 
 PassPipeline PassPipeline::merge_pipelines(const PassPipeline& lhs, const PassPipeline& rhs) {
-    OPENVINO_ASSERT(*lhs.get_pass_config() == *rhs.get_pass_config(), "2 passes with different PassConfigs can't be merged.");
+    OPENVINO_ASSERT(*lhs.get_pass_config() == *rhs.get_pass_config(),
+                    "2 passes with different PassConfigs can't be merged.");
     const auto& lhs_passes = lhs.get_passes();
     std::unordered_map<ov::DiscreteTypeInfo, std::shared_ptr<lowered::pass::PassBase>> lhs_passes_map;
     for (const auto& pass : lhs_passes) {
         lhs_passes_map[pass->get_type_info()] = pass;
     }
-    OPENVINO_ASSERT(lhs_passes_map.size() == lhs_passes.size(), "The pass pipeline must not contain several passes with equal type info");
+    OPENVINO_ASSERT(lhs_passes_map.size() == lhs_passes.size(),
+                    "The pass pipeline must not contain several passes with equal type info");
 
     PassPipeline merged_pipeline;
     for (const auto& rhs_pass : rhs.get_passes()) {
@@ -96,7 +98,7 @@ PassPipeline PassPipeline::merge_pipelines(const PassPipeline& lhs, const PassPi
     return merged_pipeline;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov
