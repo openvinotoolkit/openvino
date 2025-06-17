@@ -136,8 +136,8 @@ class TestIndexPut_ManyIndicesWithNone(PytorchLayerTest):
         "input_data",
         (
             {
-                "input_shape": [1, 8, 128, 64],
-                "values": np.random.random((8,1,64)).astype(np.float32)
+                "input_shape": [1, 8, 8, 8],
+                "values": np.random.random((8,1,8)).astype(np.float32)
             },
         ),
     )
