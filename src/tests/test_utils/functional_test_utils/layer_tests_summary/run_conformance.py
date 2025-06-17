@@ -106,7 +106,7 @@ class Conformance:
         self.__entity = ""
         if type == constants.OP_CONFORMANCE:
             if entity == "Inference" or entity == "QueryModel" or entity == "ImportExport" or entity == "" or entity == "OpImpl":
-                self.__entity = entity
+                self.__entity = entity if entity == "" else f"*.{entity}/"
             else:
                 logger.error(f'Incorrect value to set entity type: {special_mode}. Please check `help` to get possible values')
                 exit(-1)
@@ -115,7 +115,7 @@ class Conformance:
             else:
                 logger.error(f'Incorrect value to set shape mode: {special_mode}. Please check `help` to get possible values')
                 exit(-1)
-            self._gtest_filter = f"*{self.__entity}*{gtest_filter}*{'' if self.__entity == 'OpImpl' else ':-*OpImpl*'}"
+            self._gtest_filter = f"{self.__entity}*{gtest_filter}*"
         elif type == constants.API_CONFORMANCE:
             if entity == "ov_compiled_model" or entity == "ov_plugin" or entity == "ov_infer_request" or entity == "":
                 self.__entity = entity
