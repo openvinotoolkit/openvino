@@ -67,8 +67,7 @@ jit_snippets_call_args::loop_args_t::loop_args_t(const loop_args_t& other)
 jit_snippets_call_args::loop_args_t::~loop_args_t() {
     delete[] m_ptr_increments;
     delete[] m_finalization_offsets;
-    if (m_dtype_sizes)
-        delete[] m_dtype_sizes;
+    delete[] m_dtype_sizes;
 }
 
 jit_snippets_call_args::loop_args_t& jit_snippets_call_args::loop_args_t::operator=(loop_args_t other) {

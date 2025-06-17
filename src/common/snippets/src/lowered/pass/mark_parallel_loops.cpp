@@ -20,7 +20,6 @@ bool MarkParallelLoops::run(LinearIR& linear_ir,
     //  a more sophisticaled scheduling might be required in some cases, e.g. parallel loops over N dimension in MLP
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
-        const auto& node = expr->get_node();
         const auto& expr_loops = expr->get_loop_ids();
         if (!expr_loops.empty()) {
             if (outermost_loop_id == SIZE_MAX)
