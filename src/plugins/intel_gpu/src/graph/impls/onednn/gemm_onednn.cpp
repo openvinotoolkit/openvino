@@ -109,16 +109,11 @@ protected:
         if (in0_l.data_padding) {
             dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_dims(in0_l.get_padded_dims(), rank, batched_dims_can_be_removed);
             in0_strides = onednn::get_strides(in0_padded_dims);
-            if (prim->transpose_input0) {
-                std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
-            }
         }
 
         if (in1_l.data_padding) {
             dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_dims(in1_l.get_padded_dims(), rank, batched_dims_can_be_removed);
             in1_strides = onednn::get_strides(in1_padded_dims);
-            if (prim->transpose_input1)
-                std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
         }
 
         // Check whether transpose_order increase sequential or not.
@@ -150,6 +145,7 @@ protected:
 
         auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
                                                 dnnl::memory::dims& dims,
+                                                dnnl::memory::dims& strides,
                                                 dnnl::memory::format_tag& tag,
                                                 bool is_input = true) {
             std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
@@ -172,14 +168,21 @@ protected:
             if (ret) {
                 tag = convert_data_format(transposed_format);
                 dnnl::memory::dims original_dims = dims;
+                dnnl::memory::dims original_strides = strides;
                 if (is_input) {
                     for (size_t i = 0; i < original_dims.size(); ++i) {
                         dims[i] = original_dims[order[i]];
+                        if (strides.size() > 0) {
+                            strides[i] = original_strides[order[i]];
+                        }
                     }
                 } else {
                     // Get non-transposed dims for output dims
                     for (size_t i = 0; i < original_dims.size(); ++i) {
                         dims[order[i]] = original_dims[i];
+                        if (strides.size() > 0) {
+                            strides[order[i]] = original_strides[i];
+                        }
                     }
                 }
             } else {
@@ -193,16 +196,22 @@ protected:
             if (has_transpose_order_xy_only(prim->input0_transpose_order)) {
                 in0_fmt = transpose_format(in0_fmt);
                 std::swap(in0_dims[in0_dims.size() - 1], in0_dims[in0_dims.size() - 2]);
+                if (in0_strides.size() > 0) {
+                    std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
+                }
             } else {
-                transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_fmt);
+                transpose_dims_and_format_tag(prim->input0_transpose_order, in0_dims, in0_strides, in0_fmt);
             }
         }
         if (has_transpose_order(prim->input1_transpose_order)) {
             if (has_transpose_order_xy_only(prim->input1_transpose_order)) {
                 in1_fmt = transpose_format(in1_fmt);
                 std::swap(in1_dims[in1_dims.size() - 1], in1_dims[in1_dims.size() - 2]);
+                if (in1_strides.size() > 0) {
+                    std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
+                }
             } else {
-                transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_fmt);
+                transpose_dims_and_format_tag(prim->input1_transpose_order, in1_dims, in1_strides, in1_fmt);
             }
         }
         if (has_transpose_order(prim->output_transpose_order)) {
@@ -210,7 +219,8 @@ protected:
                 out_fmt = transpose_format(out_fmt);
                 std::swap(out_dims[out_dims.size() - 1], out_dims[out_dims.size() - 2]);
             } else {
-                transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, out_fmt, false);
+                dnnl::memory::dims dummy_strides = out_dims;
+                transpose_dims_and_format_tag(prim->output_transpose_order, out_dims, dummy_strides, out_fmt, false);
             }
         }
 
