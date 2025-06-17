@@ -4,18 +4,16 @@
 
 #include "snippets/lowered/pass/mark_parallel_loops.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
-
-bool MarkParallelLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+namespace ov::snippets::lowered::pass {
+bool MarkParallelLoops::run(LinearIR& linear_ir,
+                            lowered::LinearIR::constExprIt begin,
+                            lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkParallelLoops")
     size_t outermost_loop_id = SIZE_MAX;
     // todo: currently, we use the simplest possible strategy: convert only the outermost loop to parallel.
@@ -28,7 +26,8 @@ bool MarkParallelLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt 
             if (outermost_loop_id == SIZE_MAX)
                 outermost_loop_id = expr_loops.front();
             else
-                OPENVINO_ASSERT(outermost_loop_id == expr_loops.front(), "This LIR is not supported for scheduling yet");
+                OPENVINO_ASSERT(outermost_loop_id == expr_loops.front(),
+                                "This LIR is not supported for scheduling yet");
         }
     }
     OPENVINO_ASSERT(outermost_loop_id != SIZE_MAX, "Failed to find outermost loop in LIR");
@@ -37,7 +36,4 @@ bool MarkParallelLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt 
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass
