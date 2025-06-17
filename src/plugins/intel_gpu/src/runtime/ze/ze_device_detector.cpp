@@ -72,13 +72,13 @@ std::map<std::string, device::ptr> ze_device_detector::get_available_devices(voi
 std::vector<device::ptr> ze_device_detector::create_device_list(bool initialize_devices) const {
     std::vector<device::ptr> ret;
 
-    ze_init_driver_type_desc_t driver_desc = {
-        ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC, nullptr, ZE_INIT_DRIVER_TYPE_FLAG_GPU};
+    ZE_CHECK(zeInit(ZE_INIT_FLAG_GPU_ONLY));
+
     uint32_t driver_count = 0;
-    ZE_CHECK(zeInitDrivers(&driver_count, nullptr, &driver_desc));
+    ZE_CHECK(zeDriverGet(&driver_count, nullptr));
 
     std::vector<ze_driver_handle_t> all_drivers(driver_count);
-    ZE_CHECK(zeInitDrivers(&driver_count, all_drivers.data(), &driver_desc));
+    ZE_CHECK(zeDriverGet(&driver_count, &all_drivers[0]));
 
     for (uint32_t i = 0; i < driver_count; ++i) {
         uint32_t device_count = 0;
