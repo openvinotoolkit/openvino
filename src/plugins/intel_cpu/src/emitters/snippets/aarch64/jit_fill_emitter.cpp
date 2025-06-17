@@ -93,9 +93,31 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 }
 
 template <cpu_isa_t isa>
-void jit_fill_emitter::fill_tail([[maybe_unused]] const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto dst = TReg(out[0]);
+
+    if (in[0] != out[0]) {
+        switch (offset) {
+        case 1: {
+            WReg tmp{ h->X_TMP_0.getIdx() };
+            h->fmov(tmp, SReg(in[0]));
+            h->ins(dst.s[0], tmp);
+            break;
+        }
+        case 2: {
+            auto tmp = h->X_TMP_0;
+            h->fmov(tmp, DReg(in[0]));
+            h->mov(dst.d[0], tmp);
+            break;
+        }
+        case 0:
+        case 3:
+        case 4:
+            h->mov(Xbyak_aarch64::VReg16B(out[0]), Xbyak_aarch64::VReg16B(in[0]));
+            break;
+        }
+    }
 
     switch (offset) {
     case 1:
