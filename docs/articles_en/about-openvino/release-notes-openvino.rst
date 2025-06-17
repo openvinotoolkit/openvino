@@ -27,41 +27,42 @@ What's new
 
 * More Gen AI coverage and frameworks integrations to minimize code changes
 
-  * New models supported: Phi-4, Mistral-7B-Instruct-v0.3, SD-XL Inpainting 0.1, Stable Diffusion 
-    3.5 Large Turbo, Phi-4-reasoning, Qwen3, Qwen2.5-VL-3B-Instruct, and Gemma-3-1b-it.
-  * Preview: OpenVINO™ GenAI introduces a text-to-speech pipeline for the SpeechT5 TTS model, 
-    while the new RAG backend offers developers a simplified API that delivers reduced memory 
-    usage and improved performance.
-  * Preview: OpenVINO™ GenAI offers a GGUF Reader for seamless integration of llama.cpp based 
-    LLMs, with Python and C++ pipelines that load GGUF models, build OpenVINO graphs, and run 
-    GPU inference on-the-fly. Validated for popular models: DeepSeek-R1-Distill-Qwen (1.5B, 7B), 
-    Qwen2.5 Instruct (1.5B, 3B, 7B) & llama-3.2 Instruct (1B, 3B, 8B).
+  * New models supported on CPUs & GPUs: Phi-4, Mistral-7B-Instruct-v0.3, SD-XL Inpainting 0.1, 
+    Stable Diffusion 3.5 Large Turbo, Phi-4-reasoning, Qwen3, and Qwen2.5-VL-3B-Instruct. Mistral 
+    7B Instruct v0.3 is also supported on NPUs.​
+  * Preview: OpenVINO ™ GenAI introduces a text-to-speech pipeline for the SpeechT5 TTS model, 
+    while the new RAG backend offers developers a simplified API that delivers reduced memory usage 
+    and improved performance.​
+  * Preview: OpenVINO™ GenAI offers a GGUF Reader for seamless integration of llama.cpp based LLMs, 
+    with Python and C++ pipelines that load GGUF models, build OpenVINO graphs, and run GPU inference 
+    on-the-fly. Validated for popular models: DeepSeek-R1-Distill-Qwen (1.5B, 7B), Qwen2.5 Instruct 
+    (1.5B, 3B, 7B) & llama-3.2 Instruct (1B, 3B, 8B)
 
 * Broader LLM model support and more model compression techniques
 
   * Further optimization of LoRA adapters in OpenVINO GenAI for improved LLM, VLM, and text-to-image 
-    model performance on built-in GPUs. Developers can use LoRA adapters to quickly customize 
-    models for specialized tasks. 
-  * KV cache compression for CPUs is enabled by default for INT8, providing a reduced memory 
-    footprint while maintaining accuracy compared to FP16. Additionally, it delivers substantial 
-    memory savings for LLMs with INT4 support compared to INT8.
-  * Optimizations for Intel® Core™ Ultra Processor Series 2 built-in GPUs and Intel® Arc™ B 
-    Series Graphics with the Intel® XMX systolic platform to enhance the performance of VLM 
-    models and hybrid quantized image generation models, as well as improve first-token latency 
-    for LLMs through dynamic quantization.
+    model performance on built-in GPUs. Developers can use LoRA adapters to quickly customize models 
+    for specialized tasks. ​
+  * KV cache compression for CPUs is enabled by default for INT8, providing a reduced memory footprint
+    while maintaining accuracy compared to FP16. Additionally, it delivers substantial memory savings 
+    for LLMs with INT4 support compared to INT8.​
+  * Optimizations for Intel® Core™ Ultra Processor Series 2 built-in GPUs and Intel® Arc™ B Series 
+    Graphics with the Intel® XMX systolic platform to enhance the performance of VLM models and hybrid 
+    quantized image generation models, as well as improve first-token latency for LLMs through dynamic 
+    quantization.
 
 * More portability and performance to run AI at the edge, in the cloud or locally
 
-  * Enhanced Linux* support with the latest GPU driver for built-in GPUs on Intel® Core™ Ultra 
-    Processor Series 2 (formerly codenamed Arrow Lake H).
-  * OpenVINO™ Model Server now offers a streamlined C++ version for Windows and enables improved 
-    performance for long-context models through prefix caching, and a smaller Windows package 
-    that eliminates the Python dependency. Support for Hugging Face models is now included.
-  * Support for INT4 data-free weights compression for ONNX models implemented in the 
-    Neural Network Compression Framework (NNCF).
-  * NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models 
-    with up to 8B parameters is enabled through symmetrical and channel-wise quantization, 
-    improving accuracy while maintaining performance efficiency.
+  * Enhanced Linux* support with the latest GPU driver for built-in GPUs on Intel® Core™ Ultra Processor 
+    Series 2 (formerly codenamed Arrow Lake H) ​
+  * OpenVINO™ Model Server now offers a streamlined C++ version for Windows and enables improved performance 
+    for long-context models through prefix caching, and a smaller Windows package that eliminates the Python 
+    dependency. Support for Hugging Face models is now included.​
+  * Support for INT4 data-free weights compression for ONNX models implemented in the Neural Network 
+    Compression Framework (NNCF)​
+  * NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with up to 8B 
+    parameters is enabled through symmetrical and channel-wise quantization, improving accuracy while 
+    maintaining performance efficiency
 
 
 OpenVINO™ Runtime 
@@ -145,6 +146,9 @@ NPU Device Plugin
 * The NPU driver is now included in OpenVINO Docker images for Ubuntu, enabling out-of-the-box NPU 
   support without manual driver installation. For instructions, refer to the
   `OpenVINO Docker documentation <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/npu_accelerator.md>`__.
+* NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with up to 8B parameters is 
+  enabled through symmetrical and channel-wise quantization, improving accuracy while maintaining performance 
+  efficiency. FP16-NF4 is not supported on CPUs and GPUs.
 
 
 OpenVINO Python API
@@ -245,7 +249,7 @@ OpenVINO GenAI
   * VLM prompt can now refer to specific images. For example, 
     ``<ov_genai_image_0>What’s in the image?`` will prepend the corresponding image to the prompt 
     while ignoring other images. See VLMPipeline’s docstrings for more details.
-  * VLM uses Continuous batching by default, improving Performance.
+  * VLM uses continuous batching by default, improving performance.
   * VLMPipeline can now be constructed from in-memory `ov::Model`.
   * Qwen2.5-VL support has been added.
 
