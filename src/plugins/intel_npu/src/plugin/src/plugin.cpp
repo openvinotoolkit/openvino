@@ -206,6 +206,7 @@ void Plugin::init_options() {
     REGISTER_OPTION(LOG_LEVEL);
     REGISTER_OPTION(CACHE_DIR);
     REGISTER_OPTION(CACHE_MODE);
+    REGISTER_OPTION(COMPILED_BLOB);
     REGISTER_OPTION(DEVICE_ID);
     REGISTER_OPTION(NUM_STREAMS);
     REGISTER_OPTION(PERF_COUNT);
@@ -585,8 +586,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     std::istream stream{origStream.rdbuf()};
     ov::SharedStreamBuffer buffer{nullptr, 0};  // used only if blob is given by tensor, but it is not OV cached blob
 
-    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
         tensor = blob_it->second.as<ov::Tensor>();
@@ -601,7 +600,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
             stream.rdbuf(&buffer);
         }
-        npu_plugin_properties.erase(blob_it);
     }
 
     // If was exported via NPUW

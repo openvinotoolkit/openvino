@@ -334,7 +334,7 @@ struct CACHE_MODE final : OptionBase<CACHE_MODE, ov::CacheMode> {
     }
 
     static ov::CacheMode defaultValue() {
-        return ov::CacheMode::OPTIMIZE_SIZE;
+        return ov::CacheMode::OPTIMIZE_SPEED;
     }
 
     static bool isPublic() {
@@ -360,6 +360,46 @@ struct CACHE_MODE final : OptionBase<CACHE_MODE, ov::CacheMode> {
         std::stringstream strStream;
         strStream << val;
         return strStream.str();
+    }
+};
+
+//
+// COMPILED_BLOB
+//
+
+struct COMPILED_BLOB final : OptionBase<COMPILED_BLOB, ov::Tensor> {
+    static std::string_view key() {
+        return ov::hint::compiled_blob.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::Tensor";
+    }
+
+    static ov::Tensor defaultValue() {
+        return ov::Tensor();
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static ov::PropertyMutability mutability() {
+        return ov::PropertyMutability::RW;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static ov::Tensor parse(std::string_view) {
+        // Cannot/shouldn't parse this due to conversion and ownership reasons. The config option is added only to
+        // comply with the OV API without inserting multiple workarounds.
+        return defaultValue();
+    }
+
+    static std::string toString(const ov::Tensor&) {
+        return "";
     }
 };
 
@@ -1427,7 +1467,9 @@ struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>>
     }
 
     static std::shared_ptr<const ov::Model> parse(std::string_view) {
-        return nullptr;
+        // Cannot/shouldn't parse this due to conversion and ownership reasons. The config option is added only to
+        // comply with the OV API without inserting multiple workarounds.
+        return defaultValue();
     }
     static std::string toString(const std::shared_ptr<const ov::Model>& /* unused m*/) {
         return "";
