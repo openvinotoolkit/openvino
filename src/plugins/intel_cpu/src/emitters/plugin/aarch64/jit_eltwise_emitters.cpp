@@ -1281,7 +1281,8 @@ void jit_hsigmoid_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // result = (min(max(x + 3, 0), 6)) / 6
     h->ld1r(aux0.s, table_val2("three"));
     h->fadd(aux0.s, src.s, aux0.s);
-    h->ld1r(aux1.s, table_val2("zero"));
+    // set 'aux1' with zeros (a eor a is 0)
+    h->eor(aux1.b16, aux1.b16, aux1.b16);
     h->fmaxnm(aux0.s, aux0.s, aux1.s);
     h->ld1r(aux1.s, table_val2("six"));
     h->fminnm(aux0.s, aux0.s, aux1.s);
@@ -1290,7 +1291,6 @@ void jit_hsigmoid_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_hsigmoid_emitter::register_table_entries() {
-    push_arg_entry_of("zero", 0x00000000, true);
     push_arg_entry_of("three", 0x40400000, true);
     push_arg_entry_of("six", 0x40c00000, true);
     push_arg_entry_of("one_sixth", dnnl::impl::float2int(1.F / 6.F), true);
