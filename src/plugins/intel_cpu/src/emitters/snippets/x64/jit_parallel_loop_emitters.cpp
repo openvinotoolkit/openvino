@@ -1,12 +1,12 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_parallel_loop_emitters.hpp"
 
+#include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/utils.hpp"
-#include "emitters/plugin/x64/utils.hpp"
 #include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;
@@ -19,45 +19,46 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
                                                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                                const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
-        in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-        std::shared_ptr<snippets::op::LoopEnd> loop_end;
-        std::vector<snippets::Reg> loop_end_input_regs;
-        if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node())) {
-            loop_end = loop_begin->get_loop_end();
-            // todo: A long-term solution would be to introduce loop expressions so LoopBeginExpr->get_loop_end() would return LoopEndExpr directly
-            const auto& consumers = expr->get_output_port_connector(expr->get_output_count() - 1)->get_consumers();
-            OV_CPU_JIT_EMITTER_ASSERT(!consumers.empty(), "LoopBegin must have LoopEnd as the last consumer");
-            const auto& loop_end_expr = consumers.rbegin()->get_expr();
-            OV_CPU_JIT_EMITTER_ASSERT(loop_end_expr && loop_end_expr->get_node() == loop_end, 
-                                      "Failed to find valid LoopEnd expression");
-            loop_end_input_regs = loop_end_expr->get_reg_info().first;
-        } else {
-            loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
-            loop_end_input_regs = expr->get_reg_info().first;
-        }
-        OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Failed to initialize LoopEnd in jit_parallel_loop_base_emitter");
-        num_inputs = loop_end->get_input_num();
-        num_outputs = loop_end->get_output_num();
-        work_amount = loop_end->get_work_amount();
-        wa_increment = loop_end->get_increment();
-        is_incremented = loop_end->get_is_incremented();
-        ptr_increments = loop_end->get_ptr_increments();
-        finalization_offsets = loop_end->get_finalization_offsets();
-        data_sizes = loop_end->get_element_type_sizes();
-        evaluate_once = loop_end->get_evaluate_once();
-        loop_id = loop_end->get_id();
-        // todo: it's redundant to save both isolated fields and loop_args_t. choose only one implementation
-        // todo: data_sizes are already applied in runtime_configurator. can we do the same?
-        loop_args = jit_snippets_call_args::loop_args_t(work_amount, ptr_increments, finalization_offsets, data_sizes);
+    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
+    std::shared_ptr<snippets::op::LoopEnd> loop_end;
+    std::vector<snippets::Reg> loop_end_input_regs;
+    if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node())) {
+        loop_end = loop_begin->get_loop_end();
+        // todo: A long-term solution would be to introduce loop expressions so LoopBeginExpr->get_loop_end() would
+        // return LoopEndExpr directly
+        const auto& consumers = expr->get_output_port_connector(expr->get_output_count() - 1)->get_consumers();
+        OV_CPU_JIT_EMITTER_ASSERT(!consumers.empty(), "LoopBegin must have LoopEnd as the last consumer");
+        const auto& loop_end_expr = consumers.rbegin()->get_expr();
+        OV_CPU_JIT_EMITTER_ASSERT(loop_end_expr && loop_end_expr->get_node() == loop_end,
+                                  "Failed to find valid LoopEnd expression");
+        loop_end_input_regs = loop_end_expr->get_reg_info().first;
+    } else {
+        loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(expr->get_node());
+        loop_end_input_regs = expr->get_reg_info().first;
+    }
+    OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Failed to initialize LoopEnd in jit_parallel_loop_base_emitter");
+    num_inputs = loop_end->get_input_num();
+    num_outputs = loop_end->get_output_num();
+    work_amount = loop_end->get_work_amount();
+    wa_increment = loop_end->get_increment();
+    is_incremented = loop_end->get_is_incremented();
+    ptr_increments = loop_end->get_ptr_increments();
+    finalization_offsets = loop_end->get_finalization_offsets();
+    data_sizes = loop_end->get_element_type_sizes();
+    evaluate_once = loop_end->get_evaluate_once();
+    loop_id = loop_end->get_id();
+    // todo: it's redundant to save both isolated fields and loop_args_t. choose only one implementation
+    // todo: data_sizes are already applied in runtime_configurator. can we do the same?
+    loop_args = jit_snippets_call_args::loop_args_t(work_amount, ptr_increments, finalization_offsets, data_sizes);
 
-        OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
-        work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
-        loop_end_input_regs.pop_back();
-        mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
-        for (const auto& r : loop_end_input_regs) {
-            if (r.type == snippets::RegType::gpr)
-                mem_ptr_regs_idxs.emplace_back(r.idx);
-        }
+    OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
+    work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
+    loop_end_input_regs.pop_back();
+    mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
+    for (const auto& r : loop_end_input_regs) {
+        if (r.type == snippets::RegType::gpr)
+            mem_ptr_regs_idxs.emplace_back(r.idx);
+    }
 }
 
 void jit_parallel_loop_base_emitter::emit_pointer_increments(size_t scale) const {
@@ -83,13 +84,13 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
     // todo: we need to pass num_threads through config
     int num_threads = 8;
     ParallelLoopConfig kernel_config(loop_args, num_threads);
-    m_parallel_loop_executor =
-            kernel_table->register_kernel<ParallelLoopExecutor>(expr, kernel_config);
-    // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory pointers
-    // if they do, we need to spill them before the call and restore in the multithread section
+    m_parallel_loop_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, kernel_config);
+    // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory
+    // pointers if they do, we need to spill them before the call and restore in the multithread section
 }
 
-void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
+                                                         const std::vector<size_t>& out) const {
     // todo: re-enable
     // OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
     // // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
@@ -100,14 +101,13 @@ void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_
 }
 
 void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                            const std::vector<size_t>& out,
-                                            const std::vector<size_t>& pool_vec_idxs,
-                                            const std::vector<size_t>& pool_gpr_idxs) const {
+                                                     const std::vector<size_t>& out,
+                                                     const std::vector<size_t>& pool_vec_idxs,
+                                                     const std::vector<size_t>& pool_gpr_idxs) const {
     // todo: validate that the parameters obtained in the base class correspond to in & out
     validate_arguments(in, out);
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
-
 
 void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     Xbyak::Label loop_preamble_label;
@@ -132,12 +132,13 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
     h->mov(abi_param3, loop_preamble_label);
 
     spill.rsp_align(callee_saved_reg.getIdx());
-    // Note: we will return from this call only when the parallel region is finished (return from jit_parallel_loop_end_emitter)
+    // Note: we will return from this call only when the parallel region is finished (return from
+    // jit_parallel_loop_end_emitter)
     h->call(aux_reg);
     spill.rsp_restore();
 
     spill.postamble();
-    
+
     // Restore data ptrs with applied finalization offsets
     for (auto i : mem_ptr_regs_idxs)
         h->mov(Xbyak::Reg64(i), h->qword[h->rsp + i * sizeof(Xbyak::Reg64)]);
@@ -176,8 +177,8 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
 /* ================== jit_loop_end_emitter ====================== */
 
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                           dnnl::impl::cpu::x64::cpu_isa_t isa,
-                                           const ov::snippets::lowered::ExpressionPtr& expr)
+                                                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                                             const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_parallel_loop_base_emitter(h, isa, expr),
       loop_begin_label{nullptr},
       loop_end_label{new Xbyak::Label()} {
@@ -185,7 +186,8 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x6
     const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndParallel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEnd expr");
     const auto begin_expr = get_loop_begin_expr(expr);
-    const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());
+    const auto& loop_begin_emitter =
+        std::dynamic_pointer_cast<jit_parallel_loop_begin_emitter>(begin_expr->get_emitter());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_emitter");
     loop_begin_emitter->set_loop_end_label(loop_end_label);
     loop_begin_label = loop_begin_emitter->get_begin_label();
@@ -200,7 +202,8 @@ ov::snippets::lowered::ExpressionPtr jit_parallel_loop_end_emitter::get_loop_beg
     return begin_expr;
 }
 
-void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>& in,
+                                                       const std::vector<size_t>& out) const {
     const auto io_size = num_inputs + num_outputs;
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
@@ -234,9 +237,9 @@ void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>
 }
 
 void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                          const std::vector<size_t>& out,
-                                          const std::vector<size_t>& pool_vec_idxs,
-                                          const std::vector<size_t>& pool_gpr_idxs) const {
+                                                   const std::vector<size_t>& out,
+                                                   const std::vector<size_t>& pool_vec_idxs,
+                                                   const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
@@ -247,7 +250,6 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in, con
     // data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     // std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
-        
     emit_pointer_increments(wa_increment);
     Reg64 reg_work_amount = Reg64(in.back());
     h->sub(reg_work_amount, wa_increment);
@@ -259,7 +261,5 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in, con
     h->ret();
     h->L(*loop_end_label);
 }
-
-/* ============================================================== */
 
 }  // namespace ov::intel_cpu

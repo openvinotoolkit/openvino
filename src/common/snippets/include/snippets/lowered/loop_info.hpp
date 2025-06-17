@@ -176,8 +176,12 @@ public:
      */
     const LoopPort& get_loop_port(const ExpressionPort& expr_port);
 
-    bool is_parallel() const { return m_is_parallel; }
-    void set_is_parallel(bool mode) { m_is_parallel = mode; }
+    bool is_parallel() const {
+        return m_is_parallel;
+    }
+    void set_is_parallel(bool mode) {
+        m_is_parallel = mode;
+    }
 
 protected:
     /**

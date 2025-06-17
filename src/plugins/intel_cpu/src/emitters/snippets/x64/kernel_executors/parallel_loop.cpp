@@ -1,11 +1,11 @@
-// Copyright (C) 2020-2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "parallel_loop.hpp"
 
-#include "openvino/core/parallel.hpp"
 #include "common/utils.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
 
@@ -19,11 +19,14 @@ size_t ParallelLoopConfig::hash() const {
     return dnnl::impl::hash_combine(hash, m_num_threads);
 }
 
-void ParallelLoopExecutor::update_kernel(const ParallelLoopConfig& c, std::shared_ptr<ParallelLoopKernel>& kernel) const {
+void ParallelLoopExecutor::update_kernel(const ParallelLoopConfig& c,
+                                         std::shared_ptr<ParallelLoopKernel>& kernel) const {
     kernel = std::make_shared<ParallelLoopKernel>();
 }
 
-void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, uintptr_t** stack_ptr, loop_preamble_t preamble_ptr) {
+void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor,
+                                   uintptr_t** stack_ptr,
+                                   loop_preamble_t preamble_ptr) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());
 
@@ -42,15 +45,16 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, uintptr
         mem_ptrs.reserve(num_ptrs);
         for (int i = 0; i < num_ptrs; i++) {
             // Note: need to cast to char* to allow for arbitrary pointer shifts
-            mem_ptrs.push_back(reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(stack_ptr[i]) + ptr_increments[i] * dtype_sizes[i] * start));
+            mem_ptrs.push_back(reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(stack_ptr[i]) +
+                                                            ptr_increments[i] * dtype_sizes[i] * start));
         }
         void* updated_ptrs = mem_ptrs.data();
         preamble_ptr(end - start, updated_ptrs);
     });
     // todo: we can precompute these ptr shifts when loop_info_t is created
     for (int i = 0; i < num_ptrs; i++)
-        stack_ptr[i] += (loop_args.m_finalization_offsets[i] - ptr_increments[i] * loop_args.m_work_amount) * dtype_sizes[i];
+        stack_ptr[i] +=
+            (loop_args.m_finalization_offsets[i] - ptr_increments[i] * loop_args.m_work_amount) * dtype_sizes[i];
 }
-
 
 }  // namespace ov::intel_cpu

@@ -16,7 +16,6 @@
 #include "openvino/op/op.hpp"
 
 namespace ov::snippets::op {
-
 /**
  * @interface LoopBase
  * @brief Base class for LoopBegin and LoopEnd

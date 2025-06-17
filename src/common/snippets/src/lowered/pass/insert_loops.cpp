@@ -21,7 +21,6 @@
 #include "snippets/op/loop.hpp"
 
 namespace ov::snippets::lowered::pass {
-
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto work_amount = loop_info->get_work_amount();
@@ -40,14 +39,28 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     const auto finalization_offsets = loop_info->get_finalization_offsets();
     const auto io_data_sizes = loop_info->get_data_sizes();
 
-    const auto loop_begin = loop_info->is_parallel() ?
-                                std::make_shared<op::LoopBeginParallel>() :
-                                std::make_shared<op::LoopBegin>();
-    const auto loop_end = loop_info->is_parallel() ?
-                                std::make_shared<op::LoopEndParallel>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
-                                                                      finalization_offsets, io_data_sizes, in_num, out_num, loop_id) :
-                                std::make_shared<op::LoopEnd>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
-                                                              finalization_offsets, io_data_sizes, in_num, out_num, loop_id);
+    const auto loop_begin =
+        loop_info->is_parallel() ? std::make_shared<op::LoopBeginParallel>() : std::make_shared<op::LoopBegin>();
+    const auto loop_end = loop_info->is_parallel() ? std::make_shared<op::LoopEndParallel>(loop_begin,
+                                                                                           work_amount,
+                                                                                           work_amount_increment,
+                                                                                           is_incremented,
+                                                                                           ptr_increments,
+                                                                                           finalization_offsets,
+                                                                                           io_data_sizes,
+                                                                                           in_num,
+                                                                                           out_num,
+                                                                                           loop_id)
+                                                   : std::make_shared<op::LoopEnd>(loop_begin,
+                                                                                   work_amount,
+                                                                                   work_amount_increment,
+                                                                                   is_incremented,
+                                                                                   ptr_increments,
+                                                                                   finalization_offsets,
+                                                                                   io_data_sizes,
+                                                                                   in_num,
+                                                                                   out_num,
+                                                                                   loop_id);
 
     const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
     const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_bounds.first, loop_id);

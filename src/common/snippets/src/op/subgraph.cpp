@@ -48,9 +48,6 @@
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
-#include "snippets/lowered/pass/mark_loops.hpp"
-#include "snippets/lowered/pass/mark_parallel_loops.hpp"
-#include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/init_registers.hpp"
@@ -62,6 +59,7 @@
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/mark_parallel_loops.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
@@ -88,15 +86,9 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/gn_decomposition.hpp"
-
 // todo: remove debug serialization
 #include "snippets/lowered/pass/serialize_control_flow.hpp"
 #include "snippets/lowered/pass/serialize_data_flow.hpp"
-
-#include "snippets/lowered/pass/init_registers.hpp"
-
-#include "transformations/utils/utils.hpp"
-
 #include "snippets/pass/manager.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/propagate_precision.hpp"

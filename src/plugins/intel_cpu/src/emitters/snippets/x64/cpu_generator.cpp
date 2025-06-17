@@ -27,8 +27,8 @@
 #include "emitters/snippets/x64/jit_horizon_emitter.hpp"
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/x64/jit_loop_emitters.hpp"
-#include "emitters/snippets/x64/jit_parallel_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
+#include "emitters/snippets/x64/jit_parallel_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
@@ -350,7 +350,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     // todo: align names of node & emitter
     jitters[snippets::op::LoopBeginParallel::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(jit_parallel_loop_begin_emitter, configurator->get_kernel_executor_table());
-    jitters[snippets::op::LoopEndParallel::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_parallel_loop_end_emitter);
+    jitters[snippets::op::LoopEndParallel::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_parallel_loop_end_emitter);
     jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_reg_spill_begin_emitter);
     jitters[snippets::op::RegSpillEnd::get_type_info_static()] =
