@@ -26,6 +26,40 @@ public:
                "custom_gpu_primitive_node!");
         layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;
 
+        typed_primitive_inst<custom_gpu_primitive>::update_output_shape(impl_param, output_layout);
+
+        // if the output layout format was set to any, it means the layer output format will be the same as the first input
+        if (output_layout.format == format::any) {
+            output_layout.format = impl_param.get_input_layout().format;
+        }
+        return { output_layout };
+    }
+
+    static layout calc_output_layout(custom_gpu_primitive_node const& node, kernel_impl_params const& impl_param) {
+        assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
+               "Output data type forcing is not supported for "
+               "custom_gpu_primitive_node!");
+        layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;
+
+        typed_primitive_inst<custom_gpu_primitive>::update_output_shape(impl_param, output_layout);
+
+        // if the output layout format was set to any, it means the layer output format will be the same as the first
+        // input
+        if (output_layout.format == format::any) {
+            output_layout.format = impl_param.get_input_layout().format;
+        }
+        return output_layout;
+    }
+
+    static std::string to_string(custom_gpu_primitive_node const& node);
+
+    static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param);
+
+public:
+    typed_primitive_inst(network& network, custom_gpu_primitive_node const& node);
+
+private:
+    static void update_output_shape(const kernel_impl_params& impl_param, layout& output_layout) {
         bool is_dynamic_input = false;
         const auto inp_sz = impl_param.get_input_layout_size();
         for (size_t i = 0; i < inp_sz; i++) {
@@ -48,34 +82,7 @@ public:
             auto new_outp_shape = new_op->get_output_shape(0);
             output_layout.set_partial_shape(new_outp_shape);
         }
-
-        // if the output layout format was set to any, it means the layer output format will be the same as the first input
-        if (output_layout.format == format::any) {
-            output_layout.format = impl_param.get_input_layout().format;
-        }
-        return { output_layout };
     }
-
-    static layout calc_output_layout(custom_gpu_primitive_node const& node, kernel_impl_params const& impl_param) {
-        assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-               "Output data type forcing is not supported for "
-               "custom_gpu_primitive_node!");
-        layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;
-
-        // if the output layout format was set to any, it means the layer output format will be the same as the first
-        // input
-        if (output_layout.format == format::any) {
-            output_layout.format = impl_param.get_input_layout().format;
-        }
-        return output_layout;
-    }
-
-    static std::string to_string(custom_gpu_primitive_node const& node);
-
-    static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param);
-
-public:
-    typed_primitive_inst(network& network, custom_gpu_primitive_node const& node);
 };
 
 using custom_gpu_primitive_inst = typed_primitive_inst<custom_gpu_primitive>;
