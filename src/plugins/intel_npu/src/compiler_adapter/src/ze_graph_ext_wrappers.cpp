@@ -278,7 +278,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
 ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                      const std::string& buildFlags,
                                                      const uint32_t& flags) const {
-    ze_graph_handle_t graphHandle;
+    ze_graph_handle_t graphHandle = nullptr;
     if (NotSupportGraph2(_graphExtVersion)) {
         // For ext version <1.5, calling pfnCreate api in _zeroInitStruct->getGraphDdiTable()
         ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
@@ -317,7 +317,7 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
 }
 
 ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, size_t blobSize) const {
-    ze_graph_handle_t graphHandle;
+    ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
@@ -457,7 +457,8 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 }
 
 NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle) const {
-    ze_graph_properties_t graphProperties{};
+    ze_graph_properties_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
 
     _logger.debug("getNetworkMeta - perform pfnGetProperties");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(graphHandle, &graphProperties);
