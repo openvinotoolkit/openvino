@@ -93,16 +93,9 @@ KERNEL(gather_nd_ref)(
 
 #if IS_DYNAMIC
     uint wi_slice = 1;
-    #if INPUT0_DIMS == 4
-        uint input_dims[4] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X};
-    #elif INPUT0_DIMS == 5
-        uint input_dims[5] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
-    #else
-        uint input_dims[6] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_W, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
-    #endif
     const uint indices_last_dim = idx_dim[INDICES_RANK - 1];
     for (uint i = BATCH_DIMS + indices_last_dim; i < INPUT0_DIMS; i++)
-        wi_slice *= input_dims[i];
+        wi_slice *= data_dim[i];
 #else
     const uint wi_slice = WI_SLICE_SIZE;
     const uint indices_last_dim = INDICES_LAST_DIM;
