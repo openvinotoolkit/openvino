@@ -11,7 +11,7 @@ namespace ov::util {
 
 class LogStream : public std::ostream {
 public:
-    LogStream(std::ostream* default_ostream);
+    LogStream(std::ostream* default_stream);
 
     LogStream(const LogStream&) = delete;
     LogStream(LogStream&&) = delete;
@@ -26,8 +26,7 @@ private:
     };
     LogBuffer log_buffer;
 
-    std::ostream* const default_ostream{};
-    std::ostream* current_ostream{};
+    std::ostream* const default_stream{};
 };
 
 class LogDispatch {

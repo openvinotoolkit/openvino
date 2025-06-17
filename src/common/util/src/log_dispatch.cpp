@@ -6,11 +6,8 @@
 
 namespace ov::util {
 
-LogStream::LogStream(std::ostream* const def_os)
-    : std::ostream{nullptr},
-      default_ostream{def_os},
-      current_ostream{def_os} {
-    log_buffer.current_ostream = current_ostream;
+LogStream::LogStream(std::ostream* const def_os) : std::ostream{nullptr}, default_stream{def_os} {
+    log_buffer.current_ostream = default_stream;
     std::ostream::rdbuf(&log_buffer);
 }
 
