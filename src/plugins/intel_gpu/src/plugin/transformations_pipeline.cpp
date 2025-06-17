@@ -1175,7 +1175,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
-        manager.register_pass<ov::intel_gpu::RoPEFusion>();
+        // manager.register_pass<ov::intel_gpu::RoPEFusion>();
 
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
         // Therefore, run MarkDequantization again to fold ZP constant.

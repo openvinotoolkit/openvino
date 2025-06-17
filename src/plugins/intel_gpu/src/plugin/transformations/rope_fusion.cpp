@@ -143,16 +143,16 @@ RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
             }
         }
 
-        std::cout << "RoPEFusionChatGLMHF::callback | name="
-                  << root->get_friendly_name()
-                  << ", split_output_id = " << split_output_id
-                  << ", total_size_q = " << total_size_q
-                  << ", total_size_k = " << total_size_k
-                  << ", total_size_v = " << total_size_v
-                  << ", head_cnt = " << head_cnt
-                  << ", head_size = " << head_size
-                  << ", ndims = " << ndims
-                  << std::endl;
+        // std::cout << "RoPEFusionChatGLMHF::callback | name="
+        //           << root->get_friendly_name()
+        //           << ", split_output_id = " << split_output_id
+        //           << ", total_size_q = " << total_size_q
+        //           << ", total_size_k = " << total_size_k
+        //           << ", total_size_v = " << total_size_v
+        //           << ", head_cnt = " << head_cnt
+        //           << ", head_size = " << head_size
+        //           << ", ndims = " << ndims
+        //           << std::endl;
 
         ov::op::internal::RoPE::Config config;
         OutputVector new_args;
