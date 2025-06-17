@@ -132,7 +132,9 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
             output[output_index] = TO_OUTPUT_TYPE(normalized);
         #endif
     } else {
-        output[output_index] = OUTPUT_VAL_ZERO;
+        #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
+            output[output_index] = OUTPUT_VAL_ZERO;
+        #endif
     }
 }
 #endif

@@ -21,9 +21,15 @@ struct GroupNormalizationBfyxOpt : public GroupNormalizationBase {
     explicit GroupNormalizationBfyxOpt(shape_types shape_type, ValidateFunc vf = nullptr) : GroupNormalizationBase(shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        static constexpr std::array supported_fmts = {
+        static constexpr std::array supported_input_fmts = {
             format::bfyx,
             format::bfzyx,
+        };
+
+        static constexpr std::array supported_output_fmts = {
+            format::bfyx,
+            format::bfzyx,
+            format::b_fs_yx_fsv16,
         };
 
         static constexpr std::array supported_types = {
@@ -35,7 +41,7 @@ struct GroupNormalizationBfyxOpt : public GroupNormalizationBase {
 
         const auto& in0_layout = node.get_input_layout(0);
         const auto& out_layout = node.get_output_layout(0);
-        if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
+        if (!one_of(in0_layout.format, supported_input_fmts) || !one_of(out_layout.format, supported_output_fmts)) {
             return false;
         }
 
@@ -43,7 +49,7 @@ struct GroupNormalizationBfyxOpt : public GroupNormalizationBase {
             return false;
         }
 
-        if (!fused_ops_are_one_of<eltwise, activation>(node.get_fused_primitives())) {
+        if (!fused_ops_are_one_of<eltwise, activation, reorder>(node.get_fused_primitives())) {
             return false;
         }
 
