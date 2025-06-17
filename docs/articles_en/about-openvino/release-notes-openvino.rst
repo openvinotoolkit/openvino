@@ -36,7 +36,7 @@ What's new
   * Preview: OpenVINO™ GenAI offers a GGUF Reader for seamless integration of llama.cpp based LLMs, 
     with Python and C++ pipelines that load GGUF models, build OpenVINO graphs, and run GPU inference 
     on-the-fly. Validated for popular models: DeepSeek-R1-Distill-Qwen (1.5B, 7B), Qwen2.5 Instruct 
-    (1.5B, 3B, 7B) & llama-3.2 Instruct (1B, 3B, 8B)
+    (1.5B, 3B, 7B) & llama-3.2 Instruct (1B, 3B, 8B).
 
 * Broader LLM model support and more model compression techniques
 
@@ -54,15 +54,15 @@ What's new
 * More portability and performance to run AI at the edge, in the cloud or locally
 
   * Enhanced Linux* support with the latest GPU driver for built-in GPUs on Intel® Core™ Ultra Processor 
-    Series 2 (formerly codenamed Arrow Lake H) ​
+    Series 2 (formerly codenamed Arrow Lake H). ​
   * OpenVINO™ Model Server now offers a streamlined C++ version for Windows and enables improved performance 
     for long-context models through prefix caching, and a smaller Windows package that eliminates the Python 
     dependency. Support for Hugging Face models is now included.​
   * Support for INT4 data-free weights compression for ONNX models implemented in the Neural Network 
-    Compression Framework (NNCF)​
+    Compression Framework (NNCF)​.
   * NPU support for FP16-NF4 precision on Intel® Core™ 200V Series processors for models with up to 8B 
     parameters is enabled through symmetrical and channel-wise quantization, improving accuracy while 
-    maintaining performance efficiency
+    maintaining performance efficiency.
 
 
 OpenVINO™ Runtime 
