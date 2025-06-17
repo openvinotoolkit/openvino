@@ -1183,19 +1183,12 @@ bool primitive_inst::use_async_compilation() {
         compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
     }
 
-    bool compile_conv_impls = _node->is_type<convolution>();
+    bool compile_conv_impls = get_node().is_type<convolution>();
     if (compile_conv_impls) {
         compile_conv_impls = _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
-        // // compile_conv_impls = _node->get_selected_impl() && !_node->get_selected_impl()->is_onednn();
-        // GPU_DEBUG_INFO << _node->id() << " : _node->get_selected_impl() : " << _node->get_selected_impl() << std::endl;
-        // if (_node->get_selected_impl())
-        // GPU_DEBUG_INFO << _node->id() << " : _node->get_selected_impl()->is_onednn() : " << _node->get_selected_impl()->is_onednn()  << std::endl;
-        // GPU_DEBUG_INFO << _node->id() << " : _impls_factory->has(impl_types::onednn) : " << _impls_factory->has(impl_types::onednn)  << std::endl;
-        // GPU_DEBUG_COUT << _node->id() << " : " << compile_conv_impls << std::endl;
     }
 
     return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
-    // return (get_node().is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
             (get_node().is_type<softmax>() && get_node().get_selected_impl() &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -1916,7 +1909,6 @@ void primitive_inst::prepare_primitive() {
         GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
     }
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
-    // auto start1 = std::chrono::high_resolution_clock::now();
 
     // If it is optimized out or skipped for zero dimension at the previous iteration,
     // Set this flag true to reset output memory in realloc_if_needed.
@@ -1926,8 +1918,7 @@ void primitive_inst::prepare_primitive() {
     if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         update_shape();
-        // auto end1 = std::chrono::high_resolution_clock::now();
-        // auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1);
+
         if (_impl_params->output_layouts[0].count() == 0) {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Skipping because output data is empty " << std::endl;
             set_flag(ExecutionFlags::SKIP);
@@ -1977,8 +1968,6 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_lora();
         do_runtime_in_place_crop();
 
-        // auto end2 = std::chrono::high_resolution_clock::now();
-        // auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start1);
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_build: " + id()));
             get_unfused_subgraph();
@@ -1989,21 +1978,11 @@ void primitive_inst::prepare_primitive() {
         // Only try update weight and realloc when impl is updated.
         const bool can_use_async_compilation = use_async_compilation();
         const bool shape_changed = get_flag(ExecutionFlags::SHAPE_CHANGED);
-        // auto end3 = std::chrono::high_resolution_clock::now();
-        // auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
-        // auto duration4 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
-        // auto duration5 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
         if (shape_changed || !_impl || (!shape_changed && _impl->is_dynamic() && can_use_async_compilation)) {
             update_impl(can_use_async_compilation);
-            // auto end3 = std::chrono::high_resolution_clock::now();
-            // duration3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
             if (get_flag(ExecutionFlags::IMPL_CHANGED)) {
                 update_weights();
-                // auto end4 = std::chrono::high_resolution_clock::now();
-                // duration4 = std::chrono::duration_cast<std::chrono::microseconds>(end4 - start1);
                 realloc_if_needed(prev_execution_skipped);
-                // auto end5 = std::chrono::high_resolution_clock::now();
-                // duration5 = std::chrono::duration_cast<std::chrono::microseconds>(end5 - start1);
             }
         }
 
@@ -2014,10 +1993,7 @@ void primitive_inst::prepare_primitive() {
 
             realloc_if_needed(prev_execution_skipped);
         }
-        // if (get_node().is_type<convolution>()) {
-        //     GPU_DEBUG_INFO << "conv_prepare_primitive: " << id() << " : " << duration1.count() << ", " << duration2.count() << ", "
-        //                     << duration3.count() << ", " << duration4.count() << ", " << duration5.count() << " ";
-        // }
+
         OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
                         "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
     }
@@ -2047,8 +2023,6 @@ void primitive_inst::prepare_primitive() {
         set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
         set_arguments();
     }
-    // auto end6 = std::chrono::high_resolution_clock::now();
-    // auto duration6 = std::chrono::duration_cast<std::chrono::microseconds>(end6 - start1);
     on_execute();
 
     if (!get_node().is_type<condition>() && !get_node().is_type<loop>()) {
@@ -2081,19 +2055,12 @@ void primitive_inst::prepare_primitive() {
         }
     }
 
-    // auto end7 = std::chrono::high_resolution_clock::now();
-    // auto duration7 = std::chrono::duration_cast<std::chrono::microseconds>(end7 - start1);
     // Replace multiple events with single grouped event in case of barriers synchronization to prevent `_last_barrier_ev` usage as a dependency
     // event of optimized_out instance's users, which may lead to unwanted extra synchronization of CPU impls with GPU kernels
     if (get_node().is_in_shape_of_subgraph() && can_be_optimized() && _impl_params->dep_events.size() > 1 && out_of_order_queue) {
         auto grouped_ev = get_network().get_stream().group_events(_impl_params->dep_events);
         _impl_params->dep_events = {grouped_ev};
     }
-    // auto end8 = std::chrono::high_resolution_clock::now();
-    // auto duration8 = std::chrono::duration_cast<std::chrono::microseconds>(end8 - start1);
-    // if (get_node().is_type<convolution>()) {
-    //     GPU_DEBUG_INFO << duration6.count() << ", " << duration7.count() << ", " << duration8.count() << std::endl;
-    // }
 }
 
 void primitive_inst::execute() {
@@ -2970,9 +2937,6 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
         o.data_padding._dynamic_dims_mask = padding::EMPTY_MASK;
     }
 
-    if (inst.get_node().is_type<convolution>()) {
-        GPU_DEBUG_INFO << inst.get_node().id() << " : " << use_async_compilation << std::endl;
-    }
     // 1. If we have static impl in the cache - use it
     if (use_async_compilation && ((inst.get_impl() && inst.get_impl()->is_dynamic()) || inst.get_flag(ExecutionFlags::SHAPE_CHANGED))) {
         auto cached_impl = m_static_impls_cache.get(updated_params);

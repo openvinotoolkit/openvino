@@ -945,7 +945,6 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
             cldnn::program_node& mutable_node = const_cast<cldnn::convolution_node&>(node);
             mutable_node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
             bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
-            // GPU_DEBUG_COUT << node.id() << ": i8_u8_output: " << i8_u8_output << ", " << output_layout.to_short_string() << std::endl;
             if (i8_u8_output) {
                 mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
             } else {
@@ -955,15 +954,9 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
             if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
                 mutable_node.set_preferred_input_fmt(0, cldnn::format::byxf);
             }
-            // GPU_DEBUG_COUT << node.id() << ", " << output_layout.get_partial_shape()[1].is_static()
-            //                 << ", " << output_layout.get_partial_shape()[1].get_length()
-            //                 << ", " << output_layout.to_short_string() << std::endl;
-            //                 //<< ", " << output_layout.feature() << std::endl;
             if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
                 mutable_node.set_preferred_output_fmt(0, cldnn::format::byxf);
             }
-            // GPU_DEBUG_INFO << format(mutable_node.get_preferred_input_fmt(0))
-            //                 << ", " << format(mutable_node.get_preferred_output_fmt()) << std::endl;
         } else {
             if (input_layout.get_partial_shape().size() <= 4)
                 expected_format = format::b_fs_yx_fsv16;
@@ -976,10 +969,6 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
     if (use_onednn_impls && onednn_valid_post_ops && node.get_preferred_output_fmt() != format::any) {
-        // GPU_DEBUG_INFO << "pf_IN: " << format(node.get_preferred_input_fmt())
-        //                 << ", dt: " << ov::element::Type_t(input_layout.data_type)
-        //                 << ", pf_OUT: " << format(node.get_preferred_output_fmt())
-        //                 << ", dt: " << ov::element::Type_t(output_layout.data_type) << std::endl;
         expected_format = node.get_preferred_output_fmt();
     } else {
         /* *************************** Native impls format selection part ************************** */

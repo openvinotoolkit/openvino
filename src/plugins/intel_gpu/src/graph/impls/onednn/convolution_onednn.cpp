@@ -352,25 +352,15 @@ public:
         int zero_point_mask = -1;
         dnnl::memory::data_type wzp_data_type = dnnl::memory::data_type::undef;
 
-        // auto start1 = std::chrono::high_resolution_clock::now();
         auto attr = get_primitive_attributes(arg, impl_params, zero_point_mask, wzp_data_type);
-        // auto end1 = std::chrono::high_resolution_clock::now();
-        // auto duration1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1);
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
-        // auto end2 = std::chrono::high_resolution_clock::now();
-        // auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start1);
 
         auto conv_onednn_impl = std::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
                                                 get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
-        // auto end3 = std::chrono::high_resolution_clock::now();
-        // auto duration3 = std::chrono::duration_cast<std::chrono::microseconds>(end3 - start1);
 
         conv_onednn_impl->set_zero_point_mask(zero_point_mask);
         conv_onednn_impl->set_weights_zero_point_data_type(wzp_data_type);
-
-        // GPU_DEBUG_INFO << "conv_creat: " << arg.id() << " , " << duration1.count() << " , "
-        //                 << duration2.count() << " , " << duration3.count() << std::endl;
 
         return conv_onednn_impl;
     }
