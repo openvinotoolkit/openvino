@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<net name="TestModel" version="11">
+	<layers>
+		<layer id="1" name="data1" type="Parameter" version="opset1">
+			<data shape="2,1" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32" names="data1">
+					<dim>2</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="0" name="data2" type="Parameter" version="opset1">
+			<data shape="2,1" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32" names="data2">
+					<dim>2</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Add_361" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Result_362" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>2</dim>
+					<dim>1</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="1" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
