@@ -10,7 +10,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 
 ov_build_target_faster(${TARGET_NAME}
-    PCH PRIVATE "src/precomp.hpp"
+    PCH_HEADER "src/precomp.hpp"
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

@@ -188,6 +188,7 @@
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/gated_mlp_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 #include "snippets/pass/split_dimension_m.hpp"
@@ -210,8 +211,9 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#else
-#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
@@ -236,6 +238,8 @@
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_multi_axis.hpp"
 #    include "transformations/cpu_opset/arm/pass/convert_reduce_no_keep_dims.hpp"
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
+#else
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -1154,7 +1158,7 @@ void Transformations::MainSnippets() {
     // ARM doesn't even support MHA yet
     is_dynamic_mha_token_enabled = false;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
-#else
+#elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
@@ -1163,17 +1167,18 @@ void Transformations::MainSnippets() {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
             return false;
         }
-        // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
-        // Need to support precision conversion in BrgemmCopyB kernel.
-        if (matmul->get_input_element_type(1) == element::f32 &&
-            one_of(config.inferencePrecision, element::f16, element::bf16)) {
-            return false;
+        auto input_precision = matmul->get_input_element_type(0);
+        // In case of half float precision enforcement,
+        // we need to pass the precision that will be forced during lowering
+        if (input_precision == ov::element::f32 &&
+            one_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
+            input_precision = config.inferencePrecision;
         }
-        // After postop itself is checked, need to check if matmul before the op can fuse it
-        const auto brgemm_type =
-            brgemm_utils::get_brgemm_type(matmul->get_input_element_type(0), matmul->get_transpose_b());
-        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(brgemm_type, matmul->get_input_element_type(0));
+        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
+#else
+    size_t data_ptr_gpr_count = 0;
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
@@ -1196,6 +1201,7 @@ void Transformations::MainSnippets() {
         CPU_REGISTER_PASS_ARM64(snippetsManager, SnippetsMarkSkipped);
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, config.inferencePrecision == ov::element::bf16);
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeFCSnippets);
+        CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeGatedMLPSnippets);
     }
     CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
@@ -1430,12 +1436,6 @@ void Transformations::MainSnippets() {
                     return true;
                 if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
                     return true;
-                // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
-                // Need to support precision conversion in BrgemmCopyB kernel.
-                if (n->get_input_element_type(1) == element::f32 &&
-                    one_of(config.inferencePrecision, element::f16, element::bf16)) {
-                    return true;
-                }
                 return false;
             },
             snippets::pass::TokenizeMLPSeqSnippets);

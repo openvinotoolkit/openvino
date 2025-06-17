@@ -4,11 +4,11 @@
 
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -38,7 +38,7 @@ namespace {
 //    new subtensor [32, FULL_DIM] - has not been changed! But should be [?, FULL_DIM]
 // Conclusion: we have to distinguish forced dynamic value with existing dynamic values in shape and subtensor
 
-constexpr size_t NEW_DEFAULT_VALUE    = SIZE_MAX - 2;
+constexpr size_t NEW_DEFAULT_VALUE = SIZE_MAX - 2;
 constexpr size_t FORCED_DYNAMIC_VALUE = SIZE_MAX - 3;
 
 void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
@@ -50,7 +50,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     // Marks the forced dynamic value
     new_dim_value = utils::is_dynamic_value(new_dim_value) ? FORCED_DYNAMIC_VALUE : new_dim_value;
     OPENVINO_ASSERT(snippets::utils::implication(most_outer_loop, new_dim_value != NEW_DEFAULT_VALUE),
-                    "if the updated subtensor propagation was called for the outer loop, new_dim_value must not be equal to default value");
+                    "if the updated subtensor propagation was called for the outer loop, new_dim_value must not be "
+                    "equal to default value");
 
     std::map<lowered::PortDescriptorPtr, snippets::VectorDims> original_shapes;
     // First step: set new dim value to the corresponding input_ports' dimensions
@@ -63,7 +64,9 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                     desc->set_subtensor_dim(port.get_dim_idx(), new_dim_value);
                 }
 
-                const auto parent_desc = expr->get_input_port_connector(port.get_expr_port()->get_index())->get_source().get_descriptor_ptr();
+                const auto parent_desc = expr->get_input_port_connector(port.get_expr_port()->get_index())
+                                             ->get_source()
+                                             .get_descriptor_ptr();
                 const auto& parent_shape = parent_desc->get_shape();
                 if (original_shapes.find(parent_desc) == original_shapes.end()) {
                     original_shapes[parent_desc] = parent_shape;
@@ -79,7 +82,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         if (port.is_processed()) {
             const auto desc = port.get_expr_port()->get_descriptor_ptr();
             const auto expr = port.get_expr_port()->get_expr();
-            const auto parent_desc = expr->get_input_port_connector(port.get_expr_port()->get_index())->get_source().get_descriptor_ptr();
+            const auto parent_desc =
+                expr->get_input_port_connector(port.get_expr_port()->get_index())->get_source().get_descriptor_ptr();
 
             const auto& parent_shape = parent_desc->get_shape();
             const auto& desc_subtensor = desc->get_subtensor();
@@ -88,7 +92,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                     original_shapes[parent_desc] = parent_shape;
                 }
                 auto new_shape = parent_shape;
-                new_shape[*(desc->get_layout().rbegin() + port.get_dim_idx())] = *(desc_subtensor.rbegin() + port.get_dim_idx());
+                new_shape[*(desc->get_layout().rbegin() + port.get_dim_idx())] =
+                    *(desc_subtensor.rbegin() + port.get_dim_idx());
                 parent_desc->set_shape(new_shape);
             }
         }
@@ -98,14 +103,18 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
         for (const auto& desc : descs) {
             const auto& subtensor = desc->get_subtensor();
             if (!subtensor.empty()) {
-                auto planar_dims = is_input ? snippets::utils::get_planar_vdims(desc->get_shape(), desc->get_layout())
-                                            : snippets::utils::get_preordered_vdims(desc->get_shape(), desc->get_layout());
+                auto planar_dims = is_input
+                                       ? snippets::utils::get_planar_vdims(desc->get_shape(), desc->get_layout())
+                                       : snippets::utils::get_preordered_vdims(desc->get_shape(), desc->get_layout());
                 const size_t subtensor_start = planar_dims.size() - subtensor.size();
                 VectorDims new_subtensor(planar_dims.begin() + subtensor_start, planar_dims.end());
                 for (size_t i = 0; i < new_subtensor.size(); ++i) {
-                    // If user forces dynamic value to set in subtensor, set real dynamic dimension using `get_dynamic_value<size_t>()`
-                    new_subtensor[i] = new_subtensor[i] == FORCED_DYNAMIC_VALUE ? utils::get_dynamic_value<size_t>() :
-                                       utils::is_full_dim_value(subtensor[i]) ? subtensor[i] : std::min(new_subtensor[i], subtensor[i]);
+                    // If user forces dynamic value to set in subtensor, set real dynamic dimension using
+                    // `get_dynamic_value<size_t>()`
+                    new_subtensor[i] = new_subtensor[i] == FORCED_DYNAMIC_VALUE ? utils::get_dynamic_value<size_t>()
+                                       : utils::is_full_dim_value(subtensor[i])
+                                           ? subtensor[i]
+                                           : std::min(new_subtensor[i], subtensor[i]);
                 }
                 desc->set_subtensor(new_subtensor);
             }
@@ -185,8 +194,7 @@ std::shared_ptr<pass::PassBase> UpdateSubtensors::merge(const std::shared_ptr<pa
     return std::make_shared<UpdateSubtensors>(merged_size);
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

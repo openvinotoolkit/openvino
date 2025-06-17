@@ -22,19 +22,19 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void createPrimitive() override;
 
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
 protected:
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     /// ISTFT params
