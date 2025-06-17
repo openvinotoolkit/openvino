@@ -6,9 +6,9 @@
 
 namespace ov::util {
 
-LogStream::LogStream(std::ostream* const def_os) : std::ostream{nullptr}, default_stream{def_os} {
-    log_buffer.current_ostream = default_stream;
-    std::ostream::rdbuf(&log_buffer);
+LogStream::LogStream(std::ostream* const default_stream) : std::ostream{nullptr}, m_default_stream{default_stream} {
+    m_log_buffer.m_current_ostream = default_stream;
+    std::ostream::rdbuf(&m_log_buffer);
 }
 
 LogStream::LogBuffer::LogBuffer() : std::streambuf{} {}
@@ -16,7 +16,7 @@ LogStream::LogBuffer::LogBuffer() : std::streambuf{} {}
 int LogStream::LogBuffer::overflow(int c) {
     // Such performance dropping buffer address reading is needed for current testing approach, which replaces
     // cout/cerr `streambuf` with `stringbuf` for runtime comparison.
-    current_ostream->rdbuf()->sputc(c);
+    m_current_ostream->rdbuf()->sputc(c);
     return c;
 }
 

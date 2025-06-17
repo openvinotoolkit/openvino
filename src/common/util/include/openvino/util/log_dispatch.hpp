@@ -22,20 +22,17 @@ private:
     struct LogBuffer : std::streambuf {
         LogBuffer();
         int overflow(int c) override;
-        std::ostream* current_ostream{};
+        std::ostream* m_current_ostream{};
     };
-    LogBuffer log_buffer;
+    LogBuffer m_log_buffer;
 
-    std::ostream* const default_stream{};
+    std::ostream* const m_default_stream{};
 };
 
 class LogDispatch {
 public:
     static LogStream& cerr();
     static LogStream& cout();
-
-private:
-    static LogStream err_log, out_log;
 };
 
 static auto& ov_cerr = LogDispatch::cerr();
