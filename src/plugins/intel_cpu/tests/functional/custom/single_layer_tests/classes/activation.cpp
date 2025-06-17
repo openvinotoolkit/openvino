@@ -280,7 +280,10 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
+// On other platforms HSigmoid is decomposed
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
         {HSigmoid,    {{}}},
+#endif
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
         {LeakyRelu,   {{-0.01f}}},
