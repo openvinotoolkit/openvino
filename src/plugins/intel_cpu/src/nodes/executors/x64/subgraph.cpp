@@ -178,38 +178,6 @@ void SubgraphExecutor::separately_repack_input(const MemoryPtr& src_mem_ptr,
     }
 }
 
-std::vector<MemoryPtr> SubgraphExecutor::prepare_weights(const std::vector<MemoryPtr>& in_mem_ptrs,
-                                                         const InputRepackerMap& input_const_repackers,
-                                                         const GraphContext::CPtr& context) {
-    std::vector<MemoryPtr> repacked_mem_ptrs = in_mem_ptrs;
-    for (const auto& p : input_const_repackers) {
-        const auto idx = p.first;
-        const auto& input_repacker = p.second;
-        OPENVINO_ASSERT(idx < in_mem_ptrs.size(), "Incorrect index of repacked input");
-        const auto& src_mem_ptr = in_mem_ptrs[idx];
-
-        auto create = [&]() {
-            const auto& dst_mem_ptr = std::make_shared<Memory>(context->getEngine(), input_repacker.desc());
-            separately_repack_input(src_mem_ptr, dst_mem_ptr, input_repacker, dst_mem_ptr->getShape().getDims().size());
-            return dst_mem_ptr;
-        };
-
-        auto weight_cache = context->getWeightsCache();
-        if (weight_cache != nullptr) {
-            const auto& wgt_dims = src_mem_ptr->getStaticDims();
-            OPENVINO_ASSERT(wgt_dims.size() > 1, "Unexpected weight shape rank");
-            const auto string_hash =
-                "brgemm_snippets_" + DnnlExtensionUtils::computeWeightsStringHash(
-                                         src_mem_ptr,
-                                         MemoryDescUtils::convertToDnnlMemoryDesc(input_repacker.desc()));
-            repacked_mem_ptrs[idx] = *weight_cache->findOrCreate(string_hash, create);
-        } else {
-            repacked_mem_ptrs[idx] = create();
-        }
-    }
-    return repacked_mem_ptrs;
-}
-
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
 void SubgraphExecutor::segfault_detector() const {
