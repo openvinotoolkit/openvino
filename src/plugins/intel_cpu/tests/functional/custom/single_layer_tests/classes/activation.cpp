@@ -190,6 +190,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::Negative) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
+        (activation_type == utils::ActivationTypes::HSigmoid) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
         (activation_type == utils::ActivationTypes::IsFinite) ||
         (activation_type == utils::ActivationTypes::IsNaN) ||
@@ -222,6 +223,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
        (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
        (activation_type == utils::ActivationTypes::IsFinite) ||
+       (activation_type == utils::ActivationTypes::HSigmoid) ||
        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
        (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
         return "ref";
@@ -279,6 +281,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
+        {HSigmoid,    {{}}},
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
         {LeakyRelu,   {{-0.01f}}},
