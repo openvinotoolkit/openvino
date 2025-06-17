@@ -125,4 +125,28 @@ protected:
     bool m_evaluate_once = false;
 };
 
+class LoopBeginParallel : public LoopBegin {
+public:
+    OPENVINO_OP("LoopBeginParallel", "SnippetsOpset", LoopBegin);
+    LoopBeginParallel();
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+};
+
+class LoopEndParallel : public LoopEnd {
+public:
+    OPENVINO_OP("LoopEndParallel", "SnippetsOpset", LoopEnd);
+    LoopEndParallel() = default;
+    LoopEndParallel(const Output<Node>& loop_begin,
+                    size_t work_amount,
+                    size_t work_amount_increment,
+                    std::vector<bool> is_incremented,
+                    std::vector<int64_t> ptr_increments,
+                    std::vector<int64_t> finalization_offsets,
+                    std::vector<int64_t> element_type_sizes,
+                    size_t input_num,
+                    size_t output_num,
+                    size_t id);
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+};
 }  // namespace ov::snippets::op

@@ -48,6 +48,9 @@
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/mark_parallel_loops.hpp"
+#include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/init_registers.hpp"
@@ -85,6 +88,15 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/gn_decomposition.hpp"
+
+// todo: remove debug serialization
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+#include "snippets/lowered/pass/serialize_data_flow.hpp"
+
+#include "snippets/lowered/pass/init_registers.hpp"
+
+#include "transformations/utils/utils.hpp"
+
 #include "snippets/pass/manager.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/propagate_precision.hpp"
@@ -508,11 +520,13 @@ void Subgraph::control_flow_transformations(
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
     // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
+    // todo: disabled for testing, a smaller batch can be used
     size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
-    if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
-        lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
-        m_linear_ir->set_loop_depth(loop_depth);
-    }
+    // if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
+    //     lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
+    //     m_linear_ir->set_loop_depth(loop_depth);
+    // }
+    m_linear_ir->set_loop_depth(2);
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
 
@@ -532,6 +546,8 @@ void Subgraph::control_flow_transformations(
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
+    // todo: move to backend-specific passes?
+    pipeline.register_pass<lowered::pass::MarkParallelLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
@@ -581,6 +597,9 @@ void Subgraph::control_flow_transformations(
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     gen_pipeline.run(*m_linear_ir);
+
+    ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_control.xml").run(*m_linear_ir);
+    ov::snippets::lowered::pass::SerializeDataFlow("snsdebug_data.xml").run(*m_linear_ir);
 }
 
 snippets::Schedule Subgraph::generate(
