@@ -12,7 +12,7 @@ using namespace std;
 using namespace ov;
 using namespace testing;
 
-#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
+#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 TEST(type_prop, space_to_depth_output_shape_block_first_4D) {
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 64, 64});
