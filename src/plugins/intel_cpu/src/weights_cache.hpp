@@ -91,11 +91,11 @@ class SocketsWeights {
 public:
     SocketsWeights();
 
-    WeightsSharing::Ptr& operator[](int i);
-    const WeightsSharing::Ptr& operator[](int i) const;
+    WeightsSharing::Ptr& operator[](int socket_id);
+    const WeightsSharing::Ptr& operator[](int socket_id) const;
 
 #ifdef CPU_DEBUG_CAPS
-    std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
+    [[nodiscard]] std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
 #endif  // CPU_DEBUG_CAPS
 
 private:

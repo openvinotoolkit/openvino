@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/op/reorder.hpp"
-#include "snippets/utils/utils.hpp"
 
+#include "snippets/itt.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
 namespace op {
 
-Reorder::Reorder(const Output<Node>& arg, std::vector<size_t> order)
-    : ShapeInferOp({arg}) {
+Reorder::Reorder(const Output<Node>& arg, std::vector<size_t> order) : ShapeInferOp({arg}) {
     custom_constructor_validate_and_infer_types(std::move(order));
 }
 
@@ -22,7 +20,7 @@ void Reorder::custom_constructor_validate_and_infer_types(std::vector<size_t> or
 
     const auto& input_pshape = get_input_partial_shape(0);
     OPENVINO_ASSERT(input_pshape.rank().is_static() && input_pshape.size() == order.size(),
-                   "Incompatible shape and order sizes");
+                    "Incompatible shape and order sizes");
 
     // During ctor call, Reorder doesn't know his port descriptors.
     // So we use explicit layouts from parameters
@@ -62,6 +60,6 @@ IShapeInferSnippets::Result Reorder::ShapeInfer::infer(const std::vector<VectorD
     return {{ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_target_order)}, ShapeInferStatus::success};
 }
 
-}// namespace op
-}// namespace snippets
-}// namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

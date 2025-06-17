@@ -190,7 +190,7 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& dstDims)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
-      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<>()) / blockSize},
+      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1UL, std::multiplies<>()) / blockSize},
       axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
         if (dataDims[i] != dstDims[i]) {
@@ -213,7 +213,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
     const auto* axes = axesMemPtr->getDataAs<const int32_t>();
     auto* dst = dstMemPtr->getDataAs<T>();
 
-    std::vector<size_t> shiftsVector(numOfDims, 0ul);
+    std::vector<size_t> shiftsVector(numOfDims, 0UL);
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
 
     for (size_t dim = 0; dim < axesLength; ++dim) {
@@ -260,7 +260,5 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
 bool Roll::created() const {
     return getType() == Type::Roll;
 }
-
-constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
 }  // namespace ov::intel_cpu::node

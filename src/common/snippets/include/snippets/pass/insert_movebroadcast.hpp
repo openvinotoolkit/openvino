@@ -16,16 +16,16 @@ namespace pass {
  * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
-class InsertMoveBroadcast: public ov::pass::MatcherPass {
+class InsertMoveBroadcast : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::InsertMoveBroadcast");
     InsertMoveBroadcast();
 
     static Output<ov::Node> BroadcastNodeLastDim(const ov::Output<ov::Node>& value,
-                                                     const ov::PartialShape& target_shape,
-                                                     const ov::PartialShape& normalized_shape);
+                                                 const ov::PartialShape& target_shape,
+                                                 const ov::PartialShape& normalized_shape);
 };
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

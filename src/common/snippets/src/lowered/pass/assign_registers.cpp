@@ -4,12 +4,11 @@
 
 #include "snippets/lowered/pass/assign_registers.hpp"
 
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/kernel.hpp"
-
+#include "snippets/snippets_isa.hpp"
+#include "snippets/utils/utils.hpp"
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <iterator>
@@ -19,11 +18,23 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool) {
+AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& linear_ir,
+                                                              std::set<Reg>& gpr_pool,
+                                                              std::set<Reg>& vec_pool) {
     RegMap manually_assigned;
-    OPENVINO_ASSERT(gpr_pool.size() >= (linear_ir.get_parameters().size() + linear_ir.get_results().size()),
+    const auto internal_parameters = [&]() {
+        std::vector<ExpressionPtr> internal_parameters;
+        internal_parameters.reserve(linear_ir.get_parameters().size());
+        for (const auto& param : linear_ir.get_parameters()) {
+            if (!param->get_output_port_descriptor(0)->get_reg().is_address()) {
+                internal_parameters.push_back(param);
+            }
+        }
+        return internal_parameters;
+    }();
+    OPENVINO_ASSERT(gpr_pool.size() >= (internal_parameters.size() + linear_ir.get_results().size()),
                     "Not enough gp registers in the pool to perform manual assignment");
-    for (const auto& param : linear_ir.get_parameters()) {
+    for (const auto& param : internal_parameters) {
         manually_assigned[param->get_output_port_descriptor(0)->get_reg()] = *gpr_pool.begin();
         gpr_pool.erase(gpr_pool.begin());
     }
@@ -53,7 +64,8 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             OPENVINO_ASSERT(all_equal, "Buffer must have same register on all inputs and outputs");
         } else if (ov::is_type_any_of<op::HorizonMax, op::HorizonSum>(op)) {
             // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
-            // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
+            // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a
+            // accumulator
             // TODO [96351]: We should rewrite accumulator pattern using another way
             const auto& input_tensor = expr->get_input_port_connector(0);
             const auto& input = input_tensor->get_source();
@@ -63,9 +75,10 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
                 const auto parent = tensor->get_source();
                 const auto parent_expr = parent.get_expr();
                 if (ov::is_type<op::Fill>(parent_expr->get_node())) {
-                    if (ov::is_type<op::VectorBuffer>(parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
+                    if (ov::is_type<op::VectorBuffer>(
+                            parent_expr->get_input_port_connector(0)->get_source().get_expr()->get_node())) {
                         manually_assigned[parent.get_descriptor_ptr()->get_reg()] =
-                        manually_assigned[parent_expr->get_input_port_descriptor(0)->get_reg()] = assigned;
+                            manually_assigned[parent_expr->get_input_port_descriptor(0)->get_reg()] = assigned;
                     }
                 }
             }
@@ -83,12 +96,11 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
     const auto& exprs = linear_ir.get_ops();
 
     const auto& kernel = snippets::op::Kernel::make_kernel(linear_ir.is_dynamic());
-    auto vec2set = [](std::vector<Reg>&& v){
+    auto vec2set = [](std::vector<Reg>&& v) {
         std::set<Reg> res;
         std::copy(v.begin(), v.end(), std::inserter(res, res.begin()));
         return res;
     };
-
 
     std::set<Reg> global_regs = vec2set(m_reg_manager.get_kernel_call_regs(kernel));
     std::set<Reg> gpr_pool = vec2set(m_reg_manager.get_gp_regs_except_kernel_call(kernel));
@@ -100,7 +112,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
 
     struct by_starting {
         auto operator()(const LiveInterval& lhs, const LiveInterval& rhs) const -> bool {
-            return lhs.first < rhs.first|| (lhs.first == rhs.first && lhs.second < rhs.second);
+            return lhs.first < rhs.first || (lhs.first == rhs.first && lhs.second < rhs.second);
         }
     };
 
@@ -120,17 +132,17 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         if (assigned_reg_map.count(reg))
             continue;
         switch (reg.type) {
-            case (RegType::gpr):
-                OPENVINO_ASSERT(!live_intervals_gpr.count(interval), "GPR live interval is already in the map");
-                live_intervals_gpr[interval] = reg;
-                break;
-            case (RegType::vec):
-                OPENVINO_ASSERT(!live_intervals_vec.count(interval), "VEC live interval is already in the map");
-                live_intervals_vec[interval] = reg;
-                break;
-            case (RegType::undefined):
-            default:
-                OPENVINO_THROW("Unhandled register type");
+        case (RegType::gpr):
+            OPENVINO_ASSERT(!live_intervals_gpr.count(interval), "GPR live interval is already in the map");
+            live_intervals_gpr[interval] = reg;
+            break;
+        case (RegType::vec):
+            OPENVINO_ASSERT(!live_intervals_vec.count(interval), "VEC live interval is already in the map");
+            live_intervals_vec[interval] = reg;
+            break;
+        case (RegType::undefined):
+        default:
+            OPENVINO_THROW("Unhandled register type");
         }
     }
 
@@ -160,7 +172,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                 bank.push(register_map[active_unique_reg]);
             }
             // allocate
-            OPENVINO_ASSERT(active.size() != reg_pool.size(), "Can't allocate registers for a snippet: not enough registers");
+            OPENVINO_ASSERT(active.size() != reg_pool.size(),
+                            "Can't allocate registers for a snippet: not enough registers");
             register_map[unique_reg] = bank.top();
             bank.pop();
             active.insert(interval_reg);
@@ -179,16 +192,21 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         for (const auto& live_reg : expr->get_live_regs())
             mapped_live_regs.insert(assigned_reg_map[live_reg]);
         expr->set_live_regs(mapped_live_regs);
-        for (const auto& in : expr->get_input_port_descriptors())
-            in->set_reg(assigned_reg_map[in->get_reg()]);
-        for (const auto& out : expr->get_output_port_descriptors())
-            out->set_reg(assigned_reg_map[out->get_reg()]);
+        for (const auto& in : expr->get_input_port_descriptors()) {
+            if (!in->get_reg().is_address()) {
+                in->set_reg(assigned_reg_map[in->get_reg()]);
+            }
+        }
+        for (const auto& out : expr->get_output_port_descriptors()) {
+            if (!out->get_reg().is_address()) {
+                out->set_reg(assigned_reg_map[out->get_reg()]);
+            }
+        }
     }
     return false;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

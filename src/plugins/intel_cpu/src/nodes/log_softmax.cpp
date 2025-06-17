@@ -118,7 +118,7 @@ void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
             const float* srcDataPtr = &srcData[i * reducedAxisSize];
             float* dstDataPtr = &dstData[i * reducedAxisSize];
 
-            float reduceProd = 0.0f;
+            float reduceProd = 0.0F;
             const float max = *std::max_element(srcDataPtr, srcDataPtr + reducedAxisSize);
             for (size_t j = 0; j < reducedAxisSize; ++j) {
                 reduceProd += expf(srcDataPtr[j] - max);
@@ -134,7 +134,7 @@ void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
             const float* srcDataPtr = &srcData[k * reducedAxisStride * reducedAxisSize + i];
             float* dstDataPtr = &dstData[k * reducedAxisStride * reducedAxisSize + i];
 
-            float reduceProd = 0.0f;
+            float reduceProd = 0.0F;
             float max = std::numeric_limits<float>::min();
             for (size_t j = 0; j < reducedAxisSize; ++j) {
                 if (srcDataPtr[j * reducedAxisStride] > max) {

@@ -24,7 +24,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
-    PCH PRIVATE "src/precomp.hpp"
+    PCH_HEADER "src/precomp.hpp"
 )
 
 add_library(snippets_test_utils STATIC ${CMAKE_CURRENT_SOURCE_DIR}/include/lowering_utils.hpp

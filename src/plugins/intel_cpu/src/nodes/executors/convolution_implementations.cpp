@@ -7,6 +7,7 @@
 #include <optional>
 #include <vector>
 
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
@@ -103,11 +104,7 @@ bool MatchesMemoryFormatFilter(const executor::Config<Attrs>& config,
     const auto desc = DnnlBlockedMemoryDesc(config.descs.at(ARG_DST)->getShape(),
                                             dnnl::memory::data_type::f32,
                                             filter.output.front());
-    if (!desc.hasLayoutType(layoutConfig.back())) {
-        return false;
-    }
-
-    return true;
+    return desc.hasLayoutType(layoutConfig.back());
 }
 
 // to keep OV_CPU_INSTANCE macros aligned
@@ -157,6 +154,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_ncsp_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;
@@ -196,6 +195,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nCsp16c_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;

@@ -73,8 +73,8 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 protected:
-    size_t get_max_vecs_count() const;
-    int32_t get_vec_length() const;
+    static size_t get_max_vecs_count();
+    static int32_t get_vec_length();
 
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;

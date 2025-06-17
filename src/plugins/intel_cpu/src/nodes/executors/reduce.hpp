@@ -51,7 +51,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const ReduceAttrs& reduceAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual ReduceExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual ReduceExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using ReduceExecutorBuilderPtr = std::shared_ptr<ReduceExecutorBuilder>;

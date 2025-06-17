@@ -4,11 +4,11 @@
 
 #include "snippets/pass/gn_decomposition.hpp"
 
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "openvino/core/rt_info.hpp"
 
 namespace ov {
 namespace snippets {
@@ -25,7 +25,8 @@ GNDecomposition::GNDecomposition() {
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::pass::GNDecomposition")
         auto group_norm_node = ov::as_type_ptr<ov::op::v12::GroupNormalization>(m.get_match_root());
-        OPENVINO_ASSERT(!group_norm_node->is_dynamic(), "GroupNormalization decomposition in snippets only support static node.");
+        OPENVINO_ASSERT(!group_norm_node->is_dynamic(),
+                        "GroupNormalization decomposition in snippets only support static node.");
 
         const auto data = group_norm_node->input_value(0);
         const auto scale = group_norm_node->input_value(1);
@@ -58,7 +59,8 @@ GNDecomposition::GNDecomposition() {
 
         // reduceMean
         float group_size_inv = 1.0f / static_cast<float>(group_shape[3]);
-        const auto group_size_inv_node = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
+        const auto group_size_inv_node =
+            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
         const auto reduce_mean = std::make_shared<ov::op::v1::Multiply>(reduce_sum, group_size_inv_node);
 
         // x - mean
@@ -74,7 +76,8 @@ GNDecomposition::GNDecomposition() {
         auto sqr_reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(sqr, group_rank - 1);
         op::ReduceBase::compute_and_set_reduce_subtensors(sqr_reduce_sum);
         // reduceMean((x - mean) ^ 2)
-        const auto group_size_inv_node_aux = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
+        const auto group_size_inv_node_aux =
+            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
         auto sqr_mean = std::make_shared<ov::op::v1::Multiply>(sqr_reduce_sum, group_size_inv_node_aux);
         // reduceMean((x - mean) ^ 2) + eps
         auto eps_node = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{eps});

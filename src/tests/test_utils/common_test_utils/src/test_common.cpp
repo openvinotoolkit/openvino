@@ -7,7 +7,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "precomp.hpp"
 
 #ifdef ENABLE_CONFORMANCE_PGQL
 #    include "common_test_utils/postgres_link.hpp"

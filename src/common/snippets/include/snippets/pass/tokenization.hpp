@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-
 #include "snippets/op/subgraph.hpp"
 
 namespace ov {
@@ -14,15 +13,16 @@ namespace pass {
 
 /*
  NotSet - default value returned by GetSnippetsNodeType(...) if the node wasn't marked
- SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via SetSnippetsNodeType(...).
+ SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via
+ SetSnippetsNodeType(...).
  */
-enum class SnippetsNodeType : int64_t {NotSet, SkippedByPlugin};
+enum class SnippetsNodeType : int64_t { NotSet, SkippedByPlugin };
 /*
  NotSet - default value returned if the subgraph wasn't marked and snippets can include nodes in this subgraph
  Completed - indicate that snippets can't include any nodes in this subgraph.
              It's used in separate tokenization pass, for example, tokenization by matcher (MHA Tokenization).
  */
-enum class SnippetsSubgraphType : int64_t {NotSet, Completed};
+enum class SnippetsSubgraphType : int64_t { NotSet, Completed };
 void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
 void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>&, SnippetsSubgraphType);
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);
@@ -42,7 +42,6 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
 
-
 /**
  * @interface SnippetsTokenization
  * @brief  Splits model to supported subgraphs
@@ -54,7 +53,8 @@ public:
  *           - During tokenization new Subgraph op takes the name of the last tokenized op.
  *             It's needed to save output names of model in cases when tokenized op was before model Result.
  *           - If some transformation (for example, SplitDimensionM) insert new op after Subgraph,
- *             the op should be called as this Subgraph to save output name. The Subgraph name is updated using suffix "_original".
+ *             the op should be called as this Subgraph to save output name. The Subgraph name is updated using suffix
+ *             "_original".
  * @ingroup snippets
  */
 class SnippetsTokenization : public ov::pass::ModelPass {
@@ -67,11 +67,23 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t concurrency, size_t data_ptr_gpr_count, bool split_m_dimension, bool enable_transpose_on_output,
-               bool dyn_mha_token, std::set<size_t> mha_transpose_ranks)
-            : m_concurrency(concurrency), m_data_ptr_gpr_count(data_ptr_gpr_count), m_split_m_dimension(split_m_dimension),
-              m_mha_token_enable_transpose_on_output(enable_transpose_on_output), m_is_dynamic_mha_token_enabled(dyn_mha_token),
-              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {
+        using CanBeFusedAsPostOpPred = std::function<bool(const std::shared_ptr<const ov::op::v0::MatMul>&,
+                                                          const std::shared_ptr<const ov::Node>&)>;
+
+        Config(size_t concurrency,
+               size_t data_ptr_gpr_count,
+               bool split_m_dimension,
+               bool enable_transpose_on_output,
+               bool dyn_mha_token,
+               std::set<size_t> mha_transpose_ranks,
+               CanBeFusedAsPostOpPred can_be_fused_as_postop = nullptr)
+            : m_concurrency(concurrency),
+              m_data_ptr_gpr_count(data_ptr_gpr_count),
+              m_split_m_dimension(split_m_dimension),
+              m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
+              m_is_dynamic_mha_token_enabled(dyn_mha_token),
+              m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)),
+              m_can_be_fused_as_postop(can_be_fused_as_postop) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
             OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
         }
@@ -104,6 +116,10 @@ public:
             return m_mha_supported_transpose_ranks;
         }
 
+        const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
+            return m_can_be_fused_as_postop;
+        }
+
     private:
         size_t m_concurrency = 0;
         // The number of gpr that can be used as data pointers for data nodes (Parameter (and non-Scalar Constants),
@@ -122,7 +138,10 @@ public:
         // Set of supported Transpose shape ranks for tokenization in MHATokenization pass.
         // Note that in general Snippets support Transpose of any ranks.
         // But at the moment Transpose is used only in MHA pattern where 3D and 4D tensors are supported.
-        std::set<size_t> m_mha_supported_transpose_ranks = { 3, 4 };
+        std::set<size_t> m_mha_supported_transpose_ranks = {3, 4};
+        // Predicate that checks if the node can be fused as MatMul post-op.
+        // It is currently used only in TokenizeMLPSeqSnippets
+        CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
     SnippetsTokenization(const Config& config) : m_config(config) {}
@@ -131,7 +150,6 @@ public:
 private:
     Config m_config;
 };
-
 
 }  // namespace pass
 }  // namespace snippets

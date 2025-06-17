@@ -84,7 +84,8 @@ protected:
                   size_t step,
                   const Xbyak::Reg64& end,
                   std::function<void(const Xbyak::Reg64&)> && fn) {
-        Label loop, exit;
+        Label loop;
+        Label exit;
 
         L(loop);
         cmp(idx, end);
@@ -174,7 +175,6 @@ protected:
         uni_vtestps(b, b);                      // if (b != 0) CF = 1 else CF = 0
     }
 
-protected:
     Label exit, has_target_values, no_target_values;
 
     const Reg64& reg_src = rax;
@@ -435,15 +435,14 @@ void Input::cloneBlobIfRequired() {
     // The presence of subnormals is better to determined at IR read time.
     auto checkSubnormalsAndBF16Overflows = [&](bool& has_subnormals, bool& has_bf16_overflows) {
         if (prec == ov::element::f32) {
-            auto const* u32data = m_constOp->get_data_ptr<uint32_t>();
-            auto const* f32data = m_constOp->get_data_ptr<float>();
+            const auto* u32data = m_constOp->get_data_ptr<uint32_t>();
+            const auto* f32data = m_constOp->get_data_ptr<float>();
 
             if (!size) {
                 return;
             }
             // Only bf16 inferencePrecision cases need to be checked for saturation
-            const bool do_bf16_saturation_check =
-                (context->getConfig().inferencePrecision == ov::element::bf16) ? true : false;
+            const bool do_bf16_saturation_check = context->getConfig().inferencePrecision == ov::element::bf16;
 
 #if defined(OPENVINO_ARCH_X86_64)
             auto fn = jit_has_subnormals_function();
@@ -702,8 +701,9 @@ void Input::initOptimalPrimitiveDescriptor() {
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output)) {
-        return Node::selectOptimalPrimitiveDescriptor();
+    if (!m_useParentMemoryDescForOutput || getType() != Type::Output) {
+        Node::selectOptimalPrimitiveDescriptor();
+        return;
     }
 
     // ignore previous configuration
@@ -789,7 +789,8 @@ void Input::initSupportedPdFromMemDesc() {
 
 void Input::resolveInPlaceEdges(Edge::LOOK look) {
     if (!m_isInPlace) {
-        return Node::resolveInPlaceEdges(look);
+        Node::resolveInPlaceEdges(look);
+        return;
     }
 
     if (look & Edge::LOOK_UP) {

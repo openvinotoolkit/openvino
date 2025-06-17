@@ -117,7 +117,7 @@ public:
         auto part_dims = part_blob->getShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
-        auto sign_of_stride = stride < 0.0f ? -1 : 1;
+        auto sign_of_stride = stride < 0.0F ? -1 : 1;
 
         iter_count = full_dims[axis] / abs_stride;
 
@@ -305,7 +305,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     num_execs = 0;
 }
 
-bool DynamicBuffer::check_buffer() {
+bool DynamicBuffer::check_buffer() const {
     if (map_rule.stride > 0) {
         if (static_cast<ptrdiff_t>(chunk_offset_in_byte + chunk_unit_in_byte) > chunk_stride_in_byte) {
             return true;
@@ -901,16 +901,12 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
 }
 
 bool TensorIterator::checkForInputAndBodyShapesInequality() const {
-    for (auto map_rule : inputPortMap) {
+    return std::any_of(inputPortMap.begin(), inputPortMap.end(), [&](const PortMap& map_rule) {
         auto original_dims = sliced_input_dims(getSrcMemoryAtPort(map_rule.from), map_rule.axis, map_rule.stride);
         const auto& to_mems = input_mems[map_rule.to];
         const auto& body_inshape = to_mems.front()->getShape();
-        if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
-            return true;
-        }
-    }
-
-    return false;
+        return body_inshape.isDynamic() || body_inshape.getDims() != original_dims;
+    });
 }
 
 // redefine memory for input nodes of subgraph and reset first_mappers as the primitives are invalid,

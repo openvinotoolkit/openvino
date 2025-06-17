@@ -65,7 +65,7 @@ public:
 private:
     dnnl::impl::cpu::x64::jit_generator* m_h;
     std::vector<size_t>& m_pool_gpr_idxs;
-    Reg64 m_aux_gpr_idx{};
+    Reg64 m_aux_gpr_idx;
     bool m_is_preserved = false;
 };
 }  // namespace

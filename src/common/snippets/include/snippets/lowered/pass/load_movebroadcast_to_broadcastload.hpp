@@ -16,7 +16,7 @@ namespace pass {
  * @brief Fuses consecutive Load and MoveBroadcast into a single load insctruction.
  * @ingroup snippets
  */
-class LoadMoveBroadcastToBroadcastLoad: public RangedPass {
+class LoadMoveBroadcastToBroadcastLoad : public RangedPass {
 public:
     LoadMoveBroadcastToBroadcastLoad() = default;
     OPENVINO_RTTI("LoadMoveBroadcastToBroadcastLoad", "", RangedPass);

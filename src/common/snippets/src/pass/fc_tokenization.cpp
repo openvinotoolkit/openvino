@@ -15,7 +15,7 @@ ov::snippets::pass::TokenizeFCSnippets::TokenizeFCSnippets(const SnippetsTokeniz
     auto constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_matmul = ov::pass::pattern::wrap_type<ov::opset1::MatMul>({ov::pass::pattern::any_input(), constant});
 
-    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher &m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeFCSnippets")
         const auto matmul = m.get_match_root();
         if (transformation_callback(matmul)) {

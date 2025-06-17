@@ -36,7 +36,7 @@ static size_t get_shape_data_size(const layout& l) {
     if (l.is_static())
         return 0;
 
-    size_t size = layout::max_rank(); // all dimenstions are stored
+    size_t size = layout::max_rank(); // all dimensions are stored
     const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
         if (dynamic_pad[j] == 1) {

@@ -13,9 +13,7 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class PriorBox : public Node {
 public:
@@ -55,6 +53,4 @@ private:
     int number_of_priors;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

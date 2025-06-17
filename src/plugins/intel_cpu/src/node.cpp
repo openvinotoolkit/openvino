@@ -233,12 +233,10 @@ void Node::remove() {
     drop(childEdges);
 }
 
-bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const {
-    for (const auto& edge : edges) {
-        if (edge.lock()) {
-            return false;
-        }
-    }
+bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) {
+    return std::all_of(edges.begin(), edges.end(), [](const EdgeWeakPtr& edge) {
+        return !edge.lock();
+    });
     return true;
 }
 
@@ -371,7 +369,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                                                     bool ignoreConstInputs) {
     // Filter out dynamic shape.
     if (isDynamic) {
-        return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
+        selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
+        return;
     }
 
     auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
@@ -835,9 +834,10 @@ void Node::updateDynamicParams() {
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
     if (isDynamicNode()) {
-        return executeDynamic(strm, numaId);
+        executeDynamic(strm, numaId);
+    } else {
+        executeStatic(strm, numaId);
     }
-    return executeStatic(strm, numaId);
 }
 
 void Node::executeStatic(const dnnl::stream& strm, int numaId) {
@@ -858,7 +858,7 @@ bool Node::outputShapeDataDependency() const {
     auto port_mask = shapeInference->get_port_mask();
     if (EMPTY_PORT_MASK != port_mask) {
         for (size_t i = 0; i < getParentEdges().size(); ++i) {
-            if (((port_mask & (1 << i)) != 0u) && !getParentEdgeAt(i)->getParent()->isConstant()) {
+            if (((port_mask & (1 << i)) != 0U) && !getParentEdgeAt(i)->getParent()->isConstant()) {
                 return true;
             }
         }
@@ -870,12 +870,12 @@ void Node::redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes) 
     if (newOutputShapes.size() != outputShapes.size()) {
         OPENVINO_THROW("Number shapes mismatch with real outputs number for node with name: ", getName());
     }
-    for (size_t i = 0lu; i < outputShapes.size(); i++) {
+    for (size_t i = 0LU; i < outputShapes.size(); i++) {
         redefineOutputMemory(i, newOutputShapes[i]);
     }
 }
 
-void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) {
+void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_shape) const {
     const auto edges = getChildEdgesAtPort(port);
 
     static const VectorDims single_element_shape = {1};
@@ -891,9 +891,9 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
         return;
     }
 
-    const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
+    const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0LU) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
-    for (size_t j = 0lu; j < edges.size(); j++) {  // NOLINT(modernize-loop-convert)
+    for (size_t j = 0LU; j < edges.size(); j++) {  // NOLINT(modernize-loop-convert)
         edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
@@ -904,7 +904,8 @@ void Node::initSupportedPrimitiveDescriptors() {
     }
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
-        std::vector<PortConfig> inConfs, outConfs;
+        std::vector<PortConfig> inConfs;
+        std::vector<PortConfig> outConfs;
         const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {
@@ -1217,7 +1218,7 @@ void Node::toNumaNode(int numaNodeID) {
         return;
     }
 
-    return toNumaNodeImpl(numaNodeID);
+    toNumaNodeImpl(numaNodeID);
 }
 
 void Node::toNumaNodeImpl(int numaNodeID) {
@@ -1272,7 +1273,7 @@ Node::ConstantType Node::getConstantType() const {
     return constant;
 }
 
-bool Node::isConstant() {
+bool Node::isConstant() const {
     return getConstantType() == ConstantType::Const;
 }
 
@@ -1486,7 +1487,7 @@ void Node::initOptimalPrimitiveDescriptor() {
     initDescriptor(config);
 }
 
-bool Node::isConfigDefined(const NodeConfig& config) const {
+bool Node::isConfigDefined(const NodeConfig& config) {
     for (const auto& configs : {config.inConfs, config.outConfs}) {
         for (const auto& dc : configs) {
             if (!dc.getMemDesc()->isDefined()) {
@@ -1520,16 +1521,12 @@ void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
 }
 
 bool Node::isFusedWith(Type fusedNodeType) const {
-    for (const auto& fusedNode : fusedWith) {
-        if (fusedNode->type == fusedNodeType) {
-            return true;
-        }
-    }
-
-    return false;
+    return std::any_of(fusedWith.begin(), fusedWith.end(), [fusedNodeType](const NodePtr& fusedNode) {
+        return fusedNode->type == fusedNodeType;
+    });
 }
 
-dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims) const {
+dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims) {
     switch (dims.size()) {
     case 1:
         return dnnl::memory::format_tag::a;
@@ -1694,7 +1691,7 @@ bool Node::canBePerformedAsScaleShift(const Node* parentNode) const {
             if (!eltwise) {
                 OPENVINO_THROW("Cannot cast ", getName(), " to Eltwise");
             }
-            return eltwise->getAlpha() == 1.0f;
+            return eltwise->getAlpha() == 1.0F;
         }
         return false;
     };
@@ -1718,7 +1715,8 @@ bool Node::canBePerformedAsScaleShift(const Node* parentNode) const {
 // Add (with opposite sign) and Multiply (with inverse value) for legacy dephwise post ops
 // This can be avoided after dephwise post ops are gone
 std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const Node* parentNode) const {
-    std::vector<float> scales, shifts;
+    std::vector<float> scales;
+    std::vector<float> shifts;
 
     const auto fillValuesFrom = [&](const NodePtr& constInput, std::vector<float>& buffer) {
         auto* constInputNode = dynamic_cast<node::Input*>(constInput.get());
@@ -1729,7 +1727,7 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
         const auto elementsCount = constBlob->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
         cpu_convert(constBlob->getData(),
-                    &buffer[0],
+                    buffer.data(),
                     DnnlExtensionUtils::DataTypeToElementType(constBlob->getDataType()),
                     ov::element::f32,
                     elementsCount);
@@ -1757,24 +1755,24 @@ std::pair<std::vector<float>, std::vector<float>> Node::getScalesAndShifts(const
 
     switch (getAlgorithm()) {
     case Algorithm::EltwiseAdd: {
-        scales.resize(shifts.size(), 1.0f);
+        scales.resize(shifts.size(), 1.0F);
         break;
     }
     case Algorithm::EltwiseSubtract: {
-        scales.resize(shifts.size(), 1.0f);
+        scales.resize(shifts.size(), 1.0F);
         std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift) {
-            return -1.0f * shift;
+            return -1.0F * shift;
         });
         break;
     }
     case Algorithm::EltwiseMultiply: {
-        shifts.resize(scales.size(), 0.0f);
+        shifts.resize(scales.size(), 0.0F);
         break;
     }
     case Algorithm::EltwiseDivide: {
-        shifts.resize(scales.size(), 0.0f);
+        shifts.resize(scales.size(), 0.0F);
         std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale) {
-            return 1.0f / scale;
+            return 1.0F / scale;
         });
         break;
     }
@@ -2151,19 +2149,18 @@ void Node::resolveInPlaceDirection() {
                 config.inConfs[inpPort].inPlace(-1);
                 initDescriptor(config);
             } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
-                // search if siblings already have downstream direction
                 auto downstreamPeers = [&] {
-                    for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
-                        auto* peerNode = peerEdge->getChild().get();
-                        if (peerNode == this) {
-                            continue;
-                        }
-                        if (inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum()) ==
-                            InplaceDirectionType::DOWN) {
-                            return true;
-                        }
-                    }
-                    return false;
+                    const auto& childEdges = pParent->getChildEdgesAtPort(pEdge->getInputNum());
+                    return std::any_of(childEdges.begin(),
+                                       childEdges.end(),
+                                       [this, &inPlaceDirection](const EdgePtr& edge) {
+                                           auto* peerNode = edge->getChild().get();
+                                           if (peerNode == this) {
+                                               return false;
+                                           }
+                                           return inPlaceDirection(peerNode, PortType::INPUT, edge->getOutputNum()) ==
+                                                  InplaceDirectionType::DOWN;
+                                       });
                 }();
                 if (downstreamPeers) {
                     // when there is an downstream peer we have to resolve upstream inplace for the node
@@ -2232,8 +2229,8 @@ void Node::resolveInPlaceDirection() {
                                 } else {
                                     auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
                                     if (InplaceDirectionType::CYCLIC == result) {
-                                        return searchReferencingOutput(pChild,
-                                                                       pChild->inPlaceInputPort(edge->getOutputNum()));
+                                        searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                                        return;
                                     }
                                 }
                             }

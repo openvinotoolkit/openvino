@@ -63,7 +63,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
     number_of_priors = widths.size();
 
     if (variances.empty()) {
-        variances.push_back(0.1f);
+        variances.push_back(0.1F);
     }
 }
 
@@ -133,16 +133,16 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
             float box_width = widths[s];
             float box_height = heights[s];
 
-            float xmin = (center_x - box_width / 2.0f) / img_width;
-            float ymin = (center_y - box_height / 2.0f) / img_height;
-            float xmax = (center_x + box_width / 2.0f) / img_width;
-            float ymax = (center_y + box_height / 2.0f) / img_height;
+            float xmin = (center_x - box_width / 2.0F) / img_width;
+            float ymin = (center_y - box_height / 2.0F) / img_height;
+            float xmax = (center_x + box_width / 2.0F) / img_width;
+            float ymax = (center_y + box_height / 2.0F) / img_height;
 
             if (clip) {
-                xmin = (std::min)((std::max)(xmin, 0.0f), 1.0f);
-                ymin = (std::min)((std::max)(ymin, 0.0f), 1.0f);
-                xmax = (std::min)((std::max)(xmax, 0.0f), 1.0f);
-                ymax = (std::min)((std::max)(ymax, 0.0f), 1.0f);
+                xmin = (std::min)((std::max)(xmin, 0.0F), 1.0F);
+                ymin = (std::min)((std::max)(ymin, 0.0F), 1.0F);
+                xmax = (std::min)((std::max)(xmax, 0.0F), 1.0F);
+                ymax = (std::min)((std::max)(ymax, 0.0F), 1.0F);
             }
 
             const uint64_t idx = h * layer_width * number_of_priors * 4 + w * number_of_priors * 4 + s * 4;

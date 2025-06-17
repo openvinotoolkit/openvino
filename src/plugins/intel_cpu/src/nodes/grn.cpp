@@ -123,7 +123,7 @@ void GRN::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (int c = 0; c < C; c++) {
             variance += std::pow(src_data[b * C * H * W + c * H * W + h * W + w], 2);
         }
-        variance = std::pow(variance + bias, 0.5f);
+        variance = std::pow(variance + bias, 0.5F);
         for (int c = 0; c < C; c++) {
             dst_data[b * C * H * W + c * H * W + h * W + w] =
                 src_data[b * C * H * W + c * H * W + h * W + w] / static_cast<float>(variance);

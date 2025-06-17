@@ -171,7 +171,7 @@ void jit_rms_kernel<isa>::generate() {
 
     // mean(x^2)
     OPENVINO_ASSERT(m_jcp.data_size != 0);
-    mov(reg_tmp.cvt32(), float2int(1.0f / m_jcp.data_size));
+    mov(reg_tmp.cvt32(), float2int(1.0F / m_jcp.data_size));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
     // mean(x^2)+eps
@@ -181,7 +181,7 @@ void jit_rms_kernel<isa>::generate() {
     // 1 / sqrt(mean(x^2)+eps) dont's use VRSQRTSS. VRSQRTSS uses approximation and has accuracy issue
     vsqrtss(xmm_rsqrt, xmm_rsqrt, xmm_rsqrt);
 
-    mov(reg_tmp.cvt32(), float2int(1.0f));
+    mov(reg_tmp.cvt32(), float2int(1.0F));
     vmovd(xmm_tmp, reg_tmp.cvt32());
     vdivss(xmm_rsqrt, xmm_tmp, xmm_rsqrt);
 

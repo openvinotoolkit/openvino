@@ -80,8 +80,8 @@ struct gatherJitExecArgs {
 };
 
 struct jitGatherKernelBase {
-    void (*ker_)(const gatherJitExecArgs*){nullptr};
-    void operator()(const gatherJitExecArgs* args) {
+    void (*ker_)(const gatherJitExecArgs*) = nullptr;
+    void operator()(const gatherJitExecArgs* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -95,13 +95,13 @@ struct jitGatherKernelBase {
     virtual ~jitGatherKernelBase() = default;
 
     virtual void create_ker() = 0;
-    uint64_t getVecLen() {
+    [[nodiscard]] uint64_t getVecLen() const {
         return vlen;
     }
-    uint64_t getDataElPerVec() {
+    [[nodiscard]] uint64_t getDataElPerVec() const {
         return dataElPerVec;
     }
-    uint64_t getIdxElPerVec() {
+    [[nodiscard]] uint64_t getIdxElPerVec() const {
         return idxElPerVec;
     }
     virtual bool isSupportedConfiguration(uint64_t afterAxisSize) = 0;
@@ -226,7 +226,7 @@ protected:
     void storeVectorPart(const Xbyak::Reg64& rDst, const Xbyak::Reg64& rToStoreCounter, Vmm& vmmSrc, Vmm& vAux);
     void uniVpGatherDd(Vmm& vDst, const Xbyak::Address& srcAddr, Vmask& vMask);
     void fillVlenVector();
-    void store(const Xbyak::Reg64& dst_reg, Vmm& vmmSrc);
+    void store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc);
 
     const unsigned* permMask8bitUni;
     const unsigned* permMask16bitUni;

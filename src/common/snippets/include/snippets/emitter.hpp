@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 #include "openvino/core/node.hpp"
 
@@ -16,17 +16,31 @@ namespace snippets {
  * @interface RegType
  * @brief Register type of input and output operations
  */
-enum class RegType { gpr, vec, mask, undefined };
+enum class RegType {
+    gpr,
+    vec,
+    mask,
+    // Ticket: 166071
+    // Need to move this type to a separate class
+    address,  // address type should be ignored by the code generation logic, as it is handled outside the snippets
+              // pipeline.
+    undefined
+};
 /**
  * @interface Reg
  * @brief Register representation: type of register and index
  */
 struct Reg {
-    enum {UNDEFINED_IDX = std::numeric_limits<size_t>::max()};
+    enum { UNDEFINED_IDX = std::numeric_limits<size_t>::max() };
     Reg() = default;
     Reg(RegType type_, size_t idx_) : type(type_), idx(idx_) {}
 
-    bool is_defined() const  { return  type != RegType::undefined && idx != UNDEFINED_IDX; }
+    bool is_address() const {
+        return type == RegType::address;
+    }
+    bool is_defined() const {
+        return is_address() || (type != RegType::undefined && idx != UNDEFINED_IDX);
+    }
     RegType type = RegType::undefined;
     size_t idx = UNDEFINED_IDX;
 
@@ -62,9 +76,9 @@ public:
      * @return void
      */
     void emit_code(const std::vector<size_t>& in,
-                        const std::vector<size_t>& out,
-                        const std::vector<size_t>& pool = {},
-                        const std::vector<size_t>& gpr = {}) const {
+                   const std::vector<size_t>& out,
+                   const std::vector<size_t>& pool = {},
+                   const std::vector<size_t>& gpr = {}) const {
         emit_code_impl(in, out, pool, gpr);
     }
 
@@ -91,5 +105,5 @@ private:
                                 const std::vector<size_t>& gpr) const = 0;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov

@@ -54,7 +54,8 @@ EquationTppEmitter::EquationTppEmitter(jit_generator* h, cpu_isa_t isa, const Ex
     const auto op_metadata = libxsmm_create_meqn_op_metadata(m_equation_id, -1);
     const auto sing_attr =
         libxsmm_create_matrix_arg_attributes(LIBXSMM_MATRIX_ARG_TYPE_SINGULAR, LIBXSMM_MATRIX_ARG_SET_TYPE_NONE, 0, 0);
-    libxsmm_blasint M, N;
+    libxsmm_blasint M;
+    libxsmm_blasint N;
     for (const auto& op_desc : eq_tpp->get_op_descs()) {
         switch (op_desc.get_arity()) {
         case tpp::op::OpDescTPP::ARITY::BINARY: {

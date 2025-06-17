@@ -6,8 +6,10 @@
 
 #include <filesystem>
 #include <openvino/runtime/core.hpp>
+#include <openvino/runtime/intel_npu/properties.hpp>
 
 #include "common_test_utils/unicode_utils.hpp"
+#include "npu_test_env_cfg.hpp"
 
 std::string getBackendName(const ov::Core& core);
 
@@ -80,3 +82,29 @@ constexpr bool
                                                  std::void_t<decltype(std::declval<T>().getTestCaseName(
                                                      std::declval<testing::TestParamInfo<typename T::ParamType>>()))>> =
         true;
+
+namespace ov {
+
+namespace test {
+
+namespace utils {
+
+template <typename T>
+std::string appendPlatformTypeTestName(testing::TestParamInfo<typename T::ParamType> obj) {
+    const std::string& test_name = GenericTestCaseNameClass::getTestCaseName<T>(obj);
+    return test_name + "_targetPlatform=" + getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
+}
+
+template <typename T>
+std::string appendDriverVersionTestName(testing::TestParamInfo<typename T::ParamType> obj) {
+    const auto& pluginCacheCore = ov::test::utils::PluginCache::get().core(ov::test::utils::DEVICE_NPU);
+    auto driverVersion =
+        pluginCacheCore->get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name());
+    return ov::test::utils::appendPlatformTypeTestName<T>(obj) + "_driverVersion=" + driverVersion.as<std::string>();
+}
+
+}  // namespace utils
+
+}  // namespace test
+
+}  // namespace ov

@@ -17,7 +17,7 @@
 
 namespace ov::intel_cpu {
 
-enum dft_type {
+enum dft_type : uint8_t {
     real_to_complex,
     complex_to_complex,
     complex_to_real,
@@ -44,7 +44,7 @@ struct jit_dft_kernel {
 
     void (*ker_)(const jit_dft_args*) = nullptr;
 
-    void operator()(const jit_dft_args* args) {
+    void operator()(const jit_dft_args* args) const {
         assert(ker_);
         ker_(args);
     }

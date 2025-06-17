@@ -106,7 +106,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memor
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
-      M(0),
+
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
       K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 
@@ -134,12 +134,12 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
                        M,
                        N,
                        K,
-                       1.0f,
+                       1.0F,
                        srcRawMemPtr,
                        lda,
                        weiRawMemPtr,
                        ldb,
-                       0.0f,
+                       0.0F,
                        dstRawMemPtr,
                        ldc,
                        biasRawMemPtr);

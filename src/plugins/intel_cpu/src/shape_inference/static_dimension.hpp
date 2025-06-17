@@ -33,7 +33,7 @@ public:
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
-    StaticDimension(const Dimension&) {
+    StaticDimension(const Dimension& /*dim*/) {
         OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
     }
 
@@ -55,7 +55,7 @@ public:
     [[nodiscard]] value_type get_min_length() const;
     [[nodiscard]] value_type get_max_length() const;
 
-    [[nodiscard]] Interval& get_interval() const {
+    [[nodiscard]] static Interval& get_interval() {
         static Interval dummy{};
         OPENVINO_THROW("[shape infer] Shoudn't call get_interval() in StaticDimension.");
         return dummy;
@@ -73,8 +73,8 @@ public:
     StaticDimension& operator+=(const StaticDimension& dim);
     StaticDimension& operator*=(const StaticDimension& dim);
     StaticDimension& operator&=(const StaticDimension& dim);
-    StaticDimension operator/(const value_type divisor) const;
-    StaticDimension& operator/=(const value_type divisor);
+    StaticDimension operator/(value_type divisor) const;
+    StaticDimension& operator/=(value_type divisor);
 
     /// \brief Swap of dimensions
     friend void swap(StaticDimension& a, StaticDimension& b) noexcept {

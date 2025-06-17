@@ -17,12 +17,12 @@ namespace pass {
  *        Only single-value (0D) constants are currently supported.
  * @ingroup snippets
  */
-class ConvertConstantsToScalars: public ov::pass::MatcherPass {
+class ConvertConstantsToScalars : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ConvertConstantsToScalars");
     ConvertConstantsToScalars();
 };
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

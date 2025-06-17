@@ -11,6 +11,7 @@
 #include <new>
 #include <ostream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -38,7 +39,7 @@ Edge::Edge(const NodePtr& parent, const NodePtr& child, int pr_port, int ch_port
       parent_port(pr_port),
       child_port(ch_port) {}
 
-const NodePtr Edge::getParent() const {
+NodePtr Edge::getParent() const {
     auto parentPtr = parent.lock();
     if (!parentPtr) {
         OPENVINO_THROW("Edge contains empty parent node");
@@ -46,7 +47,7 @@ const NodePtr Edge::getParent() const {
     return parentPtr;
 }
 
-const NodePtr Edge::getChild() const {
+NodePtr Edge::getChild() const {
     auto childPtr = child.lock();
     if (!childPtr) {
         OPENVINO_THROW("Edge contains empty child node");
@@ -250,11 +251,7 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
     // order check
     auto lhsOrderClean = getCleanDim(lhsBlockMemDesc->getOrder(), lhsBlockDims);
     auto rhsOrderClean = getCleanDim(rhsBlockMemDesc->getOrder(), rhsBlockDims);
-    if (!dimsEqualStrong(lhsOrderClean, rhsOrderClean)) {
-        return false;
-    }
-
-    return true;
+    return dimsEqualStrong(lhsOrderClean, rhsOrderClean);
 }
 
 Edge::ReorderStatus Edge::needReorder() {
@@ -515,8 +512,8 @@ void Edge::validate() {
         return;
     }
 
-    getParent();
-    getChild();
+    std::ignore = getParent();
+    std::ignore = getChild();
 
     if (status != Status::Allocated || !memoryPtr) {
         OPENVINO_THROW("Error memory is not allocated for edge: ", *this);
@@ -532,7 +529,7 @@ EdgePtr Edge::getSharedEdge() const {
     return memoryFromEdgePtr;
 }
 
-EdgePtr Edge::getSharedEdge(std::nothrow_t) const {
+EdgePtr Edge::getSharedEdge([[maybe_unused]] std::nothrow_t nothrow_tag) const {
     return memoryFromEdge.lock();
 }
 

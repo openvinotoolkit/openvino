@@ -11,7 +11,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "graph_context.h"
 #include "kernels/x64/grid_sample.hpp"

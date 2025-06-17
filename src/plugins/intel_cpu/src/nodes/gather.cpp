@@ -85,7 +85,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_input_size(), 4u, 5u) && op->get_output_size() == 1u) {
+    if (one_of(op->get_input_size(), 4U, 5U) && op->get_output_size() == 1U) {
         compressed = true;
     } else if (op->get_input_size() != 3 || op->get_output_size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
@@ -98,7 +98,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     const auto& idxShape = getInputShapeAtPort(GATHER_INDICES);
     isIdxShapeStat = idxShape.isStatic();
     const auto indicesRank = idxShape.getRank();
-    if (dataSrcRank == 0lu || indicesRank == 0lu) {
+    if (dataSrcRank == 0LU || indicesRank == 0LU) {
         THROW_CPU_NODE_ERR("has incorrect input parameters ranks.");
     }
 
@@ -109,11 +109,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         // and sets the dontReverseIndices flag.
         const auto& rti = op->get_rt_info();
         const auto& reverse = rti.find("dontReverseIndices");
-        if (reverse == rti.end()) {
-            reverseIndexing = true;
-        } else {
-            reverseIndexing = false;
-        }
+        reverseIndexing = reverse == rti.end();
     } else if (ov::is_type<ov::op::v7::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(op)->get_batch_dims());
         reverseIndexing = false;
@@ -125,7 +121,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (batchDims < 0) {
         batchDims += indicesRank;
     }
-    if (batchDims < 0 || batchDims > std::min(static_cast<int>(dataSrcRank), static_cast<int>(indicesRank))) {
+    if (batchDims < 0 || batchDims > std::min(dataSrcRank, static_cast<int>(indicesRank))) {
         THROW_CPU_NODE_ERR("has incorrect batch_dims ", batchDims, "!");
     }
 
@@ -162,10 +158,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
         axisDim = dataDims[axis];
-        beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1lu, std::multiplies<>());
+        beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1LU, std::multiplies<>());
         betweenBatchAndAxisSize =
-            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<>());
-        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1LU, std::multiplies<>());
+        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1LU, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
         afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
@@ -175,11 +171,11 @@ void Gather::initSupportedPrimitiveDescriptors() {
         srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
     }
     if (isDataShapeStat) {
-        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<>());
+        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1LU, std::multiplies<>());
     }
     if (isIdxShapeStat) {
         const auto& idxDims = getInputShapeAtPort(GATHER_INDICES).getDims();
-        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<>());
+        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1LU, std::multiplies<>());
 
         if (isDataShapeStat) {
             specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
@@ -204,16 +200,16 @@ void Gather::initSupportedPrimitiveDescriptors() {
         }
         scale_group_size =
             getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
-        have_scalar_scale = getInputShapeAtPort(GATHER_SCALE).getElementsCount() == 1u;
+        have_scalar_scale = getInputShapeAtPort(GATHER_SCALE).getElementsCount() == 1U;
 
-        if (getOriginalInputsNumber() == 5u) {
+        if (getOriginalInputsNumber() == 5U) {
             ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
             if (zpPrecision != ov::element::f32) {
                 zpPrecision = ov::element::f32;
             }
 
             have_zp = true;
-            have_scalar_zp = getInputShapeAtPort(GATHER_ZP).getElementsCount() == 1u;
+            have_scalar_zp = getInputShapeAtPort(GATHER_ZP).getElementsCount() == 1U;
             zp_group_size =
                 getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_ZP).getElementsCount();
             addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
@@ -292,9 +288,13 @@ void Gather::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
-        idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize
-                      : x64::mayiuse(x64::avx2)      ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize
-                                                     : 1;
+        if (x64::mayiuse(x64::avx512_core)) {
+            idxElPerVec = x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize;
+        } else if (x64::mayiuse(x64::avx2)) {
+            idxElPerVec = x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize;
+        } else {
+            idxElPerVec = 1;
+        }
     }
     // Gather instruction is not supported by SSE.
     if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&
@@ -346,7 +346,7 @@ void Gather::createPrimitive() {
                     p.idxBatchSumInBytes.resize(dataElPerVec);
                     p.dataBeforeAxisSumInBytes.resize(dataElPerVec);
                     p.betweenBatchAndAxisIter = (dstStart / specIndicesSize) % betweenBatchAndAxisSize;
-                    for (uint64_t j = 0lu; j < dataElPerVec; j++) {
+                    for (uint64_t j = 0LU; j < dataElPerVec; j++) {
                         p.specIdxInBytes[j] = (((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize;
                         p.idxBatchSumInBytes[j] =
                             ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
@@ -412,10 +412,10 @@ void Gather::prepareParams() {
     if (!isDataShapeStat || !isAxisInputConst) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         axisDim = dataDims[axis];
-        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<>());
+        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1LU, std::multiplies<>());
         betweenBatchAndAxisSize =
-            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<>());
-        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<>());
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1LU, std::multiplies<>());
+        afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1LU, std::multiplies<>());
 
         afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
         afterAxisSizeInBytesOut = afterAxisSize * outTypeSize;
@@ -434,7 +434,7 @@ void Gather::prepareParams() {
 
     if (!isIdxShapeStat) {
         const auto& idxDims = idxMemPtr->getStaticDims();
-        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<>());
+        specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1LU, std::multiplies<>());
 
         specIdxAndAfterAxSize = specIndicesSize * afterAxisSize;
         specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
@@ -465,7 +465,8 @@ void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (compressed) {
-        return execCompressed();
+        execCompressed();
+        return;
     }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
@@ -532,7 +533,8 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (compressed) {
-        return execCompressed();
+        execCompressed();
+        return;
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -654,7 +656,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 
             p.afterAxIdxInBytes[i] *= dataTypeSize;
             p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
-            for (size_t j = 0lu; j < 6lu; j++) {
+            for (size_t j = 0LU; j < 6LU; j++) {
                 if (static_cast<uint64_t>(p.afterAxPermMask[i]) >= idxElPerVec) {
                     p.afterAxPermMask[i] -= afterAxisSize;
                 }

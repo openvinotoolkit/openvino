@@ -16,13 +16,11 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-enum ROIAlignLayoutType { ncsp, blk, nspc };
+enum ROIAlignLayoutType : uint8_t { ncsp, blk, nspc };
 
-enum ROIAlignedMode { ra_asymmetric, ra_half_pixel_for_nn, ra_half_pixel };
+enum ROIAlignedMode : uint8_t { ra_asymmetric, ra_half_pixel_for_nn, ra_half_pixel };
 
 struct jit_roi_align_params {
     Algorithm alg;
@@ -47,15 +45,15 @@ struct jit_roi_align_call_args {
 };
 
 struct jit_uni_roi_align_kernel {
-    void (*ker_)(const jit_roi_align_call_args*);
+    void (*ker_)(const jit_roi_align_call_args*) = nullptr;
 
-    void operator()(const jit_roi_align_call_args* args) {
+    void operator()(const jit_roi_align_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_roi_align_kernel(jit_roi_align_params jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_roi_align_kernel() {}
+    explicit jit_uni_roi_align_kernel(jit_roi_align_params jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_roi_align_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -70,9 +68,9 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -92,6 +90,4 @@ private:
     std::shared_ptr<jit_uni_roi_align_kernel> roi_align_kernel = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

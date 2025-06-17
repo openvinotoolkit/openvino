@@ -58,6 +58,7 @@ public:
     bool is_shared() const noexcept;
     cldnn::memory::ptr get_memory() const;
     cldnn::memory::ptr get_original_memory() const;
+    void *get_original_memory_buf_ptr() const;
 
     void set_memory(cldnn::memory::ptr memory, size_t actual_size);
 

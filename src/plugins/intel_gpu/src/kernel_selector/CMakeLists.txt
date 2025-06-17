@@ -92,6 +92,8 @@ else()
   set(TUNING_CACHE_PATH "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/")
 endif()
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)

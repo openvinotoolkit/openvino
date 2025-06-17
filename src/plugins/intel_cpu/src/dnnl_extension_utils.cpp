@@ -65,7 +65,7 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
 
 std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType(
     const ov::element::Type& elementType,
-    DnnlExtensionUtils::nothrow_tag) noexcept {
+    [[maybe_unused]] DnnlExtensionUtils::nothrow_tag tag) noexcept {
     switch (elementType) {
     case ov::element::f32:
         return memory::data_type::f32;
@@ -105,7 +105,7 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
 }
 
 dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType,
-                                                                  DnnlExtensionUtils::throw_tag) {
+                                                                  [[maybe_unused]] DnnlExtensionUtils::throw_tag tag) {
     auto&& result = ElementTypeToDataType(elementType, nothrow_tag{});
     OPENVINO_ASSERT(result, "CPU plugin does not support ", elementType.to_string(), " for use with oneDNN.");
     return result.value();
@@ -239,7 +239,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
 }
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
-    const char* res;
+    const char* res = nullptr;
     dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, reinterpret_cast<void*>(&res));
     if (status != dnnl_success) {
         OPENVINO_THROW("query_impl_info_str failed.");

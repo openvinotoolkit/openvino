@@ -15,11 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     // ov::element::f16 // TODO: enable f16 test inference (change ngraph function + fp32 to fp16 replacements)
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-};
-
 const std::vector<PullReshapeThroughDequantizationTestValues> params = {
     {
         ov::element::f32,
@@ -75,7 +70,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, PullReshapeThroughDequantizationTransformati
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(dequantizationOnWeightElementwiseConstantShapes),
         ::testing::ValuesIn(params)),
     PullReshapeThroughDequantizationTransformation::getTestCaseName);

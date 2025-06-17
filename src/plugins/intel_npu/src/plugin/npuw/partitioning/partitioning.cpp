@@ -21,6 +21,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
+#include "traits.hpp"
 
 namespace ov {
 namespace npuw {
@@ -361,6 +362,10 @@ std::shared_ptr<ov::Node> Partitioner::new_f16ic_cvt(ov::Output<ov::Node> out, o
     return new_src;
 }
 
+struct Precalculated_Bound_Const {
+    static constexpr const char* name = "NPUW::Precalculated_Bound_Const";
+};
+
 void Partitioner::identifySubgraphs() {
     LOG_INFO("Identifying subgraphs for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -441,7 +446,16 @@ void Partitioner::identifySubgraphs() {
             input_mapping[orig_node] = orig_node;
             return orig_node;
         };
-        auto parameter_from = [&input_mapping, connect_in_f16](ov::Output<ov::Node> output) {
+        auto is_hp_tag = [](auto node) {
+            auto hptag = node.get_rt_info().find(ov::npuw::util::HighPrecisionAttr::get_type_info_static());
+            if (hptag == node.get_rt_info().end() ||
+                hptag->second.template as<ov::npuw::util::HighPrecisionAttr>().compute_precision_type !=
+                    ov::element::f32) {
+                return false;
+            }
+            return true;
+        };
+        auto parameter_from = [&input_mapping, is_hp_tag, connect_in_f16](ov::Output<ov::Node> output) {
             auto orig_node = output.get_node_shared_ptr();
             auto it = input_mapping.find(output);
             if (it != input_mapping.end()) {
@@ -458,6 +472,7 @@ void Partitioner::identifySubgraphs() {
             if (output_tensor.has_and_set_bound()) {
                 // if has_and_set_bound() == true, lower/upper values are the same tensor.
                 auto new_const = std::make_shared<ov::op::v0::Constant>(output_tensor.get_upper_value());
+                new_const->set_friendly_name(ov::npuw::util::Unique<Precalculated_Bound_Const>::name());
                 result = std::static_pointer_cast<ov::Node>(new_const);
                 LOG_VERB("Found bound value in " << output << ", substituting it with " << new_const);
             } else {
@@ -467,7 +482,12 @@ void Partitioner::identifySubgraphs() {
                 // to maintain graph contracts. See handling where parameter_from is called.
                 auto otype = output.get_element_type();
                 if (otype == ov::element::f32 && connect_in_f16) {
-                    otype = ov::element::f16;
+                    if (!is_hp_tag(output)) {
+                        otype = ov::element::f16;
+                        LOG_DEBUG("Found parameter  " << output << ", will be computed in fp16 precision");
+                    } else {
+                        LOG_DEBUG("Found parameter  " << output << ", pinned to compute in fp32 precision");
+                    }
                 }
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(otype, output.get_partial_shape());
                 result = std::static_pointer_cast<ov::Node>(new_param);
@@ -716,9 +736,13 @@ void Partitioner::identifySubgraphs() {
                         // Register a new Result. Optionally, lower it to f16
                         ov::Output<ov::Node> result_src = output_desc;
                         if (output_desc.get_element_type() == ov::element::f32 && connect_in_f16) {
-                            auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
-                            LOG_DEBUG("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
-                            result_src = new_cvt;
+                            if (!is_hp_tag(output_desc)) {
+                                auto new_cvt = new_f16ic_cvt(output_desc, ov::element::f16);
+                                LOG_VERB("Added F16IC Result Convert " << new_cvt << " on top of " << output_desc);
+                                result_src = new_cvt;
+                            } else {
+                                LOG_VERB("Found result  " << output_desc << ", pinned to compute in high precision");
+                            }
                         }
                         auto new_result = std::make_shared<ov::op::v0::Result>(result_src);
                         result_cache[output_desc] = LinkPtrFrom{this_group_idx, new_result};
@@ -1249,18 +1273,14 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
     for (auto&& op_node : model_group.front()->get_ordered_ops()) {
         for (auto&& iport : op_node->inputs()) {
             auto node = iport.get_source_output().get_node_shared_ptr();
-            if (ov::op::util::is_constant(node)) {
-                auto shape = node->output(0).get_shape();
-                auto total =
-                    std::accumulate(shape.begin(), shape.end(), std::size_t{1}, std::multiplies<std::size_t>());
-                if ((shape.size() == 0 || (shape.size() == 1 && shape[0] <= 10)) || (total <= 10)) {
-                    LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
-                                        << ": It is safe to keep this bank in function");
-                    func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
-                } else {
-                    LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
-                                        << ": This const op will be cut-off from the function");
-                }
+            auto shape = node->output(0).get_shape();
+            if (ov::npuw::partitioning::traits::is_tiny_scalar(node)) {
+                LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
+                                    << ": It is safe to keep this bank in function");
+                func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
+            } else {
+                LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
+                                    << ": This const op will be cut-off from the function");
             }
         }
     }  // for(n)
@@ -1359,6 +1379,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(u16, uint16_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
+            HANDLE_CASE(f8e4m3, uint8_t);
             HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
 #undef HANDLE_CASE
@@ -1378,12 +1399,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
         LOG_DEBUG("Checking a bank with prototype node " << proto_node << "...");
         LOG_BLOCK();
 
-        if ((((proto_shape.size() == 0 || (proto_shape.size() == 1 && proto_shape[0] <= 10)) &&
-              proto_node->output(0).get_element_type().is_integral()) ||
-             ((proto_node->output(0).get_element_type() == ov::element::f32 ||
-               proto_node->output(0).get_element_type() == ov::element::f16) &&
-              std::accumulate(proto_shape.begin(), proto_shape.end(), size_t{1}, std::multiplies<std::size_t>()) ==
-                  1)) &&
+        if (ov::npuw::partitioning::traits::is_tiny_shape(proto_shape) &&
             std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
                 return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
                        values_are_the_same(proto_node, other_node);

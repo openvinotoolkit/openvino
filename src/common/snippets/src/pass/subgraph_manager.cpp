@@ -16,6 +16,6 @@ bool CommonOptimizations::SubgraphManager::run_passes(std::shared_ptr<ov::snippe
     return updated;
 }
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

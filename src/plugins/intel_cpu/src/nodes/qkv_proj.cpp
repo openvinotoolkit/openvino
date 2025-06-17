@@ -79,7 +79,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
     int m_M = 0;
-    size_t m_threads_num = 0lu;
+    size_t m_threads_num = 0LU;
 
     MatrixDynQuantPerRow m_quant_act;
 
@@ -450,7 +450,7 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 }
                 // NOLINTNEXTLINE(bugprone-integer-division)
                 float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
-                if (unbalance_ratio > 0.2f) {
+                if (unbalance_ratio > 0.2F) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
                     return false;
                 }

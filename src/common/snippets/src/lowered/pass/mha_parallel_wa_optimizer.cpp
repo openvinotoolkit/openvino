@@ -19,7 +19,8 @@ using namespace ov::snippets::pass;
 
 const size_t MHAParallelWAOptimizer::m_dim_M_idx = 1;
 
-MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir, const RuntimeConfigurator* configurator)
+MHAParallelWAOptimizer::MHAParallelWAOptimizer(const lowered::LinearIRCPtr& linear_ir,
+                                               const RuntimeConfigurator* configurator)
     : lowered::pass::RuntimeOptimizer(configurator) {
     if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
         return;
@@ -77,9 +78,10 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     }
 
     for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {
-        config->io_shapes[i] = m_unsqueezed_params.count(i)
-                        ? SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
-                        : SplitDimensionM::reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
+        config->io_shapes[i] =
+            m_unsqueezed_params.count(i)
+                ? SplitDimensionM::unsqueeze_m_dim(config->io_shapes[i], m_dim_M_idces[i])
+                : SplitDimensionM::reshape_m_dim(config->io_shapes[i], m_dim_M_idces[i], new_batch_dim, new_kernel_dim);
     }
     config->io_layouts = m_optimized_layouts;
     return true;
@@ -112,7 +114,9 @@ std::unordered_set<lowered::ExpressionPtr> MHAParallelWAOptimizer::find_applicab
         });
         return loop_by_m;
     };
-    return std::all_of(brgemms.begin(), brgemms.end(), applicable_brgemm) ? brgemms : std::unordered_set<lowered::ExpressionPtr>{};
+    return std::all_of(brgemms.begin(), brgemms.end(), applicable_brgemm)
+               ? brgemms
+               : std::unordered_set<lowered::ExpressionPtr>{};
 }
 
 std::unordered_set<size_t> MHAParallelWAOptimizer::find_unsqueezed_params(
@@ -171,7 +175,7 @@ std::vector<lowered::ExpandedLoopInfoPtr> MHAParallelWAOptimizer::find_loops_to_
     return loops_to_split;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

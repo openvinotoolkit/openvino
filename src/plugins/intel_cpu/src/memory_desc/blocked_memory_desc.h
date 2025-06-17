@@ -12,14 +12,12 @@
 #include "cpu_memory_desc.h"
 #include "cpu_types.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class BlockedMemoryDesc : public virtual MemoryDesc {
 public:
     using CmpMask = std::bitset<32>;
 
-public:
     BlockedMemoryDesc() = default;
 
     static constexpr CmpMask FULL_MASK{0xffffffff};
@@ -103,5 +101,4 @@ protected:
 using BlockedMemoryDescPtr = std::shared_ptr<BlockedMemoryDesc>;
 using BlockedMemoryDescCPtr = std::shared_ptr<const BlockedMemoryDesc>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

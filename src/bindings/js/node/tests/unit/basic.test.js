@@ -63,6 +63,7 @@ describe('ov basic tests.', () => {
       assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
 
       const savedModel = core.readModelSync(xmlPath);
+      assert.ok(savedModel instanceof ov.Model);
       assert.doesNotThrow(() => compareModels(model, savedModel));
     });
     it('saveModelSync(model, path, compressToFp16=false)', () => {
@@ -144,6 +145,7 @@ describe('ov basic tests.', () => {
 
     it('compileModelSync(model:model_path, deviceName: string) ', () => {
       const cm = core.compileModelSync(testModelFP32.xml, 'CPU');
+      assert.ok(cm instanceof ov.CompiledModel);
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
@@ -196,6 +198,14 @@ describe('ov basic tests.', () => {
       core.compileModel(model, 'CPU', tput).then((cm) => {
         assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
       });
+    });
+
+    it.skip('compileModel() returns a Promise of CompiledModel', async () => {
+      // CVS-167943
+      const promise = core.compileModel(model, 'CPU');
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
     });
 
     it('compileModel(model_path, deviceName, config: {}) ', () => {
@@ -305,6 +315,7 @@ describe('ov basic tests.', () => {
 
     it('Test importModelSync(stream, device)', () => {
       const newCompiled = core.importModelSync(userStream, 'CPU');
+      assert.ok(newCompiled instanceof ov.CompiledModel);
       const newInferRequest = newCompiled.createInferRequest();
       const res2 = newInferRequest.infer([tensor]);
 
@@ -356,6 +367,13 @@ describe('ov basic tests.', () => {
         () => core.importModelSync(userStream, 'CPU', { CACHE_DIR: tmpDir }),
         /Unsupported property CACHE_DIR by CPU plugin./,
       );
+    });
+
+    it('importModel returns promise with CompiledModel', async () => {
+      const promise = core.importModel(userStream, 'CPU');
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
     });
 
     it('Test importModel(stream, device)', () => {

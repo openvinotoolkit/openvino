@@ -34,7 +34,7 @@ public:
                            const std::vector<MemoryDescPtr>& dstDescs,
                            const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getEltwiseExecutorsList()) {
+        for (const auto& desc : getEltwiseExecutorsList()) {
             if (desc.builder->isSupported(eltwiseAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

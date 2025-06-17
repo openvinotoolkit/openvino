@@ -33,9 +33,10 @@ bool isOp(const std::shared_ptr<ov::Node>& node) {
         return false;
     }
     if (ov::is_type<ov::opset1::Convert>(node)) {
-        if (node->inputs().size() != 1) {
-            // can occur only in Const->Convert->Node case
-            return false;
+        if (node->output(0).get_target_inputs().size() > 1) {
+            // If a Convert node has > 1 reader(s), it is not a simple straight Weight
+            // convert we could discard from the partitioning
+            return true;
         }
         auto target_input = node->get_input_source_output(0);
         auto parent_node = target_input.get_node()->shared_from_this();
@@ -234,6 +235,9 @@ void Snapshot::collectLHF() {
                 if (group->isFrozen() || prod_group->isFrozen()) {
                     continue;
                 }
+                if (group->avoidedTargets() != prod_group->avoidedTargets()) {
+                    continue;
+                }
                 // stop merging groups if the graph is already small enough
                 if (graphSize() <= m_ctx.min_graph_size) {
                     break;
@@ -286,7 +290,7 @@ void Snapshot::fuseRemnants() {
             for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
                 Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
                 if (!group->hasCycle(cons_group)) {
-                    if (!cons_group->isFrozen()) {
+                    if (!cons_group->isFrozen() && group->avoidedTargets() == cons_group->avoidedTargets()) {
                         group->fuseWith(cons_group);
                         break;
                     }
@@ -339,6 +343,10 @@ void Snapshot::fuseInputs() {
             }
             // Found 2 inputs to fuse
             if (inputs_to_fuse.first && inputs_to_fuse.second) {
+                if (inputs_to_fuse.first->avoidedTargets() != inputs_to_fuse.second->avoidedTargets()) {
+                    inputs_to_fuse = {nullptr, nullptr};
+                    continue;
+                }
                 group->fuseInputs(inputs_to_fuse);
                 break;
             }
@@ -1070,8 +1078,8 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     for (const auto& gptr : gptrs) {
         if (!gptr->avoidedTargets().empty() || gptr->isNoFold()) {
             auto block_layer_size = (*(gptrs.begin()))->size();
-            LOG_DEBUG("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
-                                                     << " layers - has AVOIDs");
+            LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size
+                                                    << " layers - has AVOIDs");
             // Special case - keep it
             for (const auto& g : gptrs) {
                 g->freeze();
@@ -1084,7 +1092,7 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     // FIXME: slightly different from Ensemble since we don't check flops and keep it by size only
     auto block_layer_size = (*(gptrs.begin()))->size();
     if (gptrs.size() >= m_ctx.keep_blocks && block_layer_size >= m_ctx.keep_block_size) {
-        LOG_DEBUG("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
+        LOG_VERB("Keeping a repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers.");
         for (const auto& g : gptrs) {
             g->freeze();
         }
@@ -1095,8 +1103,7 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     for (const auto& gptr : gptrs) {
         gptr->setRepeated(nullptr);
     }
-
-    LOG_DEBUG("Repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers is dropped.");
+    LOG_VERB("Repeated block of " << gptrs.size() << " groups with " << block_layer_size << " layers is dropped.");
 
     return false;
 }

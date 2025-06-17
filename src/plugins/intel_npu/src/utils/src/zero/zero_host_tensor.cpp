@@ -20,6 +20,19 @@ ZeroHostTensor::ZeroHostTensor(const std::shared_ptr<ov::IRemoteContext>& contex
                                                tensor_type,
                                                ov::intel_npu::MemType::L0_INTERNAL_BUF)) {}
 
+// Note: Override data() members to not used OpenVINO library code to improve performance
+void* ZeroHostTensor::data() {
+    return _impl->get_original_memory();
+}
+
+void* ZeroHostTensor::data(const ov::element::Type&) {
+    return _impl->get_original_memory();
+}
+
+const void* ZeroHostTensor::data() const {
+    return _impl->get_original_memory();
+}
+
 const void* ZeroHostTensor::data(const ov::element::Type&) const {
     return _impl->get_original_memory();
 }

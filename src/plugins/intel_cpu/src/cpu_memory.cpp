@@ -58,17 +58,15 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 namespace {
 inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool ftz, bool bf16saturation) {
     auto* u32data = reinterpret_cast<uint32_t*>(data);
-    auto* floatdata = reinterpret_cast<float*>(data);
+    auto* floatdata = data;
     if (ftz && bf16saturation) {
         for (size_t i = 0; i < size; ++i) {
             if ((u32data[i] & (0xFF << 23)) == 0) {
                 u32data[i] = 0;
             } else if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     } else if (ftz) {
@@ -80,11 +78,9 @@ inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool 
     } else if (bf16saturation) {
         for (size_t i = 0; i < size; ++i) {
             if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     }
@@ -292,7 +288,7 @@ bool MemoryBlockWithReuse::hasExtBuffer() const noexcept {
 
 void MemoryBlockWithReuse::free() {
     m_data = decltype(m_data)(nullptr, release);
-    m_memUpperBound = 0ul;
+    m_memUpperBound = 0UL;
     m_useExternalStorage = false;
 }
 
@@ -627,7 +623,7 @@ bool mbind_move(void* data, size_t size, int targetNode) {
         mask = -1;
         flags = 0;
     } else {
-        mask = 1ul << realNode;
+        mask = 1UL << realNode;
         flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
     }
 
