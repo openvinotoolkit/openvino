@@ -10,6 +10,35 @@
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
 
+namespace ov {
+namespace npuw {
+namespace s11n {
+// FIXME: likely shouldn't be here as it was initially a part of npuw::s11n
+// but we need to somehow serialize AnyMap right here for several properties.
+enum class AnyType : int {
+    STRING = 0,
+    CHARS,
+    INT,
+    UINT32,
+    INT64,
+    UINT64,
+    SIZET,
+    FLOAT,
+    BOOL,
+    CACHE_MODE,
+    ELEMENT_TYPE,
+    ANYMAP,
+    PERFMODE
+};
+
+std::string anyToString(const ov::Any& var);
+ov::Any stringToAny(const std::string& var);
+std::string anyMapToString(const ov::AnyMap& var);
+ov::AnyMap stringToAnyMap(const std::string& var);
+}  // namespace s11n
+}  // namespace npuw
+}  // namespace ov
+
 namespace intel_npu {
 
 //
@@ -192,13 +221,11 @@ struct NPUW_LLM_PREFILL_CONFIG final : OptionBase<NPUW_LLM_PREFILL_CONFIG, ov::A
     }
 
     static ov::AnyMap parse(std::string_view val) {
-        // FIXME: implement
-        return {};
+        return ov::npuw::s11n::stringToAnyMap(std::string(val));
     }
 
     static std::string toString(const ov::AnyMap& val) {
-        // FIXME: implement
-        return {};
+        return ov::npuw::s11n::anyMapToString(val);
     }
 
     static OptionMode mode() {
@@ -224,13 +251,11 @@ struct NPUW_LLM_GENERATE_CONFIG final : OptionBase<NPUW_LLM_GENERATE_CONFIG, ov:
     }
 
     static ov::AnyMap parse(std::string_view val) {
-        // FIXME: implement
-        return {};
+        return ov::npuw::s11n::stringToAnyMap(std::string(val));
     }
 
     static std::string toString(const ov::AnyMap& val) {
-        // FIXME: implement
-        return {};
+        return ov::npuw::s11n::anyMapToString(val);
     }
 
     static OptionMode mode() {
