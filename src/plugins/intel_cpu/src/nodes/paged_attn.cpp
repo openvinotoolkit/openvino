@@ -195,13 +195,15 @@ void PagedAttention::createPrimitive() {
         bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
         bool quantValuebyChannel =
             isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
+        PagedAttnQuantParams params;
+        params.key_group_size = cpuConfig.keyCacheGroupSize;
+        params.value_group_size = cpuConfig.valueCacheGroupSize;
+        params.quant_key_bychannel = quantKeybyChannel;
+        params.quant_value_bychannel = quantValuebyChannel;
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
                                 vCachePrecision,
-                                cpuConfig.keyCacheGroupSize,
-                                cpuConfig.valueCacheGroupSize,
-                                quantKeybyChannel,
-                                quantValuebyChannel);
+                                params);
 #else
         return nullptr;
 #endif

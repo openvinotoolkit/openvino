@@ -42,6 +42,14 @@ struct PagedAttentionExecutor {
     virtual ~PagedAttentionExecutor() = default;
 };
 
+struct PagedAttnQuantParams {
+    size_t key_group_size;
+    size_t value_group_size;
+    bool quant_key_bychannel;
+    bool quant_value_bychannel;
+    bool is_sage_attn;
+};
+
 #ifdef OPENVINO_ARCH_X86_64
 
 // w = query * Key
