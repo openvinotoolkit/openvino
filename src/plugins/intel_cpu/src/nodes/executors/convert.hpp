@@ -18,7 +18,7 @@ struct ConvertParams {
     ov::element::Type srcPrc;
     ov::element::Type origPrc;
     ov::element::Type dstPrc;
-    size_t size;
+    size_t size = 0UL;
 };
 
 class ConvertExecutor : public Executor {

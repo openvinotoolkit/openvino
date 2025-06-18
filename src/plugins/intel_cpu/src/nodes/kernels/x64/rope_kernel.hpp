@@ -26,9 +26,9 @@ namespace ov::intel_cpu::kernel {
 struct jit_rotary_compile_params {
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    size_t rotary_ndims;
-    bool interleave;
-    bool mix_cos_sin;
+    size_t rotary_ndims = 0UL;
+    bool interleave = false;
+    bool mix_cos_sin = false;
 };
 
 struct jit_rotary_call_args {

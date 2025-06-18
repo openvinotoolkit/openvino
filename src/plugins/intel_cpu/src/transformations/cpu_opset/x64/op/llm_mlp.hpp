@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    Config m_config;
+    Config m_config{};
 };
 
 }  // namespace intel_cpu

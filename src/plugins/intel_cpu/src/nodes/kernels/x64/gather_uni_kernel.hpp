@@ -49,34 +49,34 @@ struct jGatherConfParams {
 };
 
 struct gatherJitExecArgs {
-    const void* src;
-    const void* indices;
-    void* dst;
-    const int* axisDim;
-    const uint64_t* start;
-    const uint64_t* specIndicesSize;
-    const uint64_t* betweenBatchAndAxisSize;
-    const uint64_t* axisAndAfterAxisSizeB;
-    const uint64_t* srcAfterBatchSizeB;
-    const int* permIdxMask;
-    const int* beforeAxisDiff;
+    const void* src = nullptr;
+    const void* indices = nullptr;
+    void* dst = nullptr;
+    const int* axisDim = nullptr;
+    const uint64_t* start = nullptr;
+    const uint64_t* specIndicesSize = nullptr;
+    const uint64_t* betweenBatchAndAxisSize = nullptr;
+    const uint64_t* axisAndAfterAxisSizeB = nullptr;
+    const uint64_t* srcAfterBatchSizeB = nullptr;
+    const int* permIdxMask = nullptr;
+    const int* beforeAxisDiff = nullptr;
 
-    const int* beforeAxisPermMask;
-    const int* afterAxIdxB;
-    const int* afterAxisPermMask;
-    const uint64_t* afterAxisSize;
-    const int* specIdxDiff;
+    const int* beforeAxisPermMask = nullptr;
+    const int* afterAxIdxB = nullptr;
+    const int* afterAxisPermMask = nullptr;
+    const uint64_t* afterAxisSize = nullptr;
+    const int* specIdxDiff = nullptr;
 
     uint64_t workAmount = 0lu;
     uint64_t afterAxSize = 1lu;
     // Blocked short.
-    uint64_t specIdxAndAfterAxIterB;
-    uint64_t specIdxAndAfterAxSizeB;
+    uint64_t specIdxAndAfterAxIterB = 0UL;
+    uint64_t specIdxAndAfterAxSizeB = 0UL;
     // Only static
-    const int* specIdxB;
-    const int* idxBatchSumB;
-    const int* dataBeforeAxisSumB;
-    uint64_t betweenBatchAndAxisIter;
+    const int* specIdxB = nullptr;
+    const int* idxBatchSumB = nullptr;
+    const int* dataBeforeAxisSumB = nullptr;
+    uint64_t betweenBatchAndAxisIter = 0UL;
 };
 
 struct jitGatherKernelBase {
@@ -119,8 +119,8 @@ protected:
     static const unsigned permMask16bitA5[16];
     static const unsigned incVec[16];
 
-    int shortPermIdx[16];
-    int shortBeforeAxisDiff[16];
+    int shortPermIdx[16]{};
+    int shortBeforeAxisDiff[16]{};
     const bool is_real16_to_f32 = false;
 };
 

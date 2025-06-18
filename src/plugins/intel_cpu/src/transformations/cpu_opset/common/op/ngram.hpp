@@ -37,6 +37,6 @@ public:
     size_t get_k() const;
 
 private:
-    size_t m_k;
+    size_t m_k = 0UL;
 };
 }  // namespace ov::intel_cpu

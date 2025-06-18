@@ -264,12 +264,12 @@ void Multinomial::execute_convert_type() {
                 }
 
                 if (class_selected) {
-                    P class_probability;
-                    if (selected_class) {
-                        class_probability = m_cdf[idx_input + selected_class] - m_cdf[idx_input + selected_class - 1];
-                    } else {
-                        class_probability = m_cdf[idx_input];
-                    }
+                    P class_probability = [&]() -> P {
+                        if (selected_class) {
+                            return m_cdf[idx_input + selected_class] - m_cdf[idx_input + selected_class - 1];
+                        }
+                        return m_cdf[idx_input];
+                    }();
                     P divisor = 1 - class_probability;
                     for (size_t idx_prob = 0LU; idx_prob < m_probs_count; ++idx_prob) {
                         if (idx_prob >= selected_class) {
