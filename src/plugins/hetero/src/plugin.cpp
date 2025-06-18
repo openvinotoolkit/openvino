@@ -103,19 +103,22 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     auto config = Configuration{properties, m_cfg};
     auto cloned_model = model->clone();
     const auto mapping_info = split_graph(cloned_model, config);
-
-    std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_map;
-    for (const auto& submodel : m_compiled_submodels) {
-        contexts_map.insert({submodel.first, get_core()->get_default_context(submodel.first)});
+    ov::hetero::RemoteContext::Ptr remote_context;
+    std::shared_ptr<ov::hetero::CompiledModel> compiled_model;
+    try {
+        std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_map;
+        for (const auto& [device_name, _] : m_compiled_submodels) {
+            contexts_map.insert({device_name, get_core()->get_default_context(device_name)});
+        }
+        remote_context = std::make_shared<ov::hetero::RemoteContext>(std::move(contexts_map));
+    } catch (const std::exception& e) {
     }
-    auto context = std::make_shared<ov::hetero::RemoteContext>(std::move(contexts_map));
-    auto compiled_model = std::make_shared<CompiledModel>(cloned_model,
-                                                          m_compiled_submodels,
-                                                          mapping_info,
-                                                          shared_from_this(),
-                                                          context,
-                                                          config);
-    return compiled_model;
+    return std::make_shared<CompiledModel>(cloned_model,
+                                           m_compiled_submodels,
+                                           mapping_info,
+                                           shared_from_this(),
+                                           remote_context,
+                                           config);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(
