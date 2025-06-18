@@ -7,8 +7,8 @@
 #include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "subgraph_collector.hpp"
 #include "remote_context.hpp"
+#include "subgraph_collector.hpp"
 
 namespace ov {
 namespace hetero {
