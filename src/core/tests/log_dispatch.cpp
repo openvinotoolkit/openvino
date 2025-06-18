@@ -38,7 +38,7 @@ TEST_P(BufferCapture, default_insert) {
     EXPECT_EQ(str_stream.str(), "TEST 123\ntest abc\n");
 }
 
-INSTANTIATE_TEST_SUITE_P(LogDispatching,
+INSTANTIATE_TEST_SUITE_P(LogDispatch,
                          BufferCapture,
                          ::testing::ValuesIn(std::vector<BufferCaptureParams>{{&std::cout, &ov_cout},
                                                                               {&std::cerr, &ov_cerr}}));
