@@ -905,8 +905,6 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
         if (!chatglm_validate_reshape_symbols(validator))
             return false;
 
-        // std::cout << "RoPEFusionChatGLMHF(Common)::callback | root=" << root->get_friendly_name() << std::endl;
-
         op::internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
