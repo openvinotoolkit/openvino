@@ -244,7 +244,7 @@ void BrgemmCopyBKernel::operator()(const void* args) const {
 void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
     const BrgemmCopyBKernelConfig& conf) {
-    matmul::brgemm_matmul_conf_t brgCopyKernelConf;
+    matmul::brgemm_matmul_conf_t brgCopyKernelConf{};
     brgCopyKernelConf.src_dt = conf.get_src_dt();
     brgCopyKernelConf.wei_dt = conf.get_wei_dt();
     brgCopyKernelConf.orig_wei_dt = conf.get_original_wei_dt();
