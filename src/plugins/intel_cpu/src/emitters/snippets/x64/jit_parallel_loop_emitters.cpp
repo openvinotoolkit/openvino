@@ -4,10 +4,26 @@
 
 #include "jit_parallel_loop_emitters.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
+#include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "emitters/snippets/x64/utils.hpp"
-#include "snippets/utils/utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/loop.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -56,8 +72,9 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
     loop_end_input_regs.pop_back();
     mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
     for (const auto& r : loop_end_input_regs) {
-        if (r.type == snippets::RegType::gpr)
+        if (r.type == snippets::RegType::gpr) {
             mem_ptr_regs_idxs.emplace_back(r.idx);
+        }
     }
 }
 
@@ -109,7 +126,8 @@ void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& 
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                                [[maybe_unused]] const std::vector<size_t>& out) const {
     Xbyak::Label loop_preamble_label;
 
     init_binary_call_regs(2, mem_ptr_regs_idxs);
@@ -120,8 +138,9 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
     auto reserved_stack_size = sizeof(Xbyak::Reg64) * mem_ptr_regs_idxs.size();
     // Spill before parallel for => we'll need them to update data ptrs afterwards
     h->sub(h->rsp, reserved_stack_size);
-    for (auto i : mem_ptr_regs_idxs)
+    for (auto i : mem_ptr_regs_idxs) {
         h->mov(h->qword[h->rsp + i * sizeof(Xbyak::Reg64)], Xbyak::Reg64(i));
+    }
 
     EmitABIRegSpills spill(h);
     spill.preamble(get_regs_to_spill());
@@ -140,8 +159,9 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
     spill.postamble();
 
     // Restore data ptrs with applied finalization offsets
-    for (auto i : mem_ptr_regs_idxs)
+    for (auto i : mem_ptr_regs_idxs) {
         h->mov(Xbyak::Reg64(i), h->qword[h->rsp + i * sizeof(Xbyak::Reg64)]);
+    }
 
     h->add(h->rsp, reserved_stack_size);
 
@@ -152,8 +172,9 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
 
     std::set<snippets::Reg> loop_premble_spill;
     // todo: we don't have to spill all calle+saved_regs, only the ones that will be used in the loop's body
-    for (auto i : get_callee_saved_reg_idxs())
+    for (auto i : get_callee_saved_reg_idxs()) {
         loop_premble_spill.insert({snippets::RegType::gpr, i});
+    }
     m_loop_reg_spiller->preamble(loop_premble_spill);
     // Note: work_amount reg is guaranteed to differ from any mem_ptr_regs_idxs.
     // However some of mem_ptr_regs_idxs might coincide with abi_param_1 or abi_param_2.
@@ -166,8 +187,9 @@ void jit_parallel_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, c
             h->mov(Xbyak::Reg64(i), h->qword[abi_param2 + i * sizeof(Xbyak::Reg64)]);
         }
     }
-    if (abi_param_collision)
+    if (abi_param_collision) {
         h->mov(abi_param2, h->qword[abi_param2 + abi_param2.getIdx() * sizeof(Xbyak::Reg64)]);
+    }
 
     h->L(*loop_begin_label);
 }
@@ -205,7 +227,7 @@ ov::snippets::lowered::ExpressionPtr jit_parallel_loop_end_emitter::get_loop_beg
 void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>& in,
                                                        const std::vector<size_t>& out) const {
     const auto io_size = num_inputs + num_outputs;
-    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected ", 0, " got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
                               "Invalid number of in arguments: expected ",
                               io_size + 1,
@@ -244,14 +266,15 @@ void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
+                                              [[maybe_unused]] const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
     // the last input is actually a work_amount reg
     // data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     // std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
     emit_pointer_increments(wa_increment);
-    Reg64 reg_work_amount = Reg64(in.back());
+    auto reg_work_amount = Reg64(in.back());
     h->sub(reg_work_amount, wa_increment);
     h->cmp(reg_work_amount, wa_increment);
     h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
