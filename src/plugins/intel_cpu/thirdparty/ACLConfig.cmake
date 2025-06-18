@@ -140,6 +140,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         # TODO: use data_type_support to disable useless kernels
         data_layout_support=all
         arch=${OV_CPU_ARM_TARGET_ARCH}
+        build_dir=${OV_CPU_ARM_TARGET_ARCH}
     )
 
     if(THREADING STREQUAL "OMP")
@@ -233,7 +234,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         list(APPEND ARM_COMPUTE_OPTIONS
             compiler_prefix="${ANDROID_TOOLCHAIN_ROOT}/bin/")
 
-        set(extra_flags "${extra_flags} --target=${ANDROID_LLVM_TRIPLE}")
+        set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}")
         set(extra_flags "${extra_flags} --gcc-toolchain=${ANDROID_TOOLCHAIN_ROOT}")
         set(extra_flags "${extra_flags} --sysroot=${CMAKE_SYSROOT}")
 
@@ -337,15 +338,18 @@ elseif(NOT TARGET arm_compute::arm_compute)
     if(extra_cxx_flags)
         list(APPEND ARM_COMPUTE_OPTIONS extra_cxx_flags=${extra_cxx_flags})
     endif()
+    if(extra_cc_flags)
+        list(APPEND ARM_COMPUTE_OPTIONS extra_cc_flags=${extra_cc_flags})
+    endif()
 
     if(NOT CMAKE_VERBOSE_MAKEFILE)
         list(APPEND ARM_COMPUTE_OPTIONS --silent)
     endif()
 
     if(MSVC64)
-        set(arm_compute build/arm_compute-static.lib)
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/arm_compute-static.lib)
     else()
-        set(arm_compute build/libarm_compute-static.a)
+        set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
     set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
 

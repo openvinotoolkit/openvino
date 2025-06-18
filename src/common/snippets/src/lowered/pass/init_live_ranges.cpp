@@ -3,9 +3,10 @@
 //
 
 #include "snippets/lowered/pass/init_live_ranges.hpp"
+
 #include "snippets/itt.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov {
 namespace snippets {
@@ -17,12 +18,12 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
     const auto& node = expr->get_node();
     return op::Subgraph::is_shape_infer_op(node)
 #ifdef SNIPPETS_DEBUG_CAPS
-            || ov::is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(node)
+           || ov::is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(node)
 #endif
-            || ov::is_type<BufferExpression>(expr);
+           || ov::is_type<BufferExpression>(expr);
 }
 
-} // namespace
+}  // namespace
 
 bool InitLiveRanges::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitLiveRanges")
@@ -34,20 +35,27 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto& expr = *expr_it;
         const auto op = expr->get_node();
-        if (pass_through_expr(expr)) {
-            if (expr_it != linear_ir.begin())
-                expr->set_live_regs(std::prev(expr_it)->get()->get_live_regs());
-            continue;
-        }
         const double start = expr->get_exec_num();
-        // Remove all regs that expired before start
-        regs_to_expire.erase(regs_to_expire.begin(), regs_to_expire.lower_bound(start)); // remove all elements lower than start (not equal)
         std::set<Reg> live_regs;
-        for (const auto& time_reg : regs_to_expire)
-            live_regs.insert(time_reg.second.begin(), time_reg.second.end());
 
-        expr->set_live_regs(std::move(live_regs));
+        if (pass_through_expr(expr)) {
+            if (expr_it != linear_ir.begin()) {
+                live_regs = std::prev(expr_it)->get()->get_live_regs();
+                expr->set_live_regs(std::move(live_regs));
+            }
+        } else {
+            // Remove all regs that expired before start
+            regs_to_expire.erase(
+                regs_to_expire.begin(),
+                regs_to_expire.lower_bound(start));  // remove all elements lower than start (not equal)
+            for (const auto& time_reg : regs_to_expire)
+                live_regs.insert(time_reg.second.begin(), time_reg.second.end());
+            expr->set_live_regs(std::move(live_regs));
+        }
 
+        // Note that here we continue to process pass_through expressions to define register type if it was not defined
+        // in the parent expression (for example, in cases where there are no parent expression for passthrough
+        // expressions) and to propagate new registers to the consumers
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out_pd = expr->get_output_port_descriptor(i);
             if (out_pd->get_reg().is_defined())
@@ -82,8 +90,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

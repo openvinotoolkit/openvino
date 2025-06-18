@@ -4,18 +4,31 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
 #include <memory>
+#include <string>
 
 #include "brgemm_base.hpp"
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_kernel_executor_table.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu::x64 {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
-    BrgemmKernelConfig(const element::Type& in0_dtype,
-                       const element::Type& in1_dtype,
-                       bool is_with_comp,
-                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+    BrgemmKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
+                       const element::Type& out_dtype,
+                       const dnnl_post_ops& post_ops);
     BrgemmKernelConfig() = delete;
 
     [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
@@ -30,8 +43,10 @@ private:
     struct StaticParams : StaticBaseParams {
         StaticParams(const element::Type& in0_dtype,
                      const element::Type& in1_dtype,
+                     const element::Type& out_dtype,
                      bool is_with_comp,
-                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
+                     dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                     const dnnl_post_ops& post_ops);
 
         const bool is_with_comp{false};
 
@@ -40,7 +55,7 @@ private:
             return !(*this == rhs);
         }
 #ifdef SNIPPETS_DEBUG_CAPS
-        [[nodiscard]] std::string to_string() const;
+        [[nodiscard]] std::string to_string() const override;
 #endif
     private:
         static size_t compute_hash(bool is_with_comp);
@@ -68,6 +83,7 @@ public:
         const void* B = nullptr;
         void* C = nullptr;
         void* scratch = nullptr;
+        const void* post_ops_binary_arg_vec = nullptr;
     };
     BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
 
@@ -95,7 +111,7 @@ protected:
 
 struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
     brgemm_ref_kernel(BrgemmKernelConfig c);
-    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*) const override;
+    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const override;
     dnnl_status_t create_kernel() override {
         return dnnl_status_t::dnnl_success;
     }

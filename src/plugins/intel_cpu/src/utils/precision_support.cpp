@@ -16,13 +16,10 @@
 
 namespace ov::intel_cpu {
 
-static bool hasFP16HardwareSupport(const ov::element::Type& precision) {
+static bool hasFP16HardwareSupport() {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) ||
-        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-        return true;
-    }
-    return false;
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) ||
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
 #elif defined(OV_CPU_WITH_ACL)
     return arm_compute::CPUInfo::get().has_fp16();
 #else
@@ -30,13 +27,10 @@ static bool hasFP16HardwareSupport(const ov::element::Type& precision) {
 #endif
 }
 
-static bool hasBF16HardwareSupport(const ov::element::Type& precision) {
+static bool hasBF16HardwareSupport() {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-        dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2)) {
-        return true;
-    }
-    return false;
+    return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
+           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
 #else
     return false;
 #endif
@@ -45,9 +39,9 @@ static bool hasBF16HardwareSupport(const ov::element::Type& precision) {
 bool hasHardwareSupport(const ov::element::Type& precision) {
     switch (precision) {
     case ov::element::f16:
-        return hasFP16HardwareSupport(precision);
+        return hasFP16HardwareSupport();
     case ov::element::bf16:
-        return hasBF16HardwareSupport(precision);
+        return hasBF16HardwareSupport();
     default:
         return true;
     }
@@ -61,6 +55,14 @@ ov::element::Type defaultFloatPrecision() {
         return ov::element::bf16;
     }
     return ov::element::f32;
+}
+
+bool hasIntDotProductSupport() {
+#if defined(OV_CPU_WITH_ACL)
+    return arm_compute::CPUInfo::get().has_dotprod();
+#else
+    return false;
+#endif
 }
 
 }  // namespace ov::intel_cpu

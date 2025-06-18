@@ -98,7 +98,7 @@ def main():
     storage_root = args.storage_root or os.getenv('ARTIFACTS_SHARE')
     storage_dir = args.storage_dir or PlatformMapping[PlatformKey[args.platform.upper()]].value
     storage = artifact_utils.get_storage_dir(storage_dir, args.commit_sha, args.storage_root, args.branch_name,
-                                             args.event_name)
+                                             args.event_name, args.product_name)
     action_utils.set_github_output("artifacts_storage_path", str(storage))
 
     logger.info(f"Storing artifacts to {storage}")
@@ -139,9 +139,11 @@ def main():
             file.write(workflow_link)
         store_checksums(workflow_link_file)
 
+    # TODO: remove 'openvinotoolkit/openvino' condition when Tokenizers artifacts are stored in a separate structure
     if not error_found and os.getenv('GITHUB_REPOSITORY') == 'openvinotoolkit/openvino':
         latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(storage_dir, args.storage_root,
-                                                                               args.branch_name, args.event_name)
+                                                                               args.branch_name, args.event_name,
+                                                                               args.product_name)
         # Overwrite path to "latest" built artifacts only if a given commit is the head of a given branch
         if args.event_name != 'pull_request' and args.commit_sha == os.getenv('GITHUB_SHA'):
             # TODO: lock to avoid corruption in case of a parallel build (unlikely event for now, but still)

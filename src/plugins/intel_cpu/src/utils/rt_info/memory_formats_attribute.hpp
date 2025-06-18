@@ -4,11 +4,17 @@
 
 #pragma once
 
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
 
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov::intel_cpu {
@@ -34,7 +40,7 @@ public:
     [[nodiscard]] ov::Any merge(const ov::NodeVector& nodes) const override {
         std::set<std::string> unique_mem_format;
 
-        for (auto& node : nodes) {
+        for (const auto& node : nodes) {
             auto it_info = node->get_rt_info().find(MemoryFormat::get_type_info_static());
             if (it_info != node->get_rt_info().end()) {
                 std::string mem_format = it_info->second.template as<MemoryFormat>().to_string();

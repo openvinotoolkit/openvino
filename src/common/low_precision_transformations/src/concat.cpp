@@ -15,8 +15,10 @@
 #include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 
 namespace ov {
 namespace pass {

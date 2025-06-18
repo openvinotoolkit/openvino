@@ -6,6 +6,14 @@
 
 #include <cpu_memory.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_types.h"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "shape_inference_status.hpp"
@@ -24,7 +32,6 @@ public:
         ShapeInferStatus status;
     };
 
-public:
     virtual ~IShapeInfer() = default;
 
     /**
@@ -65,10 +72,10 @@ public:
  */
 class ShapeInferEmptyPads : public IShapeInfer {
 public:
-    const ov::CoordinateDiff& get_pads_begin() override final {  // NOLINT
+    const ov::CoordinateDiff& get_pads_begin() override final {
         return m_emptyVec;
     }
-    const ov::CoordinateDiff& get_pads_end() override final {  // NOLINT
+    const ov::CoordinateDiff& get_pads_end() override final {
         return m_emptyVec;
     }
 

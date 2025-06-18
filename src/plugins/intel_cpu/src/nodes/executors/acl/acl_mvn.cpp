@@ -13,11 +13,11 @@ AclMVNExecutor::AclMVNExecutor(ExecutorContext::CPtr context) : MVNExecutor(std:
 bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const dnnl::primitive_attr& attr) {
+                          [[maybe_unused]] const dnnl::primitive_attr& attr) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 
-    size_t X, Y;
+    size_t X = 0, Y = 0;
     if (mvnAttrs.initAcrossChannels_) {
         if (srcDims.size() >= 2u) {
             Y = srcDims[0];

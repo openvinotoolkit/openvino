@@ -4,10 +4,16 @@
 
 #pragma once
 
+#include <cassert>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
@@ -46,7 +52,7 @@ struct EltwiseAttrs {
     }
 };
 
-enum class EltwisePostOpType { Undefined, Eltwise, Dnnl };
+enum class EltwisePostOpType : uint8_t { Undefined, Eltwise, Dnnl };
 
 class EltwisePostOp {
 public:
@@ -105,11 +111,11 @@ using EltwiseExecutorCPtr = std::shared_ptr<const EltwiseExecutor>;
 
 class EltwiseExecutorBuilder {
 public:
-    ~EltwiseExecutorBuilder() = default;
+    virtual ~EltwiseExecutorBuilder() = default;
     [[nodiscard]] virtual bool isSupported(const EltwiseAttrs& eltwiseAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual EltwiseExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using EltwiseExecutorBuilderPtr = std::shared_ptr<EltwiseExecutorBuilder>;

@@ -22,7 +22,6 @@ graph {
       i: 1
       type: INT
     }
-    domain: "com.microsoft"
   }
   initializer {
     dims: 8
@@ -64,6 +63,5 @@ graph {
   }
 }
 opset_import {
-  domain: "com.microsoft"
   version: 1
 }

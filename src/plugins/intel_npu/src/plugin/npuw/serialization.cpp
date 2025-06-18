@@ -7,10 +7,49 @@
 #include "intel_npu/config/config.hpp"
 #include "lazy_tensor.hpp"
 #include "logging.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "spatial.hpp"
+#include "util.hpp"
+
+// NOTE: This construtor should only be used when exporting blobs
+ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
+                                               const std::unordered_map<const void*, std::size_t>& _const_to_offset)
+    : is_weightless(_is_weightless),
+      const_to_offset(_const_to_offset) {}
+
+// NOTE: This construtor can and should only be used when importing blobs
+ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+                                               const s11n::WeightsContext::ConstsCache& _consts_cache,
+                                               const BF16Cache& _bf16_consts)
+    : weights(_weights),
+      consts_cache(_consts_cache),
+      bf16_consts(_bf16_consts) {
+    is_weightless = _weights || !_consts_cache.empty();
+}
+
+ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<ov::Model>& model) {
+    ov::npuw::s11n::BF16Cache bf16_cache;
+    for (auto&& node_ptr : model->get_ordered_ops()) {
+        if (const auto c = ov::as_type_ptr<ov::op::v0::Constant>(node_ptr)) {
+            if (c->get_element_type() != ov::element::bf16) {
+                continue;
+            }
+            auto rt_info = c->get_rt_info();
+            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
+            if (weightless_cache_attr == rt_info.end()) {
+                continue;
+            }
+            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+            bf16_cache.insert({offset, c->get_byte_size()});
+        }
+    }
+    return bf16_cache;
+}
 
 void ov::npuw::s11n::write(std::ostream& stream, const std::streampos& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
@@ -68,7 +107,11 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::Tensor& var) {
         var.copy_to(tensor);
     }
     NPUW_ASSERT(tensor);
-    stream.write(reinterpret_cast<const char*>(var.data()), var.get_byte_size());
+    size_t blob_size = var.get_byte_size();
+    if (blob_size > static_cast<decltype(blob_size)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+    stream.write(reinterpret_cast<const char*>(var.data()), static_cast<std::streamsize>(blob_size));
 }
 
 void ov::npuw::s11n::write(std::ostream& stream, const ::intel_npu::Config& var) {
@@ -92,7 +135,9 @@ enum class AnyType : int {
     FLOAT,
     BOOL,
     CACHE_MODE,
-    ELEMENT_TYPE
+    ELEMENT_TYPE,
+    ANYMAP,
+    PERFMODE
 };
 
 void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
@@ -131,6 +176,12 @@ void ov::npuw::s11n::write_any(std::ostream& stream, const ov::Any& var) {
     } else if (var.is<ov::element::Type>()) {
         write(stream, static_cast<int>(AnyType::ELEMENT_TYPE));
         write(stream, var.as<ov::element::Type>());
+    } else if (var.is<ov::AnyMap>()) {
+        write(stream, static_cast<int>(AnyType::ANYMAP));
+        write(stream, var.as<ov::AnyMap>());
+    } else if (var.is<ov::hint::PerformanceMode>()) {
+        write(stream, static_cast<int>(AnyType::PERFMODE));
+        write(stream, var.as<ov::hint::PerformanceMode>());
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -146,6 +197,18 @@ void ov::npuw::s11n::write(std::ostream& stream, const ov::CacheMode& var) {
 
 void ov::npuw::s11n::write(std::ostream& stream, const ov::element::Type& var) {
     stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::hint::PerformanceMode& var) {
+    stream.write(reinterpret_cast<const char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::write(std::ostream& stream, const ov::AnyMap& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el.first);
+        write_any(stream, el.second);
+    }
 }
 
 void ov::npuw::s11n::read(std::istream& stream, std::streampos& var) {
@@ -297,6 +360,14 @@ void ov::npuw::s11n::read_any(std::istream& stream, ov::Any& var) {
         ov::element::Type val;
         read(stream, val);
         var = val;
+    } else if (type == AnyType::ANYMAP) {
+        ov::AnyMap val;
+        read(stream, val);
+        var = val;
+    } else if (type == AnyType::PERFMODE) {
+        ov::hint::PerformanceMode val;
+        read(stream, val);
+        var = val;
     } else {
         NPUW_ASSERT(false && "Unsupported type");
     }
@@ -314,9 +385,27 @@ void ov::npuw::s11n::read(std::istream& stream, ov::element::Type& var) {
     stream.read(reinterpret_cast<char*>(&var), sizeof var);
 }
 
+void ov::npuw::s11n::read(std::istream& stream, ov::hint::PerformanceMode& var) {
+    stream.read(reinterpret_cast<char*>(&var), sizeof var);
+}
+
+void ov::npuw::s11n::read(std::istream& stream, ov::AnyMap& var) {
+    std::size_t var_size = 0;
+    read(stream, var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        std::string k;
+        read(stream, k);
+        ov::Any v;
+        read_any(stream, v);
+        var[k] = v;
+    }
+}
+
 // Weightless
 // FIXME: all serialization needs a good rewriting
-void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const Context& ctx) {
+void ov::npuw::s11n::write_weightless(std::ostream& stream,
+                                      const std::vector<ov::Tensor>& var,
+                                      const ov::npuw::s11n::WeightsContext& ctx) {
     write(stream, var.size());
     for (const auto& t : var) {
         if (!t) {
@@ -341,7 +430,7 @@ void ov::npuw::s11n::write_weightless(std::ostream& stream, const std::vector<ov
 
 void ov::npuw::s11n::read_weightless(std::istream& stream,
                                      std::vector<ov::Tensor>& var,
-                                     const ov::npuw::s11n::Weights& weights) {
+                                     const ov::npuw::s11n::WeightsContext& ctx) {
     var.clear();
     std::size_t size;
     read(stream, size);
@@ -365,7 +454,32 @@ void ov::npuw::s11n::read_weightless(std::istream& stream,
             std::size_t offset = 0;
             read(stream, offset);
             ov::Tensor t(type, shape);
-            std::memcpy(t.data(), weights->get_ptr(offset), byte_size);
+
+            if (ctx.weights) {
+                if (ctx.bf16_consts.find({offset, byte_size}) != ctx.bf16_consts.end()) {
+                    NPUW_ASSERT(type == ov::element::f16);
+                    // Read original bf16 weight
+                    auto bf16_tensor = ov::Tensor(ov::element::bf16, shape);
+                    NPUW_ASSERT(bf16_tensor.get_byte_size() == byte_size);
+                    std::memcpy(bf16_tensor.data(), ctx.weights->get_ptr(offset), byte_size);
+
+                    NPUW_ASSERT(bf16_tensor.get_size() == t.get_size());
+
+                    // Transform bf16 to f16 tensor
+                    using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
+                    auto src_data = bf16_tensor.data<ov::bfloat16>();
+                    auto dst_data = t.data<dst_type>();
+                    ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, t.get_size());
+                } else {
+                    std::memcpy(t.data(), ctx.weights->get_ptr(offset), byte_size);
+                }
+            } else {
+                auto it = ctx.consts_cache.find({offset, byte_size});
+                NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
+                t = ov::npuw::util::copy_tensor_from_const(it->second);
+                NPUW_ASSERT(t.get_byte_size() == byte_size && t.get_shape() == shape && t.get_element_type() == type);
+            }
+
             var.push_back(t);
         } else {
             ov::Tensor t;

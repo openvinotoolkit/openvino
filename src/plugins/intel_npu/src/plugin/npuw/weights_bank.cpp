@@ -21,8 +21,8 @@ public:
 
 private:
     BankManager() {}
-    BankManager(BankManager const&) = delete;
-    void operator=(BankManager const&) = delete;
+    BankManager(const BankManager&) = delete;
+    void operator=(const BankManager&) = delete;
 
 public:
     // Public API
@@ -155,6 +155,7 @@ void Bank::evaluate_and_allocate() {
                 auto transformed = lt.eval();
                 std::unique_lock guard(device_bank.mutex);
                 device_bank.storage.at(uid).tensor = std::move(transformed);
+                const_cast<LazyTensor&>(lt).detach();
                 return;
             }
 

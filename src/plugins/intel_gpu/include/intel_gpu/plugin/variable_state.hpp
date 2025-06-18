@@ -21,11 +21,13 @@ struct VariableStateInfo {
         : m_id(id),
           m_layout(layout),
           m_user_specified_type(user_specified_type),
+          transpose_required(false),
           m_primitives() {}
 
     std::string m_id;
     cldnn::layout m_layout;
     ov::element::Type m_user_specified_type;
+    bool transpose_required;
     std::set<const cldnn::primitive*> m_primitives;
 };
 
@@ -75,6 +77,7 @@ protected:
     ov::element::Type m_user_specified_type;
     std::shared_ptr<cldnn::ShapePredictor> m_shape_predictor;
     cldnn::memory::ptr m_memory = nullptr;
+    bool m_transpose_required = false;
     size_t actual_size = 0;
 
     const cldnn::layout m_initial_layout;

@@ -63,6 +63,8 @@ struct reorder_weights_params : public Params {
     WeightsTensor output;
     bool winograd = false;
     bool rotate_180 = false;
+    size_t original_input_rank = 0;
+    size_t original_output_rank = 0;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k;

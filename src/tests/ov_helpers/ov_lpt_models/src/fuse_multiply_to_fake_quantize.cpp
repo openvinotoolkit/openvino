@@ -3,8 +3,7 @@
 //
 
 #include "ov_lpt_models/fuse_multiply_to_fake_quantize.hpp"
-
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 

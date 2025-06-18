@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <vector>
+#include <cstdint>
 
-#include "cpu_memory.h"
+#include "config.h"
 #include "executor_config.hpp"
+#include "post_ops.hpp"
 
 namespace ov::intel_cpu {
 
@@ -18,9 +19,12 @@ struct FCAttrs {
     bool withBias = false;
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
-    uint64_t dynamicQuantizationGroupSize;
+    uint64_t dynamicQuantizationGroupSize = 0;
+    bool nonConstantWeights = false;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
+
+    PostOps postOps;
 };
 
 using FCConfig = executor::Config<FCAttrs>;

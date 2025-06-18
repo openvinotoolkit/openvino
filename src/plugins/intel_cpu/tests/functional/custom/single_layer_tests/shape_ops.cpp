@@ -8,13 +8,17 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
 
-enum class shapeNodeType { Reshape, Squeeze, Unsqueeze, ReshapeWithNonZero };
+enum class shapeNodeType : uint8_t { Reshape, Squeeze, Unsqueeze, ReshapeWithNonZero };
 
 inline std::ostream& operator<<(std::ostream& os, shapeNodeType type) {
     switch (type) {

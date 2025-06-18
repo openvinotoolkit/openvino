@@ -163,27 +163,54 @@ pass::TFLQuantizeReplacer::TFLQuantizeReplacer() {
             output = make_shared<v0::Convert>(output, element::f32);
         }
 
+        // Amount of levels for quantized original type, for example, for u/int8 - 256
         const auto levels = 1 << tfl_quantize->get_original_type().bitwidth();
         const auto is_signed = tfl_quantize->get_original_type().is_signed();
 
+        // Lower bound for original type, for example, int8 - -128, uint8 - 0
         const auto low = is_signed ? (-levels / 2) : 0;
+        // Upper bound for original type, for example, int8 - 127, uint8 - 255
         const auto high = (is_signed ? levels / 2 : levels) - 1;
 
         Output<Node> input_low, input_high, output_low, output_high;
 
         if (out_type != element::f32) {
+            /*
+                Quantize case when it must provide non-float32 output
+                Calculating default values for input/output low/high (example calculations for int8):
+                output_low = lower bound for original type (-128)
+                output_high = upper bound for original type (127)
+                input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+            */
             output_low = v0::Constant::create(element::f32, {}, {low});
             output_high = v0::Constant::create(element::f32, {}, {high});
             input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);
             input_high =
                 std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_high, zp_node), scale_node);
         } else if (in_type != element::f32) {
+            /*
+                Dequantize case when it must accept non-float32 input
+                Calculating default values for input/output low/high (example calculations for int8):
+                input_low = lower bound for original type (-128)
+                input_high = upper bound for original type (127)
+                output_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                output_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+            */
             input_low = v0::Constant::create(element::f32, {}, {low});
             input_high = v0::Constant::create(element::f32, {}, {high});
             output_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_low, zp_node), scale_node);
             output_high =
                 std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(input_high, zp_node), scale_node);
         } else {
+            /*
+                Requantize (QDQ) case when it accepts float32 for input and output
+                Calculating default values for input/output low/high (example calculations for int8):
+                input_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                input_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+                output_low = (lower bound for original type - zero point) * scale ((-128 - 16) * 0.25 = -36.0)
+                output_high = (upper bound for original type - zero point) * scale ((127 - 16) * 0.25 = 27.75)
+            */
             output_low = v0::Constant::create(element::f32, {}, {low});
             output_high = v0::Constant::create(element::f32, {}, {high});
             input_low = std::make_shared<v1::Multiply>(std::make_shared<v1::Subtract>(output_low, zp_node), scale_node);

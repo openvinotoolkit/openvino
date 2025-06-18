@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/pass/transform_convert.hpp"
-#include "snippets/snippets_isa.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/snippets_isa.hpp"
 
 ov::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConvertTruncation() {
     MATCHER_SCOPE(TransformConvertToConvertTruncation);
@@ -19,11 +18,14 @@ ov::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConve
                    !ov::is_type_any_of<op::ConvertTruncation, op::ConvertSaturation>(n);
         });
 
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(
-        ov::pass::pattern::wrap_type<ov::opset1::Convert>(), matcher_name), [](ov::pass::pattern::Matcher &m) {
-            OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TransformConvertToConvertTruncation")
+    register_matcher(
+        std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::opset1::Convert>(), matcher_name),
+        [](ov::pass::pattern::Matcher& m) {
+            OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform,
+                               "Snippets::op::TransformConvertToConvertTruncation")
             const auto root = m.get_match_root();
             const auto convert = ov::as_type_ptr<ov::opset1::Convert>(root);
+            OPENVINO_ASSERT(convert, "Convert op is invalid");
             auto convert_truncation = std::make_shared<op::ConvertTruncation>(convert->get_input_source_output(0),
                                                                               convert->get_destination_type());
             convert_truncation->set_friendly_name(convert->get_friendly_name());

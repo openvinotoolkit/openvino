@@ -4,6 +4,7 @@
 
 #include "shape_inference.hpp"
 
+#include <memory>
 #include <snippets/shape_inference/shape_infer_instances.hpp>
 
 #include "op/brgemm_copy_b.hpp"
@@ -11,6 +12,9 @@
 #include "op/load_convert.hpp"
 #include "op/perf_count_rdtsc.hpp"
 #include "op/store_convert.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -32,11 +36,11 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
     return {};
 }
 
-#define SHAPE_INFER_PREDEFINED(OP, InferType)                                \
-    {                                                                        \
-        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
-            return std::make_shared<InferType>();                            \
-        }                                                                    \
+#define SHAPE_INFER_PREDEFINED(OP, InferType)                                                 \
+    {                                                                                         \
+        OP::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) { \
+            return std::make_shared<InferType>();                                             \
+        }                                                                                     \
     }
 #define SHAPE_INFER_OP_SPECIFIC(OP)                                          \
     {                                                                        \

@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <type_traits>
+#include <unordered_map>
+
+#include "cpu_types.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -22,7 +29,7 @@ struct RepackedInput {
                   VectorDims out_offsets);
 
     template <class T = RepackedInputKernel, std::enable_if_t<std::is_base_of_v<RepackedInputKernel, T>, bool> = true>
-    std::shared_ptr<const T> kernel() const {
+    [[nodiscard]] std::shared_ptr<const T> kernel() const {
         const auto ker = std::dynamic_pointer_cast<const T>(m_kernel);
         OPENVINO_ASSERT(ker, "Kernel is empty!");
         return ker;
@@ -35,8 +42,10 @@ struct RepackedInput {
 private:
     std::shared_ptr<const RepackedInputKernel> m_kernel{nullptr};
     CpuBlockedMemoryDescPtr m_desc{nullptr};
-    VectorDims m_in_offsets{};
-    VectorDims m_out_offsets{};
+    VectorDims m_in_offsets;
+    VectorDims m_out_offsets;
 };
+
+using RepackedInputConfig = std::unordered_map<size_t, ov::intel_cpu::RepackedInput>;
 
 }  // namespace ov::intel_cpu

@@ -9,6 +9,7 @@
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/gru_sequence.hpp"
 
 namespace ov {
 namespace test {
@@ -66,9 +67,7 @@ void GRUSequenceTest::SetUp() {
             inType, targetDevice) = this->GetParam();
     outType = inType;
     init_input_shapes(shapes);
-    if (inType == ElementType::bf16 || inType == ElementType::f16) {
-        rel_threshold = 1e-2;
-    }
+    rel_threshold = 1e-2;
 
     const size_t seq_lengths = targetStaticShapes.front()[0][1];
     const size_t hidden_size = targetStaticShapes.front()[1][2];

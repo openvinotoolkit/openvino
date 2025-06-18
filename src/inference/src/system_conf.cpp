@@ -277,6 +277,9 @@ int get_num_numa_nodes() {
 int get_num_sockets() {
     return -1;
 }
+int get_numa_node_id(int cpu_id) {
+    return -1;
+}
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
                             const int cpu_status) {}
@@ -334,6 +337,9 @@ int get_num_numa_nodes() {
 }
 int get_num_sockets() {
     return cpu_info()._sockets;
+}
+int get_numa_node_id(int cpu_id) {
+    return -1;
 }
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
@@ -459,6 +465,11 @@ int get_num_sockets() {
     return cpu_info()._sockets;
 }
 
+int get_numa_node_id(int cpu_id) {
+    CPU& cpu = cpu_info();
+    return cpu._cpu_mapping_table[cpu_id][CPU_MAP_NUMA_NODE_ID];
+}
+
 void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
                             std::vector<std::vector<int>>& stream_processors,
                             const int cpu_status) {
@@ -488,9 +499,10 @@ void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     const auto cpu_size = static_cast<int>(cpu_ids.size());
     if (cpu_size > 0) {
-        for (int i = 0; i < cpu_size; i++) {
-            if (cpu_ids[i] < cpu._processors) {
-                cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        for (auto& row : cpu._cpu_mapping_table) {
+            auto it = std::find(cpu_ids.begin(), cpu_ids.end(), row[CPU_MAP_PROCESSOR_ID]);
+            if (it != cpu_ids.end()) {
+                row[CPU_MAP_USED_FLAG] = used;
             }
         }
         ov::threading::update_proc_type_table(cpu._cpu_mapping_table, cpu._numa_nodes, cpu._proc_type_table);

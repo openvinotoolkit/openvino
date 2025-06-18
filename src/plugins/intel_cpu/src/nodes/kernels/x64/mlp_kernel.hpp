@@ -4,9 +4,22 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "../scaled_attn/executor_pa_common.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)
@@ -42,7 +55,7 @@ private:
     void* last_cfg = nullptr;
 };
 
-enum class TMUL_TYPE { SSD = 1, USD = 2, SUD = 3, UUD = 4, FP16 = 5, BF16 = 6 };
+enum class TMUL_TYPE : uint8_t { SSD = 1, USD = 2, SUD = 3, UUD = 4, FP16 = 5, BF16 = 6 };
 
 class MKernel : public dnnl::impl::cpu::x64::jit_generator {
 public:
@@ -115,7 +128,7 @@ public:
     // with the help of :
     //  - m_BM_hint controls dynamic behaviour of the kernel
     //  - tile config controls behaviour of tileload & TMUL
-    void tile_config_M(ov::Extensions::Cpu::TileConfig& tile_cfg, int M);
+    static void tile_config_M(ov::Extensions::Cpu::TileConfig& tile_cfg, int M);
 
     // to save push/pop: do not use `abi_save_gpr_regs`
     uint8_t* prefetch_next_A_addr;
@@ -144,14 +157,24 @@ public:
 
         // convert
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight, int stride, int N, int K);
+        void setup(Tdst* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight, int stride, int N, int K);
+        void setup(int8_t* ext_buff, int8_t* p_weight, int weight_stride_in_bytes, int N, int K);
         // two B tiles in each pair (B0 & B1) comes from different raw weight matrix
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight_B0, ov::float16* p_weight_B1, int stride, int N, int K);
+        void setup(Tdst* ext_buff,
+                   ov::float16* p_weight_B0,
+                   ov::float16* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight_B0, int8_t* p_weight_B1, int stride, int N, int K);
+        void setup(int8_t* ext_buff,
+                   int8_t* p_weight_B0,
+                   int8_t* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
     };
 
     // run L2 cache blocking kernel with size:
@@ -162,12 +185,12 @@ public:
     // but prefetch of next B must be specified by caller.
     //
     void run(int M,  // actual M
-             uint8_t* pA,
+             const uint8_t* pA,
              int strideA,          // A [M, K]
              BMatrix& repacked_B,  // B
-             uint8_t* pC,
-             int strideC,          // C [M, N]
-             uint8_t* prefetch_B,  // prefetch B
+             const uint8_t* pC,
+             int strideC,                // C [M, N]
+             const uint8_t* prefetch_B,  // prefetch B
              bool do_accumulation);
 };
 
@@ -186,14 +209,14 @@ struct Work {
     int blk_K_size = 0;
     int output_id;
     void* p_raw_weights;
-    operator bool() {
+    operator bool() const {
         return BN > 0;
     }
 
     bool quant_i8 = false;
     bool is_f16 = false;
 
-    MKernel& get_MKernel() {
+    [[nodiscard]] MKernel& get_MKernel() const {
         constexpr int BM = 256;
         static MKernel jit_amx_bf16(BM, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(BM, TMUL_TYPE::FP16);
@@ -207,7 +230,7 @@ struct Work {
         return jit_amx_bf16;
     }
 
-    MKernel& get_MKernel_1x2() {
+    [[nodiscard]] MKernel& get_MKernel_1x2() const {
         static MKernel jit_amx_bf16(16, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(16, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(16, TMUL_TYPE::SSD);
@@ -223,7 +246,6 @@ struct Work {
     // input : weight [N, K], setup repacks range of N [n_start, n_end)
     template <typename Tsrc, typename Tdst>
     void setup(Tdst* dst, Tsrc* p_weight, int stride_in_bytes, bool do_sum_per_oc = false) {
-        auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
         auto* pw = p_weight + n0 * stride_in_bytes / sizeof(Tsrc);
 
@@ -251,7 +273,7 @@ struct Work {
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
-            mkernel.tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
+            ov::intel_cpu::MKernel::tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
         }
     }
 
@@ -259,7 +281,6 @@ struct Work {
     // in each Bpair, p_weight1 stored in B0, p_weight2 stored in B1
     template <typename Tsrc, typename Tdst>
     void setup(Tdst* dst, Tsrc* p_weight1, Tsrc* p_weight2, int stride_in_bytes, bool do_sum_per_oc = false) {
-        auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
         auto* pw1 = p_weight1 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);
         auto* pw2 = p_weight2 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);
@@ -299,7 +320,7 @@ struct Work {
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
-            mkernel.tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
+            ov::intel_cpu::MKernel::tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
         }
     }
 
@@ -327,7 +348,7 @@ struct Work {
 
         auto C_stride_bytes = BN * sizeof(float);
         OPENVINO_ASSERT(C_M * C_stride_bytes <= m_C.stride_bytes(0) * m_C.size(0));
-        auto pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
+        auto* pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
 
         auto element_size = quant_i8 ? sizeof(int8_t) : sizeof(ov::bfloat16);
 
@@ -376,7 +397,7 @@ struct Work {
             // else
             //      firstK: 0 1 0(skip store, tilezero, skip load), the otherK except last: 0 0 0(skip all),
             //      lastK: 1 0 0(store, skip tile zero, skip load)
-            int do_accumulation;
+            int do_accumulation = 0;
             MKernel::call_args args;
             args.strideA = strideA;
             args.strideC = C_stride_bytes;
@@ -434,7 +455,7 @@ struct ScratchBuffAllocator {
         m_total_size += size;
         m_sizes.push_back(size);
     }
-    size_t size() {
+    [[nodiscard]] size_t size() const {
         return m_total_size;
     }
     void finalize(void* base) {
@@ -457,12 +478,12 @@ struct MatrixDynQuantPerRow {
 
     MatrixDynQuantPerRow() = default;
 
-    size_t size() {
+    [[nodiscard]] size_t size() const {
         // size of data & scale & zp
         return M * K + M * sizeof(float) * 2;
     }
 
-    size_t stride() {
+    [[nodiscard]] size_t stride() const {
         return K;
     }
 
@@ -472,8 +493,8 @@ struct MatrixDynQuantPerRow {
         zp = reinterpret_cast<float*>(scale + M);
     }
 
-    void quantize(size_t BM, ov::bfloat16* psrc, int src_stride);
-    void quantize(size_t BM, ov::float16* psrc, int src_stride);
+    void quantize(size_t BM, ov::bfloat16* psrc, int src_stride) const;
+    void quantize(size_t BM, ov::float16* psrc, int src_stride) const;
 };
 
 // combine gate_proj & up_proj using activation algo, then convert to bf16

@@ -10,7 +10,6 @@ from tests import (
     BACKEND_NAME,
     skip_rng_tests,
     xfail_issue_33488,
-    xfail_issue_33581,
     xfail_issue_33596,
     xfail_issue_33606,
     xfail_issue_33651,
@@ -37,7 +36,6 @@ from tests import (
     xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
-    xfail_issue_81976,
     skip_segfault,
     xfail_issue_82038,
     xfail_issue_82039,
@@ -228,10 +226,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
     ),
     (
-        xfail_issue_33581,
-        "OnnxBackendNodeModelTest.test_gather_elements_negative_indices_cpu",
-    ),
-    (
         xfail_issue_38713,
         "OnnxBackendNodeModelTest.test_momentum_cpu",
         "OnnxBackendNodeModelTest.test_nesterov_momentum_cpu",
@@ -364,11 +358,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_3_cpu",  # ticket: 90649
         "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_4_cpu",  # ticket: 90649
         "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_cpu",  # ticket: 90649
-    ),
-    (
-        xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
-        "OnnxBackendNodeModelTest.test_sce_mean_3d_cpu",
-        "OnnxBackendNodeModelTest.test_sce_mean_3d_log_prob_cpu",
     ),
     (
         xfail_issue_82038,

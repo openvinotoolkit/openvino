@@ -4,14 +4,27 @@
 
 #include "graph.h"
 
+#include <oneapi/dnnl/dnnl.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <algorithm>
+#include <atomic>
+#include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <deque>
+#include <exception>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <map>
 #include <memory>
+#include <new>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -20,7 +33,7 @@
 #include <vector>
 
 #include "allocation_context.hpp"
-#include "common/primitive_desc_iface.hpp"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "edge.h"
 #include "graph_context.h"
@@ -29,8 +42,9 @@
 #include "infer_request.h"
 #include "itt.h"
 #include "memory_control.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_state.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/common/cpu_memcpy.h"
@@ -42,19 +56,39 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "perf_count.h"
+#include "proxy_mem_blk.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
-#include "utils/precision_support.h"
 #include "utils/verbose.h"
+#include "weights_cache.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #    include <tbb/task.h>
+#endif
+
+#if defined(__x86_64__) && defined(__linux__)
+#    include "openvino/runtime/properties.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#    include <common/primitive_desc_iface.hpp>
+
+#    include "onednn/iml_type_mapper.h"
+#    include "utils/precision_support.h"
 #endif
 
 using namespace dnnl;
@@ -253,7 +287,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     }
 
     // update output precisions of producers to avoid extra reorders
-    // do this only in case output configration is not provided explicitly
+    // do this only in case output configuration is not provided explicitly
     if (outputConfigs.empty()) {
         for (auto& output : outputNodesMap) {
             const auto& outputNode = output.second;
@@ -368,15 +402,13 @@ void Graph::Activate() {
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-void Graph::Configure(bool optimize) {
+void Graph::Configure([[maybe_unused]] bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
-
-    GraphOptimizer optimizer;
 
     SortTopologically();
     InitNodes();
 
-    optimizer.ApplyCommonGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyCommonGraphOptimizations(*this);
 
     SortTopologically();
 
@@ -388,14 +420,14 @@ void Graph::Configure(bool optimize) {
 
     ResolveEdgeConflicts();
 
-    optimizer.ShareReorders(*this);
+    ov::intel_cpu::GraphOptimizer::ShareReorders(*this);
     RemoveDroppedNodes();
 
     SortTopologically();
 
     ResolveComplexInplaceConflicts();
 
-    optimizer.ApplyImplSpecificGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyImplSpecificGraphOptimizations(*this);
 
     SortTopologically();
 
@@ -569,7 +601,8 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc,
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // temporary WA for slow FP32->FP16 conversion reorder in oneDNN on ARM
     // pretend the reorder is not available to use Convert node instead
-    if (hasHardwareSupport(ov::element::f16) && result && parse_impl_name(result->impl()->name()) == ref_any) {
+    if (hasHardwareSupport(ov::element::f16) && (result != nullptr) &&
+        parse_impl_name(result->impl()->name()) == ref_any) {
         dnnl_primitive_desc_destroy(result);
         return false;
     }
@@ -799,7 +832,7 @@ static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
         baseEdge->allocate(proxyMemBlock);
 
         int count = 0;
-        for (auto& output : outputNodes) {
+        for (const auto& output : outputNodes) {
             if (output.second == child) {
                 outputMemBlocks[output.first] = proxyMemBlock;
                 count++;
@@ -925,13 +958,13 @@ int Graph::RegisterToAllocationContext(int offset, AllocationContext& context) {
 }
 
 static void InitEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges) {
+    for (const auto& edge : edges) {
         edge->init();
     }
 }
 
 static void ValidateEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges) {
+    for (const auto& edge : edges) {
         edge->validate();
     }
 }
@@ -972,9 +1005,8 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
         return clusterIdx;
     };
 
-    for (auto& edge : graphEdges) {
-        const auto clusterIdx = addToCluster(edge);
-        MAYBE_UNUSED(clusterIdx);
+    for (const auto& edge : graphEdges) {
+        [[maybe_unused]] const auto clusterIdx = addToCluster(edge);
         DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
     }
 
@@ -1031,9 +1063,11 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
                             MemoryRegion::AllocType::UNKNOWN};
 
         int64_t boxSize = 0;
-        bool isConst = false, isOutput = false, isInput = false;
+        bool isConst = false;
+        bool isOutput = false;
+        bool isInput = false;
 
-        for (auto& edge : clusters[i]) {
+        for (const auto& edge : clusters[i]) {
             const auto& parent = edge->getParent();
             const auto& child = edge->getChild();
 
@@ -1101,11 +1135,7 @@ static size_t SkipAllocatedClusters(EdgeClusters& clusters) {
     auto notAllocatedPartitionEnd = std::partition(clusters.begin(), clusters.end(), [](const EdgeCluster& cluster) {
         const auto& baseEdge = cluster.at(0);
 
-        if (baseEdge->getStatus() == Edge::Status::Allocated) {
-            return false;
-        }
-
-        return true;
+        return baseEdge->getStatus() != Edge::Status::Allocated;
     });
 
     return std::distance(clusters.begin(), notAllocatedPartitionEnd);
@@ -1190,21 +1220,21 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
     if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
-        auto edgeMemory = childEdge->getMemoryPtr();
+        const auto& edgeMemory = childEdge->getMemory();
 
         const void* ext_data_ptr = input->data();
-        void* inter_data_ptr = edgeMemory->getData();
+        void* inter_data_ptr = edgeMemory.getData();
 
         if (ext_data_ptr != inter_data_ptr) {
             auto ext_tensor_desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(input);
-            auto actualDesc = edgeMemory->getDescPtr();
+            auto actualDesc = edgeMemory.getDescPtr();
 
             if (actualDesc->getPrecision() == element::string) {
                 StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
-                edgeMemory->load(ext_mem, false, false);
+                edgeMemory.load(ext_mem, false, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
                 Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
-                edgeMemory->load(ext_mem, false, false);
+                edgeMemory.load(ext_mem, false, false);
             } else {
                 size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
                 cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
@@ -1227,28 +1257,22 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         auto parentEdge = node->getParentEdgeAt(0);
         const auto& intr_blob = parentEdge->getMemory();
 
-        const auto ext_blob_map = output.find(output_index);
-        OPENVINO_ASSERT(ext_blob_map != output.end(),
+        auto output_itr = output.find(output_index);
+        OPENVINO_ASSERT(output_itr != output.end(),
                         "The CPU plugin graph doesn't contain output node with output_index: ",
                         output_index);
-        const auto ext_blob = ext_blob_map->second;
-        auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
-        const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
+        const auto ext_blob = output_itr->second;
 
         DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()));
 
-        // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
-        // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
-        bool isScalarOutput = false;
-        if (ext_blob->get_shape().empty() && ext_blob->get_size() == 1) {
-            const auto& actualDims = expected_desc_ptr->getShape().getStaticDims();
-            isScalarOutput =
-                !actualDims.empty() &&
-                std::accumulate(actualDims.begin(), actualDims.end(), static_cast<size_t>(1), std::multiplies<>()) == 1;
-        }
+        // TODO [NM]: need to create a universal reorder which will detect cases when we really need to use it
+        // WA: for cases when output shape after transformation is 1x1x1x1 but the model output is scalar
+        const auto& actualDims = ext_blob->get_shape();
+        const auto& outDims = intr_blob.getStaticDims();
 
-        auto outDims = intr_blob.getStaticDims();
-        if (ext_blob->get_shape() != outDims && !isScalarOutput) {
+        const bool isScalarOutput = actualDims.empty() && 1 == ext_blob->get_size();
+
+        if (!isScalarOutput && actualDims != outDims) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             DEBUG_LOG(output_index,
@@ -1270,7 +1294,6 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
                       PartialShape(output[output_index]->get_shape()),
                       ", intr ptr ",
                       intr_blob.getData());
-            expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         }
 
         // check for empty output blob
@@ -1280,8 +1303,8 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
             continue;
         }
 
-        auto srcPrec = actualDesc->getPrecision();
-        auto dstPrec = expected_desc_ptr->getPrecision();
+        auto srcPrec = intr_blob.getPrecision();
+        auto dstPrec = ext_blob->get_element_type();
         if (srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize()) {
             OPENVINO_THROW("Output tensor byte size is not equal model output byte size (",
                            ext_blob->get_byte_size(),
@@ -1308,11 +1331,13 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
             continue;
         }
 
+        auto externDesc = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
+        auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
         if (actualDesc->getPrecision() == element::string) {
-            StringMemory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr);
+            StringMemory outBloMem(getEngine(), externDesc, ext_blob_ptr);
             outBloMem.load(intr_blob, false, false);
-        } else if (!actualDesc->isCompatible(*expected_desc_ptr) && !isScalarOutput) {
-            Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
+        } else if (!actualDesc->isCompatible(*externDesc) && !isScalarOutput) {
+            Memory outBloMem(getEngine(), externDesc, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false, false);
         } else {
             OPENVINO_ASSERT(srcPrec == dstPrec,
@@ -1373,16 +1398,6 @@ using UpdateNodes = UpdateNodesSeq;
 
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
 
-#    if (defined(_MSVC_LANG) && (_MSVC_LANG > 201703L)) || (defined(__cplusplus) && (__cplusplus > 201703L))
-#        define ov_memory_order_release std::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order_acquire
-#    else
-#        define ov_memory_order_release std::memory_order::memory_order_release
-#        define ov_memory_order_relaxed std::memory_order::memory_order_relaxed
-#        define ov_memory_order_acquire std::memory_order::memory_order_acquire
-#    endif
-
 class UpdateNodesBase {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes)
@@ -1394,21 +1409,21 @@ public:
                 if (node->isDynamicNode()) {
                     node->updateShapes();
                 }
-                m_prepareCounter.store(i, ov_memory_order_release);
+                m_prepareCounter.store(i, std::memory_order_release);
             }
         } catch (...) {
-            m_completion.store(true, ov_memory_order_relaxed);
+            m_completion.store(true, std::memory_order_relaxed);
             throw;
         }
-        m_prepareCounter.store(stop_indx, ov_memory_order_relaxed);
-        m_completion.store(true, ov_memory_order_release);
+        m_prepareCounter.store(stop_indx, std::memory_order_relaxed);
+        m_completion.store(true, std::memory_order_release);
     }
 
-    void updateDynParams(size_t node_indx, size_t /*unused*/) {
+    void updateDynParams(size_t node_indx, [[maybe_unused]] size_t stop_indx) {
         size_t local_counter = node_indx;
         while (true) {
-            const bool completion = m_completion.load(ov_memory_order_acquire);
-            const size_t prepareCounter = m_prepareCounter.load(ov_memory_order_relaxed);
+            const bool completion = m_completion.load(std::memory_order_acquire);
+            const size_t prepareCounter = m_prepareCounter.load(std::memory_order_relaxed);
             if (completion && local_counter == prepareCounter) {
                 break;
             }
@@ -1427,6 +1442,7 @@ protected:
     std::vector<NodePtr>& m_executableGraphNodes;
 };
 
+// NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
 #    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 #        if (TBB_VERSION_MAJOR > 2020)
 template <typename Body>
@@ -1437,12 +1453,12 @@ public:
           m_wait(wait),
           m_node_indx(node_indx),
           m_stop_indx(stop_indx) {}
-    task* execute(tbb::detail::d1::execution_data&) override {
+    task* execute([[maybe_unused]] tbb::detail::d1::execution_data& data) override {
         m_body(m_node_indx, m_stop_indx);
         m_wait.release();
         return nullptr;
     }
-    task* cancel(tbb::detail::d1::execution_data&) override {
+    task* cancel([[maybe_unused]] tbb::detail::d1::execution_data& data) override {
         m_wait.release();
         return nullptr;
     }
@@ -1527,6 +1543,7 @@ public:
 };
 #        endif
 #    endif
+// NOLINTEND(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
 
 #    if (OV_THREAD == OV_THREAD_OMP)
 class UpdateNodes : public UpdateNodesBase {
@@ -1588,11 +1605,11 @@ public:
 /* group all the profiling macros into a single one
  * to avoid cluttering a core logic */
 #define VERBOSE_PERF_DUMP_ITT_DEBUG_LOG(ittScope, node, config) \
-    VERBOSE(node, config.debugCaps.verbose);                    \
-    PERF(node, config.collectPerfCounters);                     \
-    DUMP(node, config.debugCaps, infer_count);                  \
-    OV_ITT_SCOPED_TASK(ittScope, node->profiling.execute);      \
-    DEBUG_LOG(*node);
+    VERBOSE(node, (config).debugCaps.verbose);                  \
+    PERF(node, (config).collectPerfCounters);                   \
+    DUMP(node, (config).debugCaps, infer_count);                \
+    OV_ITT_SCOPED_TASK(ittScope, (node)->profiling.execute);    \
+    DEBUG_LOG(*(node));
 
 inline void Graph::ExecuteNode(const NodePtr& node, SyncInferRequest* request, int numaId) const {
     if (request) {
@@ -1618,7 +1635,7 @@ template <typename UpdateStrategy>
 void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&& update) {
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
-        update(stopIndx);
+        std::forward<UpdateStrategy>(update)(stopIndx);
 
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
@@ -1628,7 +1645,7 @@ void Graph::InferDynamic(SyncInferRequest* request, int numaId, UpdateStrategy&&
     }
 }
 
-static int GetNumaNodeId(const GraphContext::CPtr& context) {
+static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
     int numaNodeId = -1;
 #if defined(__x86_64__) && defined(__linux__)
     if ((context->getCPUStreamExecutor()) &&
@@ -1669,7 +1686,7 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    // Set execIndex of all nodes to default invaild value
+    // Set execIndex of all nodes to default invalid value
     for (auto& node : graphNodes) {
         node->execIndex = -1;
     }
@@ -1936,8 +1953,8 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
     // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't
     // do these checks.
     if (!isOptimized) {
-        reorder->getParentEdgeAt(0)->getOriginalDesc();
-        reorder->getChildEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getParentEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getChildEdgeAt(0)->getOriginalDesc();
     }
 
     return reorder;
@@ -1991,8 +2008,9 @@ void Graph::EnforceInferencePrecision() {
         return;  // nothing to do, only precision reduction is currently allowed
     }
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (inferPrec == ov::element::f16)
+    if (inferPrec == ov::element::f16) {
         return;  // precision of configured by ov::pass::ConvertPrecision
+    }
 #endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
@@ -2004,8 +2022,8 @@ void Graph::EnforceInferencePrecision() {
                 if (one_of(parent->getType(),
                            Type::Convolution,     // conv nets
                            Type::FullyConnected,  // conv / bert nets
-                           Type::RNNCell,         // recurent nets
-                           Type::RNNSeq,          // recurent nets
+                           Type::RNNCell,         // recurrent nets
+                           Type::RNNSeq,          // recurrent nets
                            Type::MatMul,          // bert nets
                            Type::ROIPooling,      // object detection nets
                            Type::Interpolate,     // super resolution nets
@@ -2038,7 +2056,7 @@ void Graph::EnforceInferencePrecision() {
 
     /* Skip low-precision float point enforcement for tail of the graph by forming set of nodes to skip.
      * Necessary to maintain accuracy.
-     * Experiments show zero peformance impact on average */
+     * Experiments show zero performance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
@@ -2093,7 +2111,7 @@ void Graph::EnforceInferencePrecision() {
                     return true;
                 }
 
-                // exclude Convert after Range since it may cause precision loss when integter type to LP.
+                // exclude Convert after Range since it may cause precision loss when integer type to LP.
                 if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
                     return true;
                 }
@@ -2124,7 +2142,7 @@ void Graph::EnforceInferencePrecision() {
                 continue;
             }
 
-            // exclude Convert before Range since it may cause precision loss when integter type to LP.
+            // exclude Convert before Range since it may cause precision loss when integer type to LP.
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto& child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert) {

@@ -84,27 +84,13 @@ protected:
         if (gemm_with_bias) {
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
-        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts);
+        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, impl_params.get_program().is_new_shape_infer());
         out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
 
         bool batched_dims_can_be_removed = false;
-
-        if (in0_l.count() != 0 && in1_l.count() != 0) {
-            size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-            size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-            size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
-
-            batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
-        }
-
-        if (gemm_with_bias) {
-            const auto& bias_l = in_layouts[2];
-            size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
-            batched_dims_can_be_removed &= bias_batched_size == 1;
-        }
 
         size_t rank = cldnn::format::dimension(out_l.format);
 

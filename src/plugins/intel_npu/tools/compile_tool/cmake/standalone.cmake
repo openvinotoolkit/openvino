@@ -17,6 +17,8 @@ endif()
 find_package(Threads REQUIRED)
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../common" common EXCLUDE_FROM_ALL)
+
 #
 # gflags is distributed in sources in OpenVINO packages so we need to build it explicitly
 #
@@ -32,6 +34,7 @@ set(DEPENDENCIES
         Threads::Threads
         gflags
         openvino::runtime
+        npu_tools_utils
 )
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")

@@ -4,8 +4,19 @@
 
 #include "priorbox.hpp"
 
-#include "openvino/opsets/opset1.hpp"
-#include "utils.hpp"
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -15,8 +26,9 @@ namespace ov::intel_cpu::node {
  * parameter.
  *
  */
-Result PriorBoxShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+Result PriorBoxShapeInfer::infer(
+    [[maybe_unused]] const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+    const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto* in_data = data_dependency.at(0)->getDataAs<const int>();
     const int H = in_data[0];
     const int W = in_data[1];
@@ -25,12 +37,12 @@ Result PriorBoxShapeInfer::infer(const std::vector<std::reference_wrapper<const 
 }
 
 ShapeInferPtr PriorBoxShapeInferFactory::makeShapeInfer() const {
-    auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(m_op);
+    auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBox>(m_op);
     if (!priorBox) {
         OPENVINO_THROW("Unexpected op type in PriorBox shape inference factory: ", m_op->get_type_name());
     }
     const auto& attrs = priorBox->get_attrs();
-    auto number_of_priors = ov::opset1::PriorBox::number_of_priors(attrs);
+    auto number_of_priors = ov::op::v0::PriorBox::number_of_priors(attrs);
     return std::make_shared<PriorBoxShapeInfer>(number_of_priors);
 }
 }  // namespace ov::intel_cpu::node

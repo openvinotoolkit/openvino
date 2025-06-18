@@ -4,11 +4,26 @@
 
 #include "openvino/op/ctc_greedy_decoder.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
 #include "ctc_greedy_decoder.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -71,7 +86,7 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
+void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* probabilities = getSrcDataAtPortAs<const float>(DATA_INDEX);
     const auto* sequenceMask = getSrcDataAtPortAs<const float>(SEQUENCE_LENGTH_INDEX);
     auto* outputSequences = getDstDataAtPortAs<float>(0);
@@ -88,7 +103,7 @@ void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
     parallel_for(B, [&](size_t b) {
         size_t t = 0;
         for (; t < T; t++) {
-            if (sequenceMask[B * t + b] == 0.f) {
+            if (sequenceMask[B * t + b] == 0.F) {
                 break;
             }
         }
@@ -105,12 +120,14 @@ void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
     // At the first stage find the maximum index. At second stage merge if needed.
     // Such approach makes parallelization more efficient.
     auto threadBody = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
         }
-        size_t tStart = 0lu, bStart = 0lu;
+        size_t tStart = 0LU;
+        size_t bStart = 0LU;
         for (; bStart < B; bStart++) {
             tStart += sequenceLengths[bStart];
             if (tStart >= start) {
@@ -145,7 +162,7 @@ void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
                     return;
                 }
             }
-            tStart = 0lu;
+            tStart = 0LU;
         }
     };  // thread body
 
@@ -157,13 +174,13 @@ void CTCGreedyDecoder::execute(const dnnl::stream& strm) {
         const size_t sequenceLength = sequenceLengths[b];
         float* shiftedOut = outputSequences + b * T;
         for (size_t t = 0; t < sequenceLength; ++t) {
-            if (*shiftedOut < blankIndex && !(mergeRepeated && *shiftedOut == prevClassIdx)) {
+            if (*shiftedOut < blankIndex && (!mergeRepeated || *shiftedOut != prevClassIdx)) {
                 outputSequences[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;
             shiftedOut++;
         }
-        std::fill(outputSequences + outputIndex, outputSequences + (b + 1) * T, -1.f);
+        std::fill(outputSequences + outputIndex, outputSequences + (b + 1) * T, -1.F);
     });
 }
 

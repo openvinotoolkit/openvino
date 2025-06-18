@@ -4,7 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "rdft.h"
 
 namespace ov::intel_cpu::node {
 
@@ -14,23 +22,27 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
+    void createPrimitive() override;
 
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
 protected:
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     /// ISTFT params
     bool m_center = false;
     bool m_normalized = false;
+
+    // RDFT executor
+    std::shared_ptr<RDFTExecutor> rdft_executor = nullptr;
 
     bool m_is_frame_size_const = false;
     bool m_is_frame_step_const = false;

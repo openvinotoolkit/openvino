@@ -4,9 +4,10 @@
 
 import io
 from types import TracebackType
-from typing import Any, Iterable, Union, Optional, Dict
+from typing import Any, Iterator, Union, Optional, Dict
 from typing import Type as TypingType
 from pathlib import Path
+import traceback  # noqa: F811
 
 
 from openvino._pyopenvino import Model as ModelBase
@@ -28,9 +29,21 @@ class ModelMeta(type):
     def __dir__(cls) -> list:
         return list(set(cls.__dict__.keys()) | set(dir(ModelBase)))
 
+    def __getattribute__(cls, name: str) -> Any:
+        if name == "__init__":
+            return getattr(ModelBase, name)
+        return super().__getattribute__(name)
+
+    def __getattr__(cls, name: str) -> Any:
+        # Return the attribute defined in _pyopenvino.Model if it exists
+        # otherwise AttributeError will be raised
+        return getattr(ModelBase, name)
+
 
 class Model(object, metaclass=ModelMeta):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if not args and not kwargs:
+            self.__model = ModelBase()
         if args and not kwargs:
             if isinstance(args[0], ModelBase):
                 self.__model = ModelBase(args[0])
@@ -65,7 +78,7 @@ class Model(object, metaclass=ModelMeta):
     def __enter__(self) -> "Model":
         return self
 
-    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(self, exc_type: TypingType[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:  # noqa: F811
         del self.__model
         self.__model = None
 
@@ -429,7 +442,7 @@ class AsyncInferQueue(AsyncInferQueueBase):
     a simple pipeline.
     """
 
-    def __iter__(self) -> Iterable[InferRequest]:
+    def __iter__(self) -> Iterator[InferRequest]:
         """Allows to iterate over AsyncInferQueue.
 
         Resulting objects are guaranteed to work with read-only methods like getting tensors.
@@ -527,7 +540,7 @@ class Core(CoreBase):
         self,
         model: Union[str, bytes, object, io.BytesIO],
         weights: Union[object, str, bytes, Tensor, io.BytesIO] = None,
-        config: Optional[dict] = None
+        config: Optional[Dict[str, Any]] = None
     ) -> Model:
         config = {} if config is None else config
         if isinstance(model, Model):
@@ -546,7 +559,7 @@ class Core(CoreBase):
         self,
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
         *,
         weights: Optional[bytes] = None,
     ) -> CompiledModel:
@@ -600,7 +613,7 @@ class Core(CoreBase):
             self,
             model: Model,
             device_name: str,
-            config: Optional[dict] = None,
+            config: Optional[Dict[str, Any]] = None,
     ) -> dict:
         return super().query_model(model._Model__model,
                                    device_name,
@@ -610,7 +623,7 @@ class Core(CoreBase):
         self,
         model_stream: bytes,
         device_name: str,
-        config: Optional[dict] = None,
+        config: Optional[Dict[str, Any]] = None,
     ) -> CompiledModel:
         """Imports a compiled model from a previously exported one.
 
@@ -663,7 +676,7 @@ class Core(CoreBase):
 def compile_model(
     model: Union[Model, str, Path],
     device_name: Optional[str] = "AUTO",
-    config: Optional[dict] = None,
+    config: Optional[Dict[str, Any]] = None,
 ) -> CompiledModel:
     """Compact method to compile model with AUTO plugin.
 

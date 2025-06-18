@@ -29,7 +29,7 @@
 namespace ov {
 namespace test {
 namespace snippets {
-using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
+using BrgemmConfig = intel_cpu::brgemm_utils::BrgemmConfig;
 
 /*  Note[74841]:
  *  This test is almost full copy of BufferAllocationTest class from openvino/src/common/snippets/tests/include/lowered/pass/buffer_allocation.hpp.
@@ -113,13 +113,24 @@ protected:
 
     virtual std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const = 0;
 
-    void MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor) const {
-        for (const auto& input : node->inputs())
+    void MarkOp(const std::shared_ptr<ov::Node>& node,
+                const std::vector<std::vector<size_t>>& in_subtensors,
+                const std::vector<std::vector<size_t>>& out_subtensors) const {
+        OPENVINO_ASSERT(in_subtensors.size() == node->inputs().size(), "Incorrect count of input subtensors");
+        OPENVINO_ASSERT(out_subtensors.size() == node->outputs().size(), "Incorrect count of output subtensors");
+        // Mark input and output ports with the first supported subtensor
+        for (size_t i = 0; i < node->inputs().size(); ++i) {
+            const auto& input = node->input(i);
             ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
-                input, std::make_shared<ov::snippets::lowered::PortDescriptor>(input, subtensor));
-        for (const auto& output : node->outputs())
+                input,
+                std::make_shared<ov::snippets::lowered::PortDescriptor>(input, in_subtensors[i]));
+        }
+        for (size_t i = 0; i < node->outputs().size(); ++i) {
+            const auto& output = node->output(i);
             ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
-                output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, subtensor));
+                output,
+                std::make_shared<ov::snippets::lowered::PortDescriptor>(output, out_subtensors[i]));
+        }
     }
 
     ov::snippets::lowered::LinearIR m_linear_ir;
@@ -142,6 +153,13 @@ protected:
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
+        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core,
+                                         ov::element::f32,
+                                         ov::element::f32,
+                                         ov::element::f32,
+                                         false,
+                                         false);
+
         // Dims are selected in order to have blocking loops by each dim
         OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[0]);
@@ -152,7 +170,8 @@ protected:
         const auto load_reshape = std::make_shared<ov::snippets::op::LoadReorder>(parameter1, 1, 0, order);
         const auto store = std::make_shared<ov::snippets::op::Store>(load_reshape);
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(store);
-        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(parameter0, relu0, BRGEMM_TYPE::STAND_ALONE);
+        const auto brgemm_cpu0 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{parameter0, relu0}, brgemm_config);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -167,18 +186,19 @@ protected:
         const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
-        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(multiply, parameter2, BRGEMM_TYPE::STAND_ALONE);
+        const auto brgemm_cpu1 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{multiply, parameter2}, brgemm_config);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
         const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
 
-        MarkOp(load_reshape, subtensor_scalar);
-        MarkOp(store, subtensor_scalar);
-        MarkOp(power, subtensor_power);
+        MarkOp(load_reshape, {subtensor_scalar}, {subtensor_scalar});
+        MarkOp(store, {subtensor_scalar}, {subtensor_scalar});
+        MarkOp(power, {subtensor_power}, {subtensor_power});
 
-        MarkOp(brgemm_cpu0, subtensor_full);
-        MarkOp(brgemm_cpu1, subtensor_full);
+        MarkOp(brgemm_cpu0, {subtensor_full, subtensor_full}, {subtensor_full});
+        MarkOp(brgemm_cpu1, {subtensor_full, subtensor_full}, {subtensor_full});
 
         ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(load_reshape->input(0))->set_layout(order);
 
@@ -192,6 +212,14 @@ protected:
         const auto subtensor_scalar = std::vector<size_t>{1};
         const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
+        const auto subtensor_flat = std::vector<size_t>(1, ov::snippets::utils::get_full_dim_value());
+
+        const BrgemmConfig brgemm_config(dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx,
+                                         ov::element::bf16,
+                                         ov::element::bf16,
+                                         ov::element::bf16,
+                                         false,
+                                         false);
 
         OPENVINO_ASSERT(shapes.size() == 3, "Incorrect count of input shapes");
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, shapes[0]);
@@ -205,10 +233,11 @@ protected:
         const auto relu0 = std::make_shared<ov::op::v0::Relu>(convert0);
         const auto convert1 = std::make_shared<ov::snippets::op::ConvertSaturation>(relu0, ov::element::bf16);
 
-        const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, ov::element::bf16);
+        const auto brgemm_copyb0 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(convert1, brgemm_config);
         const auto scratch0 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
-        const auto brgemm_cpu0 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
-            parameter0, brgemm_copyb0->output(0), scratch0, BRGEMM_TYPE::WITH_AMX);
+        const auto brgemm_cpu0 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{parameter0, brgemm_copyb0->output(0), scratch0},
+                                                       brgemm_config);
 
         const auto relu1 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu0);
 
@@ -225,25 +254,26 @@ protected:
 
         const auto convert2 = std::make_shared<ov::snippets::op::ConvertSaturation>(multiply, ov::element::bf16);
 
-        const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, ov::element::bf16);
+        const auto brgemm_copyb1 = std::make_shared<ov::intel_cpu::BrgemmCopyB>(parameter2, brgemm_config);
         const auto scratch1 = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{ov::intel_cpu::BrgemmCPU::SCRATCH_BYTE_SIZE});
-        const auto brgemm_cpu1 = std::make_shared<ov::intel_cpu::BrgemmCPU>(
-            convert2, brgemm_copyb1->output(0), scratch1, BRGEMM_TYPE::WITH_AMX);
+        const auto brgemm_cpu1 =
+            std::make_shared<ov::intel_cpu::BrgemmCPU>(OutputVector{convert2, brgemm_copyb1->output(0), scratch1},
+                                                       brgemm_config);
 
         const auto relu2 = std::make_shared<ov::op::v0::Relu>(brgemm_cpu1);
 
         const auto body = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu2), ov::ParameterVector{parameter0, parameter1, parameter2});
 
-        MarkOp(load_reshape, subtensor_scalar);
-        MarkOp(store, subtensor_scalar);
-        MarkOp(power, subtensor_power);
+        MarkOp(load_reshape, {subtensor_scalar}, {subtensor_scalar});
+        MarkOp(store, {subtensor_scalar}, {subtensor_scalar});
+        MarkOp(power, {subtensor_power}, {subtensor_power});
 
-        MarkOp(brgemm_cpu0, subtensor_full);
-        MarkOp(brgemm_cpu1, subtensor_full);
-        MarkOp(brgemm_copyb0, subtensor_full);
-        MarkOp(brgemm_copyb1, subtensor_full);
-        MarkOp(scratch0, subtensor_full);
-        MarkOp(scratch1, subtensor_full);
+        MarkOp(brgemm_cpu0, {subtensor_full, subtensor_full, subtensor_flat}, {subtensor_full});
+        MarkOp(brgemm_cpu1, {subtensor_full, subtensor_full, subtensor_flat}, {subtensor_full});
+        MarkOp(brgemm_copyb0, {subtensor_flat}, {subtensor_full});
+        MarkOp(brgemm_copyb1, {subtensor_flat}, {subtensor_full});
+        MarkOp(scratch0, {}, {subtensor_flat});
+        MarkOp(scratch1, {}, {subtensor_flat});
 
         ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(load_reshape->input(0))->set_layout(order);
 

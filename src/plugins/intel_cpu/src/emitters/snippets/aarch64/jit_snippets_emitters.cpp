@@ -4,9 +4,19 @@
 
 #include "jit_snippets_emitters.hpp"
 
+#include <common/utils.hpp>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "cpu/aarch64/jit_generator.hpp"
-#include "cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -16,7 +26,7 @@ using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_nop_emitter::jit_nop_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_nop_emitter::jit_nop_emitter(jit_generator* h, cpu_isa_t isa, [[maybe_unused]] const ExpressionPtr& expr)
     : aarch64::jit_emitter(h, isa) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
@@ -87,7 +97,8 @@ void jit_scalar_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
 }
 
 template <cpu_isa_t isa>
-void jit_scalar_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in,
+                                  const std::vector<size_t>& out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto dst = TReg(out[0]);
     AdrImm src = table_val("scalar");

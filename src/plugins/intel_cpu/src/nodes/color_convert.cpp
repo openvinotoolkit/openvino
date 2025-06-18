@@ -4,16 +4,38 @@
 
 #include "color_convert.h"
 
-#include <memory_desc/dnnl_blocked_memory_desc.h>
+#include <cpu/x64/xbyak/xbyak.h>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/core/type.hpp>
 #include <openvino/op/i420_to_bgr.hpp>
 #include <openvino/op/i420_to_rgb.hpp>
 #include <openvino/op/nv12_to_bgr.hpp>
 #include <openvino/op/nv12_to_rgb.hpp>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/jit_kernel.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 
 using namespace dnnl::impl;
@@ -65,18 +87,18 @@ bool Converter::singlePlane() const {
 
 template <typename T>
 std::tuple<T, T, T> Converter::yuv_to_rgb(float y, float u, float v) {
-    auto c = y - 16.f;
-    auto d = u - 128.f;
-    auto e = v - 128.f;
+    auto c = y - 16.F;
+    auto d = u - 128.F;
+    auto e = v - 128.F;
     auto clip = [](float a) -> T {
         if (std::is_integral<T>()) {
-            return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
+            return static_cast<T>(std::min(std::max(std::round(a), 0.F), 255.F));
         }
-        return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
+        return static_cast<T>(std::min(std::max(a, 0.F), 255.F));
     };
-    auto r = clip(1.164f * c + 1.596f * e);
-    auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
-    auto b = clip(1.164f * c + 2.018f * d);
+    auto r = clip(1.164F * c + 1.596F * e);
+    auto g = clip(1.164F * c - 0.391F * d - 0.813F * e);
+    auto b = clip(1.164F * c + 2.018F * d);
     return std::make_tuple(r, g, b);
 }
 
@@ -127,7 +149,7 @@ void jit_uni_converter::init() {
     if (create_kernel() != status::success) {
         OPENVINO_THROW("Can't generate jit color converter kernel");
     }
-    _fn = (function_t)jit_ker();
+    _fn = reinterpret_cast<function_t>(const_cast<uint8_t*>(jit_ker()));
 }
 
 template <size_t N>
@@ -180,15 +202,15 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
         auto genPermutationMask = [&](int offset) {
             std::array<uint8_t, N> mask{};
-            for (uint8_t i = 0; i < mask.size(); ++i) {
+            for (size_t i = 0; i < mask.size(); ++i) {
                 mask[(i * 3 + offset) % mask.size()] = i;
             }
             return mask;
         };
 
-        r.permute(genPermutationMask(0));
-        g.permute(genPermutationMask(1));
-        b.permute(genPermutationMask(2));
+        r = r.permute(genPermutationMask(0));
+        g = g.permute(genPermutationMask(1));
+        b = b.permute(genPermutationMask(2));
 
         auto blendWithMask = [&](int offset, const variable<float[N]>& result) {
             static const uint32_t blendMasks[2] = {0x92492492, 0x24924924};
@@ -196,8 +218,8 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
             const auto mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
 
             result = r;
-            result.blend(g, mask0);
-            result.blend(b, mask1);
+            result = result.blend(g, mask0);
+            result = result.blend(b, mask1);
         };
 
         blendWithMask(0, r0);
@@ -270,7 +292,7 @@ void jit_uni_converter::store_tail(const variable<T*>& dst,
     sptr += step;
     store(sptr, c);
 
-    auto copy_size = size * static_cast<size_t>(3u);
+    auto copy_size = size * static_cast<size_t>(3U);
 
     copy<T>(ptr[dst], s.pointer(), copy_size);
 }
@@ -344,7 +366,9 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * width + (w / 2) * 2;
             auto u_val = static_cast<float>(uv_ptr[uv_index]);
             auto v_val = static_cast<float>(uv_ptr[uv_index + 1]);
-            T r, g, b;
+            T r;
+            T g;
+            T b;
             std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
@@ -358,7 +382,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -378,7 +402,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -417,7 +441,7 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
+    static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
 
     const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
@@ -425,7 +449,7 @@ void JitConverter<T[N]>::generate() {
 
     width >>= reg_capacity_log;
 
-    foreach (0, width, [&](const Reg64& idx) {
+    foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
         auto yuv = load_yuv(src_y, src_uv);
 
         // Aliases
@@ -541,7 +565,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -575,7 +599,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -675,7 +699,9 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * (width / 2) + w / 2;
             auto u_val = static_cast<float>(u_ptr[uv_index]);
             auto v_val = static_cast<float>(v_ptr[uv_index]);
-            T r, g, b;
+            T r;
+            T g;
+            T b;
             std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
@@ -689,7 +715,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -710,7 +736,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -752,7 +778,7 @@ void JitConverter<T[N]>::generate() {
     auto width = arg(&Params::width);
     auto colorFormat = arg(&Params::colorFormat);
 
-    static const float data[8] = {16.f, 128.f, 1.164f, 1.596f, 0.391f, 2.018f, 0.813f, 255.f};
+    static const float data[8] = {16.F, 128.F, 1.164F, 1.596F, 0.391F, 2.018F, 0.813F, 255.F};
     _consts = data;
 
     const auto reg_capacity_log = static_cast<size_t>(std::logb(N));
@@ -760,7 +786,7 @@ void JitConverter<T[N]>::generate() {
 
     width >>= reg_capacity_log;
 
-    foreach (0, width, [&](const Reg64& idx) {
+    foreach (0, width, [&]([[maybe_unused]] const Reg64& idx) {
         auto yuv = load_yuv(src_y, src_u, src_v);
 
         // Aliases
@@ -828,8 +854,8 @@ JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y,
 template <typename T, size_t N>
 void JitConverter<T[N]>::unpack_uv(const variable<float[N]>& u, const variable<float[N]>& v) {
     static const uint8_t order[] = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7};
-    u.permute(order);
-    v.permute(order);
+    u = u.permute(order);
+    v = v.permute(order);
 }
 
 template <typename T>
@@ -873,7 +899,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -909,7 +935,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(const dnnl::stream& strm) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm) override {
         const auto& kernel = jit_converter_get<T>();
         const auto& dims = inputDims(0);
 
@@ -967,7 +993,7 @@ const VectorDims& ColorConvert::Converter::inputDims(size_t idx) const {
 }
 
 bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    Algorithm alg;
+    Algorithm alg{};
     std::tie(alg, errorMessage) = getAlgorithmFor(op);
     return alg != Algorithm::Default;
 }

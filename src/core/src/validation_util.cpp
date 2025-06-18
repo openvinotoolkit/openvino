@@ -6,15 +6,19 @@
 
 #include <algorithm>
 #include <numeric>
+#include <stack>
 
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/common_util.hpp"
 #include "sequence_generator.hpp"
@@ -40,11 +44,10 @@ ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
     inputs.reserve(num_inputs);
 
     for (size_t i = 0; i < num_inputs; i++) {
-        auto input = node->input_value(i);
-        if (node_map.count(input) > 0) {
+        if (auto input = node->input_value(i); node_map.count(input) > 0) {
             inputs.push_back(node_map.at(input));
         } else {
-            inputs.push_back(input);
+            inputs.push_back(std::move(input));
         }
     }
 

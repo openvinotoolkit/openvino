@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "snippets/pass/collapse_subgraph.hpp"
+
 #include <cassert>
 #include <climits>
 #include <memory>
@@ -15,23 +17,21 @@
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
-#include "snippets/utils/utils.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
 namespace pass {
 
-
 namespace {
-auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
+auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
     auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& matmul = ov::as_type_ptr<const opset1::MatMul>(n);
@@ -58,7 +58,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                     // Transpose decomposition is supported only for Transpose nodes right after Subgraph's parameters
                     decomposition_case = false;
                     const auto body = subgraph->body_ptr();
-                    const auto subgraph_output = body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
+                    const auto subgraph_output =
+                        body->get_results()[transpose->input_value(0).get_index()]->get_input_node_shared_ptr(0);
                     is_brgemm_case = is_brgemm_case || ov::is_type<opset1::MatMul>(subgraph_output);
                 }
             }
@@ -77,7 +78,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return CommonFakeQuantizeDecomposition::is_supported_fq(ov::as_type_ptr<const opset1::FakeQuantize>(n));
     };
 
-    auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
+    auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node>& n) -> bool {
         return ov::is_type<ov::op::v1::Select>(n);
     };
 
@@ -128,7 +129,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                                   ov::op::v4::HSwish>(n);
     };
 
-    auto is_supported_softmax = [](const std::shared_ptr<const Node> &n) -> bool {
+    auto is_supported_softmax = [](const std::shared_ptr<const Node>& n) -> bool {
         if (n->get_input_size() != 1 || n->get_input_partial_shape(0).rank().is_dynamic())
             return false;
         int64_t axis = -1;
@@ -145,7 +146,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return axis >= 0 && axis == (rank.get_length() - 1);
     };
 
-    auto is_supported_broadcast_op = [](const std::shared_ptr<const Node> &n) -> bool {
+    auto is_supported_broadcast_op = [](const std::shared_ptr<const Node>& n) -> bool {
         // Broadcast is supported only for MHA tokenization where there are needed and special checks
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(n)) {
             return broadcast_v1->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
@@ -155,12 +156,13 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return false;
     };
 
-    auto is_supported_reduce_op = [](const std::shared_ptr<const Node> &n) -> bool {
+    auto is_supported_reduce_op = [](const std::shared_ptr<const Node>& n) -> bool {
         if (ov::is_type_any_of<const ov::op::v1::ReduceMax, const ov::op::v1::ReduceSum>(n)) {
             const auto& reduce_base = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(n);
             const auto& axis_constant = ov::as_type_ptr<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
             const auto rank = n->get_input_partial_shape(0).rank();
-            if (rank.is_dynamic() || !reduce_base->get_keep_dims() || !axis_constant || shape_size(axis_constant->get_shape()) != 1)
+            if (rank.is_dynamic() || !reduce_base->get_keep_dims() || !axis_constant ||
+                shape_size(axis_constant->get_shape()) != 1)
                 return false;
 
             const auto axis_value = axis_constant->cast_vector<int32_t>(1)[0];
@@ -171,24 +173,18 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return false;
     };
 
-    return is_supported_fq_op(n) ||
-           is_supported_unary_eltwise_op(n) ||
-           is_supported_binary_eltwise_op(n) ||
-           is_supported_ternary_eltwise_op(n) ||
-           is_supported_transpose(n) ||
-           is_supported_softmax(n) ||
-           is_supported_matmul(n) ||
-           is_supported_broadcast_op(n) ||
-           is_supported_reduce_op(n);
+    return is_supported_fq_op(n) || is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n) ||
+           is_supported_ternary_eltwise_op(n) || is_supported_transpose(n) || is_supported_softmax(n) ||
+           is_supported_matmul(n) || is_supported_broadcast_op(n) || is_supported_reduce_op(n);
 }
 
-auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
+auto has_supported_in_out(const std::shared_ptr<const Node>& n) -> bool {
     auto supported = [](descriptor::Tensor& t) -> bool {
         // TODO [122585] Need to add dynamic rank support
         return t.get_partial_shape().rank().is_static();
     };
-    const auto&  inputs = n->inputs();
-    const auto&  outputs = n->outputs();
+    const auto& inputs = n->inputs();
+    const auto& outputs = n->outputs();
     // todo: Is this check necessary? Remove if not
     for (const auto& out : outputs) {
         for (const auto& in_out : out.get_target_inputs()) {
@@ -197,10 +193,16 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
             }
         }
     }
-    return std::all_of(inputs.begin(), inputs.end(), [&](const Input<const Node>& in) {return  supported(in.get_tensor());}) &&
-           std::all_of(outputs.begin(), outputs.end(), [&](const Output<const Node>& out) {return  supported(out.get_tensor());});
+    return std::all_of(inputs.begin(),
+                       inputs.end(),
+                       [&](const Input<const Node>& in) {
+                           return supported(in.get_tensor());
+                       }) &&
+           std::all_of(outputs.begin(), outputs.end(), [&](const Output<const Node>& out) {
+               return supported(out.get_tensor());
+           });
 }
-} // namespace
+}  // namespace
 
 const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
     static const std::set<ov::element::Type> supported_element_types = {ov::element::f32,
@@ -211,28 +213,24 @@ const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_sup
     return supported_element_types;
 }
 
-bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return
-        is_supported_op(node) &&
-        has_supported_in_out(node) &&
-        node->get_control_dependencies().empty() &&
-        snippets::op::Subgraph::check_broadcast(node);
+bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node>& node) {
+    return is_supported_op(node) && has_supported_in_out(node) && node->get_control_dependencies().empty() &&
+           snippets::op::Subgraph::check_broadcast(node);
 }
 
 TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(TokenizeSnippets);
 
-    auto label = ov::pass::pattern::any_input(
-        [](ov::Output<ov::Node> out) {
-            const auto n = out.get_node_shared_ptr();
-            // todo: MatMul and Transpose ops are always skipped by the SnippetsMarkSkipped pass.
-            //  This is a temporary solution. Either modify SnippetsMarkSkipped
-            //  or align this with the custom MHA tokenization pass.
-            return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
-                    ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Transpose>(n)) &&
-                   AppropriateForSubgraph(n);
-        });
-    ov::graph_rewrite_callback callback = [=](ov::pass::pattern::Matcher &m) -> bool {
+    auto label = ov::pass::pattern::any_input([](ov::Output<ov::Node> out) {
+        const auto n = out.get_node_shared_ptr();
+        // todo: MatMul and Transpose ops are always skipped by the SnippetsMarkSkipped pass.
+        //  This is a temporary solution. Either modify SnippetsMarkSkipped
+        //  or align this with the custom MHA tokenization pass.
+        return (GetSnippetsNodeType(n) != SnippetsNodeType::SkippedByPlugin ||
+                ov::is_type_any_of<ov::op::v0::MatMul, ov::op::v1::Transpose>(n)) &&
+               AppropriateForSubgraph(n);
+    });
+    ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
         if (transformation_callback(node)) {
@@ -244,6 +242,6 @@ TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
     auto matcher = std::make_shared<ov::pass::pattern::Matcher>(label, matcher_name);
     register_matcher(matcher, callback);
 }
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

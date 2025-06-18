@@ -4,21 +4,40 @@
 
 #include "qkv_proj.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "cpu_memory.h"
+#include "dnnl_scratch_pad.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/plain_tensor.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "kernels/x64/mlp_utils.hpp"
+#    include "nodes/kernels/x64/mlp_kernel.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -60,7 +79,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
     int m_M = 0;
-    size_t m_threads_num = 0lu;
+    size_t m_threads_num = 0LU;
 
     MatrixDynQuantPerRow m_quant_act;
 
@@ -148,7 +167,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
@@ -252,7 +271,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 strideA = m_quant_act.K;
             }
 
-            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
                 auto& work = works[ithr];
                 if (work) {
                     work.run(BM, pA, strideA);
@@ -326,8 +345,7 @@ void QKVProjection::createPrimitive() {
     }
 }
 
-void QKVProjection::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void QKVProjection::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
@@ -430,8 +448,9 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                     errorMessage = "QKVProjection needs at least 3 cores to work";
                     return false;
                 }
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
-                if (unbalance_ratio > 0.2f) {
+                if (unbalance_ratio > 0.2F) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
                     return false;
                 }
@@ -439,6 +458,12 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             const auto& config = node_qkv->get_config();
             if ((config.hidden_size % CACHE_BLK_K_SIZE) != 0) {
                 errorMessage = "QKVProjection input channel size is not multiple of cache blocking size";
+                return false;
+            }
+
+            if (config.hidden_size < 1536) {
+                // this threashold is determined by Qwen1.5B
+                errorMessage = "QKVProjection input channel size is too small";
                 return false;
             }
 

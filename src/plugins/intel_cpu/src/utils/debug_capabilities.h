@@ -3,11 +3,16 @@
 //
 #pragma once
 
-#include "cpu_types.h"
-#include "openvino/util/env_util.hpp"
-#ifdef CPU_DEBUG_CAPS
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <map>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
+#include <vector>
 
-#    include <dnnl_debug.h>
+#include "cpu_shape.h"
+#ifdef CPU_DEBUG_CAPS
 
 #    include <chrono>
 #    include <iostream>
@@ -17,13 +22,13 @@
 #    include <utility>
 
 #    include "edge.h"
+#    include "memory_control.hpp"
 #    include "nodes/node_config.h"
-#    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/model.hpp"
+#    include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // OV_CPU_DEBUG_LOG controls DEBUG_LOGs to output
 //
@@ -41,13 +46,13 @@ class DebugLogEnabled {
 public:
     DebugLogEnabled(const char* file, const char* func, int line, const char* name = nullptr);
 
-    const std::string& get_tag() const {
+    [[nodiscard]] const std::string& get_tag() const {
         return tag;
     }
     operator bool() const {
         return enabled;
     }
-    void break_at(const std::string& log);
+    static void break_at(const std::string& log);
 };
 
 class NodeDesc;
@@ -104,12 +109,13 @@ public:
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T> vec) {
-    for (const auto& element : vec)
+    for (const auto& element : vec) {
         os << element << "x";
+    }
     return os;
 }
-std::ostream& operator<<(std::ostream& os, const PortConfig& desc);
-std::ostream& operator<<(std::ostream& os, const NodeConfig& desc);
+std::ostream& operator<<(std::ostream& os, const PortConfig& config);
+std::ostream& operator<<(std::ostream& os, const NodeConfig& config);
 std::ostream& operator<<(std::ostream& os, const NodeDesc& desc);
 std::ostream& operator<<(std::ostream& os, const Node& node);
 std::ostream& operator<<(std::ostream& os, const ov::intel_cpu::Graph& graph);
@@ -117,34 +123,37 @@ std::ostream& operator<<(std::ostream& os, const Shape& shape);
 std::ostream& operator<<(std::ostream& os, const MemoryDesc& desc);
 std::ostream& operator<<(std::ostream& os, const IMemory& mem);
 std::ostream& operator<<(std::ostream& os, const PrintableModel& model);
-std::ostream& operator<<(std::ostream& os, const PrintableDelta& us);
-std::ostream& operator<<(std::ostream& os, const Edge::ReorderStatus reorderStatus);
+std::ostream& operator<<(std::ostream& os, const PrintableDelta& d);
+std::ostream& operator<<(std::ostream& os, Edge::ReorderStatus reorderStatus);
+std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record);
 
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_desc& desc);
 std::ostream& operator<<(std::ostream& os, const dnnl::memory::desc& desc);
-std::ostream& operator<<(std::ostream& os, const impl_desc_type impl_type);
-std::ostream& operator<<(std::ostream& os, const dnnl::memory::data_type dtype);
-std::ostream& operator<<(std::ostream& os, const dnnl::memory::format_tag dtype);
+std::ostream& operator<<(std::ostream& os, impl_desc_type impl_type);
+std::ostream& operator<<(std::ostream& os, dnnl::memory::data_type dtype);
+std::ostream& operator<<(std::ostream& os, dnnl::memory::format_tag format_tag);
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_attr& attr);
 std::ostream& operator<<(std::ostream& os, const dnnl::algorithm& alg);
 
-void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message = "");
+void print_dnnl_memory(const dnnl::memory& memory, size_t size, int id, const char* message = "");
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const PrintableVector<T>& vec) {
     std::stringstream ss;
     auto N = vec.values.size();
     for (size_t i = 0; i < N; i++) {
-        if (i > 0)
+        if (i > 0) {
             ss << ",";
+        }
         if (ss.tellp() > vec.maxsize) {
             ss << "..." << N << "in total";
             break;
         }
-        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
+        if (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
             ss << static_cast<int>(vec.values[i]);
-        else
+        } else {
             ss << vec.values[i];
+        }
     }
     os << ss.str();
     return os;
@@ -158,14 +167,13 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
     return ov::intel_cpu::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #    define DEBUG_ENABLE_NAME debug_enable_##__LINE__
 
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
-            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, __func__, __LINE__, name);                          \
+            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
             if (DEBUG_ENABLE_NAME) {                                                                               \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
@@ -192,11 +200,12 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
  * from the log we can spot the node having issue when enabled bf16/f16
  */
 struct EnforceInferPrcDebug {
-    std::string safe_getenv(const char* name, const char* default_value = "") {
+    static std::string safe_getenv(const char* name, const char* default_value = "") {
         std::string value = default_value;
         const char* p = std::getenv(name);
-        if (p)
+        if (p) {
             value = p;
+        }
         return value;
     }
 
@@ -217,18 +226,22 @@ struct EnforceInferPrcDebug {
         } else {
             pattern_verbose = false;
         }
-        if (str_pos_pattern)
+        if (str_pos_pattern) {
             pos_pattern = std::regex(str_pos_pattern);
-        if (str_neg_pattern)
+        }
+        if (str_neg_pattern) {
             neg_pattern = std::regex(str_neg_pattern);
+        }
     }
 
     ~EnforceInferPrcDebug() {
         if (pattern_verbose) {
-            if (str_pos_pattern)
+            if (str_pos_pattern) {
                 std::cout << "OV_CPU_INFER_PRC_POS_PATTERN=\"" << str_pos_pattern << "\"" << '\n';
-            if (str_neg_pattern)
+            }
+            if (str_neg_pattern) {
                 std::cout << "OV_CPU_INFER_PRC_NEG_PATTERN=\"" << str_neg_pattern << "\"" << '\n';
+            }
             std::cout << "infer precision enforced Types: ";
             size_t total_cnt = 0;
             for (auto& ent : all_enabled_nodes) {
@@ -246,7 +259,7 @@ struct EnforceInferPrcDebug {
         }
     }
 
-    bool enabled(const std::string& type, const std::string& name, const std::string& org_names) {
+    bool enabled(const std::string& type, [[maybe_unused]] const std::string& name, const std::string& org_names) {
         std::string tag = type + "@" + org_names;
         std::smatch match;
         bool matched = true;
@@ -278,6 +291,7 @@ struct EnforceInferPrcDebug {
 };
 
 bool getEnvBool(const char* name);
+
 #else  // !CPU_DEBUG_CAPS
 
 #    define CPU_DEBUG_CAP_ENABLE(...)
@@ -291,7 +305,3 @@ bool getEnvBool(const char* name);
 #    define CPU_DEBUG_CAPS_ALWAYS_TRUE(x) x
 
 #endif  // CPU_DEBUG_CAPS
-
-// To avoid "unused variable" warnings `when debug caps
-// need more information than non-debug caps version
-#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x
