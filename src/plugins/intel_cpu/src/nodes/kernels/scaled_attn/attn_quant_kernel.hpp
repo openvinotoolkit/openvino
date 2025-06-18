@@ -23,10 +23,12 @@ namespace ov::Extensions::Cpu::XARCH {
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::u8, bool>::type = true>
-void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float scale, float zp) {
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
     size_t i = 0;
     // loadu_si128/epi64 does not support const qualifier
     uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+    float scale = params[0];
+    float zp = params[1];
 #if defined(HAVE_AVX512F)
     auto v_zp = _mm512_set1_ps(zp);
     auto v_scale = _mm512_set1_ps(scale);
@@ -59,8 +61,42 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float scale, floa
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
+          typename std::enable_if<SRC_PREC == ov::element::i8, bool>::type = true>
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
+    size_t i = 0;
+    // loadu_si128/epi64 does not support const qualifier
+    int8_t* src_nc = const_cast<int8_t*>(reinterpret_cast<const int8_t*>(src));
+    float scale = params[0];
+#if defined(HAVE_AVX512F)
+    auto v_scale = _mm512_set1_ps(scale);
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i));
+        auto v0_512 = _mm512_cvtepi8_epi32(v0_128);
+        auto v0_value = _mm512_cvtepi32_ps(v0_512);
+        auto v0_out = _mm512_mul_ps(v0_value, v_scale);
+        mm512_uni_storeu_ps(dst + i, v0_out);
+    }
+#elif defined(HAVE_AVX2)
+    auto v_scale = _mm256_set1_ps(scale);
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + i));
+        auto v0_256 = _mm256_cvtepi8_epi32(v0_128);
+        auto v0_value = _mm256_cvtepi32_ps(v0_256);
+        auto v0_out = _mm256_mul_ps(v0_value, v_scale);
+        mm256_uni_storeu_ps(dst + i, v0_out);
+    }
+#endif
+    for (; i < n; ++i) {
+        float tmp = src_nc[i];
+        tmp *= scale;
+        dst[i] = tmp;
+    }
+}
+
+template <typename TDST,
+          ov::element::Type_t SRC_PREC,
           typename std::enable_if<SRC_PREC == ov::element::u4, bool>::type = true>
-void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float scale, float zp) {
+void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float* params) {
     // 2 4bit data form a byte
     /* 0,1|2,3|4,5|6,7
           /      \
@@ -72,6 +108,8 @@ void attn_dequant_kernel(const void* src, TDST* dst, size_t n, float scale, floa
     */
     size_t i = 0;
     uint8_t* src_nc = const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(src));
+    float scale = params[0];
+    float zp = params[1];
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(scale);
     auto v_zp_scale = _mm512_set1_ps(zp * scale);
@@ -239,9 +277,11 @@ void attn_dequant_by_channel_kernel(const void* src,
 }
 
 #if defined(HAVE_SVE)
-void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
+void inline attn_dequant_u8_kernel(const uint8_t* src, float* dst, size_t n, float* params) {
     size_t i = 0;
     uint8_t* src_nc = const_cast<uint8_t*>(src);
+    float scale = params[0];
+    float zp = params[1];
     size_t nvec = n / svcntw();
     size_t lvec = svcntw();
     auto sve_pg = svptrue_b32();

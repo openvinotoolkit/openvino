@@ -536,7 +536,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                 const size_t group_num,
                                                 int64_t& head_size,
                                                 int64_t& block_size) {
-        if (precision == ov::element::u8) {
+        if (precision == ov::element::i8) {
+            if (bychannel) {
+                OPENVINO_THROW("i8 doesn't support sage_attn");
+            } else {
+                head_size += sizeof(float) * group_num;
+            }
+        } else if (precision == ov::element::u8) {
             if (bychannel) {
                 block_size += 2 * sizeof(float);
             } else {

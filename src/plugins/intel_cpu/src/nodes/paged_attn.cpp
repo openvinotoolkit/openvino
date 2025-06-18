@@ -274,6 +274,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                    ov::element::bf16)) {
             if (!one_of(kCachePrecision,
                         ov::element::u4,
+                        ov::element::i8,
                         ov::element::u8,
                         ov::element::f16,
                         ov::element::f32,

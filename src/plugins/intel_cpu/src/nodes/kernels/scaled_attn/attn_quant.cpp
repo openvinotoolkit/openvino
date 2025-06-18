@@ -183,6 +183,56 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
 }
 
 template <typename T>
+static void quant_i8(const T* src, int8_t* dst, size_t n, float& scale) {
+    size_t i = 0;
+    float max = -FLT_MAX;
+    float min = FLT_MAX;
+    find_minmax(src, n, min, max);
+    float max_abs = std::max(std::abs(min), std::abs(max));
+    scale = max_abs / ((1 << 7) - 1);
+    if (scale == 0) {
+        scale = 0.0001f;
+    }
+#if defined(HAVE_AVX512F)
+    auto v_scale = _mm512_set1_ps(1 / scale);
+    auto v_upper = _mm512_set1_epi32(127);
+    auto v_lower = _mm512_set1_epi32(-128);
+    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
+        auto v = mm512_uni_loadu_ps(src + i);
+        v = _mm512_mul_ps(v, v_scale);
+        auto v_i32 = _mm512_cvt_roundps_epi32(v, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        v_i32 = _mm512_max_epi32(v_i32, v_lower);
+        v_i32 = _mm512_min_epi32(v_i32, v_upper);
+        _mm512_mask_cvtepi32_storeu_epi8(dst + i, 0xffff, v_i32);
+    }
+#elif defined(HAVE_AVX2)
+    auto v_scale = _mm256_set1_ps(1 / scale);
+    auto v_upper = _mm256_set1_epi32(127);
+    auto v_lower = _mm256_set1_epi32(-128);
+    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
+        auto v = mm256_uni_loadu_ps(src + i);
+        v = _mm256_mul_ps(v, v_scale);
+        v = _mm256_round_ps(v, _MM_ROUND_NEAREST);
+        auto v_i32 = _mm256_cvtps_epi32(v);
+        v_i32 = _mm256_max_epi32(v_i32, v_lower);
+        v_i32 = _mm256_min_epi32(v_i32, v_upper);
+        auto high4 = _mm256_extractf128_si256(v_i32, 1);
+        auto low4 = _mm256_castsi256_si128(v_i32);
+        auto packed = _mm_packs_epi32(low4, high4);
+        packed = _mm_packs_epi16(packed, packed);
+        _mm_storel_epi64(reinterpret_cast<__m128i*>(dst + i), packed);
+    }
+#endif
+    for (; i < n; i++) {
+        float tmp = src[i];
+        tmp = std::round(tmp / scale);
+        tmp = std::max(tmp, -128.0f);
+        tmp = std::min(tmp, 127.0f);
+        dst[i] = static_cast<int8_t>(tmp);
+    }
+}
+
+template <typename T>
 static void find_params_by_channel(const T* src,
                                    size_t seq_dim,
                                    size_t hidden_dims,
@@ -457,6 +507,11 @@ static void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
     quant_u8(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
 
+template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::i8, bool> = true>
+static void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
+    quant_i8(src, reinterpret_cast<int8_t*>(dst), n, *scale_zp);
+}
+
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
 static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
     quant_u4(src, dst, n, *scale_zp, *(scale_zp + 1));
@@ -477,12 +532,13 @@ static void quantize_block_by_dims(const ov::intel_cpu::PlainTensor& src,
     // base +  2 * sizeof(float) aims to skip the scale/zp within the group.
     constexpr size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
     size_t S = src.m_dims[3];
+    constexpr size_t param_size = sizeof(float) * (DST_PREC == ov::element::i8 ? 1 : 2);
     for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
-         src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + sizeof(float) + sizeof(float)) {
+         src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + param_size) {
         auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, block_offset, 0);
         base += dst_offset;
-        auto* p = reinterpret_cast<float*>(base);
-        uint8_t* ptr = base + sizeof(float) * 2;
+        auto p = reinterpret_cast<float*>(base);
+        uint8_t* ptr = base + param_size;
         quantize<T, DST_PREC>(src.ptr<T>(b, h, m, src_offset), ptr, groupe_size, p);
     }
 }
@@ -701,6 +757,58 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
 }
 
 template <typename T, ov::element::Type_t KEY_DST_PREC, ov::element::Type_t VALUE_DST_PREC>
+static void saged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
+                                const ov::intel_cpu::PlainTensor& v_src,
+                                const ov::intel_cpu::PlainTensor& k_dst,
+                                const ov::intel_cpu::PlainTensor& v_dst,
+                                const ov::intel_cpu::PlainTensor& past_lens,
+                                const ov::intel_cpu::PlainTensor& subsequence_begins,
+                                const ov::intel_cpu::PlainTensor& block_indices,
+                                const ov::intel_cpu::PlainTensor& block_indices_begins,
+                                const ov::intel_cpu::PlainTensor& slot_mapping,
+                                ov::intel_cpu::PlainTensor& temp_buffer,
+                                const QuantizeParam& quant_param) {
+    const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2];
+    const size_t block_size = quant_param.quant_key_by_channel
+                                  ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC)
+                                  : k_dst.m_dims[2];
+    // quant key
+    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
+        auto slot = slot_mapping.ptr<int32_t>(b)[m];
+        if (slot < 0) {
+            return;
+        }
+        auto block_number = slot / block_size;
+        auto block_offset = slot % block_size;
+        quantize_block_by_dims<T, KEY_DST_PREC>(k_src,
+                                                k_dst,
+                                                b,
+                                                h,
+                                                m,
+                                                block_number,
+                                                block_offset,
+                                                quant_param.key_group_size);
+    });
+    // quant value
+    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
+        auto slot = slot_mapping.ptr<int32_t>(b)[m];
+        if (slot < 0) {
+            return;
+        }
+        auto block_number = slot / block_size;
+        auto block_offset = slot % block_size;
+        quantize_block_by_dims<T, VALUE_DST_PREC>(v_src,
+                                                  v_dst,
+                                                  b,
+                                                  h,
+                                                  m,
+                                                  block_number,
+                                                  block_offset,
+                                                  quant_param.value_group_size);
+    });
+}
+
+template <typename T, ov::element::Type_t KEY_DST_PREC, ov::element::Type_t VALUE_DST_PREC>
 static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& v_src,
                                 const ov::intel_cpu::PlainTensor& k_dst,
@@ -711,17 +819,12 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                 const ov::intel_cpu::PlainTensor& block_indices_begins,
                                 const ov::intel_cpu::PlainTensor& slot_mapping,
                                 ov::intel_cpu::PlainTensor& temp_buffer,
-                                const bool quant_key_by_channel,
-                                const bool quant_value_by_channel,
-                                const size_t key_group_size,
-                                const size_t value_group_size) {
-    const size_t B = k_src.m_dims[0];
-    const size_t H = k_src.m_dims[1];
-    const size_t L1 = k_src.m_dims[2];
-    const size_t block_size = quant_key_by_channel
+                                const QuantizeParam& quant_param) {
+    const size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2];
+    const size_t block_size = quant_param.quant_key_by_channel
                                   ? k_dst.m_dims[2] - 2 * sizeof(float) * get_sub_byte_multiplier(KEY_DST_PREC)
                                   : k_dst.m_dims[2];
-    if (quant_key_by_channel) {
+    if (quant_param.quant_key_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
             quantize_block_by_channel<T, KEY_DST_PREC>(k_src,
                                                        k_dst,
@@ -741,11 +844,18 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
             }
             auto block_number = slot / block_size;
             auto block_offset = slot % block_size;
-            quantize_block_by_dims<T, KEY_DST_PREC>(k_src, k_dst, b, h, m, block_number, block_offset, key_group_size);
+            quantize_block_by_dims<T, KEY_DST_PREC>(k_src,
+                                                    k_dst,
+                                                    b,
+                                                    h,
+                                                    m,
+                                                    block_number,
+                                                    block_offset,
+                                                    quant_param.key_group_size);
         });
     }
     // quant value
-    if (quant_value_by_channel) {
+    if (quant_param.quant_value_by_channel) {
         parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
             quantize_block_by_channel<T, VALUE_DST_PREC>(v_src,
                                                          v_dst,
@@ -765,8 +875,14 @@ static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
             }
             auto block_number = slot / block_size;
             auto block_offset = slot % block_size;
-            quantize_block_by_dims<T,
-                                   VALUE_DST_PREC>(v_src, v_dst, b, h, m, block_number, block_offset, value_group_size);
+            quantize_block_by_dims<T, VALUE_DST_PREC>(v_src,
+                                                      v_dst,
+                                                      b,
+                                                      h,
+                                                      m,
+                                                      block_number,
+                                                      block_offset,
+                                                      quant_param.value_group_size);
         });
     }
 }
@@ -837,10 +953,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                         const ov::intel_cpu::PlainTensor& block_indices_begins,
                         const ov::intel_cpu::PlainTensor& slot_mapping,
                         ov::intel_cpu::PlainTensor& temp_buffer,
-                        const bool quant_key_by_channel,
-                        const bool quant_value_by_channel,
-                        const size_t key_group_size,
-                        const size_t value_group_size) {
+                        const QuantizeParam& quant_param) {
     using function_type = void (*)(const ov::intel_cpu::PlainTensor&,
                                    const ov::intel_cpu::PlainTensor&,
                                    const ov::intel_cpu::PlainTensor&,
@@ -851,28 +964,69 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                                    const ov::intel_cpu::PlainTensor&,
                                    const ov::intel_cpu::PlainTensor&,
                                    ov::intel_cpu::PlainTensor&,
-                                   const bool,
-                                   const bool,
-                                   const size_t,
-                                   const size_t);
-    static constexpr function_type funcs_fp32[] = {
-        paged_attn_quant_mt<float, ov::element::u8, ov::element::u8>,
-        paged_attn_quant_mt<float, ov::element::u8, ov::element::u4>,
-        paged_attn_quant_mt<float, ov::element::u4, ov::element::u8>,
-        paged_attn_quant_mt<float, ov::element::u4, ov::element::u4>,
-    };
-    static constexpr function_type funcs_bf16[] = {
-        paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u8>,
-        paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u4>,
-        paged_attn_quant_mt<ov::bfloat16, ov::element::u4, ov::element::u8>,
-        paged_attn_quant_mt<ov::bfloat16, ov::element::u4, ov::element::u4>,
-    };
-    static constexpr function_type funcs_f16[] = {
-        paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>,
-        paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u4>,
-        paged_attn_quant_mt<ov::float16, ov::element::u4, ov::element::u8>,
-        paged_attn_quant_mt<ov::float16, ov::element::u4, ov::element::u4>,
-    };
+                                   const QuantizeParam&);
+    static constexpr function_type funcs_fp32[] = {paged_attn_quant_mt<float, ov::element::u8, ov::element::u8>,
+                                                   paged_attn_quant_mt<float, ov::element::u8, ov::element::u4>,
+                                                   paged_attn_quant_mt<float, ov::element::u4, ov::element::u8>,
+                                                   paged_attn_quant_mt<float, ov::element::u4, ov::element::u4>};
+    static constexpr function_type funcs_bf16[] = {paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u8>,
+                                                   paged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u4>,
+                                                   paged_attn_quant_mt<ov::bfloat16, ov::element::u4, ov::element::u8>,
+                                                   paged_attn_quant_mt<ov::bfloat16, ov::element::u4, ov::element::u4>};
+    static constexpr function_type funcs_f16[] = {paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>,
+                                                  paged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u4>,
+                                                  paged_attn_quant_mt<ov::float16, ov::element::u4, ov::element::u8>,
+                                                  paged_attn_quant_mt<ov::float16, ov::element::u4, ov::element::u4>};
+    // sage attn
+    static constexpr function_type saged_attn_fp32[] = {saged_attn_quant_mt<float, ov::element::i8, ov::element::u8>,
+                                                        saged_attn_quant_mt<float, ov::element::u8, ov::element::u8>};
+    static constexpr function_type saged_attn_bf16[] = {
+        saged_attn_quant_mt<ov::bfloat16, ov::element::i8, ov::element::u8>,
+        saged_attn_quant_mt<ov::bfloat16, ov::element::u8, ov::element::u8>};
+    static constexpr function_type saged_attn_f16[] = {
+        saged_attn_quant_mt<ov::float16, ov::element::i8, ov::element::u8>,
+        saged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>};
+    if (quant_param.is_sage_attn) {
+        size_t dispatch = k_dst.get_precision() == ov::element::u8 ? 1 : 0;
+        if (k_src.get_precision() == ov::element::f32) {
+            saged_attn_fp32[dispatch](k_src,
+                                      v_src,
+                                      k_dst,
+                                      v_dst,
+                                      past_lens,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      slot_mapping,
+                                      temp_buffer,
+                                      quant_param);
+        } else if (k_src.get_precision() == ov::element::bf16) {
+            saged_attn_bf16[dispatch](k_src,
+                                      v_src,
+                                      k_dst,
+                                      v_dst,
+                                      past_lens,
+                                      subsequence_begins,
+                                      block_indices,
+                                      block_indices_begins,
+                                      slot_mapping,
+                                      temp_buffer,
+                                      quant_param);
+        } else if (k_src.get_precision() == ov::element::f16) {
+            saged_attn_f16[dispatch](k_src,
+                                     v_src,
+                                     k_dst,
+                                     v_dst,
+                                     past_lens,
+                                     subsequence_begins,
+                                     block_indices,
+                                     block_indices_begins,
+                                     slot_mapping,
+                                     temp_buffer,
+                                     quant_param);
+        }
+        return;
+    }
     size_t dispatch = 0;
     if (k_dst.get_precision() == ov::element::u4) {
         dispatch |= 0x02;
@@ -891,10 +1045,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                              block_indices_begins,
                              slot_mapping,
                              temp_buffer,
-                             quant_key_by_channel,
-                             quant_value_by_channel,
-                             key_group_size,
-                             value_group_size);
+                             quant_param);
     } else if (k_src.get_precision() == ov::element::bf16) {
         funcs_bf16[dispatch](k_src,
                              v_src,
@@ -906,10 +1057,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                              block_indices_begins,
                              slot_mapping,
                              temp_buffer,
-                             quant_key_by_channel,
-                             quant_value_by_channel,
-                             key_group_size,
-                             value_group_size);
+                             quant_param);
     } else if (k_src.get_precision() == ov::element::f16) {
         funcs_f16[dispatch](k_src,
                             v_src,
@@ -921,10 +1069,7 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
                             block_indices_begins,
                             slot_mapping,
                             temp_buffer,
-                            quant_key_by_channel,
-                            quant_value_by_channel,
-                            key_group_size,
-                            value_group_size);
+                            quant_param);
     }
 }
 
@@ -932,8 +1077,8 @@ void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float
     quant_u8(src, dst, n, scale, zp);
 }
 
-void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
-    attn_dequant_kernel<float, ov::element::u8>(src, dst, n, scale, zp);
+void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float* params) {
+    attn_dequant_kernel<float, ov::element::u8>(src, dst, n, params);
 }
 
 void attn_quant_by_channel_u8(const float* src,
