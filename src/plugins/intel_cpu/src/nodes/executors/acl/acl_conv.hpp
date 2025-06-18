@@ -30,7 +30,7 @@ protected:
                                                             const arm_compute::DataType& dataType,
                                                             const arm_compute::DataLayout& dataLayout) override;
 private:
-    std::shared_ptr<arm_compute::TensorInfo> dstTensorInfo;
+    //std::shared_ptr<arm_compute::TensorInfo> dstTensorInfo;
     std::shared_ptr<arm_compute::Tensor> dstTensor;
 
     arm_compute::PadStrideInfo padStrideInfo;

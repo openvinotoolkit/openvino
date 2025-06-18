@@ -56,12 +56,12 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 
     //TODO: do we need to check there is only 1 post op?
     if (!attrs.postOps.empty() && attrs.postOps.size() == 1) {
-        if (const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(attrs.postOps[0])) {
+        if (const auto activation = std::any_cast<ActivationPostOp>(&attrs.postOps[0])) {
             activationLayerInfo = getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
                                                         activation->alpha(),
                                                         activation->beta(),
                                                         activation->gamma());
-        } else if (const auto fq = std::dynamic_pointer_cast<FakeQuantizePostOp>(attrs.postOps[0])) {
+        } else if (const auto fq = std::any_cast<FakeQuantizePostOp>(&attrs.postOps[0])) {
             inputScale = fq->inputScale();
             inputShift = fq->inputShift();
             outputScale = fq->outputScale();
@@ -103,14 +103,14 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
     tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1, 0, true));
     auto& tensor_info_out = aclMemoryInfos[ACLArgs::ACL_DST];
-    tensor_info_out->set_quantization_info(arm_compute::QuantizationInfo(1, 0, true));
+    tensor_info_out->set_quantization_info(arm_compute::QuantizationInfo(outputScale[0], -outputShift[0], true));
     /*dstTensorInfo = std::make_shared<arm_compute::TensorInfo>(aclMemoryInfos[ACLArgs::ACL_DST].get()->tensor_shape(),
                                             aclMemoryInfos[ACLArgs::ACL_DST].get()->num_channels(),
                                             aclMemoryInfos[ACLArgs::ACL_SRC_0].get()->data_type(),
                                             arm_compute::QuantizationInfo(1, 0, true));*/
-    dstTensorInfo = std::make_shared<arm_compute::TensorInfo>(*aclMemoryInfos[ACLArgs::ACL_DST].get());
-    dstTensorInfo->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0].get()->data_type());
-    dstTensorInfo->set_quantization_info(arm_compute::QuantizationInfo(1.f));//(outputScale[0], -outputShift[0], true);//(1, 0, true));
+    //dstTensorInfo = std::make_shared<arm_compute::TensorInfo>(*aclMemoryInfos[ACLArgs::ACL_DST].get());
+    //dstTensorInfo->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0].get()->data_type());
+    //dstTensorInfo->set_quantization_info(arm_compute::QuantizationInfo(1, 0, true));//outputScale[0], -outputShift[0], true));//(1, 0, true));
     arm_compute::Status s = arm_compute::NEConvolutionLayer::validate(
         aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
         aclMemoryInfos[ACLArgs::ACL_WEI].get(),
