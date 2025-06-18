@@ -21,7 +21,7 @@ public:
     RoPE() = default;
 
     struct Config {
-        size_t slice_start = 0;         // slice inner-most dimensions of input
+        size_t slice_start = 0;  // slice inner-most dimensions of input
         size_t slice_stop = 0;
         bool input_trans0213 = false;   // transpose input dim 1&2
         bool output_trans0213 = false;  // implies trans0213 happens after RoPE
