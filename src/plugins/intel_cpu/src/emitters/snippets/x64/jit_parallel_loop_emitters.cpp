@@ -201,7 +201,7 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x6
       loop_begin_label{nullptr},
       loop_end_label{new Xbyak::Label()} {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-    const auto loop_end = ov::as_type_ptr<snippets::op::LoopEndParallel>(expr->get_node());
+    const auto loop_end = ov::as_type_ptr<snippets::op::ParallelLoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEnd expr");
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter =
@@ -215,7 +215,7 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x6
 ov::snippets::lowered::ExpressionPtr jit_parallel_loop_end_emitter::get_loop_begin_expr(
     const ov::snippets::lowered::ExpressionPtr& expr) {
     auto begin_expr = expr->get_input_port_connectors().back()->get_source().get_expr();
-    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBeginParallel>(begin_expr->get_node()),
+    OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::ParallelLoopBegin>(begin_expr->get_node()),
                               "LoopEnd expression must have th last port connector to LoopBegin");
     return begin_expr;
 }

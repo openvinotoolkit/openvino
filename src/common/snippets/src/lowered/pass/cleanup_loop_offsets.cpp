@@ -29,7 +29,7 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& /*linear_ir*/,
         const auto& node = expr_it->get()->get_node();
         // Note: we exclude parallel loops from this optimization because they need unaltered ptr increments
         // in order to shift per-thread pointer correctly (in accordance with per-thread work amounts)
-        if (is_type<op::LoopEnd>(node) && !is_type<op::LoopEndParallel>(node)) {
+        if (is_type<op::LoopEnd>(node) && !is_type<op::ParallelLoopEnd>(node)) {
             auto loop_end = as_type_ptr<op::LoopEnd>(node);
             auto next_expr_it = std::next(expr_it);
             const auto& next_node = next_expr_it->get()->get_node();
@@ -41,7 +41,7 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& /*linear_ir*/,
                 loop_end->set_finalization_offsets(std::vector<int64_t>(fin_offsets.size(), 0));
                 is_modified = true;
             }
-            if (is_type<op::LoopEnd>(next_node) && !is_type<op::LoopEndParallel>(next_node)) {
+            if (is_type<op::LoopEnd>(next_node) && !is_type<op::ParallelLoopEnd>(next_node)) {
                 auto outer_loop_end = as_type_ptr<op::LoopEnd>(next_node);
                 const auto& is_incremented = loop_end->get_is_incremented();
                 const auto& data_sizes = loop_end->get_element_type_sizes();

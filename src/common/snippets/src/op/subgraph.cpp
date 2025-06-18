@@ -538,7 +538,6 @@ void Subgraph::control_flow_transformations(
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
-    // todo: move to backend-specific passes?
     pipeline.register_pass<lowered::pass::MarkParallelLoops>();
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
