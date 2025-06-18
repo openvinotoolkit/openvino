@@ -198,12 +198,12 @@ void PagedAttention::createPrimitive() {
         PagedAttnQuantParams params;
         params.key_group_size = cpuConfig.keyCacheGroupSize;
         params.value_group_size = cpuConfig.valueCacheGroupSize;
-        params.quant_key_bychannel = quantKeybyChannel;
-        params.quant_value_bychannel = quantValuebyChannel;
+        params.quant_key_bychannel = false;
+        params.quant_value_bychannel = false;
         params.is_sage_attn = getenv("DISABLE_SAGE_ATTN") == nullptr;
         return make_pa_executor(rtPrecision,
-                                kCachePrecision,
-                                vCachePrecision,
+                                ov::element::i8,
+                                ov::element::u8,
                                 params);
 #else
         return nullptr;
