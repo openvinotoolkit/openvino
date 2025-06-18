@@ -102,7 +102,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
     // todo: we need to pass num_threads through config
     int num_threads = std::getenv("N") ? std::atoi(std::getenv("N")) : 8;
-    std::cout << "[ INFO ] jit_parallel_loop_begin_emitter. N threads = " << num_threads << std::endl;
+    std::cout << "[ INFO ] jit_parallel_loop_begin_emitter. N threads = " << num_threads << "\n";
     ParallelLoopConfig kernel_config(loop_args, num_threads);
     m_parallel_loop_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, kernel_config);
     // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory
