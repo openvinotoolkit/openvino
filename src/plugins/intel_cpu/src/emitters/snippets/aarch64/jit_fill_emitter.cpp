@@ -101,7 +101,7 @@ void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vecto
         const size_t supported_et_size = 4;
         const size_t first_lane = offset / supported_et_size;
 
-        WReg tmp{ h->X_TMP_0.getIdx() };
+        WReg tmp{h->X_TMP_0.getIdx()};
         h->mov(tmp, 0);
         for (size_t lane = first_lane; lane < supported_et_size; ++lane) {
             h->ins(dst.s[lane], tmp);
@@ -111,7 +111,7 @@ void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vecto
     if (in[0] != out[0]) {
         switch (offset) {
         case 1: {
-            WReg tmp{ h->X_TMP_0.getIdx() };
+            WReg tmp{h->X_TMP_0.getIdx()};
             h->fmov(tmp, SReg(in[0]));
             h->ins(dst.s[0], tmp);
             break;

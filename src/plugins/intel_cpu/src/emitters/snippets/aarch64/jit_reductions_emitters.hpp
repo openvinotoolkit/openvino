@@ -20,12 +20,12 @@ namespace ov::intel_cpu::aarch64 {
 class jit_reduce_max_emitter : public jit_emitter {
 public:
     jit_reduce_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const ov::element::Type exec_prc = ov::element::f32);
 
     jit_reduce_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& node);
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
@@ -42,12 +42,12 @@ private:
 class jit_reduce_sum_emitter : public jit_emitter {
 public:
     jit_reduce_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const ov::element::Type exec_prc = ov::element::f32);
 
     jit_reduce_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
-                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const std::shared_ptr<ov::Node>& node);
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
