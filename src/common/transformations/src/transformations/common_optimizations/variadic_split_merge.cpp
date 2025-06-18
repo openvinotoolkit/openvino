@@ -80,12 +80,18 @@ static struct get_scalar_ret get_scalar(const std::shared_ptr<ov::Node>& node) {
 }
 
 static int64_t convert_value(int64_t value, int64_t max) {
-    if (value > max)
-        return max;
-    if (value >= 0)
+    if (value >= 0) {
+        if (value > max)
+            return max;
+
         return value;
-    else
+    } else {
+        int64_t temp = max + (value + 1);
+        if (temp < 0)
+            return 0;
+
         return max + (value + 1);
+    }
 }
 
 VariadicSplitMerge::VariadicSplitMerge() {
@@ -136,8 +142,12 @@ VariadicSplitMerge::VariadicSplitMerge() {
             if (!output_ps.rank().is_static())
                 return false;
 
+            if (input_ps.rank().get_length() != output_ps.rank().get_length())
+                return false;
+
             if (ov::is_type<ov::op::v1::StridedSlice>(node)) {
                 auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(node);
+                long unsigned int rank = input_ps.rank().get_length();
 
                 // We cannot convert if we have any of these
                 const auto new_axis_mask = slice->get_new_axis_mask();
@@ -160,10 +170,15 @@ VariadicSplitMerge::VariadicSplitMerge() {
 
                 // Read the axis
                 const auto begin_mask = slice->get_begin_mask();
-                const auto end_mask = slice->get_end_mask();
+                if (begin_mask.size() != rank)
+                    return false;
 
                 auto begin_axis = axis_scan(begin_mask);
                 if (begin_axis.err)
+                    return false;
+
+                const auto end_mask = slice->get_end_mask();
+                if (end_mask.size() != rank)
                     return false;
 
                 auto end_axis = axis_scan(end_mask);
@@ -177,12 +192,23 @@ VariadicSplitMerge::VariadicSplitMerge() {
                 splitlist[i].axis = begin_axis.axis;
             } else if (ov::is_type<ov::op::v8::Slice>(node)) {
                 auto slice = ov::as_type_ptr<ov::op::v8::Slice>(node);
-                auto axis_input = slice->get_input_node_shared_ptr(4);
-                auto axis_ret = get_scalar(axis_input);
-                if (axis_ret.err)
+
+                if (slice->get_input_size() >= 5) {
+                    auto axis_input = slice->get_input_node_shared_ptr(4);
+                    auto axis_ret = get_scalar(axis_input);
+                    if (axis_ret.err)
+                        return false;
+
+                    splitlist[i].axis = axis_ret.value;
+                }
+
+                auto step_input = slice->get_input_node_shared_ptr(3);
+                auto step_ret = get_scalar(step_input);
+                if (step_ret.err)
                     return false;
 
-                splitlist[i].axis = axis_ret.value;
+                if (step_ret.value != 1)
+                    return false;
             }
         }
 
@@ -206,8 +232,6 @@ VariadicSplitMerge::VariadicSplitMerge() {
 
             if (!input_ps[axis].is_static() || !output_ps[axis].is_static())
                 return false;
-            if (input_ps.rank().get_length() != output_ps.rank().get_length())
-                return false;
 
             auto& total_length = input_ps[axis];
             total_len = total_length.get_length();
@@ -228,6 +252,12 @@ VariadicSplitMerge::VariadicSplitMerge() {
                         return false;
 
                     auto stride_vec = stride_const->cast_vector<int64_t>();
+                    auto input_ps = node->get_input_partial_shape(0);
+                    long unsigned int rank = input_ps.rank().get_length();
+
+                    if (stride_vec.size() != rank)
+                        return false;
+
                     if (stride_vec[axis] != 1)
                         return false;
                 }
@@ -300,7 +330,7 @@ VariadicSplitMerge::VariadicSplitMerge() {
         auto name = op->get_friendly_name() + "_split";
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         auto split_lengths_const =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{splitlist.size()}, split_lengths);
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{split_lengths.size()}, split_lengths);
         auto variadic_split = std::make_shared<ov::op::v1::VariadicSplit>(op, axis_const, split_lengths_const);
         variadic_split->set_friendly_name(name);
 
