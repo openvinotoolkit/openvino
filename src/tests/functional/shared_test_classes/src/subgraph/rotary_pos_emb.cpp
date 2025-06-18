@@ -1291,7 +1291,7 @@ std::shared_ptr<ov::Model> RoPETestChatGLMHF::buildROPE_ChatGLMHF(int seq_length
         rpi_idx[i] = v;
         rpi_idx[i + 1] = v;
     }
-    auto repeat_interleave_index = makeConst(ov::element::i32, ov::Shape({rotary_ndims}), rpi_idx);
+    auto repeat_interleave_index = makeConst(ov::element::i32, ov::Shape({static_cast<size_t>(rotary_ndims)}), rpi_idx);
     auto repeat_interleave_cos = makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
     auto repeat_interleave_sin = makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
 
