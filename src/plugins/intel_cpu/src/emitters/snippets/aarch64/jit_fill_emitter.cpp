@@ -102,7 +102,7 @@ void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vecto
         const size_t first_lane = offset / supported_et_size;
 
         WReg tmp{h->X_TMP_0.getIdx()};
-        h->mov(tmp, 0);
+        h->eor(tmp, tmp, tmp);
         for (size_t lane = first_lane; lane < supported_et_size; ++lane) {
             h->ins(dst.s[lane], tmp);
         }
