@@ -32,7 +32,7 @@ void jit_reduce_max_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, c
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_reduce_max_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    h->fmaxv(Xbyak_aarch64::SReg(out_vec_idxs[0]), Xbyak_aarch64::VReg4S(in_vec_idxs[0]));
+    h->smaxv(Xbyak_aarch64::SReg(out_vec_idxs[0]), Xbyak_aarch64::VReg4S(in_vec_idxs[0]));
 }
 
 std::set<std::vector<element::Type>> jit_reduce_max_emitter::get_supported_precisions(

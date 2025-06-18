@@ -238,7 +238,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     // reductions
     jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = CREATE_CPU_EMITTER(jit_reduce_max_emitter);
     jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = CREATE_CPU_EMITTER(jit_reduce_sum_emitter);
-    jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = CREATE_CPU_EMITTER(jit_reduce_max_emitter);
+    jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = CREATE_CPU_EMITTER(jit_reduce_sum_emitter);
     jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = CREATE_CPU_EMITTER(jit_reduce_sum_emitter);
     // control flow
     jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);
