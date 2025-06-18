@@ -75,7 +75,7 @@ private:
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, bool initWeights);
 
     /* whether to transpose input */
-    std::array<bool, 2> transposeIn;
+    std::array<bool, 2> transposeIn{};
 
     std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
     DnnlBlockedMemoryDescPtr outDataDesc;
