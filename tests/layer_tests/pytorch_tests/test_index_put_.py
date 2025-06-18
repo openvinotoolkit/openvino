@@ -153,7 +153,7 @@ class TestIndexPut_ManyIndicesWithNone(PytorchLayerTest):
     def test_index_put_many_indices_with_none(self, ie_device, precision, ir_version, input_data, indices, accumulate):
         self.input_tensor = np.zeros(input_data["input_shape"]).astype(np.float32)
         self.values = input_data["values"]
-        self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
+        self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version, aot_autograd=True)
 
 
 class TestNonZero_IndexPut(PytorchLayerTest):
