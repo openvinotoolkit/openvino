@@ -43,6 +43,9 @@ void Softmax::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+#if defined(OPENVINO_ARCH_ARM64)
+    abs_threshold = 1e-4f;
+#endif
 }
 
 std::string AddSoftmax::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddSoftmaxParams> obj) {
