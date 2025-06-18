@@ -1008,16 +1008,19 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGMLHF_2d_rope) {
     const int rotary_ndims = 64;
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 4096});
-        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
-        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
 
         auto transpose = makeOP<ov::opset1::Reshape>({input, {-1, num_heads, 1, ndims}}, {{"special_zero", false}});
-        auto slice_1 = makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, 0}, {0, 0, 0, rotary_ndims}, {1, 1, 1, 1}},
-                                                        {{"begin_mask", {1, 1, 1, 0}},
-                                                         {"end_mask", {1, 1, 1, 0}},
-                                                         {"new_axis_mask", {}},
-                                                         {"shrink_axis_mask", {}},
-                                                         {"ellipsis_mask", {}}});
+        auto slice_1 =
+            makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, 0}, {0, 0, 0, rotary_ndims}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
 
         std::vector<int32_t> rpi_idx(rotary_ndims);
         for (int i = 0, index = 0; i < rotary_ndims; i += 2, index++) {
@@ -1025,8 +1028,10 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGMLHF_2d_rope) {
             rpi_idx[i + 1] = index;
         }
         auto repeat_interleave_index = makeConst(ov::element::i32, ov::Shape({rotary_ndims}), rpi_idx);
-        auto repeat_interleave_cos = makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
-        auto repeat_interleave_sin = makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
+        auto repeat_interleave_cos =
+            makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
+        auto repeat_interleave_sin =
+            makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
 
         auto multiply = makeOP<ov::opset1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
         auto slice_2 = makeOP<ov::opset1::StridedSlice>({slice_1, {0, 0, 0, 1}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
@@ -1036,34 +1041,38 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGMLHF_2d_rope) {
                                                          {"shrink_axis_mask", {}},
                                                          {"ellipsis_mask", {}}});
         auto neg = makeOP<ov::opset1::Multiply>({slice_2, -1.000000f}, {{"auto_broadcast", "numpy"}});
-        auto unsqueeze_1 = makeOP<ov::opset1::Reshape>({neg, {-1, num_heads, 1, (rotary_ndims / 2), 1}}, {{"special_zero", false}});
+        auto unsqueeze_1 =
+            makeOP<ov::opset1::Reshape>({neg, {-1, num_heads, 1, (rotary_ndims / 2), 1}}, {{"special_zero", false}});
         auto slice_3 = makeOP<ov::opset1::StridedSlice>({slice_1, {0, 0, 0, 0}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
                                                         {{"begin_mask", {1, 1, 1, 0}},
                                                          {"end_mask", {1, 1, 1, 0}},
                                                          {"new_axis_mask", {}},
                                                          {"shrink_axis_mask", {}},
                                                          {"ellipsis_mask", {}}});
-        auto unsqueeze_2 = makeOP<ov::opset1::Reshape>({slice_3, {-1, num_heads, 1, (rotary_ndims / 2), 1}}, {{"special_zero", false}});
+        auto unsqueeze_2 = makeOP<ov::opset1::Reshape>({slice_3, {-1, num_heads, 1, (rotary_ndims / 2), 1}},
+                                                       {{"special_zero", false}});
         auto stack = makeOP<ov::opset1::Concat>({unsqueeze_1, unsqueeze_2}, {{"axis", -1}});
         auto flatten = makeOP<ov::opset1::Reshape>({stack, {0, num_heads, 0, rotary_ndims}}, {{"special_zero", true}});
         auto multiply_1 = makeOP<ov::opset1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
         auto add = makeOP<ov::opset1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
 
-        auto slice_5 = makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, rotary_ndims}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
-                                                        {{"begin_mask", {1, 1, 1, 0}},
-                                                         {"end_mask", {1, 1, 1, 0}},
-                                                         {"new_axis_mask", {}},
-                                                         {"shrink_axis_mask", {}},
-                                                         {"ellipsis_mask", {}}});
+        auto slice_5 =
+            makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, rotary_ndims}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
         auto concat = makeOP<ov::opset1::Concat>({add, slice_5}, {{"axis", -1}});
-        model = std::make_shared<ov::Model>(ov::OutputVector{concat},
-                                            ov::ParameterVector{input, cos, sin});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input, cos, sin});
     }
     manager.register_pass<ov::pass::RoPEFusion>(true);
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 4096});
-        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
-        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
         auto rope = makeOP<ov::op::internal::RoPE>({input, cos, sin},
                                                    {{"config.slice_start", 0},
                                                     {"config.slice_stop", 0},
@@ -1078,8 +1087,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGMLHF_2d_rope) {
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope},
-                                                ov::ParameterVector{input, cos, sin});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos, sin});
     }
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
