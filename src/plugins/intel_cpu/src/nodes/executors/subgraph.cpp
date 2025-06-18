@@ -4,6 +4,8 @@
 
 #include "nodes/executors/subgraph.hpp"
 
+#include <stdlib.h>
+
 #include <algorithm>
 #include <common/utils.hpp>
 #include <cstddef>
