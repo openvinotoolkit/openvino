@@ -147,7 +147,7 @@ VariadicSplitMerge::VariadicSplitMerge() {
 
             if (ov::is_type<ov::op::v1::StridedSlice>(node)) {
                 auto slice = ov::as_type_ptr<ov::op::v1::StridedSlice>(node);
-                long unsigned int rank = input_ps.rank().get_length();
+                uint64_t rank = input_ps.rank().get_length();
 
                 // We cannot convert if we have any of these
                 const auto new_axis_mask = slice->get_new_axis_mask();
@@ -253,7 +253,7 @@ VariadicSplitMerge::VariadicSplitMerge() {
 
                     auto stride_vec = stride_const->cast_vector<int64_t>();
                     auto input_ps = node->get_input_partial_shape(0);
-                    long unsigned int rank = input_ps.rank().get_length();
+                    uint64_t rank = input_ps.rank().get_length();
 
                     if (stride_vec.size() != rank)
                         return false;
