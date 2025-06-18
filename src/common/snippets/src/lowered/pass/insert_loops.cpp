@@ -40,8 +40,8 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     const auto io_data_sizes = loop_info->get_data_sizes();
 
     const auto loop_begin =
-        loop_info->is_parallel() ? std::make_shared<op::LoopBeginParallel>() : std::make_shared<op::LoopBegin>();
-    const auto loop_end = loop_info->is_parallel() ? std::make_shared<op::LoopEndParallel>(loop_begin,
+        loop_info->is_parallel() ? std::make_shared<op::ParallelLoopBegin>() : std::make_shared<op::LoopBegin>();
+    const auto loop_end = loop_info->is_parallel() ? std::make_shared<op::ParallelLoopEnd>(loop_begin,
                                                                                            work_amount,
                                                                                            work_amount_increment,
                                                                                            is_incremented,

@@ -229,14 +229,14 @@ void LoopEnd::set_id(size_t id) {
     m_id = id;
 }
 
-LoopBeginParallel::LoopBeginParallel() : LoopBegin() {}
+ParallelLoopBegin::ParallelLoopBegin() : LoopBegin() {}
 
-std::shared_ptr<Node> LoopBeginParallel::clone_with_new_inputs(const OutputVector& inputs) const {
-    OPENVINO_ASSERT(inputs.empty(), "LoopBeginParallel should not contain inputs");
-    return std::make_shared<LoopBeginParallel>();
+std::shared_ptr<Node> ParallelLoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
+    OPENVINO_ASSERT(inputs.empty(), "ParallelLoopBegin should not contain inputs");
+    return std::make_shared<ParallelLoopBegin>();
 }
 
-LoopEndParallel::LoopEndParallel(const Output<Node>& loop_begin,
+ParallelLoopEnd::ParallelLoopEnd(const Output<Node>& loop_begin,
                                  size_t work_amount,
                                  size_t work_amount_increment,
                                  std::vector<bool> is_incremented,
@@ -257,9 +257,9 @@ LoopEndParallel::LoopEndParallel(const Output<Node>& loop_begin,
               output_num,
               id) {}
 
-std::shared_ptr<Node> LoopEndParallel::clone_with_new_inputs(const OutputVector& inputs) const {
+std::shared_ptr<Node> ParallelLoopEnd::clone_with_new_inputs(const OutputVector& inputs) const {
     check_new_args_count(this, inputs);
-    const auto loop_end = std::make_shared<LoopEndParallel>(inputs.at(0),
+    const auto loop_end = std::make_shared<ParallelLoopEnd>(inputs.at(0),
                                                             m_work_amount,
                                                             m_work_amount_increment,
                                                             m_is_incremented,
