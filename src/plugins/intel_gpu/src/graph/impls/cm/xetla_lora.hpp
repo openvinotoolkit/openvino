@@ -40,11 +40,6 @@ struct LoRAImplementationManager : public ImplementationManager {
             return false;
         }
 
-        bool is_empty_lora = node.get_input_layout(2).count() == 0;
-        if (is_empty_lora && node.has_fused_primitives()) {
-            return false;
-        }
-
         static constexpr std::array supported_fmts = {format::bfyx};
         static constexpr std::array supported_types = {ov::element::f16, ov::element::bf16};
 
