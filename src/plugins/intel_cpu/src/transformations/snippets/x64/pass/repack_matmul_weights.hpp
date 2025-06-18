@@ -11,6 +11,7 @@
 
 #include "cpu_memory.h"
 #include "emitters/snippets/input_repacker.hpp"
+#include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/model.hpp"
@@ -21,26 +22,26 @@ namespace ov::intel_cpu::pass {
 
 /**
  * @interface RepackMatMulWeights
- * @brief TODO
+ * @brief The pass calls plugin-helper "ReorderData" which repacks constant inputs of MatMuls to target blocked format
  * @ingroup snippets
  */
 class RepackMatMulWeights : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("RepackMatMulWeights");
-    RepackMatMulWeights(const GraphContext::CPtr& context,
+    RepackMatMulWeights(GraphContext::CPtr context,
                         ov::intel_cpu::InputRepackerMap& input_repackers,
                         std::vector<MemoryPtr>& src_mem_ptrs)
-        : m_context(context),
+        : m_context(std::move(context)),
           m_input_repackers(input_repackers),
           m_src_mem_ptrs(src_mem_ptrs) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    static CpuBlockedMemoryDescPtr get_src_desc(const VectorDims& orig_shape,
+    static CpuBlockedMemoryDescPtr get_src_desc(const VectorDims& shape,
+                                                const VectorDims& layout,
                                                 const brgemm_utils::BrgemmConfig& brgemm_config);
-    static CpuBlockedMemoryDescPtr get_dst_desc(const Shape& weights_2d,
-                                                const brgemm_utils::BrgemmConfig& brgemm_config);
+    static CpuBlockedMemoryDescPtr get_dst_desc(const Shape& shape, const brgemm_utils::BrgemmConfig& brgemm_config);
     static MemoryPtr repack(const CpuBlockedMemoryDescPtr& src_desc,
                             const CpuBlockedMemoryDescPtr& dst_desc,
                             const MemoryCPtr& src_mem,

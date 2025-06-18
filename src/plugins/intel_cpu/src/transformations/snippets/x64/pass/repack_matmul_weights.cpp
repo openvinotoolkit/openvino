@@ -6,66 +6,48 @@
 
 #include <cstddef>
 #include <memory>
+#include <numeric>
+#include <unordered_set>
 #include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/reorder.h"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "utils/cpu_utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu::pass {
 
 using namespace brgemm_utils;
 
-CpuBlockedMemoryDescPtr RepackMatMulWeights::get_src_desc(const VectorDims& orig_shape,
+CpuBlockedMemoryDescPtr RepackMatMulWeights::get_src_desc(const VectorDims& shape,
+                                                          const VectorDims& layout,
                                                           const BrgemmConfig& brgemm_config) {
-    auto weights_2d = reshapeDownToRank<2>(orig_shape);
-    auto blocked_dims = weights_2d;
-    auto blocked_order = VectorDims{0, 1};
-    if (brgemm_config.transposed_b()) {
-        weights_2d = {weights_2d[1], weights_2d[0]};
-        blocked_order = {1, 0};
-    }
-
-    return std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.orig_wei_dt(),
-                                                  Shape{weights_2d},
-                                                  blocked_dims,
-                                                  blocked_order);
+    const auto planar_shape = Shape{ov::snippets::utils::get_preordered_vdims(shape, layout)};
+    return std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.orig_wei_dt(), planar_shape, shape, layout);
 }
 
-CpuBlockedMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& weights_2d, const BrgemmConfig& brgemm_config) {
-    const auto& K = weights_2d.getStaticDims()[0];
-    const auto& N = weights_2d.getStaticDims()[1];
-    VectorDims blocked_dims, blocked_order;
-    const auto& vnni_factor = compute_vnni_factor(brgemm_config.wei_dt());
-    if (brgemm_config.are_wei_blocked()) {
-        blocked_dims = {ov::snippets::utils::div_up(N, brgemm_config.wei_n_blk()),
-                        ov::snippets::utils::div_up(K, brgemm_config.wei_k_blk() * vnni_factor),
-                        brgemm_config.wei_k_blk(),
-                        brgemm_config.wei_n_blk(),
-                        vnni_factor};
-        blocked_order = {1, 0, 0, 1, 0};
-    } else {
-        blocked_dims = {ov::snippets::utils::div_up(K, vnni_factor),
-                        ov::snippets::utils::rnd_up(N, brgemm_config.wei_n_blk()),
-                        vnni_factor};
-        blocked_order = {0, 1, 0};
-    }
+CpuBlockedMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const BrgemmConfig& brgemm_config) {
+    const auto [blocked_dims, blocked_order] =
+        brgemm_utils::repacking::get_wei_blocked_shape(shape.getStaticDims(),
+                                                       brgemm_config.wei_dt(),
+                                                       brgemm_config.wei_k_blk(),
+                                                       brgemm_config.wei_n_blk(),
+                                                       brgemm_config.are_wei_blocked());
 
-    if (vnni_factor == 1) {
-        blocked_dims.pop_back();
-        blocked_order.pop_back();
-    }
-
-    return std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.wei_dt(), weights_2d, blocked_dims, blocked_order);
+    return std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.wei_dt(), shape, blocked_dims, blocked_order);
 }
 
 MemoryPtr RepackMatMulWeights::repack(const CpuBlockedMemoryDescPtr& src_desc,
@@ -83,9 +65,9 @@ MemoryPtr RepackMatMulWeights::repack(const CpuBlockedMemoryDescPtr& src_desc,
         const auto str_hash =
             DnnlExtensionUtils::computeWeightsStringHash(src_mem, MemoryDescUtils::convertToDnnlMemoryDesc(dst_desc));
         return *weight_cache->findOrCreate(str_hash, create);
-    } else {
-        return create();
     }
+
+    return create();
 }
 
 bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -97,7 +79,7 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
     for (const auto& [i, input_repacker] : m_input_repackers) {
         const auto& parameter = params[i];
 
-        const auto& shape_infer_leaf = ov::snippets::utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);
+        const auto shape_infer_leaf = ov::snippets::utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);
         const auto& first_child = shape_infer_leaf ? shape_infer_leaf : parameter;
         const auto consumers = first_child->output(0).get_target_inputs();
 
@@ -110,7 +92,22 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         }
 
         const auto& orig_src_mem_ptr = m_src_mem_ptrs[i];
-        const auto src_mem_desc = get_src_desc(orig_src_mem_ptr->getStaticDims(), brgemm_config);
+
+        VectorDims shape;
+        VectorDims layout;
+        if (const auto& reorder =
+                ov::as_type_ptr<ov::snippets::op::Reorder>(brgemm_cpu->input_value(1).get_node_shared_ptr())) {
+            const auto& port_desc =
+                ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(reorder->input(0));
+            layout = port_desc->get_layout();
+            shape = ov::snippets::utils::pshape_to_vdims(reorder->get_input_partial_shape(0));
+        } else {
+            shape = orig_src_mem_ptr->getShape().getStaticDims();
+            layout.resize(shape.size());
+            std::iota(layout.begin(), layout.end(), 0);
+        }
+
+        const auto src_mem_desc = get_src_desc(shape, layout, brgemm_config);
         const auto dst_mem_desc = get_dst_desc(src_mem_desc->getShape(), brgemm_config);
         const auto src_mem_ptr =
             std::make_shared<Memory>(m_context->getEngine(), src_mem_desc, orig_src_mem_ptr->getData());
