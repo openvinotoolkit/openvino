@@ -76,6 +76,9 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             accumulate = acc_const->cast_vector<bool>()[0];
         }
 
+        // In some exported graphs, when index_put_ is used with None indices, shape of values
+        // might be missing the first dimension of 1. For example, a value shape can be provided
+        // as (x,y,z) instead of (1,x,y,z). Both cases are valid for aten.index_put_.default.
         auto input_rank = input.get_partial_shape().rank();
         auto values_rank = values.get_partial_shape().rank();
         if (input_rank.is_static() && values_rank.is_static() && input_rank.get_length() > 1 &&
