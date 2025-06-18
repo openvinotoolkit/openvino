@@ -559,8 +559,6 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
         return stages_order;
     }
 
-    const size_t xecores = instance.get_impl_params()->get_device_info().num_sub_slices_per_slice * instance.get_impl_params()->get_device_info().num_slices;
-
     auto [tokens, rank, hidden_in, hidden_out] = lora::LoraShapeUtils::get_lora_gemm_shape(instance);
 
     const auto ld_input = lora::Layouts::mem_layout_a == lora::MemLayout::col_major ? tokens : hidden_in;
@@ -591,11 +589,8 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
     }
 
     if (tokens > 32 && is_gemmA_aligned && is_gemmB_aligned) {
-        size_t gemmA_wg_n = 32;
-        size_t gemmA_wg_m = 128;
-
         size_t iters = (hidden_in + 32 - 1) / 32;
-        if (iters > 4 && gemmA_wg_m == 128) {
+        if (iters > 4) {
             stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S2);
         } else {
             stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S1);
