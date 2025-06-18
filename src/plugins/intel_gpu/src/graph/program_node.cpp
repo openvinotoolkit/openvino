@@ -797,6 +797,13 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
             }
             ob << f_desc.outer_dep_start_idx;
             ob << f_desc.total_num_deps;
+
+            ob << f_desc.inputs.size();
+            for (const auto& f_in : f_desc.inputs) {
+                ob << static_cast<int32_t>(f_in.m_element_type);
+                ob << static_cast<int32_t>(f_in.m_type);
+                ob << f_in.m_idx;
+            }
         }
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1023,6 +1030,23 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
             }
             ib >> f_desc.outer_dep_start_idx;
             ib >> f_desc.total_num_deps;
+
+            size_t num_fused_inputs;
+            ib >> num_fused_inputs;
+            for (size_t i = 0; i < num_fused_inputs; ++i) {
+                int32_t input_type, element_type;
+                size_t idx;
+
+                ib >> element_type;
+                ib >> input_type;
+                ib >> idx;
+
+                auto input_desc = fused_primitive_desc::InputDescriptor{static_cast<FusedInputType>(input_type),
+                                                                        idx,
+                                                                        static_cast<ov::element::Type_t>(element_type)};
+                f_desc.inputs.emplace_back(input_desc);
+            }
+
             fused_prims.emplace_back(f_desc);
         }
     }
