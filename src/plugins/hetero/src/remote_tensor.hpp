@@ -15,7 +15,7 @@ namespace hetero {
 
 class RemoteTensor : public ov::IRemoteTensor {
 public:
-    RemoteTensor(std::shared_ptr<ov::hetero::RemoteContext> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors);
+    RemoteTensor(const std::shared_ptr<ov::hetero::RemoteContext>& context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors);
 
     const std::string& get_device_name() const override;
 

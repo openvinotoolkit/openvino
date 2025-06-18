@@ -12,10 +12,12 @@
 namespace ov {
 namespace hetero {
 
-RemoteContext::RemoteContext(std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts) {
-    m_contexts = contexts;
+RemoteContext::RemoteContext(std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts)
+    : m_contexts(std::move(contexts)) {
+    if (m_contexts.empty()) {
+        OPENVINO_ASSERT("HETERO RemoteContext must have at least one underlying context");
+    }
 }
-
 const ov::AnyMap& RemoteContext::get_property() const {
     return m_contexts.begin()->second->get_property();
 }
@@ -28,11 +30,12 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContext::create_tensor(const ov::element::Typ
                                                           const ov::Shape& shape,
                                                           const ov::AnyMap& params) {
     std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors;
-    for (auto& item : m_contexts) {
-        auto a = item.second->create_tensor(type, shape, params);
-        tensors.emplace_back(a);
+    tensors.reserve(m_contexts.size());
+    for (const auto& item : m_contexts) {
+        tensors.emplace_back(item.second->create_tensor(type, shape, params));
     }
-    return std::make_shared<ov::hetero::RemoteTensor>(get_this_shared_ptr(), tensors);
+    auto remote_tensor_ptr = std::make_shared<ov::hetero::RemoteTensor>(get_this_shared_ptr(), tensors);
+    return ov::SoPtr<ov::IRemoteTensor>(remote_tensor_ptr);
 }
 
 const std::string& RemoteContext::get_device_name() const {

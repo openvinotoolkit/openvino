@@ -68,11 +68,15 @@ private:
         const ov::AnyMap& properties,
         bool allow_exception = false) const;
 
+    ov::hetero::SubgraphsMappingInfo split_graph(const std::shared_ptr<ov::Model>& model, Configuration config) const;
+
+    mutable std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>> m_compiled_submodels;
+
     Configuration m_cfg;
 
-    mutable size_t independent_submodel_size = 0;
+    ov::hetero::SubgraphsMappingInfo m_mapping_info;
 
-    mutable std::vector<std::string> execution_devices;
+    mutable size_t independent_submodel_size = 0;
 };
 
 }  // namespace hetero

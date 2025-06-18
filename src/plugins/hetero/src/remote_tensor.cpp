@@ -7,13 +7,17 @@
 namespace ov {
 namespace hetero {
 
-RemoteTensor::RemoteTensor(std::shared_ptr<RemoteContext> context, std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
+RemoteTensor::RemoteTensor(const std::shared_ptr<RemoteContext>& context,
+                           std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors)
     : m_context(context),
-      m_ordered_tensor(tensors) {
-    for (auto& tensor : tensors) {
+      m_ordered_tensor(std::move(tensors)) {
+    m_remote_tensors.reserve(m_ordered_tensor.size());
+    for (const auto& tensor : m_ordered_tensor) {
         auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr);
+        OPENVINO_ASSERT(remote_tensor, "Invalid tensor pointer in RemoteTensor constructor");
         m_remote_tensors.emplace_back(remote_tensor);
-        auto device_name = remote_tensor->get_device_name();
+
+        const auto& device_name = remote_tensor->get_device_name();
         m_tensors.insert({device_name, tensor});
     }
 }
@@ -61,11 +65,9 @@ void RemoteTensor::copy_to(const std::shared_ptr<ov::ITensor>& dst,
                            size_t dst_offset,
                            const ov::Shape& roi_shape) const {
     if (auto remote = std::dynamic_pointer_cast<ov::hetero::RemoteTensor>(dst)) {
-        int i = 0;
-        for (auto& tensor : m_remote_tensors) {
-            auto itensor = std::dynamic_pointer_cast<ov::ITensor>(remote->get_tensor(i)._ptr);
-            tensor->copy_to(itensor, src_offset, dst_offset, roi_shape);
-            i++;
+        for (size_t i = 0; i < m_remote_tensors.size(); ++i) {
+            auto itensor = std::dynamic_pointer_cast<ov::ITensor>(remote->get_tensor(static_cast<int>(i))._ptr);
+            m_remote_tensors[i]->copy_to(itensor, src_offset, dst_offset, roi_shape);
         }
     } else {
         int i = 0;
@@ -81,11 +83,9 @@ void RemoteTensor::copy_from(const std::shared_ptr<const ov::ITensor>& src,
                              size_t dst_offset,
                              const ov::Shape& roi_shape) {
     if (auto remote = std::dynamic_pointer_cast<const ov::hetero::RemoteTensor>(src)) {
-        int i = 0;
-        for (auto& tensor : m_remote_tensors) {
-            auto itensor = std::dynamic_pointer_cast<ov::ITensor>(remote->get_tensor(i)._ptr);
-            tensor->copy_from(itensor, src_offset, dst_offset, roi_shape);
-            i++;
+        for (size_t i = 0; i < m_remote_tensors.size(); ++i) {
+            auto itensor = std::dynamic_pointer_cast<ov::ITensor>(remote->get_tensor(static_cast<int>(i))._ptr);
+            m_remote_tensors[i]->copy_from(itensor, src_offset, dst_offset, roi_shape);
         }
     } else {
         auto new_roi_shape = get_shape();

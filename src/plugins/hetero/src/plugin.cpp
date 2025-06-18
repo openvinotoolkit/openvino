@@ -30,13 +30,89 @@ ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
 }
 
+ov::hetero::SubgraphsMappingInfo ov::hetero::Plugin::split_graph(const std::shared_ptr<ov::Model>& model,
+                                                                  Configuration config) const {
+    ov::SupportedOpsMap query_model_result;
+    SubgraphsMappingInfo mapping_info;
+    const std::string model_name = model->get_friendly_name();
+    bool user_set_affinities = false;
+
+    // Get user defined affinity
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto& rt_info = node->get_rt_info();
+        const auto it = rt_info.find("affinity");
+        if (it != rt_info.end()) {
+            OPENVINO_ASSERT(it->second.is<std::string>(), "Unexpected type of \"affinity\" attribute");
+            query_model_result.emplace(node->get_friendly_name(), it->second.as<std::string>());
+            user_set_affinities = true;
+        }
+    }
+
+    if (user_set_affinities) {
+        // All affinities must be defined by user
+        ov::hetero::SubgraphsVector ordered_subgraphs;
+        std::tie(ordered_subgraphs, mapping_info) =
+            get_model_subgraphs(model, query_model_result, true, m_cfg.dump_dot_files());
+
+        m_compiled_submodels.resize(ordered_subgraphs.size());
+        for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
+            const auto& subgraph = ordered_subgraphs[i];
+            m_compiled_submodels[i].first = subgraph._affinity;
+            m_compiled_submodels[i].second = std::make_shared<ov::Model>(
+                subgraph._results,
+                subgraph._sinks,
+                subgraph._parameters,
+                model_name + "_" + std::to_string(i));
+        }
+
+        return mapping_info;
+    }
+
+    // Restore properties in order to pass "device priorities" together
+    // with devices properties
+    auto full_properties = config.get_hetero_properties();
+    for (const auto& [device, props] : config.get_device_properties()) {
+        full_properties[device] = props;
+    }
+
+    auto cloned_model = model->clone();
+    std::tie(query_model_result, mapping_info) = query_model_update(cloned_model, full_properties, true);
+
+    ov::hetero::op::DeviceSubgraphVector ordered_subgraphs;
+    for (const auto& op : cloned_model->get_ordered_ops()) {
+        if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
+            ordered_subgraphs.push_back(subgraph);
+        } else {
+            OPENVINO_ASSERT(ov::op::util::is_output(op) ||
+                            ov::op::util::is_parameter(op) ||
+                            ov::op::util::is_sink(op),
+                            "Unexpected node type found in model after query_model_update()");
+        }
+    }
+
+    m_compiled_submodels.resize(ordered_subgraphs.size());
+    for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
+        m_compiled_submodels[i].first = ordered_subgraphs[i]->get_affinity();
+        m_compiled_submodels[i].second = ordered_subgraphs[i]->get_function();
+    }
+
+    return mapping_info;
+}
+
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                       const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::compile_model");
 
     auto config = Configuration{properties, m_cfg};
-    auto compiled_model = std::make_shared<CompiledModel>(model->clone(), shared_from_this(), config);
-    execution_devices = compiled_model->get_property("EXECUTION_DEVICES").as<std::vector<std::string>>();
+    auto cloned_model = model->clone();
+    const auto mapping_info = split_graph(cloned_model, config);
+
+    std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_map;
+    for (const auto& submodel : m_compiled_submodels) {
+        contexts_map.insert({submodel.first, get_core()->get_default_context(submodel.first)});
+    }
+    auto context = std::make_shared<ov::hetero::RemoteContext>(std::move(contexts_map));
+    auto compiled_model = std::make_shared<CompiledModel>(cloned_model, m_compiled_submodels, mapping_info, shared_from_this(), context, config);
     return compiled_model;
 }
 
@@ -331,10 +407,5 @@ ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::create_context(const ov::AnyMa
 }
 
 ov::SoPtr<ov::IRemoteContext> ov::hetero::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_map;
-    OPENVINO_ASSERT(execution_devices.size() >= 1, "[HETERO] No execution devices found.");
-    for (const auto& device : execution_devices) {
-        contexts_map.insert({device, get_core()->get_default_context(device)});
-    }
-    return std::make_shared<ov::hetero::RemoteContext>(contexts_map);
+    OPENVINO_NOT_IMPLEMENTED;
 }
