@@ -26,24 +26,24 @@ enum TopKLayoutType : uint8_t { topk_ncsp, topk_nspc, topk_blocked };
 enum TopKAlgorithm : uint8_t { topk_bubble_sort, topk_bitonic_sort, topk_heap_sort };
 
 struct jit_topk_config_params {
-    bool mode_max;          // which of the two elements to select. ture: max; false: min
-    bool sort_index;        // sort by value or index. true: index; false: value
-    bool topk_innermost;    // if topk sorting is applied on innermost dimension or other dimension
-    bool bubble_inplace;    // all the elements in sorting is right in the register, no need to load and store for each
-                            // comparison
-    bool stable;            // if require stable sorting
-    TopKLayoutType layout;  // memory layout
-    TopKAlgorithm algorithm;      // topk sorting algorithm
-    ov::element::Type precision;  // precision
-    int data_size;                // data size
-    int blk_size;                 // block size
-    int top_k;                    // number of the output elements in the sorting dimension
-    int work_amount;              // how many elements are processed when call jit kernel once
-    int axis_dim;                 // size of topk axis
-    int sort_stride;              // memory stride of adjacent elements in sorting
-    int bitonic_idx_cnt;  // the repeatedly counted total number of elements in sorting, which equal the total number of
-                          // comparison x 2
-    int bitonic_k_idx_cnt;  // the counterpart of bitonic_idx_cnt, when sort_index == true
+    bool mode_max = false;        // which of the two elements to select. ture: max; false: min
+    bool sort_index = false;      // sort by value or index. true: index; false: value
+    bool topk_innermost = false;  // if topk sorting is applied on innermost dimension or other dimension
+    bool bubble_inplace = false;  // all the elements in sorting is right in the register, no need to load and store for
+                                  // each comparison
+    bool stable = false;          // if require stable sorting
+    TopKLayoutType layout = TopKLayoutType::topk_ncsp;          // layout type
+    TopKAlgorithm algorithm = TopKAlgorithm::topk_bubble_sort;  // topk sorting algorithm
+    ov::element::Type precision;                                // precision
+    int data_size = 0;                                          // data size
+    int blk_size = 0;                                           // block size
+    int top_k = 0;              // number of the output elements in the sorting dimension
+    int work_amount = 0;        // how many elements are processed when call jit kernel once
+    int axis_dim = 0;           // size of topk axis
+    int sort_stride = 0;        // memory stride of adjacent elements in sorting
+    int bitonic_idx_cnt = 0;    // the repeatedly counted total number of elements in sorting, which equal the total
+                                // number of comparison x 2
+    int bitonic_k_idx_cnt = 0;  // the counterpart of bitonic_idx_cnt, when sort_index == true
 };
 
 struct jit_topk_call_args {
