@@ -511,14 +511,19 @@ void Subgraph::control_flow_transformations(
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
-    // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-    // todo: disabled for testing, a smaller batch can be used
-    // size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
-    // if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
-    //     lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
-    //     m_linear_ir->set_loop_depth(loop_depth);
-    // }
-    m_linear_ir->set_loop_depth(2);
+    // Note: currently, internal parallel Loops arise only as replacement of mostouter eltwise loop (with increment = 1)
+    const bool use_internal_parallel_loops = std::getenv("USE_INTERNAL_PARALLEL_LOOPS");
+    if (use_internal_parallel_loops) {
+        m_linear_ir->set_loop_depth(2);
+    } else {
+        // Domain optimization must be the first pass,
+        // because all other transformations may depend on PortDescriptor shapes
+        size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
+        if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
+            lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
+            m_linear_ir->set_loop_depth(loop_depth);
+        }
+    }
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
 
@@ -538,7 +543,9 @@ void Subgraph::control_flow_transformations(
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
-    pipeline.register_pass<lowered::pass::MarkParallelLoops>();
+    if (use_internal_parallel_loops) {
+        pipeline.register_pass<lowered::pass::MarkParallelLoops>();
+    }
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
