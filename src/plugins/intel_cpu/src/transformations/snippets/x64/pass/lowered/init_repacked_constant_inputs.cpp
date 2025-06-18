@@ -4,6 +4,8 @@
 
 #include "init_repacked_constant_inputs.hpp"
 
+#include <oneapi/dnnl/dnnl.h>
+
 #include <algorithm>
 #include <memory>
 
@@ -78,21 +80,24 @@ bool InitRepackedConstantInputs::run(const snippets::lowered::LinearIR& linear_i
         OPENVINO_ASSERT(planar_shape.size() > 1, "Incorrect shape of repacked input of Brgemm");
         const auto& K = *++planar_shape.rbegin();
         const auto& N = *planar_shape.rbegin();
-        const auto& prc = param->get_node()->get_output_element_type(0);
+        const auto& dst_prc = param->get_node()->get_output_element_type(0);
 
-        BrgemmExternalRepackingAdjuster::update_kernel(executor, shape, layout, N, K, prc.size());
+        BrgemmExternalRepackingAdjuster::update_kernel(executor, shape, layout, N, K);
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
         const auto& blk_shape = BrgemmExternalRepackingAdjuster::get_blk_shape(planar_shape,
                                                                                config.get_wei_N_blk(),
                                                                                config.get_wei_K_blk());
         const auto& order = BrgemmExternalRepackingAdjuster::get_blk_order(planar_shape.size());
-        const auto& desc = std::make_shared<CpuBlockedMemoryDesc>(prc, Shape(planar_shape), blk_shape, order);
+        const auto& desc = std::make_shared<CpuBlockedMemoryDesc>(dst_prc, Shape(planar_shape), blk_shape, order);
+
+        const auto src_prc_size = dnnl_data_type_size(config.get_original_wei_dt());
+        const auto dst_prc_size = dst_prc.size();
 
         ov::snippets::VectorDims src_offsets;
         ov::snippets::VectorDims dst_offsets;
-        ov::snippets::utils::init_strides(shape, shape.size(), prc.size(), 0, src_offsets);
-        ov::snippets::utils::init_strides(blk_shape, blk_shape.size(), prc.size(), 0, dst_offsets);
+        ov::snippets::utils::init_strides(shape, shape.size(), src_prc_size, 0, src_offsets);
+        ov::snippets::utils::init_strides(blk_shape, blk_shape.size(), dst_prc_size, 0, dst_offsets);
         // Last three dimensions of blocked shapes are processed in the kernel. To align with src, we removed last
         // stride
         dst_offsets.pop_back();
