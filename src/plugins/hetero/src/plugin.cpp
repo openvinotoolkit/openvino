@@ -31,7 +31,7 @@ ov::hetero::Plugin::Plugin() {
 }
 
 ov::hetero::SubgraphsMappingInfo ov::hetero::Plugin::split_graph(const std::shared_ptr<ov::Model>& model,
-                                                                  Configuration config) const {
+                                                                 Configuration config) const {
     ov::SupportedOpsMap query_model_result;
     SubgraphsMappingInfo mapping_info;
     const std::string model_name = model->get_friendly_name();
@@ -58,11 +58,10 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::Plugin::split_graph(const std::shar
         for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
             const auto& subgraph = ordered_subgraphs[i];
             m_compiled_submodels[i].first = subgraph._affinity;
-            m_compiled_submodels[i].second = std::make_shared<ov::Model>(
-                subgraph._results,
-                subgraph._sinks,
-                subgraph._parameters,
-                model_name + "_" + std::to_string(i));
+            m_compiled_submodels[i].second = std::make_shared<ov::Model>(subgraph._results,
+                                                                         subgraph._sinks,
+                                                                         subgraph._parameters,
+                                                                         model_name + "_" + std::to_string(i));
         }
 
         return mapping_info;
@@ -83,9 +82,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::Plugin::split_graph(const std::shar
         if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
             ordered_subgraphs.push_back(subgraph);
         } else {
-            OPENVINO_ASSERT(ov::op::util::is_output(op) ||
-                            ov::op::util::is_parameter(op) ||
-                            ov::op::util::is_sink(op),
+            OPENVINO_ASSERT(ov::op::util::is_output(op) || ov::op::util::is_parameter(op) || ov::op::util::is_sink(op),
                             "Unexpected node type found in model after query_model_update()");
         }
     }
@@ -112,7 +109,12 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
         contexts_map.insert({submodel.first, get_core()->get_default_context(submodel.first)});
     }
     auto context = std::make_shared<ov::hetero::RemoteContext>(std::move(contexts_map));
-    auto compiled_model = std::make_shared<CompiledModel>(cloned_model, m_compiled_submodels, mapping_info, shared_from_this(), context, config);
+    auto compiled_model = std::make_shared<CompiledModel>(cloned_model,
+                                                          m_compiled_submodels,
+                                                          mapping_info,
+                                                          shared_from_this(),
+                                                          context,
+                                                          config);
     return compiled_model;
 }
 

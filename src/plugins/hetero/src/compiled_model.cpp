@@ -44,7 +44,6 @@ ov::hetero::CompiledModel::CompiledModel(
 void ov::hetero::CompiledModel::compile_model(
     const std::shared_ptr<ov::Model>& model,
     const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels) {
-
     const bool add_exclusive = compiled_submodels.size() > 1;
     const auto& hetero_plugin = get_hetero_plugin();
     const auto& core = hetero_plugin->get_core();
@@ -63,8 +62,7 @@ void ov::hetero::CompiledModel::compile_model(
 
         // set exclusive_async_requests in case when model is split
         if (add_exclusive) {
-            auto supported_internal_properties =
-                core->get_property(device, ov::internal::supported_properties);
+            auto supported_internal_properties = core->get_property(device, ov::internal::supported_properties);
             if (std::find(supported_internal_properties.begin(),
                           supported_internal_properties.end(),
                           ov::internal::exclusive_async_requests) != supported_internal_properties.end()) {
@@ -82,7 +80,6 @@ void ov::hetero::CompiledModel::compile_model(
     }
     set_inputs_and_outputs();
 }
-
 
 ov::hetero::CompiledModel::CompiledModel(std::istream& model,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
