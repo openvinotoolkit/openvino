@@ -5,6 +5,7 @@
 #include "parallel_loop.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -24,7 +25,7 @@ size_t ParallelLoopConfig::hash() const {
     return dnnl::impl::hash_combine(hash, m_num_threads);
 }
 
-void ParallelLoopExecutor::update_kernel(const ParallelLoopConfig& c,
+void ParallelLoopExecutor::update_kernel([[maybe_unused]] const ParallelLoopConfig& c,
                                          std::shared_ptr<ParallelLoopKernel>& kernel) const {
     kernel = std::make_shared<ParallelLoopKernel>();
 }
