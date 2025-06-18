@@ -32,7 +32,7 @@ public:
                                const std::vector<MemoryDescPtr>& dstDescs,
                                const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getInterpolateExecutorsList()) {
+        for (const auto& desc : getInterpolateExecutorsList()) {
             if (desc.builder->isSupported(InterpolateAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }
