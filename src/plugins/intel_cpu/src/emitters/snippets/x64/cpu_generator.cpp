@@ -497,8 +497,8 @@ bool intel_cpu::CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_, ov::intel_cpu::MultiCacheWeakPtr cache)
-    : Generator(std::make_shared<CPUTargetMachine>(isa_, std::move(cache))) {}
+intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : Generator(std::make_shared<CPUTargetMachine>(host_isa, std::move(cache))) {}
 intel_cpu::CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
 std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
@@ -510,15 +510,15 @@ std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
 
 ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (is_type<intel_cpu::BrgemmCPU>(op) ||
+    if (is_type_any_of<intel_cpu::BrgemmCPU, intel_cpu::BrgemmCopyB>(op)
 #ifdef SNIPPETS_LIBXSMM_TPP
-        std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
-        is_type<intel_cpu::tpp::op::Scalar>(op) ||
+        || is_type<intel_cpu::tpp::op::Scalar>(op) ||
+        std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op)
 #endif
-        is_type<intel_cpu::BrgemmCopyB>(op)) {
+    ) {
         return ov::snippets::RegType::gpr;
     }
-    if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
+    if (is_type_any_of<intel_cpu::FusedMulAdd, intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
     }
     return ov::snippets::RegType::undefined;

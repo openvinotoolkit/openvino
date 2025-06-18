@@ -67,6 +67,7 @@ KERNEL(calc_mean_sqr_mean_per_feature)(
     }
 }
 #elif GROUP_NORM_KERNEL_GROUP_MEAN_VARIANCE
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(calc_mean_variance_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
@@ -111,7 +112,7 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     const __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint b = get_global_id(1) % OUTPUT_BATCH_NUM;
-    const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + get_sub_group_local_id();
+    const uint f = get_global_id(1) / OUTPUT_BATCH_NUM * FSV + (get_sub_group_local_id() % FSV);
     const uint yx = get_global_id(0) / FSV;
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
@@ -131,7 +132,9 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
             output[output_index] = TO_OUTPUT_TYPE(normalized);
         #endif
     } else {
-        output[output_index] = OUTPUT_VAL_ZERO;
+        #ifdef OUTPUT_LAYOUT_B_FS_YX_FSV16
+            output[output_index] = OUTPUT_VAL_ZERO;
+        #endif
     }
 }
 #endif

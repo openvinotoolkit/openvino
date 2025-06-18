@@ -544,9 +544,15 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
             // WA, due to the transformations and constant folding, shape inference of the resulting model may
             // have static shapes, while they are dynamic in the initial representation
-            const auto& shape = graph_shape.isDynamic()
-                                    ? port_shape
-                                    : (port_shape.is_dynamic() ? graph_shape.toPartialShape() : port_shape);
+            const auto shape = [&]() -> ov::PartialShape {
+                if (graph_shape.isDynamic()) {
+                    return port_shape;
+                }
+                if (port_shape.is_dynamic()) {
+                    return graph_shape.toPartialShape();
+                }
+                return port_shape;
+            }();
 
             const bool isDynamic = shape.is_dynamic();
             tensor = ov::ISyncInferRequest::get_tensor(port);
@@ -659,8 +665,7 @@ void SyncInferRequest::sub_streams_infer() {
             }
 
             requests[i]->set_callback([message]([[maybe_unused]] const std::exception_ptr& ptr) {
-                ov::threading::MessageInfo msg_info;
-                msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
+                ov::threading::MessageInfo msg_info{ov::threading::MsgType::CALL_BACK};
                 message->send_message(msg_info);
             });
         }

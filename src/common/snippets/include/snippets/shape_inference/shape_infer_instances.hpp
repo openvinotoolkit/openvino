@@ -9,7 +9,9 @@
 namespace ov {
 namespace snippets {
 
-bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob = ov::op::AutoBroadcastType::NUMPY);
+bool broadcast_merge_into(VectorDims& dst,
+                          const VectorDims& src,
+                          const ov::op::AutoBroadcastSpec& autob = ov::op::AutoBroadcastType::NUMPY);
 
 bool merge_into(VectorDims& dst, const VectorDims& src);
 
@@ -18,10 +20,10 @@ public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
-
-template<class BroadcastOP>
+template <class BroadcastOP>
 class BroadcastShapeInfer : public IShapeInferSnippets {
     std::shared_ptr<BroadcastOP> broadcast_op;
+
 public:
     explicit BroadcastShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
@@ -51,6 +53,7 @@ public:
 
 class SelectShapeInfer : public IShapeInferSnippets {
     ov::op::AutoBroadcastSpec m_broadcast_spec;
+
 public:
     explicit SelectShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
@@ -63,6 +66,7 @@ public:
 
 class BrgemmShapeInfer : public IShapeInferSnippets {
     std::vector<std::vector<size_t>> m_io_layouts;
+
 public:
     explicit BrgemmShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
@@ -70,10 +74,11 @@ public:
 
 class ReduceShapeInfer : public IShapeInferSnippets {
     size_t m_axis;
+
 public:
     explicit ReduceShapeInfer(const std::shared_ptr<Node>& n);
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace snippets
+}  // namespace ov

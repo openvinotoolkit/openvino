@@ -12,7 +12,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-enum class MatMulNodeType {
+enum class MatMulNodeType : uint8_t {
     MatMul,
     FullyConnected
 };

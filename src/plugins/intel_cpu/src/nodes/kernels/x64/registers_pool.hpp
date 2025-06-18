@@ -80,7 +80,7 @@ public:
             ensureValid();
             return reg;
         }
-        int getIdx() const {
+        [[nodiscard]] int getIdx() const {
             ensureValid();
             return reg.getIdx();
         }
@@ -94,7 +94,7 @@ public:
                 regPool.reset();
             }
         }
-        bool isInitialized() const {
+        [[nodiscard]] bool isInitialized() const {
             return !regPool.expired();
         }
 
@@ -122,7 +122,6 @@ public:
             regPool = pool;
         }
 
-    private:
         TReg reg;
         RegistersPool::WeakPtr regPool;
     };
@@ -151,10 +150,12 @@ public:
                       "Reg8, Reg16, Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
         if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             return simdSet.countUnused();
-        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        }
+        if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
+            std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
             return generalSet.countUnused();
-        } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        }
+        if (std::is_same<TReg, Xbyak::Opmask>::value) {
             return countUnusedOpmask();
         }
     }
@@ -187,15 +188,14 @@ protected:
         size_t getUnused(size_t requestedIdx) {
             if (requestedIdx == static_cast<size_t>(anyIdx)) {
                 return getFirstFreeIndex();
-            } else {
-                if (requestedIdx >= isFreeIndexVector.size()) {
-                    OPENVINO_THROW("requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
-                }
-                if (!isFreeIndexVector[requestedIdx]) {
-                    OPENVINO_THROW("The register with index #", requestedIdx, " already used in the RegistersPool");
-                }
-                return requestedIdx;
             }
+            if (requestedIdx >= isFreeIndexVector.size()) {
+                OPENVINO_THROW("requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
+            }
+            if (!isFreeIndexVector[requestedIdx]) {
+                OPENVINO_THROW("The register with index #", requestedIdx, " already used in the RegistersPool");
+            }
+            return requestedIdx;
         }
 
         void exclude(Xbyak::Reg reg) {
@@ -222,7 +222,6 @@ protected:
             OPENVINO_THROW("Not enough registers in the RegistersPool");
         }
 
-    private:
         std::vector<bool> isFreeIndexVector;
     };
 
@@ -248,7 +247,7 @@ protected:
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
         : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
-        for (auto& reg : regsToExclude) {
+        for (const auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {
                 simdSet.exclude(reg);
             } else if (reg.isREG()) {
@@ -289,7 +288,7 @@ private:
         }
     }
 
-    void checkUniqueAndUpdate(bool isCtor = true) {
+    static void checkUniqueAndUpdate(bool isCtor = true) {
         static thread_local bool isCreated = false;
         if (isCtor) {
             if (isCreated) {
@@ -324,7 +323,7 @@ public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
         : RegistersPool(regsToExclude,
                         dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
-        for (auto& reg : regsToExclude) {
+        for (const auto& reg : regsToExclude) {
             if (reg.isOPMASK()) {
                 opmaskSet.exclude(reg);
             }
@@ -341,7 +340,7 @@ public:
         opmaskSet.setAsUnused(idx);
     }
 
-    size_t countUnusedOpmask() const override {
+    [[nodiscard]] size_t countUnusedOpmask() const override {
         return opmaskSet.countUnused();
     }
 
@@ -355,7 +354,7 @@ class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core_vnni>
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
         : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>(regsToExclude) {}
-    IsaRegistersPool() : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>() {}
+    IsaRegistersPool() = default;
 };
 
 template <>
@@ -364,7 +363,7 @@ class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core_bf16>
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
         : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>(regsToExclude) {}
-    IsaRegistersPool() : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>() {}
+    IsaRegistersPool() = default;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>

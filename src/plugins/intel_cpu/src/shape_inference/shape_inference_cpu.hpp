@@ -32,7 +32,6 @@ public:
         ShapeInferStatus status;
     };
 
-public:
     virtual ~IShapeInfer() = default;
 
     /**
