@@ -405,15 +405,15 @@ const std::vector<InputShape>& inputShapes2d() {
             {{}, {{ 1, 64, 7, 7 }}},
             {{}, {{ 1, 67, 7, 7 }}},
             {
-                //dynamic shape
-                { -1, 64, -1, {1, 200} },
+                // dynamic shape (one spatial shape is undefined)
+                { -1, 64, -1, 8 },
                 { //target static shapes
-                    { 2, 64, 7, 7 },
-                    { 1, 64, 9, 9}
+                    { 2, 64, 7, 8 },
+                    { 1, 64, 9, 8}
                 }
             },
             {
-                //dynamic shape
+                // dynamic shape (both spatial shapes are undefined)
                 { -1, 67, -1, {1, 200} },
                 { //target static shapes
                     { 2, 67, 7, 7 },

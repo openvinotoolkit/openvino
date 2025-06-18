@@ -4,11 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <mutex>
+
 #include "cpu_memory.h"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/strides.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Tensor : public ITensor {
 public:
@@ -27,6 +33,9 @@ public:
 
     const ov::Strides& get_strides() const override;
 
+    void* data() override;
+    void* data(const element::Type& type) override;
+    const void* data() const override;
     const void* data(const element::Type& type) const override;
 
     MemoryPtr get_memory() {
@@ -46,5 +55,4 @@ private:
 
 std::shared_ptr<ITensor> make_tensor(MemoryPtr mem);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

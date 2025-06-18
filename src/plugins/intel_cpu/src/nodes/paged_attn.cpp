@@ -4,24 +4,31 @@
 
 #include "paged_attn.h"
 
-#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "common/arbitrary_order_desc_creator.h"
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "dnnl_extension_utils.h"
-#include "kernels/scaled_attn/attn_memcpy.hpp"
-#include "kernels/scaled_attn/attn_quant.hpp"
+#include "config.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/scaled_attn/executor_pa.hpp"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/dnnl.h"
-#include "openvino/core/parallel.hpp"
-#include "openvino/util/common_util.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::Extensions::Cpu;
 using namespace ov::Extensions::Cpu::XARCH;
@@ -67,7 +74,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getRuntimePrecision();
 
     NodeConfig config;
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto orgInputNumber = getOriginalInputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
@@ -81,8 +88,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 13 || orgInputNumber == 16,
-                    "The input number of PagedAttention should be 13 or 16.");
+    CPU_NODE_ASSERT(orgInputNumber == 14 || orgInputNumber == 17,
+                    "The input number of PagedAttention should be 14 or 17.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -130,7 +137,13 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[1].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getOutputShapeAtPort(1)));
 
-    if (orgInputNumber == 16) {
+    // score_aggregation_window, float, [batch_size_in_sequences || 0]
+    config.inConfs[PagedAttentionExecutor::ID_SCORE_AGGREGATION_WINDOW].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_SCORE_AGGREGATION_WINDOW)));
+
+    if (orgInputNumber == 17) {
         // rotated_block_indices, int, [num_rotated_blocks || 0]
         config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(
             creatorsMap.at(LayoutType::ncsp)
@@ -152,7 +165,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
 bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
                                       const ov::element::Type precision,
-                                      const bool isKey) noexcept {
+                                      const bool isKey) {
     // AUTO means select by primitive
     // for non-x86 platform, by-channel quantization is disabled
     // By default, by-channel should only be enabled when precision is integral
@@ -229,7 +242,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (m_hasScore) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
-        auto pastLens = inputs[5]->getDataAs<const int32_t>();
+        const auto* pastLens = inputs[5]->getDataAs<const int32_t>();
         for (size_t i = 0; i < pastLensDims[0]; i++) {
             len += pastLens[i];
         }
@@ -283,6 +296,14 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
 ov::element::Type PagedAttention::getRuntimePrecision() const {
     auto rtPrecision = getOriginalInputPrecisionAtPort(0);
+#if defined(OPENVINO_ARCH_ARM64)
+    if (rtPrecision == ov::element::f16) {
+        rtPrecision = ov::element::f16;
+    } else {
+        rtPrecision = ov::element::f32;
+    }
+    return rtPrecision;
+#endif
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;

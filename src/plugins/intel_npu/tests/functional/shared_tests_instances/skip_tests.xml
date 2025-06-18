@@ -198,7 +198,6 @@ Example:
         <message>Tests with unsupported precision</message>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=bf16.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=u1.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=i64.*</filter>
@@ -657,16 +656,40 @@ Example:
 
     <!-- EISW 112064 -->
     <skip_config>
-        <message>Failing core threading tests</message>
+        <message>Failing common core threading tests</message>
         <enable_rules>
             <backend>LEVEL0</backend>
         </enable_rules>
         <filters>
-            <filter>.*CoreThreadingTest.smoke_QueryModel.*</filter>
-            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel.*</filter>
+            <!-- INFERENCE_PRECISION_HINT = FP32 not supported on NPU -->
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_SingleCore.*</filter>
             <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_Accuracy_MultipleCores.*</filter>
-            <filter>.*CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 112064 -->
+    <skip_config>
+        <message>Failing Linux core threading tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel/.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_MultipleCores/.*</filter>
+            <filter>.*CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput/.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 112064 -->
+    <skip_config>
+        <message>Failing Windows PV Driver core threading tests</message>
+        <enable_rules>
+            <backend>LEVEL0</backend>
+            <operating_system>windows</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*CoreThreadingTest.smoke_QueryModel/.*_driverVersion=1688.*</filter>
         </filters>
     </skip_config>
 
@@ -878,6 +901,17 @@ Example:
             <filter>.*OVCompiledModelBaseTest.*compile_from_.*_blob.*</filter>
             <filter>.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*</filter>
             <filter>.*OVCompiledModelBaseTest.*use_blob_hint_.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- EISW 167305 -->
+    <skip_config>
+        <message>Failing test on Ubuntu after NPU driver update</message>
+        <enable_rules>
+            <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*TestCompiledModelNPU.samePlatformProduceTheSameBlobCacheEnabled.*</filter>
         </filters>
     </skip_config>
 </skip_configs>

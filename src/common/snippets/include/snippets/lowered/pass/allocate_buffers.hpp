@@ -14,16 +14,17 @@ namespace pass {
 /**
  * @interface AllocateBuffers
  * @brief The pass allocates common memory for all Buffers.
- *        There are two modes: default and optimized allocation. Default allocation (non-optimized) mode sets unique offsets and ID to Buffers.
- *        Optimized mode allocates memory for Buffer ops using the following optimizations:
+ *        There are two modes: default and optimized allocation. Default allocation (non-optimized) mode sets unique
+ *        offsets and ID to Buffers. Optimized mode allocates memory for Buffer ops using the following optimizations:
  *         - MemorySolver: helps to solve issue of optimal memory allocation;
  *         - InPlace: Loop or MemoryAccess ops read from the memory and store data to the same memory if possible
- *         - Reusing Buffer RegGroups: Buffers have the same RegGroup (gpr) in cases when Buffers aren't connected or have the same data ptr shifts
- *        Note: All buffers are related to each other and represent common buffer scratchpad of Subgraph.
- *              The buffer scratchpad has one general data pointer. Each buffer has offset relative to the data pointer of buffer scratchpad.
+ *         - Reusing Buffer RegGroups: Buffers have the same RegGroup (gpr) in cases when Buffers aren't connected or
+ *           have the same data ptr shifts Note: All buffers are related to each other and represent common buffer
+ *           scratchpad of Subgraph. The buffer scratchpad has one general data pointer. Each buffer has offset
+ *           relative to the data pointer of buffer scratchpad.
  * @ingroup snippets
  */
-class AllocateBuffers: public RangedPass {
+class AllocateBuffers : public RangedPass {
 public:
     OPENVINO_RTTI("AllocateBuffers", "", RangedPass)
     AllocateBuffers(bool is_optimized = true);
@@ -39,7 +40,7 @@ private:
     bool m_is_optimized_mode = true;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

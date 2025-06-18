@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -46,25 +45,29 @@ static bool is_affecting_op(const ExpressionPtr& expr) {
 size_t MarkInvariantShapePath::getInvariantPortShapePath(const ExpressionPort& port) {
     auto& rt = get_rt_info(port);
     const auto rinfo = rt.find("InvariantShapePath");
-    assert(rinfo != rt.end() && "Invariant path for this expression port has not been marked!");
+    OPENVINO_ASSERT(rinfo != rt.end(), "Invariant path for this expression port has not been marked!");
     return rinfo->second.as<size_t>();
 }
 
 void MarkInvariantShapePath::SetInvariantPortShapePath(const ExpressionPort& port, size_t value) {
-    OPENVINO_ASSERT(port.get_type() == ExpressionPort::Output, "SetInvariantPortShapePath can be used only for output port");
+    OPENVINO_ASSERT(port.get_type() == ExpressionPort::Output,
+                    "SetInvariantPortShapePath can be used only for output port");
     auto& rt = get_rt_info(port);
     rt["InvariantShapePath"] = value;
 }
 
 ov::RTMap& MarkInvariantShapePath::get_rt_info(const ExpressionPort& port) {
-    const auto& source_port = port.get_type() == ExpressionPort::Input ? port.get_port_connector_ptr()->get_source() : port;
+    const auto& source_port =
+        port.get_type() == ExpressionPort::Input ? port.get_port_connector_ptr()->get_source() : port;
     const auto& node = source_port.get_expr()->get_node();
     const auto port_idx = source_port.get_index();
     assert(port_idx < node->get_output_size() && "Node has incompatible port count with the expression");
     return node->output(port_idx).get_rt_info();
 }
 
-bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir,
+                                 lowered::LinearIR::constExprIt begin,
+                                 lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkInvariantShapePath");
 
     bool modified = false;
@@ -75,8 +78,10 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR
     size_t color_path = 0;
 
     auto merge_paths = [&color_path](size_t lhs, size_t rhs) {
-        if (lhs == rhs || rhs == NOT_AFFECTING_PATH) return lhs;
-        if (lhs == NOT_AFFECTING_PATH) return rhs;
+        if (lhs == rhs || rhs == NOT_AFFECTING_PATH)
+            return lhs;
+        if (lhs == NOT_AFFECTING_PATH)
+            return rhs;
         return ++color_path;
     };
 
@@ -104,8 +109,8 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR
                         current_color_path = merge_paths(current_color_path, input_path);
                     }
                 } else {
-                    current_color_path = expr->get_input_count() > 0 ? getInvariantPortShapePath(expr->get_input_port(0))
-                                                                     : ++color_path;
+                    current_color_path =
+                        expr->get_input_count() > 0 ? getInvariantPortShapePath(expr->get_input_port(0)) : ++color_path;
                 }
 
                 if (!utils::is_dynamic_vdims(out_shape))
@@ -120,7 +125,7 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& linear_ir, lowered::LinearIR
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -68,6 +68,12 @@ public:
     explicit DQMatMulCWi(Context::Ref ctx);
 };
 
+class DQMatMulCWi_Transpose : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulCWi_Transpose");
+    explicit DQMatMulCWi_Transpose(Context::Ref ctx);
+};
+
 class DQMatMulGQi : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulGQi");
@@ -118,6 +124,12 @@ class DQLiftGatherSymGQ : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherSymGQ");
     DQLiftGatherSymGQ();
+};
+
+class DQLiftGatherCW : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherCW");
+    DQLiftGatherCW();
 };
 
 // Head vocab unpacks
@@ -203,6 +215,9 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvToMatmul");
     ConvToMatmul(Context::Ref ctx);
 };
+
+// UntangleConst
+void untangleConst(std::shared_ptr<ov::Model> model);
 
 }  // namespace opt
 }  // namespace patterns
