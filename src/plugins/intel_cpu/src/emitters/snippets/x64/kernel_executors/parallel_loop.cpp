@@ -4,7 +4,12 @@
 
 #include "parallel_loop.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
 #include "common/utils.hpp"
+#include "emitters/utils.hpp"
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
@@ -48,13 +53,14 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor,
             mem_ptrs.push_back(reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(stack_ptr[i]) +
                                                             ptr_increments[i] * dtype_sizes[i] * start));
         }
-        void* updated_ptrs = mem_ptrs.data();
+        auto* updated_ptrs = reinterpret_cast<void*>(mem_ptrs.data());
         preamble_ptr(end - start, updated_ptrs);
     });
     // todo: we can precompute these ptr shifts when loop_info_t is created
-    for (int i = 0; i < num_ptrs; i++)
+    for (int i = 0; i < num_ptrs; i++) {
         stack_ptr[i] +=
             (loop_args.m_finalization_offsets[i] - ptr_increments[i] * loop_args.m_work_amount) * dtype_sizes[i];
+    }
 }
 
 }  // namespace ov::intel_cpu
