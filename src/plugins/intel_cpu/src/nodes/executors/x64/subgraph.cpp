@@ -25,7 +25,6 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
-#include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/executors/subgraph.hpp"
