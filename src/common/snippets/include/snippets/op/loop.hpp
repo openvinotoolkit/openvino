@@ -124,18 +124,18 @@ protected:
     bool m_evaluate_once = false;
 };
 
-class LoopBeginParallel : public LoopBegin {
+class ParallelLoopBegin : public LoopBegin {
 public:
-    OPENVINO_OP("LoopBeginParallel", "SnippetsOpset", LoopBegin);
-    LoopBeginParallel();
+    OPENVINO_OP("ParallelLoopBegin", "SnippetsOpset", LoopBegin);
+    ParallelLoopBegin();
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
-class LoopEndParallel : public LoopEnd {
+class ParallelLoopEnd : public LoopEnd {
 public:
-    OPENVINO_OP("LoopEndParallel", "SnippetsOpset", LoopEnd);
-    LoopEndParallel() = default;
-    LoopEndParallel(const Output<Node>& loop_begin,
+    OPENVINO_OP("ParallelLoopEnd", "SnippetsOpset", LoopEnd);
+    ParallelLoopEnd() = default;
+    ParallelLoopEnd(const Output<Node>& loop_begin,
                     size_t work_amount,
                     size_t work_amount_increment,
                     std::vector<bool> is_incremented,
