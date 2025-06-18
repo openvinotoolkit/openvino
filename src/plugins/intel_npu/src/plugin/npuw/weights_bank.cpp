@@ -37,15 +37,26 @@ private:
     std::mutex m_mutex;
 };
 
-ov::SoPtr<ov::IRemoteContext> RemoteContextManager::getContext(const std::shared_ptr<const ov::ICore>& core,
-                                                               const std::string& device) {
-    auto it_ctx = m_context_map.find(device);
-    if (it_ctx == m_context_map.end()) {
-        m_context_map[device] = core->get_default_context(device)._ptr;
-        it_ctx = m_context_map.find(device);
+class RemoteContextManager {
+public:
+    ov::SoPtr<ov::IRemoteContext> getContext(const std::shared_ptr<const ov::ICore>& core, const std::string& device) {
+        auto it_ctx = m_context_map.find(device);
+        if (it_ctx == m_context_map.end()) {
+            m_context_map[device] = core->get_default_context(device)._ptr;
+            it_ctx = m_context_map.find(device);
+        }
+        return it_ctx->second;
     }
-    return it_ctx->second;
-}
+
+private:
+    std::unordered_map<std::string, ov::SoPtr<ov::IRemoteContext>> m_context_map;
+};
+
+Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
+    : m_core(core),
+      m_alloc_device(alloc_device),
+      m_bank_name(bank_name),
+      m_rcm(std::make_shared<RemoteContextManager>()) {}
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
@@ -324,8 +335,8 @@ std::string Bank::get_name() const {
 
 ov::SoPtr<ov::IRemoteContext> Bank::get_context(const std::shared_ptr<const ov::ICore>& core,
                                                 const std::string& device) {
-    std::lock_guard<std::mutex> guard(m_mutex);
-    return m_rcm.getContext(core, device);
+    // Note: don't lock Bank's mutexes here as this function should be already called under a locked mutex
+    return m_rcm->getContext(core, device);
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
