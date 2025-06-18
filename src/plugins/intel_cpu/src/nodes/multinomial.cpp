@@ -33,6 +33,11 @@ Multinomial::Multinomial(const std::shared_ptr<ov::Node>& op, const GraphContext
     m_const_batch = op->get_input_partial_shape(PROBS_PORT)[0].is_static();
     m_const_inputs[PROBS_PORT] = is_type<op::v0::Constant>(op->get_input_node_ptr(PROBS_PORT));
     m_const_inputs[NUM_SAMPLES_PORT] = is_type<op::v0::Constant>(op->get_input_node_ptr(NUM_SAMPLES_PORT));
+
+    if (op->get_input_size() == 3) {
+        m_provided_random_samples = true;
+        m_const_inputs[RANDOM_SAMPLES_PORT] = is_type<op::v0::Constant>(op->get_input_node_ptr(RANDOM_SAMPLES_PORT));
+    }
 }
 
 bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -48,7 +53,10 @@ bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 }
 
 void Multinomial::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2) {
+    if (getParentEdges().size() != 2 && !m_provided_random_samples) {
+        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+    }
+    if (getParentEdges().size() != 3 && m_provided_random_samples) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges.");
     }
     if (getChildEdges().size() != 1) {
@@ -62,10 +70,19 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
         m_probs_precision = ov::element::f32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT]},
-                          {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]}},
-                         {{LayoutType::ncsp, m_output_precision}},
-                         ref_any);
+    if (!m_provided_random_samples) {
+        addSupportedPrimDesc({{LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT]},
+                              {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]}},
+                             {{LayoutType::ncsp, m_output_precision}},
+                             ref_any);
+    }
+    {
+        addSupportedPrimDesc({{LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT]},
+                              {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]},
+                              {LayoutType::ncsp, m_probs_precision, m_const_inputs[RANDOM_SAMPLES_PORT]}},
+                             {{LayoutType::ncsp, m_output_precision}},
+                             ref_any);
+    }
 }
 
 bool Multinomial::needShapeInfer() const {
@@ -112,6 +129,22 @@ void Multinomial::prepareParams() {
     m_input_elements_count = m_batches_count * m_probs_count;
     m_output_elements_count = m_batches_count * m_samples_count;
     m_batches_samples_probs_count = m_output_elements_count * m_probs_count;
+
+    if (m_provided_random_samples) {
+        const auto& random_samples_shape = getParentEdgeAt(RANDOM_SAMPLES_PORT)->getMemory().getStaticDims();
+
+        if (random_samples_shape.size() != 1) {
+            THROW_CPU_NODE_ERR("has incompatible 'random_samples' shape ",
+                               PartialShape(random_samples_shape),
+                               ". Only 1D tensors are allowed.");
+        }
+
+        if (random_samples_shape[0] != m_output_elements_count)
+            THROW_CPU_NODE_ERR(
+                "has incompatible 'random_samples' shape ",
+                PartialShape(random_samples_shape),
+                ". The total elements of this input should be equal to the total number of elements in the output.");
+    }
 }
 
 bool Multinomial::neverExecute() const {
@@ -180,19 +213,22 @@ void Multinomial::execute_convert_type() {
         });
     }
 
-    // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
-    std::mt19937 gen;
-    if (m_global_seed == 0 && m_op_seed == 0) {
-        gen.seed(std::time(NULL));
+    if (!m_provided_random_samples) {
+        std::mt19937 gen;
+        if (m_global_seed == 0 && m_op_seed == 0) {
+            gen.seed(std::time(NULL));
+        } else {
+            std::seed_seq seed{m_global_seed, m_op_seed};
+            gen.seed(seed);
+        }
+        const auto gen_max = static_cast<float>(gen.max());
+        std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
+            return static_cast<P>(static_cast<float>(gen()) / gen_max);
+        });
     } else {
-        std::seed_seq seed{m_global_seed, m_op_seed};
-        gen.seed(seed);
+        const auto* samples = getSrcDataAtPortAs<const P>(RANDOM_SAMPLES_PORT);
+        m_random_samples.assign(samples, samples + m_output_elements_count);
     }
-
-    const auto gen_max = static_cast<float>(gen.max());
-    std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
-        return static_cast<P>(static_cast<float>(gen()) / gen_max);
-    });
 
     // max & divide
     const auto min_value_of_max = std::numeric_limits<P>::min();
