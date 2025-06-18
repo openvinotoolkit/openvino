@@ -11,6 +11,7 @@
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+using ov::npuw::weights::RemoteContextManager;
 
 class BankManager {
 public:
@@ -36,40 +37,15 @@ private:
     std::mutex m_mutex;
 };
 
-class RemoteContextManager {
-public:
-    static RemoteContextManager& getInstance() {
-        static RemoteContextManager instance;
-        return instance;
+ov::SoPtr<ov::IRemoteContext> RemoteContextManager::getContext(const std::shared_ptr<const ov::ICore>& core,
+                                                               const std::string& device) {
+    auto it_ctx = m_context_map.find(device);
+    if (it_ctx == m_context_map.end()) {
+        m_context_map[device] = core->get_default_context(device)._ptr;
+        it_ctx = m_context_map.find(device);
     }
-
-private:
-    RemoteContextManager() {}
-    RemoteContextManager(RemoteContextManager const&) = delete;
-    void operator=(RemoteContextManager const&) = delete;
-
-public:
-    // Public API
-    ov::SoPtr<ov::IRemoteContext> getContext(const std::shared_ptr<const ov::ICore>& core, const std::string& device) {
-        std::lock_guard<std::mutex> guard(m_mutex);
-        auto it_ctx = m_context_map.find(device);
-        if (it_ctx == m_context_map.end()) {
-            m_context_map[device] = core->get_default_context(device)._ptr;
-            it_ctx = m_context_map.find(device);
-        }
-        return it_ctx->second;
-    }
-
-private:
-    // Data
-    std::unordered_map<std::string, ov::SoPtr<ov::IRemoteContext>> m_context_map;
-    std::mutex m_mutex;
-};
-
-Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
-    : m_core(core),
-      m_alloc_device(alloc_device),
-      m_bank_name(bank_name) {}
+    return it_ctx->second;
+}
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
@@ -109,6 +85,12 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     return iter_device->second.tensor;
 }
 
+struct AllocatedTensor {
+    bool needs_alloc = false;
+    LazyTensor::Meta meta;
+    ov::Tensor allocated_tensor;
+};
+
 void Bank::evaluate_and_allocate() {
     std::lock_guard<std::mutex> guard(m_mutex);
 
@@ -128,53 +110,61 @@ void Bank::evaluate_and_allocate() {
         }
         storage_guard.unlock();
 
-        std::map<int64_t, ov::Tensor> uids_to_allocated;
-        std::map<int64_t, LazyTensor::Meta> uids_to_meta;
+        std::vector<AllocatedTensor> uids_to_allocated(uid_count);
 
-        ov::parallel_for(vec.size(), [&](std::size_t idx) {
-            const auto& lt = vec[idx];
-            std::unique_lock dev_guard(device_bank.mutex);
-            auto iter_device_registered = device_bank.registered_tensors.find(lt);
-            NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
-                        "Tensor should be registered first!");
-            auto uid = iter_device_registered->second;
-            if (device_bank.storage[uid].tensor) {
-                // Already allocated
-                return;
-            }
-            dev_guard.unlock();
+        // No allocation needed
+        if (device_for_alloc == "CPU") {
+            ov::parallel_for(vec.size(), [&](std::size_t idx) {
+                const auto& lt = vec[idx];
+                std::unique_lock dev_guard(device_bank.mutex);
+                auto iter_device_registered = device_bank.registered_tensors.find(lt);
+                NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
+                            "Tensor should be registered first!");
+                auto uid = iter_device_registered->second;
+                if (device_bank.storage[uid].tensor) {
+                    // Already allocated
+                    return;
+                }
 
-            // Allocation and/or evaluation needed
-            const auto& transformed_tensor_meta = lt.eval_meta();
-
-            std::unique_lock<std::mutex> guard(device_bank.mutex);
-            uids_to_meta[uid] = transformed_tensor_meta;
-            if (device_for_alloc == "CPU") {
-                // No allocation needed
-                guard.unlock();
+                dev_guard.unlock();
                 auto transformed = lt.eval();
-                std::unique_lock guard(device_bank.mutex);
+
+                // Note: No need to relock here as the storage is already prepared for writing
                 device_bank.storage.at(uid).tensor = std::move(transformed);
                 const_cast<LazyTensor&>(lt).detach();
-                return;
-            }
+            });
+        } else {
+            // Allocation needed
+            std::unique_lock dev_guard(device_bank.mutex);
+            for (std::size_t idx = 0; idx < vec.size(); ++idx) {
+                const auto& lt = vec[idx];
+                auto iter_device_registered = device_bank.registered_tensors.find(lt);
+                NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
+                            "Tensor should be registered first!");
+                auto uid = iter_device_registered->second;
+                if (device_bank.storage[uid].tensor) {
+                    // Already allocated
+                    continue;
+                }
 
-            // Need to allocate
-            // Note: secured by the lock above
-            uids_to_allocated.insert({uid, ov::Tensor()});
-        });
+                uids_to_allocated[uid] = {true, lt.eval_meta(), ov::Tensor()};
+            }
+        }
 
         std::unique_lock guard(device_bank.mutex);
         // Allocate memory sequentially - in order of UID
-        for (const auto& elem : uids_to_allocated) {
-            auto uid = elem.first;
+        for (std::size_t i = 0; i < uids_to_allocated.size(); ++i) {
+            auto& allocated = uids_to_allocated[i];
+            if (!allocated.needs_alloc) {
+                continue;
+            }
+            auto uid = i;
 
             ov::SoPtr<ov::ITensor> remote_tensor;
-            ov::Tensor allocated_tensor;
 
-            remote_tensor = ov::npuw::weights::context(m_core, device_for_alloc)
-                                ->create_host_tensor(uids_to_meta[uid].type, uids_to_meta[uid].shape);
-            uids_to_allocated.at(uid) = ov::make_tensor(remote_tensor);
+            remote_tensor =
+                get_context(m_core, device_for_alloc)->create_host_tensor(allocated.meta.type, allocated.meta.shape);
+            uids_to_allocated.at(uid) = {true, allocated.meta, ov::make_tensor(remote_tensor)};
         }
         guard.unlock();
 
@@ -183,18 +173,18 @@ void Bank::evaluate_and_allocate() {
         // mutex only to update the device bank (& allocate on-device memory, if needed)
         ov::parallel_for(uids_to_allocated.size(), [&](std::size_t idx) {
             std::unique_lock dev_guard(device_bank.mutex);
-            auto it = uids_to_allocated.begin();
-            // FIXME: linear complexity
-            std::advance(it, idx);
-            auto uid = it->first;
-            auto allocated_tensor = it->second;
+            auto& allocated = uids_to_allocated[idx];
+            if (!allocated.needs_alloc) {
+                return;
+            }
+            auto uid = idx;
             dev_guard.unlock();
 
             auto transformed = device_bank.storage.at(uid).lt.eval();
-            transformed.copy_to(allocated_tensor);
+            transformed.copy_to(allocated.allocated_tensor);
 
-            std::unique_lock<std::mutex> guard(device_bank.mutex);
-            device_bank.storage.at(uid).tensor = std::move(allocated_tensor);
+            // Note: no need to relock the mutex here as there should be only 1 writer to that specific index
+            device_bank.storage.at(uid).tensor = std::move(allocated.allocated_tensor);
 
             // Detach the evaluated LazyTensor from its memory here - when it is 100%
             // not needed anymore (transformations, if any, and copies are done)
@@ -322,7 +312,7 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
     std::size_t byte_size = 0;
     read(stream, byte_size);
 
-    remote_tensor = ov::npuw::weights::context(m_core, device)->create_host_tensor(type, shape);
+    remote_tensor = get_context(m_core, device)->create_host_tensor(type, shape);
     allocated_tensor = ov::make_tensor(remote_tensor);
     device_bank.storage[uid] = {LazyTensor(), allocated_tensor};
     stream.read(reinterpret_cast<char*>(allocated_tensor.data()), byte_size);
@@ -330,6 +320,12 @@ void Bank::read_and_add_tensor(std::istream& stream, int64_t uid, const std::str
 
 std::string Bank::get_name() const {
     return m_bank_name;
+}
+
+ov::SoPtr<ov::IRemoteContext> Bank::get_context(const std::shared_ptr<const ov::ICore>& core,
+                                                const std::string& device) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    return m_rcm.getContext(core, device);
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
@@ -356,10 +352,4 @@ std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
 
     auto& instance = BankManager::getInstance();
     return instance.getBank(bank_name, core, alloc_device);
-}
-
-ov::SoPtr<ov::IRemoteContext> ov::npuw::weights::context(const std::shared_ptr<const ov::ICore>& core,
-                                                         const std::string& device) {
-    auto& instance = RemoteContextManager::getInstance();
-    return instance.getContext(core, device);
 }

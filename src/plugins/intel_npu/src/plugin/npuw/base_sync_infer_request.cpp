@@ -244,8 +244,8 @@ ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Typ
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
-    auto remote_tensor =
-        ov::npuw::weights::context(m_npuw_model->get_plugin()->get_core(), device)->create_host_tensor(type, shape);
+    auto remote_tensor = m_npuw_model->m_weights_bank->get_context(m_npuw_model->get_plugin()->get_core(), device)
+                             ->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
 }
 
