@@ -6,7 +6,6 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-// #include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 

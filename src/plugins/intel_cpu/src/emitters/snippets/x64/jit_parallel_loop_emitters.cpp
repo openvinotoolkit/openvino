@@ -9,6 +9,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <vector>
@@ -18,12 +19,13 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
-#include "emitters/snippets/x64/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/loop.hpp"
+#include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -86,8 +88,6 @@ void jit_parallel_loop_base_emitter::emit_pointer_increments(size_t scale) const
         }
     }
 }
-
-/* ================== jit_loop_begin_emitter ====================== */
 
 jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
@@ -193,10 +193,6 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
 
     h->L(*loop_begin_label);
 }
-
-/* ============================================================== */
-
-/* ================== jit_loop_end_emitter ====================== */
 
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                                              dnnl::impl::cpu::x64::cpu_isa_t isa,
