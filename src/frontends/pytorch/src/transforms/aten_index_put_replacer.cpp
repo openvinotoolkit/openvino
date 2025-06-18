@@ -129,7 +129,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         auto values_rank = values.get_partial_shape().rank();
         if (input_rank.is_static() && values_rank.is_static() && input_rank.get_length() > 1 &&
             input_rank.get_length() == values_rank.get_length() + 1 &&
-            dims_with_none_idx.size() == indices_list_len - 1 &&
+            static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len - 1 &&
             !(is_none_node(indices_inputs[indices_list_len - 1]))) {
             values = rg.make<v0::Unsqueeze>(values, const_0);
         }
