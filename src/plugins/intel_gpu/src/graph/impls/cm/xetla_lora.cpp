@@ -540,15 +540,11 @@ enum KernelsTypes {
     FUSED_LONG_R64,
     FUSED_LONG_R128,
     GEMM_A_SHORT_S1,
-    GEMM_A_SHORT_S2,
-    GEMM_A_SHORT_S4,
     GEMM_A_SHORT_S8,
     GEMM_A_LONG0_S1,
     GEMM_A_LONG0_S2,
-    GEMM_A_LONG1_S1,
     GEMM_B_SHORT,
     GEMM_B_LONG0,
-    GEMM_B_LONG1,
     GEMM_A_UNALIGNED,
     GEMM_B_UNALIGNED
 };
@@ -587,10 +583,6 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
         size_t iters = (hidden_in + 32 - 1) / 32;
         if (iters > 16) {
             stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S8);
-        } else if (iters > 8) {
-            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S4);
-        } else if (iters > 4) {
-            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S2);
         } else {
             stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S1);
         }
@@ -600,32 +592,15 @@ std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& inst
 
     if (tokens > 32 && is_gemmA_aligned && is_gemmB_aligned) {
         size_t gemmA_wg_n = 32;
-        size_t wgsA_n = (rank + gemmA_wg_n - 1) / gemmA_wg_n;
         size_t gemmA_wg_m = 128;
-        size_t wgsA_m = (tokens + gemmA_wg_m - 1) / gemmA_wg_m;
 
-        if (wgsA_n * wgsA_m > 2 * xecores) {
-            stages_order.emplace_back(KernelsTypes::GEMM_A_LONG1_S1);
+        size_t iters = (hidden_in + 32 - 1) / 32;
+        if (iters > 4 && gemmA_wg_m == 128) {
+            stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S2);
         } else {
-            size_t iters = (hidden_in + 32 - 1) / 32;
-            if (iters > 4 && gemmA_wg_m == 128) {
-                stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S2);
-            } else {
-                stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S1);
-            }
+            stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S1);
         }
-
-        size_t gemmB_wg_n = 128;
-        size_t wgsB_n = (hidden_out + gemmB_wg_n - 1) / gemmB_wg_n;
-        size_t gemmB_wg_m = 128;
-        size_t wgsB_m = (tokens + gemmB_wg_m - 1) / gemmB_wg_m;
-
-        if (wgsB_n * wgsB_m > 2 * xecores) {
-            stages_order.emplace_back(KernelsTypes::GEMM_B_LONG1);
-        } else {
-            stages_order.emplace_back(KernelsTypes::GEMM_B_LONG0);
-        }
-
+        stages_order.emplace_back(KernelsTypes::GEMM_B_LONG0);
         return stages_order;
     }
 
@@ -684,21 +659,16 @@ public:
         make_stage<XetlaLoRAFusedGenerator>(lora::Tiling{8 * 4, 128, 8, 128, 32, 1, 1}, lora::Tiling{8 * 4, 128, 8, 32, 32, 1, 1}, "long_128");
 
     Stage::Ptr lora_gemm_a_short_slicing1 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 1}, "a_short_s1");
-    Stage::Ptr lora_gemm_a_short_slicing2 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 2}, "a_short_s2");
-    Stage::Ptr lora_gemm_a_short_slicing4 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 4}, "a_short_s4");
     Stage::Ptr lora_gemm_a_short_slicing8 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{8, 32, 8, 16, 32, 1, 8}, "a_short_s8");
 
     Stage::Ptr lora_gemm_a_long0_slicing1 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{128, 32, 32, 16, 32, 1, 1}, "a_long0_s1");
     Stage::Ptr lora_gemm_a_long0_slicing2 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{128, 32, 32, 16, 32, 1, 2}, "a_long0_s2");
 
-    Stage::Ptr lora_gemm_a_long1_slicing1 = make_stage<XetlaLoRAGEMMAGenerator>(true, lora::Tiling{256, 32, 32, 16, 32, 1, 1}, "a_long1_s1");
-
     Stage::Ptr lora_gemm_b_short = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{8, 128, 8, 16, 32, 1, 1}, "b_short");
-    Stage::Ptr lora_gemm_b_long0 = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{128, 128, 32, 16, 32, 1, 1}, "b_long0");
-    Stage::Ptr lora_gemm_b_long1 = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{256, 128, 32, 32, 32, 1, 1}, "b_long1");
+    Stage::Ptr lora_gemm_b_long0 = make_stage<XetlaLoRAGEMMBGenerator>(true, lora::Tiling{128, 256, 32, 32, 32, 1, 1}, "b_long0");
 
-    Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false, lora::Tiling{8, 32, 8, 16, 32, 1, 1}, "a_unaligned");
-    Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false, lora::Tiling{8, 128, 8, 16, 32, 1, 1}, "b_unaligned");
+    Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false, lora::Tiling{8 * 8, 16 * 4, 8, 16, 32, 1, 1}, "a_unaligned");
+    Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false, lora::Tiling{8 * 4, 16 * 8, 8, 16, 32, 1, 1}, "b_unaligned");
 
     LoRAImpl() : PrimitiveImplOCL(LoRAImplementationManager::get_type_info_static()) {}
     LoRAImpl(const program_node& node, const RuntimeParams& params) : LoRAImpl() {
@@ -709,15 +679,11 @@ public:
         add_stage(lora_fused_long_r64, params);
         add_stage(lora_fused_long_r128, params);
         add_stage(lora_gemm_a_short_slicing1, params);
-        add_stage(lora_gemm_a_short_slicing2, params);
-        add_stage(lora_gemm_a_short_slicing4, params);
         add_stage(lora_gemm_a_short_slicing8, params);
         add_stage(lora_gemm_a_long0_slicing1, params);
         add_stage(lora_gemm_a_long0_slicing2, params);
-        add_stage(lora_gemm_a_long1_slicing1, params);
         add_stage(lora_gemm_b_short, params);
         add_stage(lora_gemm_b_long0, params);
-        add_stage(lora_gemm_b_long1, params);
         add_stage(lora_gemm_a_unaligned, params);
         add_stage(lora_gemm_b_unaligned, params);
     }
