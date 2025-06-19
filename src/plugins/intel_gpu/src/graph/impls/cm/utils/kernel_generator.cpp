@@ -82,4 +82,20 @@ Arguments KernelGenerator::get_arguments_desc(const RuntimeParams& params) const
     return args;
 }
 
+void KernelGenerator::add_fused_ops_arguments(Arguments& args, const RuntimeParams& params) {
+    if (params.has_fused_primitives()) {
+        size_t num_fused_deps = 0;
+        for (const auto& fd : params.fused_desc) {
+            for (const auto& in_d : fd.inputs) {
+                if (in_d.m_type == cldnn::FusedInputType::EXTERNAL) {
+                    num_fused_deps++;
+                }
+            }
+        }
+        for (size_t i = 0; i < num_fused_deps; i++) {
+            args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, static_cast<uint32_t>(i)});
+        }
+    }
+}
+
 }  // namespace ov::intel_gpu::cm

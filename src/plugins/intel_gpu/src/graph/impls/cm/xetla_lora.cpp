@@ -299,20 +299,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});  // temp
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});            // main_input
 
-        if (params.has_fused_primitives()) {
-            size_t num_fused_deps = 0;
-            for (const auto& fd : params.fused_desc) {
-                for (const auto& in_d : fd.inputs) {
-                    if (in_d.m_type == cldnn::FusedInputType::EXTERNAL) {
-                        num_fused_deps++;
-                    }
-                }
-            }
-            for (size_t i = 0; i < num_fused_deps; i++) {
-                args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, static_cast<uint32_t>(i)});
-            }
-        }
-
+        KernelGenerator::add_fused_ops_arguments(args, params);
         return args;
     }
 
@@ -498,19 +485,7 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});  // cnt
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});            // main_input
 
-        if (params.has_fused_primitives()) {
-            size_t num_fused_deps = 0;
-            for (const auto& fd : params.fused_desc) {
-                for (const auto& in_d : fd.inputs) {
-                    if (in_d.m_type == cldnn::FusedInputType::EXTERNAL) {
-                        num_fused_deps++;
-                    }
-                }
-            }
-            for (size_t i = 0; i < num_fused_deps; i++) {
-                args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, static_cast<uint32_t>(i)});
-            }
-        }
+        KernelGenerator::add_fused_ops_arguments(args, params);
 
         return args;
     }
@@ -650,7 +625,7 @@ private:
         const bool is_aligned_temp = lora::is_2dload_aligned(ld_state_temp, instance.get_input_layout(1).data_type);
         const bool is_aligned_output = lora::is_2dload_aligned(ld_state_output, instance.get_output_layout(0).data_type);
 
-        const bool can_use_fused_reg = rank <= 128 && is_aligned_input && is_aligned_state_a && is_aligned_state_b && is_aligned_output;
+        const bool can_use_fused_reg = false;  // rank <= 128 && is_aligned_input && is_aligned_state_a && is_aligned_state_b && is_aligned_output;
         const bool is_gemmA_aligned = is_aligned_input && is_aligned_state_a && is_aligned_temp;
         const bool is_gemmB_aligned = is_aligned_temp && is_aligned_state_b && is_aligned_output;
 

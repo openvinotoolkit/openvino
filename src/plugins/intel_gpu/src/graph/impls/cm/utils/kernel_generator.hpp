@@ -43,6 +43,8 @@ protected:
 
     [[nodiscard]] static std::string build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point);
 
+    static void add_fused_ops_arguments(Arguments& args, const RuntimeParams& params);
+
 private:
     std::string m_kernel_name;
     std::string m_stage_suffix;
