@@ -222,14 +222,16 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
-static std::string get_jit_constant(const custom_gpu_primitive_node& outer, const kernel_impl_params& impl_param) {
+static std::string get_jit_constant(const custom_gpu_primitive_node& outer,
+                                    const kernel_impl_params& impl_param,
+                                    const std::vector<size_t>& gws,
+                                    const std::vector<size_t>& lws) {
     kernel_selector::jit_constants mem_consts{
         kernel_selector::MakeJitConstant("NUM_INPUTS", std::to_string(outer.get_dependencies().size()))};
-    const auto primitive = outer.get_primitive().get();
 
     mem_consts.AddConstants({
-        kernel_selector::MakeJitConstant("GLOBAL_WORKSIZE", impl_param.custom_op_dynamic_gws.size() > 0 ? impl_param.custom_op_dynamic_gws : primitive->gws),
-        kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", impl_param.custom_op_dynamic_lws.size() > 0 ? impl_param.custom_op_dynamic_lws : primitive->lws),
+        kernel_selector::MakeJitConstant("GLOBAL_WORKSIZE", gws),
+        kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", lws),
     });
 
     for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
@@ -250,17 +252,29 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer, cons
 static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
     const auto primitive = arg.get_primitive().get();
 
+    const auto& orig_output_layout = impl_param.get_output_layout();
+    OPENVINO_ASSERT(orig_output_layout.is_static(), "out layouts should be static for create primitive_impl!");
+
+    std::vector<unsigned long> gws, lws;
+    custom_gpu_primitive::update_work_group_size(orig_output_layout.get_partial_shape(),
+                                                 primitive->calcWgDimInputIdx,
+                                                 orig_output_layout.get_partial_shape(),
+                                                 primitive->globalSizeRules,
+                                                 primitive->localSizeRules,
+                                                 gws,
+                                                 lws);
+
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
     cl_kernel->code.kernelString->options = primitive->build_options;
-    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param);
+    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param, gws, lws);
     for (const auto& s : primitive->kernels_code) {
         cl_kernel->code.kernelString->str += s + "\n";
     }
 
-    cl_kernel->params.workGroups.global = impl_param.custom_op_dynamic_gws.size() > 0 ? impl_param.custom_op_dynamic_gws : primitive->gws;
-    cl_kernel->params.workGroups.local = primitive->lws;
+    cl_kernel->params.workGroups.global = gws;
+    cl_kernel->params.workGroups.local = lws;
 
     for (const auto& p : primitive->kernel_arguments) {
         cl_kernel->params.arguments.push_back(get_arg(p));

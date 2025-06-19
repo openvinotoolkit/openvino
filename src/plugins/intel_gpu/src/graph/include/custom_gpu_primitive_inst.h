@@ -53,8 +53,6 @@ public:
 
     static std::string to_string(custom_gpu_primitive_node const& node);
 
-    static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param);
-
 public:
     typed_primitive_inst(network& network, custom_gpu_primitive_node const& node);
 

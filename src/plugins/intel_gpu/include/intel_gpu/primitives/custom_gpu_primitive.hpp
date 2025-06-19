@@ -49,7 +49,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     };
 
     static void update_work_group_size(const ov::PartialShape& dims,
-                                       int iidx,
+                                       int calcWgDimInputIdx,
                                        const ov::PartialShape& inputDims,
                                        const std::vector<std::string>& globalSizeRules,
                                        const std::vector<std::string>& localSizeRules,
@@ -61,8 +61,8 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         lws.clear();
 
         int batchDim = 0, featureDim = 0, yDim = 0, xDim = 0;
-        // if input index is greater than -1, take dimension from input
-        if (iidx >= 0) {
+        // if calcWgDimInputIdx is greater than -1, take dimension from input
+        if (calcWgDimInputIdx >= 0) {
             xDim = static_cast<int>(GetDim(inputDims[inputDims.size() - 1]));
             yDim = dims.size() > 1 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 2])) : 0;
             featureDim = dims.size() > 2 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 3])) : 0;
@@ -113,7 +113,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                          const std::vector<size_t>& gws = {},
                          const std::vector<size_t>& lws = {},
                          const std::shared_ptr<ov::Node>& op = nullptr,
-                         const int iidx = -1,
+                         const int calcWgDimInputIdx = -1,
                          const std::vector<std::string> globalSizeRules = {},
                          const std::vector<std::string> localSizeRules = {})
         : primitive_base(id, inputs, 1, {optional_data_type()}, {output_layout.data_padding}),
@@ -125,7 +125,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
           lws(lws),
           kernels_code(kernels_code),
           op(op),
-          iidx(iidx),
+          calcWgDimInputIdx(calcWgDimInputIdx),
           globalSizeRules(globalSizeRules),
           localSizeRules(localSizeRules) {}
 
@@ -145,8 +145,8 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     const primitive_id_arr kernels_code;
     /// @brief Original IR op
     const std::shared_ptr<ov::Node> op;
-    /// @brief -1: mean calc gws via output, else calc gws via inputs(iidx)
-    const int iidx = -1;
+    /// @brief -1: mean calc gws via output, else calc gws via inputs
+    const int calcWgDimInputIdx = -1;
     /// @brief Custom provided rules for calc work sizes.
     const std::vector<std::string> globalSizeRules;
     const std::vector<std::string> localSizeRules;
