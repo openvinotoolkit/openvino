@@ -252,7 +252,6 @@ void prepare_padding::run(program& p) {
 
         // WA to add reorder between MVN and Convolution or between col2im and Convolution
         // because Conv need input_node data with padding but MVN opt with default format and col2im do not support padding.
-        // TODO: MVN opt kernel should support padding.
         if (node.get_preferred_impl_type() == impl_types::ocl && format::is_default_format(conv_input_node.get_output_layout().format)) {
             if (conv_input_node.is_type<mvn>() || conv_input_node.is_type<col2im>()) {
                 auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + conv_input_node.id(),
