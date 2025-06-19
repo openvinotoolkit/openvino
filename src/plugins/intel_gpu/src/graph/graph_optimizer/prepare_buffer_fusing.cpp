@@ -874,6 +874,10 @@ void prepare_buffer_fusing::run(program& p) {
                     }
                 }
             }
+            // For better performance, disable buffer fusing with data padding which causes selecting gemm_ref kernel instead of gemm_tiled_opt
+            if (node.get_users().front()->is_type<gemm>() && crop_layout.data_padding)
+                return;
+
             node.set_output_layout(crop_layout);
             node.can_be_optimized(true);
             propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
