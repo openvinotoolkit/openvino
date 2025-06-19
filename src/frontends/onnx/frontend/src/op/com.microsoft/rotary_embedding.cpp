@@ -40,7 +40,7 @@ namespace onnx {
 namespace com_microsoft {
 namespace opset_1 {
 
-ov::OutputVector make_split(const ov::Output<ov::Node> &value, int64_t num_splits, int64_t axis) {
+ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
     using namespace ov::op;
     const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {axis});
     const auto split = std::make_shared<v1::Split>(value, axis_node, num_splits);
@@ -48,26 +48,26 @@ ov::OutputVector make_split(const ov::Output<ov::Node> &value, int64_t num_split
     return split->outputs();
 }
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf> &shape, const std::vector<int> &dims) {
+std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<v3::ShapeOf>& shape, const std::vector<int>& dims) {
     static const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
-ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node &node) {
+ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 4);
     // Original documentation:
     // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.RotaryEmbedding
     const auto inputs = node.get_ov_inputs();
-    const auto& input = inputs[0];        // [bs,seqlen,hidden] or [bs,num_heads,seqlen,headsize]
-    const auto& position_ids = inputs[1]; // [seqlen] or [bs, seqlen]
-    const auto& cos_cache = inputs[2];    // [max_seqlen, head_size/2]
-    const auto& sin_cache = inputs[3];    // [max_seqlen, head_size/2]
+    const auto& input = inputs[0];         // [bs,seqlen,hidden] or [bs,num_heads,seqlen,headsize]
+    const auto& position_ids = inputs[1];  // [seqlen] or [bs, seqlen]
+    const auto& cos_cache = inputs[2];     // [max_seqlen, head_size/2]
+    const auto& sin_cache = inputs[3];     // [max_seqlen, head_size/2]
 
-    const auto interleaved = node.get_attribute_value<int64_t>("interleaved"); // required
+    const auto interleaved = node.get_attribute_value<int64_t>("interleaved");  // required
     const auto is_packed_batching = node.get_attribute_value<int64_t>("is_packed_batching", 0);
     const auto num_heads = node.get_attribute_value<int64_t>("num_heads", 0);
-    const auto rotary_embedding_dim = node.get_attribute_value<int64_t>("rotary_embedding_dim", 0); // required
+    const auto rotary_embedding_dim = node.get_attribute_value<int64_t>("rotary_embedding_dim", 0);  // required
     const auto scale = node.get_attribute_value<float>("scale", 0);
 
     const auto minus_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
@@ -75,10 +75,12 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node &node) {
     const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
     const auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
-    const auto cos = std::make_shared<v8::Gather>(cos_cache, position_ids,
-                                                  zero); // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
-    const auto sin = std::make_shared<v8::Gather>(sin_cache, position_ids,
-                                                  zero); // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
+    const auto cos = std::make_shared<v8::Gather>(cos_cache,
+                                                  position_ids,
+                                                  zero);  // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
+    const auto sin = std::make_shared<v8::Gather>(sin_cache,
+                                                  position_ids,
+                                                  zero);  // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
 
     const auto input_shape = std::make_shared<v3::ShapeOf>(input);
     const bool input_is_3d = input.get_partial_shape().rank().get_length() == 3;
@@ -89,8 +91,9 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node &node) {
         const auto headsize = v0::Constant::create(ov::element::i64, ov::Shape{1}, {cos_cache.get_shape()[-1] * 2});
         const auto input_shape_prev_2 = get_dimensions(input_shape, {0, 1});
         auto new_input_shape = std::make_shared<v0::Concat>(ov::NodeVector{input_shape_prev_2, minus_one, headsize}, 0);
-        auto input_reshaped = std::make_shared<v1::Reshape>(input, new_input_shape, false); // [bs,seqlen,num_heads,headsize]
-        input_4d = std::make_shared<v1::Transpose>(input_reshaped, perm);                   // [bs,num_heads,seqlen,headsize]
+        auto input_reshaped =
+            std::make_shared<v1::Reshape>(input, new_input_shape, false);  // [bs,seqlen,num_heads,headsize]
+        input_4d = std::make_shared<v1::Transpose>(input_reshaped, perm);  // [bs,num_heads,seqlen,headsize]
     }
 
     ov::Output<ov::Node> output;
@@ -117,20 +120,20 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node &node) {
 
         auto concat_ret = std::make_shared<v0::Concat>(ov::NodeVector{res_0_5d, res_1_5d}, -1);
         output = std::make_shared<v1::Reshape>(concat_ret, input_4d_shape,
-                                               false); // [bs,num_heads,seqlen,headsize]
+                                               false);  // [bs,num_heads,seqlen,headsize]
     } else {
-        auto in_split = make_split(input_4d, 2, -1); // [bs,num_heads,seqlen,headsize/2]
+        auto in_split = make_split(input_4d, 2, -1);  // [bs,num_heads,seqlen,headsize/2]
         auto res_0 = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(in_split[0], cos),
                                                     std::make_shared<v1::Multiply>(in_split[1], sin));
         auto res_1 = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(in_split[0], sin),
                                                std::make_shared<v1::Multiply>(in_split[1], cos));
-        output = std::make_shared<v0::Concat>(ov::NodeVector{res_0, res_1}, -1); // [bs,num_heads,seqlen,headsize]
+        output = std::make_shared<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);  // [bs,num_heads,seqlen,headsize]
     }
 
     if (input_is_3d) {
-        output = std::make_shared<v1::Transpose>(output, perm); // [bs,seqlen,num_heads,headsize]
+        output = std::make_shared<v1::Transpose>(output, perm);  // [bs,seqlen,num_heads,headsize]
         output = std::make_shared<v1::Reshape>(output, input_shape,
-                                               false); // [bs,seqlen,hidden]
+                                               false);  // [bs,seqlen,hidden]
     }
 
     return {output};
@@ -138,8 +141,8 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node &node) {
 
 ONNX_OP("RotaryEmbedding", OPSET_SINCE(1), com_microsoft::opset_1::rotary_embedding, MICROSOFT_DOMAIN);
 
-} // namespace opset_1
-} // namespace com_microsoft
-} // namespace onnx
-} // namespace frontend
-} // namespace ov
+}  // namespace opset_1
+}  // namespace com_microsoft
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
