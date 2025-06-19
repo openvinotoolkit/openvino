@@ -12,14 +12,9 @@
 
 #include "openvino/util/file_util.hpp"
 
-void ov::util::default_logger_handler_func(const std::string& s) {
-    std::cout << s << std::endl;
-}
+namespace ov::util {
 
-ov::util::LogHelper::LogHelper(LOG_TYPE type,
-                               const char* file,
-                               int line,
-                               std::function<void(const std::string&)> handler_func)
+LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, logger_handler_t handler_func)
     : m_handler_func(std::move(handler_func)) {
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:
@@ -57,11 +52,16 @@ ov::util::LogHelper::LogHelper(LOG_TYPE type,
     }
 }
 
-ov::util::LogHelper::~LogHelper() {
+LogHelper::~LogHelper() {
 #ifdef ENABLE_OPENVINO_DEBUG
     if (m_handler_func) {
         m_handler_func(m_stream.str());
     }
-    // Logger::log_item(m_stream.str());
 #endif
 }
+
+#ifdef ENABLE_OPENVINO_DEBUG
+void default_logger_handler_func(const std::string& s);
+logger_handler_t logger_handler{default_logger_handler_func};
+#endif
+}  // namespace ov::util
