@@ -58,9 +58,9 @@ struct gemm_universal {
     using gemm = gemm_t<compute_policy, tile_shape, mem_desc_a, mem_desc_b,
             pre_processing>;
 
-    LORA_POST_OP_DEFINITIONS
+    XETLA_POST_OP_DEFINITIONS
 
-    using tile_op_t = subgroup::chained_tile_op_t<LORA_POST_OP_LIST>;
+    using tile_op_t = subgroup::chained_tile_op_t<XETLA_POST_OP_LIST>;
     using epilogue = epilogue_t<
             epilogue_policy_tile_op<tile_op_t, arch_tag,
                     unaligned ? msg_type::unaligned_2d : msg_type::block_2d>,
@@ -81,12 +81,12 @@ struct gemm_universal {
     inline static void run(sycl::nd_item<3> &item, dtype_a *a, dtype_b *b,
             typename epilogue::mem_desc_c_t::base_t c, dtype_acc *acc,
             uint32_t *cnt, uint32_t mat_m, uint32_t mat_n, uint32_t mat_k,
-            uint32_t lda, uint32_t ldb, uint32_t ldc LORA_POST_OP_ARGS) {
+            uint32_t lda, uint32_t ldb, uint32_t ldc XETLA_POST_OP_ARGS) {
         gemm_op_t gemm_op;
 
-        LORA_POST_OP_SHAPE_DEFINITIONS
+        XETLA_POST_OP_SHAPE_DEFINITIONS
         epilogue_args_t epilogue_args;
-        epilogue_args.init({LORA_POST_OP_EPILOGUE_INIT_ARGS});
+        epilogue_args.init({XETLA_POST_OP_EPILOGUE_INIT_ARGS});
 
         typename gemm_op_t::arguments_t arg(mat_m, mat_k, mat_n, a, lda, b, ldb,
                 c.base, ldc, acc, cnt, epilogue_args);

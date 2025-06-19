@@ -68,7 +68,7 @@ struct lora_gemm_fused {
     inline static void run(sycl::nd_item<3> &item, uint32_t m, uint32_t k,
             uint32_t n, uint32_t lora_rank, dtype_a *lora_input,
             dtype_b *state_a, dtype_b *state_alpha, dtype_b *state_b,
-            dtype_c *out, dtype_a *lora_temp LORA_POST_OP_ARGS) {
+            dtype_c *out, dtype_a *lora_temp XETLA_POST_OP_ARGS) {
 
         typename gemm_lora_a_t::matAcc_t matAcc;
         gemm_lora_a_t::run(item, m, k, lora_rank, lora_input, state_a,
@@ -93,7 +93,7 @@ struct lora_gemm_fused {
                     ,
                     matTemp
 #endif
-                            LORA_POST_OP_ARGS_PASS);
+                            XETLA_POST_OP_ARGS_PASS);
         }
     }
 };

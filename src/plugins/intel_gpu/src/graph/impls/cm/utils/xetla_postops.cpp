@@ -56,13 +56,13 @@ std::vector<std::tuple<std::string, std::string>> XeTLAPostOPs::get_definitions(
         }
     }
     std::vector<std::tuple<std::string, std::string>> definitions;
-    definitions.push_back({"LORA_POST_OP_KERNEL_ARGS", post_op_kernel_args});
-    definitions.push_back({"LORA_POST_OP_ARGS", post_op_args});
-    definitions.push_back({"LORA_POST_OP_ARGS_PASS", post_op_args_pass});
-    definitions.push_back({"LORA_POST_OP_DEFINITIONS", post_op_definitions});
-    definitions.push_back({"LORA_POST_OP_LIST", post_op_list});
-    definitions.push_back({"LORA_POST_OP_SHAPE_DEFINITIONS", post_op_shape_definitions});
-    definitions.push_back({"LORA_POST_OP_EPILOGUE_INIT_ARGS", post_op_epilogue_init_args});
+    definitions.push_back({"XETLA_POST_OP_KERNEL_ARGS", post_op_kernel_args});
+    definitions.push_back({"XETLA_POST_OP_ARGS", post_op_args});
+    definitions.push_back({"XETLA_POST_OP_ARGS_PASS", post_op_args_pass});
+    definitions.push_back({"XETLA_POST_OP_DEFINITIONS", post_op_definitions});
+    definitions.push_back({"XETLA_POST_OP_LIST", post_op_list});
+    definitions.push_back({"XETLA_POST_OP_SHAPE_DEFINITIONS", post_op_shape_definitions});
+    definitions.push_back({"XETLA_POST_OP_EPILOGUE_INIT_ARGS", post_op_epilogue_init_args});
 
     return definitions;
 }

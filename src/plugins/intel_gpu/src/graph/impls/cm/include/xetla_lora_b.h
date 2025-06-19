@@ -647,9 +647,9 @@ struct gemm_lora_b {
             pre_processing>;
 #endif
 
-    LORA_POST_OP_DEFINITIONS
+    XETLA_POST_OP_DEFINITIONS
 
-    using tile_op_t = subgroup::chained_tile_op_t<LORA_POST_OP_LIST>;
+    using tile_op_t = subgroup::chained_tile_op_t<XETLA_POST_OP_LIST>;
     using epilogue = epilogue_t<
             epilogue_policy_tile_op<tile_op_t, arch_tag,
                     unaligned ? msg_type::unaligned_2d : msg_type::block_2d>,
@@ -678,7 +678,7 @@ struct gemm_lora_b {
             ,
             matA_in_t &matA
 #endif
-                    LORA_POST_OP_ARGS) {
+                    XETLA_POST_OP_ARGS) {
 
         gemm_op_t gemm_op;
 
@@ -686,9 +686,9 @@ struct gemm_lora_b {
         uint32_t ldb = layout_b == mem_layout::col_major ? mat_k : mat_n;
         uint32_t ldc = layout_c == mem_layout::col_major ? mat_m : mat_n;
 
-        LORA_POST_OP_SHAPE_DEFINITIONS
+        XETLA_POST_OP_SHAPE_DEFINITIONS
         epilogue_args_t epilogue_args;
-        epilogue_args.init({LORA_POST_OP_EPILOGUE_INIT_ARGS});
+        epilogue_args.init({XETLA_POST_OP_EPILOGUE_INIT_ARGS});
 
         typename gemm_op_t::arguments_t arg(mat_m, mat_k, mat_n, a, lda, b, ldb,
                 c, ldc,

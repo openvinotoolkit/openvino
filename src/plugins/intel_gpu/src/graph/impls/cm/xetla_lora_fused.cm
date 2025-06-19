@@ -30,7 +30,7 @@ _GENX_MAIN_ void KERNEL_NAME(
         LORA_DTYPE_B *state_alpha [[type("svmptr_t")]],
         LORA_DTYPE_B *state_b [[type("svmptr_t")]],
         LORA_DTYPE_C *out [[type("svmptr_t")]],
-        LORA_DTYPE_A *lora_temp [[type("svmptr_t")]] LORA_POST_OP_KERNEL_ARGS) {
+        LORA_DTYPE_A *lora_temp [[type("svmptr_t")]] XETLA_POST_OP_KERNEL_ARGS) {
 
     sycl::nd_item<3> item;
 
@@ -63,6 +63,6 @@ _GENX_MAIN_ void KERNEL_NAME(
 
     gemm_t::run(item, LORA_SIZE_M, LORA_SIZE_K, LORA_SIZE_N, LORA_SIZE_RANK,
             lora_input, state_a, state_alpha, state_b, out,
-            lora_temp LORA_POST_OP_ARGS_PASS);
+            lora_temp XETLA_POST_OP_ARGS_PASS);
 }
 }

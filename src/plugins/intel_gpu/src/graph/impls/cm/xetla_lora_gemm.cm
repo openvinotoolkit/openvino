@@ -29,7 +29,7 @@ _GENX_MAIN_ void KERNEL_NAME(
         LORA_DTYPE_C *out [[type("svmptr_t")]],
         LORA_DTYPE_ACC *acc [[type("svmptr_t")]],
         uint32_t *cnt [[type("svmptr_t")]]
-        LORA_POST_OP_KERNEL_ARGS) {
+        XETLA_POST_OP_KERNEL_ARGS) {
 
     sycl::nd_item<3> item;
 
@@ -64,6 +64,6 @@ _GENX_MAIN_ void KERNEL_NAME(
     if constexpr (gemm_t::slm_size != 0) { cm_slm_init(gemm_t::slm_size); }
 
     gemm_t::run(item, mat_a, mat_b, out, acc, cnt, m, n, k, lda, ldb,
-            ldc LORA_POST_OP_ARGS_PASS);
+            ldc XETLA_POST_OP_ARGS_PASS);
 }
 }
