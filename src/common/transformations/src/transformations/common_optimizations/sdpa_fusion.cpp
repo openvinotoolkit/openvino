@@ -50,6 +50,26 @@ std::vector<size_t> get_order(const ov::pass::pattern::PatternSymbolValue& any_l
     return order;
 }
 
+ov::pass::pattern::op::Predicate check_layout(const std::string& layout) {
+    return ov::pass::pattern::op::Predicate(
+        [=](ov::pass::pattern::PatternSymbolMap& sm, const ov::Output<ov::Node>& output) -> bool {
+            if (!sm.count("D") || !sm.count("S_kv") || !sm.count("Batches") || !sm.count("AnyLayout")) {
+                return false;
+            }
+
+            // checks that AnyLayout contains everything from Batches, S_kv and D and returns order
+            auto symbols_to_find = sm.at("Batches").g();
+            auto d_sym = sm.at("D");
+            auto s_kv_sym = sm.at("S_kv");
+            symbols_to_find.push_back(s_kv_sym);
+            symbols_to_find.push_back(d_sym);
+
+            auto any_layout_sym = sm.at("AnyLayout");
+            auto order = get_order(any_layout_sym, symbols_to_find);
+
+            return !order.empty();
+        });
+};
 }  // namespace
 
 namespace ov {
@@ -58,7 +78,6 @@ namespace pass {
 bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAFusion);
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
-
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcher>();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAReshapeFusion>();
@@ -73,7 +92,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
 
     auto q = any_input(shape_matches("Batches..., S_q, D"));
     auto k = any_input(shape_matches("AnyLayout..."));
-    auto v = any_input(shape_matches("Batches..., S_kv, D"));
+    auto v = any_input(shape_matches("Batches..., S_kv, D") && check_layout("AnyLayout"));
 
     // these Reshape/Unsqueeze may already exist in the graph
     auto unsq_q = wrap_type<v1::Reshape, v0::Unsqueeze>({q, any_input()});
@@ -81,12 +100,14 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto unsq_v = wrap_type<v1::Reshape, v0::Unsqueeze>({v, any_input()});
 
     // this Transpose may already exist in the graph
+    auto opt_original_transpose_q = optional<v1::Transpose>({unsq_q, any_input()});
     auto opt_original_transpose_k = optional<v1::Transpose>({unsq_k, any_input()});
+    auto opt_original_transpose_v = optional<v1::Transpose>({unsq_v, any_input()});
 
     // these Reshape/Unsqueeze may be inserted by SDPAFusionMatcher
-    auto opt_unsq_q = optional<v1::Reshape, v0::Unsqueeze>({unsq_q, any_input()});
+    auto opt_unsq_q = optional<v1::Reshape, v0::Unsqueeze>({opt_original_transpose_q, any_input()});
     auto opt_unsq_k = optional<v1::Reshape, v0::Unsqueeze>({opt_original_transpose_k, any_input()});
-    auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({unsq_v, any_input()});
+    auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({opt_original_transpose_v, any_input()});
 
     // this Transpose may be inserted by SDPAFusionMatcher
     auto opt_transpose_k = optional<v1::Transpose>({opt_unsq_k, any_input()}, shape_matches("..., S_kv, D"));
@@ -99,7 +120,10 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         any_input(),
     });
 
-    auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>({sdpa, any_input()}, shape_matches("Batches..., S_q, D"));
+    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa->output(0), any_input()});
+    auto opt_sdpa_transpose = optional<v1::Transpose>({opt_sdpa_reshape, any_input()});
+    auto post_sdpa =
+        wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_transpose, any_input()}, shape_matches("Batches..., S_q, D"));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
