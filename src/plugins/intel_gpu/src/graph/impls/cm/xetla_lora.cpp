@@ -10,6 +10,7 @@
 #include "primitive_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "utils/kernel_generator.hpp"
+#include "utils/xetla_helpers.hpp"
 #include "utils/xetla_postops.hpp"
 
 namespace ov::intel_gpu::cm {
@@ -29,8 +30,6 @@ public:
     [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
         return KernelGenerator::get_build_options(params) + get_lora_build_options();
     }
-
-    enum class MemLayout { row_major, col_major };
 
     struct Layouts {
         static constexpr MemLayout mem_layout_a = MemLayout::row_major;
@@ -57,73 +56,6 @@ public:
         const size_t num_global_kslicing;
         const size_t num_local_kslicing;
     };
-
-protected:
-    std::string get_xetla_mem_layout(MemLayout layout) const {
-        switch (layout) {
-        case MemLayout::row_major:
-            return "mem_layout::row_major";
-        case MemLayout::col_major:
-            return "mem_layout::col_major";
-        default:
-            OPENVINO_THROW("Unsupported XeTLA memory layout!");
-        }
-    }
-
-    std::string ov_to_xetla_dtype(ov::element::Type type) const {
-        switch (type) {
-        case ov::element::Type_t::f16:
-            return "fp16";
-        case ov::element::Type_t::bf16:
-            return "bf16";
-        case ov::element::Type_t::f32:
-            return "float";
-        default:
-            OPENVINO_THROW("Unsupported XeTLA data type!");
-        }
-    }
-
-    void add_xetla_postops(const RuntimeParams& params,
-                           std::vector<std::unique_ptr<XeTLAPostOP>>& xetla_postops,
-                           size_t& post_op_index,
-                           size_t& post_op_arg_index) const {
-        for (const auto& postop : params.fused_desc) {
-            const bool is_eltwise = fused_ops_are_one_of<eltwise>({postop});
-            const bool is_activation = fused_ops_are_one_of<activation>({postop});
-            if (is_eltwise) {
-                auto eltwise = std::static_pointer_cast<const cldnn::eltwise>(postop.desc);
-                auto eltwise_layout = params.input_layouts[post_op_arg_index++];
-                auto eltwise_dtype = ov_to_xetla_dtype(eltwise_layout.data_type);
-
-                bool broadcast = false;
-                bool is_M_dynamic = eltwise_layout.get_partial_shape()[0].is_dynamic() || eltwise_layout.get_partial_shape()[1].is_dynamic();
-                if (!is_M_dynamic) {
-                    const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
-                    broadcast = eltwise_M == 1;
-                }
-                assert(eltwise->broadcast_spec.m_axis == 0);
-
-                if (broadcast) {
-                    if (eltwise->mode == eltwise_mode::sum) {
-                        xetla_postops.push_back(std::make_unique<ShiftChannels>(post_op_index++, eltwise_dtype));
-                    } else if (eltwise->mode == eltwise_mode::prod) {
-                        xetla_postops.push_back(std::make_unique<ScaleChannels>(post_op_index++, eltwise_dtype));
-                    }
-                } else {
-                    const auto eltwise_op = get_xetla_eltwise_op(eltwise->mode);
-                    assert(eltwise_op != Eltwise::EltwiseOp::none);
-                    xetla_postops.push_back(std::make_unique<Eltwise>(post_op_index++, eltwise_dtype, eltwise_op));
-                }
-            } else if (is_activation) {
-                const auto activation = std::static_pointer_cast<const cldnn::activation>(postop.desc);
-                const auto activation_dtype = ov_to_xetla_dtype(ov::element::Type_t::f32);
-                const auto activation_op = get_xetla_activation_op(activation->activation_function);
-
-                assert(activation_op != Activation::ActivationOp::none);
-                xetla_postops.push_back(std::make_unique<Activation>(post_op_index++, activation_dtype, activation_op));
-            }
-        }
-    }
 
 public:
     struct LoraShapeUtils {
@@ -271,13 +203,11 @@ protected:
             jit.add({make_jit_constant("XETLA_SHAPE_INFO_ARG", "")});
         }
 
-        size_t post_op_index = 0;
-        size_t post_op_arg_index = 5;
-        std::vector<std::unique_ptr<XeTLAPostOP>> xetla_postops;
-        xetla_postops.push_back(std::make_unique<Eltwise>(post_op_index++, ov_to_xetla_dtype(params.input_layouts[0].data_type), Eltwise::EltwiseOp::sum));
-        add_xetla_postops(params, xetla_postops, post_op_index, post_op_arg_index);
+        XeTLAPostOPs xetla_postops;
+        xetla_postops.add_post_op<Eltwise>(ov_to_xetla_dtype(params.input_layouts[0].data_type), Eltwise::EltwiseOp::sum);
+        xetla_postops.add_post_ops(params, 5);
 
-        auto post_op_definitions = generate_post_ops(xetla_postops);
+        auto post_op_definitions = xetla_postops.get_definitions();
         for (const auto& [name, value] : post_op_definitions) {
             jit.add({make_jit_constant(name, value)});
         }
@@ -368,10 +298,10 @@ protected:
             jit.add({make_jit_constant("XETLA_SHAPE_INFO_ARG", "")});
         }
 
-        std::vector<std::unique_ptr<XeTLAPostOP>> xetla_postops;
-        xetla_postops.push_back(std::make_unique<ScaleChannels>(0, ov_to_xetla_dtype(params.input_layouts[2].data_type)));
+        XeTLAPostOPs xetla_postops;
+        xetla_postops.add_post_op<ScaleChannels>(ov_to_xetla_dtype(params.input_layouts[2].data_type));
 
-        auto post_op_definitions = generate_post_ops(xetla_postops);
+        auto post_op_definitions = xetla_postops.get_definitions();
         for (const auto& [name, value] : post_op_definitions) {
             jit.add({make_jit_constant(name, value)});
         }
@@ -457,13 +387,11 @@ protected:
             jit.add({make_jit_constant("XETLA_SHAPE_INFO_ARG", "")});
         }
 
-        size_t post_op_index = 0;
-        size_t post_op_arg_index = 5;
-        std::vector<std::unique_ptr<XeTLAPostOP>> xetla_postops;
-        xetla_postops.push_back(std::make_unique<Eltwise>(post_op_index++, ov_to_xetla_dtype(params.input_layouts[0].data_type), Eltwise::EltwiseOp::sum));
-        add_xetla_postops(params, xetla_postops, post_op_index, post_op_arg_index);
+        XeTLAPostOPs xetla_postops;
+        xetla_postops.add_post_op<Eltwise>(ov_to_xetla_dtype(params.input_layouts[0].data_type), Eltwise::EltwiseOp::sum);
+        xetla_postops.add_post_ops(params, 5);
 
-        auto post_op_definitions = generate_post_ops(xetla_postops);
+        auto post_op_definitions = xetla_postops.get_definitions();
         for (const auto& [name, value] : post_op_definitions) {
             jit.add({make_jit_constant(name, value)});
         }
@@ -613,11 +541,11 @@ private:
 
         auto [tokens, rank, hidden_in, hidden_out] = lora::LoraShapeUtils::get_lora_gemm_shape(instance);
 
-        const auto ld_input = lora::Layouts::mem_layout_a == lora::MemLayout::col_major ? tokens : hidden_in;
-        const auto ld_state_a = lora::Layouts::mem_layout_state_a == lora::MemLayout::col_major ? hidden_out : rank;
-        const auto ld_state_b = lora::Layouts::mem_layout_state_b == lora::MemLayout::col_major ? rank : hidden_in;
-        const auto ld_state_temp = lora::Layouts::mem_layout_temp == lora::MemLayout::col_major ? tokens : rank;
-        const auto ld_state_output = lora::Layouts::mem_layout_c == lora::MemLayout::col_major ? tokens : hidden_out;
+        const auto ld_input = lora::Layouts::mem_layout_a == MemLayout::col_major ? tokens : hidden_in;
+        const auto ld_state_a = lora::Layouts::mem_layout_state_a == MemLayout::col_major ? hidden_out : rank;
+        const auto ld_state_b = lora::Layouts::mem_layout_state_b == MemLayout::col_major ? rank : hidden_in;
+        const auto ld_state_temp = lora::Layouts::mem_layout_temp == MemLayout::col_major ? tokens : rank;
+        const auto ld_state_output = lora::Layouts::mem_layout_c == MemLayout::col_major ? tokens : hidden_out;
 
         const bool is_aligned_input = lora::is_2dload_aligned(ld_input, instance.get_input_layout(1).data_type);
         const bool is_aligned_state_a = lora::is_2dload_aligned(ld_state_a, instance.get_input_layout(2).data_type);

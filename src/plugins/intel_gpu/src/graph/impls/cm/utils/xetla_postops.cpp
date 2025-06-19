@@ -4,9 +4,12 @@
 
 #include "xetla_postops.hpp"
 
+#include "graph/common_utils/jitter.hpp"
+#include "xetla_helpers.hpp"
+
 namespace ov::intel_gpu::cm {
 
-std::vector<std::tuple<std::string, std::string>> generate_post_ops(const std::vector<std::unique_ptr<XeTLAPostOP>>& post_ops) {
+std::vector<std::tuple<std::string, std::string>> XeTLAPostOPs::get_definitions() {
     std::string post_op_kernel_args = "";
     std::string post_op_args = "";
     std::string post_op_args_pass = "";
@@ -18,7 +21,7 @@ std::vector<std::tuple<std::string, std::string>> generate_post_ops(const std::v
     bool first_epilogue_arg = true;
     bool first_post_op_list = true;
 
-    for (const auto& post_op : post_ops) {
+    for (const auto& post_op : postops) {
         auto kernel_arg_definition = post_op->get_kernel_arg_definition();
         if (!kernel_arg_definition.empty()) {
             post_op_kernel_args += ", " + kernel_arg_definition;
@@ -62,6 +65,46 @@ std::vector<std::tuple<std::string, std::string>> generate_post_ops(const std::v
     definitions.push_back({"LORA_POST_OP_EPILOGUE_INIT_ARGS", post_op_epilogue_init_args});
 
     return definitions;
+}
+
+size_t XeTLAPostOPs::add_post_ops(const RuntimeParams& params, size_t post_op_arg_index) {
+    for (const auto& postop : params.fused_desc) {
+        const bool is_eltwise = cldnn::fused_ops_are_one_of<cldnn::eltwise>({postop});
+        const bool is_activation = cldnn::fused_ops_are_one_of<cldnn::activation>({postop});
+        if (is_eltwise) {
+            auto eltwise = std::static_pointer_cast<const cldnn::eltwise>(postop.desc);
+            auto eltwise_layout = params.input_layouts[post_op_arg_index++];
+            auto eltwise_dtype = ov_to_xetla_dtype(eltwise_layout.data_type);
+
+            bool broadcast = false;
+            bool is_M_dynamic = eltwise_layout.get_partial_shape()[0].is_dynamic() || eltwise_layout.get_partial_shape()[1].is_dynamic();
+            if (!is_M_dynamic) {
+                const auto eltwise_M = extract_channel(ChannelName::BATCH, eltwise_layout) * extract_channel(ChannelName::FEATURE, eltwise_layout);
+                broadcast = eltwise_M == 1;
+            }
+            assert(eltwise->broadcast_spec.m_axis == 0);
+
+            if (broadcast) {
+                if (eltwise->mode == cldnn::eltwise_mode::sum) {
+                    postops.push_back(std::make_unique<ShiftChannels>(post_op_index++, eltwise_dtype));
+                } else if (eltwise->mode == cldnn::eltwise_mode::prod) {
+                    postops.push_back(std::make_unique<ScaleChannels>(post_op_index++, eltwise_dtype));
+                }
+            } else {
+                const auto eltwise_op = get_xetla_eltwise_op(eltwise->mode);
+                assert(eltwise_op != Eltwise::EltwiseOp::none);
+                postops.push_back(std::make_unique<Eltwise>(post_op_index++, eltwise_dtype, eltwise_op));
+            }
+        } else if (is_activation) {
+            const auto activation = std::static_pointer_cast<const cldnn::activation>(postop.desc);
+            const auto activation_dtype = ov_to_xetla_dtype(ov::element::Type_t::f32);
+            const auto activation_op = get_xetla_activation_op(activation->activation_function);
+
+            assert(activation_op != Activation::ActivationOp::none);
+            postops.push_back(std::make_unique<Activation>(post_op_index++, activation_dtype, activation_op));
+        }
+    }
+    return post_op_arg_index;
 }
 
 }  // namespace ov::intel_gpu::cm

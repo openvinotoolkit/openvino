@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "openvino/core/except.hpp"
@@ -156,6 +157,20 @@ public:
             OPENVINO_THROW("Unknown XeTLA ActivationOp");
         }
     }
+};
+
+class XeTLAPostOPs {
+    size_t post_op_index = 0;
+    std::vector<std::unique_ptr<XeTLAPostOP>> postops;
+
+public:
+    template <typename T, typename... Args>
+    void add_post_op(Args&&... args) {
+        postops.push_back(std::make_unique<T>(post_op_index++, std::forward<Args>(args)...));
+    }
+
+    size_t add_post_ops(const RuntimeParams& params, size_t post_op_arg_index);
+    std::vector<std::tuple<std::string, std::string>> get_definitions();
 };
 
 std::vector<std::tuple<std::string, std::string>> generate_post_ops(const std::vector<std::unique_ptr<XeTLAPostOP>>& post_ops);
