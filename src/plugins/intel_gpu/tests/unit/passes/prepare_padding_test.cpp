@@ -9,6 +9,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "mvn_inst.h"
+#include "col2im_inst.h"
 #include "convolution_inst.h"
 #include "pass_manager.h"
 #include "program_wrapper.h"
@@ -69,6 +70,37 @@ TEST(prepare_padding, mvn_conv) {
         auto prim = network.get_primitive(item.first);
         if (prim->get_node().is_type<convolution>() && !prim->get_impl()->is_onednn()) {
             ASSERT_TRUE(has_node(*network.get_program(), "conv_padding_reorder_for_mvn"));
+        }
+    }
+}
+
+TEST(prepare_padding, col2im_conv) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto in_layout = layout{{20, 6272, 301, 1}, data_types::f16, format::bfyx};
+    auto input = engine.allocate_memory(in_layout);
+    auto weights_data = rg.generate_random_4d<ov::float16>(128, 128, 3, 3, -1, 1);
+    auto weights_mem = engine.allocate_memory({ {128, 128, 3, 3}, data_types::f16, format::bfyx});
+    set_values(weights_mem, weights_data);
+
+    topology topo;
+    topo.add(input_layout("input", in_layout));
+    topo.add(col2im("col2im", input_info("input"), {3, 3}, {1, 1}, {3, 3}, {3, 3}, {20, 128, 60, 108}, {7, 7}));
+    topo.add(data("weight", weights_mem));
+    topo.add(convolution("conv", input_info("col2im"), "weight", "", 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
+    topo.add(reorder("reorder_output", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topo, config);
+    network.set_input_data("input", input);
+    EXPECT_NO_THROW(network.execute());
+
+    for (auto& item : network.get_executed_primitives()) {
+        auto prim = network.get_primitive(item.first);
+        if (prim->get_node().is_type<convolution>() && !prim->get_impl()->is_onednn()) {
+            ASSERT_TRUE(has_node(*network.get_program(), "conv_padding_reorder_for_col2im"));
         }
     }
 }
