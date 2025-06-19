@@ -67,7 +67,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
             group_sizes_partial_sum.back() = group_size;
             config.group_sizes_partial_sum = group_sizes_partial_sum;
-            config.partial_sum_dt = element::f16;
+            config.partial_sum_dt = element::i32; // it supports i32 only now
         }
 
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);

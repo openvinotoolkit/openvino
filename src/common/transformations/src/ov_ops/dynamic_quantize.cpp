@@ -55,6 +55,9 @@ void DynamicQuantize::validate_and_infer_types() {
     if (m_attrs.quantization_type == QuantizationType::Asymmetric &&
         m_attrs.output_storage_type == OutputStorageType::Planar)
         set_output_type(2, m_attrs.zp_dt, out_shapes[2]);
+    if (m_attrs.group_sizes_partial_sum.size() > 0) {
+        set_output_type(2, m_attrs.partial_sum_dt, out_shapes[2]);
+    }
 }
 
 std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVector& new_args) const {

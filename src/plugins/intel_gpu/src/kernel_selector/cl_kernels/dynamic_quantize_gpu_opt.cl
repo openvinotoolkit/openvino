@@ -131,7 +131,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     half max_value = 0.0h;
     half min_value = 0.0h;
 #if GENERATE_PARTIAL_SUM
-    half partial_sum = 0.0h;
+    float partial_sum = 0.0h;
 #endif
     val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (local_id * block_size)));
 
@@ -208,7 +208,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if GENERATE_PARTIAL_SUM
         // FIXME: f_grp may not be aligned with dyn_quan gs
         // XXX: can partial_sum be f16? this may go out of range for large group size
-        output_partial_sum[output_idx] = partial_sum;
+        output_partial_sum[output_idx] = partial_sum * scale;
 #endif
     }
 }
