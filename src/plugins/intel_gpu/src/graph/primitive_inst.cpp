@@ -2205,16 +2205,24 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             }
         }
 
-        // TODO: Remove WA for arg_max_min node.
-        // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
-        // but kernels always write both outputs to the same memory object which leads to wrong result.
-        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()
-                                                       && !node.is_type<experimental_detectron_roi_feature_extractor>()) {
-            for (auto& user : node.get_users())
-                if (user->is_type<mutable_data>())
-                    _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+        if (auto eltw_id = onednn_add_fusing_helpers::get_reused_fused_eltw_id(node)) {
+            // sum post-op can use the input buffer as the output buffer
+            auto& eltw_inst = _network.get_primitive(*eltw_id);
+            auto& eltw_mem = eltw_inst->output_memory();
+            auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
+            _outputs.push_back(new_mem);
         } else {
-            _outputs = allocate_outputs();
+            // TODO: Remove WA for arg_max_min node.
+            // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
+            // but kernels always write both outputs to the same memory object which leads to wrong result.
+            if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>() &&
+                !node.is_type<experimental_detectron_roi_feature_extractor>()) {
+                for (auto& user : node.get_users())
+                    if (user->is_type<mutable_data>())
+                        _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+            } else {
+                _outputs = allocate_outputs();
+            }
         }
     }
     if (_node) {
