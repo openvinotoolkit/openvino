@@ -532,107 +532,6 @@ protected:
     }
 };
 
-enum KernelsTypes {
-    FUSED_SHORT_R32 = 0,
-    FUSED_SHORT_R64,
-    FUSED_SHORT_R128,
-    FUSED_LONG_R32,
-    FUSED_LONG_R64,
-    FUSED_LONG_R128,
-    GEMM_A_SHORT_S1,
-    GEMM_A_SHORT_S8,
-    GEMM_A_LONG0_S1,
-    GEMM_A_LONG0_S2,
-    GEMM_B_SHORT,
-    GEMM_B_LONG0,
-    GEMM_A_UNALIGNED,
-    GEMM_B_UNALIGNED
-};
-
-std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
-    std::vector<size_t> stages_order;
-    using lora = XeTLALoraBaseGenerator;
-
-    bool is_empty_lora = instance.get_input_layout(2).count() == 0;
-    if (is_empty_lora) {
-        assert(!instance.has_fused_primitives());
-        return stages_order;
-    }
-
-    auto [tokens, rank, hidden_in, hidden_out] = lora::LoraShapeUtils::get_lora_gemm_shape(instance);
-
-    const auto ld_input = lora::Layouts::mem_layout_a == lora::MemLayout::col_major ? tokens : hidden_in;
-    const auto ld_state_a = lora::Layouts::mem_layout_state_a == lora::MemLayout::col_major ? hidden_out : rank;
-    const auto ld_state_b = lora::Layouts::mem_layout_state_b == lora::MemLayout::col_major ? rank : hidden_in;
-    const auto ld_state_temp = lora::Layouts::mem_layout_temp == lora::MemLayout::col_major ? tokens : rank;
-    const auto ld_state_output = lora::Layouts::mem_layout_c == lora::MemLayout::col_major ? tokens : hidden_out;
-
-    const bool is_aligned_input = lora::is_2dload_aligned(ld_input, instance.get_input_layout(1).data_type);
-    const bool is_aligned_state_a = lora::is_2dload_aligned(ld_state_a, instance.get_input_layout(2).data_type);
-    const bool is_aligned_state_b = lora::is_2dload_aligned(ld_state_b, instance.get_input_layout(4).data_type);
-    const bool is_aligned_temp = lora::is_2dload_aligned(ld_state_temp, instance.get_input_layout(1).data_type);
-    const bool is_aligned_output = lora::is_2dload_aligned(ld_state_output, instance.get_output_layout(0).data_type);
-
-    const bool can_use_fused_reg = rank <= 128 && is_aligned_input && is_aligned_state_a && is_aligned_state_b && is_aligned_output;
-    const bool is_gemmA_aligned = is_aligned_input && is_aligned_state_a && is_aligned_temp;
-    const bool is_gemmB_aligned = is_aligned_temp && is_aligned_state_b && is_aligned_output;
-
-    if (tokens <= 32 && is_gemmA_aligned && is_gemmB_aligned) {
-        size_t iters = (hidden_in + 32 - 1) / 32;
-        if (iters > 16) {
-            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S8);
-        } else {
-            stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S1);
-        }
-        stages_order.emplace_back(KernelsTypes::GEMM_B_SHORT);
-        return stages_order;
-    }
-
-    if (tokens > 32 && is_gemmA_aligned && is_gemmB_aligned) {
-        size_t iters = (hidden_in + 32 - 1) / 32;
-        if (iters > 4) {
-            stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S2);
-        } else {
-            stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S1);
-        }
-        stages_order.emplace_back(KernelsTypes::GEMM_B_LONG0);
-        return stages_order;
-    }
-
-    if (can_use_fused_reg) {
-        if (tokens <= 32) {
-            KernelsTypes kernel_type = KernelsTypes::FUSED_SHORT_R32;
-            if (rank <= 128) {
-                kernel_type = KernelsTypes::FUSED_SHORT_R128;
-            }
-            if (rank <= 64) {
-                kernel_type = KernelsTypes::FUSED_SHORT_R64;
-            }
-            if (rank <= 32) {
-                kernel_type = KernelsTypes::FUSED_SHORT_R32;
-            }
-            stages_order.emplace_back(kernel_type);
-        } else {
-            KernelsTypes kernel_type = KernelsTypes::FUSED_LONG_R32;
-            if (rank <= 128) {
-                kernel_type = KernelsTypes::FUSED_LONG_R128;
-            }
-            if (rank <= 64) {
-                kernel_type = KernelsTypes::FUSED_LONG_R64;
-            }
-            if (rank <= 32) {
-                kernel_type = KernelsTypes::FUSED_LONG_R32;
-            }
-            stages_order.emplace_back(kernel_type);
-        }
-        return stages_order;
-    }
-
-    stages_order.emplace_back(KernelsTypes::GEMM_A_UNALIGNED);
-    stages_order.emplace_back(KernelsTypes::GEMM_B_UNALIGNED);
-    return stages_order;
-}
-
 class LoRAImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::LoRAImpl)
@@ -707,6 +606,108 @@ public:
         }
 
         return tmp_events[0];
+    }
+
+private:
+    enum KernelsTypes {
+        FUSED_SHORT_R32 = 0,
+        FUSED_SHORT_R64,
+        FUSED_SHORT_R128,
+        FUSED_LONG_R32,
+        FUSED_LONG_R64,
+        FUSED_LONG_R128,
+        GEMM_A_SHORT_S1,
+        GEMM_A_SHORT_S8,
+        GEMM_A_LONG0_S1,
+        GEMM_A_LONG0_S2,
+        GEMM_B_SHORT,
+        GEMM_B_LONG0,
+        GEMM_A_UNALIGNED,
+        GEMM_B_UNALIGNED
+    };
+
+    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
+        std::vector<size_t> stages_order;
+        using lora = XeTLALoraBaseGenerator;
+
+        bool is_empty_lora = instance.get_input_layout(2).count() == 0;
+        if (is_empty_lora) {
+            assert(!instance.has_fused_primitives());
+            return stages_order;
+        }
+
+        auto [tokens, rank, hidden_in, hidden_out] = lora::LoraShapeUtils::get_lora_gemm_shape(instance);
+
+        const auto ld_input = lora::Layouts::mem_layout_a == lora::MemLayout::col_major ? tokens : hidden_in;
+        const auto ld_state_a = lora::Layouts::mem_layout_state_a == lora::MemLayout::col_major ? hidden_out : rank;
+        const auto ld_state_b = lora::Layouts::mem_layout_state_b == lora::MemLayout::col_major ? rank : hidden_in;
+        const auto ld_state_temp = lora::Layouts::mem_layout_temp == lora::MemLayout::col_major ? tokens : rank;
+        const auto ld_state_output = lora::Layouts::mem_layout_c == lora::MemLayout::col_major ? tokens : hidden_out;
+
+        const bool is_aligned_input = lora::is_2dload_aligned(ld_input, instance.get_input_layout(1).data_type);
+        const bool is_aligned_state_a = lora::is_2dload_aligned(ld_state_a, instance.get_input_layout(2).data_type);
+        const bool is_aligned_state_b = lora::is_2dload_aligned(ld_state_b, instance.get_input_layout(4).data_type);
+        const bool is_aligned_temp = lora::is_2dload_aligned(ld_state_temp, instance.get_input_layout(1).data_type);
+        const bool is_aligned_output = lora::is_2dload_aligned(ld_state_output, instance.get_output_layout(0).data_type);
+
+        const bool can_use_fused_reg = rank <= 128 && is_aligned_input && is_aligned_state_a && is_aligned_state_b && is_aligned_output;
+        const bool is_gemmA_aligned = is_aligned_input && is_aligned_state_a && is_aligned_temp;
+        const bool is_gemmB_aligned = is_aligned_temp && is_aligned_state_b && is_aligned_output;
+
+        if (tokens <= 32 && is_gemmA_aligned && is_gemmB_aligned) {
+            size_t iters = (hidden_in + 32 - 1) / 32;
+            if (iters > 16) {
+                stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S8);
+            } else {
+                stages_order.emplace_back(KernelsTypes::GEMM_A_SHORT_S1);
+            }
+            stages_order.emplace_back(KernelsTypes::GEMM_B_SHORT);
+            return stages_order;
+        }
+
+        if (tokens > 32 && is_gemmA_aligned && is_gemmB_aligned) {
+            size_t iters = (hidden_in + 32 - 1) / 32;
+            if (iters > 4) {
+                stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S2);
+            } else {
+                stages_order.emplace_back(KernelsTypes::GEMM_A_LONG0_S1);
+            }
+            stages_order.emplace_back(KernelsTypes::GEMM_B_LONG0);
+            return stages_order;
+        }
+
+        if (can_use_fused_reg) {
+            if (tokens <= 32) {
+                KernelsTypes kernel_type = KernelsTypes::FUSED_SHORT_R32;
+                if (rank <= 128) {
+                    kernel_type = KernelsTypes::FUSED_SHORT_R128;
+                }
+                if (rank <= 64) {
+                    kernel_type = KernelsTypes::FUSED_SHORT_R64;
+                }
+                if (rank <= 32) {
+                    kernel_type = KernelsTypes::FUSED_SHORT_R32;
+                }
+                stages_order.emplace_back(kernel_type);
+            } else {
+                KernelsTypes kernel_type = KernelsTypes::FUSED_LONG_R32;
+                if (rank <= 128) {
+                    kernel_type = KernelsTypes::FUSED_LONG_R128;
+                }
+                if (rank <= 64) {
+                    kernel_type = KernelsTypes::FUSED_LONG_R64;
+                }
+                if (rank <= 32) {
+                    kernel_type = KernelsTypes::FUSED_LONG_R32;
+                }
+                stages_order.emplace_back(kernel_type);
+            }
+            return stages_order;
+        }
+
+        stages_order.emplace_back(KernelsTypes::GEMM_A_UNALIGNED);
+        stages_order.emplace_back(KernelsTypes::GEMM_B_UNALIGNED);
+        return stages_order;
     }
 };
 
