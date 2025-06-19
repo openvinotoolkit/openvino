@@ -1753,8 +1753,8 @@ void ov::CoreImpl::add_mutex(const std::string& dev_name) {
     dev_mutexes[dev_name];
 }
 
-std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath,
-                                                    const std::string& binPath,
+std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::filesystem::path& modelPath,
+                                                    const std::filesystem::path& binPath,
                                                     const AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = coreConfig;

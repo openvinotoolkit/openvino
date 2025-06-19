@@ -108,15 +108,15 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
 namespace ov {
 namespace util {
 
-std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
-                                      const std::string& binPath,
+std::shared_ptr<ov::Model> read_model(const std::filesystem::path& modelPath,
+                                      const std::filesystem::path& binPath,
                                       const std::vector<ov::Extension::Ptr>& extensions,
                                       bool enable_mmap) {
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
+    std::wstring model_path = modelPath.wstring();
 #else
-    std::string model_path = modelPath;
+    std::string model_path = modelPath.string();
 #endif
 
     // Try to load with FrontEndManager
@@ -128,9 +128,9 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
 
     if (!binPath.empty()) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        const std::wstring& weights_path = ov::util::string_to_wstring(binPath.c_str());
+        const std::wstring& weights_path = binPath.wstring();
 #else
-        const std::string& weights_path = binPath;
+        const std::string& weights_path = binPath.string();
 #endif
         params.emplace_back(weights_path);
     }
@@ -148,12 +148,12 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
         return model;
     }
 
-    const auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
+    const auto fileExt = model_path.substr(model_path.find_last_of(".") + 1);
     std::string FEs;
     for (const auto& fe_name : manager.get_available_front_ends())
         FEs += fe_name + " ";
     OPENVINO_THROW("Unable to read the model: ",
-                   modelPath,
+                   model_path,
                    " Please check that model format: ",
                    fileExt,
                    " is supported and the model is correct.",
