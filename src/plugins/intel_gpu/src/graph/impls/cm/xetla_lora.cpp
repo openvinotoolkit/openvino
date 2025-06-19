@@ -626,7 +626,7 @@ private:
         GEMM_B_UNALIGNED
     };
 
-    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) {
+    std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
         std::vector<size_t> stages_order;
         using lora = XeTLALoraBaseGenerator;
 
