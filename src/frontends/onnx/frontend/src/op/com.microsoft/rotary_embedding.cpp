@@ -65,11 +65,6 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     const auto& sin_cache = inputs[3];     // [max_seqlen, head_size/2]
 
     const auto interleaved = node.get_attribute_value<int64_t>("interleaved");  // required
-    const auto is_packed_batching = node.get_attribute_value<int64_t>("is_packed_batching", 0);
-    const auto num_heads = node.get_attribute_value<int64_t>("num_heads", 0);
-    const auto rotary_embedding_dim = node.get_attribute_value<int64_t>("rotary_embedding_dim", 0);  // required
-    const auto scale = node.get_attribute_value<float>("scale", 0);
-
     const auto minus_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
     const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
