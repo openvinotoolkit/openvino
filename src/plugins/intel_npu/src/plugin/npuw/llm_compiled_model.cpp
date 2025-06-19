@@ -5,10 +5,10 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
-#include "openvino/op/group_query_attention.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -397,8 +397,10 @@ public:
         const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
 
         if (do_rotary) {
-            ov::Output<ov::Node> position_ids =
-                register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+            ov::Output<ov::Node> position_ids = register_new_node<v4::Range>(zero_without_shape,
+                                                                             curr_seqlen_scalar,
+                                                                             one_without_shape,
+                                                                             ov::element::i64);
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
 
             const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
@@ -455,7 +457,8 @@ public:
         // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
         std::shared_ptr<ov::Node> minus_inf = nullptr;
         if (T == ov::element::f32)
-            minus_inf = register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
         else if (T == ov::element::f16)
             minus_inf =
                 register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
@@ -470,9 +473,9 @@ public:
             mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
         } else {
             // kv cache model
-            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64); // first N
-            const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, vert_range); // last 1
-            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask); // [1,1,1,..., 0,0,0,1]
+            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64);     // first N
+            const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, vert_range);  // last 1
+            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);       // [1,1,1,..., 0,0,0,1]
             mask = register_new_node<v1::Select>(atte_mask, mask, minus_inf);
         }
 
@@ -495,9 +498,7 @@ public:
     }
 
     // make split functions is a copy-past from ONNX FE. TODO: move it to one place
-    ov::OutputVector make_split(const ov::Output<ov::Node>& value,
-                                int64_t num_splits,
-                                int64_t axis) {
+    ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
         using namespace ov::op;
         const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
         const auto split = register_new_node<v1::Split>(value, axis_node, num_splits);
@@ -505,25 +506,22 @@ public:
         return split->outputs();
     }
 
-    std::shared_ptr<ov::Node> get_dimensions(
-        const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-        const std::vector<int>& dims) {
+    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
+                                             const std::vector<int>& dims) {
         using namespace ov::op;
         const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
         const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
         return register_new_node<v8::Gather>(shape, dims_const, zero);
     }
 
-    std::shared_ptr<ov::Node> get_dimensions(
-        const std::shared_ptr<ov::Node>& node,
-        const std::vector<int>& dims) {
+    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
         return get_dimensions(register_new_node<ov::op::v3::ShapeOf>(node), dims);
     }
 
     std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
-                                            ov::Output<ov::Node> cos,
-                                            ov::Output<ov::Node> sin,
-                                            bool interleaved) {
+                                              ov::Output<ov::Node> cos,
+                                              ov::Output<ov::Node> sin,
+                                              bool interleaved) {
         using namespace ov::op;
         auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
         auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
@@ -544,7 +542,7 @@ public:
             auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
 
             auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
-                                                        register_new_node<v1::Multiply>(in_split_1, sin));
+                                                         register_new_node<v1::Multiply>(in_split_1, sin));
             auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
                                                     register_new_node<v1::Multiply>(in_split_1, cos));
 
@@ -557,7 +555,7 @@ public:
         } else {
             auto in_split = make_split(input, 2, -1);
             auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
-                                                        register_new_node<v1::Multiply>(in_split[1], sin));
+                                                         register_new_node<v1::Multiply>(in_split[1], sin));
             auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
                                                     register_new_node<v1::Multiply>(in_split[1], cos));
 
