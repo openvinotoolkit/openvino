@@ -15,6 +15,8 @@
 namespace ov {
 namespace util {
 
+OPENVINO_API void default_logger_handler_func(const std::string& s);
+
 class OPENVINO_API LevelString {
 private:
     LevelString(const std::string& level_identifier_) : level_identifier(level_identifier_) {}

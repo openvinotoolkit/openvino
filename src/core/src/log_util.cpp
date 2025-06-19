@@ -12,6 +12,11 @@ namespace ov {
 namespace util {
 
 #ifdef ENABLE_OPENVINO_DEBUG
+
+OPENVINO_API void default_logger_handler_func(const std::string& s) {
+    std::cout << s << std::endl;
+}
+
 // Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
 static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
 
