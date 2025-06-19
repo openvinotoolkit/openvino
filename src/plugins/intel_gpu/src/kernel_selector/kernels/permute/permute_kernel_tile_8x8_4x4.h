@@ -25,6 +25,7 @@ protected:
     CommonDispatchData SetDefault(const permute_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
+            FusedOpType::REORDER,
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
             FusedOpType::ELTWISE
