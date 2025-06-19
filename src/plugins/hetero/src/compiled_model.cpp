@@ -33,7 +33,7 @@ ov::hetero::CompiledModel::CompiledModel(
       m_loaded_from_cache(false),
       m_mapping_info(mapping_info) {
     try {
-        compile_model(model, compiled_submodels);
+        compile_model(compiled_submodels);
     } catch (const std::exception& e) {
         OPENVINO_THROW("Standard exception from compilation library: ", e.what());
     } catch (...) {
@@ -42,7 +42,6 @@ ov::hetero::CompiledModel::CompiledModel(
 }
 
 void ov::hetero::CompiledModel::compile_model(
-    const std::shared_ptr<ov::Model>& model,
     const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels) {
     const bool add_exclusive = compiled_submodels.size() > 1;
     const auto& hetero_plugin = get_hetero_plugin();

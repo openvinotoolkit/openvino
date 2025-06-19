@@ -47,8 +47,7 @@ public:
 private:
     friend class InferRequest;
 
-    void compile_model(const std::shared_ptr<ov::Model>& model,
-                       const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels);
+    void compile_model(const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels);
 
     std::shared_ptr<const Plugin> get_hetero_plugin() const;
 
