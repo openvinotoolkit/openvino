@@ -871,8 +871,8 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto B = ov::gen_pattern::Symbol("B");
     auto C = ov::gen_pattern::Symbol("C");
 
-    auto transpose = makePattern<opset1::Reshape>({qk_linear, {-1, head_cnt, 1, head_size}}, {{"special_zero", false}});
-    auto slice_1 = GenSlice(transpose, 0, ndims, 1, 3);
+    auto reshape = makePattern<opset1::Reshape>({qk_linear, {-1, head_cnt, 1, head_size}}, {{"special_zero", false}});
+    auto slice_1 = GenSlice(reshape, 0, ndims, 1, 3);
 
     auto const_idx =
         pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
@@ -890,7 +890,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
     auto multiply_1 = makePattern<opset1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
     auto add = makePattern<opset1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
 
-    auto slice_5 = GenSlice(transpose, ndims, INT_MAX, 1, 3);
+    auto slice_5 = GenSlice(reshape, ndims, INT_MAX, 1, 3);
     auto concat = makePattern<opset1::Concat>({add, slice_5}, {{"axis", -1}});
     auto result = concat;
 
