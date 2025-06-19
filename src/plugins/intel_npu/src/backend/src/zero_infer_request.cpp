@@ -280,7 +280,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
             updateCommandListArg = true;
         } else {
             auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
-            if (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user()) {
+
+            if (zeroTensor == nullptr || (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user())) {
                 _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
