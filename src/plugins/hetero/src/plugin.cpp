@@ -30,13 +30,14 @@ ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
 }
 
-ov::hetero::SubgraphsMappingInfo ov::hetero::Plugin::split_graph(const std::shared_ptr<ov::Model>& model,
-                                                                 Configuration config) const {
+std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmoduleInfo>> ov::hetero::Plugin::split_graph(
+    const std::shared_ptr<ov::Model>& model,
+    Configuration config) const {
+    std::vector<ov::hetero::SubmoduleInfo> compiled_submodels;
     ov::SupportedOpsMap query_model_result;
     SubgraphsMappingInfo mapping_info;
     const std::string model_name = model->get_friendly_name();
     bool user_set_affinities = false;
-
     // Get user defined affinity
     for (const auto& node : model->get_ordered_ops()) {
         const auto& rt_info = node->get_rt_info();
@@ -54,17 +55,17 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::Plugin::split_graph(const std::shar
         std::tie(ordered_subgraphs, mapping_info) =
             get_model_subgraphs(model, query_model_result, true, m_cfg.dump_dot_files());
 
-        m_compiled_submodels.resize(ordered_subgraphs.size());
+        compiled_submodels.resize(ordered_subgraphs.size());
         for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
             const auto& subgraph = ordered_subgraphs[i];
-            m_compiled_submodels[i].first = subgraph._affinity;
-            m_compiled_submodels[i].second = std::make_shared<ov::Model>(subgraph._results,
-                                                                         subgraph._sinks,
-                                                                         subgraph._parameters,
-                                                                         model_name + "_" + std::to_string(i));
+            compiled_submodels[i].first = subgraph._affinity;
+            compiled_submodels[i].second = std::make_shared<ov::Model>(subgraph._results,
+                                                                       subgraph._sinks,
+                                                                       subgraph._parameters,
+                                                                       model_name + "_" + std::to_string(i));
         }
 
-        return mapping_info;
+        return {mapping_info, compiled_submodels};
     }
 
     // Restore properties in order to pass "device priorities" together
@@ -87,13 +88,13 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::Plugin::split_graph(const std::shar
         }
     }
 
-    m_compiled_submodels.resize(ordered_subgraphs.size());
+    compiled_submodels.resize(ordered_subgraphs.size());
     for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
-        m_compiled_submodels[i].first = ordered_subgraphs[i]->get_affinity();
-        m_compiled_submodels[i].second = ordered_subgraphs[i]->get_function();
+        compiled_submodels[i].first = ordered_subgraphs[i]->get_affinity();
+        compiled_submodels[i].second = ordered_subgraphs[i]->get_function();
     }
 
-    return mapping_info;
+    return {mapping_info, compiled_submodels};
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -102,19 +103,21 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
 
     auto config = Configuration{properties, m_cfg};
     auto cloned_model = model->clone();
-    const auto mapping_info = split_graph(cloned_model, config);
+    SubgraphsMappingInfo mapping_info;
+    std::vector<ov::hetero::SubmoduleInfo> compiled_submodels;
+    std::tie(mapping_info, compiled_submodels) = split_graph(cloned_model, config);
     ov::hetero::RemoteContext::Ptr remote_context;
     std::shared_ptr<ov::hetero::CompiledModel> compiled_model;
     try {
         std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_map;
-        for (const auto& [device_name, _] : m_compiled_submodels) {
+        for (const auto& [device_name, _] : compiled_submodels) {
             contexts_map.insert({device_name, get_core()->get_default_context(device_name)});
         }
         remote_context = std::make_shared<ov::hetero::RemoteContext>(std::move(contexts_map));
-    } catch (const std::exception& e) {
+    } catch (const ov::Exception&) {
     }
     return std::make_shared<CompiledModel>(cloned_model,
-                                           m_compiled_submodels,
+                                           compiled_submodels,
                                            mapping_info,
                                            shared_from_this(),
                                            remote_context,

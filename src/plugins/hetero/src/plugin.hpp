@@ -18,6 +18,8 @@
 namespace ov {
 namespace hetero {
 
+using SubmoduleInfo = std::pair<std::string, std::shared_ptr<ov::Model>>;
+
 class CompiledModel;
 
 class Plugin : public ov::IPlugin {
@@ -68,13 +70,11 @@ private:
         const ov::AnyMap& properties,
         bool allow_exception = false) const;
 
-    ov::hetero::SubgraphsMappingInfo split_graph(const std::shared_ptr<ov::Model>& model, Configuration config) const;
-
-    mutable std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>> m_compiled_submodels;
+    std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<SubmoduleInfo>> split_graph(
+        const std::shared_ptr<ov::Model>& model,
+        Configuration config) const;
 
     Configuration m_cfg;
-
-    ov::hetero::SubgraphsMappingInfo m_mapping_info;
 
     mutable size_t independent_submodel_size = 0;
 };
