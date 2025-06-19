@@ -160,7 +160,7 @@ jobs:
           -DENABLE_CPPLINT=OFF
           -DENABLE_INTEL_GPU=OFF
           -DENABLE_INTEL_NPU=OFF
-          -DENABLE_SAMPLES=OF
+          -DENABLE_SAMPLES=OFF
           -DENABLE_NCC_STYLE=OFF
           -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
@@ -225,7 +225,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*' }}
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*' }}
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)

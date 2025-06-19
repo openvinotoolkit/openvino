@@ -58,9 +58,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     if (m_allow_score_aggregation) {
-        auto score_aggregation_window =
+        optional_model_wide_params["score_aggregation_window"] =
             setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "score_aggregation_window");
-        optional_model_wide_params["score_aggregation_window"] = score_aggregation_window;
     }
 
     std::shared_ptr<v0::Parameter> model_rotation_trig_lut;
@@ -218,7 +217,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     if (m_allow_cache_rotation) {
         model->add_parameters(rotated_block_indices_inputs_for_each_layer);
         model->add_parameters(rotation_deltas_inputs_for_each_layer);
-        model->add_parameters({model_rotation_trig_lut});
+        model->add_parameters({std::move(model_rotation_trig_lut)});
     }
 
     model->add_parameters(kv_parameters);

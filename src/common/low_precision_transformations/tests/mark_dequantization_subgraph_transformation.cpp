@@ -22,6 +22,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/gather.hpp"
 
 using namespace ov;
 
@@ -821,6 +822,32 @@ TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkup) {
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
 
+TEST_F(TransformationTestsF, KeepDequantizationPrecisionTransformationMarkupNonConst) {
+    // KeepDequantizationPrecision pass should not match the specified subgraph,
+    // as it only targets constant weights, scales, and zero points.
+
+    auto quantization_dt = element::u16;
+    auto dequantization_dt = element::f32;
+
+    {
+        auto parameter = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{1});
+        auto weights = opset10::Constant::create(quantization_dt, Shape{4, 16, 1, 1}, {3});
+        auto convert = std::make_shared<opset10::Convert>(weights, dequantization_dt);
+        auto zero_point = opset10::Constant::create(quantization_dt, Shape{}, {127});
+        auto convert_on_zero_point = std::make_shared<opset10::Convert>(zero_point, dequantization_dt);
+        auto subtract = std::make_shared<opset10::Subtract>(convert, convert_on_zero_point);
+        auto scale = std::make_shared<opset10::Parameter>(dequantization_dt, Shape{});
+        auto multiply = std::make_shared<opset10::Multiply>(subtract, scale);
+        auto add = std::make_shared<opset10::Add>(parameter, multiply);
+        model = std::make_shared<ov::Model>(ov::OutputVector{add});
+    }
+
+    manager.register_pass<pass::KeepDequantizationPrecision>(element::TypeVector{quantization_dt});
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
 TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFolding) {
     // This test uses the legacy TransformationTests class because ConvertPrecision pass
     // internally inserts additional nodes for data type consistency, which causes the
@@ -916,4 +943,92 @@ TEST_F(TransformationTests, KeepDequantizationPrecisionTransformationFoldingWith
     auto func_comparator = FunctionsComparator::with_default();
     auto result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid) << result.message;
+}
+
+inline std::shared_ptr<Model> make_gather_model(element::Type data_type,
+                                                element::Type indices_type,
+                                                bool use_data_convert,
+                                                bool use_indices_convert,
+                                                bool indices_as_param,
+                                                bool reference_model = false) {
+    using op::v0::Constant;
+    using op::v0::Convert;
+    using op::v0::Parameter;
+    using op::v8::Gather;
+
+    ParameterVector params;
+
+    std::shared_ptr<Node> data = std::make_shared<Constant>(data_type, Shape{4}, 2);
+    if (reference_model)
+        enable_keep_const_precision(data);
+    if (use_data_convert) {
+        data = std::make_shared<Convert>(data, element::f32);
+        if (reference_model)
+            disable_constant_folding(data);
+    }
+
+    std::shared_ptr<Node> indices;
+    if (indices_as_param) {
+        params.push_back(std::make_shared<Parameter>(indices_type, Shape{3}));
+        indices = params.back();
+    } else {
+        indices = std::make_shared<Constant>(indices_type, Shape{3}, 1);
+    }
+    if (reference_model)
+        enable_keep_const_precision(indices);
+
+    if (use_indices_convert) {
+        indices = std::make_shared<Convert>(indices, element::i32);
+        if (reference_model)
+            disable_constant_folding(indices);
+    }
+
+    auto axis = std::make_shared<Constant>(element::i64, Shape{1}, 0);
+    auto gather = std::make_shared<Gather>(data, indices, axis);
+    if (reference_model)
+        disable_constant_folding(gather);
+
+    return std::make_shared<Model>(OutputVector{gather}, params);
+}
+
+TEST_F(TransformationTestsF, MarkGatherSubgraph) {
+    auto data_type = element::f8e4m3;
+    auto indices_type = element::u4;
+
+    model = make_gather_model(data_type, indices_type, true, true, false);
+    model_ref = make_gather_model(data_type, indices_type, true, true, false, true);
+
+    manager.register_pass<pass::MarkGatherSubgraph>(
+        element::TypeVector{element::f8e4m3, element::f16},
+        element::TypeVector{element::u4, element::u8}
+    );
+
+    manager.register_pass<pass::ConstantFolding>();
+    precisions_map map = {
+        {data_type, element::f32},
+        {indices_type, element::i32},
+    };
+    manager.register_pass<pass::ConvertPrecision>(map);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+}
+
+TEST_F(TransformationTestsF, MarkGatherSubgraph_IndicesAsParam) {
+    auto data_type = element::f8e4m3;
+    auto indices_type = element::u4;
+
+    model = make_gather_model(data_type, indices_type, true, true, true);
+    model_ref = make_gather_model(data_type, indices_type, true, true, true, true);
+
+    manager.register_pass<pass::MarkGatherSubgraph>(
+        element::TypeVector{element::f8e4m3, element::f16},
+        element::TypeVector{element::u4, element::u8}
+    );
+
+    manager.register_pass<pass::ConstantFolding>();
+    precisions_map map = {
+        {data_type, element::f32},
+        {indices_type, element::i32},
+    };
+    manager.register_pass<pass::ConvertPrecision>(map);
+    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
 }
