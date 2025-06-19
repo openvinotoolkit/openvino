@@ -438,6 +438,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
             }
         } else if (key == ov::internal::caching_with_mmap.name()) {
+        } else if (key == ov::intel_cpu::enable_sage_attn.name()) {
+            try {
+                enableSageAttn = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
+            }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
@@ -481,7 +487,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (!valueCachePrecisionSetExplicitly && kvCachePrecisionSetExplicitly) {
         valueCachePrecision = kvCachePrecision;
     }
-
+    // if (enableSageAttn) {
+    //     keyCachePrecision = ov::element::i8;
+    //     keyCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+    // }
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {

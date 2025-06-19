@@ -647,6 +647,7 @@ struct MHAHelper {
         }
 
         if (_params.is_sage_attn) {
+            printf("going to resize _quantized_q\n");
            _quantized_q.resize<int8_t>({B_token, H, S + sizeof(float)});
         }
 
@@ -2075,7 +2076,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             quant_params.quant_value_by_channel = _helper._params.quant_value_bychannel;
             quant_params.key_group_size = _helper._params.key_group_size;
             quant_params.value_group_size = _helper._params.value_group_size;
-            quant_params.is_sage_attn = true;
+            quant_params.is_sage_attn = _helper._params.is_sage_attn;
+            printf("pa_executor|is_sage %d\n", quant_params.is_sage_attn);
 
             paged_attn_quantkv(k,
                                v,
@@ -2180,7 +2182,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          ov::element::Type value_cache_type,
                                                          const PagedAttnQuantParams& params) {
     std::shared_ptr<PagedAttentionExecutor> executor;
-    std::cout << "make_pa_executor|key|" << key_cache_type << "|value|" << value_cache_type << std::endl;
+    std::cout << "make_pa_executor|key|" << key_cache_type << "|value|" << value_cache_type  << "|is_sage|" << params.is_sage_attn << std::endl;
 #if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
