@@ -155,8 +155,8 @@ SDPAFusion::SDPAFusion() {
         if (v_node_ps[-2] != S)
             return false;
 
-        // make sure that embedding dimension of key is the same as for query
-        if (k_node_ps[-1] != E)
+        // make sure that embedding dimension of key and value is the same as for query
+        if (k_node_ps[-1] != E || v_node_ps[-1] != E)
             return false;
 
         if (!valid_qk_shapes(ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(qk).get_node_shared_ptr()))) {
