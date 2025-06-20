@@ -4,19 +4,25 @@
 
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <tuple>
+#include <vector>
+
+#include "openvino/core/except.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 using namespace ov::snippets::utils;
 using PortType = LoopPort::Type;
 
@@ -26,8 +32,9 @@ lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop
     SpecificIterationHandlers handlers;
     const auto tail_size =
         utils::is_dynamic_value(work_amount) ? utils::get_dynamic_value<size_t>() : work_amount % block_size;
-    if (tail_size != 0)
+    if (tail_size != 0) {
         handlers.register_pass<lowered::SpecificLoopIterType::LAST_ITER, lowered::pass::UpdateSubtensors>(tail_size);
+    }
     return handlers;
 }
 
@@ -158,7 +165,4 @@ bool BrgemmBlockingBase::mark_blocking_loops(LinearIR& linear_ir,
     }
     return true;
 }
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

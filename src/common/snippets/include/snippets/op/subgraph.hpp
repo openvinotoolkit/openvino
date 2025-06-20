@@ -4,22 +4,36 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/op/util/sub_graph_base.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/generator.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/pass/manager.hpp"
-#include "snippets/pass/positioned_pass.hpp"
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/debug_caps_config.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Subgraph
@@ -272,6 +286,4 @@ auto inline update_out_tensor_name(const std::shared_ptr<ov::snippets::op::Subgr
     }
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

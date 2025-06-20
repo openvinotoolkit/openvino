@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <typeinfo>
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
 
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/pass.hpp"
-#include "openvino/pass/validate.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @brief PassPosition describes a particular position in a transformation pipeline,
@@ -47,7 +47,7 @@ private:
 template <typename PassType>
 struct PositionedPass {
     PositionedPass(PassPosition arg_pos, std::shared_ptr<PassType> arg_pass)
-        : position(arg_pos),
+        : position(std::move(arg_pos)),
           pass(std::move(arg_pass)) {}
 
     PassPosition position;
@@ -60,8 +60,9 @@ typename std::vector<std::shared_ptr<PassType>>::const_iterator PassPosition::ge
     size_t pass_count = 0;
     auto match = [this, &pass_count](const std::shared_ptr<PassType>& p) {
         if (p->get_type_info() == m_pass_type_info) {
-            if (m_pass_instance == pass_count)
+            if (m_pass_instance == pass_count) {
                 return true;
+            }
             pass_count++;
         }
         return false;
@@ -82,6 +83,4 @@ typename std::vector<std::shared_ptr<PassType>>::const_iterator PassPosition::ge
     }
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

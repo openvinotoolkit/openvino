@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
+#include <limits>
+#include <ostream>
+#include <utility>
 #include <vector>
 
-#include "openvino/core/node.hpp"
-
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 /**
  * @interface RegType
@@ -35,10 +35,10 @@ struct Reg {
     Reg() = default;
     Reg(RegType type_, size_t idx_) : type(type_), idx(idx_) {}
 
-    bool is_address() const {
+    [[nodiscard]] bool is_address() const {
         return type == RegType::address;
     }
-    bool is_defined() const {
+    [[nodiscard]] bool is_defined() const {
         return is_address() || (type != RegType::undefined && idx != UNDEFINED_IDX);
     }
     RegType type = RegType::undefined;
@@ -62,7 +62,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Emitter() {}
+    Emitter() = default;
 
     /**
      * @brief called by generator to generate code to produce target code for a specific operation
@@ -105,5 +105,4 @@ private:
                                 const std::vector<size_t>& gpr) const = 0;
 };
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

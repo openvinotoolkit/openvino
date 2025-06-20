@@ -9,13 +9,13 @@
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+
+
+
+namespace ov::snippets::lowered::pass {
 
 /**
- * @interface InsertSpecificIterations
+ * @ interface InsertSpecificIterations
  * @brief Inserts separate loop bodies for first/last iterations if needed.
  * Also calls previously registered SpecificIterationHandlers for the inserted bodies and the main body.
  * @ingroup snippets
@@ -83,7 +83,7 @@ private:
      * @return LoopBounds: iterators of new LoopBegin and LoopEnd
      */
     static LoopManager::LoopBounds insert_copy_loop(LinearIR& linear_ir,
-                                                    const size_t loop_id,
+                                                    size_t loop_id,
                                                     const LinearIR::constExprIt& insert_pos,
                                                     std::vector<LoopPort>& new_entry_ports,
                                                     std::vector<LoopPort>& new_exit_ports);
@@ -104,7 +104,8 @@ private:
                                      const std::shared_ptr<op::LoopEnd>& decomposed_loop_end);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+
+}  // namespace ov::snippets::lowered::pass
+
+
+

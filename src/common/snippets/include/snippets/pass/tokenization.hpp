@@ -4,12 +4,21 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <set>
+#include <utility>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/pass/pass.hpp"
 #include "snippets/op/subgraph.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /*
  NotSet - default value returned by GetSnippetsNodeType(...) if the node wasn't marked
@@ -39,7 +48,7 @@ class EnumerateNodes : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::EnumerateNodes");
     EnumerateNodes() : ModelPass() {}
-    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& /*m*/) override;
 };
 
 /**
@@ -83,7 +92,7 @@ public:
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
               m_is_dynamic_mha_token_enabled(dyn_mha_token),
               m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)),
-              m_can_be_fused_as_postop(can_be_fused_as_postop) {
+              m_can_be_fused_as_postop(std::move(std::move(can_be_fused_as_postop))) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
             OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
         }
@@ -92,31 +101,31 @@ public:
             m_concurrency = concur;
         }
 
-        size_t get_concurrency() const {
+        [[nodiscard]] size_t get_concurrency() const {
             return m_concurrency;
         }
 
-        size_t get_data_ptr_gpr_count() const {
+        [[nodiscard]] size_t get_data_ptr_gpr_count() const {
             return m_data_ptr_gpr_count;
         }
 
-        bool get_split_m_dimension() const {
+        [[nodiscard]] bool get_split_m_dimension() const {
             return m_split_m_dimension;
         }
 
-        bool get_mha_token_enable_transpose_on_output() const {
+        [[nodiscard]] bool get_mha_token_enable_transpose_on_output() const {
             return m_mha_token_enable_transpose_on_output;
         }
 
-        bool is_dynamic_mha_token_enabled() const {
+        [[nodiscard]] bool is_dynamic_mha_token_enabled() const {
             return m_is_dynamic_mha_token_enabled;
         }
 
-        std::set<size_t> get_mha_supported_transpose_ranks() const {
+        [[nodiscard]] std::set<size_t> get_mha_supported_transpose_ranks() const {
             return m_mha_supported_transpose_ranks;
         }
 
-        const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
+        [[nodiscard]] const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
             return m_can_be_fused_as_postop;
         }
 
@@ -144,13 +153,11 @@ public:
         CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
-    SnippetsTokenization(const Config& config) : m_config(config) {}
+    SnippetsTokenization(Config config) : m_config(std::move(config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     Config m_config;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

@@ -11,9 +11,7 @@
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class LoopManager {
 public:
@@ -24,14 +22,14 @@ public:
      * @param expr_map map of new and old expressions
      * @return the copy
      */
-    std::shared_ptr<LoopManager> clone_with_new_expr(const ExpressionMap& expr_map) const;
+    [[nodiscard]] std::shared_ptr<LoopManager> clone_with_new_expr(const ExpressionMap& expr_map) const;
     /**
      * @brief Get target Loop Info
      * @param index loop ID
      * @return the LoopInfo shared ptr
      */
     template <typename T = LoopInfo, typename std::enable_if<std::is_base_of<LoopInfo, T>::value, bool>::type = true>
-    std::shared_ptr<T> get_loop_info(size_t index) const {
+    [[nodiscard]] std::shared_ptr<T> get_loop_info(size_t index) const {
         const auto it = m_map.find(index);
         OPENVINO_ASSERT(it != m_map.end(), "LoopInfo hasn't been found!");
         const auto loop_info = ov::as_type_ptr<T>(it->second);
@@ -42,14 +40,14 @@ public:
      * @brief Get count of loops
      * @return count of loops in the map
      */
-    size_t get_loop_count() const {
+    [[nodiscard]] size_t get_loop_count() const {
         return m_map.size();
     }
     /**
      * @brief Get loop map [loop_id -> loop info]
      * @return loop map
      */
-    const std::map<size_t, LoopInfoPtr>& get_map() const;
+    [[nodiscard]] const std::map<size_t, LoopInfoPtr>& get_map() const;
     /**
      * @brief Get loop IDs of expression that are outer (upper) than `loop_id`
      * @param expr the target expression
@@ -365,6 +363,4 @@ private:
 };
 using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+} // namespace ov::snippets::lowered
