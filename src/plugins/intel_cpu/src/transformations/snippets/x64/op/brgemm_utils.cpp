@@ -174,6 +174,7 @@ ov::snippets::VectorDims compute_buffer_b_allocation_shape(const ov::snippets::V
     OPENVINO_ASSERT(
         !ov::snippets::utils::is_dynamic_value(wei_k_blk) && !ov::snippets::utils::is_dynamic_value(wei_n_blk),
         "wei_k_blk and wei_n_blk cannot be dynamic");
+    OPENVINO_ASSERT(planar_shape.size() >= 2, "Incorrect rank of buffer B: ", planar_shape.size());
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();
 
@@ -207,14 +208,14 @@ ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippet
                                                                size_t wei_n_blk,
                                                                bool are_wei_blocked) {
     const auto rank = planar_shape.size();
-    OPENVINO_ASSERT(planar_shape.size() >= 2, "Incorrect rank of weights");
+    OPENVINO_ASSERT(rank >= 2, "Incorrect rank of weights: ", rank);
     const auto K_idx = rank - 2;
     const auto N_idx = rank - 1;
     const auto K = planar_shape[K_idx];
     const auto N = planar_shape[N_idx];
     const auto vnni_factor = compute_vnni_factor(prc);
-    ov::snippets::VectorDims blocked_dims(planar_shape.cbegin(), planar_shape.cbegin() + (planar_shape.size() - 2));
-    ov::snippets::VectorDims blocked_order(planar_shape.size() - 2);
+    ov::snippets::VectorDims blocked_dims(planar_shape.cbegin(), planar_shape.cbegin() + (rank - 2));
+    ov::snippets::VectorDims blocked_order(rank - 2);
     std::iota(blocked_order.begin(), blocked_order.end(), 0);
 
     if (are_wei_blocked) {
