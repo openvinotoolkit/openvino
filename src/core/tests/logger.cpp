@@ -74,11 +74,18 @@ TEST_P(TestLogHelper, callback) {
     EXPECT_TRUE(are_params_logged_to(m_callback_message));
 }
 
-TEST_P(TestLogHelper, reset_handler) {
+TEST_P(TestLogHelper, reset) {
     set_log_handler(&m_log_handler);
     reset_log_handler();
     log_test_params();
     EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()));
+    EXPECT_TRUE(m_callback_message.empty());
+}
+
+TEST_P(TestLogHelper, no_log) {
+    set_log_handler(nullptr);
+    log_test_params();
+    EXPECT_TRUE(m_mock_out_stream.str().empty());
     EXPECT_TRUE(m_callback_message.empty());
 }
 

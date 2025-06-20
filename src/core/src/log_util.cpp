@@ -14,22 +14,22 @@ namespace util {
 #ifdef ENABLE_OPENVINO_DEBUG
 
 namespace {
-const log_handler_t default_log_handler{[](const std::string& s) {
+log_handler_t default_log_handler{[](const std::string& s) {
     std::cout << s << std::endl;
 }};
 
-const log_handler_t* current_log_handler = &default_log_handler;
+ log_handler_t* current_log_handler = &default_log_handler;
 }  // namespace
 
-OPENVINO_API const log_handler_t& get_log_handler() {
-    return *current_log_handler;
+OPENVINO_API log_handler_t* get_log_handler() {
+    return current_log_handler;
 }
 
-OPENVINO_API const void set_log_handler(log_handler_t* handler) {
+OPENVINO_API void set_log_handler(log_handler_t* handler) {
     current_log_handler = handler;
 }
 
-OPENVINO_API const void reset_log_handler() {
+OPENVINO_API void reset_log_handler() {
     current_log_handler = &default_log_handler;
 }
 
