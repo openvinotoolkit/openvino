@@ -15,45 +15,75 @@ namespace ov::util::test {
 
 using LogEntries = std::tuple<const char*, int, const char*>;
 
-class LogHelperTo : public testing::TestWithParam<LogEntries> {
-    std::ostream* const out_stream = &std::cout;
+class TestLogHelper : public testing::TestWithParam<LogEntries> {
+    std::ostream* const actual_out_stream = &std::cout;
+    std::streambuf* const actual_out_buf = actual_out_stream->rdbuf();
+
+    // LogEntries
+    const char* m_log_path;
+    int m_log_line;
+    const char* m_log_message;
 
 protected:
     void SetUp() override {
         reset_log_handler();
-        out_stream->flush();
-        out_buf = out_stream->rdbuf();
-        out_stream->rdbuf(str_stream.rdbuf());
+        actual_out_stream->flush();
+        actual_out_stream->rdbuf(m_mock_out_stream.rdbuf());
+
+        std::tie(m_log_path, m_log_line, m_log_message) = GetParam();
+
+        m_log_handler = [message = &m_callback_message](const std::string& msg) {
+            *message = msg;
+        };
     }
 
     void TearDown() override {
-        out_stream->rdbuf(out_buf);
+        actual_out_stream->rdbuf(actual_out_buf);
         reset_log_handler();
     }
 
-    std::streambuf* out_buf;
-    std::stringstream str_stream;
+    auto log_test_params() {
+        LogHelper{LOG_TYPE::_LOG_TYPE_INFO, m_log_path, m_log_line, get_log_handler()}.stream() << m_log_message;
+    }
 
-    auto make_regex(const char* path, int line_no, const char* message) {
+    auto get_log_regex() const {
         std::stringstream log_regex;
-        log_regex << path << ".+" << line_no << ".+" << message << R"(\n$)";
+        log_regex << m_log_path << ".*" << m_log_line << ".*" << m_log_message;
         return std::regex{log_regex.str()};
     }
+
+    auto are_params_logged_to(const std::string& buf) {
+        return std::regex_search(buf, get_log_regex());
+    }
+
+    std::stringstream m_mock_out_stream;
+
+    std::string m_callback_message;
+    log_handler_t m_log_handler;
 };
 
-TEST_P(LogHelperTo, std_cout) {
-    const char *path, *message;
-    int line_no;
-    std::tie(path, line_no, message) = GetParam();
+TEST_P(TestLogHelper, std_cout) {
+    log_test_params();
+    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()));
+}
 
-    { LogHelper{LOG_TYPE::_LOG_TYPE_INFO, path, line_no, get_log_handler()}.stream() << message; }
+TEST_P(TestLogHelper, callback) {
+    set_log_handler(&m_log_handler);
+    log_test_params();
+    EXPECT_TRUE(m_mock_out_stream.str().empty());
+    EXPECT_TRUE(are_params_logged_to(m_callback_message));
+}
 
-    EXPECT_TRUE(std::regex_search(str_stream.str(), make_regex(path, line_no, message)));
+TEST_P(TestLogHelper, reset_handler) {
+    set_log_handler(&m_log_handler);
+    reset_log_handler();
+    log_test_params();
+    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()));
+    EXPECT_TRUE(m_callback_message.empty());
 }
 
 INSTANTIATE_TEST_SUITE_P(Logging,
-                         LogHelperTo,
+                         TestLogHelper,
                          ::testing::ValuesIn(std::vector<LogEntries>{{"the_path", 42, "tEst-mEssagE"},
                                                                      {"in the middle", 0.f, "the nowhere"}}));
-
 }  // namespace ov::util::test
