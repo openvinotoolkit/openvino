@@ -24,7 +24,7 @@ class TppEmitter : public jit_binary_call_emitter {
     friend DebugTppEmitter;
 
 public:
-    TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    TppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                dnnl::impl::cpu::x64::cpu_isa_t isa,
                const ov::snippets::lowered::ExpressionPtr& expr);
 
