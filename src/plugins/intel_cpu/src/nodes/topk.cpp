@@ -161,7 +161,7 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
-    dnnl::memory::data_type data_type;
+    dnnl::memory::data_type data_type = {};
     ov::element::Type precision_in_reg;
 
     Xbyak::Address table_val(int index) {
@@ -251,8 +251,8 @@ private:
 
     int blk_stride =
         0;  // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
-    unsigned char cmp_flg;
-    unsigned char heap_cmp_flg;
+    unsigned char cmp_flg = 0U;
+    unsigned char heap_cmp_flg = 0U;
 
     Xbyak::Label l_table;
 

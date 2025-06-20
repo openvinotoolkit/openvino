@@ -29,7 +29,7 @@ public:
     float get_alpha() const;
 
 protected:
-    float m_alpha;
+    float m_alpha = 0.0F;
 };
 
 }  // namespace ov::intel_cpu
