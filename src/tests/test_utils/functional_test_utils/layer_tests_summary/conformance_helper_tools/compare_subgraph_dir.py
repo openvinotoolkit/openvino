@@ -11,7 +11,7 @@ def parse_arguments():
     parser = ArgumentParser()
 
     origin_help = "Path to output subgraphs dir"
-    ref_help = "Path to refence subgraphs dir"
+    ref_help = "Path to reference subgraphs dir"
 
     parser.add_argument("-o", "--origin", help=origin_help, required=True)
     parser.add_argument("-r", "--reference", help=ref_help, required=True)
