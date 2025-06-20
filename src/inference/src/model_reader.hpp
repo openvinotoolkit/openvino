@@ -24,8 +24,8 @@ namespace util {
  * @param enable_mmap boolean to enable/disable `mmap` use in Frontend
  * @return Shared pointer to ov::Model
  */
-std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
-                                      const std::string& binPath,
+std::shared_ptr<ov::Model> read_model(const std::filesystem::path& modelPath,
+                                      const std::filesystem::path& binPath,
                                       const std::vector<ov::Extension::Ptr>& extensions,
                                       bool enable_mmap);
 
