@@ -300,9 +300,10 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
+            auto ngroups = scale_layout.get_dim(1);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
-            } else if (!is_four_bit_weight) {
+            } else if (!is_four_bit_weight && ngroups == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
@@ -369,7 +370,6 @@ public:
         // so use MatMul only for weights compression and IP for all other cases.
         if (prim->compressed_weights) {
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
-
             if (!is_dyn_quan_input)
                 attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
 
@@ -390,8 +390,8 @@ public:
                     "group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
-                } else if (!is_four_bit_weight) {
-                    // 8-bit quantized weight
+                } else if (!is_four_bit_weight && ngroups == 1) {
+                    // per_oc of 8-bit quantized weight
                     attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
