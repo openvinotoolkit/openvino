@@ -73,12 +73,8 @@ void jit_horizon_sum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const uint32_t in = in_vec_idxs[0];
     const uint32_t out = out_vec_idxs[0];
 
-    h->orr(Xbyak_aarch64::VReg16B(out), Xbyak_aarch64::VReg16B(in), Xbyak_aarch64::VReg16B(in));
-    h->faddp(Xbyak_aarch64::VReg4S(out), Xbyak_aarch64::VReg4S(out), Xbyak_aarch64::VReg4S(out));
+    h->faddp(Xbyak_aarch64::VReg4S(out), Xbyak_aarch64::VReg4S(in), Xbyak_aarch64::VReg4S(in));
     h->faddp(Xbyak_aarch64::VReg2S(out), Xbyak_aarch64::VReg2S(out), Xbyak_aarch64::VReg2S(out));
-    Xbyak_aarch64::WReg tmp = Xbyak_aarch64::WReg(h->X_TMP_0.getIdx());
-    h->umov(Xbyak_aarch64::WReg(tmp), Xbyak_aarch64::VRegSElem(out, 0, /*lane=*/0));
-    h->fmov(Xbyak_aarch64::SReg(out), Xbyak_aarch64::WReg(tmp));
 }
 
 std::set<std::vector<element::Type>> jit_horizon_sum_emitter::get_supported_precisions(
