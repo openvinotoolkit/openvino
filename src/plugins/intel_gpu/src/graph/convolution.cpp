@@ -253,11 +253,14 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                             "expected output size",
                             1,
                             "Only one-dimensional batch size are supported");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                            "Weights feature maps number",
-                            filter_inst.ifm() * filter_inst.group(),
-                            "input feature maps number",
-                            input_layout.feature(),
-                            "Weights/ifm mismatch");
+
+    if (format::is_grouped(filter_inst.format)) {
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                "Weights feature maps number",
+                                filter_inst.ifm() * filter_inst.group(),
+                                "input feature maps number",
+                                input_layout.feature(),
+                                "Weights/ifm mismatch");
+    }
 }
 }  // namespace cldnn
