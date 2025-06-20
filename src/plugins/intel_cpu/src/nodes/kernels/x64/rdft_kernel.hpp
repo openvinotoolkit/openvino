@@ -54,8 +54,8 @@ struct jit_dft_kernel {
 
     virtual void create_ker() = 0;
 
-    bool is_inverse_;
-    enum dft_type kernel_type_;
+    bool is_inverse_ = false;
+    enum dft_type kernel_type_ = dft_type::real_to_complex;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>

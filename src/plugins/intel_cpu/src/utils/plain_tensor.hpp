@@ -188,7 +188,7 @@ struct PlainTensor {
         int start;
         int end;
         int step;
-        int count;
+        int count = 0;
         // select all
         tensor_index() : start(0), end(INT_MAX), step(1) {}
         [[nodiscard]] bool slice_with_squeeze() const {

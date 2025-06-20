@@ -24,9 +24,9 @@ namespace ov::intel_cpu::kernel {
 struct jit_rms_compile_params {
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    size_t data_size;
-    float eps;
-    size_t scale_size;
+    size_t data_size = 0UL;
+    float eps = 0.0F;
+    size_t scale_size = 0UL;
 };
 
 struct jit_rms_call_args {

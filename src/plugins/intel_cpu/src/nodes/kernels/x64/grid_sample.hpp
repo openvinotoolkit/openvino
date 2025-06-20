@@ -42,29 +42,29 @@ struct GridSampleKernelConfParams {
 };
 
 struct GridSamplesKernelExecArgs {
-    const void* src;
-    const void* grid;
-    void* dst;
+    const void* src = nullptr;
+    const void* grid = nullptr;
+    void* dst = nullptr;
     uint64_t batchNum = 1lu;
     uint64_t channelsNum = 1lu;
-    const float* srcWidthF;
-    const float* srcHeightF;
+    const float* srcWidthF = nullptr;
+    const float* srcHeightF = nullptr;
     uint64_t srcBatchStepB = 0lu;
     uint64_t gridBatchStepB = 0lu;
     uint64_t dstBatchStepB = 0lu;
     uint64_t srcChannelStepB = 0lu;
     uint64_t dstChannelStepB = 0lu;
-    const void* wDenormCoefF;
-    const void* hDenormCoefF;
-    const void* srcWidthB;
-    const void* srcHeightMul2F;
-    const void* srcWidthMul2F;
-    const void* srcHeightMul2Sub1F;
-    const void* srcWidthMul2Sub1F;
-    const void* srcHeightSub1F;
-    const void* srcWidthSub1F;
-    const void* dataTypeSize;
-    const void* buffer;
+    const void* wDenormCoefF = nullptr;
+    const void* hDenormCoefF = nullptr;
+    const void* srcWidthB = nullptr;
+    const void* srcHeightMul2F = nullptr;
+    const void* srcWidthMul2F = nullptr;
+    const void* srcHeightMul2Sub1F = nullptr;
+    const void* srcWidthMul2Sub1F = nullptr;
+    const void* srcHeightSub1F = nullptr;
+    const void* srcWidthSub1F = nullptr;
+    const void* dataTypeSize = nullptr;
+    const void* buffer = nullptr;
     uint64_t workAmount = 0lu;
 };
 
