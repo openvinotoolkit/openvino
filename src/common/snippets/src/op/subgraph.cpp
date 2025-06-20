@@ -28,6 +28,7 @@
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/lowered/pass/mark_parallel_loops.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
@@ -51,6 +52,9 @@
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/gn_decomposition.hpp"
+// todo: remove debug serialization
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+#include "snippets/lowered/pass/serialize_data_flow.hpp"
 #include "snippets/pass/manager.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/propagate_precision.hpp"
@@ -459,11 +463,18 @@ void Subgraph::control_flow_transformations(
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
-    // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
-    size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
-    if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
-        lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
-        m_linear_ir->set_loop_depth(loop_depth);
+    // Note: currently, internal parallel Loops arise only as replacement of mostouter eltwise loop (with increment = 1)
+    const bool use_internal_parallel_loops = std::getenv("USE_INTERNAL_PARALLEL_LOOPS");
+    if (use_internal_parallel_loops) {
+        m_linear_ir->set_loop_depth(2);
+    } else {
+        // Domain optimization must be the first pass,
+        // because all other transformations may depend on PortDescriptor shapes
+        size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
+        if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
+            lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);
+            m_linear_ir->set_loop_depth(loop_depth);
+        }
     }
 
     const size_t vector_size = get_generator()->get_target_machine()->get_lanes();
@@ -484,6 +495,9 @@ void Subgraph::control_flow_transformations(
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
     pipeline.register_pass<lowered::pass::SetDynamicWAToOuterMostLoop>();
+    if (use_internal_parallel_loops) {
+        pipeline.register_pass<lowered::pass::MarkParallelLoops>();
+    }
     pipeline.register_pass<lowered::pass::InsertLoops>();
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
@@ -533,6 +547,9 @@ void Subgraph::control_flow_transformations(
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
     gen_pipeline.run(*m_linear_ir);
+
+    ov::snippets::lowered::pass::SerializeControlFlow("snsdebug_control.xml").run(*m_linear_ir);
+    ov::snippets::lowered::pass::SerializeDataFlow("snsdebug_data.xml").run(*m_linear_ir);
 }
 
 snippets::Schedule Subgraph::generate(
