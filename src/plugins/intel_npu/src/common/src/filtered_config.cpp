@@ -40,6 +40,11 @@ void FilteredConfig::update(const ConfigMap& options, OptionMode mode) {
 }
 
 bool FilteredConfig::isAvailable(std::string key) const {
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
+    // to enable those for OV Core to query.
+    if (key.find("NPUW") != key.npos) {
+        return true;  // always available
+    }
     auto it = _enabled.find(key);
     if (it != _enabled.end() && hasOpt(key)) {
         return it->second;
