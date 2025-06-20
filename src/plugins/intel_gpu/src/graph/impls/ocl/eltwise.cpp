@@ -183,6 +183,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
         format::bfwzyx,
         format::bfuwzyx,
         format::bfvuwzyx,
+        format::b_fs_yx_fsv16,
     };
 
     implementation_map<eltwise>::add(impl_types::ocl,
