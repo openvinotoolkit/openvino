@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-
 #include "base_sync_infer_request.hpp"
+
+#include <algorithm>
 
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -173,7 +173,7 @@ void ov::npuw::IBaseInferRequest::set_tensors(const ov::Output<const ov::Node>&,
 }
 
 void ov::npuw::IBaseInferRequest::check_tensors() const {
-    // Ignore 
+    // Ignore
     return;
 }
 
@@ -241,7 +241,7 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
-    LOG_DEBUG("alloc mem: " <<type << ", shape: " << shape << " device: "<< device);
+    LOG_DEBUG("alloc mem: " << type << ", shape: " << shape << " device: " << device);
     if (device == "CPU" || ov::shape_size(shape) == 0) {
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
@@ -715,7 +715,7 @@ void ov::npuw::IBaseInferRequest::notify_subrequest_complete(std::size_t idx) {
         LOG_DEBUG("IBaseInferRequest::notify_subrequest_complete " << idx << " ... SKIP");
         return;
     }
-    LOG_DEBUG("IBaseInferRequest::notify_subrequest_complete " << idx );
+    LOG_DEBUG("IBaseInferRequest::notify_subrequest_complete " << idx);
 
     const auto& iodesc = m_subrequests_gio.at(idx);
     for (auto&& it : iodesc.global_results) {

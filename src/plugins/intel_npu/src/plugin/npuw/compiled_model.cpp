@@ -1706,8 +1706,6 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
 
-
-
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
                           BIND(npuw::dump::full, NPUW_DUMP_FULL),
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),

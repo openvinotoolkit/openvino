@@ -46,7 +46,6 @@ public:
     void set_tensors(const ov::Output<const ov::Node>& port,
                      const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
-
     void check_tensors() const override;
 
     // Query APIs - some default implementations here
@@ -69,13 +68,13 @@ public:
     using SubmitListener = std::function<void(std::size_t)>;
     void on_submit_subrequest(SubmitListener cb) {
         m_on_submit_cb = std::move(cb);
-     }
+    }
 
     // also having idx, or returning future here, might be helpfull to track copy completion time
-    using OutputReadyListener = std::function<void(std::size_t idx, std::string , ov::SoPtr<ITensor>)>;
+    using OutputReadyListener = std::function<void(std::size_t idx, std::string, ov::SoPtr<ITensor>)>;
     void on_output_ready(OutputReadyListener cb) {
         m_on_output_ready_cb = std::move(cb);
-     }
+    }
 
 protected:
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;

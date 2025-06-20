@@ -6,10 +6,10 @@
 
 #include <regex>
 
+#include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "base_sync_infer_request.hpp"
 #include "util_xarch.hpp"
 
 namespace {
@@ -126,8 +126,7 @@ constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
-
-        m_copy_cache_inline = m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_KV_CACHE_OPT>();
+    m_copy_cache_inline = m_npuw_llm_compiled_model->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_KV_CACHE_OPT>();
 
     for (const auto& input_port : m_npuw_llm_compiled_model->inputs()) {
         init_tensor(input_port);
@@ -162,9 +161,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             });
         }
 
-        m_prefill_request = std::make_shared<ov::IAsyncInferRequest>(sync_request,
-            compiled_model->m_prefill_compiled->get_task_executor(),
-            compiled_model->m_prefill_compiled->get_callback_executor());
+        m_prefill_request =
+            std::make_shared<ov::IAsyncInferRequest>(sync_request,
+                                                     compiled_model->m_prefill_compiled->get_task_executor(),
+                                                     compiled_model->m_prefill_compiled->get_callback_executor());
     } else {
         m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
     }
@@ -186,17 +186,16 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
 void ov::npuw::LLMInferRequest::on_prefill_request_prepare(std::size_t idx) {
     bool wait_all = idx == all;
-    LOG_DEBUG("LLMInferRequest::on_prefill_request_prepare - ["
-        << (wait_all ? "ALL" : std::to_string(idx))
-        << "] / [" << tasks_in_progress.size() << "]");
+    LOG_DEBUG("LLMInferRequest::on_prefill_request_prepare - [" << (wait_all ? "ALL" : std::to_string(idx)) << "] / ["
+                                                                << tasks_in_progress.size() << "]");
 
     if (tasks_in_progress.empty())
-            return;
+        return;
 
     std::lock_guard<std::mutex> lock(m_copy_access);
 
     auto clearing_idx = idx;
-    for (auto task_it = tasks_in_progress.begin(); task_it != tasks_in_progress.end(); ) {
+    for (auto task_it = tasks_in_progress.begin(); task_it != tasks_in_progress.end();) {
         if (wait_all || task_it->index == clearing_idx) {
             LOG_DEBUG("LLMInferRequest::on_prefill_request_prepare completing copy for request: " << task_it->index);
 #if (OV_THREAD == OV_THREAD_TBB)
@@ -211,7 +210,7 @@ void ov::npuw::LLMInferRequest::on_prefill_request_prepare(std::size_t idx) {
     }
 }
 
-void ov::npuw::LLMInferRequest::on_prefill_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor)  {
+void ov::npuw::LLMInferRequest::on_prefill_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) {
     LOG_DEBUG("LLMInferRequest::on_prefill_output_ready for: " << idx << ", name: " << name);
 
     if (!m_copy_cache_inline) {
@@ -300,7 +299,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     // if infer failed anyway this tokens number might not be accessed anyway
     // so we increment it before actual inference generates them
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens +=
-            static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
+        static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
 
     m_prefill_request->infer();
 
@@ -315,20 +314,20 @@ void ov::npuw::LLMInferRequest::copy_kv_cache(std::string prefill_output_name, o
     const auto pattern = std::regex("present");
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
-    auto copy_tensor = [pattern, kvcache_desc, this](auto output_name,  const auto & prefill_out_tensor)  {
+    auto copy_tensor = [pattern, kvcache_desc, this](auto output_name, const auto& prefill_out_tensor) {
         const auto& input_name = std::regex_replace(output_name, pattern, "past_key_values");
-            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
-                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-                return;
-            }
+        if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+            return;
+        }
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
         // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
         //        taking into account kvcache dimension.
         fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                ? 3u
-                                : kvcache_desc.dim;
+                                 ? 3u
+                                 : kvcache_desc.dim;
 
         auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
                                                    kv_dim,
@@ -336,7 +335,6 @@ void ov::npuw::LLMInferRequest::copy_kv_cache(std::string prefill_output_name, o
                                                    kvcache_desc.max_prompt_size);
 
         auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
-
 
         if (kv_dim == 3u) {
             copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);

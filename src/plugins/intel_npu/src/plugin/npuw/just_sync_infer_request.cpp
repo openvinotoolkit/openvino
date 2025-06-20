@@ -64,9 +64,8 @@ void ov::npuw::MemAccessSim::register_read(const LinkFrom& from) {
 }
 
 ov::npuw::FuncMemMgr::FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
-    : m_sim(compiled_model)
-    , m_model(compiled_model) {
-}
+    : m_sim(compiled_model),
+      m_model(compiled_model) {}
 
 void ov::npuw::FuncMemMgr::set_alloc(AllocFcn&& fcn) {
     m_alloc = std::move(fcn);
@@ -77,7 +76,6 @@ void ov::npuw::FuncMemMgr::assign_memory() {
     LOG_BLOCK();
 
     const auto num_submodels = m_model->m_compiled_submodels.size();
-
 
     // Walk over the subgraphs, pre-allocate and pre-assign tensors to the subgraphs
     // outputs.
@@ -161,7 +159,8 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
     } else {
         // TODO:  we might need following
         // 1. identify that tensor no longer used as part of pipelining of subrequests - can this be done by sim ???
-        // 2. if not by sim - looks weird, so try to improve simulator logic, where outputs reuse gets directly into account
+        // 2. if not by sim - looks weird, so try to improve simulator logic, where outputs reuse gets directly into
+        // account
         auto allocate_case = false;
 
         // number of maximun simultanenously inferred subgraphs - effectively equal number of infer-requests
@@ -171,11 +170,12 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
 
         if (max_simultanenous_subs) {
             // get ouput_proto
-            if (from.first - real_idx < max_simultanenous_subs)  {
+            if (from.first - real_idx < max_simultanenous_subs) {
                 // not yet created enough outputs
                 allocate_case = true;
-                // TODO: this search can be improved to not just function PROTOTYPE outputs, since HEAD might have same output tensors
-                // so allocated_case = false, but need to have more changes since those tensors are managed differently
+                // TODO: this search can be improved to not just function PROTOTYPE outputs, since HEAD might have same
+                // output tensors so allocated_case = false, but need to have more changes since those tensors are
+                // managed differently
             }
         } else {
             // for unrestricted case always allocate all outputs
@@ -489,7 +489,6 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     }
     LOG_DEBUG("Done");
 }
-
 
 bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
     auto* ncthis = const_cast<ov::npuw::JustInferRequest*>(this);

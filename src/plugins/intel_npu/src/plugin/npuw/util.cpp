@@ -767,8 +767,8 @@ ov::npuw::util::range_1d ov::npuw::util::validMaskRange(const ov::SoPtr<ov::ITen
 }
 
 #ifdef _WIN32
-#include <windows.h>
-void ov::npuw::util::MemLoger::logMemoryLoop(std::atomic<bool> &keep_running, size_t interval_ms) {
+#    include <windows.h>
+void ov::npuw::util::MemLoger::logMemoryLoop(std::atomic<bool>& keep_running, size_t interval_ms) {
     MEMORYSTATUSEX memStatus;
     memStatus.dwLength = sizeof(memStatus);
 

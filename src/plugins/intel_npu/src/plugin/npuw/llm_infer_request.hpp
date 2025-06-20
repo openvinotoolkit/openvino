@@ -11,13 +11,13 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 
 #if (OV_THREAD == OV_THREAD_TBB)
-# include "tbb/task_group.h"
+#    include "tbb/task_group.h"
 #endif
 
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest{
+class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -43,12 +43,12 @@ private:
                        ov::SoPtr<ov::ITensor> position_ids);
     struct KVCacheCopyTask {
         size_t index;
-    #if (OV_THREAD == OV_THREAD_TBB)
+#if (OV_THREAD == OV_THREAD_TBB)
         std::shared_ptr<tbb::task_group> tg;
-    #else
+#else
         // TODO: either use std::async or self thread pool
         std::future<void> future;
-    #endif
+#endif
     };
     std::list<KVCacheCopyTask> tasks_in_progress;
     std::mutex m_copy_access;
@@ -60,7 +60,7 @@ private:
 
     static constexpr auto all = std::numeric_limits<std::size_t>::max();
     void on_prefill_request_prepare(std::size_t idx = all);  // before request started
-    void on_prefill_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor); // after .wait()
+    void on_prefill_output_ready(std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor);  // after .wait()
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
