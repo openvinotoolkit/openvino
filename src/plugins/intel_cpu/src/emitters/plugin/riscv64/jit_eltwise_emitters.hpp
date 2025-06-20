@@ -260,10 +260,10 @@ private:
 
 class jit_logical_not_emitter : public jit_emitter {
 public:
-    jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+    jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                             ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                             const ov::element::Type exec_prc = ov::element::f32);
-    jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+    jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                             ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                             const std::shared_ptr<ov::Node>& node);
 

@@ -740,14 +740,14 @@ void jit_logical_and_emitter::register_table_entries() {
 }
 
 /// LOGICAL NOT ///
-jit_logical_not_emitter::jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_logical_not_emitter::jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                                  const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 
-jit_logical_not_emitter::jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_logical_not_emitter::jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                                  const ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
