@@ -647,8 +647,7 @@ struct MHAHelper {
         }
 
         if (_params.is_sage_attn) {
-            printf("going to resize _quantized_q\n");
-           _quantized_q.resize<int8_t>({B_token, H, S + sizeof(float)});
+            _quantized_q.resize<int8_t>({B_token, H, S + sizeof(float)});
         }
 
         // TODO: kernel supports stride
@@ -663,28 +662,27 @@ struct MHAHelper {
                     // LDB consider the offset of scale(f32)
                     // oneDNN brgemm has limitation with a_scale, it doesn't support per-row scale
                     // only enable b_scale here
-                    _qk_gemm[i] =
-                        std::make_shared<BrgemmKernel>(i + 1,
-                                                       _block_size,
-                                                       S,
-                                                       H * (S + sizeof(float)),
-                                                       S + sizeof(float),
-                                                       _block_size,
-                                                       _new_score_stride,
-                                                       true,
-                                                       ov::element::i8,
-                                                       ov::element::f32,
-                                                       ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
-                                                       false);
+                    _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
+                                                                 _block_size,
+                                                                 S,
+                                                                 H * (S + sizeof(float)),
+                                                                 S + sizeof(float),
+                                                                 _block_size,
+                                                                 _new_score_stride,
+                                                                 true,
+                                                                 ov::element::i8,
+                                                                 ov::element::f32,
+                                                                 ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
+                                                                 false);
                 } else {
                     _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
-                                                                _block_size,
-                                                                S,
-                                                                H * S,
-                                                                _block_size,
-                                                                _new_score_stride,
-                                                                false,
-                                                                in_type);
+                                                                 _block_size,
+                                                                 S,
+                                                                 H * S,
+                                                                 _block_size,
+                                                                 _new_score_stride,
+                                                                 false,
+                                                                 in_type);
                 }
                 _wv_gemm[i] =
                     std::make_shared<BrgemmKernel>(i + 1,
@@ -873,7 +871,9 @@ struct MHAHelper {
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 // dequantization of q matrix could be fused with _d_scale since softmax is done by row
-                float revised_d_scale = _params.is_sage_attn ? _d_scale * reinterpret_cast<float*>(query.ptr<int8_t>(h, m, 0))[0] : _d_scale;
+                float revised_d_scale = _params.is_sage_attn
+                                            ? _d_scale * reinterpret_cast<float*>(query.ptr<int8_t>(h, m, 0))[0]
+                                            : _d_scale;
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -1529,8 +1529,8 @@ struct MHA {
                     valid_len,  // N
                     _helper.S,  // K
                     _helper._block_size,
-                    _helper._block_size,            // dst_stride
-                    _helper.S,                      // src_stride
+                    _helper._block_size,                   // dst_stride
+                    _helper.S,                             // src_stride
                     _helper._params.key_group_size,        // group_size
                     _helper._params.quant_key_bychannel);  // quant_by_channel
             }
@@ -2077,7 +2077,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             quant_params.key_group_size = _helper._params.key_group_size;
             quant_params.value_group_size = _helper._params.value_group_size;
             quant_params.is_sage_attn = _helper._params.is_sage_attn;
-            printf("pa_executor|is_sage %d\n", quant_params.is_sage_attn);
 
             paged_attn_quantkv(k,
                                v,
@@ -2141,10 +2140,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
         if constexpr (one_of(KEY_PREC, ov::element::i8)) {
             if (_helper._params.is_sage_attn) {
-                sage_attn_quantize_q<DATA_TYPE, KEY_PREC>(q,
-                                                        _helper._quantized_q,
-                                                        past_lens,
-                                                        subsequence_begins);
+                sage_attn_quantize_q<DATA_TYPE, KEY_PREC>(q, _helper._quantized_q, past_lens, subsequence_begins);
             }
         }
 
@@ -2182,12 +2178,10 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          ov::element::Type value_cache_type,
                                                          const PagedAttnQuantParams& params) {
     std::shared_ptr<PagedAttentionExecutor> executor;
-    std::cout << "make_pa_executor|key|" << key_cache_type << "|value|" << value_cache_type  << "|is_sage|" << params.is_sage_attn << std::endl;
 #if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
         if (key_cache_type == ov::element::i8) {
-            printf("make PagedAttn Executor\n");
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::i8, ov::element::u8>>(params);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
@@ -2223,7 +2217,9 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #    endif
     } else if (data_type == ov::element::f16) {
 #    if defined(HAVE_AVX512F)
-        if (key_cache_type == ov::element::u8) {
+        if (key_cache_type == ov::element::i8) {
+            executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::i8, ov::element::u8>>(params);
+        } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
                 executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u4>>(params);
             } else if (value_cache_type == ov::element::u8) {

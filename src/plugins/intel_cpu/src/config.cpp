@@ -487,10 +487,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (!valueCachePrecisionSetExplicitly && kvCachePrecisionSetExplicitly) {
         valueCachePrecision = kvCachePrecision;
     }
-    // if (enableSageAttn) {
-    //     keyCachePrecision = ov::element::i8;
-    //     keyCacheQuantMode = CacheQuantMode::BY_HIDDEN;
-    // }
+    if (enableSageAttn) {
+        keyCachePrecision = ov::element::i8;
+        keyCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+        valueCachePrecision = ov::element::u8;
+        valueCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+    }
     // disable dynamic quantization and kv quantization for best accuracy
     if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
         if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
