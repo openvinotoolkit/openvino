@@ -101,14 +101,12 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     auto unsq_v = wrap_type<v1::Reshape, v0::Unsqueeze>({v, any_input()});
 
     // this Transpose may already exist in the graph
-    auto opt_original_transpose_q = optional<v1::Transpose>({unsq_q, any_input()});
     auto opt_original_transpose_k = optional<v1::Transpose>({unsq_k, any_input()});
-    auto opt_original_transpose_v = optional<v1::Transpose>({unsq_v, any_input()});
 
     // these Reshape/Unsqueeze may be inserted by SDPAFusionMatcher
-    auto opt_unsq_q = optional<v1::Reshape, v0::Unsqueeze>({opt_original_transpose_q, any_input()});
+    auto opt_unsq_q = optional<v1::Reshape, v0::Unsqueeze>({unsq_q, any_input()});
     auto opt_unsq_k = optional<v1::Reshape, v0::Unsqueeze>({opt_original_transpose_k, any_input()});
-    auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({opt_original_transpose_v, any_input()});
+    auto opt_unsq_v = optional<v1::Reshape, v0::Unsqueeze>({unsq_v, any_input()});
 
     // this Transpose may be inserted by SDPAFusionMatcher
     auto opt_transpose_k =
