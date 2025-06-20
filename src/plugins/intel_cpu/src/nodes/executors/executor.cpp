@@ -23,6 +23,7 @@ std::string ExecutorTypeToString(const ExecutorType type) {
         CASE(jit_aarch64);
         CASE(Shl);
         CASE(Kleidiai);
+        CASE(jit_riscv64);
     }
 #undef CASE
     return "Undefined";
