@@ -88,7 +88,6 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        int64_t keepK;
         SortMode mode;
         std::tuple<SortType, bool> sortTypeStable;
         ElementType inPrc, outPrc;
@@ -225,7 +224,7 @@ private:
 
         ov::test::utils::InputGenerateData in_data;
         in_data.start_from = 1;
-        in_data.range = targetInputStaticShapes[0][axis];
+        in_data.range = inferRequestNum == 0 ? keepK : targetInputStaticShapes[0][axis];
         in_data.seed = inferRequestNum++;;
         const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, in_data);
 
@@ -233,6 +232,7 @@ private:
     }
 
 private:
+    int64_t keepK;
     int64_t axis;
     SortType sort;
     bool stable;
