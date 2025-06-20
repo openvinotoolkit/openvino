@@ -7,10 +7,7 @@
 #include "openvino/runtime/memory_solver.hpp"
 #include "pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface SolveBufferMemory
@@ -46,14 +43,14 @@ private:
      * @param buffer_expressions buffer expressions
      * @return the pair of static and dynamic buffer expressions
      */
-    std::pair<Buffers, Buffers> extract_static_and_dynamic_buffers(const Buffers& buffer_expressions);
+    static std::pair<Buffers, Buffers> extract_static_and_dynamic_buffers(const Buffers& buffer_expressions);
     /**
      * @brief Initializes boxes for MemorySolver
      * @param buffer_expressions buffer expressions
      * @param linear_ir linear ir
      * @return vector of boxes for MemorySolver
      */
-    std::vector<ov::MemorySolver::Box> init_boxes(const Buffers& buffer_expressions, const LinearIR& linear_ir);
+    static std::vector<ov::MemorySolver::Box> init_boxes(const Buffers& buffer_expressions, const LinearIR& linear_ir);
     /**
      * @brief Calculate memory size and set offset to buffer with defined allocation size
      * @param static_buffer_expressions static buffer expressions
@@ -65,12 +62,9 @@ private:
      *        Note: should be called after `solve_static_buffer_memory`
      * @param dynamic_buffer_expressions dynamic buffer expressions
      */
-    void set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions);
+    void set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions) const;
 
     size_t& m_static_buffer_scratchpad_size;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

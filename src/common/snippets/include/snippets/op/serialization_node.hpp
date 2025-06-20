@@ -4,14 +4,15 @@
 
 #pragma once
 
+#include <memory>
 #include <snippets/lowered/expression.hpp>
-#include <snippets/snippets_isa.hpp>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface SerializationNode
@@ -37,6 +38,4 @@ private:
     SerializationMode m_mode;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

@@ -107,8 +107,8 @@ constexpr bool implication(bool cause, bool cond) {
 template <typename T, typename U>
 static inline auto div_up(const T lhs, const U rhs) -> decltype((lhs + rhs - 1) / rhs) {
     OPENVINO_ASSERT(rhs != 0, "Divider must not be zero");
-    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>) && utils::is_dynamic_value(lhs)) ||
-        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>) && utils::is_dynamic_value(rhs))) {
+    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>)&&utils::is_dynamic_value(lhs)) ||
+        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>)&&utils::is_dynamic_value(rhs))) {
         return utils::get_dynamic_value<T>();
     }
     return (lhs + rhs - 1) / rhs;
@@ -117,8 +117,8 @@ static inline auto div_up(const T lhs, const U rhs) -> decltype((lhs + rhs - 1) 
 template <typename T, typename U>
 static inline auto rnd_up(const T lhs, const U rhs) -> decltype(div_up(lhs, rhs) * rhs) {
     const T div_up_res = div_up(lhs, rhs);
-    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>) && utils::is_dynamic_value(div_up_res)) ||
-        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>) && utils::is_dynamic_value(rhs))) {
+    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>)&&utils::is_dynamic_value(div_up_res)) ||
+        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>)&&utils::is_dynamic_value(rhs))) {
         return utils::get_dynamic_value<T>();
     }
     return div_up_res * rhs;
@@ -185,8 +185,8 @@ bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 // Can be used in SpecificLoopIterationHandlers
 bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
-VectorDims pshape_to_vdims(const PartialShape&);
-ov::PartialShape vdims_to_pshape(const VectorDims&);
+VectorDims pshape_to_vdims(const PartialShape& /*pshape*/);
+ov::PartialShape vdims_to_pshape(const VectorDims& /*vdims*/);
 
 inline size_t dimension_to_size_t(const ov::Dimension& dim) {
     return dim.is_dynamic() ? snippets::utils::get_dynamic_value<VectorDims::value_type>()
@@ -380,7 +380,7 @@ void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t
  */
 void visit_path(const lowered::ExpressionPtr& expr,
                 std::unordered_set<lowered::ExpressionPtr>& visited,
-                std::function<void(lowered::ExpressionPtr)> func,
+                const std::function<void(lowered::ExpressionPtr)>& func,
                 bool visit_parent_path);
 
 /**

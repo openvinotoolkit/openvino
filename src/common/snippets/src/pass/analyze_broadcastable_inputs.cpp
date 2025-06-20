@@ -105,4 +105,4 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
     return true;
 }
 
-} // namespace ov::snippets::pass
+}  // namespace ov::snippets::pass

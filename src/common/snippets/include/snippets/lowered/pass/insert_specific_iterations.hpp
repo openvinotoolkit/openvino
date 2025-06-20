@@ -4,13 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/loop.hpp"
-
-
-
 
 namespace ov::snippets::lowered::pass {
 
@@ -104,8 +109,4 @@ private:
                                      const std::shared_ptr<op::LoopEnd>& decomposed_loop_end);
 };
 
-
 }  // namespace ov::snippets::lowered::pass
-
-
-

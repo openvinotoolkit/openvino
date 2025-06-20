@@ -6,10 +6,7 @@
 
 #include "pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface Validate
@@ -27,7 +24,4 @@ private:
     std::unordered_map<ov::DiscreteTypeInfo, Validator> m_validation_map;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

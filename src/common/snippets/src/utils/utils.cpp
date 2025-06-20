@@ -378,7 +378,7 @@ void init_strides(const VectorDims& shape, size_t rank, size_t data_size, size_t
 
 void visit_path(const lowered::ExpressionPtr& expr,
                 std::unordered_set<lowered::ExpressionPtr>& visited,
-                std::function<void(lowered::ExpressionPtr)> func,
+                const std::function<void(lowered::ExpressionPtr)>& func,
                 bool visit_parent_path) {
     std::deque<lowered::ExpressionPtr> exprs{expr};
 

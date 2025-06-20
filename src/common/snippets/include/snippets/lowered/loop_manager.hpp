@@ -363,4 +363,4 @@ private:
 };
 using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
-} // namespace ov::snippets::lowered
+}  // namespace ov::snippets::lowered

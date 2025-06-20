@@ -36,9 +36,8 @@ inline int64_t get_data_size(const LoopPort& loop_port) {
     if (expr_port->get_type() == ExpressionPort::Output) {
         return static_cast<int64_t>(
             expr_port->get_expr()->get_node()->get_output_element_type(expr_port->get_index()).size());
-    } else {
-        OPENVINO_THROW("Unsupported expression port type!");
     }
+    OPENVINO_THROW("Unsupported expression port type!");
 }
 }  // namespace
 

@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include <memory>
+#include <set>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface TokenizeSnippets
@@ -45,6 +48,4 @@ public:
     static const std::set<ov::element::Type>& get_supported_element_types();
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass
