@@ -7,9 +7,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "cpu_shape.h"
@@ -203,6 +205,17 @@ inline bool all_of_values(const Container& container, const T& value) {
     return std::all_of(container.begin(), container.end(), [&](const auto& elem) {
         return elem == value;
     });
+}
+
+template <typename To, typename From>
+inline std::enable_if_t<sizeof(To) == sizeof(From) && std::is_trivially_copyable_v<From> &&
+                            std::is_trivially_copyable_v<To>,
+                        To>
+bit_cast(const From& src) noexcept {
+    static_assert(std::is_trivially_constructible_v<To>, "Destination type must be trivially constructible");
+    To dst{};
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
 }
 
 }  // namespace ov::intel_cpu
