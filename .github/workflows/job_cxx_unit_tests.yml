@@ -48,6 +48,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       SETUPVARS: ${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
       - name: Download OpenVINO package
@@ -68,6 +69,7 @@ jobs:
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+          echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
           echo "SETUPVARS_COMMAND=${{ env.SOURCE_COMMAND }} $GITHUB_WORKSPACE/install/${{ env.SETUPVARS }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
@@ -97,7 +99,10 @@ jobs:
           pushd ${{ env.INSTALL_TEST_DIR }}
             Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
           popd
-
+      
+      - name: Install python dependencies for run_parallel.py
+        run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/functional_test_utils/layer_tests_summary/requirements.txt
+      
       #
       # Tests
       #
@@ -106,7 +111,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).Core.test && inputs.os != 'debian_10' }} # Ticket: 153150
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
+          python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
         if: ${{ fromJSON(inputs.affected-components).inference.test && inputs.os != 'debian_10' }} # Ticket: 153151
