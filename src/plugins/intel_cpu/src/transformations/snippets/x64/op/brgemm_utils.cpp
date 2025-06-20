@@ -165,12 +165,12 @@ size_t compute_vnni_factor(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-size_t compute_brgemm_copy_b_buffer_allocation_size(const ov::snippets::VectorDims& planar_shape,
-                                                    const ov::element::Type& prc,
-                                                    size_t wei_k_blk,
-                                                    size_t wei_n_blk,
-                                                    bool are_wei_blocked,
-                                                    bool is_transposed) {
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(const ov::snippets::VectorDims& planar_shape,
+                                                           const ov::element::Type& prc,
+                                                           size_t wei_k_blk,
+                                                           size_t wei_n_blk,
+                                                           bool are_wei_blocked,
+                                                           bool is_transposed) {
     OPENVINO_ASSERT(
         !ov::snippets::utils::is_dynamic_value(wei_k_blk) && !ov::snippets::utils::is_dynamic_value(wei_n_blk),
         "wei_k_blk and wei_n_blk cannot be dynamic");
@@ -194,14 +194,11 @@ size_t compute_brgemm_copy_b_buffer_allocation_size(const ov::snippets::VectorDi
     }
     const size_t new_K = compute_blocked_dim(K, K_alignment);
 
-    auto allocation_size = std::accumulate(planar_shape.rbegin() + 2,
-                                           planar_shape.rend(),
-                                           static_cast<size_t>(1),
-                                           ov::snippets::utils::dynamic_safe_mul<size_t>);
-    allocation_size = ov::snippets::utils::dynamic_safe_mul(allocation_size, new_N);
-    allocation_size = ov::snippets::utils::dynamic_safe_mul(allocation_size, new_K);
+    ov::snippets::VectorDims allocation_shape(planar_shape);
+    *++allocation_shape.rbegin() = new_K;
+    *allocation_shape.rbegin() = new_N;
 
-    return allocation_size;
+    return allocation_shape;
 }
 
 ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippets::VectorDims& planar_shape,

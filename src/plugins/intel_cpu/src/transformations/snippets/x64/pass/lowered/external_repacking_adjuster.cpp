@@ -8,7 +8,9 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <memory>
+#include <numeric>
 
 #include "cache/multi_cache.h"
 #include "cpu_shape.h"
@@ -83,13 +85,14 @@ CpuBlockedMemoryDescPtr BrgemmExternalRepackingAdjuster::get_desc(const ov::snip
                                                                   size_t wei_n_blk,
                                                                   bool are_wei_blocked,
                                                                   bool is_transposed) {
-    const auto allocation_size = brgemm_utils::repacking::compute_brgemm_copy_b_buffer_allocation_size(planar_shape,
-                                                                                                       prc,
-                                                                                                       wei_k_blk,
-                                                                                                       wei_n_blk,
-                                                                                                       are_wei_blocked,
-                                                                                                       is_transposed);
-    return std::make_shared<CpuBlockedMemoryDesc>(prc, Shape(planar_shape), VectorDims{allocation_size}, VectorDims{0});
+    const auto allocation_shape = brgemm_utils::repacking::compute_buffer_b_allocation_shape(planar_shape,
+                                                                                             prc,
+                                                                                             wei_k_blk,
+                                                                                             wei_n_blk,
+                                                                                             are_wei_blocked,
+                                                                                             is_transposed);
+    const auto blocked_order = ov::snippets::utils::get_planar_layout(allocation_shape.size());
+    return std::make_shared<CpuBlockedMemoryDesc>(prc, Shape(planar_shape), allocation_shape, blocked_order);
 }
 
 void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& executor,
@@ -129,18 +132,23 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
 
-        // src data + dst data per kernel call
+        const auto buffer_b_allocation_shape =
+            brgemm_utils::repacking::compute_buffer_b_allocation_shape({K, N},
+                                                                       prc,
+                                                                       config.get_wei_K_blk(),
+                                                                       config.get_wei_N_blk(),
+                                                                       config.are_wei_blocked(),
+                                                                       config.is_transposed_B());
+
         const auto src_dt_size = dnnl_data_type_size(config.get_original_wei_dt());
         const auto dst_dt_size = dnnl_data_type_size(config.get_wei_dt());
+        // src data + dst data per kernel call
         const auto src_data = N * K * src_dt_size;
-        const auto dst_data =
-            brgemm_utils::repacking::compute_brgemm_copy_b_buffer_allocation_size({K, N},
-                                                                                  prc,
-                                                                                  config.get_wei_K_blk(),
-                                                                                  config.get_wei_N_blk(),
-                                                                                  config.are_wei_blocked(),
-                                                                                  config.is_transposed_B()) *
-            dst_dt_size;
+        const auto dst_data = std::accumulate(buffer_b_allocation_shape.cbegin(),
+                                              buffer_b_allocation_shape.cend(),
+                                              size_t(1),
+                                              std::multiplies<>()) *
+                              dst_dt_size;
         data_size += src_data + dst_data;
     }
 

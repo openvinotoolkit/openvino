@@ -169,13 +169,12 @@ inline T compute_K_blocked_stride(T N, size_t wei_n_blk, bool are_wei_blocked) {
 /// \brief  Computes allocation shape for Buffer between BrgemmCopyB and Brgemm.
 ///         Note: BrgemmCopyB requires buffer with allocation size which is greater than blocked shapes.
 ///               Please see the explanation inside
-///         Note: allocation size is count of elements, not bytes
-size_t compute_brgemm_copy_b_buffer_allocation_size(const ov::snippets::VectorDims& planar_shape,
-                                                    const ov::element::Type& prc,
-                                                    size_t wei_k_blk,
-                                                    size_t wei_n_blk,
-                                                    bool are_wei_blocked,
-                                                    bool is_transposed);
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(const ov::snippets::VectorDims& planar_shape,
+                                                           const ov::element::Type& prc,
+                                                           size_t wei_k_blk,
+                                                           size_t wei_n_blk,
+                                                           bool are_wei_blocked,
+                                                           bool is_transposed);
 
 /// \brief  Compute blocked shape for repacked weights
 ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippets::VectorDims& planar_shape,
