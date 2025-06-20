@@ -64,8 +64,12 @@ struct Config {
     bool valueCacheGroupSizeSetExplicitly = false;
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
-#endif
+    // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
+    size_t rtCacheCapacity = 0ul;
+#else
     size_t rtCacheCapacity = 5000ul;
+#endif
+    size_t snippetsCacheCapacity = 5000ul;
 #if defined(OPENVINO_ARCH_X86_64)
     ov::element::Type kvCachePrecision = ov::element::u8;
     ov::element::Type keyCachePrecision = ov::element::u8;
