@@ -16,9 +16,9 @@ namespace ov {
 namespace util {
 
 using log_handler_t = std::function<void(const std::string&)>;
-OPENVINO_API const log_handler_t& get_log_handler();
-OPENVINO_API const void set_log_handler(log_handler_t* handler);
-OPENVINO_API const void reset_log_handler();
+OPENVINO_API log_handler_t* get_log_handler();
+OPENVINO_API void set_log_handler(log_handler_t* handler);
+OPENVINO_API void reset_log_handler();
 
 class OPENVINO_API LevelString {
 private:

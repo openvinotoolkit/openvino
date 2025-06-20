@@ -14,8 +14,10 @@
 
 namespace ov::util {
 
-LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, const log_handler_t& handler_func)
-    : m_handler_func{handler_func} {
+LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, log_handler_t* handler) : m_handler{handler} {
+    if (!m_handler)
+        return;
+
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:
         m_stream << "[ERR] ";
@@ -53,10 +55,7 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, const log_handle
 }
 
 LogHelper::~LogHelper() {
-#ifdef ENABLE_OPENVINO_DEBUG
-    if (m_handler_func) {
-        m_handler_func(m_stream.str());
-    }
-#endif
+    if (m_handler)
+        (*m_handler)(m_stream.str());
 }
 }  // namespace ov::util
