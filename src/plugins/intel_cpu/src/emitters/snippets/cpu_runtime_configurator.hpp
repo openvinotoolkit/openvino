@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "cache/multi_cache.h"
+#include "emitters/snippets/input_repacker.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/repacked_input.hpp"
 #include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/runtime_configurator.hpp"
@@ -34,7 +34,7 @@ public:
     };
     RepackingImplType repacking_impl_type = RepackingImplType::NONE;
 
-    RepackedInputConfig repacked_input_config;
+    InputRepackerMap input_repackers;
     std::vector<jit_snippets_call_args::loop_args_t> loop_args;
 };
 
