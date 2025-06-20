@@ -18,6 +18,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -195,8 +196,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest5) {
 
     {
         const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
-        const auto sdpa =
-            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
+        const auto squeezed_mask =
+            std::make_shared<ov::op::v0::Squeeze>(mask, ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
+        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   squeezed_mask,
+                                                                                   scale_const,
+                                                                                   casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
@@ -227,8 +234,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest6) {
 
     {
         const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
-        const auto sdpa =
-            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
+        const auto squeezed_mask =
+            std::make_shared<ov::op::v0::Squeeze>(mask, ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 1}));
+        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   squeezed_mask,
+                                                                                   scale_const,
+                                                                                   casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
@@ -300,15 +313,8 @@ TEST_F(TransformationTestsF, SDPAFusionTest8) {
     }
 
     {
-        const auto unsqueezed_mask =
-            std::make_shared<ov::op::v0::Unsqueeze>(mask,
-                                                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
-                                                                                   key,
-                                                                                   value,
-                                                                                   unsqueezed_mask,
-                                                                                   scale_const,
-                                                                                   casual);
+        const auto sdpa =
+            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
@@ -573,10 +579,12 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
         const auto transposed_key =
             std::make_shared<ov::op::v1::Transpose>(key,
                                                     ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
+        const auto squeezed_mask =
+            std::make_shared<ov::op::v0::Squeeze>(mask, ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 1}));
         const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
                                                                                    transposed_key,
                                                                                    value,
-                                                                                   mask,
+                                                                                   squeezed_mask,
                                                                                    scale_const,
                                                                                    casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
