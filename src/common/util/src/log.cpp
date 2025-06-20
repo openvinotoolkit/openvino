@@ -14,7 +14,7 @@
 
 namespace ov::util {
 
-LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, const logger_handler_t& handler_func)
+LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, const log_handler_t& handler_func)
     : m_handler_func{handler_func} {
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:

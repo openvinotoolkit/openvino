@@ -8,7 +8,7 @@
 #include <regex>
 #include <sstream>
 
-// #include "openvino/core/log_util.hpp"
+#include "openvino/core/log_util.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov::util::test {
@@ -20,6 +20,7 @@ class LogHelperTo : public testing::TestWithParam<LogEntries> {
 
 protected:
     void SetUp() override {
+        reset_log_handler();
         out_stream->flush();
         out_buf = out_stream->rdbuf();
         out_stream->rdbuf(str_stream.rdbuf());
@@ -27,6 +28,7 @@ protected:
 
     void TearDown() override {
         out_stream->rdbuf(out_buf);
+        reset_log_handler();
     }
 
     std::streambuf* out_buf;
@@ -44,7 +46,7 @@ TEST_P(LogHelperTo, std_cout) {
     int line_no;
     std::tie(path, line_no, message) = GetParam();
 
-    { LogHelper{LOG_TYPE::_LOG_TYPE_INFO, path, line_no, get_logger_handler()}.stream() << message; }
+    { LogHelper{LOG_TYPE::_LOG_TYPE_INFO, path, line_no, get_log_handler()}.stream() << message; }
 
     EXPECT_TRUE(std::regex_search(str_stream.str(), make_regex(path, line_no, message)));
 }
