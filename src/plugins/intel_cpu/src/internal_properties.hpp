@@ -122,4 +122,11 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
  */
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
 
+/**
+ * @brief Define whether to enable sage_attn
+ * @param true - enable
+ * @param false - disable
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
+
 }  // namespace ov::intel_cpu
