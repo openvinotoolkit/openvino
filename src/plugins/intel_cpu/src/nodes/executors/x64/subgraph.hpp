@@ -54,7 +54,7 @@ protected:
                                    int ithr,
                                    jit_snippets_call_args& call_args);
 
-    inline void* get_external_scratchpad_ptr(size_t ithr, size_t idx) const {
+    void* get_external_scratchpad_ptr(size_t ithr, size_t idx) const {
         if (m_repacked_input_config.empty()) {
             return nullptr;
         }
@@ -72,17 +72,17 @@ protected:
     }
 
     // [ Thread Index -> Index of input with repacking data - > last repacked src_offset ]
-    std::vector<std::vector<size_t>> m_repacked_offsets_by_threads = {};
-    RepackedInputConfig m_repacked_input_config = {};
+    std::vector<std::vector<size_t>> m_repacked_offsets_by_threads;
+    RepackedInputConfig m_repacked_input_config;
 
-    std::function<void(const std::vector<size_t>&, const std::vector<size_t>&, size_t&)> init_offset = {};
+    std::function<void(const std::vector<size_t>&, const std::vector<size_t>&, size_t&)> init_offset;
 
     using RepackingImplType = CPURuntimeConfig::RepackingImplType;
     const RepackingImplType& get_repacking_impl_type() const {
         return m_repacking_impl_type;
     }
 
-    inline void clean_repacked_offsets(size_t ithr) {
+    void clean_repacked_offsets(size_t ithr) {
         m_repacked_offsets_by_threads[ithr].assign(m_repacked_input_config.size(), std::numeric_limits<size_t>::max());
     }
 

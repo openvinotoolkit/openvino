@@ -21,16 +21,14 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu::x64 {
 
 struct BrgemmAMXKernelConfig : public x64::BrgemmBaseKernelConfig {
 public:
-    BrgemmAMXKernelConfig(const element::Type& in0_dtype,
-                          const element::Type& in1_dtype,
-                          const element::Type& out_dtype,
-                          dnnl_dim_t wei_K_blk,
-                          dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+    BrgemmAMXKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
+                          const element::Type& out_dt,
                           const dnnl_post_ops& post_ops);
     BrgemmAMXKernelConfig() = delete;
 

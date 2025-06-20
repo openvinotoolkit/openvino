@@ -16,7 +16,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-enum ProposalGenerationMode { RANDOM, ULTIMATE_RIGHT_BORDER };
+enum ProposalGenerationMode : uint8_t { RANDOM, ULTIMATE_RIGHT_BORDER };
 
 using roiPoolingShapes = std::vector<InputShape>;
 

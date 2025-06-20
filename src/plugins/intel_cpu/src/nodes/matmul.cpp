@@ -132,8 +132,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, MMShapeInferFactory(op)),
-      withBiases(false) {
+    : Node(op, context, MMShapeInferFactory(op)) {
     std::string errorMessage;
 
     if (!isSupportedOperation(op, errorMessage)) {

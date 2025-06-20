@@ -36,20 +36,26 @@ namespace intel_cpu::brgemm_utils {
 
 BrgemmConfig::BrgemmConfig(const ov::element::Type& src_dt,
                            const ov::element::Type& wei_dt,
+                           const ov::element::Type& orig_wei_dt,
                            bool are_wei_constant,
                            bool transposed_b)
-    : BrgemmConfig(get_prim_isa(src_dt, wei_dt), src_dt, wei_dt, are_wei_constant, transposed_b) {}
+    : BrgemmConfig(get_prim_isa(src_dt, wei_dt), src_dt, wei_dt, orig_wei_dt, are_wei_constant, transposed_b) {}
 
 // [TODO] 168764: Blocked weights repacking requires blocked loop by N for correct ptr increments.
 //        If kn_blocking is not supported by Brgemm, we cannot repack weights to blocked layout
 BrgemmConfig::BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
                            const ov::element::Type& src_dt,
                            const ov::element::Type& wei_dt,
+                           const ov::element::Type& orig_wei_dt,
                            bool are_wei_constant,
                            bool transposed_b)
     : m_isa(isa),
+      m_src_dt(src_dt),
+      m_wei_dt(wei_dt),
+      m_orig_wei_dt(orig_wei_dt),
       m_with_compensations(src_dt == ov::element::i8 && !one_of(m_isa, avx512_core_amx, avx2_vnni_2)),
       m_are_wei_constant(are_wei_constant),
+      m_transposed_b(transposed_b),
       m_are_wei_blocked(ov::intel_cpu::pass::BrgemmCPUBlocking::is_kn_blocking_supported(src_dt) && m_are_wei_constant),
       m_wei_k_blk(get_elems_in_vec(wei_dt)) {
     const auto is_fp32 = src_dt == ov::element::f32 && wei_dt == ov::element::f32;
@@ -131,6 +137,12 @@ bool BrgemmConfig::is_amx() const {
 
 void BrgemmConfig::validate() const {
     OPENVINO_ASSERT(m_isa != isa_undef, "ISA is undefined");
+    OPENVINO_ASSERT(one_of(m_src_dt, element::f32, element::bf16, element::f16, element::u8, element::i8),
+                    "Brgemm doesn't support weights element type: " + m_src_dt.get_type_name());
+    OPENVINO_ASSERT(one_of(m_wei_dt, element::f32, element::bf16, element::f16, element::i8),
+                    "Brgemm doesn't support weights element type: " + m_wei_dt.get_type_name());
+    OPENVINO_ASSERT(one_of(m_orig_wei_dt, element::f32, element::bf16, element::f16, element::i8),
+                    "Brgemm doesn't support weights element type: " + m_orig_wei_dt.get_type_name());
     OPENVINO_ASSERT(ov::snippets::utils::implication(m_with_compensations, !is_amx() && m_with_wei_repacking),
                     "Compensations must be only with BrgemmCopyB on non-amx platforms");
     OPENVINO_ASSERT(m_wei_n_blk > 0 && m_wei_k_blk > 0, "Weight block sizes must be positive");
@@ -184,19 +196,27 @@ bool AttributeAdapter<ov::intel_cpu::brgemm_utils::BrgemmConfig>::visit_attribut
     bool with_comps = m_ref.with_compensations();
     bool are_wei_blocked = m_ref.are_wei_blocked();
     bool are_wei_constant = m_ref.are_wei_constant();
+    bool transposed_b = m_ref.transposed_b();
     bool is_amx = m_ref.is_amx();
     std::string isa = JIT_IMPL_NAME_HELPER("", m_ref.isa(), "");
     size_t wei_n_blk = m_ref.wei_n_blk();
     size_t wei_k_blk = m_ref.wei_k_blk();
+    auto src_dt = m_ref.src_dt();
+    auto wei_dt = m_ref.wei_dt();
+    auto orig_wei_dt = m_ref.orig_wei_dt();
 
     visitor.on_attribute("with_brgemm_copy_b", with_wei_repacking);
     visitor.on_attribute("with_compensations", with_comps);
     visitor.on_attribute("are_wei_blocked", are_wei_blocked);
     visitor.on_attribute("are_wei_constant", are_wei_constant);
+    visitor.on_attribute("transposed_b", transposed_b);
     visitor.on_attribute("is_amx", is_amx);
     visitor.on_attribute("prim_isa", isa);
     visitor.on_attribute("wei_n_blk", wei_n_blk);
     visitor.on_attribute("wei_k_blk", wei_k_blk);
+    visitor.on_attribute("src_dt", src_dt);
+    visitor.on_attribute("wei_dt", wei_dt);
+    visitor.on_attribute("orig_wei_dt", orig_wei_dt);
     return true;
 }
 }  // namespace ov

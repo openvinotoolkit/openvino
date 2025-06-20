@@ -25,7 +25,7 @@ public:
                     const float& power,
                     const float& scale,
                     const float& shift,
-                    const ov::element::Type output_type = ov::element::dynamic);
+                    ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 
@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    float scale, power, shift;
+    float scale = 0.0F, power = 0.0F, shift = 0.0F;
     ov::element::Type m_output_type;
 };
 

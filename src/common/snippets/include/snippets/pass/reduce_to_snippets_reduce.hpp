@@ -16,13 +16,12 @@ namespace pass {
  * Also checks that reduction operation is supported by snippets.
  * @ingroup snippets
  */
-class ReduceToSnippetsReduce: public ov::pass::MatcherPass {
+class ReduceToSnippetsReduce : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::ReduceToSnippetsReduce");
     ReduceToSnippetsReduce();
 };
 
-
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace snippets
+}  // namespace ov

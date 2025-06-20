@@ -23,7 +23,7 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
            || ov::is_type<BufferExpression>(expr);
 }
 
-} // namespace
+}  // namespace
 
 bool InitLiveRanges::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitLiveRanges")
@@ -45,7 +45,9 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
             }
         } else {
             // Remove all regs that expired before start
-            regs_to_expire.erase(regs_to_expire.begin(), regs_to_expire.lower_bound(start)); // remove all elements lower than start (not equal)
+            regs_to_expire.erase(
+                regs_to_expire.begin(),
+                regs_to_expire.lower_bound(start));  // remove all elements lower than start (not equal)
             for (const auto& time_reg : regs_to_expire)
                 live_regs.insert(time_reg.second.begin(), time_reg.second.end());
             expr->set_live_regs(std::move(live_regs));
@@ -88,8 +90,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

@@ -297,7 +297,7 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
+void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, int MB) {
     if (!permuteKernel) {
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
     }

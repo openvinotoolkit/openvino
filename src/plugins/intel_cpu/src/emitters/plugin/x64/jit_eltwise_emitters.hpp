@@ -784,8 +784,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
-    bool detect_negative;
-    bool detect_positive;
+    bool detect_negative = false;
+    bool detect_positive = false;
 };
 
 class jit_is_nan_emitter : public jit_emitter {

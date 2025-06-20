@@ -33,7 +33,7 @@ using namespace ov::intel_cpu;
 using namespace ov::gen_pattern;
 
 namespace {
-    enum InsertPoint {
+    enum InsertPoint : uint8_t {
         At_None,
         At_Convert,
         At_Gather,

@@ -19,10 +19,11 @@ namespace utils {
  *        1. The node is wrapped in a trivial Subgraph which contains only this node
  *        2. The node is fused in parent's Subgraphs
  * @param node node which should be tokenized
- * @param config tokenization config which regulates 
+ * @param config tokenization config which regulates
  * @return whether the node was tokenized or not
  */
-bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pass::SnippetsTokenization::Config& config);
+bool tokenize_node(const std::shared_ptr<ov::Node>& node,
+                   const ov::snippets::pass::SnippetsTokenization::Config& config);
 /**
  * @brief Tokenizes a list of nodes into Subgraph with the following rules:
  *        1. The user is responsible for valid count of parameters, results and hidden virtual ports (constants)
@@ -31,6 +32,6 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
  * @return tokenized subgraph
  */
 std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::NodeVector& ordered_ops);
-} // namespace utils
-} // namespace snippets
-} // namespace ov
+}  // namespace utils
+}  // namespace snippets
+}  // namespace ov

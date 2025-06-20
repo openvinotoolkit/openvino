@@ -29,7 +29,7 @@ private:
     std::set<size_t>& m_brgemm_external_params_idces;
     // Note: this set is needed to collect external params.
     // This set will be converted to m_external_params_indices at run_on_model stage
-    std::set<std::shared_ptr<ov::op::v0::Parameter>> m_external_params = {};
+    std::set<std::shared_ptr<ov::op::v0::Parameter>> m_external_params;
 };
 
 /**

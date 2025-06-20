@@ -4,16 +4,17 @@
 
 #include "snippets/lowered/pass/normalize_buffer_reg_groups.hpp"
 
-#include "snippets/op/buffer.hpp"
 #include "snippets/itt.hpp"
-
+#include "snippets/op/buffer.hpp"
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool NormalizeBufferRegisterGroups::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool NormalizeBufferRegisterGroups::run(lowered::LinearIR& linear_ir,
+                                        lowered::LinearIR::constExprIt begin,
+                                        lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::NormalizeBufferRegisterGroups");
 
     // [ original Buffer reg group -> normalized ]
@@ -29,7 +30,7 @@ bool NormalizeBufferRegisterGroups::run(lowered::LinearIR& linear_ir, lowered::L
     return buffer_reg_groups.size();
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

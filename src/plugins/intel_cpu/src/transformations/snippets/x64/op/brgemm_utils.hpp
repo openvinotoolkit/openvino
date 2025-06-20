@@ -25,38 +25,54 @@ public:
     BrgemmConfig() = default;
     BrgemmConfig(const ov::element::Type& src_dt,
                  const ov::element::Type& wei_dt,
+                 const ov::element::Type& orig_wei_dt,
                  bool are_wei_constant,
                  bool transposed_b);
     BrgemmConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
                  const ov::element::Type& src_dt,
                  const ov::element::Type& wei_dt,
+                 const ov::element::Type& orig_wei_dt,
                  bool are_wei_constant,
                  bool transposed_b);
 
-    dnnl::impl::cpu::x64::cpu_isa_t isa() const {
+    [[nodiscard]] dnnl::impl::cpu::x64::cpu_isa_t isa() const {
         return m_isa;
     }
-    bool is_amx() const;
-    bool with_wei_repacking() const {
-        return m_with_wei_repacking;
+    [[nodiscard]] bool is_amx() const;
+
+    [[nodiscard]] ov::element::Type src_dt() const {
+        return m_src_dt;
     }
-    bool with_compensations() const {
-        return m_with_compensations;
+    [[nodiscard]] ov::element::Type wei_dt() const {
+        return m_wei_dt;
     }
-    bool with_scratchpad() const {
-        return is_amx() || with_compensations();
-    }
-    bool are_wei_blocked() const {
-        return m_are_wei_blocked;
-    }
-    bool are_wei_constant() const {
-        return m_are_wei_constant;
+    [[nodiscard]] ov::element::Type orig_wei_dt() const {
+        return m_orig_wei_dt;
     }
 
-    size_t wei_n_blk() const {
+    [[nodiscard]] bool with_wei_repacking() const {
+        return m_with_wei_repacking;
+    }
+    [[nodiscard]] bool with_compensations() const {
+        return m_with_compensations;
+    }
+    [[nodiscard]] bool with_scratchpad() const {
+        return is_amx() || with_compensations();
+    }
+    [[nodiscard]] bool are_wei_blocked() const {
+        return m_are_wei_blocked;
+    }
+    [[nodiscard]] bool are_wei_constant() const {
+        return m_are_wei_constant;
+    }
+    [[nodiscard]] bool transposed_b() const {
+        return m_transposed_b;
+    }
+
+    [[nodiscard]] size_t wei_n_blk() const {
         return m_wei_n_blk;
     }
-    size_t wei_k_blk() const {
+    [[nodiscard]] size_t wei_k_blk() const {
         return m_wei_k_blk;
     }
 
@@ -68,9 +84,15 @@ private:
     static size_t get_elems_in_vec(const ov::element::Type& precision);
 
     dnnl::impl::cpu::x64::cpu_isa_t m_isa = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
+
+    ov::element::Type m_src_dt = ov::element::dynamic;
+    ov::element::Type m_wei_dt = ov::element::dynamic;
+    ov::element::Type m_orig_wei_dt = ov::element::dynamic;
+
     bool m_with_wei_repacking = false;
     bool m_with_compensations = false;
     bool m_are_wei_constant = false;
+    bool m_transposed_b = false;
     /* Currently we support the following representations of weights:
      *  - planar - ab
      *  - planar with inner K blocking for low precision - Ab<vnni_factor>a

@@ -44,20 +44,20 @@ public:
         return m_value;
     }
 
-    static inline uint16_t round_to_nearest_even(float x) {
+    static uint16_t round_to_nearest_even(float x) {
         return static_cast<uint16_t>((F32(x).vint + ((F32(x).vint & 0x00010000) >> 1)) >> 16);
     }
 
-    static inline uint16_t round_to_nearest(float x) {
+    static uint16_t round_to_nearest(float x) {
         return static_cast<uint16_t>((F32(x).vint + 0x8000) >> 16);
     }
 
-    static inline uint16_t truncate(float x) {
+    static uint16_t truncate(float x) {
         return static_cast<uint16_t>((F32(x).vint) >> 16);
     }
 
 private:
-    constexpr bfloat16_t(uint16_t x, bool) : m_value{x} {}
+    constexpr bfloat16_t(uint16_t x, [[maybe_unused]] bool flag) : m_value{x} {}
     union alignas(16) F32 {
         F32(float val) : vfloat{val} {}
 

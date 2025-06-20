@@ -4,10 +4,10 @@
 
 #include "snippets/lowered/pass/set_dynamic_wa_to_outermost_loop.hpp"
 
-#include  "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/utils/loop_utils.hpp"
 
@@ -28,7 +28,6 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
 
     const auto unsqueezed_params = MHAParallelWAOptimizer::find_unsqueezed_params(linear_ir_ptr, brgemms);
     OPENVINO_ASSERT(!unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
-
 
     const auto& loop_manager = linear_ir_ptr->get_loop_manager();
     std::unordered_set<lowered::UnifiedLoopInfoPtr> affected_loops;
@@ -67,7 +66,7 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

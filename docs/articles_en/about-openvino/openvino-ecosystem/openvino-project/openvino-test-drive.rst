@@ -23,7 +23,7 @@ Use OpenVINO™ Test Drive to:
   Diffusion and Stable DiffusionXL models;
 * **Transcribe speech from video**, using Whisper models, including generation
   of timestamps;
-* **Run inference of models** trained by Intel® Geti™ and **visualize the results**.
+* **Run inference of models** trained by Geti™ and **visualize the results**.
 
 
 Installation (Windows)
@@ -48,7 +48,7 @@ Quick start
 ###############################################################################################
 
 When starting the application, you can import an LLM model from Hugging Face Hub
-or upload an Intel® Geti™ model from a local drive.
+or upload a Geti™ model from a local drive.
 
 Text generation and LLM performance evaluation
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -157,7 +157,7 @@ Inference of models trained with Intel® Geti™
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 1. Download the deployment code for a model in the OpenVINO IR format trained
-   by Intel® Geti™ (refer to the `Intel® Geti™ documentation <https://docs.geti.intel.com>`__
+   by Geti™ (refer to the `Geti™ documentation <https://docs.geti.intel.com>`__
    for more details).
 
    .. image:: ../../../assets/images/TestDrive_geti_download.gif
@@ -201,7 +201,7 @@ Additional Resources
 - `GenAI Repository <https://github.com/openvinotoolkit/openvino.genai>`__ and
   `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
   - resources and tools for developing and optimizing Generative AI applications.
-- `Intel® Geti™ <https://docs.geti.intel.com/>`__ - software for building computer
+- `Geti™ <https://docs.geti.intel.com/>`__ - software for building computer
   vision models.
 - `OpenVINO™ Model API <https://github.com/openvinotoolkit/model_api>`__
   - a set of wrapper classes for particular tasks and model architectures.

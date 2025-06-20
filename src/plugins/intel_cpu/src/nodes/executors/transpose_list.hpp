@@ -31,7 +31,7 @@ public:
                              const std::vector<MemoryDescPtr>& dstDescs,
                              const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getTransposeExecutorsList()) {
+        for (const auto& desc : getTransposeExecutorsList()) {
             if (desc.builder->isSupported(transposeParams, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

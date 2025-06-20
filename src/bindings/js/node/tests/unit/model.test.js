@@ -8,7 +8,7 @@ const { describe, it, before, beforeEach } = require('node:test');
 const { testModels, isModelAvailable } = require('../utils.js');
 
 describe('ov.Model tests', () => {
-  const { testModelFP32 } = testModels;
+  const { testModelFP32, addModel, addModelWithVar } = testModels;
   let core = null;
   let model = null;
 
@@ -191,4 +191,101 @@ describe('ov.Model tests', () => {
       );
     });
   });
+
+  describe('Model.reshape()', () => {
+    const pShape = '[?,?,1..3,224]';
+    const pShape14 = new ov.PartialShape('1, 4');
+    const varId = 'ID1';
+
+    it('test reshape with PartialShape obj', () => {
+      const partialShape = new ov.PartialShape(pShape);
+      const reshapedModel = model.reshape(partialShape);
+      assert.ok( reshapedModel instanceof ov.Model );
+
+      const newShape = reshapedModel.input().getPartialShape();
+      assert.ok( newShape instanceof ov.PartialShape );
+      assert.deepStrictEqual( newShape.toString(), pShape );
+
+    });
+
+    it('test reshape with PartialShape string', () => {
+      const reshapedModel = model.reshape(pShape);
+      assert.ok(reshapedModel instanceof ov.Model);
+      const newShape = reshapedModel.input().getPartialShape();
+      assert.deepStrictEqual( newShape.toString(), pShape);
+    });
+
+    it('should not accept empty arguments', () => {
+      assert.throws(
+        () => model.reshape(),
+        /'reshape' method called with incorrect parameters./,
+      );
+    });
+
+    it('test reshape with ports', () => {
+      const model = core.readModelSync(addModel.xml);
+      const inputShapePairs = model.inputs.map(input => [input, pShape14]);
+      model.reshape(new Map(inputShapePairs));
+      for (const modelInput of model.inputs) {
+        assert.deepStrictEqual(
+          modelInput.getPartialShape().toString(), pShape14.toString());
+      }
+    });
+
+    it('test reshape with indexes', () => {
+      const model = core.readModelSync(addModel.xml);
+      model.reshape(new Map([
+        [0, pShape14],
+        [1, pShape14],
+      ]));
+      for (const modelInput of model.inputs) {
+        assert.deepStrictEqual(
+          modelInput.getPartialShape().toString(), pShape14.toString());
+      }
+    });
+
+    it('test reshape with names', () => {
+      const model = core.readModelSync(addModel.xml);
+      const shapesArr = model.inputs.map(input => [input.anyName, pShape14]);
+      model.reshape(new Map(shapesArr));
+      for (const modelInput of model.inputs) {
+        assert.deepStrictEqual(
+          modelInput.getPartialShape().toString(), pShape14.toString());
+      }});
+
+    it('test reshape with ports and variable', () => {
+      const model = core.readModelSync(addModelWithVar.xml);
+      const newShape = new ov.PartialShape('46, 1');
+      const shapesArr = model.inputs.map(input => [input, newShape]);
+      model.reshape(new Map(shapesArr), { [varId]: newShape });
+      for (const modelInput of model.inputs) {
+        assert.deepStrictEqual(
+          modelInput.getPartialShape().toString(), newShape.toString());
+      }
+    });
+
+    it('test reshape with indexes and variable', () => {
+      const model = core.readModelSync(addModelWithVar.xml);
+      const pShape14 = new ov.PartialShape('1, 4');
+      model.reshape(new Map([
+        [0, pShape14],
+        [1, pShape14],
+      ]), { [varId]: pShape14 });
+      for (const modelInput of model.inputs) {
+        assert.deepStrictEqual(
+          modelInput.getPartialShape().toString(), pShape14.toString());
+      }
+    });
+
+    it('test reshape with names and variable', () => {
+      const model = core.readModelSync(addModelWithVar.xml);
+      const shapesArr = model.inputs.map(input => [input.anyName, pShape14]);
+      model.reshape(new Map(shapesArr), { [varId]: pShape14 });
+      for (const modelInput of model.inputs) {
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(),
+          pShape14.toString());
+      }
+    });
+  });
+
 });

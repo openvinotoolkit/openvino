@@ -11,7 +11,7 @@
 
 namespace ov::intel_cpu {
 struct TypeMask {
-    enum Value : uint64_t {
+    enum Value : uint32_t {
         _dynamic = 1 << 0,
         _boolean = 1 << 1,
         _bf16 = 1 << 2,
@@ -90,7 +90,7 @@ private:
 
 namespace TypeMaskAlias {
 constexpr ov::element::Type fxx(ov::element::Type_t::dynamic);
-#define DEFINE_TYPE_ALIAS(x) constexpr auto x = TypeMask::Value::x
+#define DEFINE_TYPE_ALIAS(x) constexpr uint64_t x = TypeMask::Value::x
 // use underscore for naming to avoid conflicts with Precision aliases
 DEFINE_TYPE_ALIAS(_dynamic);
 DEFINE_TYPE_ALIAS(_boolean);

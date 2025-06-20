@@ -17,7 +17,7 @@ namespace pass {
  *        Should be called after `SolveMemoryBuffer`.
  * @ingroup snippets
  */
-class PropagateBufferOffset: public Pass {
+class PropagateBufferOffset : public Pass {
 public:
     OPENVINO_RTTI("PropagateBufferOffset", "", Pass);
     PropagateBufferOffset() = default;
@@ -37,7 +37,7 @@ private:
     static void propagate(const BufferExpressionPtr& buffer_expr);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

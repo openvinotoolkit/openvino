@@ -40,6 +40,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::npu_al
         openvino::npu_common
+        openvino::reference
 )
 
 target_include_directories(${TARGET_NAME}

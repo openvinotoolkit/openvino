@@ -16,7 +16,7 @@
 namespace ov {
 namespace test {
 
-enum class FQInterval { U8, I8 };
+enum class FQInterval : uint8_t { U8, I8 };
 inline std::ostream& operator<<(std::ostream& os, FQInterval interval) {
     switch (interval) {
     case FQInterval::U8:

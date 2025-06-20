@@ -9,7 +9,7 @@ const {
   checkIfPathExists,
 } = require('../scripts/lib/utils');
 
-const modelDir = 'tests/unit/test_models/';
+const modelDir = path.join(__dirname, 'unit', 'test_models');
 
 function getModelPath(fileName) {
   return path.join(modelDir, fileName);
@@ -35,6 +35,12 @@ const testModels = {
       'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.xml',
     binURL:
       'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.bin',
+  },
+  addModel: {
+    xml: getModelPath('add_model.xml'),
+  },
+  addModelWithVar: {
+    xml: getModelPath('add_model_with_var.xml'),
   },
 };
 

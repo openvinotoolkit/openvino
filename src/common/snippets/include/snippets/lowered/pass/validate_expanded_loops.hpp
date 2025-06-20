@@ -27,7 +27,7 @@ private:
     static void validate_loop_expressions(const LinearIR& linear_ir);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

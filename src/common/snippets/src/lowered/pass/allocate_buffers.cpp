@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 
+#include "snippets/itt.hpp"
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
-#include "snippets/lowered/pass/solve_buffer_memory.hpp"
-#include "snippets/lowered/pass/init_buffers_default.hpp"
-#include "snippets/lowered/pass/set_buffer_reg_group.hpp"
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
+#include "snippets/lowered/pass/init_buffers_default.hpp"
+#include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
 #include "snippets/lowered/pass/normalize_buffer_reg_groups.hpp"
 #include "snippets/lowered/pass/propagate_buffer_offset.hpp"
-#include "snippets/lowered/pass/mark_invariant_shape_path.hpp"
-#include "snippets/itt.hpp"
+#include "snippets/lowered/pass/set_buffer_reg_group.hpp"
+#include "snippets/lowered/pass/solve_buffer_memory.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -23,7 +22,9 @@ namespace pass {
 
 AllocateBuffers::AllocateBuffers(bool is_optimized) : m_is_optimized_mode(is_optimized) {}
 
-bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool AllocateBuffers::run(lowered::LinearIR& linear_ir,
+                          lowered::LinearIR::constExprIt begin,
+                          lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
     size_t buffer_scratchpad_size = 0;
 
@@ -46,7 +47,7 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
     return buffer_scratchpad_size > 0;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

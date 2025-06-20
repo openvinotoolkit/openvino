@@ -34,7 +34,7 @@ std::vector<std::vector<int>> apply_scheduling_core_type(ov::hint::SchedulingCor
  * @return     updated proc_type_table which removed unmatched processors
  */
 std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
-                                                    const bool input_ht_changed,
+                                                    bool input_ht_changed,
                                                     const std::string& input_pm_hint,
                                                     const std::vector<std::vector<int>>& proc_type_table);
 
@@ -47,9 +47,9 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
  * @param[in]  streams_info_table indicate streams detail of this model
  * @return     whether pinning threads to cpu cores
  */
-bool check_cpu_pinning(const bool cpu_pinning,
-                       const bool cpu_pinning_changed,
-                       const bool cpu_reservation,
+bool check_cpu_pinning(bool cpu_pinning,
+                       bool cpu_pinning_changed,
+                       bool cpu_reservation,
                        const std::vector<std::vector<int>>& streams_info_table);
 
 }  // namespace ov::intel_cpu

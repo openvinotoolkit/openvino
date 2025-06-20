@@ -12,9 +12,9 @@
 #include "nodes/executors/executor.hpp"
 
 namespace ov::intel_cpu::utils {
-MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
-                               const DnnlMemoryDescPtr dstWeightDesc,
-                               const MemoryCPtr weightsMem,
-                               const ExecutorContext::CPtr context,
-                               const bool needShiftSignedToUnsigned = false);
+MemoryPtr prepareWeightsMemory(DnnlMemoryDescPtr srcWeightDesc,
+                               DnnlMemoryDescPtr dstWeightDesc,
+                               MemoryCPtr weightsMem,
+                               ExecutorContext::CPtr context,
+                               bool needShiftSignedToUnsigned = false);
 }  // namespace ov::intel_cpu::utils

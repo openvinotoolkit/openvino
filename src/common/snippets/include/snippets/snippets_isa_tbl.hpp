@@ -5,8 +5,8 @@
 #pragma once
 
 #ifndef OV_OP
-#warning "OV_OP not defined"
-#define OV_OP(x, y)
+#    warning "OV_OP not defined"
+#    define OV_OP(x, y)
 #endif
 
 // SnippetS dialect

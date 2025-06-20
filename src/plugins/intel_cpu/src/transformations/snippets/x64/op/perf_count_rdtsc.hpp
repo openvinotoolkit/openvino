@@ -18,9 +18,9 @@
 #    include "openvino/op/op.hpp"
 #    include "snippets/op/perf_count.hpp"
 
-using namespace ov::snippets::op;
-
 namespace ov::intel_cpu {
+
+using namespace ov::snippets::op;
 
 /**
  * @interface PerfCountRdtscBegin

@@ -32,7 +32,7 @@ public:
                            const std::vector<MemoryDescPtr>& dstDescs,
                            const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getPoolingExecutorsList()) {
+        for (const auto& desc : getPoolingExecutorsList()) {
             if (desc.builder->isSupported(poolingAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

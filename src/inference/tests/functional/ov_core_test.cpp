@@ -143,17 +143,8 @@ TEST_F(CoreBaseTest, read_model_with_std_fs_path_unicode) {
     generate_test_model_files("test-model");
     ov::Core core;
     for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
-        std::wstring model_file_name_w = model_files_name_w[testIndex];
-        std::wstring weight_file_name_w = weight_files_name_w[testIndex];
-        std::filesystem::path model_path, weight_path;
-#    ifdef _WIN32
-        model_path = std::filesystem::path(model_file_name_w);
-        weight_path = std::filesystem::path(weight_file_name_w);
-#    else
-        model_path = std::filesystem::path(ov::util::wstring_to_string(model_file_name_w));
-        weight_path = std::filesystem::path(ov::util::wstring_to_string(weight_file_name_w));
-#    endif
-
+        std::filesystem::path model_path = model_files_name_w[testIndex];
+        std::filesystem::path weight_path = weight_files_name_w[testIndex];
         {
             const auto model = core.read_model(model_path);
             EXPECT_NE(model, nullptr);
@@ -200,5 +191,20 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
         const auto model = core.compile_model(model_path, devices.at(0), ov::AnyMap{});
         EXPECT_TRUE(model);
     }
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::filesystem::path model_path_w = model_files_name_w[testIndex];
+        {
+            const auto model = core.compile_model(model_path_w);
+            EXPECT_TRUE(model);
+        }
+        {
+            const auto devices = core.get_available_devices();
+
+            const auto model = core.compile_model(model_path_w, devices.at(0), ov::AnyMap{});
+            EXPECT_TRUE(model);
+        }
+    }
+#endif
 }
 }  // namespace ov::test

@@ -26,7 +26,7 @@ namespace pass {
  *         FullyConnected
  * @ingroup snippets
  */
-class TokenizeGatedMLPSnippets: public ov::pass::MatcherPass {
+class TokenizeGatedMLPSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeGatedMLPSnippets");
     TokenizeGatedMLPSnippets(const SnippetsTokenization::Config& config);

@@ -24,9 +24,9 @@ namespace ov::intel_cpu::kernel {
 struct jit_rms_compile_params {
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    size_t data_size;
-    float eps;
-    size_t scale_size;
+    size_t data_size = 0UL;
+    float eps = 0.0F;
+    size_t scale_size = 0UL;
 };
 
 struct jit_rms_call_args {
@@ -69,16 +69,16 @@ private:
     void reduce_ymm_to_xmm(const Xmm& acc, const Xmm& tmp);
     void reduce_xmm_to_scalar(const Xmm& acc,
                               const Xmm& tmp,
-                              const std::size_t number_of_values_to_reduce = number_of_f32_in_xmm_);
+                              std::size_t number_of_values_to_reduce = number_of_f32_in_xmm_);
     void reduce_ymm_to_scalar(const Xbyak::Xmm& acc,
                               const Xbyak::Xmm& tmp1,
                               const Xbyak::Xmm& tmp2,
-                              const std::size_t number_of_values_to_reduce = number_of_f32_in_ymm_);
+                              std::size_t number_of_values_to_reduce = number_of_f32_in_ymm_);
     void reduce_vmm_to_scalar(const Xbyak::Xmm& acc,
                               const Xbyak::Xmm& tmp1,
                               const Xbyak::Xmm& tmp2,
                               const Xbyak::Xmm& tmp3,
-                              const std::size_t number_of_values_to_reduce = number_of_f32_in_zmm_);
+                              std::size_t number_of_values_to_reduce = number_of_f32_in_zmm_);
     static constexpr std::size_t number_of_f32_in_xmm_ = 4;
     static constexpr std::size_t number_of_f32_in_ymm_ = 8;
     static constexpr std::size_t number_of_f32_in_zmm_ = 16;

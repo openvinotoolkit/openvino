@@ -38,7 +38,7 @@ namespace pass {
  *              * After MatMul1 may be only Transpose3 or any count of Eltwise, Select ops.
  * @ingroup snippets
  */
-class TokenizeMHASnippets: public ov::pass::MatcherPass {
+class TokenizeMHASnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMHASnippets");
     TokenizeMHASnippets(const SnippetsTokenization::Config& config);

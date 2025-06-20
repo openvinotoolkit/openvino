@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -28,8 +29,7 @@
 #include "proxy_mem_blk.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class SyncInferRequest;
 namespace node {
@@ -41,7 +41,7 @@ public:
     using Ptr = std::shared_ptr<Graph>;
     using OutputMemoryBlocks = std::unordered_map<std::size_t, ProxyMemoryBlockPtr>;
 
-    enum class Status {
+    enum class Status : uint8_t {
         NotReady = 0,
         Initialized = 1,
         ReadyStatic = 2,
@@ -111,29 +111,33 @@ public:
 
     NodePtr getInputNodeByIndex(std::size_t index) {
         auto input = inputNodesMap.find(index);
-        if (input == inputNodesMap.end())
+        if (input == inputNodesMap.end()) {
             return nullptr;
+        }
         return input->second;
     }
 
     NodePtr getOutputNodeByIndex(std::size_t index) {
         auto output = outputNodesMap.find(index);
-        if (output == outputNodesMap.end())
+        if (output == outputNodesMap.end()) {
             return nullptr;
+        }
         return output->second;
     }
 
     NodeConstPtr getInputNodeByIndex(std::size_t index) const {
         auto input = inputNodesMap.find(index);
-        if (input == inputNodesMap.end())
+        if (input == inputNodesMap.end()) {
             return nullptr;
+        }
         return input->second;
     }
 
     NodeConstPtr getOutputNodeByIndex(std::size_t index) const {
         auto output = outputNodesMap.find(index);
-        if (output == outputNodesMap.end())
+        if (output == outputNodesMap.end()) {
             return nullptr;
+        }
         return output->second;
     }
 
@@ -354,15 +358,13 @@ protected:
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph);
 
 private:
-    using event_t = void (Graph::*)(void);
+    using event_t = void (Graph::*)();
 
-private:
     void EnforceInferencePrecision();
     void EnforceBF16();
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
 
-private:
     // TODO: change std::map to std::unordered_map
     std::map<std::size_t, NodePtr> inputNodesMap;
     std::map<std::size_t, NodePtr> outputNodesMap;
@@ -381,5 +383,4 @@ private:
 
 using GraphPtr = std::shared_ptr<Graph>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -13,8 +13,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlBlockedMemoryDesc;
 
@@ -90,7 +89,7 @@ public:
 
     size_t getPaddedElementsCount() const override;
 
-    MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override;
+    MemoryDescPtr cloneWithNewPrecision(ov::element::Type prec) const override;
 
 private:
     size_t getElementOffset(size_t elemNumber) const override;
@@ -107,7 +106,6 @@ private:
         precision = prc;
     }
 
-private:
     ov::element::Type precision;
     size_t offsetPadding;
 };
@@ -115,5 +113,4 @@ private:
 using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;
 using CpuBlockedMemoryDescCPtr = std::shared_ptr<const CpuBlockedMemoryDesc>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

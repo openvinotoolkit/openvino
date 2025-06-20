@@ -35,6 +35,7 @@ target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEAD
                                           PRIVATE $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 ov_mark_target_as_cc(${TARGET_NAME})
 
