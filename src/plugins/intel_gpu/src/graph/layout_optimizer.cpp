@@ -961,10 +961,28 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (input_layout.get_partial_shape().size() <= 4)
-            expected_format = format::b_fs_yx_fsv16;
-        else if (input_layout.get_partial_shape().size() == 5)
-            expected_format = format::b_fs_zyx_fsv16;
+        if (i8_u8_input) {
+            cldnn::program_node& mutable_node = const_cast<cldnn::convolution_node&>(node);
+            mutable_node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+            if (i8_u8_output) {
+                mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            } else {
+                mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            }
+            // shallow channel
+            if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
+                mutable_node.set_preferred_input_fmt(0, cldnn::format::byxf);
+            }
+            if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
+                mutable_node.set_preferred_output_fmt(0, cldnn::format::byxf);
+            }
+        } else {
+            if (input_layout.get_partial_shape().size() <= 4)
+                expected_format = format::b_fs_yx_fsv16;
+            else if (input_layout.get_partial_shape().size() == 5)
+                expected_format = format::b_fs_zyx_fsv16;
+        }
         return expected_format;
     }
 
