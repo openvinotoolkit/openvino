@@ -633,7 +633,7 @@ void PSROIPooling::executeSpecified() {
         }
     });
 
-    memset(dstData + realRois * nc * nh * nw, 0, (nn - realRois) * nc * nh * nw * sizeof(outputType));
+    std::fill(dstData + realRois * nc * nh * nw, dstData + nn * nc * nh * nw, static_cast<outputType>(0));
 }
 
 namespace {

@@ -367,9 +367,7 @@ void RegionYolo::createPrimitive() {
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
-    U aux2{};
-    aux2.as_float_value = src;
-    int sign = aux2.as_int_value >> 31;
+    int sign = ov::intel_cpu::bit_cast<int>(src) >> 31;
     if (sign == 0) {
         src *= -1;
     }
