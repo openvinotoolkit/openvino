@@ -104,8 +104,12 @@ function(ov_add_plugin)
 
         if (OV_PLUGIN_ADD_CLANG_TIDY)
             if (ENABLE_CLANG_TIDY)
+                set(clang_tidy_options "--extra-arg=-Wno-unused-command-line-argument")
+                if(ENABLE_CLANG_TIDY_FIX)
+                    list(APPEND clang_tidy_options "--fix-errors")
+                endif()
                 set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
-                    CXX_CLANG_TIDY "${CLANG_TIDY};--extra-arg=-Wno-unused-command-line-argument")
+                    CXX_CLANG_TIDY "${CLANG_TIDY};${clang_tidy_options}")
             endif()
         endif()
 
