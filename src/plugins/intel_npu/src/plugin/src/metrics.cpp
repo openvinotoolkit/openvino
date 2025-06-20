@@ -63,10 +63,6 @@ const std::vector<std::string>& Metrics::GetSupportedConfigKeys() const {
     return _supportedConfigKeys;
 }
 
-const std::vector<std::string> Metrics::GetOptimizationCapabilities() const {
-    return _optimizationCapabilities;
-}
-
 const std::tuple<uint32_t, uint32_t, uint32_t>& Metrics::GetRangeForAsyncInferRequest() const {
     return _rangeForAsyncInferRequests;
 }
