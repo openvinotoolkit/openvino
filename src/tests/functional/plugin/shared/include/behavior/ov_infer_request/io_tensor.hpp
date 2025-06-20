@@ -68,6 +68,7 @@ struct OVInferRequestCheckTensorPrecision : public testing::WithParamInterface<O
         ov::element::i32,
         ov::element::i64,
         ov::element::u1,
+        ov::element::u2,
         ov::element::u4,
         ov::element::u8,
         ov::element::u16,
