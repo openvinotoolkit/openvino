@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 Intel Corporation
+// Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,7 +129,7 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
     // - Look for an output tensor to reuse
     //   - If there's one, assign it to this allocation
     //   - If there's none, allocate a new tensor
-    // - How a tensor to reuse is piced:
+    // - How a tensor to reuse is picked:
     //   1. It should exist
     //   2. It's "remaining reads" count should be 0 (all planned reads
     //      happened at this point).
@@ -274,9 +274,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }  // for(submodels)
 
     if (failover_happened) {
-        LOG_INFO("Refined device distribution:");
+        LOG_ERROR("Refined device distribution:");
         LOG_BLOCK();
-        m_npuw_model->log_device_dist();
+        m_npuw_model->log_device_dist(ov::npuw::LogLevel::Error);
     }
 
     // Identify connections for the funcall pipeline, if needed
@@ -578,11 +578,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 }
 
 void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    std::size_t real_idx = real(idx);
+    auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-    const auto is_piped = is_pipelined(idx);
-    auto new_rqs = create_infer_requests(idx, is_piped ? 2 : 1);
+    const auto is_piped = is_pipelined(real_idx);
+    auto new_rqs = create_infer_requests(real_idx, is_piped ? 2 : 1);
 
     // NB: Regardless if this subrequest was a function call
     // or not, always use the real_idx here - for regular
@@ -599,14 +599,12 @@ void ov::npuw::JustInferRequest::recreate_subrequests(std::size_t idx) {
     // overkill - only affected subrequest(s) could be updated instead,
     // but it is a more complex thing and can be implemented separately
     connect_subrequests();
-    m_subrequest_devices[idx] = *comp_model_desc.device_it;
+    m_subrequest_devices[real_idx] = *proto_comp_model_desc.device_it;
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, bool& failover) {
     failover = false;
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-
+    auto real_idx = real(idx);
     // Infer is also fail-safe...
     bool job_done = false;
     bool dump_in = false;
@@ -628,7 +626,7 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
         // the subrequest' outputs to global Results, if relevant.
         bind_global_results(idx);
 
-        if (comp_model_desc.replaced_by) {
+        if (m_npuw_model->m_compiled_submodels[idx].replaced_by) {
             function_prologue(idx);
         }
         if (!dump_in) {
@@ -654,7 +652,8 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
             LOG_INFO("- Trying next device...");
 
             // Altering iterators here!! Contracts should be changed!
-            comp_model_desc.device_it++;
+            auto& proto_comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
+            proto_comp_model_desc.device_it++;
             if (!m_npuw_model->compile_for_success(real_idx)) {
                 OPENVINO_THROW("Failed to compile. No more devices are left!");
             }
