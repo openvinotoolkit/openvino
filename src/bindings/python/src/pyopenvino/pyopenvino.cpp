@@ -80,7 +80,11 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
+#ifdef Py_GIL_DISABLED
+PYBIND11_MODULE(_pyopenvino, m, py::mod_gil_not_used()) {
+#else
 PYBIND11_MODULE(_pyopenvino, m) {
+#endif
     m.doc() = "Package openvino._pyopenvino which wraps openvino C++ APIs";
     std::string pyopenvino_version = CI_BUILD_NUMBER;
     std::string runtime_version = get_version();
