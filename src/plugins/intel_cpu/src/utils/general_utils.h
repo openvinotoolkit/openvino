@@ -214,7 +214,14 @@ inline std::enable_if_t<sizeof(To) == sizeof(From) && std::is_trivially_copyable
 bit_cast(const From& src) noexcept {
     static_assert(std::is_trivially_constructible_v<To>, "Destination type must be trivially constructible");
     To dst{};
-    std::fill_n(&dst, 1, src);
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
+    std::memcpy(&dst, &src, sizeof(To));
+#if defined(__GNUC__) && !defined(__clang__)
+#    pragma GCC diagnostic pop
+#endif
     return dst;
 }
 
