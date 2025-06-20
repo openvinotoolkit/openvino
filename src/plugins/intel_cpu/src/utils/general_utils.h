@@ -214,7 +214,7 @@ inline std::enable_if_t<sizeof(To) == sizeof(From) && std::is_trivially_copyable
 bit_cast(const From& src) noexcept {
     static_assert(std::is_trivially_constructible_v<To>, "Destination type must be trivially constructible");
     To dst{};
-    std::memcpy(&dst, &src, sizeof(To));
+    std::fill_n(&dst, src, 1);
     return dst;
 }
 
