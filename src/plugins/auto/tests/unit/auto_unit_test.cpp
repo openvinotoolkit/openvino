@@ -120,8 +120,9 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     ON_CALL(*plugin, select_device)
         .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                               const std::string& netPrecision,
-                              unsigned int priority) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
+                              unsigned int priority,
+                              const std::unordered_map<std::string, unsigned>& utilization_thresholds) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, utilization_thresholds);
         });
 
     ON_CALL(*plugin, get_valid_device)
@@ -129,6 +130,15 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
+
+    ON_CALL(*plugin, get_property).WillByDefault([this](const std::string& name, const ov::AnyMap& arguments) {
+        return plugin->Plugin::get_property(name, arguments);
+    });
+
+    ON_CALL(*plugin, get_device_utilization).WillByDefault([](const std::string& device) {
+        std::map<std::string, float> result;
+        return result;
+    });
 }
 
 ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
