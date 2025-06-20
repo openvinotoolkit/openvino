@@ -46,7 +46,7 @@ private:
     template <typename Vmm>
     void perform_op(const Vmm& vmm1, const Vmm& vmm2, const Vmm& vmm3) const;
 
-    enum class OpType { max, sum };
+    enum class OpType : uint8_t { max, sum };
     OpType m_op_type = OpType::max;
 };
 

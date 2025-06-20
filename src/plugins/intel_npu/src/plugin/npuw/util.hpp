@@ -173,6 +173,14 @@ void non_parallel_for(std::size_t count, F&& f) {
     }
 }
 
+template <class CountedType>
+struct Unique {
+    static std::string name() {
+        static std::size_t counter = 0u;
+        return std::string(CountedType::name) + "_" + std::to_string(counter++);
+    }
+};
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov
