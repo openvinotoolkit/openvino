@@ -25,7 +25,7 @@ OPENVINO_API const log_handler_t& get_log_handler() {
     return *current_log_handler;
 }
 
-OPENVINO_API const void set_log_handler(const log_handler_t* handler) {
+OPENVINO_API const void set_log_handler(log_handler_t* handler) {
     current_log_handler = handler;
 }
 
