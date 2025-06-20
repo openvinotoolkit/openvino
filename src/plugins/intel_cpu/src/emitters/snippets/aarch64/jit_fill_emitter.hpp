@@ -42,7 +42,7 @@ private:
         return offset == 0;
     }
     bool is_optimized() const {
-        return is_full_reg() && fill_value == static_cast<uint32_t>(0x0);
+        return fill_value == static_cast<uint32_t>(0x0);
     }
 
     size_t offset = 0;
