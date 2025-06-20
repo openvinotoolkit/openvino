@@ -6,7 +6,7 @@
 """ Script to generate XML config file with the list of IR models
 Usage: 
     python gen_testdata.py  --test_conf <name_test_config>.xml  --ir_cache_dir <path_to_ir_cache>
-    optional: --framework=[tf|tf2|onnx|pytorch] --precision=[INT8|FP16|FP32] --topology=<model_name_1>,<model_name_2>,... --refs_conf <reference_config>.xml ("references_config.xml" by default)
+    optional: --framework=[tf|tf2|onnx|pytorch] --precision=[INT8|FP16|FP32] --topology=<model_name_1>,<model_name_2>,... --refs_conf <reference_config>.xml ("references_config.xml" by default) --not_topology=<model_name_1>,<model_name_2>,...
 """
 # pylint:disable=line-too-long
 
@@ -98,6 +98,9 @@ def get_args(parser):
     parser.add_argument('--precision', action=ListAction, default='',
                         help="'Precision of models in IR-cache. Example: --precision=INT8,FP16,FP32..."
                         )
+    parser.add_argument('--not_topology', action=ListAction, default='',
+                        help="'List of models excluded from topology. Example: --not_topology=<model_name_1>,<model_name_2>,..."
+                        )
     return parser.parse_args()
 
 def main():
@@ -127,6 +130,9 @@ def main():
             if file_name.endswith(".xml"):
                 if args.topology:
                     if file_name.split('.')[0] not in args.topology:
+                        continue
+                if args.not_topology:
+                    if file_name.split('.')[0] in args.not_topology:
                         continue
                 if args.framework:
                     _fw = path_parts[-6] if path_parts[-2] != "optimized" else path_parts[-8]
