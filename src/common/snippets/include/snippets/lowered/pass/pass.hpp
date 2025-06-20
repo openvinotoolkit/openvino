@@ -10,10 +10,7 @@
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/pass/positioned_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface PassBase
@@ -47,7 +44,7 @@ public:
      * @attention If 'other' pass is empty (aka nullptr), it can be merged to any other pass.
      * @attention If the merge fails, then nullptr is returned.
      */
-    virtual std::shared_ptr<PassBase> merge(const std::shared_ptr<PassBase>& other) {
+    virtual std::shared_ptr<PassBase> merge(const std::shared_ptr<PassBase>& /*other*/) {
         return nullptr;
     }
 };
@@ -111,13 +108,13 @@ public:
     PassPipeline();
     PassPipeline(const std::shared_ptr<PassConfig>& pass_config);
 
-    const std::vector<std::shared_ptr<PassBase>>& get_passes() const {
+    [[nodiscard]] const std::vector<std::shared_ptr<PassBase>>& get_passes() const {
         return m_passes;
     }
-    const std::shared_ptr<PassConfig>& get_pass_config() const {
+    [[nodiscard]] const std::shared_ptr<PassConfig>& get_pass_config() const {
         return m_pass_config;
     }
-    bool empty() const {
+    [[nodiscard]] bool empty() const {
         return m_passes.empty();
     }
 
@@ -133,7 +130,7 @@ public:
     template <typename T,
               class Pos,
               class... Args,
-              std::enable_if<std::is_same<snippets::pass::PassPosition, Pos>::value, bool>() = true>
+              std::enable_if<std::is_same_v<snippets::pass::PassPosition, Pos>, bool>() = true>
     void register_pass(const snippets::pass::PassPosition& position, Args&&... args) {
         static_assert(std::is_base_of<PassBase, T>::value, "Pass not derived from lowered::Pass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
@@ -163,7 +160,4 @@ private:
     std::vector<std::shared_ptr<PassBase>> m_passes;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

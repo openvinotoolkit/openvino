@@ -130,8 +130,8 @@ void SolveBufferMemory::solve_static_buffer_memory(const Buffers& static_buffer_
     }
 }
 
-void SolveBufferMemory::set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions) {
-    size_t offset = utils::get_dynamic_value<size_t>();
+void SolveBufferMemory::set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions) const {
+    auto offset = utils::get_dynamic_value<size_t>();
 
     // If there are not allocated memory for static buffers in LinearIR and there is only one cluster of dynamic buffer
     // exprs, we can force offset = 0

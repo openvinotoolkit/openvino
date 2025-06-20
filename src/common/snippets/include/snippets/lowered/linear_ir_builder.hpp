@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <utility>
 
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"

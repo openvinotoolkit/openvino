@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <openvino/core/core.hpp>

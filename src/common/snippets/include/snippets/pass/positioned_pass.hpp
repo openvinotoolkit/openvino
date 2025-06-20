@@ -29,7 +29,7 @@ namespace ov::snippets::pass {
  */
 class PassPosition {
 public:
-    enum class Place { Before, After, PipelineStart, PipelineEnd };
+    enum class Place : uint8_t { Before, After, PipelineStart, PipelineEnd };
 
     explicit PassPosition(Place pass_place);
     explicit PassPosition(Place pass_place, const DiscreteTypeInfo& pass_type_info, size_t pass_instance = 0);

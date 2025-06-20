@@ -26,11 +26,11 @@ public:
 
     template <typename T, class... Args>
     std::shared_ptr<T> register_pass(Args&&... args) {
-        return ov::pass::Manager::register_pass<T>(args...);
+        return ov::pass::Manager::register_pass<T>(std::forward<Args>(args)...);
     }
     template <typename T, class Pos, class... Args, std::enable_if<std::is_same_v<PassPosition, Pos>, bool>() = true>
     std::shared_ptr<T> register_pass(const PassPosition& position, Args&&... args) {
-        static_assert(std::is_base_of<PassBase, T>::value, "Attempt to insert pass that is not derived from PassBase");
+        static_assert(std::is_base_of_v<PassBase, T>, "Attempt to insert pass that is not derived from PassBase");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         auto rc = insert_pass_instance(position, pass);
         rc->set_pass_config(m_pass_config);
