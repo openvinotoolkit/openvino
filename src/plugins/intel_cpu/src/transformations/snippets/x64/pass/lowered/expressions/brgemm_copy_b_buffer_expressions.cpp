@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <numeric>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -49,15 +50,21 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     OPENVINO_ASSERT(brgemm_copy_b, "RepackedWeightsBufferExpression expects BrgemmCopyB as parent expression");
     const auto& brgemm_config = brgemm_copy_b->get_config();
 
-    const auto& in_subtensor = ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0));
+    const auto in_subtensor = ov::snippets::utils::get_projected_subtensor(parent_expr->get_input_port(0));
+    const size_t n_blk = *in_subtensor.rbegin();
+    const size_t k_blk = *++in_subtensor.rbegin();
 
+    const auto buffer_b_shape =
+        brgemm_utils::repacking::compute_buffer_b_allocation_shape({k_blk, n_blk},
+                                                                   brgemm_config.wei_dt(),
+                                                                   brgemm_config.wei_k_blk(),
+                                                                   brgemm_config.wei_n_blk(),
+                                                                   brgemm_config.are_wei_blocked(),
+                                                                   brgemm_config.transposed_b());
     m_allocation_size =
-        brgemm_utils::repacking::compute_brgemm_copy_b_buffer_allocation_size(in_subtensor,
-                                                                              brgemm_config.wei_dt(),
-                                                                              brgemm_config.wei_k_blk(),
-                                                                              brgemm_config.wei_n_blk(),
-                                                                              brgemm_config.are_wei_blocked(),
-                                                                              brgemm_config.transposed_b());
+        std::accumulate(buffer_b_shape.cbegin(), buffer_b_shape.cend(), size_t(1), [](size_t a, size_t b) {
+            return snippets::utils::dynamic_safe_mul(a, b);
+        });
 }
 
 CompensationsBufferExpression::CompensationsBufferExpression(
