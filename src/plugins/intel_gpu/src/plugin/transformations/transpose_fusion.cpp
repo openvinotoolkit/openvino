@@ -22,6 +22,7 @@
 #include "openvino/pass/pattern/op/any.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "graph/include/gemm_inst.h"
 
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
@@ -31,35 +32,13 @@ namespace ov::intel_gpu {
 namespace {
 
 bool is_valid_order(const std::vector<size_t>& target_order, bool is_output_transpose) {
-    static const std::vector<std::vector<size_t>> allowed_input_orders = {
-        {0, 1, 2, 3}, // bfyx
-        {0, 1, 3, 2}, // bfxy
-        {1, 2, 3, 0}, // fyxb
-        {0, 2, 1, 3}, // byfx
-        {0, 3, 1, 2}, // bxfy
-        {1, 2, 0, 3}, // fybx
-        {2, 0, 1, 3}, // ybfx
-        {3, 0, 1, 2}  // xbfy
-    };
-
-    // 3D orders  4d extension target order format  onednn gemm output order whitelist
-    // [0,1,2] -> [0,1,2,3] -> [0,1,2,3] -> bfyx -> allowed
-    // [0,2,1] -> [0,1,3,2] -> [0,1,3,2] -> bfxy -> allowed
-    // [1,0,2] -> [0,2,1,3] -> [0,2,1,3] -> byfx -> allowed
-    // [1,2,0] -> [0,2,3,1] -> [0,3,1,2] -> bxfy -> not allowed
-    // [2,0,1] -> [0,3,1,2] -> [0,2,3,1] -> byxf -> not allowed
-    // [2,1,0] -> [0,3,2,1] -> [0,3,2,1] -> bxyf -> not allowed
-    static const std::vector<std::vector<size_t>> allowed_output_orders = {
-        {0, 1, 2, 3},
-        {0, 1, 3, 2},
-        {0, 2, 1, 3},
-        {1, 2, 3, 0}, // fyxb -> onednn gemm output order whitelist allowed
-        {1, 2, 0, 3}, // fybx -> onednn gemm output order whitelist allowed
-        {2, 0, 1, 3}, // ybfx -> onednn gemm output order whitelist allowed
-    };
-
-    const auto& allowed_orders = (is_output_transpose) ? allowed_output_orders : allowed_input_orders;
-    return cldnn::one_of(target_order, allowed_orders);
+    // Check valid input/output transpose order for onednn gemm primitive
+    cldnn::format fmt_dummy = cldnn::format::bfyx;
+    if (is_output_transpose) {
+        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_output_order_onednn(target_order, fmt_dummy);
+    } else {
+        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_input_order_onednn(target_order, fmt_dummy);
+    }
 }
 
 bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad, bool is_output_transpose = false) {
