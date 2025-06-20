@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include <cstddef>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/rtti.hpp"
+#include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InitBuffersDefault
@@ -38,7 +39,4 @@ private:
     size_t& m_buffer_scratchpad_size;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

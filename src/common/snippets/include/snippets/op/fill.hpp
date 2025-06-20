@@ -6,9 +6,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Fill
@@ -24,7 +22,7 @@ class Fill : public ov::op::Op {
 public:
     OPENVINO_OP("Fill", "SnippetsOpset");
 
-    Fill(const Output<Node>& x, const size_t offset, const uint32_t fill_value = 0x0);
+    Fill(const Output<Node>& x, size_t offset, uint32_t fill_value = 0x0);
     Fill() = default;
 
     size_t get_offset() const {
@@ -50,6 +48,4 @@ protected:
     uint32_t m_fill_value = 0x0;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

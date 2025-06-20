@@ -8,10 +8,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InsertLoops
@@ -28,7 +25,4 @@ private:
     static void insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

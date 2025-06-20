@@ -8,10 +8,7 @@
 #include "snippets/generator.hpp"
 #include "snippets/lowered/reg_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InitLiveRanges
@@ -29,7 +26,4 @@ private:
     RegManager& m_reg_manager;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

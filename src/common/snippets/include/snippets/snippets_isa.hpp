@@ -30,12 +30,8 @@
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset1.hpp"
 
-namespace ov {
-namespace snippets {
-namespace isa {
+namespace ov::snippets::isa {
 #define OV_OP(a, b) using b::a;
 #include "snippets_isa_tbl.hpp"
 #undef OV_OP
-}  // namespace isa
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::isa

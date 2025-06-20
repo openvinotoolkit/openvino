@@ -4,9 +4,7 @@
 
 #pragma once
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 enum class SpecificLoopIterType { FIRST_ITER, MAIN_BODY, LAST_ITER };
 
@@ -27,6 +25,4 @@ inline std::ostream& operator<<(std::ostream& out, const SpecificLoopIterType& t
     return out;
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered
