@@ -323,6 +323,11 @@ public:
             return;
         }
 
+        auto mem_deps = node->get_memory_dependencies();
+        if (mem_deps.find(dep->get_unique_id()) != mem_deps.end()) {
+            return;
+        }
+
         // LoRA can reuse the memory of the previous node, but not be optimized
         // Therefore, the dependency of LoRA must also be the dependency of the current node
         if (dep->is_type<lora>()) {
@@ -333,15 +338,14 @@ public:
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) &&
             ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized())) {
             node->add_memory_dependency(*dep);
-            dep->add_memory_dependency(*node);
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {
                 node->add_memory_dependency(*dep);
-                dep->add_memory_dependency(*node);
             }
 
             for (const auto& subdep : dep->get_dependencies()) {
                 add_memory_dependency(node, subdep.first);
+                add_memory_dependency(subdep.first, node);
             }
         }
     }
