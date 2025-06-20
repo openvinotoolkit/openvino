@@ -213,8 +213,8 @@ static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle
     auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
     if (res == ZE_RESULT_SUCCESS) {
         if (desc.id) {
-            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
-                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
+            if ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type == ZE_MEMORY_TYPE_SHARED)) {
                 return true;
             }
         }
