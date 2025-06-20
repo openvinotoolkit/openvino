@@ -4,15 +4,12 @@
 
 #pragma once
 
+#include <any>
 #include <memory>
 
 #include "llm_compiled_model.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
-
-#if (OV_THREAD == OV_THREAD_TBB)
-#    include "tbb/task_group.h"
-#endif
 
 namespace ov {
 namespace npuw {
@@ -41,16 +38,8 @@ private:
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids);
-    struct KVCacheCopyTask {
-        size_t index;
-#if (OV_THREAD == OV_THREAD_TBB)
-        std::shared_ptr<tbb::task_group> tg;
-#else
-        // TODO: either use std::async or self thread pool
-        std::future<void> future;
-#endif
-    };
-    std::list<KVCacheCopyTask> tasks_in_progress;
+
+    std::list<std::any> tasks_in_progress;
     std::mutex m_copy_access;
 
     void copy_kv_cache(std::string name = "", ov::SoPtr<ITensor> tensor = {});

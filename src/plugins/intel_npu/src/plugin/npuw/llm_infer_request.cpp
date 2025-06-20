@@ -12,7 +12,44 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "util_xarch.hpp"
 
+#if defined(OV_THREAD_TBB) && defined(OV_THREAD)
+#    if (OV_THREAD == OV_THREAD_TBB)
+#        define USE_TBB_IMPL_FOR_KV_CACHE_COPY
+#        include "tbb/task_group.h"
+#    endif
+#endif
+
 namespace {
+
+// helper struct that keeps tracking of initiated kv-cache copy processes from
+struct KVCacheCopyTask {
+    size_t index;
+    void wait() const {
+#ifdef USE_TBB_IMPL_FOR_KV_CACHE_COPY
+        tg->wait();
+#else
+        future.wait();
+#endif
+    }
+    template <class Callable>
+    void run(Callable async_callback) {
+#ifdef USE_TBB_IMPL_FOR_KV_CACHE_COPY
+        tg = std::make_shared<tbb::task_group>();
+        tg->run(std::forward(async_callback));
+#else
+        LOG_WARN("KVCacheCopyTask: std::async() used, number of threads might grow");
+        future = std::async(std::launch::async, async_callback).share();
+#endif
+    }
+
+private:
+#ifdef USE_TBB_IMPL_FOR_KV_CACHE_COPY
+    std::shared_ptr<tbb::task_group> tg;
+#else
+    // TODO: either use std::async or self thread pool
+    std::shared_future<void> future;
+#endif
+};
 
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
@@ -151,20 +188,15 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         npuw_props[std::string(::intel_npu::NPUW_FUNCALL_OUTS_REUSE::key())] = "YES";
         compiled_model->m_prefill_compiled->m_cfg.update(npuw_props, ::intel_npu::OptionMode::CompileTime);
 
-        auto sync_request = compiled_model->m_prefill_compiled->create_sync_infer_request();
-        if (auto npuw_sync_request = std::dynamic_pointer_cast<ov::npuw::IBaseInferRequest>(sync_request)) {
-            npuw_sync_request->on_submit_subrequest([this](std::size_t idx) {
-                on_prefill_request_prepare(idx);
-            });
-            npuw_sync_request->on_output_ready([this](std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) {
-                on_prefill_output_ready(idx, name, tensor);
-            });
-        }
+        auto npuw_sync_request = compiled_model->m_prefill_compiled->create_base_infer_request();
+        npuw_sync_request->on_submit_subrequest([this](std::size_t idx) {
+            on_prefill_request_prepare(idx);
+        });
+        npuw_sync_request->on_output_ready([this](std::size_t idx, std::string name, ov::SoPtr<ITensor> tensor) {
+            on_prefill_output_ready(idx, name, tensor);
+        });
 
-        m_prefill_request =
-            std::make_shared<ov::IAsyncInferRequest>(sync_request,
-                                                     compiled_model->m_prefill_compiled->get_task_executor(),
-                                                     compiled_model->m_prefill_compiled->get_callback_executor());
+        m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(npuw_sync_request);
     } else {
         m_prefill_request = compiled_model->m_prefill_compiled->create_infer_request();
     }
@@ -196,13 +228,11 @@ void ov::npuw::LLMInferRequest::on_prefill_request_prepare(std::size_t idx) {
 
     auto clearing_idx = idx;
     for (auto task_it = tasks_in_progress.begin(); task_it != tasks_in_progress.end();) {
-        if (wait_all || task_it->index == clearing_idx) {
-            LOG_DEBUG("LLMInferRequest::on_prefill_request_prepare completing copy for request: " << task_it->index);
-#if (OV_THREAD == OV_THREAD_TBB)
-            task_it->tg->wait();
-#else
-            task_it->future.wait();
-#endif
+        auto copy_task = std::any_cast<KVCacheCopyTask>(*task_it);
+
+        if (wait_all || copy_task.index == clearing_idx) {
+            LOG_DEBUG("LLMInferRequest::on_prefill_request_prepare completing copy for request: " << copy_task.index);
+            copy_task.wait();
             task_it = tasks_in_progress.erase(task_it);
         } else {
             ++task_it;
@@ -219,23 +249,13 @@ void ov::npuw::LLMInferRequest::on_prefill_output_ready(std::size_t idx, std::st
 
     KVCacheCopyTask copy_task;
     copy_task.index = idx;
-
-#if (OV_THREAD == OV_THREAD_TBB)
-    copy_task.tg = std::make_shared<tbb::task_group>();
-    copy_task.tg->run([name, tensor, this] {
+    copy_task.run([name, tensor, this] {
         copy_kv_cache(name, tensor);
     });
-#else
-    LOG_WARNING("LLMInferRequest::on_prefill_output_ready for: " << idx << ", name: " << name << " std::async used");
-
-    t.future = std::async(std::launch::async, [name, tensor, this]() {
-        copy_kv_cache(name, tensor);
-    });
-#endif
 
     {
         std::lock_guard<std::mutex> lock(m_copy_access);
-        tasks_in_progress.push_back(std::move(copy_task));
+        tasks_in_progress.emplace_back(std::any{copy_task});
     }
 }
 

@@ -491,7 +491,6 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
 }
 
 bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
-    auto* ncthis = const_cast<ov::npuw::JustInferRequest*>(this);
     return m_subrequests[real(idx)] != nullptr;
 }
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <thread>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"

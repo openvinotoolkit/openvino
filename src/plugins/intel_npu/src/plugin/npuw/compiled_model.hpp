@@ -34,7 +34,7 @@ public:
 };
 
 class InferRequest;
-class IInferRequestListener;
+class IBaseInferRequest;
 
 class CompiledModel : public ov::npuw::ICompiledModel {
     using DevList = std::vector<std::string>;
@@ -93,6 +93,11 @@ private:
 
     std::shared_ptr<const ::intel_npu::Plugin> get_npuw_plugin() const;
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
+
+    // API for easily create and manage NPUW infer-requests
+    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const;
+    std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
+        std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const;
 
     std::string submodel_device(const std::size_t idx) const;
     bool is_gather_closure(const std::size_t idx, const std::size_t cidx) const;
