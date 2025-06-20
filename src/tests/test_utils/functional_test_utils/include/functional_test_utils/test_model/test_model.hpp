@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -22,8 +23,8 @@ namespace utils {
  * @param input_type input element type of the generated model
  * @param input_shape dims on the input layer of the generated model
  */
-void generate_test_model(const std::string& model_path,
-                         const std::string& weights_path,
+void generate_test_model(const std::filesystem::path& model_path,
+                         const std::filesystem::path& weights_path,
                          const ov::element::Type& input_type = ov::element::f32,
                          const ov::PartialShape& input_shape = {1, 3, 227, 227});
 
