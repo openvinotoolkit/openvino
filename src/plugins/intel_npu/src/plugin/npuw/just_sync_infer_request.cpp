@@ -138,7 +138,7 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
     //   - Output index: taken from `from`
     //     - A vector of resident tensors
 
-    LOG_VERB("Assinging tensor for Subgraph[" << from.first << "]/" << from.second << "...");
+    LOG_VERB("Assigning tensor for Subgraph[" << from.first << "]/" << from.second << "...");
     LOG_BLOCK();
 
     const auto& comp_model_desc = m_model->m_compiled_submodels[from.first];
@@ -153,21 +153,60 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
     });
     if (asgn_iter != assigned_memory.end()) {
         // Reassign this memory slot to the new "from"
+        LOG_DEBUG("reassigning from link: ");
         asgn_iter->from = from;
         m_table[from] = asgn_iter->ptr;
     } else {
-        // No free space at this point - allocate a new tensor
-        const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
-        const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+        // TODO:  we might need following
+        // 1. identify that tensor no longer used as part of pipelining of subrequests - can this be done by sim ???
+        // 2. if not by sim - looks weird, so try to improve simulator logic, where outputs reuse gets directly into
+        // account
+        auto allocate_case = false;
 
-        const auto& oport = proto_comp_model->outputs()[from.second];
-        ov::Shape oshape = oport.get_shape();
+        // number of maximun simultanenously inferred subgraphs - effectively equal number of infer-requests
+        // created to servs subgraps chain - same constant appeared in JustInferRequest during subreqs creation
+        const size_t max_simultanenous_subs = m_model->m_cfg.get<::intel_npu::NPUW_FUNCALL_OUTS_REUSE>() ? 2 : 0;
+        LOG_DEBUG("max_simultanenous_subs: " << max_simultanenous_subs);
 
-        if (proto_comp_model_desc.spatial) {
-            oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
+        if (max_simultanenous_subs) {
+            // get ouput_proto
+            if (from.first - real_idx < max_simultanenous_subs) {
+                // not yet created enough outputs
+                allocate_case = true;
+                // TODO: this search can be improved to not just function PROTOTYPE outputs, since HEAD might have same
+                // output tensors so allocated_case = false, but need to have more changes since those tensors are
+                // managed differently
+            }
+        } else {
+            // for unrestricted case always allocate all outputs
+            allocate_case = true;
         }
-        const auto& device = m_model->funcall_mem_device(real_idx);
-        TensorPtr new_tensor = m_alloc(oport.get_element_type(), oshape, device);
+
+        TensorPtr new_tensor;
+
+        if (allocate_case) {
+            // No free space at this point - allocate a new tensor
+            const auto& proto_comp_model_desc = m_model->m_compiled_submodels[real_idx];
+            const auto& proto_comp_model = proto_comp_model_desc.compiled_model;
+
+            const auto& oport = proto_comp_model->outputs()[from.second];
+            ov::Shape oshape = oport.get_shape();
+
+            if (proto_comp_model_desc.spatial) {
+                oshape[proto_comp_model_desc.spatial->out_dim] = proto_comp_model_desc.spatial->range;
+            }
+            LOG_DEBUG("allocating output for: " << oport.get_any_name());
+
+            const auto& device = m_model->funcall_mem_device(real_idx);
+
+            new_tensor = m_alloc(oport.get_element_type(), oshape, device);
+        } else {
+            // bind to outputs, previously allocated for function_prototype
+            auto actual_outputs_proto = (from.first - real_idx) % max_simultanenous_subs + real_idx;
+            new_tensor = m_table[{actual_outputs_proto, from.second}];
+            LOG_DEBUG("reusing output tensor allocated for submodel: " << actual_outputs_proto << "->" << from.first);
+        }
+
         NPUW_ASSERT(new_tensor);
 
         assigned_memory.push_back(Assignment{new_tensor, from});
@@ -249,6 +288,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
+                LOG_DEBUG("FuncMemMgr::get_tensor :" << i << "-" << out_idx);
                 m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
             }
             if (real_idx != i) {
@@ -354,9 +394,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 }
 
 ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
+    LOG_INFO("JustInferRequest::alloc_global_out");
     const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
     auto funcall_result_iter = m_funcall_result.find(from_submodel);
     if (funcall_result_iter != m_funcall_result.end()) {
+        LOG_INFO("found funcall result for output " << out_idx);
         return funcall_result_iter->second;
     }
     return IBaseInferRequest::alloc_global_out(out_idx);
@@ -448,15 +490,8 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Done");
 }
 
-ov::npuw::IBaseInferRequest::RqPtr ov::npuw::JustInferRequest::get_real_subrequest(std::size_t idx) {
-    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    return m_subrequests[real_idx];
-}
-
 bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
-    auto* ncthis = const_cast<ov::npuw::JustInferRequest*>(this);
-    return ncthis->get_real_subrequest(idx) != nullptr;
+    return m_subrequests[real(idx)] != nullptr;
 }
 
 void ov::npuw::JustInferRequest::start_subrequest(std::size_t idx) {
@@ -672,29 +707,36 @@ void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx, boo
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, const std::function<void()>& f) {
+void ov::npuw::JustInferRequest::unsafe_during(std::size_t idx, const std::function<void()>& f) {
+    std::size_t real_idx = real(idx);
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     if (!comp_model_desc.spatial) {
         // Non-spatial execution: trigger request asynchronously, run `f` in this context
         auto& r = m_subrequests[real_idx];
+        notify_subrequest_prepare(idx);
         r->start_async();
         f();  // expect noexcept
         r->wait();
+        notify_subrequest_complete(idx);
     } else {
         // Spatial execution... Do the opposite - run f asynchronously, and meanwhile run the
         // spatial inference
         auto future = std::async(std::launch::async, f);
-        unsafe_infer(real_idx);
+        unsafe_infer(idx);
         future.wait();
     }
 }
 
-void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
+void ov::npuw::JustInferRequest::unsafe_infer(std::size_t idx) {
+    std::size_t real_idx = real(idx);
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     auto& r = m_subrequests[real_idx];
+    notify_subrequest_prepare(idx);
+
     if (!comp_model_desc.spatial) {
         // Run normally
         r->infer();
+
     } else {
         // Run over the specified range... Note: the full inputs/outputs
         // must be prepared in the m_spatial_io at this point
@@ -796,11 +838,12 @@ void ov::npuw::JustInferRequest::unsafe_infer(std::size_t real_idx) {
             }  // for(outputs)
         }
     }
+    notify_subrequest_complete(idx);
 }
 
 void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-    auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    auto real_idx = real(idx);
     const std::size_t next_idx = next(idx + 1);
 
     if (comp_model_desc.replaced_by) {
@@ -812,7 +855,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (is_pipelined(real_idx)) {
                 // function pipelining is here! and the next rq is ours.
                 NPUW_ASSERT(m_funcall_pipeline[idx].next.value() == next_idx);
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(idx, [&]() {
                     LOG_DEBUG("Unpacking closures for the NEXT subrequest[" << next_idx << "]...");
                     LOG_BLOCK();
                     // Note: do it here unconditionally - if this request fails,
@@ -823,7 +866,7 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             } else {
                 // Function pipelining is not used. THIS infer request
                 // is also the NEXT one. Nothing much to do here
-                unsafe_infer(real_idx);
+                unsafe_infer(idx);
                 bind_global_parameters(next_idx);
             }
         } else {
@@ -833,9 +876,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             if (next_idx == 0) {
                 // Note: even if m_function_pipelining is ON,
                 // SWAP won't happen here - see the below check for .next
-                unsafe_infer(real_idx);
+                unsafe_infer(idx);
             } else {
-                unsafe_during(real_idx, [&]() {
+                unsafe_during(idx, [&]() {
                     if (!next_prepared) {
                         bind_global_parameters(next_idx);
                         next_prepared = true;
@@ -853,9 +896,9 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
         // This is a regular subgraph. Start it async to prepare the next
         // parameters
         if (next_idx == 0) {
-            unsafe_infer(real_idx);
+            unsafe_infer(idx);
         } else {
-            unsafe_during(real_idx, [&]() {
+            unsafe_during(idx, [&]() {
                 if (!next_prepared) {
                     bind_global_parameters(next_idx);
                     next_prepared = true;
@@ -863,14 +906,6 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
             });
         }
     }  // if (replaced_by)
-}
-
-void ov::npuw::JustInferRequest::subscribe_subrequest(std::size_t idx, Completed cb) {
-    get_real_subrequest(idx)->set_callback(std::move(cb));
-}
-
-void ov::npuw::JustInferRequest::complete_subrequest(std::size_t idx) {
-    // do nothing here
 }
 
 void ov::npuw::JustInferRequest::cancel_subrequest(std::size_t idx) {
