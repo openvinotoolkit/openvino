@@ -114,7 +114,7 @@ std::shared_ptr<ov::Model> read_model(const std::filesystem::path& modelPath,
                                       bool enable_mmap) {
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = modelPath.wstring();
+    std::string model_path = ov::util::wstring_to_string(modelPath.wstring());
 #else
     std::string model_path = modelPath.string();
 #endif
@@ -128,7 +128,7 @@ std::shared_ptr<ov::Model> read_model(const std::filesystem::path& modelPath,
 
     if (!binPath.empty()) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        const std::wstring& weights_path = binPath.wstring();
+        const std::string& weights_path = ov::util::wstring_to_string(binPath.wstring());
 #else
         const std::string& weights_path = binPath.string();
 #endif
