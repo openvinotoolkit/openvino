@@ -32,7 +32,7 @@ using logger_handler_t = std::function<void(const std::string&)>;
 
 class LogHelper {
 public:
-    LogHelper(LOG_TYPE, const char* file, int line, logger_handler_t m_handler_func);
+    LogHelper(LOG_TYPE, const char* file, int line, const logger_handler_t& handler);
     ~LogHelper();
 
     std::ostream& stream() {
@@ -75,13 +75,13 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
     return ov::util::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
-extern logger_handler_t logger_handler;
+const logger_handler_t& get_logger_handler();
 
 #    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE)                     \
         ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, \
                               __FILE__,                                       \
                               __LINE__,                                       \
-                              ::ov::util::logger_handler)                     \
+                              ::ov::util::get_logger_handler())               \
             .stream()
 
 #    define OPENVINO_ERR(...)                                                                  \

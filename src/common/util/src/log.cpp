@@ -14,8 +14,8 @@
 
 namespace ov::util {
 
-LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, logger_handler_t handler_func)
-    : m_handler_func(std::move(handler_func)) {
+LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, const logger_handler_t& handler_func)
+    : m_handler_func{handler_func} {
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:
         m_stream << "[ERR] ";
@@ -59,9 +59,4 @@ LogHelper::~LogHelper() {
     }
 #endif
 }
-
-#ifdef ENABLE_OPENVINO_DEBUG
-void default_logger_handler_func(const std::string& s);
-logger_handler_t logger_handler{default_logger_handler_func};
-#endif
 }  // namespace ov::util
