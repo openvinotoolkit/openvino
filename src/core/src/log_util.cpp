@@ -13,8 +13,23 @@ namespace util {
 
 #ifdef ENABLE_OPENVINO_DEBUG
 
-OPENVINO_API void default_logger_handler_func(const std::string& s) {
+namespace {
+void default_logger_handler_fn(const std::string& s) {
     std::cout << s << std::endl;
+}
+const logger_handler_t default_logger_handler{default_logger_handler_fn};
+
+using logger_handler_fn_t = void(const char*, void*);
+
+const logger_handler_t* current_logger_handler = &default_logger_handler;
+}  // namespace
+
+OPENVINO_API const logger_handler_t& get_logger_handler() {
+    return *current_logger_handler;
+}
+
+OPENVINO_API const void set_callback_logger_handler(const logger_handler_t* handler) {
+    current_logger_handler = handler;
 }
 
 // Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
