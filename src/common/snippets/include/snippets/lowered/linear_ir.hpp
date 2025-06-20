@@ -15,9 +15,7 @@
 #    include "snippets/utils/debug_caps_config.hpp"
 #endif
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class Config {
 public:
@@ -243,14 +241,13 @@ public:
      * @param args ov::Node constructor arguments
      * @return Pair of iterator on the inserted expr and the constructed node.
      */
-    template <typename T,
-              typename... Args,
-              typename std::enable_if<std::is_base_of<ov::Node, T>::value, bool>::type = true>
+    template <typename T, typename... Args, std::enable_if_t<std::is_base_of_v<ov::Node, T>, bool> = true>
     std::pair<constExprIt, std::shared_ptr<T>> insert_node(constExprIt pos, Args&&... args) {
         const auto node = std::make_shared<T>(std::forward<Args>(args)...);
         const auto expr_it = insert(pos, node);
-        if (node->is_dynamic())
+        if (node->is_dynamic()) {
             expr_it->get()->updateShapes();
+        }
         return std::make_pair(expr_it, node);
     }
 
@@ -331,9 +328,7 @@ public:
      * @param args ov::Node constructor arguments
      * @return Pair of iterator on the inserted expr and the constructed node.
      */
-    template <typename T,
-              typename... Args,
-              typename std::enable_if<std::is_base_of<ov::Node, T>::value, bool>::type = true>
+    template <typename T, typename... Args, std::enable_if_t<std::is_base_of_v<ov::Node, T>, bool> = true>
     std::pair<constExprIt, std::shared_ptr<T>> push_node(Args&&... args) {
         return insert_node<T>(end(), std::forward<Args>(args)...);
     }
@@ -368,13 +363,13 @@ private:
     // return execution number for new expression which will be inserted before `insert_pos`
     double get_inserted_expr_exec_num(constExprIt insertion_pos) const;
 
-    container m_expressions{};
+    container m_expressions;
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
     // Note: Parameters and Results are stored in the order of Subgraph inputs/outputs
-    std::vector<ExpressionPtr> m_parameter_expressions{};
-    std::vector<ExpressionPtr> m_result_expressions{};
+    std::vector<ExpressionPtr> m_parameter_expressions;
+    std::vector<ExpressionPtr> m_result_expressions;
     // Note: BufferExpressions are not stored in the order of execution numbers
-    std::vector<BufferExpressionPtr> m_buffer_expressions{};
+    std::vector<BufferExpressionPtr> m_buffer_expressions;
     Config m_config{};
     LoopManagerPtr m_loop_manager;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory = nullptr;
@@ -395,6 +390,4 @@ iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& targe
     return found;
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

@@ -7,9 +7,7 @@
 #include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface RankNormalization
@@ -55,6 +53,4 @@ private:
     size_t m_num_append = 0;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

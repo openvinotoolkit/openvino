@@ -9,9 +9,7 @@
 
 #include "openvino/core/model.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @brief Hash transformation calculates hash value for snippets. Don't care about names as no difference from execution
@@ -35,6 +33,4 @@ private:
     uint64_t& m_hash;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

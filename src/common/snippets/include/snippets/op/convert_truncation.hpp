@@ -8,9 +8,7 @@
 
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface ConvertTruncation
@@ -35,6 +33,4 @@ public:
     }
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

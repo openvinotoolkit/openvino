@@ -6,10 +6,7 @@
 
 #include "pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface PropagateBufferOffset
@@ -37,7 +34,4 @@ private:
     static void propagate(const BufferExpressionPtr& buffer_expr);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

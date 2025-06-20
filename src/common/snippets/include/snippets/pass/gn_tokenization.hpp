@@ -4,12 +4,11 @@
 
 #pragma once
 
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "snippets/pass/tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface TokenizeGNSnippets
@@ -22,6 +21,4 @@ public:
     TokenizeGNSnippets();
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

@@ -8,10 +8,7 @@
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface PassConfig
@@ -55,7 +52,4 @@ private:
     std::unordered_set<DiscreteTypeInfo> m_enabled;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
