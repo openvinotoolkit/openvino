@@ -15,7 +15,7 @@ public:
         readProperties();
     }
 
-    bool enable_segfault_detector;
+    bool enable_segfault_detector = false;
 
 private:
     void readProperties();
