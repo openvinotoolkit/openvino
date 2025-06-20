@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from string import ascii_uppercase
-from typing import Any, Dict, Iterable, List, Optional, Text
+from collections.abc import Iterable
+from typing import Any, Optional, Text
 
 import numpy as np
 import onnx
@@ -16,7 +17,7 @@ from tests.tests_python.utils.onnx_helpers import import_onnx_model
 
 
 def run_node(onnx_node, data_inputs, **kwargs):
-    # type: (onnx.NodeProto, List[np.ndarray], Dict[Text, Any]) -> List[np.ndarray]
+    # type: (onnx.NodeProto, list[np.ndarray], dict[Text, Any]) -> list[np.ndarray]
     """Convert ONNX node to a graph node and perform computation on input data.
 
     :param onnx_node: ONNX NodeProto describing a computation node
@@ -28,7 +29,7 @@ def run_node(onnx_node, data_inputs, **kwargs):
 
 
 def run_model(onnx_model, data_inputs):
-    # type: (onnx.ModelProto, List[np.ndarray]) -> List[np.ndarray]
+    # type: (onnx.ModelProto, list[np.ndarray]) -> list[np.ndarray]
     """Convert ONNX model to a graph model and perform computation on input data.
 
     :param onnx_model: ONNX ModelProto describing an ONNX model
