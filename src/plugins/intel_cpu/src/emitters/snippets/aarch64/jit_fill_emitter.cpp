@@ -59,7 +59,7 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    const size_t supported_et_size = 4;
+    const size_t supported_et_size = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / exec_prc_.size();
     if (offset == supported_et_size) {
         // WA: since AssignRegisters doesn't support inplace logic, Fill ops with offset = register_capacity can't be
         // removed from the LIR
@@ -94,46 +94,12 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    if (in[0] != out[0]) {
+        h->mov(Xbyak_aarch64::VReg16B(out[0]), Xbyak_aarch64::VReg16B(in[0]));
+    }
+
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto dst = TReg(out[0]);
-
-    if (is_optimized()) {
-        const size_t supported_et_size = 4;
-        const size_t first_lane = offset / supported_et_size;
-
-        WReg tmp{h->X_TMP_0.getIdx()};
-        h->eor(tmp, tmp, tmp);
-        for (size_t lane = first_lane; lane < supported_et_size; ++lane) {
-            h->ins(dst.s[lane], tmp);
-        }
-    }
-
-    if (in[0] != out[0]) {
-        switch (offset) {
-        case 1: {
-            WReg tmp{h->X_TMP_0.getIdx()};
-            h->fmov(tmp, SReg(in[0]));
-            h->ins(dst.s[0], tmp);
-            break;
-        }
-        case 2: {
-            auto tmp = h->X_TMP_0;
-            h->fmov(tmp, DReg(in[0]));
-            h->mov(dst.d[0], tmp);
-            break;
-        }
-        case 0:
-        case 3:
-        case 4:
-            h->mov(Xbyak_aarch64::VReg16B(out[0]), Xbyak_aarch64::VReg16B(in[0]));
-            break;
-        }
-    }
-
-    if (is_optimized()) {
-        return;
-    }
-
     switch (offset) {
     case 1:
         h->ld1(dst.s[1], table_val2("value", sizeof(float)));

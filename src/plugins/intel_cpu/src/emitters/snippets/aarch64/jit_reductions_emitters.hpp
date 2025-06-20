@@ -17,13 +17,13 @@
 
 namespace ov::intel_cpu::aarch64 {
 
-class jit_reduce_max_emitter : public jit_emitter {
+class jit_horizon_max_emitter : public jit_emitter {
 public:
-    jit_reduce_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                            const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_reduce_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                            const std::shared_ptr<ov::Node>& node);
 
@@ -39,13 +39,13 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
-class jit_reduce_sum_emitter : public jit_emitter {
+class jit_horizon_sum_emitter : public jit_emitter {
 public:
-    jit_reduce_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                            const ov::element::Type exec_prc = ov::element::f32);
 
-    jit_reduce_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+    jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                            const std::shared_ptr<ov::Node>& node);
 
