@@ -859,8 +859,12 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     ov::pass::Manager lptManager("CPU:LPT");
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>();
+    auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>(
+        {QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
+         QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})});
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
+        PrecisionsRestriction::create<ov::opset1::Convolution>({{{0, 1}, {ov::element::u8, ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({{{0,1}, {ov::element::i8}}}),
         PrecisionsRestriction::create<ov::op::v0::MatMul>({{{0, 1}, {ov::element::i8}}}),
     });
 #else
@@ -914,8 +918,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_DISABLE_PASS_COMMON(lptManager, MultiplyToGroupConvolutionTransformation);
 
     CPU_DISABLE_PASS_ARM(lptManager, AvgPoolTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
-    CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
+    //CPU_DISABLE_PASS_ARM(lptManager, ConvolutionTransformation);
+    //CPU_DISABLE_PASS_ARM(lptManager, ConvolutionBackpropDataTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, InterpolateTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, GroupConvolutionTransformation);
     CPU_DISABLE_PASS_ARM(lptManager, MaxPoolTransformation);
@@ -1518,7 +1522,7 @@ void Transformations::PostSnippets() {
     ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
-    CPU_SET_CALLBACK_X64(
+    CPU_SET_CALLBACK_COMMON(
         postSnippetsManager,
         [](const_node_ptr& node) -> bool {
             std::string errMsg;
