@@ -12,17 +12,21 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 
 using namespace testing;
 using namespace ov::pass;
 using namespace ov;
+using namespace ov::op;
 
 TEST_F(TransformationTestsF, SDPAFusionTest1) {
     const PartialShape query_shape{1, 32, -1, 32};
@@ -101,10 +105,11 @@ TEST_F(TransformationTestsF, SDPAFusionTest3) {
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
     const auto casual = false;
+
+    const auto key_t =
+        std::make_shared<ov::op::v1::Transpose>(key,
+                                                ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
     {
-        const auto key_t =
-            std::make_shared<ov::op::v1::Transpose>(key,
-                                                    op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
         const auto qk = std::make_shared<ov::op::v0::MatMul>(query, key_t, false, false);
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
@@ -116,8 +121,10 @@ TEST_F(TransformationTestsF, SDPAFusionTest3) {
     {
         const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
         const auto mask_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{0.0f});
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+        auto backward_transpose = std::make_shared<ov::op::v1::Transpose>(key_t, axes);
         const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
-                                                                                   key,
+                                                                                   backward_transpose,
                                                                                    value,
                                                                                    mask_const,
                                                                                    scale_const,
@@ -152,7 +159,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest4) {
         const auto mask_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{0.0f});
         const auto transposed_key =
             std::make_shared<ov::op::v1::Transpose>(key,
-                                                    ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
+                                                    ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
         const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
                                                                                    transposed_key,
                                                                                    value,
@@ -189,8 +196,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest5) {
 
     {
         const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
-        const auto sdpa =
-            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
+        const auto squeezed_mask =
+            std::make_shared<ov::op::v0::Squeeze>(mask, ov::op::v0::Constant::create(element::i64, Shape{1}, {0}));
+        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   squeezed_mask,
+                                                                                   scale_const,
+                                                                                   casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
@@ -221,8 +234,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest6) {
 
     {
         const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
-        const auto sdpa =
-            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
+        const auto squeezed_mask =
+            std::make_shared<ov::op::v0::Squeeze>(mask, ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 1}));
+        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                                   key,
+                                                                                   value,
+                                                                                   squeezed_mask,
+                                                                                   scale_const,
+                                                                                   casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
@@ -238,10 +257,14 @@ TEST_F(TransformationTestsF, SDPAFusionTest7) {
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
+    const auto key_t =
+        std::make_shared<ov::op::v1::Transpose>(key,
+                                                ov::op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 3, 0}));
+
+    const auto mask = ov::op::v0::Constant::create(element::f16, ov::Shape{}, {0});
+    const auto scale = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
+    const auto casual = false;
     {
-        const auto key_t =
-            std::make_shared<ov::op::v1::Transpose>(key,
-                                                    op::v0::Constant::create(element::i64, Shape{4}, {1, 2, 3, 0}));
         const auto qk = std::make_shared<ov::op::v0::MatMul>(query, key_t, false, false);
         const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
         const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
@@ -249,6 +272,21 @@ TEST_F(TransformationTestsF, SDPAFusionTest7) {
         model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value});
         manager.register_pass<ov::pass::SDPAFusion>();
     }
+
+    {
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+        auto backward_transpose = std::make_shared<ov::op::v1::Transpose>(key_t, axes);
+        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                                   backward_transpose,
+                                                                                   value,
+                                                                                   mask,
+                                                                                   scale,
+                                                                                   casual);
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, SDPAFusionTest8) {
@@ -275,15 +313,8 @@ TEST_F(TransformationTestsF, SDPAFusionTest8) {
     }
 
     {
-        const auto unsqueezed_mask =
-            std::make_shared<ov::op::v0::Unsqueeze>(mask,
-                                                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
-        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
-                                                                                   key,
-                                                                                   value,
-                                                                                   unsqueezed_mask,
-                                                                                   scale_const,
-                                                                                   casual);
+        const auto sdpa =
+            std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
 
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
@@ -307,9 +338,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest9) {
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
     const auto mask = std::make_shared<ov::op::v0::Parameter>(element::f16, attention_mask_shape);
-    const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto query_reshape_params = ov::op::v0::Constant::create(element::i64,
                                                                        Shape{query_reshaped_shape.size()},
                                                                        query_reshaped_shape.to_shape());
@@ -344,6 +375,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest9) {
     }
 
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
@@ -366,9 +398,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest10) {
     const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
-    const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto query_reshape_params = ov::op::v0::Constant::create(element::i64,
                                                                        Shape{query_reshaped_shape.size()},
                                                                        query_reshaped_shape.to_shape());
@@ -399,6 +431,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest10) {
     }
 
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto mask_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{0.0f});
         const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
                                                                                    key,
@@ -428,9 +461,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest11) {
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
     const auto mask = std::make_shared<ov::op::v0::Parameter>(element::f16, attention_mask_shape);
-    const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto query_reshape_params = ov::op::v0::Constant::create(element::i64,
                                                                        Shape{query_reshaped_shape.size()},
                                                                        query_reshaped_shape.to_shape());
@@ -465,9 +498,11 @@ TEST_F(TransformationTestsF, SDPAFusionTest11) {
     }
 
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(query, key, value, mask, scale_const, casual);
-        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
+        const auto reshape_result = model_ref =
+            std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
@@ -490,9 +525,9 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
     const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
     const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
     const auto mask = std::make_shared<ov::op::v0::Parameter>(element::f16, attention_mask_shape);
-    const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
     const auto casual = false;
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto query_reshape_params = ov::op::v0::Constant::create(element::i64,
                                                                        Shape{query_reshaped_shape.size()},
                                                                        query_reshaped_shape.to_shape());
@@ -540,16 +575,59 @@ TEST_F(TransformationTestsF, SDPAFusionTest12) {
     }
 
     {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, {}, std::vector<float>{1.0f});
         const auto transposed_key =
             std::make_shared<ov::op::v1::Transpose>(key,
                                                     ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
+        const auto squeezed_mask =
+            std::make_shared<ov::op::v0::Squeeze>(mask, ov::op::v0::Constant::create(element::i64, Shape{2}, {0, 1}));
         const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
                                                                                    transposed_key,
                                                                                    value,
-                                                                                   mask,
+                                                                                   squeezed_mask,
                                                                                    scale_const,
                                                                                    casual);
         model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, mask});
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_DynamicBatch) {
+    const PartialShape query_shape{-1, 32, -1, 32};
+    const PartialShape key_shape{-1, 32, -1, 32};
+    const PartialShape value_shape{-1, 32, -1, 32};
+
+    const auto query = std::make_shared<ov::op::v0::Parameter>(element::f16, query_shape);
+    const auto key = std::make_shared<ov::op::v0::Parameter>(element::f16, key_shape);
+    const auto value = std::make_shared<ov::op::v0::Parameter>(element::f16, value_shape);
+    const auto casual = false;
+
+    const auto key_t =
+        std::make_shared<ov::op::v1::Transpose>(key,
+                                                ov::op::v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
+    {
+        const auto qk = std::make_shared<ov::op::v0::MatMul>(query, key_t, false, false);
+        const auto softmax = std::make_shared<ov::op::v8::Softmax>(qk, -1);
+        const auto qkv = std::make_shared<ov::op::v0::MatMul>(softmax, value, false, false);
+
+        model = std::make_shared<ov::Model>(OutputVector{qkv}, ParameterVector{query, key, value});
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    {
+        const auto scale_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{1.0f});
+        const auto mask_const = ov::op::v0::Constant::create(element::f16, ov::Shape{}, std::vector<float>{0.0f});
+        auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+        auto backward_transpose = std::make_shared<ov::op::v1::Transpose>(key_t, axes);
+        const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query,
+                                                                                   backward_transpose,
+                                                                                   value,
+                                                                                   mask_const,
+                                                                                   scale_const,
+                                                                                   casual);
+        model_ref = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
     }
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
