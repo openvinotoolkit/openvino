@@ -68,7 +68,7 @@ public:
                              const dnnl::engine& engine,
                              std::shared_ptr<ThreadPool> threadPool,
                              const std::vector<impl_desc_type>& implPriorities,
-                             const impl_desc_type defaultImplType);
+                             impl_desc_type defaultImplType);
 
     void execute(dnnl_primitive_args& primArgs);
 
@@ -99,13 +99,13 @@ public:
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const ConvAttrs& attrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     // create shape agnostic data using FC attributes (1x1 Convolution as FC executor)
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& fcAttrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     static std::shared_ptr<DnnlConvolutionPrimitive> create(const MemoryArgs& memory,
                                                             const ConvAttrs& attrs,

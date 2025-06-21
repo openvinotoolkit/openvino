@@ -557,6 +557,11 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                         sub_str = system_info_table[n][info_index].substr(endpos + 1);
                         core_2 = std::stoi(sub_str);
 
+                        if ((info_index == 1) && (core_2 - core_1 == 1) &&
+                            (_proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
+                            offline_list.push_back(n);
+                            break;
+                        }
                         for (int m = core_1; m <= core_2; m++) {
                             _cpu_mapping_table[m][CPU_MAP_SOCKET_ID] = _sockets;
                             _cpu_mapping_table[m][CPU_MAP_NUMA_NODE_ID] = _cpu_mapping_table[m][CPU_MAP_SOCKET_ID];

@@ -21,41 +21,40 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 struct Config {
     Config();
 
-    enum LPTransformsMode {
+    enum LPTransformsMode : uint8_t {
         Off,
         On,
     };
 
-    enum DenormalsOptMode {
+    enum DenormalsOptMode : uint8_t {
         DO_Keep,
         DO_Off,
         DO_On,
     };
 
-    enum SnippetsMode {
+    enum SnippetsMode : uint8_t {
         Enable,
         IgnoreCallback,
         Disable,
     };
 
-    enum CacheQuantMode {
+    enum CacheQuantMode : uint8_t {
         AUTO,
         BY_CHANNEL,
         BY_HIDDEN,
     };
 
-    enum class ModelType { CNN, LLM, Unknown };
+    enum class ModelType : uint8_t { CNN, LLM, Unknown };
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
-    std::string dumpToDot = {};
-    std::string device_id = {};
+    std::string dumpToDot;
+    std::string device_id;
     float fcSparseWeiDecompressionRate = 1.0f;
     uint64_t fcDynamicQuantizationGroupSize = 32;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
@@ -98,7 +97,7 @@ struct Config {
     bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     ov::intel_cpu::TbbPartitioner tbbPartitioner = ov::intel_cpu::TbbPartitioner::DEFAULT;
-    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;
@@ -122,7 +121,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const ov::AnyMap& prop, const ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& prop, ModelType modelType = ModelType::Unknown);
 
     void updateProperties();
 
@@ -141,5 +140,4 @@ struct Config {
 #endif
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

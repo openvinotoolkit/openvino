@@ -139,7 +139,7 @@ protected:
                     const variable<float[N]>& c,
                     const variable<size_t>& size);
 
-    function_t _fn;
+    function_t _fn = nullptr;
     variable<const float*> _consts;
 };
 
@@ -208,9 +208,9 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
             return mask;
         };
 
-        r.permute(genPermutationMask(0));
-        g.permute(genPermutationMask(1));
-        b.permute(genPermutationMask(2));
+        r = r.permute(genPermutationMask(0));
+        g = g.permute(genPermutationMask(1));
+        b = b.permute(genPermutationMask(2));
 
         auto blendWithMask = [&](int offset, const variable<float[N]>& result) {
             static const uint32_t blendMasks[2] = {0x92492492, 0x24924924};
@@ -218,8 +218,8 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
             const auto mask1 = static_cast<const uint16_t>(blendMasks[1] >> ((offset * N) % 3));
 
             result = r;
-            result.blend(g, mask0);
-            result.blend(b, mask1);
+            result = result.blend(g, mask0);
+            result = result.blend(b, mask1);
         };
 
         blendWithMask(0, r0);
@@ -581,12 +581,14 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            auto u_v = uv + batch * stride_uv + (h / 2) * width;
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,
+                u_v,
+                u_v,
+                dst + (batch * width * height + h * width) * 3,
+                width,
+                _colorFormat[0]};  // The first byte is enough to determine the RGB or BGR format.
             kernel(args);
         });
     }
@@ -615,12 +617,15 @@ public:
         const size_t stride_uv = height * width / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = args.v = uv + batch * stride_uv + (h / 2) * width;
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            auto u_v = uv + batch * stride_uv + (h / 2) * width;
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,
+                u_v,
+                u_v,
+                dst + (batch * width * height + h * width) * 3,
+                width,
+                _colorFormat[0]  // The first byte is enough to determine the RGB or BGR format.
+            };
             kernel(args);
         });
     }
@@ -854,8 +859,8 @@ JitConverter<T[N]>::load_yuv(const variable<const T*>& src_y,
 template <typename T, size_t N>
 void JitConverter<T[N]>::unpack_uv(const variable<float[N]>& u, const variable<float[N]>& v) {
     static const uint8_t order[] = {0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7};
-    u.permute(order);
-    v.permute(order);
+    u = u.permute(order);
+    v = v.permute(order);
 }
 
 template <typename T>
@@ -916,13 +921,14 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = u + batch * stride_uv + (h / 2) * (width / 2);
-            args.v = v + batch * stride_uv + (h / 2) * (width / 2);
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,                // y
+                u + batch * stride_uv + (h / 2) * (width / 2),   // u
+                v + batch * stride_uv + (h / 2) * (width / 2),   // v
+                dst + (batch * width * height + h * width) * 3,  // dst
+                width,                                           // width
+                _colorFormat[0]                                  // colorFormat - RGB or BGR format
+            };
             kernel(args);
         });
     }
@@ -952,13 +958,14 @@ public:
         const size_t stride_uv = height * width / 4;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args;
-            args.y = y + batch * stride_y + h * width;
-            args.u = u + batch * stride_uv + (h / 2) * (width / 2);
-            args.v = v + batch * stride_uv + (h / 2) * (width / 2);
-            args.dst = dst + (batch * width * height + h * width) * 3;
-            args.width = width;
-            args.colorFormat = _colorFormat[0];  // The first byte is enough to determine the RGB or BGR format.
+            typename jit_uni_converter::Params args{
+                y + batch * stride_y + h * width,                // y
+                u + batch * stride_uv + (h / 2) * (width / 2),   // u
+                v + batch * stride_uv + (h / 2) * (width / 2),   // v
+                dst + (batch * width * height + h * width) * 3,  // dst
+                width,                                           // width
+                _colorFormat[0]                                  // colorFormat - RGB or BGR format
+            };
             kernel(args);
         });
     }
@@ -993,7 +1000,7 @@ const VectorDims& ColorConvert::Converter::inputDims(size_t idx) const {
 }
 
 bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
-    Algorithm alg;
+    Algorithm alg{};
     std::tie(alg, errorMessage) = getAlgorithmFor(op);
     return alg != Algorithm::Default;
 }

@@ -19,6 +19,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <queue>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -903,7 +904,7 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
                 io_selection_size++;
                 if (sorted_boxes_size > 1LU) {
                     sorted_indices_ptr++;
-                    NMSCandidateStatus candidate_status;
+                    NMSCandidateStatus candidate_status = NMSCandidateStatus::SELECTED;
 
                     for (size_t candidate_idx = 1LU;
                          (candidate_idx < sorted_boxes_size) && (io_selection_size < m_output_boxes_per_class);
@@ -949,35 +950,28 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
 /////////////// End of Rotated boxes ///////////////
 
 float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float* boxesJ) {
-    float yminI;
-    float xminI;
-    float ymaxI;
-    float xmaxI;
-    float yminJ;
-    float xminJ;
-    float ymaxJ;
-    float xmaxJ;
-    if (boxEncodingType == NMSBoxEncodeType::CENTER) {
-        //  box format: x_center, y_center, width, height
-        yminI = boxesI[1] - boxesI[3] / 2.F;
-        xminI = boxesI[0] - boxesI[2] / 2.F;
-        ymaxI = boxesI[1] + boxesI[3] / 2.F;
-        xmaxI = boxesI[0] + boxesI[2] / 2.F;
-        yminJ = boxesJ[1] - boxesJ[3] / 2.F;
-        xminJ = boxesJ[0] - boxesJ[2] / 2.F;
-        ymaxJ = boxesJ[1] + boxesJ[3] / 2.F;
-        xmaxJ = boxesJ[0] + boxesJ[2] / 2.F;
-    } else {
-        //  box format: y1, x1, y2, x2
-        yminI = (std::min)(boxesI[0], boxesI[2]);
-        xminI = (std::min)(boxesI[1], boxesI[3]);
-        ymaxI = (std::max)(boxesI[0], boxesI[2]);
-        xmaxI = (std::max)(boxesI[1], boxesI[3]);
-        yminJ = (std::min)(boxesJ[0], boxesJ[2]);
-        xminJ = (std::min)(boxesJ[1], boxesJ[3]);
-        ymaxJ = (std::max)(boxesJ[0], boxesJ[2]);
-        xmaxJ = (std::max)(boxesJ[1], boxesJ[3]);
-    }
+    auto [yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ] = [&] {
+        if (boxEncodingType == NMSBoxEncodeType::CENTER) {
+            // box format: x_center, y_center, width, height
+            return std::tuple{boxesI[1] - boxesI[3] / 2.F,
+                              boxesI[0] - boxesI[2] / 2.F,
+                              boxesI[1] + boxesI[3] / 2.F,
+                              boxesI[0] + boxesI[2] / 2.F,
+                              boxesJ[1] - boxesJ[3] / 2.F,
+                              boxesJ[0] - boxesJ[2] / 2.F,
+                              boxesJ[1] + boxesJ[3] / 2.F,
+                              boxesJ[0] + boxesJ[2] / 2.F};
+        }
+        // box format: y1, x1, y2, x2
+        return std::tuple{(std::min)(boxesI[0], boxesI[2]),
+                          (std::min)(boxesI[1], boxesI[3]),
+                          (std::max)(boxesI[0], boxesI[2]),
+                          (std::max)(boxesI[1], boxesI[3]),
+                          (std::min)(boxesJ[0], boxesJ[2]),
+                          (std::min)(boxesJ[1], boxesJ[3]),
+                          (std::max)(boxesJ[0], boxesJ[2]),
+                          (std::max)(boxesJ[1], boxesJ[3])};
+    }();
 
     float areaI = (ymaxI - yminI) * (xmaxI - xminI);
     float areaJ = (ymaxJ - yminJ) * (xmaxJ - xminJ);

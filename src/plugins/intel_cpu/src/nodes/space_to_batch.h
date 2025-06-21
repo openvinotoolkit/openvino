@@ -6,18 +6,14 @@
 
 #include <node.h>
 
-#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "graph_context.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class SpaceToBatch : public Node {
 public:
@@ -46,6 +42,4 @@ private:
     void SpaceToBatchKernel();
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

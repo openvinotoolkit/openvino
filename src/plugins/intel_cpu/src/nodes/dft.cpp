@@ -297,7 +297,7 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
-            const float* resultBufPtr;
+            const float* resultBufPtr = nullptr;
 
             fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
 
@@ -340,7 +340,7 @@ void DFT::dftNd(float* output,
                                      parallelIterationCounter,
                                      outputShape,
                                      outputStrides);
-                    const float* resultBufPtr;
+                    const float* resultBufPtr = nullptr;
                     fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
                     applyBufferND(resultBufPtr,
                                   output,
@@ -423,7 +423,7 @@ void DFT::fft(float* inBuffer,
         };
     }
 
-    size_t blockSize;
+    size_t blockSize = 0;
     size_t nextIterationBlockSize = dataLength;
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
