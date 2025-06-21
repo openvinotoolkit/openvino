@@ -32,10 +32,6 @@ protected:
         actual_out_stream->rdbuf(m_mock_out_stream.rdbuf());
 
         std::tie(m_log_type, m_log_path, m_log_line, m_log_message) = GetParam();
-
-        m_log_handler = [message = &m_callback_message](const std::string& msg) {
-            *message = msg;
-        };
     }
 
     void TearDown() override {
@@ -68,7 +64,9 @@ protected:
     std::stringstream m_mock_out_stream;
 
     std::string m_callback_message;
-    log_handler_t m_log_handler;
+    log_handler_t m_log_handler{[this](const std::string& msg) {
+        m_callback_message = msg;
+    }};
 };
 
 TEST_P(TestLogHelper, std_cout) {
@@ -77,14 +75,14 @@ TEST_P(TestLogHelper, std_cout) {
 }
 
 TEST_P(TestLogHelper, callback) {
-    set_log_handler(&m_log_handler);
+    set_log_handler(m_log_handler);
     log_test_params();
     EXPECT_TRUE(m_mock_out_stream.str().empty());
     EXPECT_TRUE(are_params_logged_to(m_callback_message));
 }
 
 TEST_P(TestLogHelper, reset) {
-    set_log_handler(&m_log_handler);
+    set_log_handler(m_log_handler);
     reset_log_handler();
     log_test_params();
     EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()));
@@ -101,10 +99,10 @@ TEST_P(TestLogHelper, no_log) {
 INSTANTIATE_TEST_SUITE_P(Logging,
                          TestLogHelper,
                          ::testing::ValuesIn(std::vector<LogEntries>{
-                             {LOG_TYPE::_LOG_TYPE_WARNING, "the_file_path", 41, "ignored"},
-                             {LOG_TYPE::_LOG_TYPE_ERROR, "the_file_path", 42, "happened"},
-                             {LOG_TYPE::_LOG_TYPE_INFO, "too-long-file", 3141592, "to read"},
+                             {LOG_TYPE::_LOG_TYPE_ERROR, "uno", 42, "tre"},
+                             {LOG_TYPE::_LOG_TYPE_WARNING, "due", 101, "null"},
+                             {LOG_TYPE::_LOG_TYPE_INFO, "to long", 3141592, "to read"},
                              {LOG_TYPE::_LOG_TYPE_DEBUG, "in the middle", 0.f, "the nowhere"},
-                             {LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, "a:\\main.c", -101, "loading..."},
+                             {LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, "a:\\mio.c++", -101, "loading..."},
                          }));
 }  // namespace ov::util::test
