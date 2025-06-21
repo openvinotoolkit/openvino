@@ -14,7 +14,7 @@
 
 namespace ov::util {
 
-LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, log_handler_t* handler) : m_handler{handler} {
+LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, log_handler_t handler) : m_handler{std::move(handler)} {
     if (!m_handler)
         return;
 
@@ -56,6 +56,6 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, log_handler_t* h
 
 LogHelper::~LogHelper() {
     if (m_handler)
-        (*m_handler)(m_stream.str());
+        m_handler(m_stream.str());
 }
 }  // namespace ov::util

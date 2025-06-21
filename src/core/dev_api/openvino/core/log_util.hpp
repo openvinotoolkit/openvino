@@ -10,15 +10,15 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
-
 namespace ov {
 namespace util {
 
 using log_handler_t = std::function<void(const std::string&)>;
-OPENVINO_API log_handler_t* get_log_handler();
-OPENVINO_API void set_log_handler(log_handler_t* handler);
+OPENVINO_API log_handler_t get_log_handler();
+OPENVINO_API void set_log_handler(log_handler_t handler);
 OPENVINO_API void reset_log_handler();
+
+#ifdef ENABLE_OPENVINO_DEBUG
 
 class OPENVINO_API LevelString {
 private:
@@ -561,10 +561,7 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   (status ? "  ALL ARGUMENTS MATCHED" : "  ARGUMENTS DIDN'T MATCH")); \
         } while (0);
 
-}  // namespace util
-}  // namespace ov
-
-#else
+#else  // ENABLE_OPENVINO_DEBUG
 
 #    define OPENVINO_LOG_GENPATTERN1(...) \
         do {                              \
@@ -704,4 +701,7 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
         do {                            \
         } while (0)
 
-#endif
+#endif  // ENABLE_OPENVINO_DEBUG
+
+}  // namespace util
+}  // namespace ov

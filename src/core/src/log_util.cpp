@@ -11,27 +11,27 @@
 namespace ov {
 namespace util {
 
-#ifdef ENABLE_OPENVINO_DEBUG
-
 namespace {
 log_handler_t default_log_handler{[](const std::string& s) {
     std::cout << s << std::endl;
 }};
 
- log_handler_t* current_log_handler = &default_log_handler;
+log_handler_t current_log_handler = default_log_handler;
 }  // namespace
 
-OPENVINO_API log_handler_t* get_log_handler() {
+OPENVINO_API log_handler_t get_log_handler() {
     return current_log_handler;
 }
 
-OPENVINO_API void set_log_handler(log_handler_t* handler) {
-    current_log_handler = handler;
+OPENVINO_API void set_log_handler(log_handler_t handler) {
+    current_log_handler = std::move(handler);
 }
 
 OPENVINO_API void reset_log_handler() {
-    current_log_handler = &default_log_handler;
+    current_log_handler = default_log_handler;
 }
+
+#ifdef ENABLE_OPENVINO_DEBUG
 
 // Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
 static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
@@ -124,6 +124,6 @@ std::string node_with_arguments(const ov::Node& node) {
     return res;
 }
 
-#endif
+#endif  // ENABLE_OPENVINO_DEBUG
 }  // namespace util
 }  // namespace ov
