@@ -3,6 +3,7 @@
 //
 
 #include "jit_mvn.hpp"
+
 #include <cpu/x64/xbyak/xbyak.h>
 
 #include <algorithm>
@@ -81,18 +82,17 @@ static inline int get_tile_vr_id(const int& step) {
     return vec_reg_id;
 }
 
-
 // mean,variance->mvn
 template <cpu_isa_t isa>
 struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
     explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const dnnl_primitive_attr& attr)
-            : jit_uni_mvn_kernel(jcp, attr),
-              jit_generator(jit_name()) {
+        : jit_uni_mvn_kernel(jcp, attr),
+          jit_generator(jit_name()) {
         const auto& p = attr_.post_ops_;
         bool opt_scaleshift_applicable =
-                jcp_.layout == MVNLayoutType::mvn_by_channel && isa == cpu::x64::avx512_core && !jcp_.across_channels;
+            jcp_.layout == MVNLayoutType::mvn_by_channel && isa == cpu::x64::avx512_core && !jcp_.across_channels;
         if (opt_scaleshift_applicable) {
             for (int i = 0; i < p.len(); i++) {
                 auto& post_op = p.entry_[i];
@@ -137,25 +137,25 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         }
 
         load_emitter[VECTOR] = std::unique_ptr<jit_load_emitter>(
-                new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, vector_step));
+            new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, vector_step));
         load_emitter[TAIL8] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 8));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 8));
         load_emitter[TAIL4] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 4));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 4));
         load_emitter[TAIL2] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 2));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 2));
         load_emitter[TAIL1] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 1));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, ov::element::f32, 1));
         store_emitter[VECTOR] = std::unique_ptr<jit_store_emitter>(
-                new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, vector_step));
+            new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, vector_step));
         store_emitter[TAIL8] =
-                std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 8));
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 8));
         store_emitter[TAIL4] =
-                std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 4));
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 4));
         store_emitter[TAIL2] =
-                std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 2));
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 2));
         store_emitter[TAIL1] =
-                std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 1));
+            std::unique_ptr<jit_store_emitter>(new jit_store_emitter(this, isa, ov::element::f32, jcp_.dst_prc, 1));
 
         this->preamble();
 
@@ -171,7 +171,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
 
         size_t data_step =
-                (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+            (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
         src_stride = data_step * jcp_.src_data_size;
         dst_stride = data_step * jcp_.dst_data_size;
 
@@ -229,7 +229,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
 private:
     using Vmm =
-            typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
@@ -862,33 +862,33 @@ private:
 
     void worker_mvn_block(int block_num) {
         switch (block_num) {
-            case 8:
-                load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                               {static_cast<size_t>(vmm_val.getIdx())},
-                                               {},
-                                               {load_pool_gpr_idxs});
-                break;
-            case 4:
-                load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                               {static_cast<size_t>(vmm_val.getIdx())},
-                                               {},
-                                               {load_pool_gpr_idxs});
-                break;
-            case 2:
-                load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                               {static_cast<size_t>(vmm_val.getIdx())},
-                                               {},
-                                               {load_pool_gpr_idxs});
-                break;
-            case 1:
-                load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                               {static_cast<size_t>(vmm_val.getIdx())},
-                                               {},
-                                               {load_pool_gpr_idxs});
-                break;
-            default:
-                assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
-                break;
+        case 8:
+            load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
+            break;
+        case 4:
+            load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
+            break;
+        case 2:
+            load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
+            break;
+        case 1:
+            load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                           {static_cast<size_t>(vmm_val.getIdx())},
+                                           {},
+                                           {load_pool_gpr_idxs});
+            break;
+        default:
+            assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
+            break;
         }
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
@@ -899,33 +899,33 @@ private:
         apply_post_ops(jcp_.dst_prc, vmm_val.getIdx(), jcp_.layout == MVNLayoutType::mvn_planar);
 
         switch (block_num) {
-            case 8:
-                store_emitter[TAIL8]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
-                                                {static_cast<size_t>(reg_dst.getIdx())},
-                                                {store_pool_vec_idxs},
-                                                {store_pool_gpr_idxs});
-                break;
-            case 4:
-                store_emitter[TAIL4]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
-                                                {static_cast<size_t>(reg_dst.getIdx())},
-                                                {store_pool_vec_idxs},
-                                                {store_pool_gpr_idxs});
-                break;
-            case 2:
-                store_emitter[TAIL2]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
-                                                {static_cast<size_t>(reg_dst.getIdx())},
-                                                {store_pool_vec_idxs},
-                                                {store_pool_gpr_idxs});
-                break;
-            case 1:
-                store_emitter[TAIL1]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
-                                                {static_cast<size_t>(reg_dst.getIdx())},
-                                                {store_pool_vec_idxs},
-                                                {store_pool_gpr_idxs});
-                break;
-            default:
-                assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
-                break;
+        case 8:
+            store_emitter[TAIL8]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
+            break;
+        case 4:
+            store_emitter[TAIL4]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
+            break;
+        case 2:
+            store_emitter[TAIL2]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
+            break;
+        case 1:
+            store_emitter[TAIL1]->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                            {static_cast<size_t>(reg_dst.getIdx())},
+                                            {store_pool_vec_idxs},
+                                            {store_pool_gpr_idxs});
+            break;
+        default:
+            assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
+            break;
         }
     }
 
@@ -966,14 +966,14 @@ private:
                 quantization_injectors[quantization_inj_idx]->compute_crop(vmm_idx, vmm_idx + 1, 0, 0, is_broadcast);
 
                 quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(
-                        reg_post_ops_data + post_ops_data_offset,
-                        reg_oc_off);
+                    reg_post_ops_data + post_ops_data_offset,
+                    reg_oc_off);
                 quantization_injectors[quantization_inj_idx]
-                        ->compute_input_scale_shift(vmm_idx, vmm_idx + 1, 0, do_rounding, 0, is_broadcast);
+                    ->compute_input_scale_shift(vmm_idx, vmm_idx + 1, 0, do_rounding, 0, is_broadcast);
 
                 quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(
-                        reg_post_ops_data + post_ops_data_offset,
-                        reg_oc_off);
+                    reg_post_ops_data + post_ops_data_offset,
+                    reg_oc_off);
                 quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(vmm_idx,
                                                                                          vmm_idx + 1,
                                                                                          0,
@@ -994,8 +994,8 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_mean_kernel_f32)
 
     explicit jit_uni_mvn_mean_variance_kernel_f32(jit_mvn_config_params jcp)
-            : jit_uni_mvn_mean_variance_kernel(jcp),
-              jit_generator(jit_name()) {}
+        : jit_uni_mvn_mean_variance_kernel(jcp),
+          jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1005,23 +1005,23 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
     void generate() override {
         ov::element::Type dst_prc = isFloatCompatible(jcp_.src_prc) ? ov::element::f32 : ov::element::i32;
         load_emitter[VECTOR] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, vector_step));
         load_emitter[TAIL8] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8));
         load_emitter[TAIL4] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4));
         load_emitter[TAIL2] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2));
         load_emitter[TAIL1] =
-                std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
+            std::unique_ptr<jit_load_emitter>(new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1));
         load_emitter[TAIL8_FILL] = std::unique_ptr<jit_load_emitter>(
-                new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, ov::element::f32, true, "zero"));
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 8, ov::element::f32, true, "zero"));
         load_emitter[TAIL4_FILL] = std::unique_ptr<jit_load_emitter>(
-                new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, ov::element::f32, true, "zero"));
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 4, ov::element::f32, true, "zero"));
         load_emitter[TAIL2_FILL] = std::unique_ptr<jit_load_emitter>(
-                new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2, ov::element::f32, true, "zero"));
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 2, ov::element::f32, true, "zero"));
         load_emitter[TAIL1_FILL] = std::unique_ptr<jit_load_emitter>(
-                new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, ov::element::f32, true, "zero"));
+            new jit_load_emitter(this, isa, jcp_.src_prc, dst_prc, 1, ov::element::f32, true, "zero"));
 
         this->preamble();
         mov(reg_table, l_table);
@@ -1046,7 +1046,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         }
 
         size_t data_step =
-                (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
+            (isa == cpu::x64::sse41 && jcp_.layout == MVNLayoutType::mvn_block) ? vector_step * 2 : vector_step;
         src_stride = data_step * jcp_.src_data_size;
 
         load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()),
@@ -1087,7 +1087,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
 private:
     using Vmm =
-            typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
@@ -1214,7 +1214,9 @@ private:
         mov(last_unroll_size, rdx);
         jmp(label_reset_last_unroll_size_end);
         L(label_reset_last_unroll_size);
-        { mov(last_unroll_size, reg_unroll_size); }
+        {
+            mov(last_unroll_size, reg_unroll_size);
+        }
         L(label_reset_last_unroll_size_end);
 
         // size_t unroll_number = div_up(vec_num, unroll_size); --> (vec_num + unroll_size - 1) / unroll_size;
@@ -1453,7 +1455,7 @@ private:
         mov(reg_src_bk, reg_src);
         mov(reg_work_amount_bk, reg_work_amount);
         int repeats =
-                (isa == cpu::x64::sse41) ? 2 : 1;  // block size is also 8 on cpu::x64::sse41 with two step process
+            (isa == cpu::x64::sse41) ? 2 : 1;  // block size is also 8 on cpu::x64::sse41 with two step process
 
         auto reset_with_offset = [&](int offset) {
             add(reg_src_bk, offset * jcp_.src_data_size);
@@ -1684,63 +1686,63 @@ private:
     void worker_block(int block_num, bool is_zero_pad) {
         if (is_zero_pad) {
             switch (block_num) {
-                case 8:
-                    load_emitter[TAIL8_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                        {static_cast<size_t>(vmm_val.getIdx())},
-                                                        {},
-                                                        {load_pool_gpr_idxs});
-                    break;
-                case 4:
-                    load_emitter[TAIL4_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                        {static_cast<size_t>(vmm_val.getIdx())},
-                                                        {},
-                                                        {load_pool_gpr_idxs});
-                    break;
-                case 2:
-                    load_emitter[TAIL2_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                        {static_cast<size_t>(vmm_val.getIdx())},
-                                                        {},
-                                                        {load_pool_gpr_idxs});
-                    break;
-                case 1:
-                    load_emitter[TAIL1_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                        {static_cast<size_t>(vmm_val.getIdx())},
-                                                        {},
-                                                        {load_pool_gpr_idxs});
-                    break;
-                default:
-                    assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
-                    break;
+            case 8:
+                load_emitter[TAIL8_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
+                break;
+            case 4:
+                load_emitter[TAIL4_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
+                break;
+            case 2:
+                load_emitter[TAIL2_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
+                break;
+            case 1:
+                load_emitter[TAIL1_FILL]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                                    {static_cast<size_t>(vmm_val.getIdx())},
+                                                    {},
+                                                    {load_pool_gpr_idxs});
+                break;
+            default:
+                assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
+                break;
             }
         } else {
             switch (block_num) {
-                case 8:
-                    load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                   {static_cast<size_t>(vmm_val.getIdx())},
-                                                   {},
-                                                   {load_pool_gpr_idxs});
-                    break;
-                case 4:
-                    load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                   {static_cast<size_t>(vmm_val.getIdx())},
-                                                   {},
-                                                   {load_pool_gpr_idxs});
-                    break;
-                case 2:
-                    load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                   {static_cast<size_t>(vmm_val.getIdx())},
-                                                   {},
-                                                   {load_pool_gpr_idxs});
-                    break;
-                case 1:
-                    load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())},
-                                                   {static_cast<size_t>(vmm_val.getIdx())},
-                                                   {},
-                                                   {load_pool_gpr_idxs});
-                    break;
-                default:
-                    assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
-                    break;
+            case 8:
+                load_emitter[TAIL8]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
+                break;
+            case 4:
+                load_emitter[TAIL4]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
+                break;
+            case 2:
+                load_emitter[TAIL2]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
+                break;
+            case 1:
+                load_emitter[TAIL1]->emit_code({static_cast<size_t>(reg_src.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
+                break;
+            default:
+                assert(!"MVN layer tails is processed only with 8/4/2/1 blocks.");
+                break;
             }
         }
         if (jcp_.normalize_variance) {
@@ -1812,9 +1814,9 @@ private:
 
     void prepare_table() {
         const unsigned int cvals[] = {
-                // 4 * 8 = 32 bit
-                0x01010101,  // one byte
-                0x3f803f80   // one bf16
+            // 4 * 8 = 32 bit
+            0x01010101,  // one byte
+            0x3f803f80   // one bf16
         };
 
         align(64);
@@ -1834,7 +1836,7 @@ private:
 };
 
 legacy::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr)
-        : MVNExecutorBase(mvnAttrs) {
+    : MVNExecutorBase(mvnAttrs) {
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;
     jcp.dst_prc = mvnAttrs.dst_prc;
@@ -2041,7 +2043,6 @@ void legacy::MVNJitExecutor::mvn_pln(const uint8_t* src_data,
         });
     }
 }
-
 
 void legacy::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
                                       uint8_t* dst_data,
@@ -2255,7 +2256,7 @@ void legacy::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
 
                     float variance_internal = 0.0F;
                     auto* variance_buffer_ptr =
-                            &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
+                        &variance_buffer[aux_buffer_size * static_cast<size_t>(parallel_get_thread_num())];
                     for (size_t i = 0; i < blk_size; i++) {
                         variance_buffer_ptr[i] = 0.F;
                     }

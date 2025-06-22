@@ -71,6 +71,6 @@ protected:
     size_t dst_data_size = 0;
 };
 
-} // namespace legacy
+}  // namespace legacy
 
-} // namespace ov::intel_cpu
+}  // namespace ov::intel_cpu

@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "nodes/executors/mvn_config.hpp"
 #include "cpu_types.h"
-
+#include "nodes/executors/mvn_config.hpp"
 
 namespace ov::intel_cpu::legacy {
 
@@ -23,4 +22,4 @@ private:
     void mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d);
 };
 
-} // namespace ov::intel_cpu::legacy
+}  // namespace ov::intel_cpu::legacy

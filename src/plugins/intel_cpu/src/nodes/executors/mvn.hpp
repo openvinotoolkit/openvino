@@ -12,9 +12,9 @@
 #include "cpu_types.h"
 #include "executor.hpp"
 #include "memory_desc/cpu_memory_desc.h"
+#include "mvn_config.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
-#include "mvn_config.hpp"
 
 namespace ov::intel_cpu {
 

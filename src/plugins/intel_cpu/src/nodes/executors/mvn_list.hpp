@@ -41,9 +41,9 @@ public:
 
     ~MVNExecutorFactory() override = default;
     virtual legacy::MVNExecutorPtr makeExecutor(const MVNAttrs& mvnAttrs,
-                                        const std::vector<MemoryDescPtr>& srcDescs,
-                                        const std::vector<MemoryDescPtr>& dstDescs,
-                                        const dnnl::primitive_attr& attr) {
+                                                const std::vector<MemoryDescPtr>& srcDescs,
+                                                const std::vector<MemoryDescPtr>& dstDescs,
+                                                const dnnl::primitive_attr& attr) {
         auto build = [&](const MVNExecutorDesc* desc) {
             auto executor = desc->builder->makeExecutor(context);
             if (executor->init(mvnAttrs, srcDescs, dstDescs, attr)) {

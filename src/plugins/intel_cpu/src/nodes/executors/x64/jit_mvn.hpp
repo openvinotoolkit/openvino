@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "nodes/executors/mvn_config.hpp"
 #include "cpu_types.h"
+#include "nodes/executors/mvn_config.hpp"
 
 namespace ov::intel_cpu {
 
@@ -81,10 +81,7 @@ public:
 private:
     void mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
     void mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
-    void mvn_nspc(const uint8_t* src_data,
-                  uint8_t* dst_data,
-                  const void* post_ops_data_,
-                  const VectorDims& shape5d);
+    void mvn_nspc(const uint8_t* src_data, uint8_t* dst_data, const void* post_ops_data_, const VectorDims& shape5d);
 
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;
