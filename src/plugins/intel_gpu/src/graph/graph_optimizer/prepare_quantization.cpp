@@ -365,6 +365,16 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
                     break;
                 }
             }
+
+            // Check if eltwise_dep and eltwise_node have same output layout
+            if (eltwise_dep.get_outputs_count() > 0 && eltwise_node.get_outputs_count() > 0) {
+                auto shape1 = eltwise_dep.get_output_pshape(0);
+                auto shape2 = eltwise_node.get_output_pshape(0);
+                if (!shape1.compatible(shape2)) {
+                    same_params = false;
+                    break;
+                }
+            }
         }
 
         if (same_params) {
