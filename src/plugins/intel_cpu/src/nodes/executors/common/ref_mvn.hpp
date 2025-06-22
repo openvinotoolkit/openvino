@@ -7,8 +7,8 @@
 #include "nodes/executors/mvn_config.hpp"
 #include "cpu_types.h"
 
-namespace ov::intel_cpu {
-namespace legacy {
+
+namespace ov::intel_cpu::legacy {
 
 class MVNRefExecutor : public legacy::MVNExecutorBase {
 public:
@@ -23,5 +23,4 @@ private:
     void mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const VectorDims& shape5d);
 };
 
-}  // namespace legacy
-}  // namespace ov::intel_cpu
+} // namespace ov::intel_cpu::legacy
