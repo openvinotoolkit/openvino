@@ -244,7 +244,8 @@ CPU& cpu_info() {
 int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO))
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || \
+          (OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO))
 std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
@@ -299,7 +300,8 @@ int get_org_numa_id(int numa_node_id) {
 int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO))
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO) || \
+          (OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO))
 std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
@@ -373,7 +375,8 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     OPENVINO_ASSERT(totalNumberOfCpuCores != 0, "Total number of cpu cores can not be 0.");
 
     int phys_cores = totalNumberOfCpuCores;
-#        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
+#        if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || \
+             OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
@@ -383,7 +386,8 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     return phys_cores;
 }
 
-#        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO) || (OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO))
+#        if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO) || \
+              (OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO))
 std::vector<int> get_available_numa_nodes() {
     CPU& cpu = cpu_info();
     std::vector<int> nodes((0 == cpu._numa_nodes) ? 1 : cpu._numa_nodes);

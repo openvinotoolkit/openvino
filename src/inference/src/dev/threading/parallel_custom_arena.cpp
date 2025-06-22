@@ -332,4 +332,5 @@ int default_concurrency(numa_node_id id) {
 
 }  // namespace info
 }  // namespace custom
-#endif /*OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO*/
+#endif /*OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == \
+          OV_THREAD_TBB_PARTITIONER_AUTO*/

@@ -651,8 +651,6 @@ int get_model_prefer_threads(const int num_streams,
         std::cout << "total_light_gemms = " << networkToleranceForLowCache.total_light_gemms << std::endl;
         std::cout << "total_nodes = " << networkToleranceForLowCache.total_nodes << std::endl;
 
-
-
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         if (num_streams > sockets || num_streams == 0) {
             config.modelPreferThreads = 4;

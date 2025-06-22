@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/performance_heuristics.hpp"
+
 #include <cmath>
 namespace ov {
 
@@ -74,7 +75,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 mem_limited_gemms += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
 
-                if(dataSizeOutput * data_type_size < light_gemms_threshold) {
+                if (dataSizeOutput * data_type_size < light_gemms_threshold) {
                     total_light_gemms++;
                 }
             }
