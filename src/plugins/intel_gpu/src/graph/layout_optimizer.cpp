@@ -1216,15 +1216,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Check if selected format can be adjusted to the required input rank
+                // Check if selected format can be adjusted to the required input and output rank
                 // If no, use default fotmat instead
                 try {
-                    // 6~8 dimentions only support plain format
-                    if (in_lay_rank >= 6 || out_lay_rank >= 6) {
-                        fmt = format::get_default_format(in_lay_rank);
-                    } else {
-                        format::adjust_to_rank(fmt, in_lay_rank);
-                    }
+                    format::adjust_to_rank(fmt, in_lay_rank);
+                    format::adjust_to_rank(fmt, out_lay_rank);
                 } catch (ov::Exception&) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
