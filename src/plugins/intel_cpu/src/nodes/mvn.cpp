@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <nodes/executors/executor_factory.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -30,6 +31,9 @@
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "executors/common/ref_mvn.hpp"
+#include "executors/mvn_config.hpp"
+#include "executors/x64/jit_mvn.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -50,9 +54,6 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
-#include "executors/mvn_config.hpp"
-#include "executors/x64/jit_mvn.hpp"
-#include "executors/common/ref_mvn.hpp"
 
 using namespace dnnl;
 
@@ -240,232 +241,99 @@ void MVN::initSupportedPrimitiveDescriptors() {
         for (auto& node : fusedWith) {
             if (isUnaryEltwise(node)) {
                 continue;
+            } else {
+                onlyUnaryPostOps = false;
+                break;
             }
-            onlyUnaryPostOps = false;
-            break;
         }
     }
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    // ref with float planar and no fusion
-    if (!mayiuse(cpu::x64::sse41)) {
-        inputPrecision = outputPrecision = ov::element::f32;
+
+    const auto& srcTypes = getOriginalInputPrecisions();
+    auto dstTypes = getOriginalOutputPrecisions();
+    // @todo graph optimizer should update original output precisions instead
+    if (!fusedWith.empty()) {
+        dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
     }
-#endif
-// Output precision has to be equal to input precision in ACL MVN
-#if defined(OV_CPU_WITH_ACL)
-    outputPrecision = inputPrecision;
-#endif
+
+    VecMemoryDescs srcDescs;
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    for (size_t i = 0; i < srcTypes.size(); i++) {
+        const auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
+        srcDescs.push_back(srcDesc);
+    }
+
+    VecMemoryDescs dstDescs;
+    for (size_t i = 0; i < dstTypes.size(); i++) {
+        const auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstTypes[i], getOutputShapeAtPort(i));
+        dstDescs.push_back(dstDesc);
+    }
+
+    MemoryDescArgs descs{
+        {ARG_SRC, srcDescs[0]},
+        {ARG_DST, dstDescs[0]},
+    };
+
+    if (one_of(descs.at(ARG_SRC)->getShape().getRank(), 1lu, 2lu) && getAcrossChannels()) {
+        mvnAttrs.execAcrossChannels_ = false;
+    }
+    mvnAttrs.src_prc = descs.at(ARG_SRC)->getPrecision();
+    mvnAttrs.dst_prc = descs.at(ARG_DST)->getPrecision();
+
+    //    mvnAttrs.postOps = getPostOps(fusedWith);
+    //    mvnAttrs.fusedWith = fusedWith;
+    auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+    factory = std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs, executionContext, descs);
+    const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
+
     // TODO [DS]: inplace
     bool canBeInplace = !isDynamicNode() && (inputPrecision.size() == outputPrecision.size()) &&
                         (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
                         !getParentEdgeAt(0)->getParent()->isConstant();
 
     const size_t inputsNum = getParentEdges().size();
-    NodeConfig config;
-    config.inConfs.resize(inputsNum);
-    config.outConfs.resize(1);
-    config.inConfs[0].constant(false);
-    config.outConfs[0].constant(false);
-    config.inConfs[0].inPlace(-1);
-    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
-    if (inputsNum == 2) {
-        config.inConfs[1].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, getInputShapeAtPort(1)));
-        config.inConfs[1].constant(true);
+    for (auto& nodeDesc : nodeDescriptors) {
+        NodeConfig nodeConfig;
+        nodeConfig.inConfs.emplace_back(nodeDesc.at(ARG_SRC));
+        nodeConfig.outConfs.emplace_back(nodeDesc.at(ARG_DST));
+        nodeConfig.inConfs.resize(inputsNum);
+        nodeConfig.outConfs.resize(1);
+        nodeConfig.inConfs[0].constant(false);
+        nodeConfig.outConfs[0].constant(false);
+        nodeConfig.inConfs[0].inPlace(-1);
+        nodeConfig.outConfs[0].inPlace(canBeInplace ? 0 : -1);
+        if (inputsNum == 2) {
+            nodeConfig.inConfs[1].setMemDesc(
+                std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, getInputShapeAtPort(1)));
+            nodeConfig.inConfs[1].constant(true);
+        }
+
+        // TODO: move canBeInplace to requiresFallbackCommon
+        if (nodeDesc.at(ARG_SRC)->hasLayoutType(LayoutType::ncsp) && canBeInplace) {
+            nodeConfig.inConfs[0].inPlace(0);
+        }
+
+        supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
     }
-
-    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type, bool useAclExecutor = false) {
-        config.inConfs[0].setMemDesc(creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(0)));
-        config.outConfs[0].setMemDesc(
-            creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0)));
-
-        if (useAclExecutor) {
-            std::vector<MemoryDescPtr> srcMemoryDescs;
-            srcMemoryDescs.reserve(config.inConfs.size());
-            for (const auto& inConf : config.inConfs) {
-                srcMemoryDescs.push_back(inConf.getMemDesc());
-            }
-            std::vector<MemoryDescPtr> dstMemoryDescs;
-            dstMemoryDescs.reserve(config.outConfs.size());
-            for (const auto& outConf : config.outConfs) {
-                dstMemoryDescs.push_back(outConf.getMemDesc());
-            }
-
-            auto factory =
-                std::make_shared<MVNExecutorFactory>(mvnAttrs,
-                                                     srcMemoryDescs,
-                                                     dstMemoryDescs,
-                                                     std::make_shared<ExecutorContext>(context, getImplPriority()));
-            if (!factory->isEmpty()) {
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type, factory);
-            }
-        } else {
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
-        }
-    };
-
-#if defined(OV_CPU_WITH_ACL)
-    pushDesc(LayoutType::nspc, undef, true);
-    pushDesc(LayoutType::ncsp, undef, true);
-    canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-    if (canUseAclExecutor)
-        return;
-    else
-        // Reference MVN implementation does not support fp16, so set fp32 explicitly
-        inputPrecision = outputPrecision = ov::element::f32;
-#endif  // OV_CPU_WITH_ACL
-
-    impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
-            return impl_desc_type::jit_avx512;
-        }
-        if (mayiuse(cpu::x64::avx2)) {
-            return impl_desc_type::jit_avx2;
-        }
-        if (mayiuse(cpu::x64::sse41)) {
-            return impl_desc_type::jit_sse42;
-        }
-        return impl_desc_type::ref;
-    }();
-
-    if (mayiuse(cpu::x64::sse41)) {
-        // nspc
-        if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-            pushDesc(LayoutType::nspc, impl_type);
-        }
-        // blk
-        if (impl_desc_type::jit_avx512 == impl_type) {
-            if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-                pushDesc(LayoutType::nCsp16c, impl_type);
-            }
-        } else if (impl_desc_type::jit_avx2 == impl_type || impl_desc_type::jit_sse42 == impl_type) {
-            if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-                pushDesc(LayoutType::nCsp8c, impl_type);
-            }
-        }
-    }
-
-    // planar
-    if (canBeInplace) {
-        config.inConfs[0].inPlace(0);
-    }
-    pushDesc(LayoutType::ncsp, impl_type);
 }
 
 void MVN::prepareParams() {
-    auto dstMemPtr = getDstMemoryAtPort(0);
-    auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
-    }
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
-
-    const VectorDims in_dims = srcMemPtr->getStaticDims();
-    transformTo5DCase(in_dims);
-
-#if defined(OPENVINO_ARCH_X86_64)
-    // New shape5D always need prepare via transformTo5DCase(), which is need in exec().
-    // MVN itself and unary post ops is totally shape agnostic, execPtr can be reused directly w/o recompilation and
-    // setPostOps when shape is changed. As key have not shape, if shape changes and new post ops attr is also the same,
-    // execPtr can still hit. If new shape(channel changes) impact post ops attr, such as entry.quantization.offset,
-    // entry.depthwise.offset, entry.quantization.per_channel, which is participate in compilation, even postOpsData is
-    // passed in runtime, still need recompilation.
-    if (execPtr != nullptr && (fusedWith.empty() || onlyUnaryPostOps)) {
-        return;
-    }
-#endif
-
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-    mvnAttrs.src_prc = selectedPD->getConfig().inConfs[0].getMemDesc()->getPrecision();
-    mvnAttrs.dst_prc = selectedPD->getConfig().outConfs[0].getMemDesc()->getPrecision();
-    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
-        mvnAttrs.layout = MVNLayoutType::mvn_planar;
-    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
-        mvnAttrs.layout = MVNLayoutType::mvn_by_channel;
-    } else {
-        mvnAttrs.layout = MVNLayoutType::mvn_block;
-    }
-
-    if (canUseAclExecutor) {
-        std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
-        }
-        std::vector<MemoryDescPtr> dstMemoryDescs;
-        dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
-
-        auto* selectedPD = getSelectedPrimitiveDescriptor();
-        aclExecPtr = selectedPD->getExecutorFactoryAs<MVNExecutorFactory>()->makeExecutor(mvnAttrs,
-                                                                                          srcMemoryDescs,
-                                                                                          dstMemoryDescs,
-                                                                                          {});
-        selectedPD->setImplementationType(aclExecPtr->getImplType());
-
-        return;
-    }
-
-    MVNKey key = {mvnAttrs, dnnl::primitive_attr()};
-    setPostOps(key.attr, true);
-
-    auto builder = [&](const MVNKey& key) -> std::shared_ptr<legacy::MVNExecutorBase> {
-        std::shared_ptr<legacy::MVNExecutorBase> executor;
-        if (mayiuse(cpu::x64::sse41)) {
-            executor = std::make_shared<legacy::MVNJitExecutor>(key.mvnAttrs, key.attr);
-        } else {
-            executor = std::make_shared<legacy::MVNRefExecutor>(key.mvnAttrs);
-        }
-        return executor;
-    };
-
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-    execPtr = result.first;
+    executor->update(memory);
+    // @todo avoid updating implementation type in scope of every prepareParams call.
+    // Currently the tests are implemented in such way that the actual used implementation type is changed
+    // based on a shape and the expected implementation type is determined by the last shape.
+    // I.e. for convolution it is different. The dymmy shape determines the expected implementation type.
+    getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
-void MVN::transformTo5DCase(const VectorDims& shape) {
-    size_t rank = shape.size();
-    // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
-    // otherwise there are not enough data in spatial dimension to process in one kernel.
-    switch (rank) {
-    case 1:  // C
-        if (mvnAttrs.initAcrossChannels_) {
-            shape5D = {1, 1, 1, 1, shape[0]};
-            mvnAttrs.execAcrossChannels_ = false;
-            break;
-        } else {
-            shape5D = {1, shape[0], 1, 1, 1};
-            break;
-        }
-    case 2:  // NC
-        if (mvnAttrs.initAcrossChannels_) {
-            shape5D = {1, shape[0], 1, shape[1], 1};
-            mvnAttrs.execAcrossChannels_ = false;
-            break;
-        } else {
-            shape5D = {shape[0], shape[1], 1, 1, 1};
-            break;
-        }
-    case 3: {
-        shape5D = {shape[0], shape[1], 1, shape[2], 1};
-        break;
-    }
-    case 4: {
-        shape5D = {shape[0], shape[1], 1, shape[2], shape[3]};
-        break;
-    }
-    case 5: {
-        shape5D = {shape[0], shape[1], shape[2], shape[3], shape[4]};
-        break;
-    }
-    default: {
-        THROW_CPU_NODE_ERR("doesn't support planar layout with rank: ", shape.size());
-    }
-    }
+void MVN::createPrimitive() {
+    memory[ARG_SRC] = getSrcMemoryAtPort(0);
+    memory[ARG_DST] = getDstMemoryAtPort(0);
+
+    // @todo should we preconfigure only for dynamic shapes?
+    // Since for static shapes primitive is created in scope of compile_model() anyway
+    executor = factory->make(memory);
+
+    Node::createPrimitive();
 }
 
 void MVN::setPostOps(dnnl::primitive_attr& attr, [[maybe_unused]] bool initWeights) {
@@ -499,17 +367,10 @@ void MVN::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void MVN::execute([[maybe_unused]] const dnnl::stream& strm) {
-    auto dstMemPtr = getDstMemoryAtPort(0);
-    auto srcMemPtr = getSrcMemoryAtPort(0);
-
-    if (execPtr) {
-        auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
-        auto* src_data = srcMemPtr->getDataAs<uint8_t>();
-        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()), shape5D);
-    } else if (aclExecPtr) {
-        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
+    if (executor) {
+        executor->execute(memory);
     } else {
-        THROW_CPU_NODE_ERR("Primitive wasn't created");
+        OPENVINO_THROW("Can't execute Interpolate node. Primitive didn't created");
     }
 }
 

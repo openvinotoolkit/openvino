@@ -16,7 +16,9 @@
 #include <string>
 
 #include "cpu_types.h"
+#include "executors/mvn_config.hpp"
 #include "graph_context.h"
+#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/mvn.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -47,6 +49,7 @@ public:
 
     bool canFuse(const NodePtr& node) const override;
     void prepareParams() override;
+    void createPrimitive() override;
 
 private:
     void setPostOps(dnnl::primitive_attr& attr, bool initWeights = false);
@@ -62,6 +65,12 @@ private:
     std::shared_ptr<legacy::MVNExecutorBase> execPtr = nullptr;
     bool canUseAclExecutor = false;
     std::shared_ptr<legacy::MVNExecutor> aclExecPtr = nullptr;
+
+    MemoryArgs memory;
+    ExecutorFactoryPtr<MVNAttrs> factory;
+    ExecutorPtr executor = nullptr;
+
+    std::unordered_map<size_t, size_t> m_atoi;
 };
 
 }  // namespace ov::intel_cpu::node

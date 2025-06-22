@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include "config.h"
 #include "cpu_types.h"
+#include "executor_config.hpp"
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/except.hpp"
 
@@ -25,6 +27,7 @@ struct MVNAttrs {
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
 };
+using MVNConfig = executor::Config<MVNAttrs>;
 
 namespace legacy {
 
