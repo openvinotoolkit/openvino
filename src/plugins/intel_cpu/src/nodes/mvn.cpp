@@ -338,19 +338,19 @@ void MVN::createPrimitive() {
 
 void MVN::setPostOps(dnnl::primitive_attr& attr, [[maybe_unused]] bool initWeights) {
     dnnl::post_ops ops;
-    postOpsDataPtrs.clear();
+    mvnAttrs.postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
         int channelAxis = 1;
 
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
+            fakeQuantizeNode->appendPostOps(ops, {}, mvnAttrs.postOpsDataPtrs, channelAxis);
             continue;
         }
 
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs, channelAxis);
+            eltwiseNode->appendPostOps(ops, shape5D, mvnAttrs.postOpsDataPtrs, channelAxis);
             continue;
         }
         THROW_CPU_NODE_ERR("Fusing of ",

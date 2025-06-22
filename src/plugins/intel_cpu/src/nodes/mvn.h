@@ -54,16 +54,11 @@ public:
 private:
     void setPostOps(dnnl::primitive_attr& attr, bool initWeights = false);
 
-    void transformTo5DCase(const VectorDims& shape);
-
-    std::vector<const void*> postOpsDataPtrs;
-
     MVNAttrs mvnAttrs;
     VectorDims shape5D = {0, 0, 0, 0, 0};
     bool onlyUnaryPostOps = true;
 
     std::shared_ptr<legacy::MVNExecutorBase> execPtr = nullptr;
-    bool canUseAclExecutor = false;
     std::shared_ptr<legacy::MVNExecutor> aclExecPtr = nullptr;
 
     MemoryArgs memory;

@@ -4,7 +4,14 @@
 
 #pragma once
 
+#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/jit_uni_eltwise.hpp"
 #include "cpu_types.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "nodes/executors/mvn_config.hpp"
 
 namespace ov::intel_cpu {
@@ -89,4 +96,56 @@ private:
 };
 
 }  // namespace legacy
+
+using namespace dnnl;
+
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+
+class JITMVNExecutor : public Executor {
+public:
+    JITMVNExecutor(const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context)
+        : jitContext(context),
+          jitMVNAttrs(attrs) {
+        jitMVNAttrs.postOpsDataPtrs = attrs.postOpsDataPtrs;
+    }
+
+    void execute(const MemoryArgs& memory) override;
+
+    impl_desc_type implType() const override {
+        impl_desc_type impl_type;
+        if (mayiuse(cpu::x64::avx512_core)) {
+            impl_type = impl_desc_type::jit_avx512;
+        } else if (mayiuse(cpu::x64::avx2)) {
+            impl_type = impl_desc_type::jit_avx2;
+        } else if (mayiuse(cpu::x64::sse41)) {
+            impl_type = impl_desc_type::jit_sse42;
+        } else {
+            impl_type = impl_desc_type::ref;
+        }
+        return impl_type;
+    }
+
+    // offloads execution data preparation from the exec call
+    bool update(const MemoryArgs& memory) override;
+
+    static bool supports(const MVNConfig& config);
+
+private:
+    ExecutorContext::CPtr jitContext;
+    MVNAttrs jitMVNAttrs;
+    VectorDims shape5D;
+    std::vector<const void*> postOpsDataPtrs;
+    std::shared_ptr<legacy::MVNJitExecutor> oldMVNJitExecutor;
+
+    struct MVNKey {
+        MVNAttrs mvnAttrs;
+        dnnl::primitive_attr attr;
+
+        size_t hash() const;
+        bool operator==(const MVNKey& rhs) const;
+    };
+};
+
 }  // namespace ov::intel_cpu

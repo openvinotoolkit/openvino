@@ -26,8 +26,40 @@ struct MVNAttrs {
     MVNEpsMode epsMode_ = INSIDE_SQRT;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
+    std::vector<const void*> postOpsDataPtrs;
 };
 using MVNConfig = executor::Config<MVNAttrs>;
+
+inline VectorDims transformTo5DCase(const VectorDims& shape, bool initAcrossChannels) {
+    switch (shape.size()) {
+    // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under the unified 5d procedure.
+    // otherwise there are not enough data in spatial dimension to process in one kernel.
+    case 1:  // C
+        if (initAcrossChannels) {
+            return VectorDims({1, 1, 1, 1, shape[0]});
+        } else {
+            return VectorDims({1, shape[0], 1, 1, 1});
+        }
+    case 2:  // NC
+        if (initAcrossChannels) {
+            return VectorDims({1, shape[0], 1, shape[1], 1});
+        } else {
+            return VectorDims({shape[0], shape[1], 1, 1, 1});
+        }
+    case 3: {
+        return VectorDims({shape[0], shape[1], 1, shape[2], 1});
+    }
+    case 4: {
+        return VectorDims({shape[0], shape[1], 1, shape[2], shape[3]});
+    }
+    case 5: {
+        return VectorDims({shape[0], shape[1], shape[2], shape[3], shape[4]});
+    }
+    default: {
+        OPENVINO_THROW("MVN executor doesn't support planar layout with rank: ", shape.size());
+    }
+    }
+}
 
 namespace legacy {
 
@@ -45,8 +77,6 @@ public:
     virtual ~MVNExecutor() = default;
 
     [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
-
-    static VectorDims transformTo5DCase(const VectorDims& shape, bool initAcrossChannels);
 
 protected:
     MVNAttrs mvnAttrs;
