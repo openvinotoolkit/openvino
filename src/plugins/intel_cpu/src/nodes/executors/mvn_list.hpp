@@ -40,7 +40,7 @@ public:
     }
 
     ~MVNExecutorFactory() override = default;
-    virtual MVNExecutorPtr makeExecutor(const MVNAttrs& mvnAttrs,
+    virtual legacy::MVNExecutorPtr makeExecutor(const MVNAttrs& mvnAttrs,
                                         const std::vector<MemoryDescPtr>& srcDescs,
                                         const std::vector<MemoryDescPtr>& dstDescs,
                                         const dnnl::primitive_attr& attr) {
@@ -50,7 +50,7 @@ public:
                 return executor;
             }
 
-            MVNExecutorPtr ptr = nullptr;
+            legacy::MVNExecutorPtr ptr = nullptr;
             return ptr;
         };
 

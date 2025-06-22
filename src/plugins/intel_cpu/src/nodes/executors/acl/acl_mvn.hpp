@@ -11,7 +11,7 @@
 
 namespace ov::intel_cpu {
 
-class AclMVNExecutor : public MVNExecutor {
+class AclMVNExecutor : public legacy::MVNExecutor {
 public:
     AclMVNExecutor(const ExecutorContext::CPtr context);
 
@@ -41,7 +41,7 @@ public:
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override;
 
-    [[nodiscard]] MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] legacy::MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclMVNExecutor>(context);
     }
 };
