@@ -90,31 +90,29 @@ public:
         return ov::pass::pattern::wrap_type<v0::Constant>();
     };
 
-    auto range = ov::pass::pattern::wrap_type<v4::Range>();
-    auto einsum = ov::pass::pattern::wrap_type<v7::Einsum>({range, ov::pass::pattern::any_input()});
+    auto reshape = ov::pass::pattern::wrap_type<v1::Reshape>();
+    auto unsq = ov::pass::pattern::wrap_type<v0::Unsqueeze>({reshape, any_input()});
+    auto p_slice = ov::pass::pattern::wrap_type<v8::Slice>({unsq, any_input(), any_input(), any_input(), any_input()});
+    auto unsq_1 = ov::pass::pattern::wrap_type<v0::Unsqueeze>({p_slice, any_input()});
 
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, &layer_index1, &dbg_results](Matcher& m) {
         std::cout << matcher_name << " start" << std::endl;
         auto pvm = m.get_pattern_value_map();
+        auto slice = pvm.at(p_slice).get_node_shared_ptr();
 
-        std::cout << "unsqueenzed_position_ids: " << unsqueenzed_position_ids.get_partial_shape() << std::endl;
-        std::cout << "convert_f32: " << unsqueenzed_position_ids.get_partial_shape() << std::endl;
+        auto gather = std::make_shared<v8::Gather>(slice->input_value(0), unsqueenzed_position_ids, v0::Constant::create(element::i64, {}, {1}));
+        auto gather_result = std::make_shared<v0::Result>(gather);
+        gather_result->get_output_tensor(0).set_names({"gather_result_" + std::to_string(layer_index1++)});
+        dbg_results.push_back({gather_result});
 
-        auto range_f32 = std::make_shared<v0::Convert>(range, ov::element::f32);
-        auto axes = v0::Constant::create(element::i64, Shape{1}, {0});
-        auto range_us = std::make_shared<v0::Unsqueeze>(range_f32, axes);
-
-        // auto pos_f32   = std::make_shared<v0::Convert>(unsqueenzed_position_ids, element::f32);  // [batch,1]
-        // auto tile2     = Concat({Constant(1), seq_len_dim}, axis=0);        // [1,L]
-        // auto pos_tiled = make_shared<Tile>(pos_f32, tile2);                 // [batch,L]
-
+        replace_node(slice, gather);
 
         std::cout << matcher_name << " end" << std::endl;
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(einsum, matcher_name);
+    auto m = std::make_shared<Matcher>(unsq_1, matcher_name);
     register_matcher(m, callback);
     }
 };
