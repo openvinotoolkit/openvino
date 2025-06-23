@@ -8,7 +8,7 @@
 
 namespace ov::intel_cpu {
 
-legacy::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs) : MVNExecutorBase(mvnAttrs) {}
+legacy::MVNRefExecutor::MVNRefExecutor(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr) : MVNExecutorBase(mvnAttrs) {}
 
 void legacy::MVNRefExecutor::exec(const uint8_t* src_data,
                                   uint8_t* dst_data,
@@ -118,6 +118,40 @@ void legacy::MVNRefExecutor::mvn_ref(const uint8_t* src_data, uint8_t* dst_data,
             });
         }
     });
+}
+
+void CommonMVNExecutor::execute(const MemoryArgs& memory) {
+    oldMVNRefExecutor->exec(reinterpret_cast<uint8_t*>(memory.at(ARG_SRC_0)->getData()),
+                            reinterpret_cast<uint8_t*>(memory.at(ARG_DST_0)->getData()),
+                            postOpsDataPtrs.data(),
+                            shape5D);
+}
+
+bool CommonMVNExecutor::update(const MemoryArgs& memory) {
+    shape5D =
+        transformTo5DCase(memory.at(ARG_SRC)->getDescPtr()->getShape().getDims(), refMVNAttrs.initAcrossChannels_);
+    if (memory.at(ARG_SRC)->getDesc().hasLayoutType(LayoutType::ncsp)) {
+        refMVNAttrs.layout = MVNLayoutType::mvn_planar;
+    } else if (memory.at(ARG_SRC)->getDesc().hasLayoutType(LayoutType::nspc)) {
+        refMVNAttrs.layout = MVNLayoutType::mvn_by_channel;
+    } else {
+        refMVNAttrs.layout = MVNLayoutType::mvn_block;
+    }
+
+    MVNKey key = {refMVNAttrs, dnnl::primitive_attr()};
+    //    setPostOps(key.attr, true);
+    auto builder = [&](const MVNKey& /*key*/) -> std::shared_ptr<legacy::MVNRefExecutor> {
+        return std::make_shared<legacy::MVNRefExecutor>(refMVNAttrs, dnnl::primitive_attr());
+    };
+
+    auto cache = refContext->getRuntimeCache();
+    auto result = cache->getOrCreate(key, builder);
+    oldMVNRefExecutor = result.first;
+    return true;
+}
+
+bool CommonMVNExecutor::supports(const MVNConfig& config) {
+    return true;
 }
 
 }  // namespace ov::intel_cpu

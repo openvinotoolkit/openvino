@@ -48,8 +48,9 @@ static const TypeMapping aclMVNTypeMapping {
 static const TypeMapping jitMVNTypeMapping {
         // {src, dst}         pt<src, dst>
         {{_f32 | _f16 | _bf16, _f32 | _f16 | _bf16}, pt(bypass(), use<0>())},
-        {{_u8  | _i8,  _any},                        pt(bypass(), bypass())},
-        {{_any, _u8  | _i8},                         pt(use<1>(), bypass())},
+        {{_u8  | _i8,  _u8  | _i8},                  pt(bypass(), use<0>())},
+        {{_u8  | _i8,  _f32 | _f16 | _bf16},         pt(bypass(), bypass())},
+        {{_f32 | _f16 | _bf16, _u8  | _i8},          pt(bypass(), bypass())},
         {{_any, _any},                               pt(just<f32>(), use<0>())}
 };
 
@@ -71,7 +72,7 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const MVNConfig& config) -> bool {
-                //                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
+                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
                 return JITMVNExecutor::supports(config);
             },
             // requiresFallback
@@ -82,77 +83,69 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                               mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>{},
-            // create
-            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context) {
-                return std::make_shared<JITMVNExecutor>(attrs, memory, context);
-            })
-            OV_CPU_INSTANCE_X64(
-                "mvn_jit_x64_nCsp16c",
-                ExecutorType::jit_x64,
-                OperationType::MVN,
-                ShapeTolerance::Agnostic,
-                // supports
-                [](const MVNConfig& config) -> bool {
-                    //                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
-                    VERIFY(mayiuse(cpu::x64::avx512_core), UNSUPPORTED_ISA);
-                    return JITMVNExecutor::supports(config);
-                },
-                // requiresFallback
-                [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
-                    return requiresFallbackCommon(config,
-                                                  jitMVNTypeMapping,
-                                                  {LayoutType::nCsp16c, LayoutType::nCsp16c},
-                                                  mvnMappingNotation);
-                },
-                AcceptsAnyShape<MVNAttrs>{},
-                // create
-                [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context) {
-                    return std::make_shared<JITMVNExecutor>(attrs, memory, context);
-                })
-                OV_CPU_INSTANCE_X64(
-                    "mvn_jit_x64_nCsp8c",
-                    ExecutorType::jit_x64,
-                    OperationType::MVN,
-                    ShapeTolerance::Agnostic,
-                    // supports
-                    [](const MVNConfig& config) -> bool {
-                        //                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
-                        VERIFY(mayiuse(cpu::x64::avx2), UNSUPPORTED_ISA);
-                        return JITMVNExecutor::supports(config);
-                    },
-                    // requiresFallback
-                    [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
-                        return requiresFallbackCommon(config,
-                                                      jitMVNTypeMapping,
-                                                      {LayoutType::nCsp8c, LayoutType::nCsp8c},
-                                                      mvnMappingNotation);
-                    },
-                    AcceptsAnyShape<MVNAttrs>{},
-                    // create
-                    [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context) {
-                        return std::make_shared<JITMVNExecutor>(attrs, memory, context);
-                    })
-                    OV_CPU_INSTANCE_X64(
-                        "mvn_jit_x64_ncsp",
-                        ExecutorType::jit_x64,
-                        OperationType::MVN,
-                        ShapeTolerance::Agnostic,
-                        // supports
-                        [](const MVNConfig& config) -> bool {
-                            return JITMVNExecutor::supports(config);
-                        },
-                        // requiresFallback
-                        [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
-                            return requiresFallbackCommon(config,
-                                                          jitMVNTypeMapping,
-                                                          {LayoutType::ncsp, LayoutType::ncsp},
-                                                          mvnMappingNotation);
-                        },
-                        AcceptsAnyShape<MVNAttrs>{},
-                        // create
-                        [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context) {
-                            return std::make_shared<JITMVNExecutor>(attrs, memory, context);
-                        })
+            CreateDefault<JITMVNExecutor, MVNAttrs>{}
+            )
+        OV_CPU_INSTANCE_X64(
+            "mvn_jit_x64_nCsp16c",
+            ExecutorType::jit_x64,
+            OperationType::MVN,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const MVNConfig& config) -> bool {
+                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
+                VERIFY(mayiuse(cpu::x64::avx512_core), UNSUPPORTED_ISA);
+                return JITMVNExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
+                return requiresFallbackCommon(config,
+                                              jitMVNTypeMapping,
+                                              {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                              mvnMappingNotation);
+            },
+            AcceptsAnyShape<MVNAttrs>{},
+            CreateDefault<JITMVNExecutor, MVNAttrs>{}
+            )
+        OV_CPU_INSTANCE_X64(
+            "mvn_jit_x64_nCsp8c",
+            ExecutorType::jit_x64,
+            OperationType::MVN,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const MVNConfig& config) -> bool {
+                VERIFY(one_of(srcRank(config), 4lu, 5lu), UNSUPPORTED_SRC_RANK);
+                VERIFY(mayiuse(cpu::x64::avx2), UNSUPPORTED_ISA);
+                return JITMVNExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
+                return requiresFallbackCommon(config,
+                                              jitMVNTypeMapping,
+                                              {LayoutType::nCsp8c, LayoutType::nCsp8c},
+                                              mvnMappingNotation);
+            },
+            AcceptsAnyShape<MVNAttrs>{},
+            CreateDefault<JITMVNExecutor, MVNAttrs>{}
+            )
+        OV_CPU_INSTANCE_X64(
+            "mvn_jit_x64_ncsp",
+            ExecutorType::jit_x64,
+            OperationType::MVN,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const MVNConfig& config) -> bool {
+                return JITMVNExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
+                return requiresFallbackCommon(config,
+                                              jitMVNTypeMapping,
+                                              {LayoutType::ncsp, LayoutType::ncsp},
+                                              mvnMappingNotation);
+            },
+            AcceptsAnyShape<MVNAttrs>{},
+            CreateDefault<JITMVNExecutor, MVNAttrs>{}
+            )
                         OV_CPU_INSTANCE_ACL(
                             "mvn_acl_nspc",
                             ExecutorType::Acl,
@@ -197,26 +190,26 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                    const ExecutorContext::CPtr context) {
                                     return std::make_shared<ACLMVNExecutor>(attrs, memory, context);
                                 })
-        //        OV_CPU_INSTANCE_COMMON(
-        //            "mvn_ref_ncsp", ExecutorType::Common, OperationType::MVN, ShapeTolerance::Agnostic,
-        //            // supports
-        //            [](const MVNConfig& config) -> bool {
-        //                return CommonMVNExecutor::supports(config);
-        //            },
-        //            // requiresFallback
-        //            [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
-        //                return requiresFallbackCommon(config,
-        //                                              refMVNTypeMapping,
-        //                                              {LayoutType::ncsp, LayoutType::ncsp},
-        //                                              mvnMappingNotation);
-        //            },
-        //            AcceptsAnyShape<MVNAttrs>{},
-        //            // create
-        //            [](const MVNAttrs& attrs,
-        //               const MemoryArgs& memory,
-        //               const ExecutorContext::CPtr context) {
-        //                return std::make_shared<CommonMVNExecutor>(attrs, memory, context);
-        //            })
+        OV_CPU_INSTANCE_COMMON(
+            "mvn_ref_ncsp", ExecutorType::Common, OperationType::MVN, ShapeTolerance::Agnostic,
+            // supports
+            [](const MVNConfig& config) -> bool {
+                return CommonMVNExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const MVNConfig& config) -> std::optional<executor::Config<MVNAttrs>> {
+                return requiresFallbackCommon(config,
+                                              refMVNTypeMapping,
+                                              {LayoutType::ncsp, LayoutType::ncsp},
+                                              mvnMappingNotation);
+            },
+            AcceptsAnyShape<MVNAttrs>{},
+            // create
+            [](const MVNAttrs& attrs,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr context) {
+                return std::make_shared<CommonMVNExecutor>(attrs, memory, context);
+            })
     };
     return mvnImplementations;
 }

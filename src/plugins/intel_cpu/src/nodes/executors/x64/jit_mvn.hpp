@@ -108,7 +108,7 @@ public:
     JITMVNExecutor(const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context)
         : jitContext(context),
           jitMVNAttrs(attrs) {
-        jitMVNAttrs.postOpsDataPtrs = attrs.postOpsDataPtrs;
+        postOpsDataPtrs = attrs.postOpsDataPtrs;
     }
 
     void execute(const MemoryArgs& memory) override;
@@ -138,14 +138,6 @@ private:
     VectorDims shape5D;
     std::vector<const void*> postOpsDataPtrs;
     std::shared_ptr<legacy::MVNJitExecutor> oldMVNJitExecutor;
-
-    struct MVNKey {
-        MVNAttrs mvnAttrs;
-        dnnl::primitive_attr attr;
-
-        size_t hash() const;
-        bool operator==(const MVNKey& rhs) const;
-    };
 };
 
 }  // namespace ov::intel_cpu
