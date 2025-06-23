@@ -74,7 +74,8 @@ private:
                                                               ov::intel_npu::driver_version.name(),
                                                               ov::intel_npu::compiler_type.name(),
                                                               ov::intel_npu::batch_mode.name(),
-                                                              ov::hint::execution_mode.name()};
+                                                              ov::hint::execution_mode.name(),
+                                                              ov::cache_mode.name()};
 
     const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
                                                                         ov::internal::caching_with_mmap.name()};

@@ -512,8 +512,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
-    bool separateWeights = localConfig.get<WEIGHTLESS_BLOB>();
     if (!localConfig.get<CACHE_DIR>().empty()) {
+        // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
+        // size of the binary object
         const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
         if (localConfig.get<WEIGHTLESS_BLOB>() && !cacheModeOptimizeSize) {
             _logger.warning("The cache mode was not set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
@@ -523,9 +524,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                             "option was set to false. Weights separation WILL be performed in this case.");
         }
 
-        // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
-        // size of the binary object
-        separateWeights = cacheModeOptimizeSize;
+        localConfig.update({{ov::intel_npu::weightless_blob.name(), cacheModeOptimizeSize ? "YES" : "NO"}});
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -533,7 +532,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     try {
         _logger.debug("performing compile");
 
-        if (!separateWeights) {
+        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
             graph = compiler->compile(model->clone(), localConfig);
         } else {
             graph = compiler->compileWS(store_weightless_cache_attribute_occurrence(model), localConfig);
