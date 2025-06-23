@@ -119,11 +119,11 @@ struct PlainTensor {
         if (i < 0) {
             i += m_rank;
         }
-        assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_dims[i];
     }
     [[nodiscard]] size_t stride(int i) const {
-        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_strides[i];
     }
 
@@ -188,7 +188,7 @@ struct PlainTensor {
         int start;
         int end;
         int step;
-        int count;
+        int count = 0;
         // select all
         tensor_index() : start(0), end(INT_MAX), step(1) {}
         [[nodiscard]] bool slice_with_squeeze() const {
@@ -252,7 +252,7 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     [[nodiscard]] PlainTensor slice(int axis, int start, int end, int step = 1) const {
         PlainTensor sub_tensor;
-        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
+        assert(axis >= 0 && static_cast<std::make_unsigned_t<decltype(axis)>>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
