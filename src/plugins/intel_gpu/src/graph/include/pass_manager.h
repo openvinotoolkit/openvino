@@ -10,6 +10,7 @@
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
 #include "read_value_inst.h"
+#include "lora_inst.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -320,6 +321,13 @@ public:
     void add_memory_dependency(program_node* node, program_node* dep) {
         if (node->get_unique_id() == dep->get_unique_id()) {
             return;
+        }
+
+        // LoRA can reuse the memory of the previous node, but not be optimized
+        // Therefore, the dependency of LoRA must also be the dependency of the current node
+        if (dep->is_type<lora>()) {
+            node->add_memory_dependency(dep->get_dependency(0));
+            dep->get_dependency(0).add_memory_dependency(*node);
         }
 
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
