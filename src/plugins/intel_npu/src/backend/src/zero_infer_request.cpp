@@ -50,7 +50,7 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
                     " vs. ",
                     zeDescriptorName,
                     ". The I/O order may have been altered, which could lead to an erroneous behavior.");
-    OPENVINO_ASSERT(zeroUtils::getZePrecision(ioDescriptor.precision) == zeDescriptor.info.devicePrecision,
+    OPENVINO_ASSERT(ioDescriptor.precision == zeroUtils::toOVElementType(zeDescriptor.info.devicePrecision),
                     "Precision mismatch for input/output named " + ioDescriptor.nameFromCompiler);
 
     const std::vector<size_t>& ovDimensions = ioDescriptor.shapeFromCompiler.get_max_shape();
@@ -738,10 +738,12 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::f64:
         break;
+    case ov::element::Type_t::boolean:
+        break;
     default:
-        OPENVINO_THROW(
-            "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-            "! Supported precisions: FP32, FP16, BF16, FP8, NF4, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
+        OPENVINO_THROW("Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
+                       "! Supported precisions: FP32, FP16, BF16, FP8, NF4, U4, I4, U8, I8, U16, I16, U32, I32, U64, "
+                       "I64, FP64, BOOLEAN");
     }
 }
 

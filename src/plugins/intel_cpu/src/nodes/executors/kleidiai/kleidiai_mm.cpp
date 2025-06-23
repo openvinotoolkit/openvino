@@ -34,25 +34,24 @@ static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
 }
 
 static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr& weightDesc) {
-    if (attrs.dynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max())
+    if (attrs.dynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max()) {
         return false;
+    }
 
     if (!hasIntDotProductSupport()) {
         return false;
     }
 
-    if (weightDesc->getPrecision() != element::i8)
+    if (weightDesc->getPrecision() != element::i8) {
         return false;
+    }
 
     return true;
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
-    if (config.descs.at(ARG_WEI)->getPrecision() != element::f32 &&
-        !useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI)))
-        return false;
-
-    return true;
+    return !static_cast<bool>(config.descs.at(ARG_WEI)->getPrecision() != element::f32 &&
+                              !useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI)));
 }
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
@@ -91,7 +90,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         packedWeights = acl_fc_executor::reorderWeights(memory, context, aclfcAttrs, dnnlSrcDesc, dnnlDstDesc);
 
         const size_t rhsPackedSize = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K);
-        auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({rhsPackedSize}));
+        auto rhsPackedDesc = std::make_shared<CpuBlockedMemoryDesc>(u8, Shape({rhsPackedSize}));
         rhsPackedMem = std::make_shared<Memory>(context->getEngine(), rhsPackedDesc);
 
         float* bias = biasMem->getDataAs<float>();

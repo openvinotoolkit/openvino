@@ -26,6 +26,8 @@ add_library(${TARGET_NAME} MODULE ${SRC})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 # [cmake:extension]
 install(TARGETS ${TARGET_NAME}
     LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

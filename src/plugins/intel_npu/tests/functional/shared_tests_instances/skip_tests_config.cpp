@@ -897,11 +897,12 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
-        // [Tracking number: EISW-162037]
+        // CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model
         _skipRegistry.addPatterns("compiled_blob test use `CACHE_MOD` which is not supported on NPU", {
-                R"(.*OVCompiledModelBaseTest.*compile_from_regular_blob/.*_blob.*)",
-                R"(.*OVCompiledModelBaseTest.*compile_from_weightless_blob/.*)",
-                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.*use_blob_hint_which_fails_load_from_cache.*)",
+                R"(.*OVCompiledModelBaseTest.*import_from_.*_blob.*)",
+                R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*)",
+                R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*)",
+                R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*)",
         });
         return _skipRegistry;
     }();

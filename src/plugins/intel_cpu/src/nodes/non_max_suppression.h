@@ -4,14 +4,24 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "kernels/x64/jit_kernel_base.hpp"
 #include "kernels/x64/non_max_suppression.hpp"
 #include "node.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-enum NMSCandidateStatus { SUPPRESSED = 0, SELECTED = 1, UPDATED = 2 };
+enum NMSCandidateStatus : uint8_t { SUPPRESSED = 0, SELECTED = 1, UPDATED = 2 };
 
 class NonMaxSuppression : public Node {
 public:
@@ -25,7 +35,7 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -48,10 +58,10 @@ public:
         int suppress_begin_index;
     };
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
 
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     }
 
@@ -61,7 +71,7 @@ public:
         float x, y;
         Point2D(const float px = 0.f, const float py = 0.f) : x(px), y(py) {}
         Point2D operator+(const Point2D& p) const {
-            return Point2D(x + p.x, y + p.y);
+            return {x + p.x, y + p.y};
         }
         Point2D& operator+=(const Point2D& p) {
             x += p.x;
@@ -69,16 +79,16 @@ public:
             return *this;
         }
         Point2D operator-(const Point2D& p) const {
-            return Point2D(x - p.x, y - p.y);
+            return {x - p.x, y - p.y};
         }
         Point2D operator*(const float coeff) const {
-            return Point2D(x * coeff, y * coeff);
+            return {x * coeff, y * coeff};
         }
     };
 
 private:
     // input
-    enum {
+    enum : uint8_t {
         NMS_BOXES,
         NMS_SCORES,
         NMS_MAX_OUTPUT_BOXES_PER_CLASS,
@@ -88,11 +98,11 @@ private:
     };
 
     // output
-    enum { NMS_SELECTED_INDICES, NMS_SELECTED_SCORES, NMS_VALID_OUTPUTS };
+    enum : uint8_t { NMS_SELECTED_INDICES, NMS_SELECTED_SCORES, NMS_VALID_OUTPUTS };
 
     float intersectionOverUnion(const float* boxesI, const float* boxesJ);
 
-    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], const float area_0, const float* box_1);
+    float rotatedIntersectionOverUnion(const Point2D (&vertices_0)[4], float area_0, const float* box_1) const;
 
     void nmsWithSoftSigma(const float* boxes,
                           const float* scores,
@@ -108,13 +118,13 @@ private:
 
     void nmsRotated(const float* boxes,
                     const float* scores,
-                    const VectorDims& boxesStrides,
-                    const VectorDims& scoresStrides,
-                    std::vector<FilteredBox>& filtBoxes);
+                    const VectorDims& boxes_strides,
+                    const VectorDims& scores_strides,
+                    std::vector<FilteredBox>& filtered_boxes);
 
-    void check1DInput(const Shape& shape, const std::string& name, const size_t port);
+    void check1DInput(const Shape& shape, const std::string& name, size_t port);
 
-    void checkOutput(const Shape& shape, const std::string& name, const size_t port);
+    void checkOutput(const Shape& shape, const std::string& name, size_t port);
 
     void createJitKernel();
 
@@ -148,6 +158,4 @@ private:
     std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

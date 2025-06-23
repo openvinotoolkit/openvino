@@ -4,19 +4,22 @@
 
 #pragma once
 
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "nodes/executors/eltwise.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
-#include "onednn/dnnl.h"
-#include "utils/cpu_utils.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::x64 {
 
@@ -43,19 +46,19 @@ private:
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
 
-    inline Xbyak::Reg64 get_src_reg(int idx) {
+    Xbyak::Reg64 get_src_reg(int idx) {
         return Xbyak::Reg64(r8.getIdx() + idx);
     }
 
-    inline Vmm get_vmm_reg(int idx) {
+    Vmm get_vmm_reg(int idx) {
         return Vmm(1 + idx);
     }
 
-    inline Vmm get_aux_vmm(int idx) {
+    Vmm get_aux_vmm(int idx) {
         return Vmm(10 + idx);
     }
 
-    inline Xbyak::Xmm get_xmm_reg(int idx) {
+    Xbyak::Xmm get_xmm_reg(int idx) {
         return Xbyak::Xmm(get_vmm_reg(idx).getIdx());
     }
 
@@ -88,10 +91,9 @@ private:
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
-    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
+    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters;
 
-    std::vector<std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_quantization_injector_f32<isa>>> quantization_injectors =
-        {};
+    std::vector<std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
     const std::vector<EltwiseData>& eltwise_data_;
     const std::vector<ov::intel_cpu::Type>& ops_list_;

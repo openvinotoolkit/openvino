@@ -4,10 +4,27 @@
 
 #include "factory.hpp"
 
+#include <algorithm>
+#include <memory>
+#include <set>
+#include <unordered_map>
+#include <vector>
+
 #include "eltwise.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/type_relaxed.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/subtract.hpp"
 #include "reduce.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/reduce.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 namespace {
@@ -16,7 +33,7 @@ struct CustomPowerStaticBuilder : public NodeFactory::TPPCustomBuilder {
         matcher = [](const std::shared_ptr<ov::Node>& n) {
             std::set<float> supported_power{-1, 2, 0.5};
             const auto& power_static = ov::as_type_ptr<const snippets::op::PowerStatic>(n);
-            return power_static && supported_power.count(power_static->get_power());
+            return power_static && (supported_power.count(power_static->get_power()) != 0U);
         };
         builder = [](const std::shared_ptr<ov::Node>& n) {
             const auto& power_static = ov::as_type_ptr<snippets::op::PowerStatic>(n);
@@ -24,11 +41,11 @@ struct CustomPowerStaticBuilder : public NodeFactory::TPPCustomBuilder {
             const auto power = power_static->get_power();
             const auto& input = n->input_value(0);
             std::shared_ptr<ov::Node> tpp_node{nullptr};
-            if (power == -1.f) {
+            if (power == -1.F) {
                 tpp_node = std::make_shared<Reciprocal>(input);
-            } else if (power == 2.f) {
+            } else if (power == 2.F) {
                 tpp_node = std::make_shared<Square>(input);
-            } else if (power == 0.5f) {
+            } else if (power == 0.5F) {
                 tpp_node = std::make_shared<SquareRoot>(input);
             }
             OPENVINO_ASSERT(tpp_node, "Failed to create TPP in power_static_builder");
@@ -100,7 +117,7 @@ bool NodeFactory::is_supported(const std::shared_ptr<ov::Node>& n) {
         return in.get_element_type() == element::f32;
     };
     const bool all_inputs_fp32 = std::all_of(ins.begin(), ins.end(), is_fp32_input);
-    return (m_direct_mapping.count(n->get_type_info()) ||
+    return ((m_direct_mapping.count(n->get_type_info()) != 0U) ||
             std::any_of(m_custom_mapping.begin(), m_custom_mapping.end(), matches)) &&
            all_inputs_fp32;
 }

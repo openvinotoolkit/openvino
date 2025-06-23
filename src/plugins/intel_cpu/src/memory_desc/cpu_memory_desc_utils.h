@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -12,8 +13,7 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class MemoryDesc;
 class DnnlMemoryDesc;
@@ -108,5 +108,4 @@ public:
     static std::string dims2str(const VectorDims& dims);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

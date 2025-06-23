@@ -258,13 +258,6 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: integer, default is None
- * Number of DPU groups
- */
-static constexpr ov::Property<int64_t> dpu_groups{"NPU_DPU_GROUPS"};
-
-/**
- * @brief [Only for NPU Plugin]
  * Type: integer, default is -1
  * Sets the number of DMA engines that will be used to execute the model.
  */

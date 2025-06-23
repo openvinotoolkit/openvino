@@ -14,10 +14,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
-};
-
 const std::vector<ConcatWithDifferentChildrenTransformationParam> testValues = {
     // U8
     {
@@ -56,7 +52,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConcatWithDifferentChildrenTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::PartialShape({ 1, 6, 10, 10 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(testValues)),
     ConcatWithDifferentChildrenTransformation::getTestCaseName);
 }  // namespace
