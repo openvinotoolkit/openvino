@@ -323,6 +323,7 @@ public:
             return;
         }
 
+        // If this dependency is already there, exit early
         auto mem_deps = node->get_memory_dependencies();
         if (mem_deps.find(static_cast<uint32_t>(dep->get_unique_id())) != mem_deps.end()) {
             return;
