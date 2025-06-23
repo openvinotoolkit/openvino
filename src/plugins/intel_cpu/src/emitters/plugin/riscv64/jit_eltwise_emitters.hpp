@@ -181,6 +181,28 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
     void register_table_entries() override;
 };
+
+class jit_less_equal_emitter : public jit_emitter {
+public:
+    jit_less_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                           ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                           const ov::element::Type exec_prc = ov::element::f32);
+    jit_less_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                           ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& node);
+    size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
+};
+
 class jit_maximum_emitter : public jit_emitter {
 public:
     jit_maximum_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
