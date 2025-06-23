@@ -9909,7 +9909,7 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     topology t(input, weights, conv, output_reorder);
 
     ExecutionConfig config_test = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::bfyx, "", impl_types::onednn };
     config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test } }));
     config_test.set_property(ov::intel_gpu::optimize_data(true));
     config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));

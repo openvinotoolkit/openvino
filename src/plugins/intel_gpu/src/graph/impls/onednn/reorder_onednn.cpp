@@ -46,6 +46,13 @@ protected:
         return args;
     }
 
+    static dnnl::memory::desc layout_to_memory_desc(cldnn::layout l) {
+        auto rank = cldnn::format::dimension(l.format);
+        dnnl::memory::dims dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
+        dnnl::memory::desc res(dims, convert_data_type(l.data_type), convert_data_format(l.format));
+        return res;
+    }
+
     static std::shared_ptr<dnnl::reorder::primitive_desc> get_reorder_primitive_descriptor(const kernel_impl_params& impl_params,
                                                                                            const dnnl::primitive_attr& attr) {
         auto& engine = impl_params.prog->get_engine();
@@ -54,8 +61,8 @@ protected:
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
 
-        auto input_md = onednn::layout_to_memory_desc(input_layout);
-        auto output_md = onednn::layout_to_memory_desc(output_layout);
+        auto input_md = layout_to_memory_desc(input_layout);
+        auto output_md = layout_to_memory_desc(output_layout);
 
         OPENVINO_ASSERT(input_md.get_format_kind() != dnnl::memory::format_kind::any,
                         "[GPU] The format kind of the input memory descriptor of onednn reorder cannot be 'any'.");
@@ -87,8 +94,8 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
-        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0));
-        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout());
+        auto input_md = layout_to_memory_desc(impl_params->get_input_layout(0));
+        auto output_md = layout_to_memory_desc(impl_params->get_output_layout());
 
         auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(
             ib.get_engine().get_onednn_engine(),
