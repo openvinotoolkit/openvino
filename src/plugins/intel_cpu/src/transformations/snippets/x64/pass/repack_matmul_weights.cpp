@@ -13,10 +13,9 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "graph_context.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "nodes/reorder.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -33,14 +32,15 @@ namespace ov::intel_cpu::pass {
 
 using namespace brgemm_utils;
 
-CpuBlockedMemoryDescPtr RepackMatMulWeights::get_src_desc(const VectorDims& shape,
-                                                          const VectorDims& layout,
-                                                          const BrgemmConfig& brgemm_config) {
+DnnlMemoryDescPtr RepackMatMulWeights::get_src_desc(const VectorDims& shape,
+                                                    const VectorDims& layout,
+                                                    const BrgemmConfig& brgemm_config) {
     const auto planar_shape = Shape{ov::snippets::utils::get_preordered_vdims(shape, layout)};
-    return std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.orig_wei_dt(), planar_shape, shape, layout);
+    return MemoryDescUtils::convertToDnnlMemoryDesc(
+        std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.orig_wei_dt(), planar_shape, shape, layout));
 }
 
-CpuBlockedMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const BrgemmConfig& brgemm_config) {
+DnnlMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, const BrgemmConfig& brgemm_config) {
     const auto [blocked_dims, blocked_order] =
         brgemm_utils::repacking::get_wei_blocked_shape(shape.getStaticDims(),
                                                        brgemm_config.wei_dt(),
@@ -48,27 +48,8 @@ CpuBlockedMemoryDescPtr RepackMatMulWeights::get_dst_desc(const Shape& shape, co
                                                        brgemm_config.wei_n_blk(),
                                                        brgemm_config.are_wei_blocked());
 
-    return std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.wei_dt(), shape, blocked_dims, blocked_order);
-}
-
-MemoryPtr RepackMatMulWeights::repack(const CpuBlockedMemoryDescPtr& src_desc,
-                                      const CpuBlockedMemoryDescPtr& dst_desc,
-                                      const MemoryCPtr& src_mem,
-                                      const GraphContext::CPtr& context) {
-    auto create = [&]() {
-        Memory srcMemory{context->getEngine(), src_desc, src_mem->getData()};
-        MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(), dst_desc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
-        return _ptr;
-    };
-
-    if (auto weight_cache = context->getWeightsCache()) {
-        const auto str_hash =
-            DnnlExtensionUtils::computeWeightsStringHash(src_mem, MemoryDescUtils::convertToDnnlMemoryDesc(dst_desc));
-        return *weight_cache->findOrCreate(str_hash, create);
-    }
-
-    return create();
+    return MemoryDescUtils::convertToDnnlMemoryDesc(
+        std::make_shared<CpuBlockedMemoryDesc>(brgemm_config.wei_dt(), shape, blocked_dims, blocked_order));
 }
 
 bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -108,15 +89,21 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
             std::iota(layout.begin(), layout.end(), 0);
         }
 
+        const auto& eng = m_context->getEngine();
         const auto src_mem_desc = get_src_desc(shape, layout, brgemm_config);
         const auto dst_mem_desc = get_dst_desc(src_mem_desc->getShape(), brgemm_config);
-        const auto src_mem_ptr =
-            std::make_shared<Memory>(m_context->getEngine(), src_mem_desc, orig_src_mem_ptr->getData());
+        const auto src_mem_ptr = std::make_shared<Memory>(eng, src_mem_desc, orig_src_mem_ptr->getData());
 
-        m_src_mem_ptrs[i] = repack(src_mem_desc, dst_mem_desc, src_mem_ptr, m_context);
+        m_src_mem_ptrs[i] = ov::intel_cpu::utils::prepareWeightsMemory(src_mem_desc,
+                                                                       dst_mem_desc,
+                                                                       src_mem_ptr,
+                                                                       eng,
+                                                                       m_context->getParamsCache(),
+                                                                       m_context->getWeightsCache());
         weights_idxs.insert(i);
     }
 
+    // Removed already repacked inputs: remaining inputs will be repacked in runtime configurator on inference stage
     for (const auto& weight_idx : weights_idxs) {
         m_input_repackers.erase(weight_idx);
     }

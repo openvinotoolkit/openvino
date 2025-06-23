@@ -171,20 +171,19 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
 
         const auto& prc = linear_ir.get_parameters()[i]->get_node()->get_output_element_type(0);
         auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, layout);
-
-        const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
-        auto [blocked_dims, blocked_order] = brgemm_utils::repacking::get_wei_blocked_shape(planar_shape,
-                                                                                            prc,
-                                                                                            config.get_wei_K_blk(),
-                                                                                            config.get_wei_N_blk(),
-                                                                                            config.are_wei_blocked());
-
         // In parallel impl, each thread needs buffer with only inner blocked shape to store repacking datata
         if (is_impl_parallel) {
             const auto batch_count = planar_shape.size() - brgemm_kernel_rank;
             std::fill(planar_shape.begin(), planar_shape.begin() + batch_count, 1);
-            std::fill(blocked_dims.begin(), blocked_dims.begin() + batch_count, 1);
         }
+
+        const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
+        const auto [blocked_dims, blocked_order] =
+            brgemm_utils::repacking::get_wei_blocked_shape(planar_shape,
+                                                           prc,
+                                                           config.get_wei_K_blk(),
+                                                           config.get_wei_N_blk(),
+                                                           config.are_wei_blocked());
         const auto desc = get_desc(planar_shape,
                                    prc,
                                    config.get_wei_K_blk(),

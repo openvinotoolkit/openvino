@@ -12,7 +12,7 @@
 #include "cpu_memory.h"
 #include "emitters/snippets/input_repacker.hpp"
 #include "graph_context.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
@@ -38,14 +38,10 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    static CpuBlockedMemoryDescPtr get_src_desc(const VectorDims& shape,
-                                                const VectorDims& layout,
-                                                const brgemm_utils::BrgemmConfig& brgemm_config);
-    static CpuBlockedMemoryDescPtr get_dst_desc(const Shape& shape, const brgemm_utils::BrgemmConfig& brgemm_config);
-    static MemoryPtr repack(const CpuBlockedMemoryDescPtr& src_desc,
-                            const CpuBlockedMemoryDescPtr& dst_desc,
-                            const MemoryCPtr& src_mem,
-                            const GraphContext::CPtr& context);
+    static DnnlMemoryDescPtr get_src_desc(const VectorDims& shape,
+                                          const VectorDims& layout,
+                                          const brgemm_utils::BrgemmConfig& brgemm_config);
+    static DnnlMemoryDescPtr get_dst_desc(const Shape& shape, const brgemm_utils::BrgemmConfig& brgemm_config);
 
     const GraphContext::CPtr m_context;
     ov::intel_cpu::InputRepackerMap& m_input_repackers;

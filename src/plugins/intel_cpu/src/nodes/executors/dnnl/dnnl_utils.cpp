@@ -9,7 +9,9 @@
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 
+#include "cache/multi_cache.h"
 #include "cpu_memory.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -18,26 +20,43 @@
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "weights_cache.hpp"
 
 namespace ov::intel_cpu::utils {
 
-MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
-                               const DnnlMemoryDescPtr dstWeightDesc,
-                               const MemoryCPtr weightsMem,
-                               const ExecutorContext::CPtr context,
+MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
+                               const DnnlMemoryDescPtr& dstWeightDesc,
+                               const MemoryCPtr& weightsMem,
+                               const ExecutorContext::CPtr& context,
                                const bool needShiftSignedToUnsigned) {
-    const auto& eng = context->getEngine();
-    const auto& format = dstWeightDesc->serializeFormat();
-
-    const auto privateWeightCache = context->getPrivateWeighCache();
+    const auto privateWeightCache = context->getPrivateWeightCache();
     OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
-    if (privateWeightCache) {
-        auto itr = privateWeightCache->find(format);
-        if (privateWeightCache->end() != itr) {
-            return itr->second;
-        }
+
+    const auto format = dstWeightDesc->serializeFormat();
+    auto itr = privateWeightCache->find(format);
+    if (privateWeightCache->end() != itr) {
+        return itr->second;
     }
 
+    const auto memory = prepareWeightsMemory(srcWeightDesc,
+                                             dstWeightDesc,
+                                             weightsMem,
+                                             context->getEngine(),
+                                             context->getRuntimeCache(),
+                                             context->getWeightsCache(),
+                                             needShiftSignedToUnsigned);
+    (*privateWeightCache)[format] = memory;
+
+    return memory;
+}
+
+MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
+                               const DnnlMemoryDescPtr& dstWeightDesc,
+                               const MemoryCPtr& weightsMem,
+                               const dnnl::engine& eng,
+                               const MultiCachePtr& rtCache,
+                               const WeightsSharing::Ptr& globalWeightCache,
+                               bool needShiftSignedToUnsigned) {
     auto create = [&]() {
         // https://oneapi-src.github.io/oneDNN/dev_guide_int8_computations.html?highlight=128#inputs-of-the-same-type-s8
         auto src_wdt = srcWeightDesc->getPrecision();
@@ -49,7 +68,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
             // prevent reorderData from doing conversion
             Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
             MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-            auto rtCache = context->getRuntimeCache();
             node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
 
             // do shift
@@ -74,13 +92,11 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
 
         Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-        auto rtCache = context->getRuntimeCache();
         node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
 
         return _ptr;
     };
 
-    auto globalWeightCache = context->getWeightsCache();
     MemoryPtr ptr;
     if (globalWeightCache && dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
         ptr = *globalWeightCache->findOrCreate(DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc),
@@ -88,8 +104,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     } else {
         ptr = create();
     }
-
-    (*privateWeightCache)[format] = ptr;
 
     return ptr;
 }
