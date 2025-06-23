@@ -400,12 +400,6 @@ std::tuple<VecMemoryDescs, MemoryDescPtr> Convolution::initMemoryDescriptors(ov:
             srcDescs.push_back(MemoryDescUtils::makeEmptyDesc());
             continue;
         }
-        // int8 convolution with f16 bias is not supported in oneDNN
-        if (i == BIAS && m_attrs.withBias && canBeExecutedInInt8() && srcTypes[i] == ov::element::f16) {
-            auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(i));
-            srcDescs.push_back(srcDesc);
-            continue;
-        }
         auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcTypes[i], getInputShapeAtPort(i));
         srcDescs.push_back(srcDesc);
     }
