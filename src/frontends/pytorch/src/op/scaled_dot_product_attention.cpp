@@ -4,8 +4,18 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
@@ -17,37 +27,162 @@ namespace op {
 
 using namespace ov::op;
 
+namespace {
+ov::OutputVector prepare_inputs_to_sdpa(const NodeContext& context,
+                                        const Output<Node>& query,
+                                        const Output<Node>& key,
+                                        const Output<Node>& value,
+                                        const Output<Node>& scale,
+                                        const Output<Node>& attn_mask) {
+    OutputVector inputs = {query, key, value};
+
+    if (attn_mask.get_node()) {
+        inputs.push_back(attn_mask);
+    }
+    if (scale.get_node()) {
+        if (!attn_mask.get_node()) {
+            auto zero = op::v0::Constant::create(element::f32, Shape{}, {0});
+            auto attn_mask_default = context.mark_node(std::make_shared<v1::ConvertLike>(zero, query));
+            inputs.push_back(attn_mask_default);
+        }
+        inputs.push_back(scale);
+    }
+
+    return inputs;
+}
+
+// Extracts a dimension using a negative index, -1 means last dimension, etc.
+ov::Output<ov::Node> get_dim_for_negative_idx(const NodeContext& context,
+                                              const ov::Output<ov::Node>& input_shape,
+                                              int64_t idx) {
+    OPENVINO_ASSERT(idx < 0, "This get_dim only supports negative indexing from the end.");
+
+    // Get shape of shape (i.e., rank of input)
+    auto input_rank = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input_shape, element::i64));
+    auto scalar_shape = ov::op::v0::Constant::create(element::i64, Shape{0}, {});
+    auto scalar_rank = context.mark_node(std::make_shared<ov::op::v1::Reshape>(input_rank, scalar_shape, false));
+
+    // Compute positive index: rank + idx (since idx is negative)
+    auto idx_const = ov::op::v0::Constant::create(element::i64, Shape{}, {idx});
+    auto positive_index = context.mark_node(std::make_shared<ov::op::v1::Add>(scalar_rank, idx_const));
+
+    // Slice shape[positive_index : positive_index + 1]
+    auto begin = context.mark_node(
+        std::make_shared<ov::op::v1::Reshape>(positive_index,
+                                              ov::op::v0::Constant::create(element::i64, Shape{1}, {1}),
+                                              false));
+    auto one_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto end = context.mark_node(std::make_shared<ov::op::v1::Add>(begin, one_const));
+
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto res_dim = context.mark_node(std::make_shared<ov::op::v1::StridedSlice>(input_shape,
+                                                                                begin,
+                                                                                end,
+                                                                                stride,
+                                                                                std::vector<int64_t>{0},
+                                                                                std::vector<int64_t>{0},
+                                                                                std::vector<int64_t>{0},
+                                                                                std::vector<int64_t>{0}));
+    return res_dim;
+}
+
+// Returns sub-shape[0 : rank - delta]
+ov::Output<ov::Node> get_prefix_shape_until_rank_minus_delta(const NodeContext& context,
+                                                             const Output<Node>& input_shape,
+                                                             int64_t delta) {
+    auto input_rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i64));
+
+    // end = rank - delta
+    auto const_delta = v0::Constant::create(element::i64, Shape{}, {delta});
+    auto end_index = context.mark_node(std::make_shared<v1::Subtract>(input_rank, const_delta));
+
+    // Slice shape[0:end_index]
+    auto begin = v0::Constant::create(element::i64, Shape{1}, {0});
+    auto stride = v0::Constant::create(element::i64, Shape{1}, {1});
+
+    return context.mark_node(std::make_shared<v1::StridedSlice>(input_shape,
+                                                                begin,
+                                                                end_index,
+                                                                stride,
+                                                                std::vector<int64_t>{0},  // begin_mask
+                                                                std::vector<int64_t>{0},  // end_mask
+                                                                std::vector<int64_t>{0},  // new_axis_mask
+                                                                std::vector<int64_t>{0}   // shrink_axis_mask
+                                                                ));
+}
+
+std::shared_ptr<Node> decompose_gqa(const NodeContext& context,
+                                    const Output<Node>& query,      // [B,..., Hq, L, D]
+                                    const Output<Node>& key,        // [B,..., Hk, S, D]
+                                    const Output<Node>& value,      // [B,..., Hk, S, Dv]
+                                    const Output<Node>& scale,      // optional
+                                    const Output<Node>& attn_mask,  // optional
+                                    bool is_causal) {
+    auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i64));
+    auto v_shape = context.mark_node(std::make_shared<v3::ShapeOf>(value, element::i64));
+
+    auto Hq = get_dim_for_negative_idx(context, q_shape, -3);
+    auto L = get_dim_for_negative_idx(context, q_shape, -2);
+    auto D = get_dim_for_negative_idx(context, q_shape, -1);
+    auto Dv = get_dim_for_negative_idx(context, v_shape, -1);
+    auto Hk = get_dim_for_negative_idx(context, v_shape, -3);
+
+    // Extract prefix shape for query [B, ...]. it excludes [Hq, L, D]
+    auto prefix_shape = get_prefix_shape_until_rank_minus_delta(context, q_shape, 3);
+
+    // Compute group_size = Hq / Hk
+    auto group_size = context.mark_node(std::make_shared<v1::Divide>(Hq, Hk));
+
+    // Reshape query: [B,..., Hq, T, D] -> [B,..., Hk, group_size, T, D]
+    auto reshape_q_shape =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{prefix_shape, Hk, group_size, L, D}, 0));
+    auto q_reshaped = context.mark_node(std::make_shared<v1::Reshape>(query, reshape_q_shape, true));
+
+    // Unsqueeze key, value: [B,..., Hk, T, D] -> [B,..., Hk, 1, T, D]
+    auto axis = v0::Constant::create(element::i64, Shape{1}, {-3});
+    auto k_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(key, axis));
+    auto v_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(value, axis));
+
+    ov::Output<ov::Node> unsqueezed_attn_mask = attn_mask;
+    if (attn_mask.get_node() && attn_mask.get_partial_shape().rank().is_static() &&
+        attn_mask.get_partial_shape().rank().get_length() > 2) {
+        // need to adjust shape as well since auxiliary dimension for group is introduced
+        unsqueezed_attn_mask = context.mark_node(std::make_shared<v0::Unsqueeze>(attn_mask, axis));
+    }
+
+    auto inputs = prepare_inputs_to_sdpa(context, q_reshaped, k_unsqueezed, v_unsqueezed, scale, unsqueezed_attn_mask);
+    auto attn = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
+
+    // Reshape back: [B,..., Hk, group_size, T, Dv] -> [B,..., Hq, T, Dv]
+    auto reshape_out_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{prefix_shape, Hq, L, Dv}, 0));
+    return context.mark_node(std::make_shared<v1::Reshape>(attn, reshape_out_shape, true));
+}
+
+}  // namespace
+
 std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const NodeContext& context) {
     auto query = context.get_input(0);
     auto key = context.get_input(1);
     auto value = context.get_input(2);
 
     auto is_causal = context.input_is_none(5) ? false : context.const_input<bool>(5);
-    OutputVector inputs = {query, key, value};  // mandatory inputs
 
-    if (!context.input_is_none(3))
-        inputs.push_back(context.get_input(3));
+    ov::Output<ov::Node> attn_mask{};
+    ov::Output<ov::Node> scale{};
+    if (!context.input_is_none(3)) {
+        attn_mask = context.get_input(3);
+    }
     if (!context.input_is_none(6)) {
-        if (inputs.size() < 4) {
-            // need to fill a gap in inputs with scalar 0 to be able to pass one extra input after that
-            auto zero = op::v0::Constant::create(element::f32, Shape{}, {0});
-            inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(zero, query)));
-        }
-        inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(6), query)));
+        scale = context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(6), query));
     } else if (context.has_attribute("scale")) {
-        const auto scale = context.get_input("scale");
-        if (inputs.size() < 4) {
-            auto zero = op::v0::Constant::create(element::f32, Shape{}, {0});
-            inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(zero, query)));
-        }
-        inputs.push_back(context.mark_node(std::make_shared<v1::ConvertLike>(scale, query)));
+        scale = context.get_input("scale");
+        scale = context.mark_node(std::make_shared<v1::ConvertLike>(scale, query));
     }
-    if (!context.input_is_none(7)) {
-        auto enable_gqa = context.const_input<bool>(7);
-        PYTORCH_OP_CONVERSION_CHECK(enable_gqa == false,
-                                    "Grouped Query Attention is not supported for SDPA operation.");
+    if (!context.input_is_none(7) && context.const_input<bool>(7)) {
+        return decompose_gqa(context, query, key, value, scale, attn_mask, is_causal);
     }
 
+    auto inputs = prepare_inputs_to_sdpa(context, query, key, value, scale, attn_mask);
     return context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
 }
 

@@ -310,9 +310,6 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
 
     const size_t score_aggregation_idx = 13;
     jit.Merge(MakeTypeJitConstants(params.inputs[score_aggregation_idx].GetDType(), "SCORE_AGGREGATION_INPUT"));
-    if (params.conf.has_score_aggregation) {
-        jit.AddConstant(MakeJitConstant("HAS_SCORE_AGGREGATION", 1));
-    }
 
     if (params.conf.has_rotated_blocks)
         jit.AddConstant(MakeJitConstant("HAS_ROTATED_BLOCKS", 1));

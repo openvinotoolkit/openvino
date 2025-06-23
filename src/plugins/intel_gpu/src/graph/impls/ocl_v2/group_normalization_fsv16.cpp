@@ -18,7 +18,6 @@ namespace ov::intel_gpu::ocl {
 namespace {
 
 constexpr size_t fsv = 16;
-constexpr size_t simd = fsv;
 
 ov::element::Type get_activation_type(const RuntimeParams& params) {
     if (params.get_input_layout(0).data_type == ov::element::f16) {
@@ -42,11 +41,19 @@ class GroupNormalizationGeneratorBase : public KernelGenerator {
 public:
     explicit GroupNormalizationGeneratorBase(std::string_view name, std::string_view suffix) : KernelGenerator(name, suffix) {}
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto get_max_simd_size = [](const RuntimeParams& params) {
+            size_t max_simd_size = fsv;
+            for (auto& simd_size : params.get_device_info().supported_simd_sizes) {
+                max_simd_size = std::max(max_simd_size, simd_size);
+            }
+            return max_simd_size;
+        };
+
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<group_normalization>();
         jit.make("EPSILON", static_cast<float>(desc->epsilon));
         jit.make("NUM_GROUPS", desc->num_groups);
-        jit.make("SIMD", simd);
+        jit.make("SIMD", get_max_simd_size(params));
         jit.make("FSV", fsv);
 
         if (params.is_dynamic()) {

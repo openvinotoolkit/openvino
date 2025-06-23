@@ -87,7 +87,7 @@ template <typename T>
 bool is_triu(ov::op::v0::Constant* cmask, size_t rows, size_t columns) {
     const auto* ptr = reinterpret_cast<const T*>(cmask->get_data_ptr());
     for (size_t y = 0; y < rows; y++, ptr += columns) {
-        size_t x;
+        size_t x = 0;
         for (x = 0; x <= y; x++) {
             if (ptr[x]) {
                 return false;
