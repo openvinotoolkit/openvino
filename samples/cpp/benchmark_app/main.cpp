@@ -120,15 +120,6 @@ int64_t get_peak_memory_usage() {
 
 #endif
 
-constexpr std::string_view WEIGHTS_EXTENSION = ".bin";
-constexpr std::string_view BLOB_EXTENSION = ".blob";
-constexpr std::string_view ONNX_EXTENSION = ".onnx";
-
-inline bool file_exists(const std::string& file_name) {
-    std::ifstream file(file_name.c_str());
-    return file.good();
-}
-
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
@@ -873,27 +864,6 @@ int main(int argc, char* argv[]) {
             std::ifstream modelStream(FLAGS_m, std::ios_base::binary | std::ios_base::in);
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
-            }
-
-            device_config.insert(ov::hint::allow_auto_batching(false));
-
-            if (!device_config.count(ov::weights_path.name())) {
-                // Temporary solution: build the path to the weights by leveraging the one towards the binary object
-                std::string weightsPath = FLAGS_m;
-                weightsPath.replace(weightsPath.size() - BLOB_EXTENSION.length(),
-                                    BLOB_EXTENSION.length(),
-                                    WEIGHTS_EXTENSION);
-
-                if (!file_exists(weightsPath)) {
-                    weightsPath.replace(weightsPath.size() - WEIGHTS_EXTENSION.length(),
-                                        WEIGHTS_EXTENSION.length(),
-                                        ONNX_EXTENSION);
-                    if (!file_exists(weightsPath)) {
-                        std::cout << "No weights file could be found by using the path towards the compiled model"
-                                  << std::endl;
-                    }
-                }
-                device_config.insert(ov::weights_path(weightsPath));
             }
 
             compiledModel = core.import_model(modelStream, device_name, device_config);
