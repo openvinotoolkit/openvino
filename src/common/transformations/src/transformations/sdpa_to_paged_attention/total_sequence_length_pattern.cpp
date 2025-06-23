@@ -140,14 +140,6 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
         std::shared_ptr<Node> replacement = max_context_len;
 
-        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
-        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
-        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
-        std::cout << "Gather 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr() << std::endl;
-        std::cout << "Convert: Subtract 1st input: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr()->input_value(1).get_node_shared_ptr() << std::endl;
-        std::cout << "p_prev_max_seq_len: " << pattern_map.at(p_prev_max_seq_len).get_node_shared_ptr() << std::endl;
-
-        std::cout << "p_total_seq: " << pattern_map.at(p_total_seq).get_node_shared_ptr() << std::endl;
         auto target_type = total_seq->get_output_element_type(0);
         auto required_shape = total_seq->get_output_partial_shape(0);
         align_replacement(replacement, required_shape, target_type);

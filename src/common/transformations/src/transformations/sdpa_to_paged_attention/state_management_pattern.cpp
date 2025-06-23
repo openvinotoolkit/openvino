@@ -354,6 +354,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &layer_index,
                                           &rotated_block_indices_inputs_for_each_layer,
                                           &rotation_deltas_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
+        std::cout << matcher_name << " start" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
@@ -623,6 +624,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
         pa_transpose->set_friendly_name(sdpa_node->get_friendly_name());
         replace_node(m.get_match_root(), pa_transpose);
+        std::cout << matcher_name << " end" << std::endl;
         return true;
     };
 
