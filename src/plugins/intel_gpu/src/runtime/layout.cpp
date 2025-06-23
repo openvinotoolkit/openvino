@@ -479,6 +479,11 @@ bool layout::compatible(const layout& other) const {
         (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
         return false;
 
+    // Since it is not possible to properly check compatibility for custom formats, return false
+    if (l1.format == cldnn::format::custom || l2.format == cldnn::format::custom) {
+        return false;
+    }
+
     if (check_format(format::b_fs_yx_fsv2) ||
         check_format(format::b_fs_yx_fsv4) ||
         check_format(format::fs_b_yx_fsv32) ||
