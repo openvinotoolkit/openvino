@@ -94,12 +94,17 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto dst_mem_desc = get_dst_desc(src_mem_desc->getShape(), brgemm_config);
         const auto src_mem_ptr = std::make_shared<Memory>(eng, src_mem_desc, orig_src_mem_ptr->getData());
 
+        // Pass empty privateWeightCache because:
+        //  - there might be several FCs in Subgraph. Then each FC should have own private cache
+        //  - currently, we repack weights only once on model compilation stage - no need to save them to the private
+        //    cache
         m_src_mem_ptrs[i] = ov::intel_cpu::utils::prepareWeightsMemory(src_mem_desc,
                                                                        dst_mem_desc,
                                                                        src_mem_ptr,
                                                                        eng,
                                                                        m_context->getParamsCache(),
-                                                                       m_context->getWeightsCache());
+                                                                       m_context->getWeightsCache(),
+                                                                       nullptr);
         weights_idxs.insert(i);
     }
 

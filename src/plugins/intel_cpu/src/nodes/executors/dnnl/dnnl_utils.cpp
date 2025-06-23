@@ -10,6 +10,8 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 
 #include "cache/multi_cache.h"
 #include "cpu_memory.h"
@@ -32,22 +34,14 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
     const auto privateWeightCache = context->getPrivateWeightCache();
     OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
 
-    const auto format = dstWeightDesc->serializeFormat();
-    auto itr = privateWeightCache->find(format);
-    if (privateWeightCache->end() != itr) {
-        return itr->second;
-    }
-
-    const auto memory = prepareWeightsMemory(srcWeightDesc,
-                                             dstWeightDesc,
-                                             weightsMem,
-                                             context->getEngine(),
-                                             context->getRuntimeCache(),
-                                             context->getWeightsCache(),
-                                             needShiftSignedToUnsigned);
-    (*privateWeightCache)[format] = memory;
-
-    return memory;
+    return prepareWeightsMemory(srcWeightDesc,
+                                dstWeightDesc,
+                                weightsMem,
+                                context->getEngine(),
+                                context->getRuntimeCache(),
+                                context->getWeightsCache(),
+                                privateWeightCache,
+                                needShiftSignedToUnsigned);
 }
 
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
@@ -56,7 +50,16 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                const dnnl::engine& eng,
                                const MultiCachePtr& rtCache,
                                const WeightsSharing::Ptr& globalWeightCache,
+                               const std::shared_ptr<std::unordered_map<std::string, MemoryPtr>>& privateWeightCache,
                                bool needShiftSignedToUnsigned) {
+    const auto format = dstWeightDesc->serializeFormat();
+    if (privateWeightCache) {
+        auto itr = privateWeightCache->find(format);
+        if (privateWeightCache->end() != itr) {
+            return itr->second;
+        }
+    }
+
     auto create = [&]() {
         // https://oneapi-src.github.io/oneDNN/dev_guide_int8_computations.html?highlight=128#inputs-of-the-same-type-s8
         auto src_wdt = srcWeightDesc->getPrecision();
@@ -103,6 +106,10 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                                create);
     } else {
         ptr = create();
+    }
+
+    if (privateWeightCache) {
+        (*privateWeightCache)[format] = ptr;
     }
 
     return ptr;

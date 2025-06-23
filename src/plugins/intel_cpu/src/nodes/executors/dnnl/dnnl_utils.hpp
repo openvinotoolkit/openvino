@@ -8,6 +8,8 @@
 #pragma once
 
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 
 #include "cache/multi_cache.h"
 #include "cpu_memory.h"
@@ -28,5 +30,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                const dnnl::engine& eng,
                                const MultiCachePtr& rtCache,
                                const WeightsSharing::Ptr& globalWeightCache,
+                               const std::shared_ptr<std::unordered_map<std::string, MemoryPtr>>& privateWeightCache,
                                bool needShiftSignedToUnsigned = false);
 }  // namespace ov::intel_cpu::utils
