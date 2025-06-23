@@ -125,7 +125,7 @@ class PytorchLayerTest:
 
                 dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
 
-                em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
+                em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes, strict=False)
 
                 converted_model = convert_model(
                     em, example_input=torch_inputs, verbose=True)
@@ -293,6 +293,8 @@ class PytorchLayerTest:
             options = {"testing": 1}
             if "aot_autograd" in kwargs:
                 options.update({"aot_autograd": True})
+            else:
+                options.update({"aot_autograd": False})
             if "dynamic_quantization_group_size" in kwargs:
                 options["config"] = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": str(kwargs["dynamic_quantization_group_size"])}
             dynamic = kwargs.get("dynamic", False)
