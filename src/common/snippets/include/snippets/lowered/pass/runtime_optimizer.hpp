@@ -38,7 +38,7 @@ public:
      */
     template <typename OptimizerType,
               typename... Args,
-              typename = typename std::enable_if<std::is_base_of_v<RuntimeOptimizer, OptimizerType>>::type>
+              typename = std::enable_if_t<std::is_base_of_v<RuntimeOptimizer, OptimizerType>>>
     static void register_if_applicable(PassPipeline& pipeline, Args&&... args) {
         auto pass = std::make_shared<OptimizerType>(std::forward<Args>(args)...);
         if (pass->applicable()) {

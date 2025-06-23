@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 #include <vector>

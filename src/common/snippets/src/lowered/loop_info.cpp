@@ -4,11 +4,11 @@
 
 #include "snippets/lowered/loop_info.hpp"
 
+#include <utility>
+
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 LoopInfo::LoopInfo(size_t work_amount,
                    size_t increment,
@@ -231,9 +231,9 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<LoopPort>& entries,
                                  const std::vector<LoopPort>& exits,
-                                 const SpecificIterationHandlers& handlers)
+                                 SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(handlers),
+      m_handlers(std::move(handlers)),
       m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
       m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
     sort_ports();
@@ -243,9 +243,9 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<ExpressionPort>& entries,
                                  const std::vector<ExpressionPort>& exits,
-                                 const SpecificIterationHandlers& handlers)
+                                 SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(handlers),
+      m_handlers(std::move(handlers)),
       m_input_port_descs(std::vector<LoopPortDesc>(entries.size())),
       m_output_port_descs(std::vector<LoopPortDesc>(exits.size())) {
     sort_ports();
@@ -257,9 +257,9 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  const std::vector<LoopPort>& exits,
                                  const std::vector<LoopPortDesc>& in_shifts,
                                  const std::vector<LoopPortDesc>& out_shifts,
-                                 const SpecificIterationHandlers& handlers)
+                                 SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits),
-      m_handlers(handlers),
+      m_handlers(std::move(handlers)),
       m_input_port_descs(in_shifts),
       m_output_port_descs(out_shifts) {
     sort_ports();
@@ -679,6 +679,4 @@ void ExpandedLoopInfo::sort_ports() {
     reorder(m_output_ports, get_output_count(), get_input_count());
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

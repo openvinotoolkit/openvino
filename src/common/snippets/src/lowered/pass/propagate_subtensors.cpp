@@ -15,7 +15,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"

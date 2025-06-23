@@ -3,12 +3,22 @@
 //
 
 #pragma once
-#include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered {
@@ -104,9 +114,10 @@ public:
         const auto normalized_increment =
             utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
         const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
-        if (set_default_handlers)
+        if (set_default_handlers) {
             loop_info->set_handlers(
                 SpecificIterationHandlers(work_amount, normalized_increment, loop_info->get_dim_idx()));
+        }
 
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
@@ -161,7 +172,7 @@ public:
                                  LinearIR::constExprIt loop_begin_pos,
                                  LinearIR::constExprIt loop_end_pos,
                                  const LoopInfoPtr& loop_info,
-                                 const size_t old_id);
+                                 size_t old_id);
     /**
      * @brief Fuse two UnifiedLoopInfos: fuse their informations to the one
      * @param linear_ir linear IR
@@ -196,8 +207,7 @@ public:
      * @param target_ports vector of the new ports
      */
     template <typename T,
-              typename = typename std::
-                  enable_if<(std::is_same<T, ExpressionPort>::value || std::is_same<T, LoopPort>::value), bool>::type>
+              typename = std::enable_if_t<(std::is_same_v<T, ExpressionPort> || std::is_same_v<T, LoopPort>), bool>>
     void replace_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports) {
         const auto& loop_info = get_loop_info(loop_id);
         loop_info->replace_with_new_ports(actual_port, target_ports);
@@ -209,8 +219,7 @@ public:
      * @param target_ports vector of the new ports
      */
     template <typename T,
-              typename = typename std::
-                  enable_if<(std::is_same<T, ExpressionPort>::value || std::is_same<T, LoopPort>::value), bool>::type>
+              typename = std::enable_if_t<(std::is_same_v<T, ExpressionPort> || std::is_same_v<T, LoopPort>), bool>>
     void replace_loop_ports(const std::vector<size_t>& loop_ids,
                             const T& actual_port,
                             const std::vector<T>& target_ports) {
@@ -272,7 +281,7 @@ public:
      * @param loop_id target Loop ID
      * @return the pair of loop_begin_pos and loop_end_pos iterators
      */
-    LoopBounds get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
+    [[nodiscard]] LoopBounds get_loop_bounds(const LinearIR& linear_ir, size_t loop_id) const;
     /**
      * @brief Find bounds of Loop:
      *        - If the explicit Loop exprs with the target `loop_id` have been inserted,
@@ -297,7 +306,7 @@ public:
      * @param loop_id target Loop ID
      * @return loop port
      */
-    LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id);
+    LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, size_t loop_id);
 
     /**
      * @brief Reorder ALL Loop IDs in `m_map` using `loop_id_map`
@@ -358,7 +367,7 @@ private:
                          size_t target_id = SIZE_MAX);
     static bool is_loop_id_found(const ExpressionPtr& expr, size_t id);
 
-    std::map<size_t, LoopInfoPtr> m_map = {};
+    std::map<size_t, LoopInfoPtr> m_map;
     size_t next_id = 0;
 };
 using LoopManagerPtr = std::shared_ptr<LoopManager>;
