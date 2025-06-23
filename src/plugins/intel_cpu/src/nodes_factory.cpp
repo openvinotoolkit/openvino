@@ -59,6 +59,7 @@
 #include "nodes/matmul.h"
 #include "nodes/matrix_nms.h"
 #include "nodes/memory.hpp"
+#include "nodes/moe_expert.hpp"
 #include "nodes/multiclass_nms.hpp"
 #include "nodes/multinomial.hpp"
 #include "nodes/mvn.h"
@@ -238,6 +239,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
+    INTEL_CPU_NODE(MOEExpert, Type::MOE);
 #elif defined(OPENVINO_ARCH_ARM64)
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
 #endif

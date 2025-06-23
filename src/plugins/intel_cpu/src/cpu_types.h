@@ -136,7 +136,8 @@ enum class Type : uint8_t {
     RMS,
     SearchSorted,
     SegmentMax,
-    LoRA
+    LoRA,
+    MOE
 };
 
 enum class Algorithm : uint8_t {
