@@ -2212,15 +2212,15 @@ struct ScoreAggregationInfo {
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
-    size_t H;
-    size_t S;
-    size_t SV;
-    size_t Hk;
-    size_t _h_each_group_len;
-    size_t _block_size;
-    size_t _nthr;
-    size_t _sliding_window;
-    float _d_scale;
+    size_t H = 0UL;
+    size_t S = 0UL;
+    size_t SV = 0UL;
+    size_t Hk = 0UL;
+    size_t _h_each_group_len = 0UL;
+    size_t _block_size = 0UL;
+    size_t _nthr = 0UL;
+    size_t _sliding_window = 0UL;
+    float _d_scale = 0.0F;
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
     bool _quant_key_bychannel = false;
@@ -2562,7 +2562,7 @@ struct MHAHelper {
 
             // for each weight block, loop through all value block
             for (size_t v_blk = 0; v_blk < cur_kv_len_blocks; v_blk++) {
-                DATA_TYPE* v_ptr;
+                DATA_TYPE* v_ptr = nullptr;
                 if (q_is_xf16 || !q_cache_is_same) {
                     v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
                 } else {
@@ -2903,7 +2903,7 @@ struct MHAHelper {
         _weight_bhl.resize<float>({B, H, q_len, rnd_up(max_context_len, std::max(_block_size, size_t{16}))});
 
         // for small batches dynamic scheduler has notable overhead
-        bool prefer_static_loop;
+        bool prefer_static_loop = false;
         // if less than 2 work items per thread, loop H
         bool loop_hk = B * kv_len_in_blocks * Hk > 2 * _nthr;
         if (B <= 32) {
@@ -2933,9 +2933,9 @@ struct MHAHelper {
             };
         auto loop_qk = [&](size_t b, size_t pk_in_blocks, size_t hx) {
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
-            size_t hk;
-            size_t hq_beg;
-            size_t hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
 
             // kv_len must be valid
@@ -3034,19 +3034,17 @@ struct MHAHelper {
         }
 
         // attn_w * V
-        _output_bhl.resize<float>({_nthr, B, q_len, H, SV});
-        // m_attn_w {B, H, q_len, kv_len}
-        parallel_nt_static(_nthr, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
-            memset(_output_bhl.ptr<float>(ithr, 0, 0, 0, 0), 0, _output_bhl.stride(0) * sizeof(float));
+        _output_bhl.resize<float>({B, kv_len_in_blocks, H, q_len, SV});
+        parallel_for3d(B, kv_len_in_blocks, H, [&](size_t b, size_t pv_in_blocks, size_t h) {
+            memset(_output_bhl.ptr<float>(b, pv_in_blocks, h, 0, 0), 0, q_len * SV * sizeof(float));
         });
 
         auto loop_wk = [&](size_t b, size_t pv_in_blocks, size_t hx) {
-            auto ithr = parallel_get_thread_num();
             auto context_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
             auto pv = pv_in_blocks * _block_size;
-            size_t hk;
-            size_t hq_beg;
-            size_t hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             get_h_params(loop_hk, hx, _h_each_group_len, hq_beg, hq_end, hk);
 
             // kv_len must be valid
@@ -3056,7 +3054,7 @@ struct MHAHelper {
                     for (size_t h = hq_beg; h < hq_end; h++) {
                         if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
                             attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _output_bhl.ptr<float>(b, pv_in_blocks, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
                                 value_cache.ptr<uint8_t, VALUE_PREC>(block_number, hk),
                                 SV,
@@ -3067,7 +3065,7 @@ struct MHAHelper {
                             auto* v_ptr =
                                 value_cache.ptr<typename element_type_traits<VALUE_PREC>::value_type>(block_number, hk);
                             attn_acc_value_block<typename element_type_traits<VALUE_PREC>::value_type, VALUE_PREC>(
-                                _output_bhl.ptr<float>(ithr, b, pq, h),
+                                _output_bhl.ptr<float>(b, pv_in_blocks, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
                                 v_ptr,
                                 SV,
@@ -3086,10 +3084,10 @@ struct MHAHelper {
         }
 
         parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
-            auto* temp = _output_bhl.ptr<float>(0, b, pq, h);
-            size_t temp_stride = _output_bhl.stride(0);
+            auto* temp = _output_bhl.ptr<float>(b, 0, h, pq);
+            size_t temp_stride = _output_bhl.stride(1);  // split with pv_in_blocks steps
             auto* dst = output_emb.ptr<DATA_TYPE>(b, pq, h * SV);
-            attn_reduce(dst, temp, _nthr, SV, temp_stride);
+            attn_reduce(dst, temp, kv_len_in_blocks, SV, temp_stride);
         });
     }
 };
@@ -3113,9 +3111,9 @@ struct MHA {
     private:
         std::vector<AttnWorkItem> attn_items;
         std::vector<ReorderWorkItem> reorder_items;
-        int32_t max_kv_len_in_reorder;  // max kv len between first tokens
-        int32_t max_batch_in_reorder;
-        int32_t total_kv_len;
+        int32_t max_kv_len_in_reorder = 0;  // max kv len between first tokens
+        int32_t max_batch_in_reorder = 0;
+        int32_t total_kv_len = 0;
 
     public:
         void reset([[maybe_unused]] const PlainTensor& query,
@@ -3318,9 +3316,9 @@ struct MHA {
         _helper.resize_temporary_weight_buffer(weight_h);
 
         parallel_for2d_dynamic(attn_work_count, loop_hk ? Hk : _helper.H, [&](size_t w, size_t hx) {
-            size_t hk;
-            size_t hq_beg;
-            size_t hq_end;
+            size_t hk = 0;
+            size_t hq_beg = 0;
+            size_t hq_end = 0;
             if (loop_hk) {
                 hk = hx;
                 hq_beg = hk * _helper._h_each_group_len;
@@ -3812,10 +3810,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor subsequence_begins;
         PlainTensor block_indices;
         PlainTensor block_indices_begins;
-        float scale;
-        size_t sliding_window;
+        float scale = NAN;
+        size_t sliding_window = 0;
         PlainTensor alibi_slopes;
-        size_t max_context_len;
+        size_t max_context_len = 0;
         PlainTensor rotated_block_indices;
         PlainTensor rotation_deltas;
         PlainTensor rotation_trig_lut;

@@ -25,7 +25,20 @@ class typed_primitive_inst<group_normalization> : public typed_primitive_inst_ba
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(group_normalization_node const& /*node*/, const kernel_impl_params& impl_param) {
-        return forward_input0_shape<ShapeType>(impl_param);
+        auto in_layout = impl_param.get_input_layout(0);
+        auto out_format = in_layout.format;
+        auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
+
+        if (impl_param.has_fused_primitives()) {
+            output_type = impl_param.get_output_element_type();
+            for (auto& desc : impl_param.fused_desc) {
+                if (desc.is_type<reorder>()) {
+                    out_format = desc.output_layout.format;
+                }
+            }
+        }
+
+        return { layout(in_layout.get<ShapeType>(), output_type, out_format) };
     }
 
     static layout calc_output_layout(group_normalization_node const& node, kernel_impl_params const& impl_param);

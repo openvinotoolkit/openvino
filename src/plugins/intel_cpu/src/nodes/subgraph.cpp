@@ -54,6 +54,11 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
+#    include "snippets/lowered/pass/insert_reg_spills.hpp"
+#    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
+#    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
 #    include "transformations/snippets/aarch64/shape_inference.hpp"
 #else
 #    include "emitters/snippets/x64/cpu_generator.hpp"
@@ -299,16 +304,13 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         NodeConfig config;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
-            const auto originalInputPrecision = getOriginalInputPrecisionAtPort(i);
-            const auto precision =
-                ((originalInputPrecision == ov::element::f32) &&
-                 one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
-                 subgraph_attrs->snippet->has_domain_sensitive_ops())
-                    ? context->getConfig().inferencePrecision
-                    : originalInputPrecision;
-            if (supportedPrecisions.count(precision) == 0) {
-                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
-            }
+            const auto precision = getOriginalInputPrecisionAtPort(i);
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
+                            "Subgraph doesn't support ",
+                            precision,
+                            " precision at input port ",
+                            i,
+                            ".");
 
             const auto equalPrecisions =
                 getOriginalOutputPrecisions().size() == 1 && precision == getOriginalOutputPrecisionAtPort(0);
@@ -325,10 +327,13 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         }
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
-            auto precision = getOriginalOutputPrecisionAtPort(i);
-            if (supportedPrecisions.count(precision) == 0) {
-                THROW_CPU_NODE_ERR("doesn't support ", precision, " precision.");
-            }
+            const auto precision = getOriginalOutputPrecisionAtPort(i);
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
+                            "Subgraph doesn't support ",
+                            precision,
+                            " precision at input port ",
+                            i,
+                            ".");
 
             BlockedMemoryDesc::CmpMask outputMask = BlockedMemoryDesc::SKIP_OFFSET_MASK;
             PortConfig portConfig;
@@ -522,8 +527,15 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
-        // Note, MatMul decomposition will be run later again for case if BF16 enforcement is not happened
-        SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ov::snippets::pass::MatMulToBrgemm);
+        // Notes:
+        //  - MatMul decomposition will be run later again for case if BF16 enforcement is not happened
+        //  - `MatMulToBrgemm` pass fuse `transpose_a` and `transpose_b` from MatMul to inputs of Brgemm as layouts.
+        //    These layouts are resized to ranks of input shapes. But since `Canonicalization` might
+        //    reshape shapes, the pass `MatMulToBrgemm` should be after the pass `Canonicalization` to
+        //    fuse layouts with ranks aligned with updated shapes after RankNormalization insertions.
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::snippets::pass::Canonicalization,
+                                               ov::snippets::pass::MatMulToBrgemm);
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::snippets::pass::MatMulToBrgemm,
                                                pass::EnforcePrecision,
@@ -533,7 +545,8 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
-                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU);
+                                           ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                           getConstantInputIndexes());
     if (subgraph_attrs->snippet->has_domain_sensitive_ops()) {
 #if defined(OPENVINO_ARCH_X86_64)
         const auto cpu_config =
@@ -546,11 +559,13 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                                ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                               getConstantInputIndexes(),
                                                cpu_config->repacked_input_config,
                                                repacked_constant_input_config);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::pass::PropagatePrecision,
+                                          ov::intel_cpu::pass::BrgemmToGemmCPU);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -581,11 +596,10 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
 
 Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     ControlFlowPasses backend_passes;
-#if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64) && defined(SNIPPETS_LIBXSMM_TPP))
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
     using PassPosition = ov::snippets::pass::PassPosition;
     using Place = PassPosition::Place;
 #endif
-
 #if defined(OPENVINO_ARCH_X86_64)
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)             \
         backend_passes.emplace_back(PassPosition(PASS_PLACE, TARGET_PASS::get_type_info_static()), \
@@ -632,6 +646,15 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                            ov::intel_cpu::pass::InitRepackedConstantInputs,
                                            context->getParamsCache(),
                                            repacked_constant_input_config);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::MarkLoops,
+                                          ov::intel_cpu::pass::GemmCPUBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
+                                          ov::snippets::lowered::pass::InitLoops,
+                                          ov::intel_cpu::pass::aarch64::AdjustGemmCopyBLoopPorts);
+    SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
+                                          ov::snippets::lowered::pass::InsertBuffers,
+                                          ov::intel_cpu::pass::aarch64::InsertGemmCopyBuffers);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
@@ -708,6 +731,10 @@ void Subgraph::optimizeIR() {
 
     const auto control_flow_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
     const auto control_flow_passes = getControlFlowPasses();
+#if defined(OPENVINO_ARCH_ARM64)
+    // enable it after emitters for RegSpillBegin and RegSpillEnd are implemented on ARM in CVS-162498
+    control_flow_config->disable<ov::snippets::lowered::pass::InsertRegSpills>();
+#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
@@ -716,9 +743,9 @@ void Subgraph::optimizeIR() {
     subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
 #endif
 
-    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work amount)
-    // needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts in domain
-    // optimization.
+    // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work
+    // amount) needed to cover kernel call overhead. It is used for balancing between parallel and JIT work amounts
+    // in domain optimization.
     subgraph->control_flow_transformations(static_cast<size_t>(parallel_get_max_threads()),
                                            256,
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
@@ -753,7 +780,8 @@ void Subgraph::prepareParams() {
             // Dynamic case:
             // 1. Generate JIT code if needed
             // 2. Update runtime config with dynamic values
-            //    If JIT code has been taken from cache, need to set cached kernel executor table for the configuration
+            //    If JIT code has been taken from cache, need to set cached kernel executor table for the
+            //    configuration
             // 3. Create SubgraphDynamicSpecializedExecutor
             const auto code_gen_result = cache->getOrCreate(
                 SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),

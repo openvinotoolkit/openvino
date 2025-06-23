@@ -29,24 +29,25 @@ std::shared_ptr<ov::intel_cpu::BrgemmCPU> make_brgemm(const ov::OutputVector& ma
                                                       const ov::OutputVector& postop_inputs = {}) {
     const auto& a_precision = main_inputs[0].get_element_type();
     const auto& b_precision = main_inputs[1].get_element_type();
-    BrgemmCPU::BRGEMM_TYPE type;
+    dnnl::impl::cpu::x64::cpu_isa_t isa;
     if (a_precision == ov::element::f32 && b_precision == ov::element::f32) {
-        type = BrgemmCPU::BRGEMM_TYPE::STAND_ALONE;
+        isa = dnnl::impl::cpu::x64::cpu_isa_t::avx512_core;
     } else if (a_precision == ov::element::u8 && b_precision == ov::element::i8) {
-        type = BrgemmCPU::BRGEMM_TYPE::REPACKING_ONLY;
+        isa = dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_vnni;
     } else if (a_precision == ov::element::i8 && b_precision == ov::element::i8) {
-        type = BrgemmCPU::BRGEMM_TYPE::WITH_COMPENSATIONS;
+        isa = dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_vnni;
     } else if (a_precision == ov::element::bf16 && b_precision == ov::element::bf16) {
-        type = BrgemmCPU::BRGEMM_TYPE::WITH_AMX;
+        isa = dnnl::impl::cpu::x64::cpu_isa_t::avx512_core_amx;
     } else {
         OPENVINO_THROW("Unsupported input precisions: ", a_precision, " and ", b_precision);
     }
+    ov::intel_cpu::brgemm_utils::BrgemmConfig brgemm_config(isa, a_precision, b_precision, b_precision, false, false);
 
-    auto create_brgemm_cpu = [&type, postop_inputs, &postops](const ov::OutputVector& postprocessed_inputs) {
+    auto create_brgemm_cpu = [&brgemm_config, postop_inputs, &postops](const ov::OutputVector& postprocessed_inputs) {
         ov::OutputVector all_inputs = postprocessed_inputs;
         all_inputs.insert(all_inputs.end(), postop_inputs.begin(), postop_inputs.end());
         return std::make_shared<BrgemmCPU>(all_inputs,
-                                           type,
+                                           brgemm_config,
                                            std::vector<ov::snippets::modifier::MemoryAccess::PortDescriptor>{},
                                            ov::snippets::modifier::MemoryAccess::PortDescriptor{0, 0},
                                            std::vector<size_t>{},
@@ -55,22 +56,19 @@ std::shared_ptr<ov::intel_cpu::BrgemmCPU> make_brgemm(const ov::OutputVector& ma
                                            postops);
     };
 
-    if (type == BrgemmCPU::BRGEMM_TYPE::STAND_ALONE) {
-        return create_brgemm_cpu(main_inputs);
-    } else if (type == BrgemmCPU::BRGEMM_TYPE::REPACKING_ONLY) {
-        auto brgemm_repacking =
-            std::make_shared<BrgemmCopyB>(main_inputs[1], a_precision, type, 0, 0, 0, std::vector<size_t>{});
-        return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0)});
-    } else if (type == BrgemmCPU::BRGEMM_TYPE::WITH_COMPENSATIONS) {
-        auto brgemm_repacking =
-            std::make_shared<BrgemmCopyB>(main_inputs[1], a_precision, type, 0, 0, 0, std::vector<size_t>{});
-        return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0), brgemm_repacking->output(1)});
-    } else if (type == BrgemmCPU::BRGEMM_TYPE::WITH_AMX) {
+    if (brgemm_config.is_amx()) {
         auto scratch = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
         return create_brgemm_cpu({main_inputs[0], main_inputs[1], scratch});
-    } else {
-        OPENVINO_THROW("Invalid configuration for BRGEMM CPU");
     }
+    if (brgemm_config.with_compensations()) {
+        auto brgemm_repacking = std::make_shared<BrgemmCopyB>(main_inputs[1], brgemm_config);
+        return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0), brgemm_repacking->output(1)});
+    }
+    if (brgemm_config.with_wei_repacking()) {
+        auto brgemm_repacking = std::make_shared<BrgemmCopyB>(main_inputs[1], brgemm_config);
+        return create_brgemm_cpu({main_inputs[0], brgemm_repacking->output(0)});
+    }
+    return create_brgemm_cpu(main_inputs);
 }
 
 std::shared_ptr<ov::Node> make_eltwise(const ov::Output<ov::Node>& brgemm,
