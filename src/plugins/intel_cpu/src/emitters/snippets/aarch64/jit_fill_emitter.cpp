@@ -94,7 +94,7 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(isa == dnnl::impl::cpu::aarch64::asimd, "Fill emitter tail supports only asimd");
+    static_assert(isa == dnnl::impl::cpu::aarch64::asimd, "Fill emitter tail supports only asimd");
 
     if (in[0] != out[0]) {
         h->mov(Xbyak_aarch64::VReg16B(out[0]), Xbyak_aarch64::VReg16B(in[0]));

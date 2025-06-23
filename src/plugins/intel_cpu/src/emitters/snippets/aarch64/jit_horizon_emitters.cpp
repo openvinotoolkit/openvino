@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "jit_reductions_emitters.hpp"
+#include "jit_horizon_emitters.hpp"
 
 #include "emitters/utils.hpp"
 
