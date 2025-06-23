@@ -48,6 +48,8 @@ public:
 
     bool is_equal(const HostMemAllocator& other) const;
 
+    virtual ~HostMemAllocator() = default;
+
 protected:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
