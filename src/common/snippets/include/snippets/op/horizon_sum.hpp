@@ -26,9 +26,6 @@ public:
     HorizonSum(const Output<Node>& x);
     HorizonSum() = default;
 
-    bool visit_attributes(AttributeVisitor& /*visitor*/) override {
-        return true;
-    }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
 };

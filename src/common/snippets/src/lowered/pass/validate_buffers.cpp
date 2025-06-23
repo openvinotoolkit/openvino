@@ -18,8 +18,8 @@
 namespace ov::snippets::lowered::pass {
 
 bool ValidateBuffers::run(LinearIR& linear_ir,
-                          lowered::LinearIR::constExprIt /*begin*/,
-                          lowered::LinearIR::constExprIt /*end*/) {
+                          [[maybe_unused]] lowered::LinearIR::constExprIt begin,
+                          [[maybe_unused]] lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateBuffers")
 
     const auto& lir_buffers = linear_ir.get_buffers();

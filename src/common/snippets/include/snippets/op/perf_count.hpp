@@ -86,7 +86,6 @@ public:
     PerfCountBeginBase() = default;
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     void validate_and_infer_types_except_PerfCountEnd();
@@ -104,7 +103,6 @@ public:
     PerfCountEndBase() = default;
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 /**

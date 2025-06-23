@@ -53,8 +53,9 @@ ShapeInferPtr IShapeInferSnippetsFactory::make(const ov::DiscreteTypeInfo& key, 
     return get_specific_op_shape_infer(key, op);
 }
 
-ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::DiscreteTypeInfo& /*key*/,
-                                                                      const std::shared_ptr<ov::Node>& /*op*/) const {
+ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(
+    [[maybe_unused]] const ov::DiscreteTypeInfo& key,
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& op) const {
     return {};
 }
 

@@ -91,7 +91,9 @@ std::shared_ptr<pass::PassBase> SetFillOffset::merge(const std::shared_ptr<pass:
     return std::make_shared<SetFillOffset>(merged_offset);
 }
 
-bool SetLoopIncrementOne::run(LinearIR& linear_ir, LinearIR::constExprIt /*begin*/, LinearIR::constExprIt end) {
+bool SetLoopIncrementOne::run(LinearIR& linear_ir,
+                              [[maybe_unused]] LinearIR::constExprIt begin,
+                              LinearIR::constExprIt end) {
     const auto& loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(end->get()->get_node());
     OPENVINO_ASSERT(loop_end, "SetLoopIncrementOne expected LoopEnd node in iterator `end`.");
     const auto& loop_info =

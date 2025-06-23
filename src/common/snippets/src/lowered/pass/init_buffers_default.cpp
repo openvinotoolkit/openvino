@@ -13,8 +13,8 @@
 namespace ov::snippets::lowered::pass {
 
 bool InitBuffersDefault::run(lowered::LinearIR& linear_ir,
-                             lowered::LinearIR::constExprIt /*begin*/,
-                             lowered::LinearIR::constExprIt /*end*/) {
+                             [[maybe_unused]] lowered::LinearIR::constExprIt begin,
+                             [[maybe_unused]] lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitBuffersDefault");
 
     size_t idx = 0;

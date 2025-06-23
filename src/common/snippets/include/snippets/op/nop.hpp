@@ -24,7 +24,7 @@ public:
     Nop(const OutputVector& arguments, const OutputVector& results);
     Nop() = default;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /*inputs*/) const override {
+    std::shared_ptr<Node> clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const override {
         return std::make_shared<Nop>();
     }
 };

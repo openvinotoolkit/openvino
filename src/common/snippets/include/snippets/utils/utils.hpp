@@ -185,8 +185,8 @@ bool broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);
 // Can be used in SpecificLoopIterationHandlers
 bool merge_dynamic_dim(size_t& dst, const size_t& d1, const size_t& d2);
 
-VectorDims pshape_to_vdims(const PartialShape& /*pshape*/);
-ov::PartialShape vdims_to_pshape(const VectorDims& /*vdims*/);
+VectorDims pshape_to_vdims(const PartialShape& pshape);
+ov::PartialShape vdims_to_pshape(const VectorDims& vdims);
 
 inline size_t dimension_to_size_t(const ov::Dimension& dim) {
     return dim.is_dynamic() ? snippets::utils::get_dynamic_value<VectorDims::value_type>()

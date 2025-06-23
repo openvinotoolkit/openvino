@@ -19,7 +19,7 @@ public:
     SerializeBase(const std::string& xml_path);
 
 protected:
-    static std::string get_bin_path_from_xml(const std::string& xml_path);
+    static std::string get_bin_path();
 
     const std::string m_xml_path;
     const std::string m_bin_path;

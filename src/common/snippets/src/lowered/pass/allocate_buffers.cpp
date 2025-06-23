@@ -23,8 +23,8 @@ namespace ov::snippets::lowered::pass {
 AllocateBuffers::AllocateBuffers(bool is_optimized) : m_is_optimized_mode(is_optimized) {}
 
 bool AllocateBuffers::run(lowered::LinearIR& linear_ir,
-                          lowered::LinearIR::constExprIt /*begin*/,
-                          lowered::LinearIR::constExprIt /*end*/) {
+                          [[maybe_unused]] lowered::LinearIR::constExprIt begin,
+                          [[maybe_unused]] lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
     size_t buffer_scratchpad_size = 0;
 

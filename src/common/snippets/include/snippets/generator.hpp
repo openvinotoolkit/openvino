@@ -107,7 +107,7 @@ protected:
      * @brief returns true if an emitter can use precompiled kernel.
      * @return bool
      */
-    virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& /*emitter*/) const {
+    virtual bool uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<Emitter>& emitter) const {
         return false;
     }
 

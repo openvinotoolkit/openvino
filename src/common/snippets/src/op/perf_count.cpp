@@ -133,7 +133,7 @@ void CSVDumper::update(const op::PerfCountEnd* node) {
 namespace op {
 
 /////////////////PerfCountBeginBase/////////////////
-PerfCountBeginBase::PerfCountBeginBase(const std::vector<Output<Node>>& /*args*/) {}
+PerfCountBeginBase::PerfCountBeginBase([[maybe_unused]] const std::vector<Output<Node>>& args) {}
 
 void PerfCountBeginBase::validate_and_infer_types() {
     validate_and_infer_types_except_PerfCountEnd();
@@ -143,10 +143,6 @@ void PerfCountBeginBase::validate_and_infer_types() {
                     "PerfCountBegin must have exactly one input attached to the last output");
     const auto& pc_end = ov::as_type_ptr<PerfCountEndBase>(last_output_inputs.begin()->get_node()->shared_from_this());
     OPENVINO_ASSERT(pc_end != nullptr, "PerfCountBegin must have PerfCountEnd connected to its last output");
-}
-
-bool PerfCountBeginBase::visit_attributes(AttributeVisitor& /*visitor*/) {
-    return true;
 }
 
 void PerfCountBeginBase::validate_and_infer_types_except_PerfCountEnd() {
@@ -166,16 +162,12 @@ void PerfCountEndBase::validate_and_infer_types() {
     set_output_type(0, element::f32, {});
 }
 
-bool PerfCountEndBase::visit_attributes(AttributeVisitor& /*visitor*/) {
-    return true;
-}
-
 /////////////////PerfCountBegin/////////////////
 PerfCountBegin::PerfCountBegin() {
     validate_and_infer_types_except_PerfCountEnd();
 }
 
-std::shared_ptr<Node> PerfCountBegin::clone_with_new_inputs(const OutputVector& /*inputs*/) const {
+std::shared_ptr<Node> PerfCountBegin::clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const {
     return std::make_shared<PerfCountBegin>();
 }
 
@@ -188,8 +180,6 @@ void PerfCountBegin::set_start_time() {
 }
 
 //////////////////PerfCountEnd///////////////
-
-PerfCountEnd::PerfCountEnd() = default;
 
 PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
                            std::vector<std::shared_ptr<utils::Dumper>> dumpers,

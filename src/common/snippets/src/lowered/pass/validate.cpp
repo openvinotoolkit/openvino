@@ -46,7 +46,7 @@ void validate_ports(const ExpressionPtr& expr) {
     std::for_each(out_descs.cbegin(), out_descs.cend(), validate_descriptor);
 }
 
-void validate_parameter(const ExpressionPtr& expr, const LinearIR& /*linear_ir*/) {
+void validate_parameter(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<ov::op::v0::Parameter>(expr->get_node()), "Parameter validation expects Parameter op");
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
@@ -66,7 +66,7 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& /*linear_ir*/
     OPENVINO_ASSERT(layouts.size() == 1, "All consumers of Parameter must have the same layout");
 }
 
-void validate_result(const ExpressionPtr& expr, const LinearIR& /*linear_ir*/) {
+void validate_result(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<ov::op::v0::Result>(expr->get_node()), "Result validation expects Result op");
     const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
@@ -75,7 +75,7 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& /*linear_ir*/) {
     OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()), "Result expects MemoryAccess parent");
 }
 
-void validate_buffer(const ExpressionPtr& expr, const LinearIR& /*linear_ir*/) {
+void validate_buffer(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<op::Buffer>(expr->get_node()), "Buffer validation expects Buffer op");
     OPENVINO_ASSERT(ov::is_type<BufferExpression>(expr), "Buffer validation expects Buffer expression");
     for (const auto& input : expr->get_input_port_connectors()) {

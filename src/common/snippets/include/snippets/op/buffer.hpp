@@ -82,7 +82,7 @@ private:
         }
         [[nodiscard]] std::shared_ptr<BaseImpl> clone() const override;
         void validate_and_infer_types(Buffer* buffer) const override;
-        bool visit_attributes(AttributeVisitor& /*visitor*/) override {
+        bool visit_attributes([[maybe_unused]] AttributeVisitor& visitor) override {
             return true;
         }
         [[nodiscard]] std::shared_ptr<IShapeInferSnippets> get_shape_infer() const override {

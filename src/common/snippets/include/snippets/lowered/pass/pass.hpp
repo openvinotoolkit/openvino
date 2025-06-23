@@ -44,7 +44,7 @@ public:
      * @attention If 'other' pass is empty (aka nullptr), it can be merged to any other pass.
      * @attention If the merge fails, then nullptr is returned.
      */
-    virtual std::shared_ptr<PassBase> merge(const std::shared_ptr<PassBase>& /*other*/) {
+    virtual std::shared_ptr<PassBase> merge([[maybe_unused]] const std::shared_ptr<PassBase>& other) {
         return nullptr;
     }
 };

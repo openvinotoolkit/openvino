@@ -98,7 +98,7 @@ static uint64_t hash_combine(uint64_t seed, const T& v) {
 namespace rt_info {
 
 // some node attr is not type of ov::RuntimeAttribute, need dedicate visitor.
-const std::vector<std::string> list_of_names{
+static const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
@@ -179,7 +179,8 @@ public:
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
-    void on_adapter(const std::string& /*name*/, ov::ValueAccessor<std::shared_ptr<ov::Model>>& /*adapter*/) override {
+    void on_adapter([[maybe_unused]] const std::string& name,
+                    [[maybe_unused]] ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         OPENVINO_THROW("Model type is unsupported for snippets rt info hash generation");
     }
 };
@@ -266,7 +267,8 @@ public:
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         m_hash = hash_combine(hash_combine(m_hash, name), create_attribute_list(adapter));
     }
-    void on_adapter(const std::string& /*name*/, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter([[maybe_unused]] const std::string& name,
+                    ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         ovfunction_2_hash(m_hash, *adapter.get());
     }
 };

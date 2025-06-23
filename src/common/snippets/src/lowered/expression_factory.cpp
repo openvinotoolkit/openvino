@@ -35,23 +35,30 @@ std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>
     }
     if (const auto res = ov::as_type_ptr<ov::op::v0::Result>(n)) {
         return create(res, inputs, m_shape_infer_factory);
-    } else if (const auto loop_begin = ov::as_type_ptr<op::LoopBegin>(n)) {
-        return create(loop_begin, inputs, m_shape_infer_factory);
-    } else if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(n)) {
-        return create(loop_end, inputs, m_shape_infer_factory);
-    } else if (const auto spill_begin = ov::as_type_ptr<op::RegSpillBegin>(n)) {
-        return create(spill_begin, inputs, m_shape_infer_factory);
-    } else if (const auto spill_end = ov::as_type_ptr<op::RegSpillEnd>(n)) {
-        return create(spill_end, inputs, m_shape_infer_factory);
-    } else if (const auto buffer = ov::as_type_ptr<op::Buffer>(n)) {
-        return create<BufferExpression>(buffer, inputs, m_shape_infer_factory);
-#ifdef SNIPPETS_DEBUG_CAPS
-    } else if (const auto perf_counter = ov::as_type_ptr<op::PerfCountBeginBase>(n)) {
-        return create(perf_counter, inputs, m_shape_infer_factory);
-    } else if (const auto perf_counter = ov::as_type_ptr<op::PerfCountEndBase>(n)) {
-        return create(perf_counter, inputs, m_shape_infer_factory);
-#endif
     }
+    if (const auto loop_begin = ov::as_type_ptr<op::LoopBegin>(n)) {
+        return create(loop_begin, inputs, m_shape_infer_factory);
+    }
+    if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(n)) {
+        return create(loop_end, inputs, m_shape_infer_factory);
+    }
+    if (const auto spill_begin = ov::as_type_ptr<op::RegSpillBegin>(n)) {
+        return create(spill_begin, inputs, m_shape_infer_factory);
+    }
+    if (const auto spill_end = ov::as_type_ptr<op::RegSpillEnd>(n)) {
+        return create(spill_end, inputs, m_shape_infer_factory);
+    }
+    if (const auto buffer = ov::as_type_ptr<op::Buffer>(n)) {
+        return create<BufferExpression>(buffer, inputs, m_shape_infer_factory);
+    }
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (const auto perf_counter = ov::as_type_ptr<op::PerfCountBeginBase>(n)) {
+        return create(perf_counter, inputs, m_shape_infer_factory);
+    }
+    if (const auto perf_counter = ov::as_type_ptr<op::PerfCountEndBase>(n)) {
+        return create(perf_counter, inputs, m_shape_infer_factory);
+    }
+#endif
     return create(n, inputs, m_shape_infer_factory);
 }
 

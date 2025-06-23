@@ -82,7 +82,7 @@ bool Validate::is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
     return axis == softmax_rank.get_length() - 1;
 }
 
-bool Validate::is_supported_fq(const std::shared_ptr<const ov::Node>& /*node*/) {
+bool Validate::is_supported_fq([[maybe_unused]] const std::shared_ptr<const ov::Node>& node) {
     // FQ is decomposed into ops in CommonFakeQuantizeDecomposition pass
     return m_pass_config->is_disabled<ov::snippets::pass::CommonFakeQuantizeDecomposition>();
 }
@@ -94,7 +94,7 @@ bool Validate::is_supported_transpose(const std::shared_ptr<const ov::Node>& nod
            (consumers.size() == 1 && ov::is_type<ov::op::v0::Result>(consumers.cbegin()->get_node()));
 }
 
-bool Validate::is_supported_op(const std::shared_ptr<const ov::Node>& /*node*/) {
+bool Validate::is_supported_op([[maybe_unused]] const std::shared_ptr<const ov::Node>& node) {
     return false;
 }
 

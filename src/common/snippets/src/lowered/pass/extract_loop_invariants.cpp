@@ -237,8 +237,8 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
 }  // namespace
 
 bool ExtractLoopInvariants::run(LinearIR& linear_ir,
-                                lowered::LinearIR::constExprIt /*begin*/,
-                                lowered::LinearIR::constExprIt /*end*/) {
+                                [[maybe_unused]] lowered::LinearIR::constExprIt begin,
+                                [[maybe_unused]] lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractLoopInvariants")
     bool modified = false;
 

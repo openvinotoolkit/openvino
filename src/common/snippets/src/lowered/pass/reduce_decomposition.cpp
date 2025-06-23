@@ -60,9 +60,8 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         }
         if (type_info == op::ReduceSum::get_type_info_static()) {
             return linear_ir.insert_node<ov::op::v1::Add>(expr_it, input0, input1);
-        } else {
-            OPENVINO_THROW("Unsupported reduce type: ", type_info);
         }
+        OPENVINO_THROW("Unsupported reduce type: ", type_info);
     };
 
     auto insert_horizon_node =
@@ -75,9 +74,8 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         }
         if (type_info == op::ReduceSum::get_type_info_static()) {
             return linear_ir.insert_node<op::HorizonSum>(expr_it, input);
-        } else {
-            OPENVINO_THROW("Unsupported reduce type: ", type_info);
         }
+        OPENVINO_THROW("Unsupported reduce type: ", type_info);
     };
 
     bool modified = false;
