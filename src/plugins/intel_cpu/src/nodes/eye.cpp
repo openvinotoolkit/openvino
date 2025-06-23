@@ -132,9 +132,7 @@ void Eye::executeSpecified() {
             size_t start = 0;
             size_t end = 0;
             splitter(elementsCount, nthr, ithr, start, end);
-            for (size_t i = start; i < end; ++i) {
-                dst[i] = static_cast<T>(0);
-            }
+            std::fill(dst + start, dst + end, static_cast<T>(0));
         });
         if (onesPerBatchNum == 0) {
             return;
@@ -154,9 +152,7 @@ void Eye::executeSpecified() {
             size_t start = 0;
             size_t end = 0;
             splitter(batchVolume, nthr, ithr, start, end);
-            for (size_t i = start * spatialCount; i < end * spatialCount; ++i) {
-                dst[i] = static_cast<T>(0);
-            }
+            std::fill(dst + start * spatialCount, dst + end * spatialCount, static_cast<T>(0));
             if (onesPerBatchNum == 0) {
                 return;
             }
