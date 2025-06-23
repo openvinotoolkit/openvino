@@ -6,9 +6,7 @@
 
 #include "subgraph_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface SplitDimensionM
@@ -94,10 +92,10 @@ private:
                                                                          size_t m_dim,
                                                                          size_t optimal_parallelism_work_amount);
 
-    void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph,
-                          const ov::Shape& shape,
-                          size_t batch_m_dim,
-                          size_t new_m_dim);
+    static void reshape_subgraph(const std::shared_ptr<op::Subgraph>& subgraph,
+                                 const ov::Shape& shape,
+                                 size_t batch_m_dim,
+                                 size_t new_m_dim);
 
     static size_t get_dim_M(const ov::Shape& shape) {
         if (shape.size() < dim_M_index + 1) {
@@ -111,6 +109,4 @@ private:
     static const size_t min_kernel_m;
     static const size_t dim_M_index;
 };
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

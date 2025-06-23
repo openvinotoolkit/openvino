@@ -7,10 +7,7 @@
 #include "pass.hpp"
 #include "snippets/lowered/reg_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @brief Default function to enable RegSpill insertion
@@ -39,7 +36,4 @@ private:
     std::function<bool(const ExpressionPtr&)> m_needs_reg_spill;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

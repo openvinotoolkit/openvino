@@ -4,6 +4,22 @@
 
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <stack>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/itt.hpp"
@@ -31,14 +47,16 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
     //   Also MatMul has `transposed_b` which changes `processing_dim_idx`
     m_broadcastable_inputs.clear();
     // Currently Broadcasting can be changed only if there are several Parameters in body
-    if (body->get_parameters().size() < 2)
+    if (body->get_parameters().size() < 2) {
         return false;
+    }
 
     const auto& ops = body->get_ordered_ops();
     std::set<std::shared_ptr<ov::Node>> visited_ops = {};
     for (const auto& op : ops) {
-        if (!ov::snippets::lowered::pass::InsertBroadcastMove::is_broadcasting_supported(op))
+        if (!ov::snippets::lowered::pass::InsertBroadcastMove::is_broadcasting_supported(op)) {
             continue;
+        }
 
         size_t processing_dim_idx = 0;
 

@@ -6,10 +6,7 @@
 
 #include "pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface SetDynamicWAToOuterMostLoop
@@ -24,7 +21,4 @@ public:
     bool run(LinearIR& linear_ir) override;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -7,10 +7,7 @@
 #include "pass.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InsertLoadStore
@@ -34,7 +31,4 @@ private:
     size_t m_vector_size;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

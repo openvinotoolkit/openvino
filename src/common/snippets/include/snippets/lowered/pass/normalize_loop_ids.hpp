@@ -6,10 +6,7 @@
 
 #include "pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface NormalizeLoopIDs
@@ -42,7 +39,4 @@ private:
     bool m_has_specific_loops = true;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

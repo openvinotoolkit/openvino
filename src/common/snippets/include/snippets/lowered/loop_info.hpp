@@ -373,21 +373,25 @@ public:
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
      * @param caller - function that called for each pair
      */
-    inline void iterate_through_infos(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
-        for (size_t i = 0; i < get_input_count(); ++i)
+    void iterate_through_infos(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
+        for (size_t i = 0; i < get_input_count(); ++i) {
             caller(m_input_ports[i], m_input_port_descs[i]);
-        for (size_t i = 0; i < get_output_count(); ++i)
+        }
+        for (size_t i = 0; i < get_output_count(); ++i) {
             caller(m_output_ports[i], m_output_port_descs[i]);
+        }
     }
     /**
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
      * @param caller - function that called for each pair
      */
-    inline void iterate_through_infos(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
-        for (size_t i = 0; i < get_input_count(); ++i)
+    void iterate_through_infos(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
+        for (size_t i = 0; i < get_input_count(); ++i) {
             caller(m_input_ports[i], m_input_port_descs[i]);
-        for (size_t i = 0; i < get_output_count(); ++i)
+        }
+        for (size_t i = 0; i < get_output_count(); ++i) {
             caller(m_output_ports[i], m_output_port_descs[i]);
+        }
     }
 
     /**
@@ -601,7 +605,7 @@ private:
     std::vector<int64_t> m_data_sizes;
 
     const SpecificLoopIterType m_type = {};
-    std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
+    std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info;
 
     bool m_evaluate_once = false;
 };

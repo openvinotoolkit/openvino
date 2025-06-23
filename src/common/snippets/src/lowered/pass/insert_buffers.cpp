@@ -4,15 +4,30 @@
 
 #include "snippets/lowered/pass/insert_buffers.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 namespace {
 std::vector<size_t> get_buffer_loop_ids(const std::vector<size_t>& lhs,
                                         const std::vector<size_t>& rhs,
@@ -51,8 +66,9 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
     const auto down_loop_count = down_loops.size();
     size_t loop_idx = 0;
     for (; loop_idx < std::min(up_loop_count, down_loop_count); ++loop_idx) {
-        if (up_loops[loop_idx] != down_loops[loop_idx])
+        if (up_loops[loop_idx] != down_loops[loop_idx]) {
             break;
+        }
     }
     // If upper expression is inside Loop, we should insert Buffer after this Loop
     if (loop_idx < up_loop_count) {
@@ -73,10 +89,10 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
 
 void InsertBuffers::insertion(LinearIR& linear_ir,
                               const LinearIR::constExprIt& begin_it,
-                              const LinearIR::constExprIt& end_it,
+                              const LinearIR::constExprIt& /*end_it*/,
                               const LoopManagerPtr& loop_manager,
                               const std::vector<ExpressionPort>& loop_entries,
-                              const std::vector<ExpressionPort>& loop_exits) const {
+                              const std::vector<ExpressionPort>& loop_exits) {
     for (const auto& entry_port : loop_entries) {
         const auto& expr = entry_port.get_expr();
         const auto port_idx = entry_port.get_index();
@@ -99,8 +115,9 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
                                op::VectorBuffer,
                                ov::op::v0::Parameter,
                                ov::op::v0::Constant,
-                               op::RankNormalization>(parent))
+                               op::RankNormalization>(parent)) {
             continue;
+        }
 
         // Each MemoryAccess op needs Buffer
         const auto parent_ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
@@ -132,7 +149,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         const auto& expr = exit_port.get_expr();
         const auto port_idx = exit_port.get_index();
         const auto node = expr->get_node();
-        const auto output_connector = exit_port.get_port_connector_ptr();
+        const auto& output_connector = exit_port.get_port_connector_ptr();
         const auto child_exprs_inputs = output_connector->get_consumers();
         const auto& current_loops = expr->get_loop_ids();
 
@@ -150,8 +167,9 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
             const auto& child_expr = child_expr_input.get_expr();
             const auto child_port = child_expr_input.get_index();
             const auto& child = child_expr->get_node();
-            if (ov::is_type<ov::op::v0::Result>(child))
+            if (ov::is_type<ov::op::v0::Result>(child)) {
                 continue;
+            }
             if (ov::is_type<op::Buffer>(child)) {
                 update_buffer_loop_ids(child_expr->get_loop_ids());
                 buffers.insert(child_expr);
@@ -243,11 +261,12 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
     }
 
     for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto expr = *expr_it;
+        const auto& expr = *expr_it;
         const auto node = (*expr_it)->get_node();
         const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(node);
-        if (!ma)
+        if (!ma) {
             continue;
+        }
 
         const auto input_ports = ma->get_memory_access_input_ports();
         const auto output_ports = ma->get_memory_access_output_ports();
@@ -265,7 +284,4 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
     return true;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

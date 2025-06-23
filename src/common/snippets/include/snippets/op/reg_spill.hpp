@@ -10,9 +10,7 @@
 #include "snippets/emitter.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface RegSpillBase
@@ -55,7 +53,7 @@ public:
 
 protected:
     void validate_and_infer_types_except_RegSpillEnd();
-    std::set<Reg> m_regs_to_spill = {};
+    std::set<Reg> m_regs_to_spill;
 };
 /**
  * @interface RegSpillEnd
@@ -81,6 +79,4 @@ public:
     }
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

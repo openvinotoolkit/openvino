@@ -11,8 +11,7 @@
 #    include "openvino/op/op.hpp"
 #    include "openvino/runtime/threading/thread_local.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 namespace op {
 class PerfCountEnd;
@@ -62,7 +61,7 @@ private:
  */
 class CSVDumper : public Dumper {
 public:
-    CSVDumper(const std::string csv_path);
+    CSVDumper(std::string csv_path);
     ~CSVDumper() override;
 
     void update(const op::PerfCountEnd* node) override;
@@ -139,7 +138,7 @@ public:
                  std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
                  const std::string& params = "");
     PerfCountEnd();
-    ~PerfCountEnd();
+    ~PerfCountEnd() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
@@ -163,6 +162,6 @@ private:
 };
 
 }  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets
+
 #endif  // SNIPPETS_DEBUG_CAPS

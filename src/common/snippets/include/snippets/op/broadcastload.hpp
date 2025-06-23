@@ -9,9 +9,7 @@
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface BroadcastLoad
@@ -52,6 +50,4 @@ private:
     ov::Dimension bcast_dimension;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

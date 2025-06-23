@@ -29,7 +29,7 @@ public:
 
 private:
     using RegMap = std::map<Reg, Reg>;
-    RegMap assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool);
+    static RegMap assign_regs_manually(const LinearIR& linear_ir, std::set<Reg>& gpr_pool, std::set<Reg>& vec_pool);
 
     RegManager& m_reg_manager;
 };

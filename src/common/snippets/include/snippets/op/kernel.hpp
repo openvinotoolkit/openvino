@@ -7,9 +7,7 @@
 #include "openvino/op/op.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Kernel
@@ -56,11 +54,8 @@ template <typename... ArgTypes>
 std::shared_ptr<Kernel> Kernel::make_kernel(bool is_dynamic, ArgTypes&&... args) {
     if (is_dynamic) {
         return std::make_shared<KernelDynamic>(std::forward<ArgTypes>(args)...);
-    } else {
-        return std::make_shared<KernelStatic>(std::forward<ArgTypes>(args)...);
     }
+    return std::make_shared<KernelStatic>(std::forward<ArgTypes>(args)...);
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

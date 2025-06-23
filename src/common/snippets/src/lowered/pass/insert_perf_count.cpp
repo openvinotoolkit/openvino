@@ -1,6 +1,18 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cstddef>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "snippets/lowered/pass/insert_perf_count.hpp"
@@ -8,10 +20,7 @@
 #    include "snippets/itt.hpp"
 #    include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 InsertPerfCount::InsertPerfCount(std::map<std::string, std::string> boundary_op_names)
     : RangedPass(),
@@ -68,8 +77,6 @@ bool InsertPerfCount::run(LinearIR& linear_ir,
     return true;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
+
 #endif  // SNIPPETS_DEBUG_CAPS

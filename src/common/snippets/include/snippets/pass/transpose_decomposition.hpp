@@ -6,9 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface TransposeDecomposition
@@ -24,6 +22,4 @@ public:
     static bool is_supported_transpose_order(const std::vector<int32_t>& order);
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

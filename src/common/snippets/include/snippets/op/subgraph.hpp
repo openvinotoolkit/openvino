@@ -171,10 +171,11 @@ public:
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
     static auto is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool;
 
-    void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
-                                   const std::vector<ov::element::Type>& input_precisions = {},
-                                   const std::vector<ov::element::Type>& output_precisions = {},
-                                   const std::vector<snippets::pass::Manager::PositionedPassBase>& = {}) const;
+    void data_flow_transformations(
+        const BlockedShapeVector& blocked_input_shapes = {},
+        const std::vector<ov::element::Type>& input_precisions = {},
+        const std::vector<ov::element::Type>& output_precisions = {},
+        const std::vector<snippets::pass::Manager::PositionedPassBase>& /*backend_passes*/ = {}) const;
 
     void control_flow_transformations(
         size_t min_parallel_work_amount = 8,

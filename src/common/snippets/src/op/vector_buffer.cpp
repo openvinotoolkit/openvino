@@ -4,13 +4,19 @@
 
 #include "snippets/op/vector_buffer.hpp"
 
+#include <memory>
+#include <utility>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
-VectorBuffer::VectorBuffer(const ov::element::Type element_type) : Op(), m_element_type(std::move(element_type)) {
+VectorBuffer::VectorBuffer(const ov::element::Type element_type) : m_element_type(element_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -31,6 +37,4 @@ bool VectorBuffer::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

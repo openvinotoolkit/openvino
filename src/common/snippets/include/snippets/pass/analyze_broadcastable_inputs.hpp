@@ -6,9 +6,7 @@
 
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface AnalyzeBroadcastableInputs
@@ -31,6 +29,4 @@ private:
     BroadcastableInputsMap& m_broadcastable_inputs;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

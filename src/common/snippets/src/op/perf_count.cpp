@@ -81,7 +81,7 @@ void ConsoleDumper::update(const op::PerfCountEnd* node) {
 
 //////////////////utils::CSVDumper///////////////
 
-CSVDumper::CSVDumper(const std::string csv_path) : csv_path(std::move(csv_path)) {}
+CSVDumper::CSVDumper(std::string csv_path) : csv_path(std::move(csv_path)) {}
 
 CSVDumper::~CSVDumper() {
     if (m_debug_params_map.empty() || csv_path.empty()) {
@@ -189,7 +189,7 @@ void PerfCountBegin::set_start_time() {
 
 //////////////////PerfCountEnd///////////////
 
-PerfCountEnd::PerfCountEnd() {}
+PerfCountEnd::PerfCountEnd() = default;
 
 PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
                            std::vector<std::shared_ptr<utils::Dumper>> dumpers,

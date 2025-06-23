@@ -4,6 +4,9 @@
 
 #include "snippets/emitter.hpp"
 
+#include <ostream>
+#include <string>
+
 #include "openvino/core/except.hpp"
 
 namespace ov::snippets {

@@ -7,9 +7,7 @@
 #include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Reshape
@@ -39,9 +37,7 @@ public:
     };
 
 private:
-    ov::PartialShape m_target_shape = {};
+    ov::PartialShape m_target_shape;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

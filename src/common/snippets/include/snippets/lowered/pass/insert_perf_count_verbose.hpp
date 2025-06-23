@@ -6,6 +6,8 @@
 
 #    pragma once
 
+#    include <utility>
+
 #    include "snippets/itt.hpp"
 #    include "snippets/lowered/loop_manager.hpp"
 #    include "snippets/lowered/pass/iter_handler.hpp"
@@ -13,10 +15,7 @@
 #    include "snippets/op/brgemm.hpp"
 #    include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InsertPerfCountVerbose
@@ -25,7 +24,7 @@ namespace pass {
  */
 class InsertPerfCountVerbose : public snippets::lowered::pass::RangedPass {
 public:
-    InsertPerfCountVerbose(const std::string& subgraph_name) : m_subgraph_name(subgraph_name) {}
+    InsertPerfCountVerbose(std::string subgraph_name) : m_subgraph_name(std::move(subgraph_name)) {}
     OPENVINO_RTTI("InsertPerfCountVerbose", "", RangedPass);
 
     bool run(snippets::lowered::LinearIR& linear_ir,
@@ -39,9 +38,6 @@ private:
     std::string m_subgraph_name;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
 
 #endif  // SNIPPETS_DEBUG_CAPS

@@ -32,12 +32,12 @@ enum class SnippetsNodeType : int64_t { NotSet, SkippedByPlugin };
              It's used in separate tokenization pass, for example, tokenization by matcher (MHA Tokenization).
  */
 enum class SnippetsSubgraphType : int64_t { NotSet, Completed };
-void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
-void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>&, SnippetsSubgraphType);
-SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);
-SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph>&);
-void SetTopologicalOrder(const std::shared_ptr<Node>&, int64_t);
-int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
+void SetSnippetsNodeType(const std::shared_ptr<Node>& /*node*/, SnippetsNodeType /*nodeType*/);
+void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>& /*node*/, SnippetsSubgraphType /*nodeType*/);
+SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>& /*node*/);
+SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph>& /*node*/);
+void SetTopologicalOrder(const std::shared_ptr<Node>& /*node*/, int64_t /*order*/);
+int64_t GetTopologicalOrder(const std::shared_ptr<const Node>& /*node*/);
 
 /**
  * @interface EnumerateNodes

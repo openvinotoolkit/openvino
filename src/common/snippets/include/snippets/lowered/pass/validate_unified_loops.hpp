@@ -7,10 +7,7 @@
 #include "pass.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface ValidateUnifiedLoops
@@ -34,7 +31,4 @@ private:
     static void validate_loop_port_presence(const LinearIR& linear_ir);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

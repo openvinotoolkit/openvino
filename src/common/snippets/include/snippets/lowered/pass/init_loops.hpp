@@ -7,10 +7,7 @@
 #include "pass.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InitLoops
@@ -27,7 +24,4 @@ private:
     static void update_compile_parameters(const UnifiedLoopInfoPtr& loop_info);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

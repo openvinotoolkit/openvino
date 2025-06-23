@@ -7,10 +7,7 @@
 #include "pass.hpp"
 #include "snippets/lowered/loop_info.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface DefineBufferClusters
@@ -145,7 +142,4 @@ private:
     BufferClusters m_clusters;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

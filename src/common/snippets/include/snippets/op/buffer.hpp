@@ -115,7 +115,7 @@ private:
             ov::Shape m_shape;
 
         public:
-            explicit ShapeInfer(ov::Shape shape);
+            explicit ShapeInfer(const ov::Shape& shape);
             Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
         };
 

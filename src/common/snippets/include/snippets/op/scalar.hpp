@@ -7,9 +7,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Scalar
@@ -22,7 +20,7 @@ public:
 
     Scalar() = default;
 
-    template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
+    template <class T, class = std::enable_if_t<std::is_fundamental_v<T>>>
     Scalar(const element::Type& type, Shape shape, T value) : Constant(type, shape, value) {
         constructor_validate_and_infer_types();
     }
@@ -34,7 +32,7 @@ public:
     }
     Scalar& operator=(const Scalar&) = delete;
 
-    template <class T, class = typename std::enable_if<std::is_fundamental<T>::value>::type>
+    template <class T, class = std::enable_if_t<std::is_fundamental_v<T>>>
     T get_value() const {
         const auto vec = cast_vector<T>();
         OPENVINO_ASSERT(vec.size() == 1, "Scalar must have a single value");
@@ -50,6 +48,4 @@ public:
     }
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

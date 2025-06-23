@@ -8,10 +8,7 @@
 #    include "pass.hpp"
 #    include "snippets/op/perf_count.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InsertPerfCount
@@ -30,8 +27,6 @@ private:
     std::map<std::string, std::string> m_boundary_op_names;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
+
 #endif  // SNIPPETS_DEBUG_CAPS

@@ -8,9 +8,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Load
@@ -24,7 +22,7 @@ class Load : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Load", "SnippetsOpset");
 
-    Load(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
+    Load(const Output<Node>& x, size_t count = 1lu, size_t offset = 0lu);
     Load() = default;
 
     size_t get_offset() const {
@@ -59,7 +57,7 @@ protected:
 class LoadReorder : public Load {
 public:
     OPENVINO_OP("LoadReorder", "SnippetsOpset", Load);
-    LoadReorder(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, std::vector<size_t> order = {});
+    LoadReorder(const Output<Node>& x, size_t count = 1lu, size_t offset = 0lu, std::vector<size_t> order = {});
     LoadReorder() = default;
 
     void set_offset(size_t offset) {
@@ -84,6 +82,4 @@ public:
 protected:
     std::vector<size_t> m_order;
 };
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

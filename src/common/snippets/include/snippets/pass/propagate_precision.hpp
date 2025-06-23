@@ -9,9 +9,7 @@
 #include "openvino/pass/pass.hpp"
 #include "snippets/generator.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @class PropagatePrecision
@@ -42,6 +40,4 @@ private:
     const std::shared_ptr<const TargetMachine> target_machine;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

@@ -4,23 +4,33 @@
 
 #include "snippets/lowered/pass/serialize_control_flow.hpp"
 
+#include <cstddef>
+#include <map>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/op/serialization_node.hpp"
-#include "snippets/snippets_isa.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SerializeControlFlow")
-    if (original_linear_ir.empty())
+    if (original_linear_ir.empty()) {
         return false;
+    }
     const auto& linear_ir = m_update_dynamic_ops ? LinearIRBuilder().clone(original_linear_ir) : original_linear_ir;
 
     const auto& loop_manager = linear_ir.get_loop_manager();
@@ -74,7 +84,4 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
     return ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(model);
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -7,10 +7,7 @@
 #include "serialize_base.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface SerializeDataFlow
@@ -26,7 +23,4 @@ public:
     bool run(const LinearIR& linear_ir) override;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

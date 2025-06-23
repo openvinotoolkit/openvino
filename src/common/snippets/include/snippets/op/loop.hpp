@@ -7,9 +7,7 @@
 #include "openvino/op/op.hpp"
 #include "snippets/emitter.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface LoopBase
@@ -105,10 +103,10 @@ public:
     void set_id(size_t id);
 
 protected:
-    std::vector<bool> m_is_incremented = {};
-    std::vector<int64_t> m_ptr_increments = {};
-    std::vector<int64_t> m_finalization_offsets = {};
-    std::vector<int64_t> m_element_type_sizes = {};
+    std::vector<bool> m_is_incremented;
+    std::vector<int64_t> m_ptr_increments;
+    std::vector<int64_t> m_finalization_offsets;
+    std::vector<int64_t> m_element_type_sizes;
     size_t m_work_amount = 0;
     size_t m_work_amount_increment = 0;
     size_t m_input_num = 0;
@@ -119,6 +117,4 @@ protected:
     bool m_evaluate_once = false;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

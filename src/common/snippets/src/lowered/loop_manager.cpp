@@ -145,7 +145,7 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
     return std::make_pair(loop_begin_pos, loop_end_pos);
 }
 
-LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
+LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) const {
     const auto& loop_info = get_loop_info(loop_id);
     return loop_info->get_loop_port(expr_port);
 }
@@ -387,7 +387,7 @@ void LoopManager::fuse_loop_ports(std::vector<LoopPort>& output_ports,
     output_ports = new_output_ports;
 }
 
-void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
+void LoopManager::update_loop_ports(const ExpressionPtr& expr) const {
     auto update_ports = [&](const ov::snippets::lowered::ExpressionPort& connected_port) {
         const auto is_output = connected_port.get_type() == ExpressionPort::Output;
         // Iterate through all Loops of the connected expression
@@ -435,7 +435,7 @@ void LoopManager::update_loop_ports(const ExpressionPtr& expr) {
     }
 }
 
-void LoopManager::sort_loop_ports(const std::vector<size_t>& loop_ids) {
+void LoopManager::sort_loop_ports(const std::vector<size_t>& loop_ids) const {
     for (const auto& loop_id : loop_ids) {
         get_loop_info(loop_id)->sort_ports();
     }

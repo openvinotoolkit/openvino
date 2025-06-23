@@ -7,10 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 /**
  * @interface UpdateSubtensors
  * @brief The pass updates subtensors of all operations in Loop based on tail size.
@@ -30,7 +27,4 @@ private:
     size_t m_tail_size;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

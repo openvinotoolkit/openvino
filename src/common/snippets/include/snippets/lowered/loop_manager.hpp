@@ -38,7 +38,7 @@ public:
      * @param index loop ID
      * @return the LoopInfo shared ptr
      */
-    template <typename T = LoopInfo, typename std::enable_if<std::is_base_of<LoopInfo, T>::value, bool>::type = true>
+    template <typename T = LoopInfo, std::enable_if_t<std::is_base_of_v<LoopInfo, T>, bool> = true>
     [[nodiscard]] std::shared_ptr<T> get_loop_info(size_t index) const {
         const auto it = m_map.find(index);
         OPENVINO_ASSERT(it != m_map.end(), "LoopInfo hasn't been found!");
@@ -245,12 +245,12 @@ public:
      *             consumer input ports) with the target expression input ports.
      * @param expr the target expression
      */
-    void update_loop_ports(const ExpressionPtr& expr);
+    void update_loop_ports(const ExpressionPtr& expr) const;
     /**
      * @brief Sort all loop ports of loop with ids from `loop_ids` by expression execution number
      * @param loop_ids IDs of loops
      */
-    void sort_loop_ports(const std::vector<size_t>& loop_ids);
+    void sort_loop_ports(const std::vector<size_t>& loop_ids) const;
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the
      * corresponding Loop. If ports of decomposed expression were the Loop ports, these Loop ports may be updated by
@@ -306,7 +306,7 @@ public:
      * @param loop_id target Loop ID
      * @return loop port
      */
-    LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, size_t loop_id);
+    LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, size_t loop_id) const;
 
     /**
      * @brief Reorder ALL Loop IDs in `m_map` using `loop_id_map`
@@ -354,7 +354,7 @@ private:
     // Notes:
     //  - These methods don't update the corresponding LoopInfo
     void replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id);
-    void remove_loop_id(const ExpressionPtr& expr, size_t id);
+    static void remove_loop_id(const ExpressionPtr& expr, size_t id);
     // Insert loop ID before (as outer Loop) or after (as inner Loop) target ID in vector of identifiers
     // Before:                                 | After:
     //   loop_ids: [.., new_id, target_id, ..] |    loop_ids: [.., target_id, new_id, ..]
