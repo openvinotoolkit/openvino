@@ -498,6 +498,24 @@ bool crop_in_place_optimization::match(const program_node& node,
                 crop_params.input_offsets[0].spatial[1] != 0) {
                 return false;
             }
+            // Do not optimize out for possibly crop padding to select gemm_tiled_opt kernel
+            auto crop_layout = node.get_output_layout();
+            auto& crop_node = node.as<crop>();
+            std::pair<const program_node*, layout> user_info;
+            if (can_crop_be_optimized_simple_data_format(crop_layout, input_layout)) {
+                auto has_padding_expect_batch = [](const padding pad) {
+                    return std::any_of(std::next(pad._lower_size.begin()), pad._lower_size.end(), [](int32_t i){ return i > 0; }) ||
+                           std::any_of(std::next(pad._upper_size.begin()), pad._upper_size.end(), [](int32_t i){ return i > 0; });
+                };
+                update_in_place_crop_padding_simple_data_format(crop_layout,
+                                                                input_layout,
+                                                                user_info,
+                                                                crop_params.input_offsets[0],
+                                                                crop_node.get_primitive()->axis,
+                                                                is_runtime);
+                if (has_padding_expect_batch(crop_layout.data_padding))
+                    return false;
+            }
         }
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
@@ -874,10 +892,6 @@ void prepare_buffer_fusing::run(program& p) {
                     }
                 }
             }
-            // For better performance, disable buffer fusing with data padding which causes selecting gemm_ref kernel instead of gemm_tiled_opt
-            if (node.get_users().front()->is_type<gemm>() && crop_layout.data_padding)
-                return;
-
             node.set_output_layout(crop_layout);
             node.can_be_optimized(true);
             propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
