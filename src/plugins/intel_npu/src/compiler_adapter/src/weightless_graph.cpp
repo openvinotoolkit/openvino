@@ -25,14 +25,9 @@ constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
     const std::shared_ptr<const ov::Model>& model) {
-    std::chrono::steady_clock::time_point begin;
-    std::chrono::steady_clock::time_point end;
-
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
-    begin = std::chrono::steady_clock::now();
-
     const ov::RTMap& runtimeInfoMap = model->get_rt_info();
     const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
     if (weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>()) {
@@ -60,9 +55,6 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
             constants[constantId++] = std::static_pointer_cast<ov::op::v0::Constant>(node);
         }
     }
-    end = std::chrono::steady_clock::now();
-    std::cout << "getting constant IDs " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
-              << "[microseconds]" << std::endl;
 
     return constants;
 }
@@ -326,15 +318,11 @@ void WeightlessGraph::initialize(const Config& config) {
 
     create_command_queue(config);
 
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
 #else
     run_init_multi_threaded();
 #endif
-    std::cout << "run_init() call "
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin).count()
-              << "[ms]" << std::endl;
 
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
@@ -354,16 +342,6 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
     const size_t initIndex,
     const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants) {
     std::vector<std::shared_ptr<ov::ITensor>> initInputsViewTensors;
-
-    std::chrono::steady_clock::time_point begin;
-    std::chrono::steady_clock::time_point end;
-    std::chrono::steady_clock::time_point begin_memcpy;
-    std::chrono::steady_clock::time_point end_memcpy;
-    std::chrono::steady_clock::time_point begin_tensor_creation;
-    std::chrono::steady_clock::time_point end_tensor_creation;
-    long long memcpy_duration = 0;
-
-    begin = std::chrono::steady_clock::now();
     size_t initInputsByteSize = 0;
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
@@ -371,18 +349,12 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    begin_tensor_creation = std::chrono::steady_clock::now();
     const ov::SoPtr<ZeroHostTensor> initInputsAllocatedTensor = {
         std::make_shared<ZeroHostTensor>(nullptr,
                                          _zeroInitStruct,
                                          ov::element::Type_t::u8,
                                          ov::Shape({initInputsByteSize}),
                                          ov::intel_npu::TensorType::INPUT)};
-    end_tensor_creation = std::chrono::steady_clock::now();
-    std::cout
-        << "init inputs tensor creation "
-        << std::chrono::duration_cast<std::chrono::microseconds>(end_tensor_creation - begin_tensor_creation).count()
-        << "[microseconds]" << std::endl;
 
     const ov::RTMap& runtimeInfoMap = _model->get_rt_info();
     const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
@@ -433,20 +405,12 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
                             descriptor.shapeFromCompiler.to_shape());
         }
 
-        begin_memcpy = std::chrono::steady_clock::now();
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
-        end_memcpy = std::chrono::steady_clock::now();
-        memcpy_duration =
-            memcpy_duration + std::chrono::duration_cast<std::chrono::microseconds>(end_memcpy - begin_memcpy).count();
 
         initInputsViewTensors.push_back(
             ov::make_tensor(constant->get_element_type(), constant->get_shape(), currentInputBufferLocation));
         offset += currentInputSize;
     }
-    end = std::chrono::steady_clock::now();
-    std::cout << "Creating input tensors " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()
-              << "[microseconds]" << std::endl;
-    std::cout << "Memcpy duration " << memcpy_duration << "[microseconds]" << std::endl;
 
     return {initInputsViewTensors, initInputsAllocatedTensor};
 }
@@ -454,13 +418,6 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initIndex) {
     std::vector<std::shared_ptr<ov::ITensor>> initOutputsViewTensorsVector;
     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>> initOutputsViewTensorsMap;
-
-    std::chrono::steady_clock::time_point begin;
-    std::chrono::steady_clock::time_point end;
-    std::chrono::steady_clock::time_point begin_tensor_creation;
-    std::chrono::steady_clock::time_point end_tensor_creation;
-
-    begin = std::chrono::steady_clock::now();
     size_t initOutputsByteSize = 0;
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
@@ -468,18 +425,12 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
-    begin_tensor_creation = std::chrono::steady_clock::now();
     const ov::SoPtr<ZeroHostTensor> initOutputsAllocatedTensor = {
         std::make_shared<ZeroHostTensor>(nullptr,
                                          _zeroInitStruct,
                                          ov::element::Type_t::u8,
                                          ov::Shape({initOutputsByteSize}),
                                          ov::intel_npu::TensorType::BINDED)};
-    end_tensor_creation = std::chrono::steady_clock::now();
-    std::cout
-        << "init outputs tensor creation "
-        << std::chrono::duration_cast<std::chrono::microseconds>(end_tensor_creation - begin_tensor_creation).count()
-        << "[microseconds]" << std::endl;
 
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
@@ -495,18 +446,11 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
         offset +=
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
-    end = std::chrono::steady_clock::now();
-    std::cout << "Creating output tensors "
-              << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
-              << std::endl;
 
     return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
 }
 
 void WeightlessGraph::run_init_single_threaded() {
-    std::chrono::steady_clock::time_point begin;
-    std::chrono::steady_clock::time_point end;
-
     const auto constants = get_all_constants_in_topological_order(_model);
 
     for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
@@ -515,19 +459,8 @@ void WeightlessGraph::run_init_single_threaded() {
             allocate_outputs(initIndex);
 
         // Create zero-pipeline and run it (infer init schedule)
-        begin = std::chrono::steady_clock::now();
         create_pipeline(initIndex, initInputsViewTensors, initOutputsViewTensors);
-        end = std::chrono::steady_clock::now();
-        std::cout << "Creating the pipeline "
-                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
-                  << std::endl;
-
-        begin = std::chrono::steady_clock::now();
         run_pipeline(initIndex);
-        end = std::chrono::steady_clock::now();
-        std::cout << "Running the pipeline "
-                  << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
-                  << std::endl;
 
         merge_two_maps(_mainInputsViewTensors, initOutputsViewTensorsMap);
         _mainInputsAllocatedTensors.push_back(std::move(initOutputsAllocatedTensor));
@@ -558,32 +491,19 @@ void WeightlessGraph::run_init_multi_threaded() {
             return data;
         },
         [&](QueueData&& data, std::condition_variable& cv, std::atomic_bool& flag) {
-            std::chrono::steady_clock::time_point begin;
-            std::chrono::steady_clock::time_point end;
-
             // Create zero-pipeline and run it (infer init schedule)
             ze_device_properties_t properties = {};
             properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
             THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
                                         zeDeviceGetProperties(_zeroInitStruct->getDevice(), &properties));
 
-            begin = std::chrono::steady_clock::now();
             create_pipeline(data.initIndex, data.inputs.tensors, data.outputs.tensors);
-            end = std::chrono::steady_clock::now();
-            std::cout << "Creating the pipeline "
-                      << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
-                      << std::endl;
 
             // progress task 1:
             flag.store(true);
             cv.notify_one();
 
-            begin = std::chrono::steady_clock::now();
             run_pipeline(data.initIndex);
-            end = std::chrono::steady_clock::now();
-            std::cout << "Running the pipeline "
-                      << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[microseconds]"
-                      << std::endl;
 
             // TODO: pre-allocate those well in advance? (outside of this loop)
             merge_two_maps(_mainInputsViewTensors, data.outputs.tensorsMap);

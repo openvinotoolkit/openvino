@@ -536,12 +536,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (!separateWeights) {
             graph = compiler->compile(model->clone(), localConfig);
         } else {
-            auto begin = std::chrono::steady_clock::now();
             graph = compiler->compileWS(store_weightless_cache_attribute_occurrence(model), localConfig);
-            auto end = std::chrono::steady_clock::now();
-            std::cout << "compiler->compileWS() call "
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]"
-                      << std::endl;
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
