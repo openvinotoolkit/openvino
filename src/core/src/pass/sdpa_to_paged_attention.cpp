@@ -50,8 +50,9 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
-    // ov::pass::VisualizeTree("before_codegen.svg").run_on_model(model);
-    ov::pass::Serialize(std::string("qwen7b_before.xml"), std::string("qwen7b_before.bin")).run_on_model(model);
+    ov::pass::VisualizeTree("codegen2_small_before.svg").run_on_model(model);
+    // ov::pass::Serialize(std::string("qwen7b_before.xml"), std::string("qwen7b_before.bin")).run_on_model(model);
+    ov::pass::Serialize(std::string("codegen2_before_transformation.xml"), std::string("codegen2_before_transformation.bin")).run_on_model(model);
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
@@ -171,10 +172,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids, dbg_results);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
-    manager.register_pass<TotalSequenceLengthPatternCodeGen>(max_context_len);
+    // manager.register_pass<TotalSequenceLengthPatternCodeGen>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
-    manager.register_pass<ReplaceRoPERangeWithPositionIds>(unsqueezed_position_ids, dbg_results, layer_index1);
+    // manager.register_pass<ReplaceRoPERangeWithPositionIds>(unsqueezed_position_ids, dbg_results, layer_index1);
     // manager.register_pass<CustomModelPass>(position_ids);
     manager.run_passes(model);
 
@@ -281,6 +282,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(model_wide_params);
     model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
-    ov::pass::VisualizeTree("after_qwen_7b_full.svg").run_on_model(model);
+    ov::pass::VisualizeTree("codegen2_small_after.svg").run_on_model(model);
     return true;
 }

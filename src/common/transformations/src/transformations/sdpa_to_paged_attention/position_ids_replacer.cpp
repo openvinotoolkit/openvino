@@ -104,9 +104,6 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
 
         auto axis = v0::Constant::create(element::i64, Shape{}, {1});
 
-        std::cout << "slice_1: " << slice_1 << std::endl;
-        std::cout << "slice_2: " << slice_2 << std::endl;
-        std::cout << "slice_1->input_value(0): " << slice_1->input_value(0).get_node_shared_ptr() << std::endl;
         // in case of PagedAttention (Continuous batching) the rotary_emb_cos/rotary_emb_sin
         // are used not in the sequential order, so we need to use position_ids to get the expected values.
         auto gather = std::make_shared<v8::Gather>(slice_1->input_value(0), position_ids, axis);
