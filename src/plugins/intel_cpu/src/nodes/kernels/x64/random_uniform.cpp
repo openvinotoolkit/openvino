@@ -16,7 +16,7 @@
 #include "nodes/kernels/x64/registers_pool.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "utils/general_utils.h"
+#include "utils/cpp/bit_cast.hpp"
 
 using namespace dnnl::impl::cpu;
 

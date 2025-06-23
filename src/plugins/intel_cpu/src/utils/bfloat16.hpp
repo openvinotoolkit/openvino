@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "utils/general_utils.h"
+#include "utils/cpp/bit_cast.hpp"
 
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the

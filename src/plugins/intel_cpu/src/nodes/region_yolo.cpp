@@ -37,6 +37,7 @@
 #include "openvino/op/region_yolo.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl;

@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "utils/general_utils.h"
+#include "utils/cpp/bit_cast.hpp"
 
 namespace ov {
 namespace intel_cpu {

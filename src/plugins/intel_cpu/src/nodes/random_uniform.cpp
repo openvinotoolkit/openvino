@@ -37,6 +37,7 @@
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
