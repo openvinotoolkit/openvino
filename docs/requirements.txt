@@ -20,10 +20,10 @@ MarkupSafe==2.1.1
 mistune==2.0.3
 myst-parser==3.0.1; python_version < "3.10"
 myst-parser==4.0.1; python_version >= "3.10"
-packaging==23.0
+packaging==25.0
 pluggy==1.6.0
 pydata-sphinx-theme==0.14.4
-Pygments==2.15.1
+Pygments==2.19.1
 pyparsing==3.0.9
 pytest==8.4.0
 pytest-html==4.1.1
@@ -35,7 +35,7 @@ requests==2.32.4
 six==1.15.0
 snowballstemmer==3.0.1
 soupsieve==2.7
-sphinx==7.3.7
+sphinx==7.4.7
 sphinx-copybutton==0.5.2
 sphinx-design==0.5.0
 sphinx-inline-tabs==2023.4.21
@@ -47,5 +47,5 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.9
 toml==0.10.2
-urllib3==1.26.19
+urllib3==2.5.0
 zipp==3.19.1
