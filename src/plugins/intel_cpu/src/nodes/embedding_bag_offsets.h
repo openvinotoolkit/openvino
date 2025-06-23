@@ -4,12 +4,17 @@
 
 #pragma once
 
-#include "embedding_bag.h"
-#include "node.h"
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "embedding_bag.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class EmbeddingBagOffset : public Node, public EmbeddingBag {
 public:
@@ -42,6 +47,4 @@ private:
     size_t _offsetsLen = 0;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

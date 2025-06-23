@@ -8,10 +8,9 @@
 #include <typeinfo>
 #include <vector>
 
-#include "snippets/pass/common_optimizations.hpp"
-
-#include "snippets/pass/subgraph_pass.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/subgraph_pass.hpp"
 
 namespace ov {
 namespace snippets {
@@ -19,7 +18,8 @@ namespace pass {
 /**
  * @brief Manager class allows to manage transformation passes (SubgraphPasses) on Subgraph ops.
  *        See SubgraphPasses description for more details.
- *        It's light version of ov::Manager implementation the purpose of which is to change only Subgraph as separate node in model.
+ *        It's light version of ov::Manager implementation the purpose of which is to change only Subgraph as separate
+ *        node in model.
  * @ingroup snippets
  */
 class CommonOptimizations::SubgraphManager {
