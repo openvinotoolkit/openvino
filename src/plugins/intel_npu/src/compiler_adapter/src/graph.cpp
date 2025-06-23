@@ -122,7 +122,8 @@ void Graph::initialize(const Config& config) {
             _logger.debug("got pfnGetArgumentProperties3 for input: %s", _input_descriptors.back().to_string().c_str());
         } else {
             _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
-            _logger.debug("got pfnGetArgumentProperties3 for output: %s", _output_descriptors.back().to_string().c_str());
+            _logger.debug("got pfnGetArgumentProperties3 for output: %s",
+                          _output_descriptors.back().to_string().c_str());
         }
     }
 
