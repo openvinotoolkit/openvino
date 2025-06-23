@@ -6,13 +6,13 @@
 
 #include <cstring>
 #include <type_traits>
-#if defined(OPENVINO_CPP_VER_AT_LEAST_20) && defined(__has_include) && __has_include(<bit>) && defined(__cpp_lib_bit_cast)
+#if defined(OPENVINO_CPP_VER_AT_LEAST_20)
 #    include <bit>
 #endif
 
 namespace ov::intel_cpu {
 
-#if defined(OPENVINO_CPP_VER_AT_LEAST_20) && defined(__has_include) && __has_include(<bit>) && defined(__cpp_lib_bit_cast)
+#if defined(OPENVINO_CPP_VER_AT_LEAST_20)
 using std::bit_cast;
 #else
 template <typename To, typename From>
