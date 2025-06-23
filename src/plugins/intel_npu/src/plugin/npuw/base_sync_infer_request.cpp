@@ -564,7 +564,7 @@ void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
             }
             // Dump ilist per tile
             std::string tile_ilist_name = comp_submodel_path + "_" + ov::npuw::util::fmt(offset, s.range);
-            ov::npuw::dump_input_list(std::move(tile_ilist_name), in_base_names);
+            ov::npuw::dump_input_list(tile_ilist_name, in_base_names);
         }  // for(offset)
     }
 }
