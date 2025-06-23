@@ -512,11 +512,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
-    if (localConfig.get<WEIGHTLESS_BLOB>() && !localConfig.get<CACHE_DIR>().empty()) {
-        // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the size
-        // of the binary object
-        localConfig.update({{ov::intel_npu::weightless_blob.name(),
-                             (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE) ? "YES" : "NO"}});
+    bool separateWeights = localConfig.get<WEIGHTLESS_BLOB>();
+    if (!localConfig.get<CACHE_DIR>().empty()) {
+        const bool cacheModeOptimizeSize = (localConfig.get<CACHE_MODE>() == ov::CacheMode::OPTIMIZE_SIZE);
+        if (localConfig.get<WEIGHTLESS_BLOB>() && !cacheModeOptimizeSize) {
+            _logger.warning("The cache mode was not set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
+                            "option was set to true. Weights separation WILL NOT be performed in this case.");
+        } else if (!localConfig.get<WEIGHTLESS_BLOB>() && cacheModeOptimizeSize) {
+            _logger.warning("The cache mode was set to \"optimize size\" but the \"WEIGHTLESS_BLOB\" configuration "
+                            "option was set to false. Weights separation WILL be performed in this case.");
+        }
+
+        // If OV caching is enabled, then weights separation is performed only if the user opted for optimizing the
+        // size of the binary object
+        separateWeights = cacheModeOptimizeSize;
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -524,7 +533,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     try {
         _logger.debug("performing compile");
 
-        if (!localConfig.get<WEIGHTLESS_BLOB>()) {
+        if (!separateWeights) {
             graph = compiler->compile(model->clone(), localConfig);
         } else {
             auto begin = std::chrono::steady_clock::now();
