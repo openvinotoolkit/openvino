@@ -666,7 +666,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
     {
         auto max_context_len = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
         auto max_context_len_i64 = std::make_shared<v0::Convert>(max_context_len, element::i64);
-        auto max_context_len_reshaped = std::make_shared<v1::Reshape>(max_context_len_i64, v0::Constant::create(element::i64, Shape{1}, {1}), true);
+        auto max_context_len_reshaped =
+            std::make_shared<v1::Reshape>(max_context_len_i64, v0::Constant::create(element::i64, Shape{1}, {1}), true);
         max_context_len->set_friendly_name("max_context_len");
 
         auto rotary_emb_sincos = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, DYN, 1, 128});
@@ -674,11 +675,15 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
 
         auto fake_input = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN, DYN});
         auto shape = std::make_shared<v3::ShapeOf>(fake_input, element::i64);
-        auto gather = std::make_shared<v8::Gather>(shape, v0::Constant::create(element::i64, Shape{1}, {1}), v0::Constant::create(element::i64, Shape{}, {0}));
+        auto gather = std::make_shared<v8::Gather>(shape,
+                                                   v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                   v0::Constant::create(element::i64, Shape{1}, {0}));
 
         auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
         auto minus_one_converted = std::make_shared<v0::Convert>(minus_one, element::i64);
-        auto minus_one_reshaped = std::make_shared<v1::Reshape>(minus_one_converted, v0::Constant::create(element::i64, Shape{1}, {-1}), true);
+        auto minus_one_reshaped = std::make_shared<v1::Reshape>(minus_one_converted,
+                                                                v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                                true);
         auto past_offset = std::make_shared<v1::Multiply>(gather, minus_one_reshaped);
 
         auto start_const = v0::Constant::create(element::i64, Shape{1}, {0});
@@ -686,11 +691,16 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
         auto step_const = v0::Constant::create(element::i64, Shape{1}, {1});
         auto axis_const = v0::Constant::create(element::i64, Shape{1}, {1});
 
-        auto slice_1 = std::make_shared<v8::Slice>(rotary_emb_sincos, start_const, max_context_len_reshaped, step_const, axis_const);
+        auto slice_1 = std::make_shared<v8::Slice>(rotary_emb_sincos,
+                                                   start_const,
+                                                   max_context_len_reshaped,
+                                                   step_const,
+                                                   axis_const);
         auto slice_2 = std::make_shared<v8::Slice>(slice_1, past_offset, stop_const, step_const, axis_const);
         auto result = std::make_shared<v0::Result>(slice_2);
 
-        model = std::make_shared<Model>(ResultVector{result}, ParameterVector{max_context_len, rotary_emb_sincos, fake_input, position_ids});
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, rotary_emb_sincos, fake_input, position_ids});
         manager.register_pass<pass::PositionIDsReplacerQwen>(position_ids);
     }
 
@@ -698,7 +708,9 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
         auto rotary_emb_sincos = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, DYN, 1, 128});
         auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
 
-        auto gather_new = std::make_shared<v8::Gather>(rotary_emb_sincos, position_ids, v0::Constant::create(element::i64, Shape{}, {1}));
+        auto gather_new = std::make_shared<v8::Gather>(rotary_emb_sincos,
+                                                       position_ids,
+                                                       v0::Constant::create(element::i64, Shape{}, {1}));
         auto new_shape = v0::Constant::create(element::i64, Shape{4}, {-1, 1, 1, 128});
         auto reshaped = std::make_shared<v1::Reshape>(gather_new, new_shape, true);
 
