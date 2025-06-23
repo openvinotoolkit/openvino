@@ -165,18 +165,13 @@ TEST_P(TransposeMatmulTransposeFuse3DTest, smoke_allowed_transposes_order) {
     request.infer();
 }
 
-const std::vector<std::vector<int64_t>> allowed_order_a_3d = {
-    {1, 0, 2},
-};
-
-const std::vector<std::vector<int64_t>> allowed_order_c_3d = {
-    {1, 2, 0}
-};
+const std::vector<int64_t> allowed_order_a_3d = {1, 0, 2};
+const std::vector<int64_t> allowed_order_c_3d = {1, 2, 0};
 
 INSTANTIATE_TEST_SUITE_P(smoke_TransposeMatMulFusion_basic,
                          TransposeMatmulTransposeFuse3DTest,
-                         ::testing::Combine(::testing::ValuesIn(allowed_order_a_3d),
-                                            ::testing::ValuesIn(allowed_order_c_3d),
-                                            ::testing::ValuesIn(input_precisions)),
+                         ::testing::Combine(::testing::Values(allowed_order_a_3d),
+                                            ::testing::Values(allowed_order_c_3d),
+                                            ::testing::Values(ov::element::f16)),
                          TransposeMatmulTransposeFuse3DTest::getTestCaseName);
 }  // namespace
