@@ -15,10 +15,9 @@
 #include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#    include "snippets/lowered/pass/insert_perf_count.hpp"
-
 #    include "snippets/itt.hpp"
 #    include "snippets/lowered/linear_ir.hpp"
+#    include "snippets/lowered/pass/insert_perf_count.hpp"
 
 namespace ov::snippets::lowered::pass {
 
