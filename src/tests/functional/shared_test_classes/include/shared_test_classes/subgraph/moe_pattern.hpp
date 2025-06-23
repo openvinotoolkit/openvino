@@ -9,20 +9,20 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
-using MOETestParams = std::tuple<ElementType>;  // input precision
+using MOETestParams = std::tuple<ElementType, ElementType>;  // input precision, weight precision
 
 class MOETest : public testing::WithParamInterface<MOETestParams>,
                       virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MOETestParams>& obj) {
         ElementType inType;
-        std::tie(inType) = obj.param;
+        ElementType weiType;
+        std::tie(inType, weiType) = obj.param;
         std::ostringstream result;
 
-        result << "Prc=" << inType;
+        result << "ActPrc=" << inType << "_WeiPrc=" << weiType;
         return result.str();
     }
     void SetUp() override;
@@ -42,17 +42,11 @@ protected:
         return result;
     }
 
-    enum WeightFormat {
-        WeightFormat_FP16,
-        WeightFormat_INT8,
-        WeightFormat_INT4,
-    };
-
     std::shared_ptr<ov::Model> BuildMOE(ElementType inType,
                                         bool expected_pattern,
                                         int expert_num = 1,
                                         int topk = 8,
-                                        WeightFormat weight_format = WeightFormat_INT4);
+                                        ElementType weiType = ov::element::u4);
 
     void generate(float idx, size_t seq_length);
     std::vector<ov::Tensor> run_test(std::shared_ptr<ov::Model> model);
@@ -62,5 +56,4 @@ protected:
     size_t _expert_num = 4;
     size_t _topk = 2;
 };
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

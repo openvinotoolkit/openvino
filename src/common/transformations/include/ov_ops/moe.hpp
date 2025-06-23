@@ -33,10 +33,23 @@ public:
         ov::element::Type scale_type = ov::element::dynamic;   // same for gate/up/down
         ov::element::Type zp_type = ov::element::dynamic;      // same for gate/up/down
         bool operator==(const Config& rhs) const {
-#define CMP(x) (x == rhs.x)
-            return CMP(topk) && CMP(expert_num) && CMP(hidden_size) && CMP(intermediate_size) &&
-                   CMP(fused_router_logic) && CMP(group_size) && CMP(weight_type) && CMP(scale_type) && CMP(zp_type);
-#undef CMP
+            return std::tie(topk,
+                            expert_num,
+                            hidden_size,
+                            intermediate_size,
+                            fused_router_logic,
+                            group_size,
+                            weight_type,
+                            scale_type,
+                            zp_type) == std::tie(rhs.topk,
+                                                 rhs.expert_num,
+                                                 rhs.hidden_size,
+                                                 rhs.intermediate_size,
+                                                 rhs.fused_router_logic,
+                                                 rhs.group_size,
+                                                 rhs.weight_type,
+                                                 rhs.scale_type,
+                                                 rhs.zp_type);
         }
     };
 

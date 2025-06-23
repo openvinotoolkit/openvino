@@ -31,7 +31,7 @@ static bool repack_zp_scale(std::vector<uint8_t>& dst, const uint8_t* src, const
         return false;
     auto N = shape[0];
     auto K = shape[1];
-    auto element_size = std::accumulate(shape.begin(), shape.end(), int64_t{1}, std::multiplies<>());
+    auto element_size = ov::shape_size(shape);
     if (type == ov::element::u4 || type == ov::element::i4) {
         dst.resize(element_size / 2);
         for (size_t n = 0; n < N; n += 2) {
@@ -61,11 +61,7 @@ static size_t get_weights_size(const std::shared_ptr<ov::op::internal::MOE>& op)
     size_t weights_size = 0;
     auto get_size = [&](const std::shared_ptr<ov::Node>& node) {
         auto op = ov::as_type_ptr<ov::op::v0::Constant>(node);
-        ov::Shape const_shape = op->get_shape();
-        auto constFormat = cldnn::format::get_default_format(const_shape.size());
-        cldnn::data_types out_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-        auto layout = cldnn::layout(const_shape, out_dtype, constFormat);
-        return layout.bytes_count();
+        return op->get_byte_size();
     };
     for (size_t i = 0; i < op->get_consts().size(); i++) {
         auto current_consts = op->get_consts()[i];

@@ -6,9 +6,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 
-namespace {
-using namespace ov;
-using namespace ov::test;
+namespace ov::test {
 
 TEST_P(MOETest, Inference) {
     {
@@ -40,8 +38,8 @@ TEST_P(MOETest, Inference_cached) {
     core->set_property(ov::cache_dir(""));
     auto func_bak = function;
     std::vector<ov::Tensor> actualOutputs, expectedOutputs;
-    ElementType inType;
-    std::tie(inType) = this->GetParam();
+    ElementType inType, weiType;
+    std::tie(inType, weiType) = this->GetParam();
     targetDevice = ov::test::utils::DEVICE_CPU;
     expectedOutputs = run_test(functionRefs);
 
@@ -77,8 +75,9 @@ TEST_P(MOETest, Inference_cached) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_MOE_basic,
                          MOETest,
-                         // TODO(MOE): support f32
-                         ::testing::Combine(::testing::Values(ov::element::f16)),
+                         ::testing::Combine(
+                            ::testing::Values(ov::element::f16),
+                            ::testing::Values(ov::element::u4)),
                          MOETest::getTestCaseName);
 
-} // namespace
+} // namespace ov::test

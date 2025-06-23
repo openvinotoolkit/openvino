@@ -15,14 +15,13 @@
 
 using namespace ov::gen_pattern;
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
                                              bool expected_pattern,
                                              int expert_num,
                                              int topk,
-                                             WeightFormat weight_format) {
+                                             ElementType weiType) {
     // param0: [batch*seq, 2048]
     auto final_hidden_states_ = std::make_shared<ov::opset1::Parameter>(inType, ov::PartialShape{-1, 2048});
     // f32[?,128]
@@ -88,7 +87,7 @@ std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
         auto index_Gather_4 = makeOP<opset8::Gather>({hidden_states, index_add__Convert_2, 1}, {{"batch_dims", 0}});
         auto reshape_Reshape_2 = makeOP<opset1::Reshape>({index_Gather_4, {-1, 2048}}, {{"special_zero", true}});
         std::shared_ptr<ov::Node> gate_linear_Convert, up_linear_Convert, down_linear_Convert;
-        if (weight_format == WeightFormat_INT4) {
+        if (weiType == element::u4) {
             auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
                 makeConst(element::u4, ov::Shape({768, 16, 128}), random<uint8_t>(0, 3, {768, 16, 128}));
             auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight},
@@ -155,7 +154,7 @@ std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
                 {self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1, {2048, 768}},
                 {{"special_zero", false}});
             down_linear_Convert = makeOP<opset1::Convert>({Reshape_3992658}, {{"destination_type", "f32"}});
-        } else if (weight_format == WeightFormat_INT8) {
+        } else if (weiType == element::u8) {
             auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
                 makeConst(element::u8, ov::Shape({768, 16 * 128}), random<uint8_t>(0, 3, {768, 16 * 128}));
             auto Convert_3988397 = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight},
@@ -216,6 +215,7 @@ std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
             down_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_down_proj_weight_fq_weights_1},
                 {{"destination_type", "f32"}});
         } else {
+            OPENVINO_ASSERT(weiType == element::f16, "expected weight format is f16, current: ", weiType);
             auto self_model_model_layers_0_mlp_experts_2_gate_proj_weight =
                 makeConst(element::f16, ov::Shape({768, 16 * 128}), random<uint8_t>(0, 3, {768, 16 * 128}));
             gate_linear_Convert = makeOP<opset1::Convert>({self_model_model_layers_0_mlp_experts_2_gate_proj_weight}, {{"destination_type", "f32"}});
@@ -265,9 +265,9 @@ std::shared_ptr<ov::Model> MOETest::BuildMOE(ElementType inType,
 }
 
 void MOETest::SetUp() {
-    ElementType inType;
+    ElementType inType, weiType;
     std::vector<InputShape> inputShapes;
-    std::tie(inType) = this->GetParam();
+    std::tie(inType, weiType) = this->GetParam();
     rel_threshold = 1e-2f;
     abs_threshold = 1e-2f;
     if (inType == ElementType::f16) {
@@ -278,9 +278,9 @@ void MOETest::SetUp() {
         // configuration.insert({"INFERENCE_PRECISION_HINT", "FP32"});
     }
 
-    function = BuildMOE(inType, true, static_cast<int>(_expert_num), static_cast<int>(_topk));
+    function = BuildMOE(inType, true, static_cast<int>(_expert_num), static_cast<int>(_topk), weiType);
 
-    functionRefs = BuildMOE(inType, false, static_cast<int>(_expert_num), static_cast<int>(_topk));
+    functionRefs = BuildMOE(inType, false, static_cast<int>(_expert_num), static_cast<int>(_topk), weiType);
 }
 
 void MOETest::generate(float idx, size_t bs) {
@@ -290,6 +290,11 @@ void MOETest::generate(float idx, size_t bs) {
             ov::Tensor t{ov::element::f32, shape};
             auto data = random<float>(start, end, shape);
             memcpy(t.data(), data.data(), data.size() * sizeof(float));
+            inputs.insert({param, t});
+        } else if (param->get_element_type() == element::bf16) {
+            ov::Tensor t{ov::element::bf16, shape};
+            auto data = random<ov::bfloat16>(start, end, shape);
+            memcpy(t.data(), data.data(), data.size() * sizeof(ov::bfloat16));
             inputs.insert({param, t});
         } else {
             OPENVINO_ASSERT(param->get_element_type() == element::f16);
@@ -344,5 +349,4 @@ void MOETest::check_op(const std::string& type_name, int expected_count) {
     ASSERT_EQ(count, expected_count);
 }
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test
