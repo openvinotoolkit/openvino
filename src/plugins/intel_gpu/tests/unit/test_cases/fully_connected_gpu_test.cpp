@@ -3732,137 +3732,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(3.0f, output_ptr[3]);
     }
 
-    void test_compressed_int4_scale_dyn_quan_weight_i4(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
-                                                        size_t quantize_group_size = 32, int scales_group_size = 128,
-                                                        bool is_wzp_test = false, bool is_wzp_scalar = false) {
-        tests::random_generator rg(GET_SUITE_NAME);
-        auto& engine = get_test_engine();
-
-        if (engine.get_device_info().dev_type == device_type::discrete_gpu)
-            GTEST_SKIP();
-
-        long int batch_num = batch;
-        long int ifm_num = ifm;
-        long int ofm_num = ofm;
-        long int wzp_num = is_wzp_scalar ? 1 : ofm_num;
-
-        auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
-        auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
-
-        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::i4, format::bfyx });
-        auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::fbyx });
-        auto dcomp_zp_mem = engine.allocate_memory({ {wzp_num, 1}, data_types::u8, format::bfyx });
-
-
-        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.f, 2.f);
-        set_values(input_mem, input_data);
-
-        auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
-        set_values(weights_mem, weigths_data);
-
-        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -2.f, 2.f);
-        set_values(scale_mem, scale_data);
-
-        if (is_wzp_test) {
-            auto zp_data = rg.generate_random_1d<uint8_t>(wzp_num, 0, 2);
-            set_values(dcomp_zp_mem, zp_data);
-        }
-
-        auto in_layout = is_dynamic ? layout{ ov::PartialShape{ -1, -1, -1 }, data_types::f16, format::bfyx }
-                                    : layout{ input_ps, data_types::f16, format::bfyx };
-
-        auto dcomp_zp_name = is_wzp_test ? "wzp" : "";
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, 3, 2);
-
-        if (is_wzp_test) {
-            fc_prim.compressed_weights = true;
-            fc_prim.decompression_zero_point = is_wzp_test ? input_info("wzp") : input_info();
-        }
-
-        // Implemented dynamic quantize kernel
-        auto get_ref_results = [&]() {
-            topology topo;
-            topo.add(input_layout("input", in_layout));
-            topo.add(data("weights", weights_mem));
-            topo.add(data("scale", scale_mem));
-            topo.add(data("wzp", dcomp_zp_mem));
-            topo.add(fc_prim);
-
-            auto config = get_test_default_config(engine);
-            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
-            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
-            config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
-
-            network network(engine, topo, config);
-            network.set_input_data("input", input_mem);
-
-            auto outputs = network.execute();
-            OPENVINO_ASSERT(outputs.size() == 1);
-            OPENVINO_ASSERT(outputs.begin()->first == "fc_prim");
-
-            auto output_layout = outputs.begin()->second.get_layout();
-            auto output_mem = outputs.begin()->second.get_memory();
-
-            return engine.reinterpret_buffer(*output_mem, output_layout);
-        };
-
-        topology topology(
-            input_layout("input", in_layout),
-            data("weights", weights_mem),
-            data("scale", scale_mem),
-            data("wzp", dcomp_zp_mem),
-            fc_prim
-        );
-
-        auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_user_property(ov::hint::dynamic_quantization_group_size(quantize_group_size));
-
-        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
-
-        if (is_dynamic && !engine.get_device_info().supports_immad) {
-            auto inst = network->get_primitive("fc_prim");
-            auto impl = inst->get_impl();
-            ASSERT_TRUE(impl != NULL);
-            auto kernel_num = (is_dynamic) ? 3 : 2;
-            kernel_num = (quantize_group_size < 32) ? 2 : kernel_num;
-            ASSERT_EQ(impl->get_kernels().size(), size_t(kernel_num));
-        }
-
-        network->set_input_data("input", input_mem);
-
-        auto outputs = network->execute();
-        ASSERT_EQ(outputs.size(), size_t(1));
-        ASSERT_EQ(outputs.begin()->first, "fc_prim");
-
-        auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
-
-        auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
-
-        size_t count = 0;
-        float max_diff = 0.f;
-        float avg = 0.f;
-        for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
-            auto abs_diff = std::abs((float)output_ptr_ref[i] - (float)output_ptr[i]);
-            if (max_diff < abs_diff)
-                max_diff = abs_diff;
-            avg += abs_diff;
-            count++;
-            OPENVINO_ASSERT(abs_diff < 6);
-        }
-        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
-        OPENVINO_ASSERT((avg/count) < 0.5);
-    }
-
-    // void test_compressed_int8_scale_dyn_quan_weight_u8(bool is_dynamic, int batch = 1, int ifm = 512, int ofm = 2048,
-    //                                                     size_t quantize_group_size = 32, int scales_group_size = 128,
-    //                                                     bool is_wzp_test = false, bool is_wzp_scalar = false, int wzp_size = 1) {
-    // }
-
     void test_comp_weight_scale_zp(bool is_dynamic, int batch = 1, int ifm = 1024, int ofm = 1024,
                                         size_t quantize_group_size = 32, int scales_group_size = 32, int wzp_group_size = 32,
                                         bool is_wzp_test = false, bool is_wzp_scalar = false, bool is_4bit_weight = false, bool is_skip_dgpu = false) {
@@ -5037,60 +4906,56 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_batch_1) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 1, 2048, 3072);
+    this->test_comp_weight_scale_zp(true, 1, 2048, 3072, 32, 128, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 32, 128, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_12_groupsize) {
     // Expect no dynamic-quantized FC
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 269, 512, 1024, 12);
+    this->test_comp_weight_scale_zp(true, 269, 512, 1024, 12, 128, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_34_groupsize) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 34);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 34, 128, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_64_groupsize) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 64);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 64, 128, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_148_groupsize) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 148);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 148, 128, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 128, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize_32_scale) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128, 32);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 32, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize_64_scale) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 359, 1536, 2560, 128, 64);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 64, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_no_wzp) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 320, 1024, 1024, 32, 32, false);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1, false, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 320, 1024, 1024, 32, 32, true);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1024, true, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp_scalar) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 320, 1024, 1024, 32, 32, true);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1, true, true, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp_128) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 320, 1024, 1024, 128, 128, true);
-}
-
-TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp_static) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(false, 320, 1024, 1024, 32, 32, true);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 128, 128, 128, true, false, true, true);
 }
 
 // Test gemv for INT4 weight compression
@@ -5200,15 +5065,15 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_dynamic_batch) {
 
 // Test weight zp for INT8 ASYM
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
-    this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, true, true);
+    this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, true, true, false, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large) {
-    this->test_comp_weight_scale_zp(true, 160, 2048, 2048, 128, 128, 1, true, true);
+    this->test_comp_weight_scale_zp(true, 160, 2048, 2048, 128, 128, 2048, true, false, false, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_1024) {
-    this->test_comp_weight_scale_zp(true, 160, 1024, 1024, 32, 32, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 160, 1024, 1024, 32, 32, 1024, true, false, false, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_2048) {
@@ -5220,7 +5085,7 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_small) {
-    this->test_comp_weight_scale_zp(true, 16, 1024, 1024, 128, 128, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 16, 1024, 1024, 128, 128, 1024, true, false, false, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_single) {
@@ -5229,11 +5094,11 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128
 
 // Test per-token dyn-quan
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_fake_per_token) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 600, 1024, 2048, -1, 32, true);
+    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 32, 1024, true, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_per_token) {
-    this->test_compressed_int4_scale_dyn_quan_weight_i4(true, 600, 1024, 2048, -1, 1024, true);
+    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 1024, 1024, true, false, true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_per_token_small_scale) {
