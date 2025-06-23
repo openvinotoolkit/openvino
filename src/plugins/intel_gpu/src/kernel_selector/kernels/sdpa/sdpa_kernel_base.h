@@ -97,13 +97,18 @@ struct sdpa_configuration {
     // Paged Attention configuration
     bool is_paged_attention = false;
     size_t paged_attention_sliding_window = 0;
-    int64_t paged_attention_aligned_seq_len = -1;
     int64_t paged_attention_block_size = 0;
+
+    // Runtime Paged Attention params
+    int64_t paged_attention_aligned_seq_len = -1;
     int64_t paged_attention_max_len = 0;
+    int64_t paged_attention_snap_kv_tokens = 0;
+
     bool has_const_scale_val = false;
     float scale_val = 0.f;
     bool has_const_attn_mask_val = false;
     float attn_mask_val = 0.f;
+    bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
 };
 

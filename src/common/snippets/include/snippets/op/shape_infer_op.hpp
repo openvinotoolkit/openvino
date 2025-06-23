@@ -22,6 +22,6 @@ public:
     ShapeInferOp(const OutputVector& args) : ov::op::Op(args) {}
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace snippets
+}  // namespace ov

@@ -13,14 +13,9 @@
 namespace LayerTestsDefinitions {
 
 std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ReshapeTransformationParam param;
-    std::tie(netPrecision, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, device, param] = obj.param;
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << to_string(params) <<
+    result << netPrecision << "_" << device <<
            "_" << param.inputShape << "_" << param.fakeQuantize << "_{";
     for (size_t i = 0; i < param.reshapeConstValues.size(); ++i) {
         result << param.reshapeConstValues[i];
@@ -33,10 +28,8 @@ std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<
 }
 
 void ReshapeTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ReshapeTransformationParam param;
-    std::tie(netPrecision, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(param.inputShape);
 
@@ -50,14 +43,14 @@ void ReshapeTransformation::SetUp() {
 void ReshapeTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<3>(GetParam());
+    const auto params = std::get<2>(GetParam());
 
     EXPECT_TRUE(check_execution_order(params.executionOrder));
 
     auto actualPrecision = get_runtime_precision_by_type(params.layerType);
     const auto expectedPrecision = params.expectedKernelType;
-    if ((expectedPrecision == "FP32") && (actualPrecision == "FP16")) {
-        actualPrecision = "FP32";
+    if ((expectedPrecision == "f32") && (actualPrecision == "f16")) {
+        actualPrecision = "f32";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
 }

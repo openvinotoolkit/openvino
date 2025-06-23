@@ -12,6 +12,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
+// clang-format off
 /**
  * @interface SplitLoops
  * @brief If Unified Loop `loop_1` has larger increment but the same works amount of Unified loop `loop_2`, that follows loop_1, then split loop_2
@@ -28,6 +29,7 @@ namespace pass {
  *                                                     Split_loop_1_end (wa = 128, inc = 32)
  * @ingroup snippets
  */
+// clang-format on
 
 class SplitLoops : public RangedPass {
 public:
@@ -55,7 +57,7 @@ private:
     };
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

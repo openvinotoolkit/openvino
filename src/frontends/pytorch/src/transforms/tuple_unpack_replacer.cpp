@@ -47,6 +47,12 @@ PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
                 replace_output_update_name(tuple_unpack->output(i), squeeze);
             }
             return true;
+        } else if (input_node->get_rt_info().count("__torch_tuple_unpackable__")) {
+            // This case is produced by inlined_extension
+            input_node->get_rt_info().erase("__torch_tuple_unpackable__");
+            // remove TupleUnpack just bypassing it with all outputs from a custom operation which returns tuple
+            replace_node(tuple_unpack, input_node->outputs());
+            return true;
         }
         return false;
     };

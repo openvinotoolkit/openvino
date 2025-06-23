@@ -39,6 +39,7 @@
 #include "dynamic_quantize_inst.h"
 #include "swiglu_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "lora_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "registry/registry.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
@@ -461,6 +462,42 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
+
+    // WA: Skip dynamic quantization for the case where OneDNN has accuracy issue with post-op fusion
+    // This is a temporal workaround that should be removed in next release
+    if (get_node().is_type<dynamic_quantize>()) {
+        // if user instance is fully_connected, print user's input layouts
+        auto user = get_node().get_users().front();
+        if (user->is_type<fully_connected>()) {
+            auto fc_inst = _users[0];
+            auto fc_impl_params = fc_inst->get_impl_params();
+            for (auto& fd : fc_impl_params->fused_desc) {
+                if (!fd.has_outer_dep())
+                    continue;
+                const auto &layout_post_op = fc_inst->get_input_layout(fd.outer_dep_start_idx);
+                const auto &shape_post_op = layout_post_op.get_partial_shape();;
+                const auto &layout_input = _impl_params->get_input_layout(0);
+                const auto &shape_input = layout_input.get_partial_shape();
+
+                // If binary post-op is fused and its f-axis is broadcasted, skip dynamic quantization
+                if (shape_post_op.rank().is_static() && shape_post_op.rank().get_length() >= 3 &&
+                    shape_post_op[1].is_static() && shape_post_op[1].get_length() == 1 &&
+                    shape_input.rank().get_length() >= 3 &&
+                    shape_input[1].is_static() && shape_input[1].get_length() > 1 &&
+                    shape_input[0].is_static() && shape_input[0].get_length() > 1) {
+                    GPU_DEBUG_TRACE_DETAIL << fc_inst->id() << ": skip dynamic quantization because of unsupported broadcast - "
+                                    << layout_input.to_short_string() << ", " << layout_post_op.to_short_string() << std::endl;
+                    new_layouts[0] = _impl_params->get_input_layout(0);
+                    for (size_t i = 1; i < new_layouts.size(); i++) {
+                        auto output_shape = new_layouts[i].get_partial_shape();
+                        *output_shape.begin() = 0;
+                        new_layouts[i].set_partial_shape(output_shape);
+                    }
+                    break;
+                }
+            }
+        }
+    }
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
@@ -1796,6 +1833,25 @@ void primitive_inst::do_runtime_in_place_crop() {
     }
 }
 
+void primitive_inst::do_runtime_skip_lora() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_lora: " + id()));
+    if (!get_node().is_type<lora>() || !get_node().is_runtime_skippable())
+        return;
+
+    bool is_empty_lora = true;
+    for (size_t i = 2; i < _impl_params->input_layouts.size(); ++i) {
+        is_empty_lora &= _impl_params->get_input_layout(i).count() == 0;
+    }
+
+    if (is_empty_lora) {
+        set_can_be_optimized(true);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_lora] " << id() << " : can be optimized due to empty adapters" << std::endl;
+    } else {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_lora] " << id() << " cannot be optimized " << std::endl;
+    }
+}
+
 bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
 }
@@ -1904,6 +1960,7 @@ void primitive_inst::prepare_primitive() {
         do_runtime_skip_strided_slice();
         do_runtime_skip_broadcast();
         do_runtime_skip_scatter_update();
+        do_runtime_skip_lora();
         do_runtime_in_place_crop();
 
         if (!is_valid_fusion()) {
@@ -2567,6 +2624,7 @@ std::string primitive_inst::generic_to_string(program_node const& node, const ch
 cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
     GPU_DEBUG_TRACE_DETAIL << id() << ": Use unfused subgraph due to unexpected fusions\n";
     if (!_unfused_subgraph) {
+        GPU_DEBUG_INFO << id() << ": [WARNING] Create unfused subgraph due to unexpected fusions\n";
         const auto has_primitive_id = [](std::vector<primitive_id> arr, const auto& target_pid) {
             return std::any_of(arr.cbegin(), arr.cend(), [&](const auto& pid) {
                 return pid == target_pid;

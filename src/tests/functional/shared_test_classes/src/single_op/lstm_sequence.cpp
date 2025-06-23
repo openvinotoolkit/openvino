@@ -141,13 +141,13 @@ void LSTMSequenceTest::SetUp() {
         params.push_back(R_param);
         params.push_back(B_param);
     } else {
-        auto tensor_w = ov::test::utils::create_and_fill_tensor(model_type, W_shape);
+        auto tensor_w = ov::test::utils::create_and_fill_tensor_real_distribution(model_type, W_shape, -1, 1, 0);
         W = std::make_shared<ov::op::v0::Constant>(tensor_w);
 
-        auto tensor_r = ov::test::utils::create_and_fill_tensor(model_type, R_shape);
+        auto tensor_r = ov::test::utils::create_and_fill_tensor_real_distribution(model_type, R_shape, -1, 1, 0);
         R = std::make_shared<ov::op::v0::Constant>(tensor_r);
 
-        auto tensor_b = ov::test::utils::create_and_fill_tensor(model_type, B_shape);
+        auto tensor_b = ov::test::utils::create_and_fill_tensor_real_distribution(model_type, B_shape, -1, 1, 0);
         B = std::make_shared<ov::op::v0::Constant>(tensor_b);
     }
 
@@ -175,6 +175,9 @@ void LSTMSequenceTest::SetUp() {
         bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
     }
+    if (activations == std::vector<std::string>{"tanh", "tanh", "tanh"}) {
+        abs_threshold = 0.001f;
+    }
 }
 
 void LSTMSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -192,10 +195,13 @@ void LSTMSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         } else {
             in_data.range = 10;
         }
-
-        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
-
+        if (i < 3) {
+            tensor = ov::test::utils::create_and_fill_tensor_real_distribution(func_inputs[i].get_element_type(), targetInputStaticShapes[i], 0, 1, 0);
+        } else {
+            tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
+        }
         inputs.insert({func_inputs[i].get_node_shared_ptr(), tensor});
-    }}
+    }
+}
 }  // namespace test
 }  // namespace ov

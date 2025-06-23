@@ -1,6 +1,14 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cstdint>
+#include <ios>
+#include <iostream>
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
@@ -10,9 +18,9 @@
 #    include "openvino/op/op.hpp"
 #    include "snippets/op/perf_count.hpp"
 
-using namespace ov::snippets::op;
-
 namespace ov::intel_cpu {
+
+using namespace ov::snippets::op;
 
 /**
  * @interface PerfCountRdtscBegin

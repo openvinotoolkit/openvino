@@ -4,12 +4,24 @@
 
 #include "permute_slice_n_interpolation.hpp"
 
-#include "itt.hpp"
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rank.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/general_utils.h"
 
@@ -69,7 +81,7 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         copy_runtime_info(interpolate, new_interpolate);
 
         auto slice_inputs = slice->input_values();
-        auto new_slice_axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{1}, 1lu);
+        auto new_slice_axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{1}, 1LU);
 
         slice_inputs[0] = new_interpolate;
         slice_inputs[4] = new_slice_axes;

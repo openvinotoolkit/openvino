@@ -4,8 +4,7 @@
 
 #include "openvino/op/split.hpp"
 
-//#include <climits>
-
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
@@ -75,10 +74,11 @@ OutputVector translate_unbind_int_fx(const NodeContext& context) {
     return {context.mark_node(make_list_construct(out_vec))};
 }
 
-OutputVector translate_split_with_sizes_fx(const NodeContext& context) {
-    num_inputs_check(context, 2, 3);
+OutputVector translate_split_with_sizes(const NodeContext& context) {
+    // aten::split_with_sizes(Tensor(a -> *) self, SymInt[] split_sizes, int dim=0) -> Tensor(a)[]
+    num_inputs_check(context, 2, 3, true);
     auto data = context.get_input(0);
-    auto split_lengths = context.get_input(1);
+    auto split_lengths = get_input_concat_if_list(context, 1);
     Output<Node> dim;
     if (context.input_is_none(2)) {
         dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -86,9 +86,26 @@ OutputVector translate_split_with_sizes_fx(const NodeContext& context) {
         dim = context.get_input(2);
     }
 
+    auto complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
+    bool is_complex = complex != nullptr;
+    if (is_complex) {
+        if (dim.get_element_type() != element::i32) {
+            dim = context.mark_node(std::make_shared<v0::Convert>(dim, element::i32));
+        }
+        auto rank = std::get<1>(get_shape_rank(context, data, true));
+        dim = normalize_axis(context, dim, rank);
+        data = complex->get_input_source_output(0);
+    }
+
     auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(data, dim, split_lengths));
 
-    return {context.mark_node(make_list_construct(split->outputs()))};
+    auto res = split->outputs();
+    if (is_complex) {
+        for (auto& output : res) {
+            output = context.mark_node(std::make_shared<ComplexTypeMark>(output));
+        }
+    }
+    return {context.mark_node(make_list_construct(res))};
 }
 
 }  // namespace op

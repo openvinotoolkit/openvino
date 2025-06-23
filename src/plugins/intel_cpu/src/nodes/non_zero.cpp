@@ -6,11 +6,33 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
+#include <cpu/platform.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utils/bfloat16.hpp>
+#include <vector>
 
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "selective_build.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
