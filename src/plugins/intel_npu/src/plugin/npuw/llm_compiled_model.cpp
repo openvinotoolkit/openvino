@@ -214,11 +214,7 @@ private:
             reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
-            transpose_matmul_b(ctx,
-                               matched_param,
-                               matched_concat,
-                               matched_transpose,
-                               matched_matmul);
+            transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
             LOG_DEBUG("vtensors transposed: LLama3 pattern");
             return true;
         };

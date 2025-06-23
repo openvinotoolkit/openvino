@@ -66,7 +66,10 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
     return new_param;
 }
 
-Context::PPtr Context::unpack(const Context::PPtr& w, const Context::PPtr& z, const Context::PPtr& s, ov::element::Type type) {
+Context::PPtr Context::unpack(const Context::PPtr& w,
+                              const Context::PPtr& z,
+                              const Context::PPtr& s,
+                              ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& s_shape = s->get_shape();
 
@@ -883,9 +886,15 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
         }
 
         if (!matmul->get_transpose_a() && !matmul->get_transpose_b()) {
-            ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 2, Context::DQParMM{std::move(w_param), std::move(s_param), std::move(matmul)});
+            ctx.get().register_parallel_matmul(
+                node_to_output.at(qmmi),
+                2,
+                Context::DQParMM{std::move(w_param), std::move(s_param), std::move(matmul)});
         } else if (!matmul->get_transpose_a() && matmul->get_transpose_b()) {
-            ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 0, Context::DQParMM{std::move(w_param), std::move(s_param), std::move(matmul)});
+            ctx.get().register_parallel_matmul(
+                node_to_output.at(qmmi),
+                0,
+                Context::DQParMM{std::move(w_param), std::move(s_param), std::move(matmul)});
         }
         return false;  // no change here
     };
