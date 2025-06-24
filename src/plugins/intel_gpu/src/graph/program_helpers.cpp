@@ -159,8 +159,8 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
-size_t onednn_add_fusing_helpers::get_reused_eltwmem_id(const program_node& node) {
-    size_t reused_mem_id = -1;   // if -1, no reused input memory
+int32_t onednn_add_fusing_helpers::get_reused_eltwmem_id(const program_node& node) {
+    int32_t reused_mem_id = -1;   // if -1, no reused input memory
     if (node.get_preferred_impl_type() == impl_types::onednn) {
         size_t eltw_dep = 0;
         for (auto& fused_op : node.get_fused_primitives()) {
