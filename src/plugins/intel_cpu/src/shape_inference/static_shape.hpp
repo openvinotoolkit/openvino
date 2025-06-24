@@ -252,8 +252,7 @@ public:
     }
 
     template <class T>
-    [[nodiscard]] [[nodiscard]] constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(
-        const T& other) const {
+    [[nodiscard]] constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }

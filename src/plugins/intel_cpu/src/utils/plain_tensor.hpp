@@ -410,13 +410,11 @@ struct PlainTensor {
         return m_offset;
     }
     template <int dim, typename I>
-    [[nodiscard]] [[nodiscard]] int64_t offset(I i) const {
+    [[nodiscard]] int64_t offset(I i) const {
         return m_offset + i * m_strides[dim];
     }
     template <int dim, typename I, typename... Is>
-    [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] int64_t offset(
-        I i,
-        Is... indices) const {
+    [[nodiscard]] int64_t offset(I i, Is... indices) const {
         return i * m_strides[dim] + offset<dim + 1>(indices...);
     }
     template <typename DT, typename... Is>
@@ -447,7 +445,7 @@ struct PlainTensor {
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
     template <typename DT>
-    [[nodiscard]] [[nodiscard]] DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
+    [[nodiscard]] DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
         size_t off = 0;
         const auto* it = index.begin();
         for (size_t i = 0; i < m_rank; i++) {
