@@ -59,17 +59,16 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
     OV_CPU_JIT_EMITTER_ASSERT(loop_end, "Failed to initialize LoopEnd in jit_parallel_loop_base_emitter");
     num_inputs = loop_end->get_input_num();
     num_outputs = loop_end->get_output_num();
-    work_amount = loop_end->get_work_amount();
     wa_increment = loop_end->get_increment();
     is_incremented = loop_end->get_is_incremented();
-    ptr_increments = loop_end->get_ptr_increments();
-    finalization_offsets = loop_end->get_finalization_offsets();
-    data_sizes = loop_end->get_element_type_sizes();
     evaluate_once = loop_end->get_evaluate_once();
     loop_id = loop_end->get_id();
-    // todo: it's redundant to save both isolated fields and loop_args_t. choose only one implementation
+
     // todo: data_sizes are already applied in runtime_configurator. can we do the same?
-    loop_args = jit_snippets_call_args::loop_args_t(work_amount, ptr_increments, finalization_offsets, data_sizes);
+    loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(),
+                                                    loop_end->get_ptr_increments(),
+                                                    loop_end->get_finalization_offsets(),
+                                                    loop_end->get_element_type_sizes());
 
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
     work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
@@ -84,9 +83,9 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
 
 void jit_parallel_loop_base_emitter::emit_pointer_increments(size_t scale) const {
     for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
-        const auto& increment = ptr_increments[idx];
+        const auto& increment = loop_args.m_ptr_increments[idx];
         if (is_incremented[idx] && increment != 0) {
-            h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment * scale * data_sizes[idx]);
+            h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment * scale * loop_args.m_dtype_sizes[idx]);
         }
     }
 }
@@ -100,10 +99,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
       loop_end_label(nullptr),
       m_loop_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
-    // todo: we need to pass num_threads through config
-    int num_threads = std::getenv("N") ? std::atoi(std::getenv("N")) : 8;
-    std::cout << "[ INFO ] jit_parallel_loop_begin_emitter. N threads = " << num_threads << "\n";
-    ParallelLoopConfig kernel_config(loop_args, num_threads);
+    ParallelLoopConfig kernel_config(loop_args, wa_increment);
     m_parallel_loop_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, kernel_config);
     // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory
     // pointers if they do, we need to spill them before the call and restore in the multithread section
@@ -183,7 +179,7 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
     // However some of mem_ptr_regs_idxs might coincide with abi_param_1 or abi_param_2.
     h->mov(Xbyak::Reg64(work_amount_reg_idx), abi_param1);
     bool abi_param_collision = false;
-    for (auto i : mem_ptr_regs_idxs) {
+    for (int i : mem_ptr_regs_idxs) {
         if (i == abi_param2.getIdx()) {
             abi_param_collision = true;
         } else {
@@ -237,21 +233,6 @@ void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>
                               io_size,
                               " got ",
                               is_incremented.size());
-    OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == io_size,
-                              "Invalid ptr_increments size: expected ",
-                              io_size,
-                              " got ",
-                              ptr_increments.size());
-    OV_CPU_JIT_EMITTER_ASSERT(finalization_offsets.size() == io_size,
-                              "Invalid finalization_offsets size: expected: ",
-                              io_size,
-                              " got ",
-                              finalization_offsets.size());
-    OV_CPU_JIT_EMITTER_ASSERT(data_sizes.size() == io_size,
-                              "Invalid data_sizes size: expected: ",
-                              io_size,
-                              " got ",
-                              data_sizes.size());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "has not inited labels!");
     OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
                               "loop increment might be dynamic only if loop evaluates once!");
