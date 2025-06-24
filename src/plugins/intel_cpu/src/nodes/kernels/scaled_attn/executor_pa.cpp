@@ -662,6 +662,7 @@ struct MHAHelper {
                     // LDB consider the offset of scale(f32)
                     // oneDNN brgemm has limitation with a_scale, it doesn't support per-row scale
                     // only enable b_scale here
+#    if defined(OPENVINO_ARCH_X86_64)
                     _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                                  _block_size,
                                                                  S,
@@ -674,6 +675,7 @@ struct MHAHelper {
                                                                  ov::element::f32,
                                                                  ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
                                                                  false);
+#    endif
                 } else {
                     _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
                                                                  _block_size,
@@ -841,6 +843,7 @@ struct MHAHelper {
             // just computing the positions of 1 should be enough
             for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
                 if (_params.is_sage_attn && query.get_precision() == ov::element::i8) {
+#    if defined(OPENVINO_ARCH_X86_64)
                     auto* q_ptr = query.template ptr<int8_t>(h, q_start, 0);
                     auto* k_ptr = qk_scratch_b.ptr<int8_t>(k_blk, hk);
                     int32_t* temp_C = reinterpret_cast<int32_t*>(_output.ptr<float>(ithr, 0, 0, 0));
@@ -855,6 +858,7 @@ struct MHAHelper {
                         scale_b,
                         _wsp.data() + ithr * _wsp_size_per_thread,
                         _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+#    endif
                 } else {
                     auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
                     _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
@@ -1513,12 +1517,14 @@ struct MHA {
             auto ithr = parallel_get_thread_num();
             const size_t valid_len = item.valid_block_len;
             if (_helper._params.is_sage_attn) {
+#    if defined(OPENVINO_ARCH_X86_64)
                 sage_attn_transpose_k(item,
                                       hk,
                                       _helper._block_size,
                                       _helper._qk_gemm[31],
                                       k_cache,
                                       _helper._qk_scratch_b);
+#    endif
             } else {
                 auto* k_ptr =
                     k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);

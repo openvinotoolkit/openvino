@@ -17,18 +17,13 @@
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
-#elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
-#    include "arm_sve.h"
-#    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
-#    include "nodes/kernels/aarch64/sve_utils.hpp"
-#    include "nodes/kernels/kai/kleidi_kernel.hpp"
 #endif
 
 #include <cstddef>
 #include <cstdint>
 
 namespace ov::Extensions::Cpu::XARCH {
-
+#if defined(OPENVINO_ARCH_X86_64)
 void sage_attn_transpose_k(const ReorderWorkItem& item,
                            const size_t hk,
                            const size_t block_size,
@@ -66,7 +61,7 @@ void sage_attn_transpose_k(const ReorderWorkItem& item,
         scales[i] = reinterpret_cast<float*>(key_cache.ptr<int8_t, ov::element::i8>(block_number, hk, i, 0))[0];
     }
 }
-
+#endif
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC>
 void sage_attn_quantize_q(const ov::intel_cpu::PlainTensor& q,
                           ov::intel_cpu::PlainTensor& quantized_q,
@@ -85,5 +80,4 @@ void sage_attn_quantize_q(const ov::intel_cpu::PlainTensor& q,
         }
     });
 }
-
 }  // namespace ov::Extensions::Cpu::XARCH
