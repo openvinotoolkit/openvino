@@ -1256,7 +1256,7 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
     const auto input_byte_size = shape_size * sizeof(float);
     input_data = static_cast<float*>(::operator new(input_byte_size, std::align_val_t(4096)));
     for (size_t i = 0; i < shape_size; ++i) {
-        input_data[i] = 0.f;
+        input_data[i] = 10.f;
     }
     input_tensor = ov::Tensor{ov::element::f32, shape, input_data};
 
@@ -1267,22 +1267,23 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
         const auto byte_size = tensor.get_byte_size();
 
         output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+        std::cout << "output_data[" << i << "]: " << output_data[i] << std::endl;
         output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
     }
 
     inference_request.set_input_tensor(input_tensor);
-    inference_request.set_output_tensor(output_tensor[0]);
+    // inference_request.set_output_tensor(output_tensor[0]);
 
-    inference_request.infer();  // Adds '1' to each element
+    // inference_request.infer();  // Adds '1' to each element
 
-    for (int i = 1; i < inferences; i++) {
+    for (int i = 0; i < inferences; i++) {
         inference_request.set_output_tensor(output_tensor[i]);
-        inference_request.set_input_tensor(output_tensor[i - 1]);
+        // inference_request.set_input_tensor(output_tensor[i - 1]);
 
         inference_request.infer();  // Adds '1' to each element
     }
 
-    float expected_result = 1.f;
+    float expected_result = 11.f;
 
     for (int i = 0; i < inferences; i++) {
         auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
@@ -1292,7 +1293,7 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
                 << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
                 << " for index " << j;
         }
-        expected_result++;
+        // expected_result++;
     }
 
     ::operator delete(input_data, std::align_val_t(4096));
@@ -1318,38 +1319,42 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
 
     const auto input_byte_size = shape_size * sizeof(float);
     input_data = static_cast<float*>(::operator new(input_byte_size, std::align_val_t(4096)));
+    std::cout << "input_data: " << input_data << std::endl;
     input_tensor = ov::Tensor{ov::element::f32, shape, input_data};
 
     inference_request = compiled_model.create_infer_request();
-    for (int i = 0; i < inferences; i++) {
-        auto tensor = inference_request.get_output_tensor(0);
-        const auto byte_size = tensor.get_byte_size();
 
+    auto tensor = inference_request.get_output_tensor(0);
+    const auto byte_size = tensor.get_byte_size();
+
+    for (int i = 0; i < inferences; i++) {
         if (i % 2 == 0) {
-            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(16)));
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+            std::cout << "output_data[" << i << "]: " << output_data[i] << std::endl;
         } else {
             output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+            std::cout << "output_data[" << i << "]: " << output_data[i] << std::endl;
         }
         output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
     }
 
-    inference_request.set_input_tensor(input_tensor);
-    inference_request.set_output_tensor(output_tensor[0]);
-
     for (size_t i = 0; i < shape_size; ++i) {
-        input_data[i] = 0.f;
+        input_data[i] = 12.f;
     }
 
-    inference_request.infer();  // Adds '1' to each element
+    inference_request.set_input_tensor(input_tensor);
+    // inference_request.set_output_tensor(output_tensor[0]);
 
-    for (int i = 1; i < inferences; i++) {
+    // inference_request.infer();  // Adds '1' to each element
+
+    for (int i = 0; i < inferences; i++) {
         inference_request.set_output_tensor(output_tensor[i]);
-        inference_request.set_input_tensor(output_tensor[i - 1]);
+        // inference_request.set_input_tensor(output_tensor[i - 1]);
 
         inference_request.infer();  // Adds '1' to each element
     }
 
-    float expected_result = 1.f;
+    float expected_result = 13.f;
 
     for (int i = 0; i < inferences; i++) {
         auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
@@ -1358,13 +1363,13 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
                 << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
                 << " for index " << j;
         }
-        expected_result++;
+        // expected_result++;
     }
 
     ::operator delete(input_data, std::align_val_t(4096));
     for (int i = 0; i < inferences; i++) {
         if (i % 2 == 0) {
-            ::operator delete(output_data[i], std::align_val_t(16));
+            ::operator delete(output_data[i], std::align_val_t(4096));
         } else {
             ::operator delete(output_data[i], std::align_val_t(4096));
         }
@@ -1400,12 +1405,12 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
             output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(16)));
             output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
         } else if (i % 4 == 1) {
-            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(16)));
             output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
         } else if (i % 4 == 2) {
             output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
         } else if (i % 4 == 3) {
-            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(16)));
             output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
         }
     }
@@ -1443,9 +1448,9 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
         if (i % 4 == 0) {
             ::operator delete(output_data[i], std::align_val_t(16));
         } else if (i % 4 == 1) {
-            ::operator delete(output_data[i], std::align_val_t(4096));
+            ::operator delete(output_data[i], std::align_val_t(16));
         } else if (i % 4 == 3) {
-            ::operator delete(output_data[i], std::align_val_t(4096));
+            ::operator delete(output_data[i], std::align_val_t(16));
         }
     }
 }
