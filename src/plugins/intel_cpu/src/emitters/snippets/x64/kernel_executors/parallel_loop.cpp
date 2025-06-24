@@ -38,25 +38,30 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor,
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());
     const auto& loop_args = config.get_loop_args();
 
+    const auto increment = config.get_increment();
+    int num_chunks = loop_args.m_work_amount / increment;
     // todo: do we need to pass num_threads through config?
     int num_threads = std::getenv("N") ? std::atoi(std::getenv("N")) : parallel_get_max_threads();
-    int nthr = std::min(num_threads, static_cast<int>(loop_args.m_work_amount / config.get_increment()));
-    std::cout << "[ INFO ] ParallelLoopExecutor::execute. nthr = " << nthr << "\n";
+    int nthr = std::min(num_threads, num_chunks);
+
     // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
     //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
     const auto num_ptrs = loop_args.m_num_data_ptrs;
     const auto& ptr_increments = loop_args.m_ptr_increments;
     const auto& dtype_sizes = loop_args.m_dtype_sizes;
     parallel_nt_static(nthr, [&](const int ithr, const int nthr) {
-        int64_t start = 0, end = 0;
-        // std::cout << ithr << "\n";
-        splitter(loop_args.m_work_amount, nthr, ithr, start, end);
+        decltype(num_chunks) start_chunk = 0, end_chunk = 0;
+        splitter(num_chunks, nthr, ithr, start_chunk, end_chunk);
+
+        const auto start = start_chunk * increment;
+        const auto end = end_chunk * increment;
+
         std::vector<uintptr_t*> mem_ptrs;
         mem_ptrs.reserve(num_ptrs);
         for (int i = 0; i < num_ptrs; i++) {
+            const auto stack_ptr_offset = ptr_increments[i] * dtype_sizes[i] * start;
             // Note: need to cast to char* to allow for arbitrary pointer shifts
-            mem_ptrs.push_back(reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(stack_ptr[i]) +
-                                                            ptr_increments[i] * dtype_sizes[i] * start));
+            mem_ptrs.push_back(reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(stack_ptr[i]) + stack_ptr_offset));
         }
         auto* updated_ptrs = reinterpret_cast<void*>(mem_ptrs.data());
         preamble_ptr(end - start, updated_ptrs);
