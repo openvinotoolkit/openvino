@@ -40,6 +40,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
 #include "transformations/sdpa_to_paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/state_management_pattern.hpp"
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
@@ -529,7 +530,9 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto key_cache_0 = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN, 32, 128}}, el_type_f32});
         auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
-        auto params = nodes_to_params({max_context_len,
+        auto score_aggregation_window = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto params = nodes_to_params({score_aggregation_window,
+                                       max_context_len,
                                        block_indices_begins,
                                        block_indices,
                                        subsequence_begins,
@@ -575,6 +578,7 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto scale = std::make_shared<v0::Constant>(element::f32, Shape{}, MOCK_VALUE);
+        auto score_aggregation_window_const = std::make_shared<v0::Constant>(element::i32, Shape{0}, 0);
 
         // PagedAttention:
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
@@ -589,7 +593,8 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                                                                              scale,
                                                                              sliding_window,
                                                                              alibi_slopes,
-                                                                             max_context_len});
+                                                                             max_context_len,
+                                                                             score_aggregation_window_const});
         pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
@@ -650,6 +655,68 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
         auto result = std::make_shared<v0::Result>(max_context_len_aligned);
         model_ref = std::make_shared<ov::Model>(ResultVector{result}, params);
     }
+    // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
+    // checking the graph structure and names, other checks are temporarily disabled:
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    disable_result_friendly_names_check();
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_PositionIDsReplacerQwenPattern) {
+    {
+        auto max_context_len = std::make_shared<v0::Parameter>(element::i32, PartialShape{});
+        auto max_context_len_i64 = std::make_shared<v0::Convert>(max_context_len, element::i64);
+        auto max_context_len_reshaped =
+            std::make_shared<v1::Reshape>(max_context_len_i64, v0::Constant::create(element::i64, Shape{1}, {1}), true);
+        max_context_len->set_friendly_name("max_context_len");
+
+        auto rotary_emb_sincos = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, DYN, 1, 128});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto fake_input = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN, DYN});
+        auto shape = std::make_shared<v3::ShapeOf>(fake_input, element::i64);
+        auto gather = std::make_shared<v8::Gather>(shape,
+                                                   v0::Constant::create(element::i64, Shape{1}, {1}),
+                                                   v0::Constant::create(element::i64, Shape{1}, {0}));
+
+        auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
+        auto minus_one_converted = std::make_shared<v0::Convert>(minus_one, element::i64);
+        auto minus_one_reshaped = std::make_shared<v1::Reshape>(minus_one_converted,
+                                                                v0::Constant::create(element::i64, Shape{1}, {-1}),
+                                                                true);
+        auto past_offset = std::make_shared<v1::Multiply>(gather, minus_one_reshaped);
+
+        auto start_const = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto stop_const = v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>().max()});
+        auto step_const = v0::Constant::create(element::i64, Shape{1}, {1});
+        auto axis_const = v0::Constant::create(element::i64, Shape{1}, {1});
+
+        auto slice_1 = std::make_shared<v8::Slice>(rotary_emb_sincos,
+                                                   start_const,
+                                                   max_context_len_reshaped,
+                                                   step_const,
+                                                   axis_const);
+        auto slice_2 = std::make_shared<v8::Slice>(slice_1, past_offset, stop_const, step_const, axis_const);
+        auto result = std::make_shared<v0::Result>(slice_2);
+
+        model = std::make_shared<Model>(ResultVector{result},
+                                        ParameterVector{max_context_len, rotary_emb_sincos, fake_input, position_ids});
+        manager.register_pass<pass::PositionIDsReplacerQwen>(position_ids);
+    }
+
+    {
+        auto rotary_emb_sincos = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, DYN, 1, 128});
+        auto position_ids = std::make_shared<v0::Parameter>(element::i64, PartialShape{DYN});
+
+        auto gather_new = std::make_shared<v8::Gather>(rotary_emb_sincos,
+                                                       position_ids,
+                                                       v0::Constant::create(element::i64, Shape{}, {1}));
+        auto new_shape = v0::Constant::create(element::i64, Shape{4}, {-1, 1, 1, 128});
+        auto reshaped = std::make_shared<v1::Reshape>(gather_new, new_shape, true);
+
+        model_ref = std::make_shared<Model>(OutputVector{reshaped}, ParameterVector{rotary_emb_sincos, position_ids});
+    }
+
     // TODO: align precisions, check the copying of "fuse_names" attr in SDPAToPagedAttention
     // checking the graph structure and names, other checks are temporarily disabled:
     comparator.disable(FunctionsComparator::PRECISIONS);
@@ -811,6 +878,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto value_cache_0 = make_param(PartialShape{DYN, 40, 128}, element::f32, "value_cache.0");
         auto key_cache_0 = make_param(PartialShape{DYN, 40, 128}, element::f32, "key_cache.0");
         auto input_ids = make_param(PartialShape{DYN}, element::i64, "input_ids");
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -893,7 +961,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                                                                                c1,
                                                                                c2,
                                                                                Reshape166,
-                                                                               max_context_len});
+                                                                               max_context_len,
+                                                                               score_aggregation_window});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1112,6 +1181,7 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto key_cache_0 = make_param(PartialShape{DYN, 2, 2}, element::f32, "key_cache_0");
         auto inputs_embeds = make_param(PartialShape{DYN, DYN}, element::f32, "inputs_embeds");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -1240,7 +1310,8 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                                                                                c1,
                                                                                c2,
                                                                                c3,
-                                                                               max_context_len});
+                                                                               max_context_len,
+                                                                               score_aggregation_window});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1433,6 +1504,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto key_cache_0 = make_param(PartialShape{DYN, 32, 96}, element::f32, "key_cache_0");
         auto inputs_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -1543,7 +1615,8 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                                                                            scale,
                                                                            sliding_window,
                                                                            alibi_slopes,
-                                                                           max_context_len});
+                                                                           max_context_len,
+                                                                           score_aggregation_window});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});

@@ -7,6 +7,8 @@
 #include "node/include/addon.hpp"
 #include "node/include/compiled_model.hpp"
 #include "node/include/model_wrap.hpp"
+#include "node/include/node_output.hpp"
+#include "node/include/partial_shape_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/common_util.hpp"
@@ -16,6 +18,8 @@ namespace js {
 namespace NapiArg {
 const char* get_type_name(napi_valuetype type);
 }  // namespace NapiArg
+
+typedef ov::Output<ov::Node> OutputNode;
 
 std::string get_current_signature(const Napi::CallbackInfo& info);
 
@@ -54,6 +58,12 @@ const char* get_attr_type<CompiledModelWrap>();
 template <>
 const char* get_attr_type<TensorWrap>();
 
+template <>
+const char* get_attr_type<OutputNode>();
+
+template <>
+const char* get_attr_type<PartialShapeWrap>();
+
 template <typename T>
 bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
     OPENVINO_THROW("Validation for this type is not implemented!");
@@ -89,6 +99,12 @@ bool validate_value<CompiledModelWrap>(const Napi::Env& env, const Napi::Value& 
 /** @brief Checks if Napi::Value is a Tensor.*/
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<OutputNode>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value);
 
 template <typename... Ts>
 std::string get_signature() {

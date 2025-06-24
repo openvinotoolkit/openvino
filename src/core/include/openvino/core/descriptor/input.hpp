@@ -104,6 +104,7 @@ public:
     Input(const Input&) = default;
     Input(Input&&) = default;
     Input& operator=(const Input&) = default;
+    Input& operator=(Input&&) = default;
 
 protected:
     // owner of an argument node (in lieu of m_arguments)

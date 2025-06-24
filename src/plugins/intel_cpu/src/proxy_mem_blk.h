@@ -4,10 +4,14 @@
 
 #pragma once
 
-#include "cpu_memory.h"
+#include <cstddef>
+#include <memory>
+#include <unordered_set>
 
-namespace ov {
-namespace intel_cpu {
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
+
+namespace ov::intel_cpu {
 
 /**
  * @brief A proxy object that additionally implements observer pattern
@@ -49,5 +53,4 @@ private:
 using ProxyMemoryBlockPtr = std::shared_ptr<ProxyMemoryBlock>;
 using ProxyMemoryBlockCPtr = std::shared_ptr<const ProxyMemoryBlock>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

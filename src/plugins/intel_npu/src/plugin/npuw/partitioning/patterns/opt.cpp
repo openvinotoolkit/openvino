@@ -216,6 +216,55 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi"), std::move(callback));
 }
 
+// FROM:
+//     ???(Act) ----------------------------------------------->
+//     Param(W) -------> to(f16/f32) -> Multiply -> Transpose -> MatMul
+//     Param/Const(S) ---------------->
+//
+// TO:
+//     ???(Act) ---------------------------------->
+//     Param(W) -------> to(f16/f32) -> Multiply -> MatMul (Transpose Attributes)
+//     Param/Const(S) ---------------->
+//
+DQMatMulCWi_Transpose::DQMatMulCWi_Transpose(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qtrans = opp::wrap_type<ov::op::v1::Transpose>({qmuls, opp::any_input()});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qtrans});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+        auto matched_node_transpose = node_to_output.at(qtrans).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        const auto& tr_in_shape = matched_node_transpose->input(0).get_shape();
+        const auto& tr_out_shape = matched_node_transpose->output(0).get_shape();
+
+        if ((ov::element::i4 == matched_qweight->get_element_type() ||
+             ov::element::i8 == matched_qweight->get_element_type() ||
+             ov::element::nf4 == matched_qweight->get_element_type()) &&
+            !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b() && tr_in_shape.size() == 2 &&
+            tr_out_shape.size() == 2 && tr_in_shape[0] == tr_out_shape[1] && tr_in_shape[1] == tr_out_shape[0]) {
+            auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+            matched_matmul->input(1).replace_source_output(matched_node_qmuls);
+            matched_matmul->set_transpose_b(true);
+
+            return true;  // root has changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulCWi_Transpose"), std::move(callback));
+}
+
 // 1 token case (generate)
 //
 // FROM:
@@ -1562,7 +1611,8 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 
 SliceLastMatmul::SliceLastMatmul() {
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-    auto res = opp::wrap_type<ov::op::v0::Result>({matmul});
+    auto convert = opp::optional<ov::op::v0::Convert>({matmul->output(0)});
+    auto res = opp::wrap_type<ov::op::v0::Result>({convert});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1795,6 +1845,41 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul"), std::move(callback));
+}
+
+struct Untangled_Const {
+    static constexpr const char* name = "NPUW::Untangled_Const";
+};
+
+void untangleConst(std::shared_ptr<ov::Model> model) {
+    // Duplicate small Constants which are consumed by multiple operators
+    // to simplify match bank validation in the future
+    for (const auto& ov_node : model->get_ordered_ops()) {
+        if (!ov::op::util::is_constant(ov_node)) {
+            continue;
+        }
+
+        const auto readers = ov_node->output(0).get_target_inputs();
+        if (readers.size() <= 1) {
+            continue;
+        }
+        auto this_const = std::static_pointer_cast<ov::op::v0::Constant>(ov_node);
+        auto this_type = this_const->get_element_type();
+        auto this_shape = ov_node->output(0).get_shape();
+
+        const bool is_single = (this_shape.size() == 0u) || (this_shape.size() == 1u && this_shape[0] == 1);
+        if (this_type == ov::element::i64 && is_single) {
+            // Keep the first reader with the original const, but redirect
+            // all others to use their individual instance
+            auto this_val = this_const->get_tensor_view();
+            auto it = readers.begin();
+            while (++it != readers.end()) {
+                auto new_const = std::make_shared<ov::op::v0::Constant>(this_val);
+                new_const->set_friendly_name(util::Unique<Untangled_Const>::name());
+                it->replace_source_output(new_const);
+            }
+        }
+    }
 }
 
 }  // namespace opt

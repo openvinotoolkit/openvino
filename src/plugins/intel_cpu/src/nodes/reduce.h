@@ -4,14 +4,32 @@
 
 #pragma once
 
-#include "executors/reduce_list.hpp"
+#include <cassert>
+#include <common/primitive_attr.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/reduce.hpp"
+#endif
 
-enum ReduceLayoutType { reduce_ncsp, reduce_nspc, reduce_blocked };
+namespace ov::intel_cpu::node {
+
+enum ReduceLayoutType : uint8_t { reduce_ncsp, reduce_nspc, reduce_blocked };
 
 struct jit_reduce_config_params {
     ReduceLayoutType layout;
@@ -26,40 +44,40 @@ struct jit_reduce_config_params {
 };
 
 struct jit_reduce_call_args {
-    const void* src;
-    const int* idx;
-    void* dst;
-    size_t work_amount;
-    size_t work_batch;
+    const void* src = nullptr;
+    const int* idx = nullptr;
+    void* dst = nullptr;
+    size_t work_amount = 0UL;
+    size_t work_batch = 0UL;
     size_t reduce_w =
         2;  // only used in planar layout  [1: reduce width dimension]   [0: reduce other dimension] [other value: N/A]
-    size_t reduce_stride;  // only used in planar layout while reducing dimensions except for width
-    size_t can_divide;     // if apply division in reduce_kernel [1: Yes] [0: No]
-    const float* divisor;  // mean = sum / divisor
+    size_t reduce_stride = 0UL;      // only used in planar layout while reducing dimensions except for width
+    size_t can_divide = 0UL;         // if apply division in reduce_kernel [1: Yes] [0: No]
+    const float* divisor = nullptr;  // mean = sum / divisor
 };
 
 struct jit_reduce_post_call_args {
-    const void* src;
-    void* dst;
-    size_t work_amount;
+    const void* src = nullptr;
+    void* dst = nullptr;
+    size_t work_amount = 0UL;
     size_t reduce_c =
         2;  // only used in blocked layout [1: reduce channel dimension] [0: reduce other dimension] [other value: N/A]
-    size_t oc_off;         // offset in byte along channel on output tensor
-    size_t channel_size;   // only for post ops fusion of nspc layout
-    const float* divisor;  // mean = sum / divisor
-    const void** post_op_data;
+    size_t oc_off = 0UL;             // offset in byte along channel on output tensor
+    size_t channel_size = 0UL;       // only for post ops fusion of nspc layout
+    const float* divisor = nullptr;  // mean = sum / divisor
+    const void** post_op_data = nullptr;
 };
 
 struct jit_uni_reduce_kernel {
-    void (*ker_)(const jit_reduce_call_args*);
+    void (*ker_)(const jit_reduce_call_args*) = nullptr;
 
-    void operator()(const jit_reduce_call_args* args) {
+    void operator()(const jit_reduce_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_reduce_kernel(jit_reduce_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_reduce_kernel() {}
+    explicit jit_uni_reduce_kernel(jit_reduce_config_params jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_reduce_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -67,18 +85,17 @@ struct jit_uni_reduce_kernel {
 };
 
 struct jit_uni_reduce_post_kernel {
-    void (*ker_)(const jit_reduce_post_call_args*);
+    void (*ker_)(const jit_reduce_post_call_args*) = nullptr;
 
-    void operator()(const jit_reduce_post_call_args* args) {
+    void operator()(const jit_reduce_post_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
     explicit jit_uni_reduce_post_kernel(jit_reduce_config_params jcp, const dnnl_primitive_attr& attr)
-        : ker_(nullptr),
-          jcp_(jcp),
+        : jcp_(jcp),
           attr_(attr) {}
-    virtual ~jit_uni_reduce_post_kernel() {}
+    virtual ~jit_uni_reduce_post_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -117,7 +134,7 @@ private:
                                       size_t work_amount,
                                       size_t reduce_w = 2,
                                       size_t work_batch = 1,
-                                      const int* tab_idx = NULL);
+                                      const int* tab_idx = nullptr);
     inline void reduce_kernel_post_process(uint8_t* out_ptr);
     inline void reduce_kernel_reassign();
     inline void reduce_kernel_restore();
@@ -135,14 +152,14 @@ private:
                             std::function<float(float, float)> func);
     void create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel, const jit_reduce_config_params& jcp);
     inline void reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
-    void nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr);
-    void blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr);
+    void nspc2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const;
+    void blocked2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const;
     void setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims, bool initWeights = false);
     void setJITBeyond5D();
     std::vector<int> update_src_dims();
     bool canApplyJIT(const ov::element::Type& input_prec, const ov::element::Type& output_prec) const;
 
-    size_t blk_size;
+    size_t blk_size = 0;
     static const size_t REDUCE_DATA = 0;
     static const size_t REDUCE_INDEXES = 1;
     bool jit_beyond_5D = false;
@@ -162,15 +179,15 @@ private:
     bool use_aux_kernel = false;
     bool set_use_aux_kernel = false;
     bool empty_input = false;
-    bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
-    size_t IB, IC, ID, IH, IW;
-    size_t OB, OC, OD, OH, OW;
-    size_t PD, PH, PW;
-    size_t src_data_size, dst_data_size, prc_data_size, intermediate_data_size, tmp_data_size;
-    size_t dst_size, prc_size, intermediate_size, tmp_size;
-    size_t reduce_stride;
-    uint8_t* tmp_ptr;
-    ReduceLayoutType layout;
+    bool ReduceN = false, ReduceC = false, ReduceD = false, ReduceH = false, ReduceW = false;
+    size_t IB = 0, IC = 0, ID = 0, IH = 0, IW = 0;
+    size_t OB = 0, OC = 0, OD = 0, OH = 0, OW = 0;
+    size_t PD = 0, PH = 0, PW = 0;
+    size_t src_data_size = 0, dst_data_size = 0, prc_data_size = 0, intermediate_data_size = 0, tmp_data_size = 0;
+    size_t dst_size = 0, prc_size = 0, intermediate_size = 0, tmp_size = 0;
+    size_t reduce_stride = 0;
+    uint8_t* tmp_ptr = nullptr;
+    ReduceLayoutType layout = reduce_ncsp;
     ov::element::Type input_prec, output_prec, intermediate_prec, tmp_prec;
     VectorDims src_dims;
     VectorDims process_dst_dims;
@@ -178,8 +195,8 @@ private:
     std::vector<int> raw_axes;
     std::vector<uint8_t> intermediate_buf;
 
-    jit_reduce_config_params jcp;
-    jit_reduce_config_params aux_jcp;
+    jit_reduce_config_params jcp{};
+    jit_reduce_config_params aux_jcp{};
 
     dnnl::primitive_attr attr;
 
@@ -205,6 +222,4 @@ private:
 #endif
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

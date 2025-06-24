@@ -24,6 +24,8 @@ static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
 static const char COMPILED_MODEL[] = "CompiledModel";
 static const char TENSOR[] = "Tensor";
+static const char OUTPUT[] = "Output<ov::Node>";
+static const char PARTIALSHAPE[] = "PartialShape";
 static const char BUFFER[] = "Buffer";
 static const char VALUE[] = "value";
 }  // namespace BindingTypename
@@ -126,6 +128,16 @@ const char* get_attr_type<TensorWrap>() {
     return BindingTypename::TENSOR;
 }
 
+template<>
+const char* get_attr_type<Output<ov::Node>>() {
+    return BindingTypename::OUTPUT;
+}
+
+template <>
+const char* get_attr_type<PartialShapeWrap>() {
+    return BindingTypename::PARTIALSHAPE;
+}
+
 template <>
 bool validate_value<Napi::Value>(const Napi::Env& env, const Napi::Value& value) {
     return true;
@@ -185,6 +197,20 @@ bool validate_value<CompiledModelWrap>(const Napi::Env& env, const Napi::Value& 
 template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
+
+template <>
+bool validate_value<Output<ov::Node>>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->output;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
+
+template <>
+bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->partial_shape;
 
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }

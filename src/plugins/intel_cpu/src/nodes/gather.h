@@ -6,15 +6,19 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
+#include "edge.h"
+#include "graph_context.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Gather : public Node {
 public:
@@ -123,6 +127,4 @@ private:
     std::shared_ptr<jitGatherKernelBase> jitKernel;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

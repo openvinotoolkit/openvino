@@ -3,12 +3,13 @@
 //
 
 #pragma once
+#include <type_traits>
+
 #include "openvino/core/node.hpp"
 #include "snippets/emitter.hpp"
-#include "snippets/lowered/expression.hpp"
 #include "snippets/generator.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/op/kernel.hpp"
-#include <type_traits>
 
 /**
  * @interface RegManager
@@ -27,8 +28,12 @@ class RegManager {
 public:
     RegManager() = delete;
     RegManager(const std::shared_ptr<const Generator>& generator) : m_generator(generator) {}
-    inline RegType get_reg_type(const ov::Output<Node>& out) const { return m_generator->get_op_out_reg_type(out); }
-    inline std::vector<Reg> get_vec_reg_pool() const { return m_generator->get_target_machine()->get_vec_reg_pool(); }
+    inline RegType get_reg_type(const ov::Output<Node>& out) const {
+        return m_generator->get_op_out_reg_type(out);
+    }
+    inline std::vector<Reg> get_vec_reg_pool() const {
+        return m_generator->get_target_machine()->get_vec_reg_pool();
+    }
 
     inline void set_live_range(const Reg& reg, const LiveInterval& interval) {
         OPENVINO_ASSERT(m_reg_live_range.insert({reg, interval}).second, "Live range for this reg is already set");
@@ -46,7 +51,12 @@ public:
         std::set<Reg> kernel_call;
         for (auto r : get_kernel_call_regs(kernel))
             kernel_call.insert(r);
-        res.erase(std::remove_if(res.begin(), res.end(), [&kernel_call](const Reg& r) {return kernel_call.count(r) != 0; }), res.end());
+        res.erase(std::remove_if(res.begin(),
+                                 res.end(),
+                                 [&kernel_call](const Reg& r) {
+                                     return kernel_call.count(r) != 0;
+                                 }),
+                  res.end());
         return res;
     }
 
@@ -64,6 +74,6 @@ private:
     const std::shared_ptr<const Generator> m_generator;
 };
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov
