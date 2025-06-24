@@ -545,7 +545,7 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
                            weight_ptr,
                            c_ptr,
                            d_ptr,
-                           scale_b + count_N,
+                           scale_b + n * count_N,
                            wsp,
                            do_post);
                 // stride K, N if body kernel is executed.
