@@ -79,9 +79,9 @@ public:
      * Compiler should somehow understand wich Init(or Main) to return
      * Plugin does not know total numbers og Init schedules
      */
-    virtual std::shared_ptr<NetworkDescription> compileWS_v3(const std::shared_ptr<ov::Model>& model,
-                                                             const Config& config,
-                                                             size_t callNumber) const = 0;
+    virtual NetworkDescription compileWS_v3(const std::shared_ptr<ov::Model>& model,
+                                            const Config& config,
+                                            size_t callNumber) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed
