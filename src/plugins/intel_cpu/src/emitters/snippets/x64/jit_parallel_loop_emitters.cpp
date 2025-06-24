@@ -81,15 +81,6 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
     }
 }
 
-void jit_parallel_loop_base_emitter::emit_pointer_increments(size_t scale) const {
-    for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
-        const auto& increment = loop_args.m_ptr_increments[idx];
-        if (is_incremented[idx] && increment != 0) {
-            h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment * scale * loop_args.m_dtype_sizes[idx]);
-        }
-    }
-}
-
 jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
                                                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                                  const ov::snippets::lowered::ExpressionPtr& expr,
@@ -248,12 +239,14 @@ void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in
 
 void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                               [[maybe_unused]] const std::vector<size_t>& out) const {
-    std::vector<size_t> data_ptr_reg_idxs;
-    // the last input is actually a work_amount reg
-    // data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
-    // std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
+    for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
+        const auto& ptr_increment = loop_args.m_ptr_increments[idx];
+        if (is_incremented[idx] && ptr_increment != 0) {
+            h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])),
+                   ptr_increment * wa_increment * loop_args.m_dtype_sizes[idx]);
+        }
+    }
 
-    emit_pointer_increments(wa_increment);
     auto reg_work_amount = Reg64(in.back());
     h->sub(reg_work_amount, wa_increment);
     h->cmp(reg_work_amount, wa_increment);
