@@ -14,7 +14,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"

@@ -7,6 +7,7 @@
 #include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "plugin.hpp"
 #include "remote_context.hpp"
 #include "subgraph_collector.hpp"
 
@@ -19,7 +20,7 @@ class InferRequest;
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
-                  const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels,
+                  const std::vector<ov::hetero::SubmodelInfo>& compiled_submodels,
                   const SubgraphsMappingInfo& mapping_info,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   ov::hetero::RemoteContext::Ptr context,
@@ -47,7 +48,7 @@ public:
 private:
     friend class InferRequest;
 
-    void compile_model(const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels);
+    void compile_model(const std::vector<ov::hetero::SubmodelInfo>& submodels);
 
     std::shared_ptr<const Plugin> get_hetero_plugin() const;
 

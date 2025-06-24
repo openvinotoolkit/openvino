@@ -17,12 +17,11 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
-#include "plugin.hpp"
 #include "properties.hpp"
 
 ov::hetero::CompiledModel::CompiledModel(
     const std::shared_ptr<ov::Model>& model,
-    const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels,
+    const std::vector<ov::hetero::SubmodelInfo>& submodels,
     const SubgraphsMappingInfo& mapping_info,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     ov::hetero::RemoteContext::Ptr context,
@@ -33,7 +32,7 @@ ov::hetero::CompiledModel::CompiledModel(
       m_loaded_from_cache(false),
       m_mapping_info(mapping_info) {
     try {
-        compile_model(compiled_submodels);
+        compile_model(submodels);
     } catch (const std::exception& e) {
         OPENVINO_THROW("Standard exception from compilation library: ", e.what());
     } catch (...) {
@@ -42,16 +41,16 @@ ov::hetero::CompiledModel::CompiledModel(
 }
 
 void ov::hetero::CompiledModel::compile_model(
-    const std::vector<std::pair<std::string, std::shared_ptr<ov::Model>>>& compiled_submodels) {
-    const bool add_exclusive = compiled_submodels.size() > 1;
+    const std::vector<ov::hetero::SubmodelInfo>& submodels) {
+    const bool add_exclusive = submodels.size() > 1;
     const auto& hetero_plugin = get_hetero_plugin();
     const auto& core = hetero_plugin->get_core();
     const auto& device_properties = m_cfg.get_device_properties();
 
     m_compiled_submodels.clear();
-    m_compiled_submodels.reserve(compiled_submodels.size());
+    m_compiled_submodels.reserve(submodels.size());
 
-    for (const auto& [device, sub_model] : compiled_submodels) {
+    for (const auto& [device, sub_model] : submodels) {
         // get meta devices properties for the target device
         auto meta_devices = hetero_plugin->get_properties_per_device(device, device_properties);
 

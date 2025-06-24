@@ -30,10 +30,10 @@ ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
 }
 
-std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmoduleInfo>> ov::hetero::Plugin::split_graph(
+std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo>> ov::hetero::Plugin::split_graph(
     const std::shared_ptr<ov::Model>& model,
     Configuration config) const {
-    std::vector<ov::hetero::SubmoduleInfo> compiled_submodels;
+    std::vector<ov::hetero::SubmodelInfo> submodels;
     ov::SupportedOpsMap query_model_result;
     SubgraphsMappingInfo mapping_info;
     const std::string model_name = model->get_friendly_name();
@@ -55,17 +55,17 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmoduleInf
         std::tie(ordered_subgraphs, mapping_info) =
             get_model_subgraphs(model, query_model_result, true, m_cfg.dump_dot_files());
 
-        compiled_submodels.resize(ordered_subgraphs.size());
+        submodels.resize(ordered_subgraphs.size());
         for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
             const auto& subgraph = ordered_subgraphs[i];
-            compiled_submodels[i].first = subgraph._affinity;
-            compiled_submodels[i].second = std::make_shared<ov::Model>(subgraph._results,
+            submodels[i].first = subgraph._affinity;
+            submodels[i].second = std::make_shared<ov::Model>(subgraph._results,
                                                                        subgraph._sinks,
                                                                        subgraph._parameters,
                                                                        model_name + "_" + std::to_string(i));
         }
 
-        return {mapping_info, compiled_submodels};
+        return {mapping_info, submodels};
     }
 
     // Restore properties in order to pass "device priorities" together
@@ -88,13 +88,13 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmoduleInf
         }
     }
 
-    compiled_submodels.resize(ordered_subgraphs.size());
+    submodels.resize(ordered_subgraphs.size());
     for (size_t i = 0; i < ordered_subgraphs.size(); ++i) {
-        compiled_submodels[i].first = ordered_subgraphs[i]->get_affinity();
-        compiled_submodels[i].second = ordered_subgraphs[i]->get_function();
+        submodels[i].first = ordered_subgraphs[i]->get_affinity();
+        submodels[i].second = ordered_subgraphs[i]->get_function();
     }
 
-    return {mapping_info, compiled_submodels};
+    return {mapping_info, submodels};
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -104,20 +104,19 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     auto config = Configuration{properties, m_cfg};
     auto cloned_model = model->clone();
     SubgraphsMappingInfo mapping_info;
-    std::vector<ov::hetero::SubmoduleInfo> compiled_submodels;
-    std::tie(mapping_info, compiled_submodels) = split_graph(cloned_model, config);
+    std::vector<ov::hetero::SubmodelInfo> submodels;
+    std::tie(mapping_info, submodels) = split_graph(cloned_model, config);
     ov::hetero::RemoteContext::Ptr remote_context;
-    std::shared_ptr<ov::hetero::CompiledModel> compiled_model;
     try {
         std::map<std::string, ov::SoPtr<ov::IRemoteContext>> contexts_map;
-        for (const auto& [device_name, _] : compiled_submodels) {
+        for (const auto& [device_name, _] : submodels) {
             contexts_map.insert({device_name, get_core()->get_default_context(device_name)});
         }
         remote_context = std::make_shared<ov::hetero::RemoteContext>(std::move(contexts_map));
     } catch (const ov::Exception&) {
     }
     return std::make_shared<CompiledModel>(cloned_model,
-                                           compiled_submodels,
+                                           submodels,
                                            mapping_info,
                                            shared_from_this(),
                                            remote_context,
