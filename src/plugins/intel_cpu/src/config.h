@@ -62,7 +62,7 @@ struct Config {
     bool valueCachePrecisionSetExplicitly = false;
     bool keyCacheGroupSizeSetExplicitly = false;
     bool valueCacheGroupSizeSetExplicitly = false;
-#if defined(OV_CPU_WITH_ACL)
+#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
     bool aclFastMath = false;
     // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
     size_t rtCacheCapacity = 0ul;
