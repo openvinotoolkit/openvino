@@ -144,7 +144,7 @@ public:
     PerfCountEnd(const Output<Node>& pc_begin,
                  std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
                  const std::string& params = "");
-    PerfCountEnd();
+    PerfCountEnd() = default;
     ~PerfCountEnd() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
