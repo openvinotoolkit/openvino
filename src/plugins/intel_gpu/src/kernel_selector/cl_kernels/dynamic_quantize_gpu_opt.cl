@@ -12,6 +12,7 @@
 #define VSTORE_N CAT(vstore, VEC_SIZE)
 #define CONVERT_UCHAR_N CAT(convert_uchar, VEC_SIZE)
 #define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
+#define CONVERT_INT_N CAT(convert_int, VEC_SIZE)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
@@ -130,9 +131,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
     half grp_min = 0.001h;
     half max_value = 0.0h;
     half min_value = 0.0h;
-#if GENERATE_PARTIAL_SUM
-    float partial_sum = 0.0h;
-#endif
     val = AS_INPUT_TYPE_N(VLOAD_N(0, input + input_offset + (local_id * block_size)));
 
 #if ASYMMETRIC_QUANTIZATION
@@ -147,9 +145,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
     unroll_for (int j = 0; j < VEC_SIZE; j++) {
         max_value = fmax(max_value, abs_val[j]);
-#if GENERATE_PARTIAL_SUM
-        partial_sum += val[j];
-#endif
     }
 
     grp_max = fmax(grp_max, max_value);
@@ -158,9 +153,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
     max_value = sub_group_reduce_max(grp_max);
 #if ASYMMETRIC_QUANTIZATION
     min_value = sub_group_reduce_min(grp_min);
-#endif
-#if GENERATE_PARTIAL_SUM
-    partial_sum = sub_group_reduce_add(partial_sum);
 #endif
 
     if (sglid == 0) {
@@ -194,6 +186,16 @@ KERNEL(dynamic_quantize_gpu_opt)(
     VSTORE_N(CAT(CONVERT_CHAR_N, _rte)(val), 0, output + output_offset + (local_id * block_size));
 #endif
 
+#if GENERATE_PARTIAL_SUM
+    // TODO: Optimize this part
+    int partial_sum = 0;
+    MAKE_VECTOR_TYPE(OUTPUT2_TYPE, VEC_SIZE) val_int = CAT(CONVERT_INT_N, _rte)(val);
+    unroll_for (int j = 0; j < VEC_SIZE; j++) {
+        partial_sum += val_int[j];
+    }
+    partial_sum = sub_group_reduce_add(partial_sum);
+#endif
+
     if (sglid == 0 && local_id == 0) {
 #if OUTPUT_DIMS == 2
         const int output_idx = OUTPUT1_GET_INDEX(b, f_grp, 0, 0);
@@ -208,7 +210,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 #if GENERATE_PARTIAL_SUM
         // FIXME: f_grp may not be aligned with dyn_quan gs
         // XXX: can partial_sum be f16? this may go out of range for large group size
-        output_partial_sum[output_idx] = partial_sum * scale;
+        output_partial_sum[output_idx] = partial_sum;
 #endif
     }
 }
