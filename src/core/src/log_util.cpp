@@ -12,23 +12,23 @@ namespace ov {
 namespace util {
 
 namespace {
-log_handler_t default_log_handler{[](const std::string& s) {
+LogCallback default_log_callback{[](std::string_view s) {
     std::cout << s << std::endl;
 }};
 
-log_handler_t current_log_handler = default_log_handler;
+LogCallback current_log_callback = default_log_callback;
 }  // namespace
 
-OPENVINO_API log_handler_t get_log_handler() {
-    return current_log_handler;
+OPENVINO_API LogCallback get_log_callback() {
+    return current_log_callback;
 }
 
-OPENVINO_API void set_log_handler(log_handler_t handler) {
-    current_log_handler = std::move(handler);
+OPENVINO_API void set_log_callback(LogCallback handler) {
+    current_log_callback = std::move(handler);
 }
 
-OPENVINO_API void reset_log_handler() {
-    current_log_handler = default_log_handler;
+OPENVINO_API void reset_log_callback() {
+    current_log_callback = default_log_callback;
 }
 
 #ifdef ENABLE_OPENVINO_DEBUG

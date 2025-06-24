@@ -13,10 +13,10 @@
 namespace ov {
 namespace util {
 
-using log_handler_t = std::function<void(const std::string&)>;
-OPENVINO_API log_handler_t get_log_handler();
-OPENVINO_API void set_log_handler(log_handler_t handler);
-OPENVINO_API void reset_log_handler();
+using LogCallback = std::function<void(std::string_view)>;
+OPENVINO_API LogCallback get_log_callback();
+OPENVINO_API void set_log_callback(LogCallback handler);
+OPENVINO_API void reset_log_callback();
 
 #ifdef ENABLE_OPENVINO_DEBUG
 
