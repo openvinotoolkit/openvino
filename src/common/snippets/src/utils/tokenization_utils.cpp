@@ -47,9 +47,11 @@ using namespace ov::snippets::pass;
 
 namespace {
 auto has_result_child(const std::shared_ptr<const Node>& node) -> bool {
-    return std::any_of(node->get_users().begin(), node->get_users().end(), [](const std::shared_ptr<Node>& child) {
-        return ov::is_type<ov::opset1::Result>(child);
-    });
+    for (const auto& child : node->get_users()) {  // NOLINT
+        if (ov::is_type<ov::opset1::Result>(child)) {
+            return true;
+        }
+    }
     return false;
 }
 
