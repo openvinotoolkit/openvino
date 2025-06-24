@@ -4,11 +4,29 @@
 
 #include "brgemm_kernel.hpp"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/c_types_map.hpp>
+#include <common/memory_desc.hpp>
+#include <cpu/x64/amx_tile_configure.hpp>
+#include <cpu/x64/brgemm/brgemm.hpp>
+#include <cpu/x64/brgemm/brgemm_types.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <openvino/core/except.hpp>
 
 #include "dnnl_extension_utils.h"
-#include "utils/cpu_utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl;
@@ -107,7 +125,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                           (is_int8 && mayiuse(avx512_core_amx));
     bool isBrgWithAMX = isAMXSupported && !is_avx_f16_only;
 
-    size_t vlen;
+    size_t vlen = 0;
     if (mayiuse(avx512_core)) {
         vlen = cpu_isa_traits<avx512_core>::vlen;
     } else {
@@ -118,7 +136,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
     N_tail = N % N_blk;
 
     // blocking K
-    K_blk = isBrgWithAMX ? (inType == ov::element::i8 ? 64 : 32) : K;
+    size_t k_blk_base = inType == ov::element::i8 ? 64 : 32;
+    K_blk = isBrgWithAMX ? k_blk_base : K;
     K_tail = K % K_blk;
     if (isBrgWithAMX && K_tail) {
         K_tail = rnd_up(K_tail, brgVnniFactor);
@@ -131,7 +150,12 @@ BrgemmKernel::BrgemmKernel(size_t M,
             for (size_t n = 0; n < 2; n++) {
                 auto& brgemmCtx = brgCtxs[getBrgIdx(m, k, n)];
 
-                auto M_ = m ? M_tail : M < M_blk ? 0 : M_blk;
+                size_t M_ = 0;
+                if (m) {
+                    M_ = M_tail;
+                } else if (M >= M_blk) {
+                    M_ = M_blk;
+                }
                 auto N_ = n ? N_tail : N - N_tail;
                 auto K_ = k ? K_tail : K - K % K_blk;
                 auto beta = (b_accumulate || (k && brgCtxs[getBrgIdx(m, 0, n)].K != 0)) ? 1.0f : 0.0f;
@@ -139,9 +163,17 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
-                brgemmCtx.LDA = k ? K_blk : (is_avx_f16_only ? K : lda);  // f16 use f32 internally
-                brgemmCtx.LDB =
-                    (!is_f32 || b_transposed) ? rnd_up(N, N_blk) : ldb;  // bf16/fp16/b_transposed needs copy
+                if (k) {
+                    brgemmCtx.LDA = K_blk;
+                } else {
+                    brgemmCtx.LDA = is_avx_f16_only ? K : lda;  // f16 use f32 internally
+                }
+
+                if (!is_f32 || b_transposed) {
+                    brgemmCtx.LDB = rnd_up(N, N_blk);  // bf16/fp16/b_transposed needs copy
+                } else {
+                    brgemmCtx.LDB = ldb;
+                }
                 brgemmCtx.LDC = ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(srcType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(weiType));
@@ -205,7 +237,7 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
 
     const bool is_int8 =
         one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    cpu_isa_t isa;
+    cpu_isa_t isa = isa_undef;
     if (use_amx) {
         isa = isa_undef;
     } else if (mayiuse(avx512_core)) {
@@ -402,13 +434,13 @@ void BrgemmKernel::init_brgemm_copy_b(
 }
 
 void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
-    auto ptr_b = reinterpret_cast<uint8_t*>(b);
-    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
+    auto* ptr_b = reinterpret_cast<uint8_t*>(b);
+    auto* ptr_scartch_b = reinterpret_cast<uint8_t*>(scratch_b);
     if (brgCopyBKernel) {
         for (size_t nb = 0; nb < div_up(N, N_blk); nb++) {
             auto N_stride = b_transposed ? ldb : 1;
-            auto pCopyKernel0In = ptr_b + nb * N_blk * inType.size() * N_stride;
-            auto pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brgVnniFactor * weiType.size();
+            auto* pCopyKernel0In = ptr_b + nb * N_blk * inType.size() * N_stride;
+            auto* pCopyKernel0Out = ptr_scartch_b + nb * N_blk * brgVnniFactor * weiType.size();
 
             auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
@@ -427,19 +459,22 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
 }
 
 void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a) {
-    auto ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto ptr_C = reinterpret_cast<uint8_t*>(c);
-    auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
-    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
+    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
+    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
+    auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
+    auto* ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
 
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
     size_t K0_step0 = brgCtxs[brgIdx0].K;
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
-        size_t K_offset = is_avx_f16_only ? 0 : (K < K_blk ? 0 : K0_step0 * srcType.size());
-        auto pCopyKernelIn = ptr_A + K_offset;
-        auto pCopyKernelOut = ptr_scartch_a;
+        size_t K_offset = 0;
+        if (!is_avx_f16_only && K >= K_blk) {
+            K_offset = K0_step0 * srcType.size();
+        }
+        auto* pCopyKernelIn = ptr_A + K_offset;
+        auto* pCopyKernelOut = ptr_scartch_a;
 
         auto ctx = jit_brgemm_matmul_copy_a_t::ctx_t();
 
@@ -462,11 +497,16 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
-                auto local_a_ptr = is_avx_f16_only ? ptr_scartch_a : (k > 0 ? ptr_scartch_a : ptr_A);
+                void* local_a_ptr = [&]() {
+                    if (is_avx_f16_only || k > 0) {
+                        return ptr_scartch_a;
+                    }
+                    return ptr_A;
+                }();
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * weiType.size();
-                auto weight_ptr = ptr_scartch_b + B_stride;
+                auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
-                auto out_ptr = ptr_C + C_stride;
+                auto* out_ptr = ptr_C + C_stride;
                 callBrgemm(brgemmCtx,
                            brgKernels[getBrgIdx(mIdx, k, n)],
                            local_a_ptr,
@@ -496,20 +536,23 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
                                         float* scale_b,
                                         void* wsp,
                                         void* scratch_a) {
-    auto ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto ptr_C = reinterpret_cast<uint8_t*>(c);
-    auto ptr_D = reinterpret_cast<uint8_t*>(d);
-    auto ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
-    auto ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
+    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
+    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
+    auto* ptr_D = reinterpret_cast<uint8_t*>(d);
+    auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
+    auto* ptr_scartch_b = reinterpret_cast<uint8_t*>(b);
 
     size_t brgIdx0 = getBrgIdx(0, 0, 0);
     // The step for matrix A over main K dimension
     size_t K0_step0 = brgCtxs[brgIdx0].K;
     auto cur_M_blk = is_M_tail ? M_tail : M_blk;
     if (brgCopyAKernel) {
-        size_t K_offset = is_avx_f16_only ? 0 : (K < K_blk ? 0 : K0_step0 * srcType.size());
-        auto pCopyKernelIn = ptr_A + K_offset;
-        auto pCopyKernelOut = ptr_scartch_a;
+        size_t K_offset = 0;
+        if (!is_avx_f16_only && K >= K_blk) {
+            K_offset = K0_step0 * srcType.size();
+        }
+        auto* pCopyKernelIn = ptr_A + K_offset;
+        auto* pCopyKernelOut = ptr_scartch_a;
 
         auto ctx = jit_brgemm_matmul_copy_a_t::ctx_t();
 
@@ -532,13 +575,18 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
             if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
-                auto local_a_ptr = is_avx_f16_only ? ptr_scartch_a : (k > 0 ? ptr_scartch_a : ptr_A);
+                void* local_a_ptr = [&]() {
+                    if (is_avx_f16_only || k > 0) {
+                        return ptr_scartch_a;
+                    }
+                    return ptr_A;
+                }();
                 auto B_stride = (k * count_K + n * count_N * brgVnniFactor) * weiType.size();
-                auto weight_ptr = ptr_scartch_b + B_stride;
+                auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
-                auto c_ptr = ptr_C + C_stride;
-                auto d_ptr = ptr_D + C_stride;
-                bool do_post = ((k == 0 && !K_tail) || k == 1);
+                auto* c_ptr = ptr_C + C_stride;
+                auto* d_ptr = ptr_D + C_stride;
+                bool do_post = ((k == 0 && K_tail == 0) || k == 1);
                 callBrgemm(brgemmCtx,
                            brgKernels[getBrgIdx(mIdx, k, n)],
                            local_a_ptr,
@@ -561,16 +609,16 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
 }
 
 void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
-    auto ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto ptr_B = reinterpret_cast<uint8_t*>(b);
-    auto ptr_C = reinterpret_cast<uint8_t*>(c);
+    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
+    auto* ptr_B = reinterpret_cast<uint8_t*>(b);
+    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
 
     copy_buffer_b(ptr_B, scratch_b);
 
     for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
         const bool is_M_tail = (M - mb * M_blk < M_blk);
-        auto ptr_a = ptr_A + (mb * M_blk * lda) * srcType.size();
-        auto ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
+        auto* ptr_a = ptr_A + (mb * M_blk * lda) * srcType.size();
+        auto* ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
         executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
     }
 }
@@ -581,7 +629,7 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                               const void* pin1,
                               void* Cout,
                               void* Dout,
-                              float* b_scale,
+                              const float* bScale,
                               void* wsp,
                               bool doPostops) {
     if (ctx.is_with_amx) {
@@ -589,7 +637,7 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     }
     if (doPostops) {
         brgemm_post_ops_data_t post_ops_data;
-        post_ops_data.scales = b_scale;
+        post_ops_data.scales = bScale;
         brgemm_batch_element_t addr_batch;
         addr_batch.ptr.A = pin0;
         addr_batch.ptr.B = pin1;

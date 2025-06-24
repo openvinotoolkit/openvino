@@ -14,7 +14,7 @@ namespace ov::intel_cpu {
 
 class BrgemmKernel {
 public:
-    enum ScaleType { NONE, PER_CHANNEL, PER_TENSOR };
+    enum ScaleType : uint8_t { NONE, PER_CHANNEL, PER_TENSOR };
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
     // BF16 * BF16 -> FP32
     // S8 * S8 -> S32
@@ -71,13 +71,13 @@ public:
     [[nodiscard]] const size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
     [[nodiscard]] const size_t get_scratch_b_size() const;
-    [[nodiscard]] const size_t get_mblk_size() const {
+    [[nodiscard]] static const size_t get_mblk_size() {
         return matmulOptimalM;
     }
     [[nodiscard]] const size_t get_k_blk() const {
         return K_blk;
     }
-    [[nodiscard]] const size_t get_wsp_size() const {
+    [[nodiscard]] static size_t get_wsp_size() {
         return 4 * 1024;
     }
 
@@ -113,7 +113,7 @@ private:
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t> brgCopyAKernel;
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel;
-    size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
+    static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
@@ -139,14 +139,14 @@ private:
                             bool transpose = false,
                             size_t copy_B_wei_stride = 0);
 
-    void callBrgemm(brgemmCtx& ctx,
-                    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                    const void* pin0,
-                    const void* pin1,
-                    void* Cout,
-                    void* Dout,
-                    float* bScale,
-                    void* wsp,
-                    bool doPostops);
+    static void callBrgemm(brgemmCtx& ctx,
+                           std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                           const void* pin0,
+                           const void* pin1,
+                           void* Cout,
+                           void* Dout,
+                           const float* bScale,
+                           void* wsp,
+                           bool doPostops);
 };
 }  // namespace ov::intel_cpu

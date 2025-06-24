@@ -2258,7 +2258,6 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #    endif
     } else if (data_type == ov::element::f32) {
         if (key_cache_type == ov::element::i8) {
-            printf("make PagedAttn f32 Executor\n");
             executor = std::make_shared<AttentionExecutor<float, ov::element::i8, ov::element::u8>>(params);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
