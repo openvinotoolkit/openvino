@@ -28,8 +28,48 @@ inline size_t get_data_inputs_num(const cldnn::scaled_dot_product_attention& des
     return data_inputs_num;
 }
 
+inline size_t get_key_cache_id(const cldnn::scaled_dot_product_attention& desc) {
+    size_t key_cache_id = desc.input_size();
+
+    if (!desc.is_kv_compressed) {
+        return -1;
+    }
+
+    if (desc.get_compression_zp_inputs_num() > 0) {
+        key_cache_id -= 4;
+    } else {
+        key_cache_id -= 2;  // Scales
+    }
+
+    return key_cache_id;
+}
+
+inline size_t get_value_cache_id(const cldnn::scaled_dot_product_attention& desc) {
+    size_t value_cache_id = desc.input_size();
+
+    if (!desc.is_kv_compressed) {
+        return -1;
+    }
+
+    if (desc.get_compression_zp_inputs_num() > 0) {
+        value_cache_id -= 3;  // Scales and zp
+    } else {
+        value_cache_id -= 1;  // Scales
+    }
+
+    return value_cache_id;
+}
+
 inline ov::Dimension get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     return qkv.get_partial_shape()[order[1]];
+}
+
+inline ov::Dimension get_head_size(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
+    return qkv.get_partial_shape()[order[3]];
+}
+
+inline ov::Dimension get_seq_length(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
+    return qkv.get_partial_shape()[order[2]];
 }
 
 inline ChannelName get_transposed_channel(ChannelName c, const std::vector<int64_t>& order) {

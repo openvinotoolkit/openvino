@@ -5,11 +5,11 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/int4_utils.cl"
 
-#ifdef WITH_NEGATIVE_IDX
+#ifdef INDEX_DIM
 inline uint FUNC(get_positive_index)(OPTIONAL_SHAPE_INFO_ARG int in)
 {
     if (in < 0)
-        return in + AXIS_DIM;
+        return in + INDEX_DIM;
     else
         return in;
 }
@@ -64,7 +64,13 @@ KERNEL(gather_ref)(
 #if COMPRESSED_WEIGHTS
     OUTPUT_TYPE val = OUTPUT_VAL_ZERO;
 
-    bool need_decompress = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? true : false;
+    #if GATHER_AXIS_SHAPE_INFO_INDEX
+        bool need_decompress = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? true : false;
+    #elif AXIS_DIM
+        bool need_decompress = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? true : false;
+    #else
+        bool need_decompress = true;
+    #endif
 
     if (need_decompress) {
         #if DECOMPRESSION_ZP_TERM
@@ -92,14 +98,20 @@ KERNEL(gather_ref)(
         #endif
     }
 #else
-    INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? dictionary[dictionary_idx] : 0;
+    #if GATHER_AXIS_SHAPE_INFO_INDEX
+        INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? dictionary[dictionary_idx] : 0;
+    #elif AXIS_DIM
+        INPUT0_TYPE val = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM) ? dictionary[dictionary_idx] : 0;
+    #else
+        INPUT0_TYPE val = dictionary[dictionary_idx];
+    #endif
 #endif
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
     output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
 #else
-    output[output_idx] = val;
+    output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
 #endif
 }
 

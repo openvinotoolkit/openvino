@@ -107,6 +107,7 @@ std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& p
         return {broadcast_axis, group_size};
     }
     if (params.is_type<paged_attention>()) {
+        // For micro kernel shared between SDPAs and Paged Attention
         auto desc = params.typed_desc<paged_attention>();
         int64_t broadcast_axis = -1;
         int64_t group_size = -1;
@@ -120,6 +121,74 @@ std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& p
     }
 
     OPENVINO_THROW("[GPU] Wrong primitive type for get_gqa_params()");
+}
+
+sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& impl_param,
+                                                    const std::vector<int64_t>& input_q_transpose_order,
+                                                    const std::vector<int64_t>& input_k_transpose_order,
+                                                    const std::vector<int64_t>& input_v_transpose_order) {
+    sdpa_configuration config;
+
+    auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
+        if (order.empty())
+            return pshape;
+
+        auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
+        for (size_t i = 0; i < order.size(); i++) {
+            transposed_pshape[i] = pshape[order[i]];
+        }
+        return transposed_pshape;
+    };
+
+    const auto& desc = impl_param.typed_desc<scaled_dot_product_attention>();
+    const auto query_shape = transpose_pshape(impl_param.get_input_layout(0).get_partial_shape(), input_q_transpose_order);
+    const auto key_shape = transpose_pshape(impl_param.get_input_layout(1).get_partial_shape(), input_k_transpose_order);
+    const auto value_shape = transpose_pshape(impl_param.get_input_layout(2).get_partial_shape(), input_v_transpose_order);
+
+    const auto num_heads_dim = 1;
+    if (query_shape[num_heads_dim].is_static() && key_shape[num_heads_dim].is_static() && value_shape[num_heads_dim].is_static()) {
+        if (query_shape[num_heads_dim].get_length() > key_shape[num_heads_dim].get_length()) {
+            config.broadcast_axis = desc->input_k_transpose_order[num_heads_dim];
+            config.kv_group_size = query_shape[num_heads_dim].get_length() / key_shape[num_heads_dim].get_length();
+        }
+    }
+
+    if (query_shape[query_shape.size() - 1].is_static())
+        config.k_head_size = query_shape[query_shape.size() - 1].get_length();
+
+    if (value_shape[value_shape.size() - 1].is_static())
+        config.v_head_size = value_shape[value_shape.size() - 1].get_length();
+
+    config.is_causal = desc->is_causal;
+
+    if (desc->scale_val.has_value()) {
+        config.has_const_scale_val = true;
+        config.scale_val = desc->scale_val.value();
+    } else {
+        config.has_const_scale_val = false;
+    }
+
+    if (desc->attn_mask_val.has_value()) {
+        config.has_const_attn_mask_val = true;
+        config.attn_mask_val = desc->attn_mask_val.value();
+    } else {
+        config.has_const_attn_mask_val = false;
+    }
+
+    if (desc->is_kv_compressed) {
+        const auto& group_sizes = desc->quantization_attributes.group_sizes;
+        const auto non_compressed_dims = std::count(group_sizes.begin(), group_sizes.end(), 1);
+
+        config.per_head_quantization = (group_sizes.size() - non_compressed_dims) == 1;
+        config.is_kv_compressed = desc->is_kv_compressed;
+        config.use_asymmetric_quantization = desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+        config.combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    }
+
+    // figure out sdpa input number: QKV + attention_mask + scale, exclude: beam table, key compression scale/zp, value compression scale/zp
+    config.input_num = get_data_inputs_num(*desc);
+
+    return config;
 }
 
 JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const {
@@ -142,13 +211,17 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         const size_t scale_id = attn_mask_id + 1;
 
         jit.make("IS_CAUSAL", desc->is_causal);
-        jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
-        jit.make("HAS_SCALE_INPUT", data_inputs_num > scale_id);
+        if (desc->attn_mask_val.has_value()) {
+            jit.make("STATIC_ATTENTION_MASK_VALUE", desc->attn_mask_val.value());
+            jit.make("HAS_ATTENTION_MASK", 0);
+        } else {
+            jit.make("HAS_ATTENTION_MASK", data_inputs_num > attn_mask_id);
+        }
 
+        jit.make("HAS_SCALE_INPUT", data_inputs_num > scale_id);
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
-
         if (desc->is_kv_compressed) {
             const auto& group_sizes = desc->quantization_attributes.group_sizes;
             const auto non_compressed_dims = std::count(group_sizes.begin(), group_sizes.end(), 1);
@@ -216,19 +289,27 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         }
 
         LayoutJitter q_jitter(params.input_layouts[0], in_offsets_map.at(0));
-        const auto num_heads = q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_q_transpose_order));
         jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order)));
         jit.make("HEAD_SIZE", q_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order)));
-        jit.make("NUM_HEADS", num_heads);
+        jit.make("NUM_HEADS", q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_q_transpose_order)));
 
         LayoutJitter k_jitter(params.input_layouts[1], in_offsets_map.at(1));
         jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, desc->input_k_transpose_order)));
+        jit.make("NUM_KV_HEADS", k_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_k_transpose_order)));
+        jit.make("K_HEAD_SIZE", k_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_k_transpose_order)));
+
+        LayoutJitter v_jitter(params.input_layouts[2], in_offsets_map.at(2));
+        jit.make("V_HEAD_SIZE", v_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_v_transpose_order)));
+
     } else if (params.is_type<paged_attention>()) {
+        // For micro kernel shared between SDPAs and Paged Attention
         auto desc = params.typed_desc<paged_attention>();
         jit.make("IS_CAUSAL", true);
-        jit.make("HEAD_SIZE", desc->head_size);
+        jit.make("K_HEAD_SIZE", desc->k_head_size);
+        jit.make("V_HEAD_SIZE", desc->v_head_size);
         jit.make("NUM_HEADS", desc->heads_num);
-        jit.make("IS_KV_COMPRESSED", 0);
+        jit.make("KV_NUM_HEADS", desc->kv_heads_num);
+        // jit.make("IS_KV_COMPRESSED", 0);
 
         if (desc->scale_val.has_value()) {
             jit.make("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value());

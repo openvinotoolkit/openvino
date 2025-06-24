@@ -16,13 +16,18 @@
 
 namespace ov::intel_gpu::ocl {
 
+static bool unaligned_head_size(const size_t k_head_size, const size_t v_head_size, const size_t subgroup_size) {
+    return (k_head_size % subgroup_size != 0) || (v_head_size % subgroup_size != 0);
+}
+
 JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_params& params, size_t stage, bool add_tensor_definitions) const {
     auto jit = SDPABase::get_jit_constants(params);
     if (add_tensor_definitions) {
         jit.add(make_tensors_jit_constants(params));
     }
     const auto& info = params.get_device_info();
-    const auto& q_layout = params.get_input_layout(0);
+    const auto& v_layout = params.get_input_layout(2);
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
 
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
@@ -30,37 +35,56 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
     auto [broadcast_axis, group_size] = get_gqa_params(params);
-    int64_t head_size = -1;
+    int64_t v_head_size = -1;
     if (params.is_type<scaled_dot_product_attention>()) {
-        head_size = q_layout.get_partial_shape()[3].get_length();
+        v_head_size = v_layout.get_partial_shape()[3].get_length();
     } else if (params.is_type<paged_attention>()) {
-        auto desc = params.typed_desc<paged_attention>();
-        head_size = static_cast<int64_t>(desc->head_size);
+        OPENVINO_THROW("SDPAOptGeneratorBase::get_jit_constants_base() should not go there for SDPA due to it is for PA!");
+        // auto desc = params.typed_desc<paged_attention>();
+        // v_head_size = static_cast<int64_t>(desc->v_head_size);
     }
 
-    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, head_size, stage));
-    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, head_size, stage));
+    const auto& k_layout = params.get_input_layout(1);
+    int64_t k_head_size = k_layout.get_partial_shape()[3].get_length();
+    if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
+        jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
+        jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
+    }
+    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
+    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
 
     if (params.is_type<scaled_dot_product_attention>()) {
-        if (get_data_inputs_num(*params.typed_desc<scaled_dot_product_attention>()) <= 4) {
-            jit.make("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(head_size)));
-            jit.make("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(head_size)));
+        // size_t scale_idx = desc->attn_mask_val.has_value() ? 3 : 4;
+        if (desc->has_scale_input) {
+            jit.make("HAS_SCALE_INPUT", 1);
+        } else if (desc->scale_val.has_value()) {
+            jit.make("STATIC_SCALE_VALUE", desc->scale_val.value());
+            jit.make("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value());
+        } else {
+            jit.make("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(k_head_size)));
+            jit.make("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(k_head_size)));
         }
-        jit.make("NUM_KV_HEADS", -1);
+        // jit.make("NUM_KV_HEADS", -1);
     } else if (params.is_type<paged_attention>()) {
-        auto desc = params.typed_desc<paged_attention>();
-        jit.make("IS_PAGED_ATTENTION", 1);
-        jit.make("NUM_KV_HEADS", desc->kv_heads_num);
-        if (desc->has_alibi) {
-            jit.make("HAS_ALIBI", 1);
-        }
+        OPENVINO_THROW("SDPAOptGeneratorBase::get_jit_constants_base() should not go there for SDPA due to it is for PA!");
+        // auto desc = params.typed_desc<paged_attention>();
+        // jit.make("IS_PAGED_ATTENTION", 1);
+        // jit.make("NUM_KV_HEADS", desc->kv_heads_num);
+        // if (desc->has_alibi) {
+        //     jit.make("HAS_ALIBI", 1);
+        // }
 
-        if (params.output_layouts.size() > 1) {
-            jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
-        }
+        // if (params.output_layouts.size() > 1) {
+        //     jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
+        // }
     }
 
-    if (info.supports_immad && broadcast_axis == -1 && head_size >= 128) {
+    bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
+    if (could_use_flashattn_v2) {
+        jit.make("IS_FLASHATTEN_V2", 1);
+    }
+
+    if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
         jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
     }
 

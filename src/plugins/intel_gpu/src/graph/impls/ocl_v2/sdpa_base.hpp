@@ -17,11 +17,53 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
+struct sdpa_configuration {
+    int64_t k_head_size = -1;
+    int64_t v_head_size = -1;
+    int64_t heads_num = -1;
+    int64_t kv_heads_num = -1;
+
+    // GQA configuration
+    int64_t kv_group_size = 1;
+    int64_t broadcast_axis = -1;
+
+    bool is_causal = false;
+    bool has_alibi_input = false;
+    bool is_kv_compressed = false;
+    bool use_asymmetric_quantization = false;
+    bool combine_scales_and_zp = false;
+    bool per_head_quantization = false;
+
+    // Paged Attention configuration
+    bool is_paged_attention = false;
+    size_t paged_attention_sliding_window = 0;
+    int64_t paged_attention_block_size = 0;
+
+    // Runtime Paged Attention params
+    int64_t paged_attention_aligned_seq_len = -1;
+    int64_t paged_attention_max_len = 0;
+    int64_t paged_attention_snap_kv_tokens = 0;
+
+    bool has_const_scale_val = false;
+    float scale_val = 0.f;
+    bool has_const_attn_mask_val = false;
+    float attn_mask_val = 0.f;
+    bool has_score_aggregation = false;
+    bool has_rotated_blocks = false;
+
+    int64_t input_num;
+};
+
 struct SDPABase : public KernelGenerator {
     SDPABase(std::string_view name, std::string_view suffix, bool indirect) : KernelGenerator(name, suffix), m_indirect(indirect) {}
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
-
     [[nodiscard]] std::pair<int64_t, int64_t> get_gqa_params(const kernel_impl_params& params) const;
+
+
+    static sdpa_configuration get_sdpa_configuration(const kernel_impl_params& impl_param,
+                                                            const std::vector<int64_t>& input_q_transpose_order,
+                                                            const std::vector<int64_t>& input_k_transpose_order,
+                                                            const std::vector<int64_t>& input_v_transpose_order);
     bool m_indirect;
 };
 

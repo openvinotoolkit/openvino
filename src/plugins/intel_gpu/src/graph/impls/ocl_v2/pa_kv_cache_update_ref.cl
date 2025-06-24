@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/sub_group_block_read.cl"
 
 inline void FUNC(quantize_and_save)(__global const INPUT0_TYPE* in_data,
                                     const uint in_data_offset,

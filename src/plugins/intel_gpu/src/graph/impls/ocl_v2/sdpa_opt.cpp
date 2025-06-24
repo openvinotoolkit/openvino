@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "sdpa_opt.hpp"
+#include "sdpa_gen_micro.hpp"
 
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "kv_cache_inst.h"
-#include "micro_utils.hpp"
+// #include "micro_utils.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_inst.h"
 #include "primitive_ocl_base.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
-#include "sdpa_gen_micro.hpp"
 #include "sdpa_gen_opt.hpp"
 #include "utils/kernel_generator.hpp"
 
