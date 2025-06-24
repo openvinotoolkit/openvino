@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <string>
+
+#include "openvino/core/rtti.hpp"
 #include "serialize_base.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 

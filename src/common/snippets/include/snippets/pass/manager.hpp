@@ -4,8 +4,14 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <vector>
+
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/pass_config.hpp"
 #include "openvino/pass/validate.hpp"
 #include "positioned_pass.hpp"
 

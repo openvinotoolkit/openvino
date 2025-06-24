@@ -4,8 +4,25 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov::snippets::lowered {
 
@@ -330,7 +347,7 @@ public:
      */
     template <SpecificLoopIterType Type, typename T, class... Args>
     void register_pass_to_handler(Args&&... args) {
-        m_handlers.register_pass<Type, T>(args...);
+        m_handlers.register_pass<Type, T>(std::forward<Args>(args)...);
     }
 
     /**

@@ -73,7 +73,7 @@ std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loo
     while (i < common_rank && parent_loops[i] == current_loops[i]) {
         ++i;
     }
-    return std::vector<size_t>(parent_loops.cbegin() + i, parent_loops.cend());
+    return {parent_loops.cbegin() + i, parent_loops.cend()};
 }
 }  // namespace
 
@@ -104,13 +104,11 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
         }
         // Check that this LoopPort is connected to the same by semantic Buffer
         const auto consumers = port.get_connected_ports();
-        for (const auto& consumer : consumers) {
-            if (const auto buffer_consumer = ov::as_type_ptr<BufferExpression>(consumer.get_expr())) {
-                if (buffer_consumer->get_cluster_id() == m_cluster_id && consumer.get_index() == buffer_in_idx) {
-                    return true;
-                }
-            }
-        }
+        return std::any_of(consumers.begin(), consumers.end(), [&](const auto& consumer) {
+            const auto buffer_consumer = ov::as_type_ptr<BufferExpression>(consumer.get_expr());
+            return buffer_consumer && buffer_consumer->get_cluster_id() == m_cluster_id &&
+                   consumer.get_index() == buffer_in_idx;
+        });
         return false;
     };
 

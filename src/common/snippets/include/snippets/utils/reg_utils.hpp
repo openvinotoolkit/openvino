@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <iterator>
+#include <vector>
+
 #include "snippets/emitter.hpp"
 
 namespace ov::snippets::utils {

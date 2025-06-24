@@ -5,10 +5,9 @@
 #pragma once
 
 #include <memory>
-#include <vector>
+#include <set>
 
 #include "expression_port.hpp"
-#include "port_descriptor.hpp"
 
 namespace ov::snippets::lowered {
 

@@ -4,8 +4,13 @@
 
 #pragma once
 
+#include <memory>
 #include <openvino/op/convert.hpp>
 
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::snippets::op {

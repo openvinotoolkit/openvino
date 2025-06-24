@@ -4,8 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
 #include "openvino/runtime/memory_solver.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::snippets::lowered::pass {
 

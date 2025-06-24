@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <string>
+#include <utility>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "openvino/util/file_util.hpp"

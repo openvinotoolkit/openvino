@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::snippets::lowered::pass {
 

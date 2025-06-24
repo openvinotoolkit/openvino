@@ -306,7 +306,7 @@ public:
      * @param loop_id target Loop ID
      * @return loop port
      */
-    LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, size_t loop_id) const;
+    [[nodiscard]] LoopPort get_loop_port_by_expr_port(const ExpressionPort& expr_port, size_t loop_id) const;
 
     /**
      * @brief Reorder ALL Loop IDs in `m_map` using `loop_id_map`

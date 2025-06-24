@@ -4,9 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <ostream>
+#include <type_traits>
+
+#include "openvino/core/except.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_port.hpp"
-#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered {
 

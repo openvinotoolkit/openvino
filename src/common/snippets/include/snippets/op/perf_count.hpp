@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
@@ -50,8 +59,8 @@ public:
     void update(const op::PerfCountEnd* node) override;
 
 private:
-    ov::threading::ThreadLocal<uint64_t> m_accumulation;
-    ov::threading::ThreadLocal<uint32_t> m_iteration;
+    ov::threading::ThreadLocal<uint64_t> m_accumulation = 0;
+    ov::threading::ThreadLocal<uint32_t> m_iteration = 0;
 };
 
 /**

@@ -124,13 +124,15 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
         if (il && ih) {
             return 3;
         }
-        if (il || ih)
+        if (il || ih) {
             return 2;
+        }
         return 0;
     }
-    if (ol && il && ih)
+    if (ol && il && ih) {
         return 6;
-    else if ((ol && (il || ih)) || (il && ih && oh))
+    }
+    if ((ol && (il || ih)) || (il && ih && oh))
         return 5;
     else if ((il && oh) || (ih && oh) || (il && ih))
         return 4;
@@ -192,10 +194,10 @@ size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx) {
     if (port.get_type() == lowered::ExpressionPort::Type::Input) {
         return utils::get_input_dim_idx(layout, dim_idx);
     }
-    if (port.get_type() == lowered::ExpressionPort::Type::Output)
+    if (port.get_type() == lowered::ExpressionPort::Type::Output) {
         return utils::get_output_dim_idx(layout, dim_idx);
-    else
-        OPENVINO_THROW("Unsupported type of expression port");
+    }
+    OPENVINO_THROW("Unsupported type of expression port");
     return 0;
 }
 

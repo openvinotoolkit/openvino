@@ -8,6 +8,10 @@
  */
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
 

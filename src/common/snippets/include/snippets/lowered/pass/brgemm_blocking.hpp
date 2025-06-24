@@ -4,11 +4,22 @@
 
 #pragma once
 
+#include <cstddef>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/rtti.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/specific_loop_iter_handlers.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
 

@@ -129,7 +129,8 @@ std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<
     }
     if (auto shape_infer = factory->make(op->get_type_info(), op)) {
         return shape_infer;
-    } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
+    }
+    if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
         return std::make_shared<PassThroughShapeInfer>();
     } else if (ov::is_type_any_of<ov::op::util::BinaryElementwiseArithmetic,
                                   ov::op::util::BinaryElementwiseComparison,

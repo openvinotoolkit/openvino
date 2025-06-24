@@ -4,8 +4,16 @@
 
 #pragma once
 
+#include <functional>
+#include <utility>
+
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/reg_manager.hpp"
+#include "snippets/op/brgemm.hpp"
 
 namespace ov::snippets::lowered::pass {
 

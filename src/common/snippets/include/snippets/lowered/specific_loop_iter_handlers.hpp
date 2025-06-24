@@ -40,7 +40,7 @@ public:
               class... Args,
               std::enable_if_t<Type == SpecificLoopIterType::FIRST_ITER, bool> = true>
     void register_pass(Args&&... args) {
-        m_first_iter_handlers.register_pass<T>(args...);
+        m_first_iter_handlers.register_pass<T>(std::forward<Args>(args)...);
     }
 
     template <SpecificLoopIterType Type,
@@ -48,7 +48,7 @@ public:
               class... Args,
               std::enable_if_t<Type == SpecificLoopIterType::MAIN_BODY, bool> = true>
     void register_pass(Args&&... args) {
-        m_main_body_handlers.register_pass<T>(args...);
+        m_main_body_handlers.register_pass<T>(std::forward<Args>(args)...);
     }
 
     template <SpecificLoopIterType Type,
@@ -56,7 +56,7 @@ public:
               class... Args,
               std::enable_if_t<Type == SpecificLoopIterType::LAST_ITER, bool> = true>
     void register_pass(Args&&... args) {
-        m_last_iter_handlers.register_pass<T>(args...);
+        m_last_iter_handlers.register_pass<T>(std::forward<Args>(args)...);
     }
 
     static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs,

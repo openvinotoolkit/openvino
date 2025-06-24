@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "openvino/core/rtti.hpp"
+#include <unordered_set>
+
 #include "openvino/core/type.hpp"
-#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::snippets::lowered::pass {
 

@@ -4,11 +4,16 @@
 
 #pragma once
 
+#include <memory>
+#include <type_traits>
+#include <vector>
+
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/pass/positioned_pass.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov::snippets::lowered::pass {
 

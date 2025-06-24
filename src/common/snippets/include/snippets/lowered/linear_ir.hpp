@@ -4,12 +4,27 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
 #include <list>
+#include <memory>
+#include <set>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_factory.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/target_machine.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include "snippets/utils/debug_caps_config.hpp"

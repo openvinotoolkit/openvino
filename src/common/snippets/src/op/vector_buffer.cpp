@@ -5,13 +5,11 @@
 #include "snippets/op/vector_buffer.hpp"
 
 #include <memory>
-#include <utility>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov::snippets::op {

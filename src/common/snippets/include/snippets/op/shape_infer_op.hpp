@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::snippets::op {

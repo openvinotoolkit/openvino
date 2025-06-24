@@ -50,16 +50,16 @@ Brgemm::Brgemm(const Output<Node>& A,
                const size_t offset_a,
                const size_t offset_b,
                const size_t offset_c,
-               std::vector<size_t> layout_a,
-               std::vector<size_t> layout_b,
-               std::vector<size_t> layout_c)
+               const std::vector<size_t>& layout_a,
+               const std::vector<size_t>& layout_b,
+               const std::vector<size_t>& layout_c)
     : MemoryAccess(std::set<size_t>{0, 1}, std::set<size_t>{0}),
       Op({A, B}) {
     set_output_size(1);
     set_input_offset(offset_a, 0);
     set_input_offset(offset_b, 1);
     set_output_offset(offset_c, 0);
-    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
 Brgemm::Brgemm(const Output<Node>& A,
@@ -67,13 +67,13 @@ Brgemm::Brgemm(const Output<Node>& A,
                const PortDescriptor& desc_a,
                const PortDescriptor& desc_b,
                const PortDescriptor& desc_c,
-               std::vector<size_t> layout_a,
-               std::vector<size_t> layout_b,
-               std::vector<size_t> layout_c)
+               const std::vector<size_t>& layout_a,
+               const std::vector<size_t>& layout_b,
+               const std::vector<size_t>& layout_c)
     : MemoryAccess(PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}),
       Op({A, B}) {
     set_output_size(1);
-    custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
 }
 
 void Brgemm::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
@@ -125,9 +125,8 @@ ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, con
     }
     if (is_int8) {
         return element::i32;
-    } else {
-        return element::dynamic;
     }
+    return element::dynamic;
 }
 
 ov::element::Type Brgemm::get_output_type() const {

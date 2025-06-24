@@ -27,7 +27,6 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/convert_truncation.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"

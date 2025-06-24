@@ -4,9 +4,21 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
+#include <cstdlib>
+#include <functional>
+#include <memory>
+#include <string>
+#include <type_traits>
 #include <typeinfo>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
 #include "openvino/util/pp.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #if defined(SNIPPETS_DEBUG_CAPS) && !defined(_WIN32)
 #    include <cxxabi.h>

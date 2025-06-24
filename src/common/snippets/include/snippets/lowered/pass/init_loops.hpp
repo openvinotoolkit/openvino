@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
-#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 
 namespace ov::snippets::lowered::pass {
 

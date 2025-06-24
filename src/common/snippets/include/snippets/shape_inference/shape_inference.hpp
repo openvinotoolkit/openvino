@@ -29,7 +29,7 @@ class IShapeInferSnippets {
 public:
     struct Result {
         std::vector<VectorDims> dims;
-        ShapeInferStatus status;
+        ShapeInferStatus status{};
     };
 
     virtual ~IShapeInferSnippets() = default;

@@ -4,6 +4,14 @@
 
 #pragma once
 
+#include <memory>
+#include <utility>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 
@@ -29,7 +37,7 @@ public:
     const ov::Dimension& get_bcast_dimension() {
         return bcast_dimension;
     }
-    void set_bcast_dimension(ov::Dimension new_dim) {
+    void set_bcast_dimension(const ov::Dimension& new_dim) {
         bcast_dimension = std::move(new_dim);
     }
     // Note:BroadcastMove and BroadcastLoad are implemented as separate classes,

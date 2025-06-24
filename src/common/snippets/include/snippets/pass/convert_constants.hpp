@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov::snippets::pass {
 

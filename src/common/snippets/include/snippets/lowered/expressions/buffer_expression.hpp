@@ -4,7 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered {

@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <vector>
+#include <set>
 
 #include "port_descriptor.hpp"
 

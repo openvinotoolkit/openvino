@@ -75,7 +75,7 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
             params[i]->set_partial_shape(snippets::utils::vdims_to_pshape(i_shape));
             is_modified = true;
         } else if (i_rank < max_rank) {
-            size_t num_append = static_cast<size_t>(base_is_blocked);
+            auto num_append = static_cast<size_t>(base_is_blocked);
             OPENVINO_ASSERT(max_rank >= i_rank + num_append,
                             "Unsupported blocked shapes combination in canonicalization");
             size_t num_prepend = max_rank - i_rank - num_append;

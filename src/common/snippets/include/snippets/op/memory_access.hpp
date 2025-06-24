@@ -4,7 +4,13 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include <cstddef>
+#include <map>
+#include <memory>
+#include <set>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
 
 namespace ov::snippets::modifier {
 

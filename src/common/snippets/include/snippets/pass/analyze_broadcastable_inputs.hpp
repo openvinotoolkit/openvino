@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
+#include <map>
+#include <memory>
+
+#include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov::snippets::pass {

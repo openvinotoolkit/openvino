@@ -8,6 +8,9 @@
  */
 #pragma once
 
+#include <cstddef>
+
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/loop_info.hpp"
 
 namespace ov::snippets::utils {

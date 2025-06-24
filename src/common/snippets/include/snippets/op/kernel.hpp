@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
@@ -24,7 +29,7 @@ public:
     static std::shared_ptr<Kernel> make_kernel(bool is_dynamic, ArgTypes&&... args);
     virtual size_t get_num_call_args() const = 0;
 
-    std::shared_ptr<lowered::LinearIR> region;
+    std::shared_ptr<lowered::LinearIR> region = 0;
     const void* compile_params = nullptr;
 };
 

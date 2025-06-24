@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <string>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
@@ -9,11 +15,6 @@
 #    include <utility>
 
 #    include "snippets/itt.hpp"
-#    include "snippets/lowered/loop_manager.hpp"
-#    include "snippets/lowered/pass/iter_handler.hpp"
-#    include "snippets/lowered/specific_loop_iter_handlers.hpp"
-#    include "snippets/op/brgemm.hpp"
-#    include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::lowered::pass {
 

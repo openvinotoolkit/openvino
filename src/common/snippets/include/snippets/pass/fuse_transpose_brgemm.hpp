@@ -4,9 +4,12 @@
 
 #pragma once
 
-#include "openvino/op/transpose.hpp"
+#include <cstdint>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/pass/matcher_pass.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
 
 namespace ov::snippets::pass {
 

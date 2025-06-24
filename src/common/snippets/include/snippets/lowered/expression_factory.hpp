@@ -4,12 +4,20 @@
 
 #pragma once
 
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
 #include "expression.hpp"
-#include "expressions/buffer_expression.hpp"
-#include "snippets/op/buffer.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/perf_count.hpp"
 #include "snippets/op/reg_spill.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 namespace ov::snippets::lowered {
 

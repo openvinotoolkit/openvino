@@ -41,7 +41,6 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
-#include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/utils/reg_utils.hpp"
 
@@ -136,10 +135,10 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
                        op::Scalar,
                        op::HorizonMax,
                        op::HorizonSum,
-                       op::Fill>(op))
+                       op::Fill>(op)) {
         return RegType::vec;
-    else
-        OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+    }
+    OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
     return reg_type;
 }
 

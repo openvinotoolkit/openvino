@@ -1,17 +1,17 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cstddef>
+#include <cstdint>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
 
 #    include <bitset>
 #    include <memory>
-#    include <unordered_map>
 #    include <utility>
 #    include <vector>
 
-#    include "openvino/core/except.hpp"
 #    include "openvino/util/common_util.hpp"
 
 namespace ov::snippets {

@@ -4,8 +4,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <openvino/pass/pass.hpp>
-#include <string>
 
 #include "openvino/core/model.hpp"
 

@@ -9,7 +9,6 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/op/op.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::snippets::op {

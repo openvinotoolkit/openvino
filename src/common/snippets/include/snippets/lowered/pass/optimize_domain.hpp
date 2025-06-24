@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/shape_types.hpp"
 

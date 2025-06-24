@@ -3,9 +3,18 @@
 //
 
 #pragma once
-#include <type_traits>
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <set>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"

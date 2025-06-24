@@ -4,9 +4,14 @@
 
 #pragma once
 
+#include <cstdint>
+#include <iostream>
+
+#include "openvino/core/except.hpp"
+
 namespace ov::snippets::lowered {
 
-enum class SpecificLoopIterType { FIRST_ITER, MAIN_BODY, LAST_ITER };
+enum class SpecificLoopIterType : uint8_t { FIRST_ITER, MAIN_BODY, LAST_ITER };
 
 inline std::ostream& operator<<(std::ostream& out, const SpecificLoopIterType& type) {
     switch (type) {

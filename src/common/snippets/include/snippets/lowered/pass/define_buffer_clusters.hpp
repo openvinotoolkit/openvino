@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <set>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 
 namespace ov::snippets::lowered::pass {

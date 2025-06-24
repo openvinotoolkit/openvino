@@ -4,6 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/matmul.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
+#include "snippets/shape_types.hpp"
 #include "subgraph_pass.hpp"
 
 namespace ov::snippets::pass {

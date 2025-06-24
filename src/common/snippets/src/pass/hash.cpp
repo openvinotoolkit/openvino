@@ -98,7 +98,7 @@ static uint64_t hash_combine(uint64_t seed, const T& v) {
 namespace rt_info {
 
 // some node attr is not type of ov::RuntimeAttribute, need dedicate visitor.
-static const std::vector<std::string> list_of_names{
+const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
@@ -314,7 +314,7 @@ std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& 
 
 void hash_rt_info(uint64_t& hash, const ov::Any& data) {
     if (data.is<std::shared_ptr<ov::Meta>>()) {
-        const std::shared_ptr<ov::Meta>& meta = data.as<std::shared_ptr<ov::Meta>>();
+        const auto& meta = data.as<std::shared_ptr<ov::Meta>>();
         ov::AnyMap& map = *meta;
         for (const auto& it : map) {
             hash_rt_info(hash, it.second);
@@ -325,7 +325,7 @@ void hash_rt_info(uint64_t& hash, const ov::Any& data) {
             hash_rt_info(hash, it.second);
         }
     } else {
-        const std::string& value = data.as<std::string>();
+        const auto& value = data.as<std::string>();
         hash = hash_combine(hash_combine(hash, AttrType::value), value);
     }
 }

@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::snippets::pass {

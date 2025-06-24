@@ -4,7 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
 namespace ov::snippets {
 

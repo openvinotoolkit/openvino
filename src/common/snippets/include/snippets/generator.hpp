@@ -8,10 +8,14 @@
  */
 #pragma once
 
+#include <memory>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/shape_types.hpp"
-#include "snippets_isa.hpp"
 #include "target_machine.hpp"
 
 namespace ov::snippets {

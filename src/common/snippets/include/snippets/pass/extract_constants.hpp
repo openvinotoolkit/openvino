@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
 #include "subgraph_pass.hpp"
 
 namespace ov::snippets::pass {

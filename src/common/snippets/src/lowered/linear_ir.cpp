@@ -581,22 +581,23 @@ double LinearIR::get_inserted_expr_exec_num(constExprIt insertion_pos) const {
         return right_pos->get()->get_exec_num() - 1;
     }
     if (right_pos == cend()) {  // On the list end
-        if (left_pos->get()->get_exec_num() == std::numeric_limits<double>::max())
+        if (left_pos->get()->get_exec_num() == std::numeric_limits<double>::max()) {
             enumerate_expressions();
+        }
         return left_pos->get()->get_exec_num() + 1;
-    } else {  // In the list middle
+    }  // In the list middle
+    left_order = left_pos->get()->get_exec_num();
+    right_order = right_pos->get()->get_exec_num();
+    OPENVINO_ASSERT(right_order > left_order, "Incorrect expression enumeration!");
+
+    // sync point to enumerate expressions
+    // 10 * eps - is to avoid meaningless result after (right_order + left_order) / 2 below
+    if (std::abs(1 - left_order / right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
+        enumerate_expressions();
         left_order = left_pos->get()->get_exec_num();
         right_order = right_pos->get()->get_exec_num();
-        OPENVINO_ASSERT(right_order > left_order, "Incorrect expression enumeration!");
-
-        // sync point to enumerate expressions
-        // 10 * eps - is to avoid meaningless result after (right_order + left_order) / 2 below
-        if (std::abs(1 - left_order / right_order) <= 10 * std::numeric_limits<double>::epsilon()) {
-            enumerate_expressions();
-            left_order = left_pos->get()->get_exec_num();
-            right_order = right_pos->get()->get_exec_num();
-        }
     }
+
     // to avoid possible oveflow in (right_order + left_order) / 2;
     return left_order + (right_order - left_order) / 2;
 }

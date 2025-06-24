@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include <memory>
+
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/pass/pass.hpp"
+#include "openvino/pass/pass_config.hpp"
 
 namespace ov::snippets::pass {
 
