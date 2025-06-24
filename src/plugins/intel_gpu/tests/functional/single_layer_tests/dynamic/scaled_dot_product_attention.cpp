@@ -503,6 +503,7 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
             {ov::Shape{1, 1, 1, 2}, ov::Shape{1, 1, 1, 10}, ov::Shape{2, 1, 1, 2}}}
+        },
     },
     // 4D inputs, 2D mask
     {

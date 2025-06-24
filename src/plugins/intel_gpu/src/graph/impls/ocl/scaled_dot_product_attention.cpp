@@ -230,8 +230,7 @@ protected:
         auto extend_output = impl_params.output_layouts[0].get_partial_shape().size() < 4;
         auto extend_attn_mask = false;
 
-        // Check attention mask:
-        // According to SDPA specification, it must be either at least 2-dimensional or empty if it is to be ignored
+        // According to SDPA specification, attention mask should have 2-dimensions or more or empty
         const auto attn_mask_idx = 3;
         if (impl_params.input_layouts.size() > attn_mask_idx) {
             const auto& attn_mask_shape = impl_params.get_input_layout(attn_mask_idx).get_partial_shape();
