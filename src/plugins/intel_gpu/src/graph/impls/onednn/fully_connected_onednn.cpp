@@ -291,7 +291,7 @@ public:
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
-        int grouped = GROUPED << shift_size;
+        int grouped = (1 << (GROUPED + shift_size - 1)) - 1;
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -375,7 +375,7 @@ public:
             auto weights_layout = impl_params.get_input_layout(1);
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
-            int grouped = GROUPED << shift_size;
+            int grouped = (1 << (GROUPED + shift_size - 1)) - 1;
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
