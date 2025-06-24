@@ -435,6 +435,79 @@ protected:
     }
 };
 
+class XetlaLoraPostopGenerator : public XeTLALoraBaseGenerator {
+    const Tiling tiling;
+
+public:
+    XetlaLoraPostopGenerator(Tiling tiling, std::string_view prefix = "") : XeTLALoraBaseGenerator("xetla_postop", prefix), tiling{tiling} {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = KernelGenerator::get_jit_constants(params);
+
+        const auto mem_layout_a = Layouts::mem_layout_a;
+        const auto mem_layout_c = Layouts::mem_layout_c;
+
+        jit.add({make_jit_constant("KERNEL_NAME", get_entry_point(params)),
+                 make_jit_constant("XETLA_DTYPE_IN", ov_to_xetla_dtype(params.input_layouts[1].data_type)),
+                 make_jit_constant("XETLA_DTYPE_OUT", ov_to_xetla_dtype(params.input_layouts[2].data_type)),
+                 make_jit_constant("XETLA_DTYPE_ACC", ov_to_xetla_dtype(ov::element::Type_t::f32)),
+                 make_jit_constant("XETLA_WG_M", tiling.wg_m),
+                 make_jit_constant("XETLA_WG_N", tiling.wg_n),
+                 make_jit_constant("XETLA_SG_M", tiling.sg_m),
+                 make_jit_constant("XETLA_SG_N", tiling.sg_n),
+                 make_jit_constant("XETLA_MEM_LAYOUT_IN", get_xetla_mem_layout(mem_layout_a)),
+                 make_jit_constant("XETLA_MEM_LAYOUT_OUT", get_xetla_mem_layout(mem_layout_c)),
+                 make_jit_constant("XETLA_SIZE_M", LoraShapeUtils::get_total_tokens_jit(params)),
+                 make_jit_constant("XETLA_SIZE_N", LoraShapeUtils::get_hidden_size_output_jit(params))});
+
+        if (params.is_dynamic()) {
+            jit.add({make_jit_constant("XETLA_SHAPE_INFO_ARG", "int *shape_info [[type(\"svmptr_t\")]],")});
+        } else {
+            jit.add({make_jit_constant("XETLA_SHAPE_INFO_ARG", "")});
+        }
+
+        XeTLAPostOPs xetla_postops;
+        xetla_postops.add_post_ops(params, 5);
+
+        auto post_op_definitions = xetla_postops.get_definitions();
+        for (const auto& [name, value] : post_op_definitions) {
+            jit.add({make_jit_constant(name, value)});
+        }
+
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // main_input
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // out
+
+        KernelGenerator::add_fused_ops_arguments(args, params);
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[tiling = tiling](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+
+            size_t local_range_m = (tiling.wg_m + tiling.sg_m - 1) / tiling.sg_m;
+            size_t local_range_n = (tiling.wg_n + tiling.sg_n - 1) / tiling.sg_n;
+
+            size_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + tiling.wg_m - 1) / tiling.wg_m;
+            size_t group_range_n = (LoraShapeUtils::get_hidden_size_output(params) + tiling.wg_n - 1) / tiling.wg_n;
+
+            wgs.global = {group_range_n * local_range_n, group_range_m * local_range_m, 1};
+            wgs.local = {local_range_n, local_range_m, 1};
+        }};
+    }
+};
+
 class LoRAImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::LoRAImpl)
@@ -467,6 +540,8 @@ public:
     Stage::Ptr lora_gemm_a_unaligned = make_stage<XetlaLoRAGEMMAGenerator>(false, lora::Tiling{8 * 8, 16 * 4, 8, 16, 32, 1, 1}, "a_unaligned");
     Stage::Ptr lora_gemm_b_unaligned = make_stage<XetlaLoRAGEMMBGenerator>(false, lora::Tiling{8 * 4, 16 * 8, 8, 16, 32, 1, 1}, "b_unaligned");
 
+    Stage::Ptr lora_postops = make_stage<XetlaLoraPostopGenerator>(lora::Tiling{1, 32 * 32, 1, 32, 1, 1, 1}, "postops");
+
     LoRAImpl() : PrimitiveImplOCL(LoRAImplementationManager::get_type_info_static()) {}
     LoRAImpl(const program_node& node, const RuntimeParams& params) : LoRAImpl() {
         add_stage(lora_fused_short_r32, params);
@@ -483,6 +558,7 @@ public:
         add_stage(lora_gemm_b_long0, params);
         add_stage(lora_gemm_a_unaligned, params);
         add_stage(lora_gemm_b_unaligned, params);
+        add_stage(lora_postops, params);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -526,7 +602,8 @@ private:
         GEMM_B_SHORT,
         GEMM_B_LONG0,
         GEMM_A_UNALIGNED,
-        GEMM_B_UNALIGNED
+        GEMM_B_UNALIGNED,
+        POSTOPS
     };
 
     std::vector<size_t> get_stages_execution_order(const cldnn::primitive_inst& instance) const override {
@@ -535,7 +612,7 @@ private:
 
         bool is_empty_lora = instance.get_input_layout(2).count() == 0;
         if (is_empty_lora) {
-            assert(!instance.has_fused_primitives());
+            stages_order.emplace_back(KernelsTypes::POSTOPS);
             return stages_order;
         }
 

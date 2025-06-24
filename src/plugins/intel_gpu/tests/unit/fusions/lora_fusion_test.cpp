@@ -114,6 +114,7 @@ public:
 #define CASE_LORA_F32_DEFAULT_REF { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 15, 128 }, { 1, 15 }, { 256, 15 }}, data_types::f32, format::bfyx, format::oiyx
 #define CASE_LORA_F32_EMPTY { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 0, 128 }, { 1, 0 }, { 256, 0 }}, data_types::f32, format::bfyx, format::oiyx
 #define CASE_LORA_F16_DEFAULT_OPT { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 32, 128 }, { 1, 32 }, { 256, 32 }}, data_types::f16, format::bfyx, format::oiyx
+#define CASE_LORA_F16_EMPTY { 1, 1, 128 }, { 256, 128 }, { 1, 1, 256 }, {{ 0, 128 }, { 1, 0 }, { 256, 0 }}, data_types::f16, format::bfyx, format::oiyx
 
 class lora_act_eltw : public LoraFusingsTest {};
 TEST_P(lora_act_eltw, basic) {
@@ -145,5 +146,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lora_act_eltw, ::testing::ValuesIn(std::ve
     lora_test_params{ CASE_LORA_F32_DEFAULT_OPT, 6, 11 },
     lora_test_params{ CASE_LORA_F32_DEFAULT_REF, 6, 11 },
     lora_test_params{ CASE_LORA_F32_EMPTY, 6, 10 },
-    lora_test_params{ CASE_LORA_F16_DEFAULT_OPT, 6, 11 }
+    lora_test_params{ CASE_LORA_F16_DEFAULT_OPT, 6, 11 },
+    lora_test_params{ CASE_LORA_F16_EMPTY, 6, 10 }
 }));
