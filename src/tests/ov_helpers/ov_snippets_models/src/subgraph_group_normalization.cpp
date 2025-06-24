@@ -7,6 +7,8 @@
 #include <snippets/op/subgraph.hpp>
 #include <snippets/op/reshape.hpp>
 #include <snippets/op/reduce.hpp>
+#include <snippets/op/powerstatic.hpp>
+#include <snippets/op/scalar.hpp>
 
 namespace ov {
 namespace test {
