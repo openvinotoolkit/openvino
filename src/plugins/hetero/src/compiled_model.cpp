@@ -19,13 +19,12 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "properties.hpp"
 
-ov::hetero::CompiledModel::CompiledModel(
-    const std::shared_ptr<ov::Model>& model,
-    const std::vector<ov::hetero::SubmodelInfo>& submodels,
-    const SubgraphsMappingInfo& mapping_info,
-    const std::shared_ptr<const ov::IPlugin>& plugin,
-    ov::hetero::RemoteContext::Ptr context,
-    const Configuration& cfg)
+ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                         const std::vector<ov::hetero::SubmodelInfo>& submodels,
+                                         const SubgraphsMappingInfo& mapping_info,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         ov::hetero::RemoteContext::Ptr context,
+                                         const Configuration& cfg)
     : ov::ICompiledModel(model, plugin, context),
       m_cfg(cfg),
       m_name(model->get_friendly_name()),
@@ -40,8 +39,7 @@ ov::hetero::CompiledModel::CompiledModel(
     }
 }
 
-void ov::hetero::CompiledModel::compile_model(
-    const std::vector<ov::hetero::SubmodelInfo>& submodels) {
+void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::SubmodelInfo>& submodels) {
     const bool add_exclusive = submodels.size() > 1;
     const auto& hetero_plugin = get_hetero_plugin();
     const auto& core = hetero_plugin->get_core();

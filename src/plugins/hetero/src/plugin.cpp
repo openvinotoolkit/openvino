@@ -60,9 +60,9 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo
             const auto& subgraph = ordered_subgraphs[i];
             submodels[i].first = subgraph._affinity;
             submodels[i].second = std::make_shared<ov::Model>(subgraph._results,
-                                                                       subgraph._sinks,
-                                                                       subgraph._parameters,
-                                                                       model_name + "_" + std::to_string(i));
+                                                              subgraph._sinks,
+                                                              subgraph._parameters,
+                                                              model_name + "_" + std::to_string(i));
         }
 
         return {mapping_info, submodels};
