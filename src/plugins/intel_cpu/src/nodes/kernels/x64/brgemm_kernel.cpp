@@ -38,8 +38,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                    inType,
                    ov::element::dynamic,
                    BrgemmKernel::ScaleType::NONE,
-                   b_accumulate) {
-}
+                   b_accumulate) {}
 
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
@@ -82,7 +81,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
     if (is_f16 && !mayiuse(avx512_core_fp16)) {
         THROW_ERROR("brgemm f16 kernel could only be used above avx512_f16");
     }
-    
+
     bool is_int8 = inType == ov::element::i8;
     if (is_int8 && (!mayiuse(avx512_core_amx) && !mayiuse(avx2_vnni_2))) {
         THROW_ERROR("brgemm s8s8 kernel could only be used with avx2_vnni_2/avx512_core_amx");
@@ -104,7 +103,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
         fp16     Y      Y
         s8s8     Y      Y
     */
-    bool isAMXSupported = (is_bf16 && mayiuse(avx512_core_amx)) || (is_f16 && mayiuse(avx512_core_amx_fp16)) || (is_int8 && mayiuse(avx512_core_amx));
+    bool isAMXSupported = (is_bf16 && mayiuse(avx512_core_amx)) || (is_f16 && mayiuse(avx512_core_amx_fp16)) ||
+                          (is_int8 && mayiuse(avx512_core_amx));
     bool isBrgWithAMX = isAMXSupported && !is_avx_f16_only;
 
     size_t vlen;
@@ -250,15 +250,13 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
         ctx.has_post_ops = true;
         dnnl::impl::primitive_attr_t attr;
         memory_desc_t Dmd;
-        dims_t dims {static_cast<dnnl_dim_t>(ctx.M), static_cast<dnnl_dim_t>(ctx.N)};
-        dims_t strides {static_cast<dnnl_dim_t>(ldd), static_cast<dnnl_dim_t>(1)};
+        dims_t dims{static_cast<dnnl_dim_t>(ctx.M), static_cast<dnnl_dim_t>(ctx.N)};
+        dims_t strides{static_cast<dnnl_dim_t>(ldd), static_cast<dnnl_dim_t>(1)};
         // set scales for B
 
-        status = memory_desc_init_by_strides(
-                Dmd, /* ndims = */ 2, dims, dnnl_data_type_t::dnnl_f32, strides);
+        status = memory_desc_init_by_strides(Dmd, /* ndims = */ 2, dims, dnnl_data_type_t::dnnl_f32, strides);
         attr.scales_.set(DNNL_ARG_WEIGHTS, 2);
-        status = brgemm_desc_set_postops(
-                &brgDesc, &attr, &Dmd, ldd, data_type::undef);        
+        status = brgemm_desc_set_postops(&brgDesc, &attr, &Dmd, ldd, data_type::undef);
     }
 
     if (status != dnnl_success) {
@@ -383,7 +381,7 @@ void BrgemmKernel::init_brgemm_copy_b(
         if (inType == ov::element::f16) {
             brgCopyKernelConf.isa = mayiuse(avx512_core_fp16) ? avx512_core_fp16 : avx2_vnni_2;
         } else if (inType == ov::element::i8) {
-            if(mayiuse(avx512_core)) {
+            if (mayiuse(avx512_core)) {
                 brgCopyKernelConf.isa = avx512_core;
             } else {
                 brgCopyKernelConf.isa = cpu_isa_t::avx2;
@@ -469,7 +467,15 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto out_ptr = ptr_C + C_stride;
-                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, out_ptr, nullptr, nullptr, wsp, false);
+                callBrgemm(brgemmCtx,
+                           brgKernels[getBrgIdx(mIdx, k, n)],
+                           local_a_ptr,
+                           weight_ptr,
+                           out_ptr,
+                           nullptr,
+                           nullptr,
+                           wsp,
+                           false);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -482,7 +488,14 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     }
 }
 
-void BrgemmKernel::executeGemmWithScale(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a) {
+void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
+                                        void* a,
+                                        void* b,
+                                        void* c,
+                                        void* d,
+                                        float* scale_b,
+                                        void* wsp,
+                                        void* scratch_a) {
     auto ptr_A = reinterpret_cast<uint8_t*>(a);
     auto ptr_C = reinterpret_cast<uint8_t*>(c);
     auto ptr_D = reinterpret_cast<uint8_t*>(d);
@@ -526,7 +539,15 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail, void* a, void* b, void* 
                 auto c_ptr = ptr_C + C_stride;
                 auto d_ptr = ptr_D + C_stride;
                 bool do_post = ((k == 0 && !K_tail) || k == 1);
-                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, c_ptr, d_ptr, scale_b, wsp, do_post);
+                callBrgemm(brgemmCtx,
+                           brgKernels[getBrgIdx(mIdx, k, n)],
+                           local_a_ptr,
+                           weight_ptr,
+                           c_ptr,
+                           d_ptr,
+                           scale_b,
+                           wsp,
+                           do_post);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;

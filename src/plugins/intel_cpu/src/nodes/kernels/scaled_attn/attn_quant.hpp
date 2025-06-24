@@ -16,7 +16,7 @@ struct QuantizeParam {
     size_t value_group_size;
     bool is_sage_attn;
 };
-}
+}  // namespace ov::Extensions::Cpu
 
 namespace ov::Extensions::Cpu::XARCH {
 

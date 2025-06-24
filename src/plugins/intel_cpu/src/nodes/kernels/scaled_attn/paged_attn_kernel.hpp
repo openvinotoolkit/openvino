@@ -708,7 +708,8 @@ static void attn_acc_value_block_quantized(float* out,
 
 template <typename TA,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(!ov::intel_cpu::one_of(SRC_PREC, ov::element::u4, ov::element::u8, ov::element::i8)), bool> = true>
+          std::enable_if_t<(!ov::intel_cpu::one_of(SRC_PREC, ov::element::u4, ov::element::u8, ov::element::i8)),
+                           bool> = true>
 static void dot_product_block(TA* a,
                               void* b,
                               float* c,
@@ -1857,9 +1858,10 @@ static void dot_product_block_quantized_by_dims(TA* a,
     }
 }
 
-template <typename TA,
-          ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(ov::intel_cpu::one_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4)), bool> = true>
+template <
+    typename TA,
+    ov::element::Type_t SRC_PREC,
+    std::enable_if_t<(ov::intel_cpu::one_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4)), bool> = true>
 static void dot_product_block_quantized(TA* a,
                                         uint8_t* b,
                                         float* c,

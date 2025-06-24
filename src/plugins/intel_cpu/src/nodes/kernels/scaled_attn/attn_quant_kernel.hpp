@@ -508,10 +508,10 @@ static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
 
 template <typename T, ov::element::Type_t DST_PREC>
 static void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
-                                   const ov::intel_cpu::PlainTensor& dst,
-                                   size_t b,
-                                   size_t h,
-                                   size_t groupe_size) {
+                               const ov::intel_cpu::PlainTensor& dst,
+                               size_t b,
+                               size_t h,
+                               size_t groupe_size) {
     // The cache layout is [scale0, zp0]|[group0]|[scale1, zp1]|[group1].....
     // dst_offset is the offset among groups. The addition of 2 * sizeof(float) aims to shift to next group
     // base pointer points to the base address of next group.
@@ -529,7 +529,6 @@ static void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
         quantize<T, DST_PREC>(src.ptr<T>(b, h, m, src_offset), ptr, groupe_size, p);
     }
 }
-
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,

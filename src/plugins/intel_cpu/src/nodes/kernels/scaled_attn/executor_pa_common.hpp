@@ -74,11 +74,11 @@ private:
 
 public:
     void reset([[maybe_unused]] const ov::intel_cpu::PlainTensor& query,
-                const ov::intel_cpu::PlainTensor& past_lens,
-                const ov::intel_cpu::PlainTensor& subsequence_begins,
-                const ov::intel_cpu::PlainTensor& block_indices,
-                const ov::intel_cpu::PlainTensor& block_indices_begins,
-                size_t block_size) {
+               const ov::intel_cpu::PlainTensor& past_lens,
+               const ov::intel_cpu::PlainTensor& subsequence_begins,
+               const ov::intel_cpu::PlainTensor& block_indices,
+               const ov::intel_cpu::PlainTensor& block_indices_begins,
+               size_t block_size) {
         attn_items.clear();
         reorder_items.clear();
         max_kv_len_in_reorder = 0;
@@ -91,23 +91,22 @@ public:
             auto kv_len_in_block = static_cast<int32_t>(ov::intel_cpu::div_up(kv_len, block_size));
             if (q_len == 1) {
                 attn_items.emplace_back(AttnWorkItem{0,     // batch_in_reorder
-                                                        i,     // batch_in_seq
-                                                        1ull,  // q_len
-                                                        // kv_len in blocks, used in the sort function
-                                                        kv_len_in_block - 1});
+                                                     i,     // batch_in_seq
+                                                     1ull,  // q_len
+                                                     // kv_len in blocks, used in the sort function
+                                                     kv_len_in_block - 1});
             } else {
                 auto reorder_sub_work_count = kv_len_in_block;
                 max_kv_len_in_reorder = std::max(max_kv_len_in_reorder, kv_len);
                 for (int32_t block_id = 0; block_id < reorder_sub_work_count; block_id++) {
                     int32_t valid_block_size =
                         block_id == (reorder_sub_work_count - 1) ? kv_len - block_id * block_size : block_size;
-                    auto block_number =
-                        block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[i] + block_id];
+                    auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[i] + block_id];
                     reorder_items.emplace_back(ReorderWorkItem{i,                     // batch_in_seq
-                                                                max_batch_in_reorder,  // batch_in_reorder
-                                                                block_id,              // kv_block_id
-                                                                block_number,          // block_number
-                                                                valid_block_size});    // valid_block_len
+                                                               max_batch_in_reorder,  // batch_in_reorder
+                                                               block_id,              // kv_block_id
+                                                               block_number,          // block_number
+                                                               valid_block_size});    // valid_block_len
                 }
 
                 // workitems for attention

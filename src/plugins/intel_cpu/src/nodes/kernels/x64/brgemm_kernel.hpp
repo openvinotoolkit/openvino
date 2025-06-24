@@ -5,7 +5,6 @@
 
 #include <cpu/x64/amx_tile_configure.hpp>
 #include <cpu/x64/brgemm/brgemm.hpp>
-#include <oneapi/dnnl/dnnl_ukernel.h>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
@@ -15,11 +14,7 @@ namespace ov::intel_cpu {
 
 class BrgemmKernel {
 public:
-    enum ScaleType {
-        NONE,
-        PER_CHANNEL,
-        PER_TENSOR
-    };
+    enum ScaleType { NONE, PER_CHANNEL, PER_TENSOR };
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
     // BF16 * BF16 -> FP32
     // S8 * S8 -> S32
@@ -62,7 +57,14 @@ public:
     void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
 
     // execute by m_blk + scale
-    void executeGemmWithScale(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
+    void executeGemmWithScale(bool is_M_tail,
+                              void* a,
+                              void* b,
+                              void* c,
+                              void* d,
+                              float* scale_b,
+                              void* wsp,
+                              void* scratch_a);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
@@ -91,7 +93,7 @@ private:
     ov::element::Type DType;
     ov::element::Type weiType;
     ov::element::Type srcType;
-    ScaleType bScaleType = ScaleType::NONE; 
+    ScaleType bScaleType = ScaleType::NONE;
     bool is_avx_f16_only = false;
     bool b_accumulate = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
