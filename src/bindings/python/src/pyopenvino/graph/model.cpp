@@ -1070,6 +1070,8 @@ void regclass_graph_Model(py::module m) {
                 new_outputs.emplace_back(out);
                 i++;
             }
+            // Try to remove when it will be covered in C++ API
+            ov::util::set_tensors_names(ov::AUTO, self);
             return new_outputs;
         },
         py::arg("outputs"));

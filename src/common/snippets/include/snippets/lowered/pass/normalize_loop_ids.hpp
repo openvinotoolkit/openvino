@@ -13,9 +13,9 @@ namespace pass {
 
 /**
  * @interface NormalizeLoopIDs
- * @brief Sort loop IDs in the order of LoopEnd expressions execution and set them evenly: without missed numbers in IDs.
- *        Loops might have an arbitrary IDs ordering as a result of optimizations:
- *        IDs can be unsorted or non-consecutive (some are missing).
+ * @brief Sort loop IDs in the order of LoopEnd expressions execution and set them evenly: without missed numbers in
+ * IDs. Loops might have an arbitrary IDs ordering as a result of optimizations: IDs can be unsorted or non-consecutive
+ * (some are missing).
  *        For example,
  *             [Loop -> ID -> new ID]
  *              Loop0 -> 3 -> 0
@@ -42,7 +42,7 @@ private:
     bool m_has_specific_loops = true;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace pass
+}  // namespace lowered
+}  // namespace snippets
+}  // namespace ov

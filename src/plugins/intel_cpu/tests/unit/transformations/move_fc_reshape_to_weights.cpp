@@ -24,7 +24,7 @@
 using namespace testing;
 using namespace ov::intel_cpu;
 
-enum class ZeroPointType { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
+enum class ZeroPointType : uint8_t { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
     switch (type) {
         case ZeroPointType::NO_ZP:
@@ -42,7 +42,7 @@ inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
     return os;
 }
 
-enum class ZeroPointShape { SCALAR, PER_CHANNEL };
+enum class ZeroPointShape : uint8_t { SCALAR, PER_CHANNEL };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointShape type) {
     switch (type) {
         case ZeroPointShape::SCALAR:
