@@ -161,7 +161,7 @@ inline ov::element::Type getMaxPrecision(std::vector<ov::element::Type> precisio
         return *std::max_element(precisions.begin(),
                                  precisions.end(),
                                  [](const ov::element::Type& lhs, const ov::element::Type& rhs) {
-                                     return lhs.size() > rhs.size();
+                                     return lhs.size() < rhs.size();
                                  });
     }
 
