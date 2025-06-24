@@ -377,12 +377,12 @@ VectorDims LinearIR::get_master_shape() const {
 
 template <>
 LinearIR::exprIt LinearIR::insert_node(const std::shared_ptr<ov::Node>& new_node,
-                                       const std::vector<PortConnectorPtr>& new_inputs,
+                                       const std::vector<PortConnectorPtr>& args,
                                        const std::vector<size_t>& loop_ids,
                                        bool update_loop_ports,
                                        const constExprIt& place,
                                        const std::vector<std::set<ExpressionPort>>& consumers) {
-    const auto new_expr = create_expression(new_node, new_inputs, loop_ids, update_loop_ports, consumers);
+    const auto new_expr = create_expression(new_node, args, loop_ids, update_loop_ports, consumers);
     const auto expr_it = insert(place, new_expr);
     get_loop_manager()->sort_loop_ports(loop_ids);
     return expr_it;

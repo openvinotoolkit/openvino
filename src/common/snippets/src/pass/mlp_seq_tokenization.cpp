@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <string>
 
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/except.hpp"
@@ -125,7 +124,6 @@ TokenizeMLPSeqSnippets::TokenizeMLPSeqSnippets(const SnippetsTokenization::Confi
             // we should calculate potential number of non-scalar Constants that will be moved up from body.
             // Heuiristic count of possible buffers - upper-bound value
             const size_t unique_buffer_reg_group_count = 2;
-            std::string fused_names;
             ov::NodeVector ordered_ops;
 
             /* ======== Matcher Pass ========== */

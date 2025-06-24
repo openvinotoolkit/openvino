@@ -30,7 +30,6 @@
 #include "snippets/op/reshape.hpp"
 
 namespace ov::snippets::pass {
-using namespace lowered;
 
 // groupNorm -> reshape + mvn + reshape + mul + add,
 // where mvn = (x - mean) / Sqrt(ReduceMean((x - mean) ^ 2) + eps),

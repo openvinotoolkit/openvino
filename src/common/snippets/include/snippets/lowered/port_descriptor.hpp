@@ -26,16 +26,16 @@ class PortDescriptor {
     friend class LinearIRBuilder;
 
 public:
-    explicit PortDescriptor(const ov::Input<ov::Node>& node,
+    explicit PortDescriptor(const ov::Input<ov::Node>& in,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    explicit PortDescriptor(const ov::Input<const ov::Node>& node,
+    explicit PortDescriptor(const ov::Input<const ov::Node>& in,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    explicit PortDescriptor(const ov::Output<ov::Node>& node,
+    explicit PortDescriptor(const ov::Output<ov::Node>& out,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    explicit PortDescriptor(const ov::Output<const ov::Node>& node,
+    explicit PortDescriptor(const ov::Output<const ov::Node>& out,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
     PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});

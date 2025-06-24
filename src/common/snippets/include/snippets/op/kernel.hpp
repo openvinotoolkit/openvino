@@ -23,13 +23,13 @@ class Kernel : public ov::op::Op {
 public:
     OPENVINO_OP("Kernel", "SnippetsOpset");
     Kernel() = default;
-    Kernel(lowered::LinearIR region);
+    Kernel(lowered::LinearIR nested);
 
     template <typename... ArgTypes>
     static std::shared_ptr<Kernel> make_kernel(bool is_dynamic, ArgTypes&&... args);
     virtual size_t get_num_call_args() const = 0;
 
-    std::shared_ptr<lowered::LinearIR> region = 0;
+    std::shared_ptr<lowered::LinearIR> region = nullptr;
     const void* compile_params = nullptr;
 };
 
@@ -37,7 +37,7 @@ class KernelStatic : public Kernel {
 public:
     OPENVINO_OP("KernelStatic", "SnippetsOpset", Kernel);
     KernelStatic() = default;
-    KernelStatic(lowered::LinearIR region);
+    KernelStatic(lowered::LinearIR nested);
     size_t get_num_call_args() const override {
         return 2;
     }
@@ -48,7 +48,7 @@ class KernelDynamic : public Kernel {
 public:
     OPENVINO_OP("KernelDynamic", "SnippetsOpset", Kernel);
     KernelDynamic() = default;
-    KernelDynamic(lowered::LinearIR region);
+    KernelDynamic(lowered::LinearIR nested);
     size_t get_num_call_args() const override {
         return 1;
     }

@@ -44,14 +44,11 @@ bool BrgemmBlockingBase::blocking_loop_exists(const lowered::LoopManagerPtr& loo
         return p.get_expr_port()->get_expr() == brgemm_expr && one_of(p.get_dim_idx(), 0ul, 1ul);
     };
     const auto& loop_ids = brgemm_expr->get_loop_ids();
-    for (const auto& id : loop_ids) {
+    return std::any_of(loop_ids.begin(), loop_ids.end(), [&](const auto& id) {
         const auto loop = loop_manager->get_loop_info(id);
-        if (std::any_of(loop->get_input_ports().begin(), loop->get_input_ports().end(), check_port) ||
-            std::any_of(loop->get_output_ports().begin(), loop->get_output_ports().end(), check_port)) {
-            return true;
-        }
-    }
-    return false;
+        return std::any_of(loop->get_input_ports().begin(), loop->get_input_ports().end(), check_port) ||
+               std::any_of(loop->get_output_ports().begin(), loop->get_output_ports().end(), check_port);
+    });
 }
 
 void BrgemmBlockingBase::mark_m_blocking(const LoopManagerPtr& loop_manager,

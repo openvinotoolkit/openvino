@@ -18,6 +18,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/utils/utils.hpp"

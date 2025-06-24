@@ -199,7 +199,7 @@ auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) ->
 
         // While Buffer `i` has non-coloured non-neighbours (while row `i` contains 0)
         while ((i + 1 < size) &&
-               !std::accumulate(adj.begin() + i * size, adj.begin() + (i + 1) * size, true, std::logical_and<bool>())) {
+               !std::accumulate(adj.begin() + i * size, adj.begin() + (i + 1) * size, true, std::logical_and<>())) {
             size_t j = i + 1;
             // Find first non-adjacent and non-visited (non-colored) Buffer to color him to the same color
             for (; j < size; ++j) {
@@ -226,7 +226,7 @@ auto SetBufferRegGroup::coloring(BufferPool& buffers, std::vector<bool>& adj) ->
                            adj.begin() + (i + 1) * size,
                            adj.begin() + j * size,
                            adj.begin() + i * size,
-                           std::logical_or<bool>());
+                           std::logical_or<>());
         }
 
         color++;

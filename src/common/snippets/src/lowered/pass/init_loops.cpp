@@ -13,6 +13,7 @@
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/loop_utils.hpp"

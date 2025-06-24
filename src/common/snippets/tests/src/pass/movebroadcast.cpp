@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/op/add.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
+#include "snippets/op/broadcastmove.hpp"
 
 #include "transformations/init_node_info.hpp"
 

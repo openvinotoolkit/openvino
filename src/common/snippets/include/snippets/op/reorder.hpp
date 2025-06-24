@@ -29,7 +29,7 @@ class Reorder : public ShapeInferOp {
 public:
     OPENVINO_OP("Reorder", "SnippetsOpset", ShapeInferOp);
     Reorder() = default;
-    Reorder(const Output<Node>& x, const std::vector<size_t>& order);
+    Reorder(const Output<Node>& arg, const std::vector<size_t>& order);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

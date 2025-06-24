@@ -11,6 +11,7 @@
 #include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 
 namespace ov::snippets::lowered::pass {
 

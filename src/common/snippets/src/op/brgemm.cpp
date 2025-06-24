@@ -47,9 +47,9 @@ std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) 
 
 Brgemm::Brgemm(const Output<Node>& A,
                const Output<Node>& B,
-               const size_t offset_a,
-               const size_t offset_b,
-               const size_t offset_c,
+               size_t offset_a,
+               size_t offset_b,
+               size_t offset_c,
                const std::vector<size_t>& layout_a,
                const std::vector<size_t>& layout_b,
                const std::vector<size_t>& layout_c)

@@ -46,7 +46,10 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
         const auto master_prelast = *++master_shape.rbegin();
         return std::all_of(input_shapes.begin(), input_shapes.end(), [=](const VectorDims& s) {
             OPENVINO_ASSERT(s.size() >= 2, "LastDimsNotBroadcasted can't process shape with less than two dims");
-            return *s.rbegin() == master_last && *++s.rbegin() == master_prelast;
+            auto it = s.rbegin();
+            auto last_val = *it;
+            ++it;
+            return (last_val == master_last) && (*it == master_prelast);
         });
     };
 
@@ -132,7 +135,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
         input_shapes.emplace_back(shape);
     }
     const auto total_work_amount =
-        std::accumulate(master_shape.begin(), master_shape.end(), (size_t)1, std::multiplies<size_t>());
+        std::accumulate(master_shape.begin(), master_shape.end(), (size_t)1, std::multiplies<>());
     const auto num_dims_collapsed = blocked_input_shapes ? 0
                                                          : optimize(input_shapes,
                                                                     master_shape,

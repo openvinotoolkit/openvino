@@ -28,7 +28,7 @@ namespace ov::snippets::op {
 class Reshape : public ShapeInferOp {
 public:
     OPENVINO_OP("Reshape", "SnippetsOpset", ShapeInferOp);
-    Reshape(const Output<Node>& x, ov::PartialShape target_shape);
+    Reshape(const Output<Node>& arg, ov::PartialShape target_shape);
     Reshape() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;

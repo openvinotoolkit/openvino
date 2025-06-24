@@ -57,7 +57,7 @@ struct Edge {
     int to_port = 0;
 };
 
-enum class AttrType {
+enum class AttrType : uint8_t {
     layers,
     layer,
     id,
@@ -84,13 +84,13 @@ enum class AttrType {
 };
 
 template <typename T, std::enable_if_t<!std::is_enum_v<T>, int> = 0>
-static uint64_t hash_combine(uint64_t seed, const T& v) {
+uint64_t hash_combine(uint64_t seed, const T& v) {
     // Hash combine formula from boost
     return seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
 template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
-static uint64_t hash_combine(uint64_t seed, const T& v) {
+uint64_t hash_combine(uint64_t seed, const T& v) {
     using underlying_t = std::underlying_type_t<T>;
     return hash_combine(seed, static_cast<underlying_t>(v));
 }
@@ -247,7 +247,7 @@ public:
         m_hash = hash_combine(hash_combine(m_hash, name), adapter.get());
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
-        m_hash = hash_combine(hash_combine(m_hash, name), static_cast<long long>(adapter.get()));
+        m_hash = hash_combine(hash_combine(m_hash, name), static_cast<int64_t>(adapter.get()));
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         m_hash = hash_combine(hash_combine(m_hash, name), adapter.get());

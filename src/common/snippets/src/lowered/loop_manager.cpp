@@ -64,7 +64,7 @@ std::vector<size_t> LoopManager::get_outer_expr_loops(const ExpressionPtr& expr,
     const auto& loop_ids = expr->get_loop_ids();
     const auto it = std::find(loop_ids.cbegin(), loop_ids.cend(), loop_id);
     assert(it != loop_ids.cend() && "Loop ID hasn't been found");
-    return std::vector<size_t>(loop_ids.cbegin(), it);
+    return {loop_ids.cbegin(), it};
 }
 
 std::vector<size_t> LoopManager::get_common_outer_loops(const ExpressionPtr& lhs, const ExpressionPtr& rhs) {
@@ -74,7 +74,7 @@ std::vector<size_t> LoopManager::get_common_outer_loops(const ExpressionPtr& lhs
     while (idx < std::min(rhs_ids.size(), lhs_ids.size()) && rhs_ids[idx] == lhs_ids[idx]) {
         idx++;
     }
-    return std::vector<size_t>(rhs_ids.cbegin(), rhs_ids.cbegin() + idx);
+    return {rhs_ids.cbegin(), rhs_ids.cbegin() + idx};
 }
 
 std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<ExpressionPtr>& exprs) {
@@ -93,7 +93,7 @@ std::vector<size_t> LoopManager::get_common_outer_loops(const std::vector<Expres
     for (size_t i = 1; i < exprs.size(); ++i) {
         common_idx = std::min(common_idx, get_first_diff_id_idx(first_loop_ids, exprs[i]->get_loop_ids()));
     }
-    return std::vector<size_t>(first_loop_ids.cbegin(), first_loop_ids.cbegin() + common_idx);
+    return {first_loop_ids.cbegin(), first_loop_ids.cbegin() + common_idx};
 }
 
 std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bounds(const LinearIR& linear_ir,

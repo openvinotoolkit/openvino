@@ -28,7 +28,7 @@ public:
     using BroadcastableInputsMap = std::map<size_t, size_t>;
     AnalyzeBroadcastableInputs(BroadcastableInputsMap& map);
 
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& body) override;
 
 private:
     BroadcastableInputsMap& m_broadcastable_inputs;

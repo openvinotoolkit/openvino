@@ -22,12 +22,11 @@ void DebugCapsConfig::readProperties() {
         return static_cast<const char*>(nullptr);
     };
 
-    const char* envVarValue = nullptr;
-    if ((envVarValue = readEnv("OV_SNIPPETS_DUMP_LIR"))) {
+    if (const auto* envVarValue = readEnv("OV_SNIPPETS_DUMP_LIR")) {
         dumpLIR.parseAndSet(envVarValue);
         OPENVINO_ASSERT(!dumpLIR.passes.empty(), "Passes option in OV_SNIPPETS_DUMP_LIR must be provided.");
     }
-    if ((envVarValue = readEnv("OV_SNIPPETS_DUMP_BRGEMM_PARAMS"))) {
+    if (const auto* envVarValue = readEnv("OV_SNIPPETS_DUMP_BRGEMM_PARAMS")) {
         dumpParams.parseAndSet(envVarValue);
     }
 }

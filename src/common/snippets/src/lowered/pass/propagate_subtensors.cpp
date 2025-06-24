@@ -17,6 +17,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/broadcastload.hpp"
@@ -123,10 +124,15 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 for (size_t i = 0; i < new_subtensor.size(); ++i) {
                     // If user forces dynamic value to set in subtensor, set real dynamic dimension using
                     // `get_dynamic_value<size_t>()`
-                    new_subtensor[i] = new_subtensor[i] == FORCED_DYNAMIC_VALUE ? utils::get_dynamic_value<size_t>()
-                                       : utils::is_full_dim_value(subtensor[i])
-                                           ? subtensor[i]
-                                           : std::min(new_subtensor[i], subtensor[i]);
+                    new_subtensor[i] = [&]() -> size_t {
+                        if (new_subtensor[i] == FORCED_DYNAMIC_VALUE) {
+                            return utils::get_dynamic_value<size_t>();
+                        }
+                        if (utils::is_full_dim_value(subtensor[i])) {
+                            return subtensor[i];
+                        }
+                        return std::min(new_subtensor[i], subtensor[i]);
+                    }();
                 }
                 desc->set_subtensor(new_subtensor);
             }

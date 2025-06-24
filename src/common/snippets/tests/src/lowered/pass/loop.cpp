@@ -18,6 +18,7 @@
 #include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
+#include "snippets/op/brgemm.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
 using Snippets_TailProcessingTransformation = ::testing::Test;

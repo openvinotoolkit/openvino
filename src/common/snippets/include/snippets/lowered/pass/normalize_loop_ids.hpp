@@ -39,7 +39,7 @@ private:
     // [ original Loop ID -> new normalized and sorted ]
     using IDMapper = std::map<size_t, size_t>;
 
-    static void update_linear_ir(lowered::LinearIR& linear_ir, const IDMapper& loop_ids);
+    static void update_linear_ir(lowered::LinearIR& linear_ir, const IDMapper& loop_id_map);
 
     bool m_has_specific_loops = true;
 };

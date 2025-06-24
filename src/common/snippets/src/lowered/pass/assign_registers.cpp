@@ -21,6 +21,7 @@
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <map>
 #include <set>
@@ -55,12 +56,12 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
         gpr_pool.erase(gpr_pool.begin());
     }
 
-    long int max_buffer_group = -1;
+    int64_t max_buffer_group = -1;
     for (const auto& expr : linear_ir) {
         auto op = expr->get_node();
         if (const auto& buffer = ov::as_type_ptr<BufferExpression>(expr)) {
             // All buffers have one common data pointer
-            const auto reg_group = static_cast<long int>(buffer->get_reg_group());
+            const auto reg_group = static_cast<int64_t>(buffer->get_reg_group());
             max_buffer_group = std::max(max_buffer_group, reg_group);
             OPENVINO_ASSERT(gpr_pool.size() > static_cast<size_t>(max_buffer_group),
                             "Not enough gp registers in the pool to perform manual assignment");

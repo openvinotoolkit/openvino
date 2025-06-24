@@ -12,7 +12,6 @@
 #include <memory>
 #include <numeric>
 #include <set>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -300,7 +299,6 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             //        But operations after Transpose1 and before MatMul0  will be fused into one loop as well (look at
             //        first point)
             size_t uniqie_buffer_reg_group_count = 1;  // After MatMul0 there is always one Buffer
-            std::string fused_names;
             ov::NodeVector ordered_ops;
 
             /* ======== Matcher Pass ========== */

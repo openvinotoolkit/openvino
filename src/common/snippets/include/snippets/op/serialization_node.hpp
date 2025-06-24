@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <snippets/lowered/expression.hpp>
 
@@ -23,7 +24,7 @@ class SerializationNode : public ov::op::Op {
 public:
     OPENVINO_OP("SerializationNode", "SnippetsOpset");
 
-    enum SerializationMode { DATA_FLOW, CONTROL_FLOW };
+    enum SerializationMode : uint8_t { DATA_FLOW, CONTROL_FLOW };
     SerializationNode() = default;
     SerializationNode(const ov::OutputVector& args,
                       const std::shared_ptr<lowered::Expression>& expr,
@@ -35,7 +36,7 @@ public:
 
 private:
     std::shared_ptr<lowered::Expression> m_expr;
-    SerializationMode m_mode;
+    SerializationMode m_mode = SerializationMode::CONTROL_FLOW;
 };
 
 }  // namespace ov::snippets::op

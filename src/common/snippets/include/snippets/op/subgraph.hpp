@@ -191,7 +191,7 @@ public:
         const BlockedShapeVector& blocked_input_shapes = {},
         const std::vector<ov::element::Type>& input_precisions = {},
         const std::vector<ov::element::Type>& output_precisions = {},
-        const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_passes = {},
+        const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_backend_passes = {},
         const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config =
             std::make_shared<lowered::pass::PassConfig>(),
         const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},

@@ -16,6 +16,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reshape.hpp"

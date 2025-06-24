@@ -25,13 +25,13 @@ namespace ov::snippets::pass {
  SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via
  SetSnippetsNodeType(...).
  */
-enum class SnippetsNodeType : int64_t { NotSet, SkippedByPlugin };
+enum class SnippetsNodeType : uint8_t { NotSet, SkippedByPlugin };
 /*
  NotSet - default value returned if the subgraph wasn't marked and snippets can include nodes in this subgraph
  Completed - indicate that snippets can't include any nodes in this subgraph.
              It's used in separate tokenization pass, for example, tokenization by matcher (MHA Tokenization).
  */
-enum class SnippetsSubgraphType : int64_t { NotSet, Completed };
+enum class SnippetsSubgraphType : uint8_t { NotSet, Completed };
 void SetSnippetsNodeType(const std::shared_ptr<Node>& node, SnippetsNodeType nodeType);
 void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>& node, SnippetsSubgraphType nodeType);
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>& node);

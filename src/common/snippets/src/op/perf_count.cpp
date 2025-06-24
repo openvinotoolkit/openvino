@@ -190,7 +190,7 @@ PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
       dumpers(std::move(dumpers)) {
     constructor_validate_and_infer_types();
     init_pc_begin();
-    for (const auto& dumper : dumpers) {
+    for (const auto& dumper : this->dumpers) {
         dumper->init(params);
     }
 }

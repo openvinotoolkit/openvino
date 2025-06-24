@@ -25,7 +25,7 @@ class PropagatePrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::PropagatePrecision");
     PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine);
-    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
     static std::vector<element::Type> get_precisions(const std::vector<element::Type>& input_precisions,
                                                      const std::set<std::vector<element::Type>>& supported_precisions);

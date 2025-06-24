@@ -65,8 +65,8 @@ LoadReorder::LoadReorder(const Output<ov::Node>& x, const size_t count, const si
     OPENVINO_ASSERT(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
                         *std::min_element(m_order.begin(), m_order.end()) == 0,
                     "LoadReorder detected invalid values in new_order");
-    const std::set<size_t> unique_dims(order.begin(), order.end());
-    OPENVINO_ASSERT(unique_dims.size() == order.size(), "LoadReorder order must not contain repeated elements");
+    const std::set<size_t> unique_dims(m_order.begin(), m_order.end());
+    OPENVINO_ASSERT(unique_dims.size() == m_order.size(), "LoadReorder order must not contain repeated elements");
     constructor_validate_and_infer_types();
 }
 

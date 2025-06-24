@@ -45,7 +45,7 @@ bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper, const L
     };
     const auto& upper_exit_ports = loop_upper->get_output_ports();
     const auto& lower_entry_ports = loop_lower->get_input_ports();
-    for (const auto& lower_entry_port : lower_entry_ports) {
+    return std::all_of(lower_entry_ports.cbegin(), lower_entry_ports.cend(), [&](const LoopPort& lower_entry_port) {
         const auto& src_port = lower_entry_port.get_expr_port()->get_port_connector_ptr()->get_source();
         const auto upper_exit_port_it = found_port(upper_exit_ports, src_port);
         if (upper_exit_port_it != upper_exit_ports.cend()) {
@@ -57,8 +57,8 @@ bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper, const L
                 return false;
             }
         }
-    }
-    return true;
+        return true;
+    });
 }
 
 bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const UnifiedLoopInfoPtr& loop_lower) {

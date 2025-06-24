@@ -38,7 +38,7 @@ public:
         return bcast_dimension;
     }
     void set_bcast_dimension(const ov::Dimension& new_dim) {
-        bcast_dimension = std::move(new_dim);
+        bcast_dimension = new_dim;
     }
     // Note:BroadcastMove and BroadcastLoad are implemented as separate classes,
     // but have identical shapeInfer semantics. In order to avoid code duplication,

@@ -3,7 +3,10 @@
 //
 
 #include "subgraph_group_normalization.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <snippets/op/subgraph.hpp>
+#include <snippets/op/reshape.hpp>
+#include <snippets/op/reduce.hpp>
 
 namespace ov {
 namespace test {

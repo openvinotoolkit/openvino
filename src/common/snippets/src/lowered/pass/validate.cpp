@@ -20,6 +20,7 @@
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/op/loop.hpp"

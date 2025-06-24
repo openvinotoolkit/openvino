@@ -155,7 +155,7 @@ public:
      * @param initialized_info_map A map containing the initialized runtime parameters for UnifiedLoopInfo.
      */
     static void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
-                                          LoopInfoRuntimeParamsMap& initializated_info_map);
+                                          LoopInfoRuntimeParamsMap& initialized_info);
     /**
      * @brief Update tensor rank based on master shape
      * @param master_shape Master shape

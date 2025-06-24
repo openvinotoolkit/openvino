@@ -46,7 +46,7 @@ public:
         return rc;
     }
 
-    std::shared_ptr<PassBase> register_pass_instance(const PassPosition& pass_id,
+    std::shared_ptr<PassBase> register_pass_instance(const PassPosition& position,
                                                      const std::shared_ptr<PassBase>& pass);
     void register_positioned_passes(const std::vector<PositionedPassBase>& pos_passes);
 

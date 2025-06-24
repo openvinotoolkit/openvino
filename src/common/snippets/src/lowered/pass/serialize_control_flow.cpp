@@ -20,6 +20,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/serialization_node.hpp"
 
@@ -56,12 +57,15 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
                 loop_end->set_work_amount(loop_info->get_work_amount());
                 loop_end->set_increment(loop_info->get_increment());
                 loop_end->set_is_incremented(loop_info->get_is_incremented());
+                auto set_loop_end_data = [&loop_end](const auto& info) {
+                    loop_end->set_ptr_increments(info->get_ptr_increments());
+                    loop_end->set_finalization_offsets(info->get_finalization_offsets());
+                };
+
                 if (auto unified = ov::as_type_ptr<UnifiedLoopInfo>(loop_info)) {
-                    loop_end->set_ptr_increments(unified->get_ptr_increments());
-                    loop_end->set_finalization_offsets(unified->get_finalization_offsets());
+                    set_loop_end_data(unified);
                 } else if (auto expanded = ov::as_type_ptr<ExpandedLoopInfo>(loop_info)) {
-                    loop_end->set_ptr_increments(expanded->get_ptr_increments());
-                    loop_end->set_finalization_offsets(expanded->get_finalization_offsets());
+                    set_loop_end_data(expanded);
                 } else {
                     OPENVINO_THROW("Unknown LoopInfo type");
                 }

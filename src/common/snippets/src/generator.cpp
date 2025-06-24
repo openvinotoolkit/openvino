@@ -41,6 +41,7 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
+#include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/utils/reg_utils.hpp"
 

@@ -220,7 +220,7 @@ public:
      */
     template <typename T>
     exprIt insert_node(const std::shared_ptr<ov::Node>& new_node,
-                       const std::vector<T>& inputs,
+                       const std::vector<T>& args,
                        const std::vector<size_t>& loop_ids,
                        bool update_loop_ports,
                        const constExprIt& place,

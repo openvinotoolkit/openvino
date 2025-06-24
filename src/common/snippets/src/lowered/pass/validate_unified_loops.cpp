@@ -29,12 +29,9 @@ void ValidateUnifiedLoops::validate_loop_infos(const LoopManagerPtr& loop_manage
     auto is_already_verified = [&validated_nested_loops](const std::vector<size_t>& ids) {
         // If `ids` is subsequence of one of loop_ids in `validated_nested_loops` set,
         // it means that `ids` is already validated too
-        for (const auto& loop : validated_nested_loops) {
-            if (std::search(ids.cbegin(), ids.cend(), loop.cbegin(), loop.cend()) != ids.cend()) {
-                return true;
-            }
-        }
-        return false;
+        return std::any_of(validated_nested_loops.begin(), validated_nested_loops.end(), [&ids](const auto& loop) {
+            return std::search(ids.cbegin(), ids.cend(), loop.cbegin(), loop.cend()) != ids.cend();
+        });
     };
 
     std::vector<size_t> dim_indexes;

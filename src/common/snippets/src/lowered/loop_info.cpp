@@ -144,10 +144,10 @@ std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const LoopPort& loop_po
 }
 
 template <>
-std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const ExpressionPort& expr_port) {
-    auto& ports = expr_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
-    const auto it = std::find_if(ports.begin(), ports.end(), [&expr_port](const LoopPort& port) {
-        return *port.get_expr_port() == expr_port;
+std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const ExpressionPort& loop_port) {
+    auto& ports = loop_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
+    const auto it = std::find_if(ports.begin(), ports.end(), [&loop_port](const LoopPort& port) {
+        return *port.get_expr_port() == loop_port;
     });
     return it;
 }

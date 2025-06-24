@@ -132,16 +132,21 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
     if (ol && il && ih) {
         return 6;
     }
-    if ((ol && (il || ih)) || (il && ih && oh))
+    if ((ol && (il || ih)) || (il && ih && oh)) {
         return 5;
-    else if ((il && oh) || (ih && oh) || (il && ih))
+    }
+    if ((il && oh) || (ih && oh) || (il && ih)) {
         return 4;
-    else if (il || ih)
+    }
+    if (il || ih) {
         return 3;
-    else if (ol)
+    }
+    if (ol) {
         return 2;
-    else if (oh)
+    }
+    if (oh) {
         return 1;
+    }
     return 0;
 }
 
