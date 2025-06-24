@@ -20,8 +20,6 @@ public:
                                    const ov::snippets::lowered::ExpressionPtr& expr);
 
 protected:
-    void emit_pointer_increments(size_t scale) const;
-
     size_t wa_increment = 0;
     std::vector<bool> is_incremented;
     size_t num_inputs = 0;
