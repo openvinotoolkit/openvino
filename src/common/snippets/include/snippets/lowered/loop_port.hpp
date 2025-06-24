@@ -21,7 +21,7 @@ namespace ov::snippets::lowered {
  */
 class LoopPort {
 public:
-    enum { UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max() };
+    static constexpr auto UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max();
     enum class Type : uint8_t {
         Incremented,     // Loop port which data ptr should be incremented after each Loop iteration
         NotIncremented,  // Loop port which data ptr should not be incremented (for example, to avoid double increment)
