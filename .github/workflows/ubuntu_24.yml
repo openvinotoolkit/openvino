@@ -102,7 +102,7 @@ jobs:
       build-contrib: true
       build-additional-python-packages: true
       target-branch: ${{ inputs.target-branch }}
-      cmake-options: >- 
+      cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_CPPLINT=OFF
             -DENABLE_NCC_STYLE=OFF
@@ -165,6 +165,16 @@ jobs:
     name: Pytorch Layer Tests
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.12'
+
+  Pytorch_FX_Layer_Tests:
+    name: Pytorch FX Layer Tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"], "options": "-e HF_TOKEN"}'

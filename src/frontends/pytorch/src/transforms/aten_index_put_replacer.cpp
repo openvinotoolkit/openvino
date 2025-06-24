@@ -122,6 +122,18 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             }
         }
 
+        // In some exported graphs, when index_put_ is used with None indices, shape of values
+        // might be missing the first dimension of 1. For example, a value shape can be provided
+        // as (x,y,z) instead of (1,x,y,z). Both cases are valid for aten.index_put_.default.
+        auto input_rank = input.get_partial_shape().rank();
+        auto values_rank = values.get_partial_shape().rank();
+        if (static_cast<int64_t>(dims_with_none_idx.size()) > 0 && input_rank.is_static() && values_rank.is_static() &&
+            input_rank.get_length() > 1 && input_rank.get_length() == values_rank.get_length() + 1 &&
+            static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len - 1 &&
+            !(is_none_node(indices_inputs[indices_list_len - 1]))) {
+            values = rg.make<v0::Unsqueeze>(values, const_0);
+        }
+
         std::vector<int64_t> perm_vector_before;
         std::vector<int64_t> perm_vector_after;
         if (static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len) {
