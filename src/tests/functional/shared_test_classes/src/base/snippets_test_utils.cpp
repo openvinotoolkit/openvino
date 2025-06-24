@@ -60,6 +60,12 @@ void SnippetsTestsCommon::setInferenceType(ov::element::Type type) {
     configuration.emplace(ov::hint::inference_precision(type));
 }
 
+void SnippetsTestsCommon::setDefaultSnippetsMode() {
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
