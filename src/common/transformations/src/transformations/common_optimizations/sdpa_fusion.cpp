@@ -311,21 +311,33 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             if (!ov::PartialShape::broadcast_merge_into(qk_out_ps, mask_input_ps, AutoBroadcastType::NUMPY))
                 return false;
 
-            std::vector<int64_t> axes;
-            for (size_t i = 0; i < mask_input_ps.size(); ++i) {
-                if (mask_input_ps[i].is_static() && mask_input_ps[i].get_length() == 1) {
-                    axes.push_back(i);
-                } else {
-                    break;
+            if (mask_input_ps.size() < 2) {
+                // OpenVINO SDPA specification requires the attention mask to have rank >= 2.
+                auto diff = 2 - mask_input_ps.size();
+                std::vector<int64_t> axes(diff);
+                std::iota(axes.begin(), axes.end(), 0);
+                auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+                auto mask_unsqueeze = std::make_shared<v0::Unsqueeze>(mask_input, axes_const);
+                mask_unsqueeze->set_friendly_name(mask->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), mask_unsqueeze);
+                mask_input = mask_unsqueeze;
+            } else {
+                std::vector<int64_t> axes;
+                // -2 because OpenVINO SDPA specification requires the attention mask to have rank >= 2.
+                for (size_t i = 0; i < (mask_input_ps.size() - 2); ++i) {
+                    if (mask_input_ps[i].is_static() && mask_input_ps[i].get_length() == 1) {
+                        axes.push_back(i);
+                    } else {
+                        break;
+                    }
                 }
-            }
-            if (!axes.empty()) {
-                auto mask_squeeze =
-                    std::make_shared<v0::Squeeze>(mask_input,
-                                                  v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes));
-                mask_squeeze->set_friendly_name(mask->get_friendly_name());
-                ov::copy_runtime_info(m.get_matched_nodes(), mask_squeeze);
-                mask_input = mask_squeeze;
+                if (!axes.empty()) {
+                    auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+                    auto mask_squeeze = std::make_shared<v0::Squeeze>(mask_input, axes_const);
+                    mask_squeeze->set_friendly_name(mask->get_friendly_name());
+                    ov::copy_runtime_info(m.get_matched_nodes(), mask_squeeze);
+                    mask_input = mask_squeeze;
+                }
             }
         } else {
             mask_input = v0::Constant::create(T, ov::Shape{}, {0});
