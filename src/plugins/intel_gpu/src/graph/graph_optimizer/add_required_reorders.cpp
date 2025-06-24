@@ -284,7 +284,9 @@ void add_required_reorders::run(program& p) {
                 }
             }
 
-            usr->recalc_output_layout(false);
+            if (!usr->is_all_valid_output_layouts()) {
+                usr->recalc_output_layout(false);
+            }
         }
 
         eliminate_pad_for_onednn_impl(p, *usr);
