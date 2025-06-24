@@ -469,7 +469,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
                 auto weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto out_ptr = ptr_C + C_stride;
-                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, out_ptr, nullptr, nullptr, wsp);
+                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, out_ptr, nullptr, nullptr, wsp, false);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -525,7 +525,8 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail, void* a, void* b, void* 
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto c_ptr = ptr_C + C_stride;
                 auto d_ptr = ptr_D + C_stride;
-                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, c_ptr, d_ptr, scale_b, wsp);
+                bool do_post = ((k == 0 && !K_tail) || k == 1);
+                callBrgemm(brgemmCtx, brgKernels[getBrgIdx(mIdx, k, n)], local_a_ptr, weight_ptr, c_ptr, d_ptr, scale_b, wsp, do_post);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -560,11 +561,12 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                               void* Cout,
                               void* Dout,
                               float* b_scale,
-                              void* wsp) {
+                              void* wsp,
+                              bool doPostops) {
     if (ctx.is_with_amx) {
         amx_tile_configure(ctx.palette);
     }
-    if (Dout && Dout != Cout) {
+    if (doPostops) {
         brgemm_post_ops_data_t post_ops_data;
         post_ops_data.scales = b_scale;
         brgemm_batch_element_t addr_batch;

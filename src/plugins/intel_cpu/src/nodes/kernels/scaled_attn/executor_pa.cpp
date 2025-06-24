@@ -752,7 +752,7 @@ struct MHAHelper {
     void init_reorder_buffers(size_t batch, size_t kv_len_in_blocks) {
         // append the scale after the tokens
         if (_params.is_sage_attn) {
-            size_t padded_S = (S + sizeof(float) / sizeof(int8_t));
+            size_t padded_S = std::max((S + sizeof(float) / sizeof(int8_t)), rnd_up(S, 64));
             _qk_scratch_b.resize<int8_t>({batch, kv_len_in_blocks, Hk, _block_size * padded_S});
         } else {
             _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, Hk, _block_size * S});

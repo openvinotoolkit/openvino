@@ -144,6 +144,7 @@ private:
                     void* Cout,
                     void* Dout,
                     float* bScale,
-                    void* wsp);
+                    void* wsp,
+                    bool doPostops);
 };
 }  // namespace ov::intel_cpu

@@ -11,7 +11,11 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
-using BrgemmKernelParams = std::tuple<ov::element::Type, bool>;
+using BrgemmKernelParams = std::tuple<ov::element::Type,
+                                      size_t,  // M
+                                      size_t,  // N
+                                      size_t,  // K
+                                      bool>;
 
 namespace brgemmUnitTest {
 class BrgemmKernelTest : public ov::test::TestsCommon, public testing::WithParamInterface<BrgemmKernelParams> {
@@ -19,22 +23,27 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<BrgemmKernelParams>& obj) {
         ov::element::Type rtPrec;
         bool postScale;
-        std::tie(rtPrec, postScale) = obj.param;
+        size_t M, N, K;
+        std::tie(rtPrec, M, N, K, postScale) = obj.param;
         std::ostringstream result;
-        result << "Prec=" << rtPrec.to_string() << ",WithpostScale=" << postScale << std::endl;
+        result << "Prec=" << rtPrec.to_string();
+        result << ",M=" << M;
+        result << ",N=" << N;
+        result << ",K=" << K;
+        result << ",WithpostScale=" << postScale << std::endl;
         return result.str();
     }
 };
 
 template <typename T>
-void run_test(ov::element::Type rtPrec) {
-    size_t M = 33;
-    size_t N = 32;
-    size_t K = 33;
+void run_test(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
+    M = 33;
+    N = 32;
+    K = 33;
     ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false, rtPrec);
     size_t nthr = 8;
     bool is_f32 = (rtPrec == ov::element::f32);
-    std::vector<T> a_data(M * K, (1.0f / 33));
+    std::vector<T> a_data(M * K, (1.0f / K));
     std::vector<T> b_data(K * N, 4.0f);
     std::vector<float> c_data(nthr * M * N, 0.0f);
     std::vector<size_t> wsp(nthr * 4 * 1024, 0.0f);
@@ -74,10 +83,10 @@ void run_test(ov::element::Type rtPrec) {
 }
 
 template <>
-void run_test<int8_t>(ov::element::Type rtPrec) {
-    size_t M = 32;
-    size_t N = 32;
-    size_t K = 32;
+void run_test<int8_t>(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
+    // size_t M = 32;
+    // size_t N = 32;
+    // size_t K = 80;
     ov::intel_cpu::BrgemmKernel gemm(M, N, K, K + 4, K + 4, N, true, rtPrec);
     size_t nthr = 8;
     bool is_f32 = (rtPrec == ov::element::f32);
@@ -127,10 +136,10 @@ void run_test<int8_t>(ov::element::Type rtPrec) {
     });
 }
 
-static void run_test_post_scales(ov::element::Type rtPrec) {
-    size_t M = 32;
-    size_t N = 32;
-    size_t K = 64;
+static void run_test_post_scales(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
+    // size_t M = 32;
+    // size_t N = 32;
+    // size_t K = 80;
     ov::intel_cpu::BrgemmKernel gemm(M,
                                      N,
                                      K,
@@ -199,30 +208,38 @@ static void run_test_post_scales(ov::element::Type rtPrec) {
 TEST_P(BrgemmKernelTest, simpleGemmTest) {
     ov::element::Type rtPrec;
     bool postScale;
-    std::tie(rtPrec, postScale) = this->GetParam();
+    size_t M, N, K;
+    std::tie(rtPrec, M, N, K, postScale) = this->GetParam();
     if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (rtPrec == ov::element::f32 && !ov::with_cpu_x86_avx512_core())
         GTEST_SKIP();
     if (rtPrec == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())
         GTEST_SKIP();
+    // TODO enable vnni2 if vnni2 flag available
+    if (rtPrec == ov::element::i8 && !(ov::with_cpu_x86_avx512_core_amx_int8()))
+        GTEST_SKIP();
 
     if (rtPrec == ov::element::bf16) {
-        run_test<ov::bfloat16>(rtPrec);
+        run_test<ov::bfloat16>(rtPrec, M, N, K);
     } else if (rtPrec == ov::element::f16) {
-        run_test<ov::float16>(rtPrec);
-    } else if (rtPrec == ov::element::f16) {
-        run_test<float>(rtPrec);
+        run_test<ov::float16>(rtPrec, M, N, K);
+    } else if (rtPrec == ov::element::f32) {
+        run_test<float>(rtPrec, M, N, K);
     } else {
         if (postScale) {
-            run_test_post_scales(rtPrec);
+            run_test_post_scales(rtPrec, M, N, K);
         } else {
-            run_test<int8_t>(rtPrec);
+            run_test<int8_t>(rtPrec, M, N, K);
         }
     }
 }
 
-const std::vector<BrgemmKernelParams> params = {{ov::element::i8, true}, {ov::element::i8, false}};
+const std::vector<BrgemmKernelParams> params = {{ov::element::f32, 33, 32, 33, false},
+                                                {ov::element::bf16, 33, 32, 33, false},
+                                                {ov::element::f16, 33, 32, 33, false},
+                                                {ov::element::i8, 32, 32, 80, true},
+                                                {ov::element::i8, 32, 32, 64, true}};
 
 INSTANTIATE_TEST_SUITE_P(BrgemmKernelUnitTest,
                          BrgemmKernelTest,
