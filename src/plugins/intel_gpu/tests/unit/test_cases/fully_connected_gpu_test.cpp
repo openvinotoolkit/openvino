@@ -1418,8 +1418,14 @@ TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
     }
 }
 
+
 class fully_connected_gpu_tests: public ::testing::Test {
 public:
+    enum class TestMode { Static, Dynamic };
+    enum class WzpMode { Symmetric, AsymmetricScalar, AsymmetricNonScalar };
+    enum class WeightMode { Bit8, Bit4 };
+    enum class TargetDevice { SkipDgpu, RunOnDgpu};
+
     void test_compressed_scale_zp_bias(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -3734,31 +3740,33 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
 
     void test_comp_weight_scale_zp(bool is_dynamic, int batch = 1, int ifm = 1024, int ofm = 1024,
                                         size_t quantize_group_size = 32, int scales_group_size = 32, int wzp_group_size = 32,
-                                        bool is_wzp_test = false, bool is_wzp_scalar = false, bool is_4bit_weight = false, bool is_skip_dgpu = false) {
+                                        WzpMode wzp_mode = WzpMode::Symmetric, WeightMode weight_mode = WeightMode::Bit8,
+                                        TargetDevice dgpu = TargetDevice::RunOnDgpu) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
-        if (is_skip_dgpu && engine.get_device_info().dev_type == device_type::discrete_gpu)
+        if (dgpu == TargetDevice::SkipDgpu && engine.get_device_info().dev_type == device_type::discrete_gpu)
             GTEST_SKIP();
 
         long int batch_num = batch;
         long int ifm_num = ifm;
         long int ofm_num = ofm;
-        long int wzp_num = is_wzp_scalar ? 1 : ofm_num;
-        long int wzp_ifm_num = is_wzp_scalar ? 1 : (ifm_num / wzp_group_size);
         long int scale_num = ifm_num / scales_group_size;
+        long int wzp_num = (wzp_mode == WzpMode::AsymmetricNonScalar) ? ofm_num : 1;
+        long int wzp_ifm_num = (wzp_mode == WzpMode::AsymmetricNonScalar) ? (ifm_num / wzp_group_size) : 1;
+        auto weight_type = (weight_mode == WeightMode::Bit4) ? data_types::i4 : data_types::u8;
 
         auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
         auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
 
-        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, is_4bit_weight ? data_types::i4 : data_types::u8 , format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, weight_type, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, scale_num}, data_types::f16, format::fbyx });
         auto dcomp_zp_mem = engine.allocate_memory({ {wzp_num, wzp_ifm_num}, data_types::u8, format::fbyx });
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.f, 2.f);
         set_values(input_mem, input_data);
 
-        if (is_4bit_weight) {
+        if (weight_mode == WeightMode::Bit4) {
             auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
             set_values(weights_mem, weigths_data);
 
@@ -3770,7 +3778,8 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * scale_num, -2.f, 2.f);
         set_values(scale_mem, scale_data);
 
-        if (is_wzp_test) {
+        bool need_wzp_test = (wzp_mode != WzpMode::Symmetric);
+        if (need_wzp_test) {
             auto zp_data = rg.generate_random_1d<uint8_t>(wzp_num * wzp_ifm_num, 0, 4);
             set_values(dcomp_zp_mem, zp_data);
         }
@@ -3778,12 +3787,12 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto in_layout = is_dynamic ? layout{ ov::PartialShape{ -1, -1, -1 }, data_types::f16, format::bfyx }
                                     : layout{ input_ps, data_types::f16, format::bfyx };
 
-        auto dcomp_zp_name = is_wzp_test ? "wzp" : "";
+        auto dcomp_zp_name = need_wzp_test ? "wzp" : "";
         auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, 3, 2);
 
-        if (is_wzp_test) {
+        if (need_wzp_test) {
             fc_prim.compressed_weights = true;
-            fc_prim.decompression_zero_point = is_wzp_test ? input_info("wzp") : input_info();
+            fc_prim.decompression_zero_point = need_wzp_test ? input_info("wzp") : input_info();
         }
 
         // Implemented reference kernel
@@ -4906,56 +4915,56 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_batch_1) {
-    this->test_comp_weight_scale_zp(true, 1, 2048, 3072, 32, 128, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 1, 2048, 3072, 32, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case) {
-    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 32, 128, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 32, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_12_groupsize) {
     // Expect no dynamic-quantized FC
-    this->test_comp_weight_scale_zp(true, 269, 512, 1024, 12, 128, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 269, 512, 1024, 12, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_34_groupsize) {
-    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 34, 128, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 34, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_64_groupsize) {
-    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 64, 128, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 64, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_148_groupsize) {
-    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 148, 128, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 148, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize) {
-    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 128, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 128, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize_32_scale) {
-    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 32, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 32, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_edge_case_128_groupsize_64_scale) {
-    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 64, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 359, 1536, 2560, 128, 64, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_no_wzp) {
-    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1, false, false, true, true);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1, WzpMode::Symmetric, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp) {
-    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1024, true, false, true, true);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1024, WzpMode::AsymmetricNonScalar, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp_scalar) {
-    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1, true, true, true, true);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 32, 32, 1, WzpMode::AsymmetricScalar, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_wzp_128) {
-    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 128, 128, 128, true, false, true, true);
+    this->test_comp_weight_scale_zp(true, 320, 1024, 1024, 128, 128, 128, WzpMode::AsymmetricNonScalar, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 // Test gemv for INT4 weight compression
@@ -5065,48 +5074,48 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_dynamic_batch) {
 
 // Test weight zp for INT8 ASYM
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
-    this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large) {
-    this->test_comp_weight_scale_zp(true, 160, 2048, 2048, 128, 128, 2048, true, false, false, true);
+    this->test_comp_weight_scale_zp(true, 160, 2048, 2048, 128, 128, 2048, WzpMode::AsymmetricNonScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_1024) {
-    this->test_comp_weight_scale_zp(true, 160, 1024, 1024, 32, 32, 1024, true, false, false, true);
+    this->test_comp_weight_scale_zp(true, 160, 1024, 1024, 32, 32, 1024, WzpMode::AsymmetricNonScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_2048) {
-    this->test_comp_weight_scale_zp(true, 160, 2048, 2048, 32, 32, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 160, 2048, 2048, 32, 32, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_32_ifm_4096) {
-    this->test_comp_weight_scale_zp(true, 320, 2048, 2048, 32, 32, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 320, 2048, 2048, 32, 32, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_small) {
-    this->test_comp_weight_scale_zp(true, 16, 1024, 1024, 128, 128, 1024, true, false, false, true);
+    this->test_comp_weight_scale_zp(true, 16, 1024, 1024, 128, 128, 1024, WzpMode::AsymmetricNonScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_single) {
-    this->test_comp_weight_scale_zp(true, 1, 1024, 1024, 128, 128, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 1, 1024, 1024, 128, 128, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 // Test per-token dyn-quan
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_fake_per_token) {
-    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 32, 1024, true, false, true, true);
+    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 32, 1024, WzpMode::AsymmetricNonScalar, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_quantize_test_per_token) {
-    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 1024, 1024, true, false, true, true);
+    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 1024, 1024, WzpMode::AsymmetricNonScalar, WeightMode::Bit4, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_per_token_small_scale) {
-    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 32, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 32, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_test_per_token_full_scale) {
-    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 1024, 1, true, true, false, true);
+    this->test_comp_weight_scale_zp(true, 600, 1024, 2048, -1, 1024, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {
@@ -5219,31 +5228,31 @@ TEST_F(fully_connected_gpu_tests, dynamic_multi_inference_multiple_shapes_cached
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_dynamic_quantize_grouped_wzp_test) {
-    this->test_comp_weight_scale_zp(false, 160, 1024, 1024, 32, 32, 32, true, false, false, true);
+    this->test_comp_weight_scale_zp(false, 160, 1024, 1024, 32, 32, 32, WzpMode::AsymmetricNonScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
 }
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_scale_zp) {
-    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, true, false);
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, WzpMode::AsymmetricNonScalar, WeightMode::Bit8);
 }
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_per_oc_scale_zp) {
-    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 256, 256, true, false);
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 256, 256, WzpMode::AsymmetricNonScalar, WeightMode::Bit8);
 }
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_scale_scalar_zp) {
-    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, false, false);
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, WzpMode::Symmetric, WeightMode::Bit8);
 }
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int4_group_scale_zp) {
-    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, true, false, true);
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, WzpMode::AsymmetricNonScalar, WeightMode::Bit4);
 }
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int4_per_oc_scale_zp) {
-    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 256, 256, true, false, true);
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 256, 256, WzpMode::AsymmetricNonScalar, WeightMode::Bit4);
 }
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int4_group_scale_scalar_zp) {
-    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, false, false, true);
+    this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 32, 32, WzpMode::Symmetric, WeightMode::Bit4);
 }
 
 
