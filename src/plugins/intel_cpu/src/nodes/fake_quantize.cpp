@@ -1360,6 +1360,15 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
                 cropHigh[i] = inputHighData[isInputHighBroadcasted ? 0 : i];
             }
 
+            if (cropLow.size() == cropHigh.size()) {
+                for (size_t i = 0; i < cropLow.size(); i++) {
+                    if (cropLow[i] > cropHigh[i]) {
+                        // Swap cropLow and cropHigh if they are in wrong order
+                        std::swap(cropLow[i], cropHigh[i]);
+                    }
+                }
+            }
+
             for (size_t i = 0; i < inputScale.size(); i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];

@@ -28,9 +28,9 @@ static inline T quantize(const T arg,
                          const T out_high,
                          const T levels_minus_one) {
     if (arg <= std::min(in_low, in_high)) {
-        return out_low;
+        return (in_low < in_high) ? out_low : out_high;
     } else if (arg > std::max(in_low, in_high)) {
-        return out_high;
+        return (in_low < in_high) ? out_high : out_low;
     }
     return static_cast<T>(std::nearbyint((arg - in_low) / (in_high - in_low) * levels_minus_one) / levels_minus_one *
                               (out_high - out_low) +
@@ -45,9 +45,9 @@ inline ov::bfloat16 quantize(const ov::bfloat16 arg,
                              const ov::bfloat16 out_high,
                              const ov::bfloat16 levels_minus_one) {
     if (arg <= std::min(in_low, in_high)) {
-        return out_low;
+        return (in_low < in_high) ? out_low : out_high;
     } else if (arg > std::max(in_low, in_high)) {
-        return out_high;
+        return (in_low < in_high) ? out_high : out_low;
     }
 
     // make explicit convertion bf16->float to prevent implicit conversion bf16->float->bf16 on every operation
