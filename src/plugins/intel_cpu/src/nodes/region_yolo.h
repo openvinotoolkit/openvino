@@ -76,11 +76,6 @@ private:
     std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
     std::shared_ptr<SoftmaxGeneric> softmax_kernel;
 
-    union U {
-        float as_float_value;
-        int as_int_value;
-    };
-
     static inline float logistic_scalar(float src);
     inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);
 };
