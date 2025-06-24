@@ -162,4 +162,12 @@ bool BrgemmBlockingBase::mark_blocking_loops(LinearIR& linear_ir,
     }
     return true;
 }
+
+size_t BrgemmBlockingBase::get_corrected_blk_size_by_dim(size_t dim, size_t default_blk) {
+    if (!utils::is_dynamic_value(dim) && dim <= default_blk) {
+        return utils::get_full_dim_value();
+    }
+    return default_blk;
+}
+
 }  // namespace ov::snippets::lowered::pass
