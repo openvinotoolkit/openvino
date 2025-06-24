@@ -22,12 +22,8 @@ public:
 protected:
     void emit_pointer_increments(size_t scale) const;
 
-    size_t work_amount = 0;
     size_t wa_increment = 0;
     std::vector<bool> is_incremented;
-    std::vector<int64_t> ptr_increments;
-    std::vector<int64_t> finalization_offsets;
-    std::vector<int64_t> data_sizes;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     size_t loop_id = 0;
@@ -71,11 +67,6 @@ protected:
 
     std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
-    size_t work_amount = 0;
-    size_t wa_increment = 0;
-    size_t loop_id = 0;
-    bool evaluate_once = false;
-    bool is_work_amount_dynamic = false;
     std::shared_ptr<ParallelLoopExecutor> m_parallel_loop_executor = nullptr;
     std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
 };
