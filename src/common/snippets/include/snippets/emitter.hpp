@@ -16,7 +16,7 @@ namespace ov::snippets {
  * @interface RegType
  * @brief Register type of input and output operations
  */
-enum class RegType {
+enum class RegType : uint8_t {
     gpr,
     vec,
     mask,

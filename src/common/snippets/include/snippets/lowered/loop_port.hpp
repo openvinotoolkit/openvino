@@ -15,7 +15,7 @@ namespace ov::snippets::lowered {
 class LoopPort {
 public:
     enum { UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max() };
-    enum class Type {
+    enum class Type : uint8_t {
         Incremented,     // Loop port which data ptr should be incremented after each Loop iteration
         NotIncremented,  // Loop port which data ptr should not be incremented (for example, to avoid double increment)
         NotProcessed,    // LoopPort which doesn't process the dim by `dim_idx` (UNDEFINED_DIM_IDX) and is used only for
@@ -26,12 +26,12 @@ public:
 
     template <LoopPort::Type T, std::enable_if_t<T == Type::Incremented || T == Type::NotIncremented, bool> = true>
     static LoopPort create(const ExpressionPort& port, size_t dim_idx = 0) {
-        return LoopPort(port, dim_idx, T);
+        return {port, dim_idx, T};
     }
 
     template <LoopPort::Type T, std::enable_if_t<T == Type::NotProcessed, bool> = true>
     static LoopPort create(const ExpressionPort& port) {
-        return LoopPort(port, UNDEFINED_DIM_IDX, Type::NotProcessed);
+        return {port, UNDEFINED_DIM_IDX, Type::NotProcessed};
     }
 
     [[nodiscard]] std::shared_ptr<LoopPort> clone_with_new_expr(const ExpressionPtr& new_expr) const;

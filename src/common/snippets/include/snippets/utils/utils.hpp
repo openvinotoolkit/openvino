@@ -301,7 +301,7 @@ VectorDims get_projected_subtensor(const snippets::lowered::ExpressionPort& expr
  * @return element count of input shape
  */
 inline auto get_shape_size(const VectorDims& shape) -> size_t {
-    return std::accumulate(shape.begin(), shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    return std::accumulate(shape.begin(), shape.end(), static_cast<size_t>(1), std::multiplies<>());
 }
 
 /**

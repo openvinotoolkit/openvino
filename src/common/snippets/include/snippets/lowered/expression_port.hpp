@@ -15,7 +15,7 @@ class PortConnector;
 class Expression;
 class ExpressionPort {
 public:
-    enum Type { Input, Output };
+    enum Type : uint8_t { Input, Output };
 
     ExpressionPort() = default;
     explicit ExpressionPort(const std::shared_ptr<Expression>& expr, Type type, size_t port);

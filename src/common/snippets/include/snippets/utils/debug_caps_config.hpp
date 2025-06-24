@@ -42,6 +42,7 @@ public:
     };
 
     struct PropertyGroup {
+        virtual ~PropertyGroup() = default;
         virtual std::vector<PropertySetterPtr> getPropertySetters() = 0;
         void parseAndSet(const std::string& str);
     };
@@ -78,7 +79,7 @@ public:
     // requirment. For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read
     // RDTSC register is implemented, which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and
     // perf count end execution, on ICX. This mode only support single thread.
-    enum PerfCountMode {
+    enum PerfCountMode : uint8_t {
         Disabled,
         Chrono,
         BackendSpecific,
