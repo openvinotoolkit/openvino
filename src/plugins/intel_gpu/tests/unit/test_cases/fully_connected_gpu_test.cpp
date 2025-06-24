@@ -1590,7 +1590,7 @@ public:
             count++;
             OPENVINO_ASSERT(abs_diff < 256);
         }
-        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
     }
 
     void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128, bool is_wei_dyn = false) {
@@ -3779,7 +3779,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                                     : layout{ input_ps, data_types::f16, format::bfyx };
 
         auto dcomp_zp_name = is_wzp_test ? "wzp" : "";
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f32, 3, 2);
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, 3, 2);
 
         if (is_wzp_test) {
             fc_prim.compressed_weights = true;
@@ -3845,10 +3845,10 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
         auto output_mem = outputs.begin()->second.get_memory();
-        cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
 
         auto ref_output_mem = get_ref_results();
-        cldnn::mem_lock<float> output_ptr_ref (ref_output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16> output_ptr_ref (ref_output_mem, get_test_stream());
 
         size_t count = 0;
         float max_diff = 0.f;
@@ -3861,7 +3861,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             count++;
             OPENVINO_ASSERT(abs_diff < 10);
         }
-        std::cout << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
+        GPU_DEBUG_LOG << "---> count: " << count << ", max_diff:" << max_diff << ", avg_diff: " << (avg/count) << std::endl;
         OPENVINO_ASSERT((avg/count) < 1);
     }
 };
