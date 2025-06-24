@@ -132,7 +132,7 @@ void Eye::executeSpecified() {
             size_t start = 0;
             size_t end = 0;
             splitter(elementsCount, nthr, ithr, start, end);
-            memset(dst + start, 0, (end - start) * sizeof(T));
+            std::fill(dst + start, dst + end, static_cast<T>(0));
         });
         if (onesPerBatchNum == 0) {
             return;
@@ -152,7 +152,7 @@ void Eye::executeSpecified() {
             size_t start = 0;
             size_t end = 0;
             splitter(batchVolume, nthr, ithr, start, end);
-            memset(dst + start * spatialCount, 0, (end - start) * spatialSize);
+            std::fill(dst + start * spatialCount, dst + end * spatialCount, static_cast<T>(0));
             if (onesPerBatchNum == 0) {
                 return;
             }
