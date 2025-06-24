@@ -465,6 +465,25 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
             {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 387, 387}}}
         },
     },
+    // 4D inputs, 2D mask
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
+            {ov::Shape{1, 8, 245, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, -1},
+            {ov::Shape{245, 245}, ov::Shape{1, 1}, ov::Shape{10, 10}}}
+        },
+    },
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
