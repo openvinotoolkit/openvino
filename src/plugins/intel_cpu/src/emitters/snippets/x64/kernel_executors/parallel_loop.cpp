@@ -22,7 +22,8 @@ size_t ParallelLoopConfig::hash() const {
     hash = dnnl::impl::hash_combine(hash, m_loop_args.m_finalization_offsets);
     hash = dnnl::impl::hash_combine(hash, m_loop_args.m_ptr_increments);
     hash = dnnl::impl::hash_combine(hash, m_loop_args.m_num_data_ptrs);
-    return dnnl::impl::hash_combine(hash, m_num_threads);
+    hash = dnnl::impl::hash_combine(hash, m_increment);
+    return hash;
 }
 
 void ParallelLoopExecutor::update_kernel([[maybe_unused]] const ParallelLoopConfig& c,
@@ -35,9 +36,12 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor,
                                    loop_preamble_t preamble_ptr) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());
-
     const auto& loop_args = config.get_loop_args();
-    int nthr = config.get_num_threads();
+
+    // todo: do we need to pass num_threads through config?
+    int num_threads = std::getenv("N") ? std::atoi(std::getenv("N")) : parallel_get_max_threads();
+    int nthr = std::min(num_threads, static_cast<int>(loop_args.m_work_amount / config.get_increment()));
+    std::cout << "[ INFO ] ParallelLoopExecutor::execute. nthr = " << nthr << "\n";
     // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
     //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
     const auto num_ptrs = loop_args.m_num_data_ptrs;
