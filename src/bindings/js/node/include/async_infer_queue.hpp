@@ -24,7 +24,6 @@ public:
 
 private:
     int check_idle_request_id();
-    void set_default_callbacks();
     void start_async_impl(const int handle,
                           Napi::Promise::Deferred deferred,
                           Napi::Object infer_data,

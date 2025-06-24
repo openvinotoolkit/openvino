@@ -43,7 +43,6 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
             m_user_inputs.push_back(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 1));
             m_idle_handles.push(handle);
         }
-        set_default_callbacks();
 
     } catch (const ov::Exception& e) {
         reportError(env, e.what());
@@ -88,24 +87,6 @@ int AsyncInferQueue::check_idle_request_id() {
     m_requests[idle_handle].wait();
     m_idle_handles.pop();
     return idle_handle;
-}
-
-void AsyncInferQueue::set_default_callbacks() {
-    for (size_t handle = 0; handle < m_requests.size(); handle++) {
-        m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
-            {
-                std::lock_guard<std::mutex> lock(m_mutex);
-                m_idle_handles.push(handle);
-            }
-            try {
-                if (exception_ptr) {
-                    std::rethrow_exception(exception_ptr);
-                }
-            } catch (const std::exception& e) {
-                OPENVINO_THROW(e.what());
-            }
-        });
-    }
 }
 
 void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
@@ -180,6 +161,7 @@ void AsyncInferQueue::start_async_impl(const int handle,
         m_requests[handle].set_tensor(input_name, tensor);
     }
 
+    OPENVINO_ASSERT(m_tsfn != nullptr, "Callback has to be set before starting inference. Use 'setCallback' method.");
     m_requests[handle].start_async();  // returns immediately, main event loop is free
 }
 

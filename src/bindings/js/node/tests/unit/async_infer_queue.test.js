@@ -96,6 +96,19 @@ describe('Tests for AsyncInferQueue.', () => {
     inferQueue.release();
   });
 
+  it('Test startAsync fails without callback', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+
+    const img = generateImage();
+    await assert.rejects(
+      async () => {
+        await inferQueue.startAsync({ 'data': img }, 'user_data');
+      },
+      /Callback has to be set before starting inference./
+    );
+
+  });
+
   it('test Promise.all() ~ infer_queue.wait_all()', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
