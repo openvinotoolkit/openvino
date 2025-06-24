@@ -98,26 +98,14 @@ void ScaledAttnLayerGPUTest::SetUp() {
     inputParams[0]->set_friendly_name("q");
     inputParams[1]->set_friendly_name("k");
     inputParams[2]->set_friendly_name("v");
-    // special case: only scale but no attn
-    if (!has_attn && has_scale) {
-        // attention_mask：[1]
-        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape{}));
+    if (has_attn || has_scale) {
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(
+            inType, has_attn ? inputDynamicShapes[3] : ov::PartialShape{}));
         inputParams.back()->set_friendly_name("attention_mask");
-        // scale：[1]
-        if (!is_scale_const) {
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape{1}));
-            inputParams.back()->set_friendly_name("scale");
-        }
-    } else {
-        if (has_attn) {
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[3]));
-            inputParams.back()->set_friendly_name("attention_mask");
-        }
-        if (has_scale && !is_scale_const) {
-            // scale：[1]
-            inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape{1}));
-            inputParams.back()->set_friendly_name("scale");
-        }
+    }
+    if (has_scale && !is_scale_const) {
+        inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(inType, ov::PartialShape{1}));
+        inputParams.back()->set_friendly_name("scale");
     }
 
     ov::OutputVector inputParams_transpose;
