@@ -1313,31 +1313,30 @@ struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     }
 };
 
-struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, uint32_t> {
+struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
     static std::string_view key() {
         return ov::intel_npu::separate_weights_version.name();
     }
 
-    static uint32_t defaultValue() {
-        return 3;
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::WSVersion";
     }
 
-    static uint32_t parse(std::string_view val) {
-        int val_i = -1;
-        try {
-            val_i = std::stoi(val.data());
-            if (val_i >= 0) {
-                return val_i;
-            } else {
-                throw std::logic_error("wrong val");
-            }
-        } catch (const std::exception&) {
-            OPENVINO_THROW("Wrong value of ",
-                           val.data(),
-                           " for property key ",
-                           ov::intel_npu::separate_weights_version.name(),
-                           ". Expected only positive integer numbers");
-        }
+    static ov::intel_npu::WSVersion defaultValue() {
+        return ov::intel_npu::WSVersion::ITERATIVE;
+    }
+
+    static ov::intel_npu::WSVersion parse(std::string_view val) {
+        std::istringstream stringStream = std::istringstream(std::string(val));
+        ov::intel_npu::WSVersion wsVersion;
+        stringStream >> wsVersion;
+        return wsVersion;
+    }
+
+    static std::string toString(const ov::intel_npu::WSVersion& val) {
+        std::stringstream strStream;
+        strStream << val;
+        return strStream.str();
     }
 
     static OptionMode mode() {

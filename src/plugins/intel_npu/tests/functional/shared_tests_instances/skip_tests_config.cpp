@@ -900,7 +900,6 @@ std::vector<std::string> disabledTestPatterns() {
         // CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model
         _skipRegistry.addPatterns("compiled_blob test use `CACHE_MOD` which is not supported on NPU", {
                 R"(.*OVCompiledModelBaseTest.*import_from_.*_blob.*)",
-                R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*)",
                 R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*)",
                 R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*)",
         });

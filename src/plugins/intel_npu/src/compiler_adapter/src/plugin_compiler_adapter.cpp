@@ -142,7 +142,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     };
 
     switch (config.get<SEPARATE_WEIGHTS_VERSION>()) {
-    case 1: {
+    case ov::intel_npu::WSVersion::ONE_SHOT: {
         std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
             _compiler->compileWS_v1(model, config);
 
@@ -156,7 +156,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         initMainNetworkDescriptions.pop_back();
         initNetworkDescriptions = std::move(initMainNetworkDescriptions);
     } break;
-    case 3: {
+    case ov::intel_npu::WSVersion::ITERATIVE: {
         const std::shared_ptr<ov::Model> originalModel = model->clone();
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
@@ -176,7 +176,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         }
     } break;
     default:
-        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call");
+        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call:",
+                       config.get<SEPARATE_WEIGHTS_VERSION>());
         break;
     }
 

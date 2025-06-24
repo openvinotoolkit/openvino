@@ -265,8 +265,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
-    if (config.get<SEPARATE_WEIGHTS_VERSION>() != 3) {
-        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call");
+    if (config.get<SEPARATE_WEIGHTS_VERSION>() != ov::intel_npu::WSVersion::ITERATIVE) {
+        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call:",
+                       config.get<SEPARATE_WEIGHTS_VERSION>(),
+                       ". \"WSVersion::ITERATIVE\" is the only supported value for the compiler-in-driver path.");
     }
 
     _logger.debug("serialize IR");

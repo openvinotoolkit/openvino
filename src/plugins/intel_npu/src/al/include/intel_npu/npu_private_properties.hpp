@@ -152,6 +152,44 @@ inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
 
 /**
  * @brief [Only for NPU Plugin]
+ * Default is "ITERATIVE".
+ * Switches between different implementations of the "weights separation" feature.
+ */
+enum class WSVersion {
+    ONE_SHOT = 0,
+    ITERATIVE = 1,
+};
+
+inline std::ostream& operator<<(std::ostream& out, const WSVersion& wsVersion) {
+    switch (wsVersion) {
+    case WSVersion::ONE_SHOT: {
+        out << "ONE_SHOT";
+    } break;
+    case WSVersion::ITERATIVE: {
+        out << "ITERATIVE";
+    } break;
+    default: {
+        OPENVINO_THROW("Unsupported value for the weights separation version:", wsVersion);
+    }
+    }
+    return out;
+}
+
+inline std::istream& operator>>(std::istream& is, WSVersion& wsVersion) {
+    std::string str;
+    is >> str;
+    if (str == "ONE_SHOT") {
+        wsVersion = WSVersion::ONE_SHOT;
+    } else if (str == "ITERATIVE") {
+        wsVersion = WSVersion::ITERATIVE;
+    } else {
+        OPENVINO_THROW("Unsupported value for the weights separation version:", str);
+    }
+    return is;
+}
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: string, default is MODEL.
  * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
  * @note Configuration API v 2.0
@@ -293,11 +331,11 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
 
 /**
  * @brief [Experimental, only for NPU Plugin]
- * Type: integer. Default is "3".
+ * Type: enum. Default is "ITERATIVE".
  *
  * The value stored in this entry indicates which implementation of the "weights separation" feature will be used.
  */
-static constexpr ov::Property<uint32_t> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
+static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
 
 /**
  * @brief [Only for NPU Plugin]
@@ -314,7 +352,7 @@ static constexpr ov::Property<bool> weightless_blob{"NPU_WEIGHTLESS_BLOB"};
  * Type: integer.
  *
  * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
- * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "3".
+ * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
  */
 static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
 
