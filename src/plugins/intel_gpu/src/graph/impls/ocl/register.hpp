@@ -98,6 +98,7 @@ REGISTER_OCL(experimental_detectron_topk_rois);
 REGISTER_OCL(eltwise);
 REGISTER_OCL(embed);
 REGISTER_OCL(fully_connected);
+REGISTER_OCL(gather);
 REGISTER_OCL(gather_elements);
 REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
