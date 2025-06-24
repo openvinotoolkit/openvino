@@ -17,7 +17,9 @@
 
 namespace ov::intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric)
+// precompute_sum is providing partial sum of activation from dynamic quantization into onednn for faster computation
+// It is used for asymmetric weight.
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size, bool asymmetric, bool precompute_sum)
     : ov::pass::MatcherPass() {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
@@ -63,8 +65,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
 
         auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
 
-#if 1
-        if (group_size != UINT64_MAX && group_size > 0 && optional_w_zp->get_output_partial_shape(0).rank().is_static()) {
+        if (precompute_sum && group_size != UINT64_MAX && group_size > 0 && optional_w_zp->get_output_partial_shape(0).rank().is_static()) {
             // FIXME: it should be aligned with wei-zp group size
             // FIXME: weight should have ZP
             std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
@@ -72,15 +73,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             config.group_sizes_partial_sum = group_sizes_partial_sum;
             config.partial_sum_dt = element::i32; // it supports i32 only now
         }
-        // static int count = 0;
-        // count++;
-        //     // return false;
-        // if (count == 3) {
-        //     GPU_DEBUG_COUT << "Dynamic quantization for " << m_fc->get_friendly_name() << std::endl;
-        // } else {
-        //     GPU_DEBUG_COUT << "No dyn_quan for " << m_fc->get_friendly_name() << std::endl;
-        // }
-#endif
+
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
         auto optional_a_zp = config.quantization_type == QuantizationType::Symmetric ?
                                 std::make_shared<ov::intel_gpu::op::Placeholder>() : dyn_quan->output(2);
