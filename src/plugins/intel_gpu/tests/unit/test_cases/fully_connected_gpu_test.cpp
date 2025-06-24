@@ -3769,7 +3769,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         if (weight_mode == WeightMode::Bit4) {
             auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 4);
             set_values(weights_mem, weigths_data);
-
         } else {
             auto weigths_data = rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 4);
             set_values(weights_mem, weigths_data);
