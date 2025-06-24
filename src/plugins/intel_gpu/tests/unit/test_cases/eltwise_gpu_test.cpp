@@ -4826,8 +4826,8 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_layout,
 //
 struct eltwise_random_test_params {
     data_types  input_type;
-    tensor      first_input_size;
-    tensor      second_input_size;
+    ov::PartialShape first_input_size;
+    ov::PartialShape second_input_size;
 
     format::type in_format;
     format::type in_format_second;  // For testing 1x1x1x1 bfyx
@@ -4835,6 +4835,7 @@ struct eltwise_random_test_params {
     eltwise_mode mode;
     impl_types   impl_type;
     bool         is_caching_test;
+    bool         is_dynamic_shape;
 };
 
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
@@ -4930,17 +4931,31 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
     void execute_compare(const eltwise_random_test_params& params, bool check_result) {
         auto& engine = get_test_engine();
 
-        auto in_layout1 = layout(params.input_type, params.in_format, params.first_input_size);
-        auto in_layout2 = layout(params.input_type, params.in_format_second, params.second_input_size);
+        layout in_layout1;
+        layout in_mem_layout1;
+        layout in_layout2;
+        layout in_mem_layout2;
+        if (params.is_dynamic_shape) {
+            in_layout1 = layout{ov::PartialShape::dynamic(params.first_input_size.rank()), params.input_type, params.in_format};
+            in_mem_layout1 = layout{params.first_input_size, params.input_type, params.in_format};
+            in_layout2 = layout{ov::PartialShape::dynamic(params.second_input_size.rank()), params.input_type, params.in_format_second};
+            in_mem_layout2 = layout{params.second_input_size, params.input_type, params.in_format_second};
+        } else {
+            in_layout1 = layout(params.first_input_size, params.input_type, params.in_format);
+            in_layout2 = layout(params.second_input_size, params.input_type, params.in_format_second);
+            in_mem_layout1 = in_layout1;
+            in_mem_layout2 = in_layout2;
+        }
+
         bool is_caching_test = params.is_caching_test;
-        auto input1 = engine.allocate_memory(in_layout1);
-        auto input2 = engine.allocate_memory(in_layout2);
+        auto input1 = engine.allocate_memory(in_mem_layout1);
+        auto input2 = engine.allocate_memory(in_mem_layout2);
         fill_random(input1);
         fill_random(input2);
 
         cldnn::topology topo;
-        topo.add(input_layout("input1", input1->get_layout()));
-        topo.add(input_layout("input2", input2->get_layout()));
+        topo.add(input_layout("input1", in_layout1));
+        topo.add(input_layout("input2", in_layout2));
         auto prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, params.mode);
         topo.add(prim);
 
@@ -4950,6 +4965,9 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"eltwise", {params.in_format, "", params.impl_type}} }));
         else
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
+        if (params.is_dynamic_shape) {
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        }
 
         cldnn::network net(engine, topo, config);
         net.set_input_data("input1", input1);
@@ -4959,13 +4977,17 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto output = result.at("eltwise").get_memory();
 
         cldnn::topology topo_opt;
-        topo_opt.add(input_layout("input1", input1->get_layout()));
-        topo_opt.add(input_layout("input2", input2->get_layout()));
+        topo_opt.add(input_layout("input1", in_layout1));
+        topo_opt.add(input_layout("input2", in_layout2));
         auto prim_opt = eltwise("eltwise_opt", { input_info("input1"), input_info("input2") }, params.mode);
         topo_opt.add(prim_opt);
 
         ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise_opt"}));
+        if (params.is_dynamic_shape) {
+            config_opt.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        }
+
 
         cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
@@ -4974,6 +4996,14 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 
         auto result_opt = net_opt->execute();
         auto output_opt = result_opt.at("eltwise_opt").get_memory();
+
+        if (params.is_dynamic_shape) {
+            auto inst = net_opt->get_primitive("eltwise_opt");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
+
 
         if (check_result == true) {
             // Check data_types
@@ -4998,51 +5028,51 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
         return *this;
     }
 
-    eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any) {
-        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 16, 8, 8},   {1, 1, 8, 8},    input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 36, 8, 16},  {1, 36, 1, 1},   input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 1, 1, 1},    {1, 8, 4, 4},    input_format, format::bfyx, output_format, eltwise_mode::sum, impl_type, false });
+    eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any, bool is_dynamic_shape = false) {
+        push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 16, 8, 8},   {1, 1, 8, 8},    input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 36, 8, 16},  {1, 36, 1, 1},   input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 1, 1, 1},    {1, 8, 4, 4},    input_format, format::bfyx, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
         return *this;
     }
 
-    eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any) {
-        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 20, 10, 10}, {1, 20, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 32, 16, 16}, {1, 32, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
+    eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any, bool is_dynamic_shape = false) {
+        push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 20, 10, 10}, {1, 20, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 32, 16, 16}, {1, 32, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params_bsv(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any) {
-        push_back(eltwise_random_test_params{ type, {16, 32, 4, 4}, {16, 32, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {20, 16, 4, 1}, {20, 16, 4, 1}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
+        push_back(eltwise_random_test_params{ type, {16, 32, 4, 4}, {16, 32, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, false });
+        push_back(eltwise_random_test_params{ type, {20, 16, 4, 1}, {20, 16, 4, 1}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, false });
         return *this;
     }
 
-    eltwise_random_test_param_generator& simple_params_zyx(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any) {
-        push_back(eltwise_random_test_params{ type, {1, 32, 4, 4, 4}, {1, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
+    eltwise_random_test_param_generator& simple_params_zyx(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any, bool is_dynamic_shape = false) {
+        push_back(eltwise_random_test_params{ type, {1, 32, 4, 4, 4}, {1, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
         return *this;
     }
 
-    eltwise_random_test_param_generator& broadcast_params_zyx(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any) {
-        push_back(eltwise_random_test_params{ type, {1, 1,  4, 4, 8},  {1, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 36, 8, 8, 16}, {1, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1, 1,  1, 1, 1},  {1, 16, 4, 4, 2}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
+    eltwise_random_test_param_generator& broadcast_params_zyx(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any, bool is_dynamic_shape = false) {
+        push_back(eltwise_random_test_params{ type, {1, 1,  4, 4, 8},  {1, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 36, 8, 8, 16}, {1, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
+        push_back(eltwise_random_test_params{ type, {1, 1,  1, 1, 1},  {1, 16, 4, 4, 2}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, is_dynamic_shape });
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params_bsv_zyx(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any) {
-        push_back(eltwise_random_test_params{ type, {48, 32, 4, 4, 4}, {48, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
+        push_back(eltwise_random_test_params{ type, {48, 32, 4, 4, 4}, {48, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, false });
         return *this;
     }
 
     eltwise_random_test_param_generator& broadcast_params_bsv_zyx(data_types type, format::type input_format, format::type output_format, impl_types impl_type = impl_types::any) {
-        push_back(eltwise_random_test_params{ type, {32, 1,  4, 4, 8}, {32, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {32, 36, 4, 4, 4}, {32, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
-        push_back(eltwise_random_test_params{ type, {1,  1,  1, 1, 1}, {32, 16, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false });
+        push_back(eltwise_random_test_params{ type, {32, 1,  4, 4, 8}, {32, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, false });
+        push_back(eltwise_random_test_params{ type, {32, 36, 4, 4, 4}, {32, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, false });
+        push_back(eltwise_random_test_params{ type, {1,  1,  1, 1, 1}, {32, 16, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, impl_type, false, false });
         return *this;
     }
 };
@@ -5071,7 +5101,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_export_import,
                          testing::ValuesIn(
                             eltwise_random_test_param_generator()
                             .add(eltwise_random_test_params{ data_types::f16, {1, 1, 48, 64}, {1, 10, 48, 64}, format::b_fs_yx_fsv4,
-                                                             format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum, impl_types::any, true })
+                                                             format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum, impl_types::any, true, false })
                          ));
 
 INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv16,
@@ -5086,6 +5116,40 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv16,
                             .simple_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .simple_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
                             .simple_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_dynamic,
+                        eltwise_random_test,
+                        testing::ValuesIn([]() {
+                            auto dyn_types = {
+                                data_types::f32,
+                                data_types::f16,
+                                data_types::i8,
+                                data_types::u8,
+                            };
+
+                            auto dyn_formats1 = {
+                                format::bfyx,
+                                format::b_fs_yx_fsv16,
+                            };
+
+                            auto dyn_formats2 = {
+                                format::bfzyx,
+                            };
+
+                            auto params = eltwise_random_test_param_generator();
+                            for (auto dt : dyn_types) {
+                                for (auto fmt : dyn_formats1) {
+                                    params.broadcast_params(dt, fmt, fmt, impl_types::any, true);
+                                    params.simple_params(dt, fmt, fmt, impl_types::any, true);
+                                }
+                                for (auto fmt : dyn_formats2) {
+                                    params.broadcast_params_zyx(dt, fmt, fmt, impl_types::any, true);
+                                    params.simple_params_zyx(dt, fmt, fmt, impl_types::any, true);
+                                }
+                            }
+                            return params;
+                        }()
                         ));
 
 INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv32,
