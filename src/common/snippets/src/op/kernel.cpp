@@ -13,11 +13,11 @@
 
 namespace ov::snippets::op {
 
-Kernel::Kernel(lowered::LinearIR nested) : region(std::make_shared<lowered::LinearIR>(std::move(nested))) {}
+Kernel::Kernel(lowered::LinearIR region) : region(std::make_shared<lowered::LinearIR>(std::move(region))) {}
 
-KernelStatic::KernelStatic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
+KernelStatic::KernelStatic(lowered::LinearIR region) : Kernel(std::move(region)) {}
 
-KernelDynamic::KernelDynamic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
+KernelDynamic::KernelDynamic(lowered::LinearIR region) : Kernel(std::move(region)) {}
 
 std::shared_ptr<Node> KernelStatic::clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const {
     return std::make_shared<KernelStatic>(*region);

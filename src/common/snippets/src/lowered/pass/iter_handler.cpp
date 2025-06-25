@@ -69,7 +69,7 @@ std::shared_ptr<pass::PassBase> UpdateMemoryAccessCounts::merge(const std::share
 
 SetFillOffset::SetFillOffset(size_t offset) : RangedPass(), m_offset(offset) {}
 
-bool SetFillOffset::run(LinearIR& /*linear_ir*/, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+bool SetFillOffset::run([[maybe_unused]] LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& node = expr_it->get()->get_node();
         if (const auto fill = ov::as_type_ptr<ov::snippets::op::Fill>(node)) {

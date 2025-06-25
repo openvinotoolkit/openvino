@@ -92,7 +92,7 @@ public:
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
               m_is_dynamic_mha_token_enabled(dyn_mha_token),
               m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)),
-              m_can_be_fused_as_postop(std::move(std::move(can_be_fused_as_postop))) {
+              m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
             OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
         }

@@ -18,7 +18,6 @@
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/vector_buffer.hpp"
 
-// This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>

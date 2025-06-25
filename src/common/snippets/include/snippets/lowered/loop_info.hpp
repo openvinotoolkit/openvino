@@ -256,8 +256,8 @@ public:
                     size_t increment,
                     const std::vector<LoopPort>& entries,
                     const std::vector<LoopPort>& exits,
-                    const std::vector<LoopPortDesc>& in_shifts,
-                    const std::vector<LoopPortDesc>& out_shifts,
+                    const std::vector<LoopPortDesc>& in_descs,
+                    const std::vector<LoopPortDesc>& out_descs,
                     SpecificIterationHandlers handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,

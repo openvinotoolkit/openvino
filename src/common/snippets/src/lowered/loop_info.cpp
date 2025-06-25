@@ -278,13 +278,13 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount,
                                  size_t increment,
                                  const std::vector<LoopPort>& entries,
                                  const std::vector<LoopPort>& exits,
-                                 const std::vector<LoopPortDesc>& in_shifts,
-                                 const std::vector<LoopPortDesc>& out_shifts,
+                                 const std::vector<LoopPortDesc>& in_descs,
+                                 const std::vector<LoopPortDesc>& out_descs,
                                  SpecificIterationHandlers handlers)
     : LoopInfo(work_amount, increment, entries, exits),
       m_handlers(std::move(handlers)),
-      m_input_port_descs(in_shifts),
-      m_output_port_descs(out_shifts) {
+      m_input_port_descs(in_descs),
+      m_output_port_descs(out_descs) {
     sort_ports();
 }
 
@@ -537,7 +537,7 @@ LoopInfoPtr InnerSplittedUnifiedLoopInfo::get_outer_splitted_loop_info() const {
     return m_outer_splitted_loop_info;
 }
 
-void InnerSplittedUnifiedLoopInfo::set_work_amount(size_t /*work_amount*/) {
+void InnerSplittedUnifiedLoopInfo::set_work_amount([[maybe_unused]] size_t work_amount) {
     OPENVINO_THROW("InnerSplittedUnifiedLoopInfo doesn't support `set_work_amount`");
 }
 

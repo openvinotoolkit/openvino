@@ -175,7 +175,7 @@ public:
         const BlockedShapeVector& blocked_input_shapes = {},
         const std::vector<ov::element::Type>& input_precisions = {},
         const std::vector<ov::element::Type>& output_precisions = {},
-        const std::vector<snippets::pass::Manager::PositionedPassBase>& /*backend_passes*/ = {}) const;
+        const std::vector<snippets::pass::Manager::PositionedPassBase>& backend_passes = {}) const;
 
     void control_flow_transformations(
         size_t min_parallel_work_amount = 8,
