@@ -18,9 +18,6 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-
 using namespace ov::op;
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,

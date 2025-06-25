@@ -639,6 +639,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Qwen7bChat_TotalSequenceLengthPattern) {
 
         // Model and Transformations:
         model = std::make_shared<ov::Model>(ResultVector{result}, params);
+        manager.register_pass<pass::PrevSequenceLengthPattern>(aligned_input_ids, max_context_len, position_ids);
         manager.register_pass<pass::TotalSequenceLengthPatternQwen>(max_context_len);
     }
 

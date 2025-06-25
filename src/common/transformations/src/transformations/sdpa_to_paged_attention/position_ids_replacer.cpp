@@ -12,17 +12,15 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/einsum.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
-using namespace ov;
 using namespace ov::pass::pattern;
 
 // TODO: Instead of using the following transformation that matches quite a specific place in a model graph in case when
@@ -92,7 +90,6 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1, p_neg_mul, _const(), _const(), _const()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
-        std::cout << matcher_name << "PositionIDsReplacerQwen start" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto max_context_len = pattern_map.at(p_max_context_len).get_node_shared_ptr();
         if (max_context_len->get_friendly_name() != "max_context_len") {
@@ -103,7 +100,6 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         auto slice_2 = pattern_map.at(p_slice_2).get_node_shared_ptr();
 
         auto axis = v0::Constant::create(element::i64, Shape{}, {1});
-
         // in case of PagedAttention (Continuous batching) the rotary_emb_cos/rotary_emb_sin
         // are used not in the sequential order, so we need to use position_ids to get the expected values.
         auto gather = std::make_shared<v8::Gather>(slice_1->input_value(0), position_ids, axis);
@@ -120,11 +116,9 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         // so here we need to reshape the output tensor to move the seq dim (num tokens) to the batch
         // num_kv_heads * head_size are already handled in the StateManagementPattern transformation
         auto head_size = static_cast<int64_t>(pshape[3].get_length());
-        std::cout << "head_size: " << head_size << std::endl;
         auto new_shape = v0::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{-1, 1, 1, head_size});
         auto reshape = std::make_shared<v1::Reshape>(gather, new_shape, false);
         replace_node(slice_2, reshape);
-        std::cout << matcher_name << "PositionIDsReplacerQwen end" << std::endl;
         return true;
     };
 
@@ -132,14 +126,10 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     register_matcher(m, callback);
 }
 
-
-ov::pass::ReplaceSliceStartRangeCodegen2::ReplaceSliceStartRangeCodegen2(const std::shared_ptr<ov::op::v0::Unsqueeze>& unsqueezed_position_ids,
-                                                                         const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
+ov::pass::ReplaceSliceStartRangeCodegen2::ReplaceSliceStartRangeCodegen2(
+    const std::shared_ptr<ov::op::v0::Unsqueeze>& unsqueezed_position_ids,
+    const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
     MATCHER_SCOPE(ReplaceSliceStartRangeCodegen2);
-
-    auto _const = []() {
-        return ov::pass::pattern::wrap_type<v0::Constant>();
-    };
 
     auto p_reshape = ov::pass::pattern::wrap_type<v1::Reshape>();
     auto p_unsq = ov::pass::pattern::wrap_type<v0::Unsqueeze>();
@@ -156,10 +146,13 @@ ov::pass::ReplaceSliceStartRangeCodegen2::ReplaceSliceStartRangeCodegen2(const s
         auto cur_seq_len_i32 = std::make_shared<v0::Convert>(cur_seq_len, element::i32);
         auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len_i32);
         auto prev_max_seq_len_i64 = std::make_shared<v0::Convert>(prev_max_seq_len, element::i64);
-        auto prev_max_seq_len_i64_reshape = std::make_shared<v1::Reshape>(prev_max_seq_len_i64,
-                                                                          v0::Constant::create(element::i64, Shape{1}, {1}), true);
+        auto prev_max_seq_len_i64_reshape =
+            std::make_shared<v1::Reshape>(prev_max_seq_len_i64,
+                                          v0::Constant::create(element::i64, Shape{1}, {1}),
+                                          true);
         slice->input(1).replace_source_output(prev_max_seq_len_i64_reshape);
-        auto transpose = std::make_shared<v1::Transpose>(slice, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+        auto transpose =
+            std::make_shared<v1::Transpose>(slice, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
 
         replace_node(slice, transpose);
         return true;
