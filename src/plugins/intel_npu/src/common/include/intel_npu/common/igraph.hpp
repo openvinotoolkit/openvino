@@ -22,6 +22,7 @@ struct IONodeMetadata {
     IONodeMetadata(const ArgumentDescriptor& d);
     std::optional<ArgumentDescriptor> descriptor;
     std::optional<size_t> extract_batch(const ov::Shape& shape) const;
+    std::optional<size_t> extract_batch(const ov::Shape& shape, std::optional<ov::PartialShape> partial_shape) const;
 };
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
@@ -72,7 +73,8 @@ public:
     uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
-    std::optional<size_t> determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& input_tensors,
+    std::optional<size_t> determine_batch_size(const NetworkMetadata& metadata,
+                                               const std::vector<ov::SoPtr<ov::ITensor>>& input_tensors,
                                                const IONodeMetadata& input_output_info) const;
 
     std::optional<size_t> get_batch_size(const NetworkMetadata& metadata,
