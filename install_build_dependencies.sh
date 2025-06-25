@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-if [ $EUID -ne 0 ]; then
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
     echo "ERROR: this script must be run as root to install 3rd party packages." >&2
     echo "Please try again with \"sudo -E $0\", or as root." >&2
     exit 1
@@ -14,14 +14,13 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     # Ubuntu
     host_cpu=$(uname -m)
 
-    x86_64_specific_packages=()
     if [ "$host_cpu" = "x86_64" ]; then
         # to build 32-bit or ARM binaries on 64-bit host
-        x86_64_specific_packages+=(gcc-multilib g++-multilib)
+        x86_64_specific_packages="gcc-multilib g++-multilib"
     fi
 
     if ! command -v cmake &> /dev/null; then
-        cmake_packages=(cmake)
+        cmake_package=cmake
     fi
 
     apt update
@@ -34,8 +33,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         ninja-build \
         scons \
         ccache \
-        "${cmake_packages[@]}" \
-        "${x86_64_specific_packages[@]}" \
+        "${cmake_package}" \
+        $x86_64_specific_packages \
         `# to find dependencies` \
         pkgconf \
         `# to deternime product version via git` \
@@ -262,7 +261,7 @@ elif [ -f /etc/os-release ] && grep -q "alpine" /etc/os-release; then
     #Alpine Linux
     apk --no-cache add \
         `# for python3-pip` \
-	ca-certificates \
+        ca-certificates \
         file \
         `# build tools` \
         build-base \
