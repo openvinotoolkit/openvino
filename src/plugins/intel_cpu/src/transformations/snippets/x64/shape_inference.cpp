@@ -14,10 +14,10 @@
 #include "op/store_convert.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/common/shape_infer_utils.hpp"
-#include "transformations/snippets/common/shape_inference.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "transformations/tpp/common/op/brgemm.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"
