@@ -40,7 +40,110 @@ struct msg_type_postop_query {
 template <typename tile_desc_, mem_space memory_space>
 constexpr msg_type msg_type_postop_v
         = msg_type_postop_query<tile_desc_, memory_space>::value;
+/// @brief Is MatAcc * vector scale / div.Add commentMore actions
+/// @tparam scale_dtype Is the scale data type.
+/// @tparam arch_tag Is the hardware architecture tag.
+template <typename scale_dtype, gpu_arch arch_tag, class enable = void>
+struct scale_v_div_op_t {};
+/// @brief Is the scale_v op functor, specialized for Xe architecture.
+template <typename scale_dtype_, gpu_arch arch_tag>
+struct scale_v_div_op_t<scale_dtype_, arch_tag,
+        std::enable_if_t<(arch_tag == gpu_arch::Xe)
+#ifdef XETLA_EMBARGO
+                || (arch_tag == gpu_arch::Xe3p)
+#endif
+                >> {
+    using scale_dtype = scale_dtype_;
 
+    using scale_mem_desc_t
+            = mem_desc_t<scale_dtype, mem_layout::row_major, mem_space::global>;
+
+    using scale_shape_t = typename scale_mem_desc_t::shape_t;
+    using scale_base_t = typename scale_mem_desc_t::base_t;
+    using coord_t = typename scale_mem_desc_t::coord_t;
+
+    struct arguments_t {
+        scale_base_t scale_base;
+        scale_shape_t scale_shape;
+        float div;
+
+        inline arguments_t() = default;
+        inline arguments_t(scale_base_t scale_base_, scale_shape_t scale_shape_,
+                float div_)
+            : scale_base(scale_base_), scale_shape(scale_shape_), div(div_) {}
+    };
+    template <typename matAcc_t>
+    __XETLA_API KERNEL_FUNC void operator()(matAcc_t &matAcc,
+            const coord_t &coord, const arguments_t &args,
+            uint32_t slm_base = 0, uint32_t nbarrier_base = 0) {
+        using dtype_acc = typename matAcc_t::dtype;
+
+        static constexpr uint32_t tile_size_x = matAcc_t::tile_size_x;
+        static constexpr uint32_t tile_size_y = matAcc_t::tile_size_y;
+        static constexpr uint32_t block_size_x = matAcc_t::block_size_x;
+        static constexpr uint32_t block_size_y = matAcc_t::block_size_y;
+        static constexpr int32_t num_block_x = matAcc_t::num_block_x;
+        static constexpr int32_t num_block_y = matAcc_t::num_block_y;
+        static constexpr uint32_t tile_elems = matAcc_t::tile_elems;
+        static constexpr uint32_t block_elems = matAcc_t::block_elems;
+
+        using scale_tile_desc_t = tile_desc_t<tile_size_x, 1, block_size_x, 1,
+                reg_layout::tiled>;
+        using scale_tile_t = tile_t<scale_dtype, scale_tile_desc_t>;
+        using scale_payload_t = mem_payload_t<scale_mem_desc_t,
+                scale_tile_desc_t,
+                msg_type_postop_v<scale_tile_desc_t, scale_mem_desc_t::space>,
+                arch_tag>;
+        coord_t scale_coord(coord.x, 0);
+        scale_mem_desc_t scale_mem_desc(
+                args.scale_base, args.scale_shape, scale_coord);
+        scale_tile_t scale_tile;
+        scale_payload_t scale_payload(scale_mem_desc);
+        tile_load<cache_hint::cached, cache_hint::cached>(
+                scale_tile, scale_payload);
+
+#pragma unroll
+        for (int i = 0; i < tile_size_y / block_size_y; i++) {
+#pragma unroll
+            for (int j = 0; j < num_block_x; j++) {
+                auto acc_reg = matAcc.reg.xetla_select<block_elems, 1>(
+                        (i * num_block_x + j) * block_elems);
+                auto scale_reg = scale_tile.reg.xetla_select<block_size_x, 1>(
+                                         j * block_size_x)
+                        / args.div;
+#pragma unroll
+                for (int row_i = 0; row_i < block_size_y; row_i++) {
+                    acc_reg.xetla_select<block_size_x, 1>(row_i * block_size_x)
+                            = scale_reg
+                            * acc_reg.xetla_select<block_size_x, 1>(
+                                    row_i * block_size_x);
+                }
+            }
+        }
+        // process the tail
+        if constexpr ((tile_size_y % block_size_y) != 0) {
+            constexpr uint32_t tail_start_y
+                    = tile_size_y / block_size_y * block_size_y;
+            constexpr int32_t tail_size_y = tile_size_y % block_size_y;
+            constexpr int32_t tail_block_elems = tail_size_y * block_size_x;
+#pragma unroll
+            for (int j = 0; j < num_block_x; j++) {
+                auto acc_reg = matAcc.reg.xetla_select<tail_block_elems, 1>(
+                        tail_start_y * tile_size_x + j * tail_block_elems);
+                auto scale_reg = scale_tile.reg.xetla_select<block_size_x, 1>(
+                                         j * block_size_x)
+                        / args.div;
+#pragma unroll
+                for (int row_i = 0; row_i < tail_size_y; row_i++) {
+                    acc_reg.xetla_select<block_size_x, 1>(row_i * block_size_x)
+                            = scale_reg
+                            * acc_reg.xetla_select<block_size_x, 1>(
+                                    row_i * block_size_x);
+                }
+            }
+        }
+    }
+};
 
 /// @brief Is none op functor, for placeholder purpose.
 /// Used in epilogue::tile_op or chained_tile_op.

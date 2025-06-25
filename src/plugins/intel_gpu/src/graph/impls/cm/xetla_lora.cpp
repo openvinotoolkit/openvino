@@ -299,8 +299,6 @@ protected:
         }
 
         XeTLAPostOPs xetla_postops;
-        xetla_postops.add_post_op<ScaleChannels>(ov_to_xetla_dtype(params.input_layouts[2].data_type));
-
         auto post_op_definitions = xetla_postops.get_definitions();
         for (const auto& [name, value] : post_op_definitions) {
             jit.add({make_jit_constant(name, value)});

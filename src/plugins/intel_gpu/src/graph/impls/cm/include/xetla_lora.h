@@ -58,9 +58,14 @@ struct gemm_universal {
     using gemm = gemm_t<compute_policy, tile_shape, mem_desc_a, mem_desc_b,
             pre_processing>;
 
+#ifdef LORA_GEMM_A
+    using scale_op_t = subgroup::scale_v_div_op_t<dtype_b, arch_tag>;
+    using tile_op_t = subgroup::chained_tile_op_t<scale_op_t>;
+#else
     XETLA_POST_OP_DEFINITIONS
-
     using tile_op_t = subgroup::chained_tile_op_t<XETLA_POST_OP_LIST>;
+#endif
+
     using epilogue = epilogue_t<
             epilogue_policy_tile_op<tile_op_t, arch_tag,
                     unaligned ? msg_type::unaligned_2d : msg_type::block_2d>,
@@ -81,12 +86,26 @@ struct gemm_universal {
     inline static void run(sycl::nd_item<3> &item, dtype_a *a, dtype_b *b,
             typename epilogue::mem_desc_c_t::base_t c, dtype_acc *acc,
             uint32_t *cnt, uint32_t mat_m, uint32_t mat_n, uint32_t mat_k,
-            uint32_t lda, uint32_t ldb, uint32_t ldc XETLA_POST_OP_ARGS) {
+            uint32_t lda, uint32_t ldb, uint32_t ldc
+#ifdef LORA_GEMM_A
+            ,
+            dtype_b *scale_input
+#else
+        XETLA_POST_OP_ARGS
+#endif
+    ) {
         gemm_op_t gemm_op;
 
+#ifdef LORA_GEMM_A
+        typename scale_op_t::scale_shape_t scale_input_shape(mat_n, 1, mat_n);
+        epilogue_args_t epilogue_args;
+        epilogue_args.init(
+                {{scale_input, scale_input_shape, static_cast<float>(mat_n)}});
+#else
         XETLA_POST_OP_SHAPE_DEFINITIONS
         epilogue_args_t epilogue_args;
         epilogue_args.init({XETLA_POST_OP_EPILOGUE_INIT_ARGS});
+#endif
 
         typename gemm_op_t::arguments_t arg(mat_m, mat_k, mat_n, a, lda, b, ldb,
                 c.base, ldc, acc, cnt, epilogue_args);

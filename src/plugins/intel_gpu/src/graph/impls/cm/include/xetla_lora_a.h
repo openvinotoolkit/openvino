@@ -539,7 +539,7 @@ struct gemm_lora_a {
     using gemm = gemm_t<compute_policy, tile_shape, mem_desc_a, mem_desc_b,
             pre_processing>;
 
-    using scale_op_t = subgroup::scale_v_op_t<dtype_b, arch_tag>;
+    using scale_op_t = subgroup::scale_v_div_op_t<dtype_b, arch_tag>;
 
     using tile_op_t = subgroup::chained_tile_op_t<scale_op_t>;
     using epilogue = epilogue_lora_gemm_a_t<tile_op_t, tile_shape, mem_desc_c,
@@ -570,7 +570,8 @@ struct gemm_lora_a {
 
         typename scale_op_t::scale_shape_t scale_input_shape(mat_n, 1, mat_n);
         epilogue_args_t epilogue_args;
-        epilogue_args.init({{scale_input, scale_input_shape}});
+        epilogue_args.init(
+                {{scale_input, scale_input_shape, static_cast<float>(mat_n)}});
 
         typename gemm_op_t::arguments_t arg(mat_m, mat_k, mat_n, a, lda, b, ldb,
                 c.base, ldc, nullptr, nullptr, epilogue_args);

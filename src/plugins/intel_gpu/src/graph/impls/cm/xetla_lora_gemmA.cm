@@ -18,6 +18,8 @@
 
 namespace KERNEL_NAME {
 
+#define LORA_GEMM_A
+
 #include "include/xetla_lora.h"
 
 #define arch_tag gpu_arch::Xe
@@ -28,8 +30,9 @@ _GENX_MAIN_ void KERNEL_NAME(
         LORA_DTYPE_B *mat_b [[type("svmptr_t")]],
         LORA_DTYPE_C *out [[type("svmptr_t")]],
         LORA_DTYPE_ACC *acc [[type("svmptr_t")]],
-        uint32_t *cnt [[type("svmptr_t")]]
-        XETLA_POST_OP_KERNEL_ARGS) {
+        uint32_t *cnt [[type("svmptr_t")]],
+        LORA_DTYPE_B *scale [[type("svmptr_t")]]
+) {
 
     sycl::nd_item<3> item;
 
@@ -63,7 +66,6 @@ _GENX_MAIN_ void KERNEL_NAME(
     }
     if constexpr (gemm_t::slm_size != 0) { cm_slm_init(gemm_t::slm_size); }
 
-    gemm_t::run(item, mat_a, mat_b, out, acc, cnt, m, n, k, lda, ldb,
-            ldc XETLA_POST_OP_ARGS_PASS);
+    gemm_t::run(item, mat_a, mat_b, out, acc, cnt, m, n, k, lda, ldb, ldc, scale);
 }
-}
+} // namespace KERNEL_NAME
