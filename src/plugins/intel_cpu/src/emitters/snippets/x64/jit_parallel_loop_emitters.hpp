@@ -92,9 +92,6 @@ protected:
 
     std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
-    bool are_ptr_increments_dynamic = false;
-    bool are_final_offsets_dynamic = false;
-    bool are_ptr_shifts_dynamic = false;
     std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
 };
 
