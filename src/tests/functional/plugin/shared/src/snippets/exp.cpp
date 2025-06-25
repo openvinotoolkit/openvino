@@ -41,9 +41,7 @@ void Exp::SetUp() {
     auto f = ov::test::snippets::ExpFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void ExpReciprocal::SetUp() {
@@ -54,9 +52,7 @@ void ExpReciprocal::SetUp() {
     auto f = ov::test::snippets::ExpReciprocalFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 

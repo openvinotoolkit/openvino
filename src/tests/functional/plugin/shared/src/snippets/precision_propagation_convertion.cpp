@@ -41,9 +41,7 @@ void PrecisionPropagationConvertion::SetUp() {
     init_input_shapes(input_shapes);
 
     function = PrecisionPropagationConvertionFunction(inputDynamicShapes, ov::element::f32, fake_quantize_intervals).getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(PrecisionPropagationConvertion, CompareWithRefImpl) {

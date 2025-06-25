@@ -31,9 +31,7 @@ void MLPSeqBase::SetUp() {
     function = subgraph_model->getOriginal();
 
     configuration.insert(additional_config.begin(), additional_config.end());
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     inType = outType = prc;
     setInferenceType(prc);

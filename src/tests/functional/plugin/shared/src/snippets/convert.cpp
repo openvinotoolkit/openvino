@@ -42,9 +42,7 @@ void Convert::SetUp() {
     auto f = ov::test::snippets::ConvertFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 parameters Convert::generate_params_random() const {
@@ -99,9 +97,7 @@ void ConvertInput::SetUp() {
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::ConvertInputFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     if (types.first[0] == ov::element::f32 && types.second[0] == ov::element::bf16) {
         abs_threshold = 3e-2;
@@ -148,9 +144,7 @@ void ConvertOutput::SetUp() {
     auto f = ov::test::snippets::ConvertOutputFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     if (types.first[0] == ov::element::bf16 && types.second[0] == ov::element::f32) {
         abs_threshold = 4e-2;
@@ -166,9 +160,7 @@ void ConvertStub::SetUp() {
     auto f = ov::test::snippets::ConvertStubFunction(inputDynamicShapes, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void ConvertPartialInputsAndResults::SetUp() {
@@ -179,9 +171,7 @@ void ConvertPartialInputsAndResults::SetUp() {
 
     auto f = ov::test::snippets::ConvertPartialInputsAndResultsFunction(inputDynamicShapes, types.first, types.second);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void ConvertManyOnInputs::SetUp() {
@@ -192,9 +182,7 @@ void ConvertManyOnInputs::SetUp() {
 
     auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputDynamicShapes, types.first);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void ConvertManyOnOutputs::SetUp() {
@@ -205,9 +193,7 @@ void ConvertManyOnOutputs::SetUp() {
 
     auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputDynamicShapes, types.first);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void ConvertManyOnInputOutput::SetUp() {
@@ -218,9 +204,7 @@ void ConvertManyOnInputOutput::SetUp() {
 
     auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputDynamicShapes, types.first, types.second);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Convert, CompareWithRefImpl) {

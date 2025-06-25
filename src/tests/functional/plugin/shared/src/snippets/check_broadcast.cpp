@@ -84,9 +84,7 @@ void CheckBroadcast::SetUp() {
         inputDynamicShapes[1],
         input_type,
         test_case_params.broadcast);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(CheckBroadcast, CompareWithRefImpl) {

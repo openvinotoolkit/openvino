@@ -40,9 +40,7 @@ void Softmax::SetUp() {
     auto f = ov::test::snippets::SoftmaxFunction(inputDynamicShapes, axis);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 std::string AddSoftmax::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddSoftmaxParams> obj) {
@@ -79,9 +77,7 @@ void AddSoftmax::SetUp() {
     auto f = ov::test::snippets::AddSoftmaxFunction(inputDynamicShapes, axis);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Softmax, CompareWithRefImpl) {
