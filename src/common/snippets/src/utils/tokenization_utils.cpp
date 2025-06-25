@@ -47,6 +47,7 @@ using namespace ov::snippets::pass;
 
 namespace {
 auto has_result_child(const std::shared_ptr<const Node>& node) -> bool {
+    // TODO: fix segmentation fault in case of std::any_of
     for (const auto& child : node->get_users()) {  // NOLINT
         if (ov::is_type<ov::opset1::Result>(child)) {
             return true;
