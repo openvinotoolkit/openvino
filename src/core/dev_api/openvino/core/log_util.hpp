@@ -13,6 +13,8 @@
 namespace ov {
 namespace util {
 
+/** @brief Allows toggling log message output between std::cout and user provided callback.
+ */
 class OPENVINO_API LogDispatch {
 public:
     using Callback = std::function<void(std::string_view)>;

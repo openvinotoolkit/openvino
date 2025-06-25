@@ -27,6 +27,11 @@ void LogDispatch::reset_callback() {
     current_callback = default_callback;
 }
 
+/**
+ * Common/Util is stateless, independent from Core and unique per component. But log dispatching must be stateful and
+ * single to all the components. To allow ov::util::LogHelper use actual callback only definition of exported function
+ * in provided, but no declaration in Core headers.
+ */
 OPENVINO_API LogDispatch::Callback get_log_callback() {
     return LogDispatch::get_callback();
 }
