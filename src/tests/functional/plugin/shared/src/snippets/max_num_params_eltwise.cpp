@@ -37,7 +37,7 @@ void MaxNumParamsEltwise::SetUp() {
 
     auto f = ov::test::snippets::EltwiseMaxNumParamsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 TEST_P(MaxNumParamsEltwise, CompareWithRefImpl) {

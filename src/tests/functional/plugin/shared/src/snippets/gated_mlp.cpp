@@ -28,7 +28,7 @@ void GatedMLP::SetUp() {
     function = subgraph_model.getOriginal();
 
     configuration.insert(additional_config.begin(), additional_config.end());
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 
     inType = outType = prc;
     setInferenceType(prc);

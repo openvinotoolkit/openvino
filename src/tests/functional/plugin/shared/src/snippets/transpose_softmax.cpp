@@ -45,7 +45,7 @@ void TransposeSoftmax::SetUp() {
     auto f = ov::test::snippets::TransposeSoftmaxFunction(inputDynamicShapes, order, axis);
     function = f.getOriginal();
 
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 void TransposeSoftmaxEltwise::SetUp() {
@@ -58,7 +58,7 @@ void TransposeSoftmaxEltwise::SetUp() {
     auto f = ov::test::snippets::TransposeSoftmaxEltwiseFunction(inputDynamicShapes, order, axis);
     function = f.getOriginal();
 
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 
     abs_threshold = 1e-6;
 }

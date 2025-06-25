@@ -44,7 +44,7 @@ void Add::SetUp() {
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
@@ -78,7 +78,7 @@ void AddConst::SetUp() {
     auto f = ov::test::snippets::AddConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
     if (type == ov::element::f16) {
         abs_threshold = 3e-2;
     }
@@ -93,7 +93,7 @@ void AddRollConst::SetUp() {
     auto f = ov::test::snippets::AddRollConstFunction({inputDynamicShapes}, constShape);
     function = f.getOriginal();
     setInferenceType(type);
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 
     if (type == ov::element::bf16) {
         abs_threshold = 3e-2;
@@ -133,7 +133,7 @@ void AddPair::SetUp() {
     auto f = ov::test::snippets::AddFunction(inputDynamicShapes);
     function = f.getOriginal();
     setInferenceType(type);
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Add, CompareWithRefImpl) {

@@ -35,7 +35,7 @@ void Transpose::SetUp() {
 
     auto f = ov::test::snippets::TransposeFunction(inputDynamicShapes, order);
     function = f.getOriginal();
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 std::string TransposeMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMulParams> obj) {
@@ -62,7 +62,7 @@ void TransposeMul::SetUp() {
     init_input_shapes({inputShapes.first, inputShapes.second});
     auto f = ov::test::snippets::TransposeMulFunction(inputDynamicShapes, order);
     function = f.getOriginal();
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Transpose, CompareWithRefImpl) {

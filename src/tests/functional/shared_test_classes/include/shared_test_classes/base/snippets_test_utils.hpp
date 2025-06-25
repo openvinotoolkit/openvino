@@ -19,7 +19,7 @@ protected:
 
     void setInferenceType(ov::element::Type type);
 
-    void setDefaultSnippetsMode();
+    void setIgnoreCallbackMode();
 
     // Expected num nodes and subgraphs in exec graphs depends on the plugin
     // pipeline, tokenization callback for example. Therefore, they have to be provided manually.

@@ -46,7 +46,7 @@ void GroupNormalization::SetUp() {
     auto f = ov::test::snippets::GroupNormalizationFunction(inputDynamicShapes, numGroup, eps);
     function = f.getOriginal();
 
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 
     abs_threshold = 1e-5;
 }

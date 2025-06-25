@@ -46,7 +46,7 @@ void Reduce::SetUp() {
     auto f = ov::test::snippets::ReduceFunction(inputDynamicShapes, reduce_type, axes, keep_dims);
     function = f.getOriginal();
 
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Reduce, CompareWithRefImpl) {

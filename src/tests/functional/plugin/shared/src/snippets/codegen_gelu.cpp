@@ -65,7 +65,7 @@ namespace snippets {
             ov::pass::InitNodeInfo().run_on_model(function);
             ov::pass::ConstantFolding().run_on_model(function);
         }
-        setDefaultSnippetsMode();
+        setIgnoreCallbackMode();
     }
 
 TEST_P(CodegenGelu, CompareWithRefImpl) {

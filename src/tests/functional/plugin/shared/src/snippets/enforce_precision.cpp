@@ -33,7 +33,7 @@ void EnforcePrecisionTest::SetUp() {
 
     function = SubgraphRollMatMulRollFunction(input_shapes, ov::element::f32).getOriginal();
 
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 
     setInferenceType(element::bf16);
 }

@@ -57,7 +57,7 @@ void MatMul::SetUp() {
     function = builder->getOriginal();
     filter_shape_info(builder->get_constant_input_idces());
     configuration.insert(additional_config.begin(), additional_config.end());
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 std::shared_ptr<MatMulFunctionBase> MatMul::get_builder(const std::vector<ov::element::Type>& types) {

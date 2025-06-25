@@ -48,7 +48,7 @@ void ThreeInputsEltwise::SetUp() {
 
     auto f = ov::test::snippets::EltwiseThreeInputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    setDefaultSnippetsMode();
+    setIgnoreCallbackMode();
 }
 
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {
