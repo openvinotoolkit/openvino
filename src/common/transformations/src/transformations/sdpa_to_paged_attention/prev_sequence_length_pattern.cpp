@@ -17,8 +17,7 @@ using namespace ov::op;
 
 ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared_ptr<ov::Node>& unsqueezed_input_ids,
                                                                const std::shared_ptr<ov::Node>& max_context_len,
-                                                               const std::shared_ptr<ov::Node>& position_ids,
-                                                               ResultVector& dbg_results) {
+                                                               const std::shared_ptr<ov::Node>& position_ids) {
     MATCHER_SCOPE(PrevSequenceLengthPattern);
     // The transformation addresses two cases that look similar: (1) previous sequence length, (2) batch size in
     // kv-cache state In first case it should replace it by prev_max_seq_len. For the second case, connect to batch_dim.
@@ -28,7 +27,7 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared
     auto kv_shape = pattern::wrap_type<v3::ShapeOf>({kv_gather});
     auto seq = pattern::wrap_type<v8::Gather>({kv_shape, pattern::any_input(), pattern::any_input()});
 
-    ov::matcher_pass_callback callback = [=, &dbg_results](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         std::cout << "PrevSequenceLengthPattern start" << std::endl;
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension -- use symbolics or
         // look at the constant input
@@ -49,15 +48,6 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared
                                                             v0::Constant::create(element::i64, Shape{}, {0}));
             auto cur_seq_len_i32 = std::make_shared<v0::Convert>(cur_seq_len, element::i32);
             auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len_i32);
-            auto dbg_result = std::make_shared<v0::Result>(prev_max_seq_len->output(0));
-            auto dbg_result1 = std::make_shared<v0::Result>(max_context_len->output(0));
-            auto dbg_result2 = std::make_shared<v0::Result>(cur_seq_len_i32->output(0));
-            dbg_result->get_output_tensor(0).set_names({"andrii_prev_max_seq_len"});
-            // dbg_result1->get_output_tensor(0).set_names({"andrii_max_context_len"});
-            dbg_result2->get_output_tensor(0).set_names({"andrii_cur_seq_len_i32"});
-            dbg_results.push_back(dbg_result);
-            // dbg_results.push_back(dbg_result1);
-            dbg_results.push_back(dbg_result2);
             replacement = prev_max_seq_len;
         } else {
             // it is not always required, so will be disposed if not needed
@@ -75,7 +65,7 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(const std::shared
             replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
         }
         replace_node(gather, replacement);
-        std::cout << "PrevSequenceLengthPattern end" << std::endl;
+        std::cout << "PrevSequenceLengthPattern end: " << max_context_len << std::endl;
         return true;
     };
 
