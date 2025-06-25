@@ -6,44 +6,12 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"
 
-#include "openvino/op/range.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/einsum.hpp"
-
-#include "openvino/cc/pass/itt.hpp"
-#include "openvino/core/graph_util.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/einsum.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/manager.hpp"
-#include "transformations/utils/utils.hpp"
-
-static ov::Output<ov::Node> insert_identity(const ov::Output<ov::Node>& in_node) {
-    auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-    auto identity_1 = std::make_shared<ov::op::v0::Unsqueeze>(in_node, axis_1);
-    return std::make_shared<ov::op::v15::Squeeze>(identity_1, axis_1);
-}
-
-using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
 namespace ov {
 namespace pass {
 
