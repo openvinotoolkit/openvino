@@ -29,6 +29,8 @@
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"
 #endif
 
+// todo: support for precompute_sum or assertion not to support it
+
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG

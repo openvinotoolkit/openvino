@@ -779,7 +779,7 @@ TEST_P(fc_compressed_dyn_quan_and_quantized, basic) {
     if (!engine.get_device_info().supports_immad)
         return;
 
-    auto fc_prim_fused = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", "", input_info("dyn_quan", 1), input_info("", 0), data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    auto fc_prim_fused = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", "", input_info("dyn_quan", 1), input_info("", 0), input_info("", 0), data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
     auto fc_prim_unfused = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
     auto weights = data("weights", get_mem(get_weights_layout(p)));
     auto scale = data("scale", get_mem(get_scale_layout(p, 128), 0.05f));
@@ -882,11 +882,11 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
 
     auto mul_data_shape = layout{ mul_data_partial_shape, p.default_type, p.default_format };
 
-    auto supports_immad = engine.get_device_info().supports_immad;
-    auto dcomp_zp_name = supports_immad ? "" : "";
+    auto dcomp_zp_name = "";
+    auto dyn_quan_precompute = input_info("", 0);
 
     auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
-    auto fc_prim_dyn_quan = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", dcomp_zp_name, input_info("dyn_quan", 1), input_info(""), data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
+    auto fc_prim_dyn_quan = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", dcomp_zp_name, input_info("dyn_quan", 1), input_info(""), dyn_quan_precompute, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
 
     auto dcomp_zp_layout = layout{ {1, 1}, data_types::u8, format::bfyx };
 
