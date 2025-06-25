@@ -661,11 +661,12 @@ interface PartialShape {
 
 /**
  * Creates AsyncInferQueue.
- * @param compiledModel The compiled model to be used to create InferRequests in the pool.
+ * @param compiledModel The compiledModel that will be used
+ * to create InferRequests in the pool.
  * @param jobs Number of InferRequest objects in the pool.
  */
 interface AsyncInferQueueConstructor {
-  new (compiledModel: CompiledModel, jobs: number): AsyncInferQueue;
+  new(compiledModel: CompiledModel, jobs: number): AsyncInferQueue;
 }
 
 interface AsyncInferQueue {
@@ -680,7 +681,7 @@ interface AsyncInferQueue {
   setCallback(
     callback: (
       inferRequest: InferRequest,
-      userData: Object,
+      userData: object,
       error?: Error) => void,
   ): void;
   /**
@@ -691,8 +692,8 @@ interface AsyncInferQueue {
    * @returns A Promise that can be used to track the callback completion.
    */
   startAsync(
-    inputData: { [inputName: string]: Tensor } | Tensor[], userData: Object
-  ): Promise<Object>;
+    inputData: { [inputName: string]: Tensor } | Tensor[], userData: object
+  ): Promise<object>;
   /**
    * Releases resources associated with this AsyncInferQueue instance.
    * Call this method after all `startAsync` requests have completed

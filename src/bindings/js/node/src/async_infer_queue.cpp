@@ -61,9 +61,11 @@ void AsyncInferQueue::release(const Napi::CallbackInfo& info) {
     }
     const auto status = m_tsfn.Release();
     if (status == napi_invalid_arg) {
-        reportError(info.Env(), "Failed to release AsyncInferQueue thread-safe function. Its thread-count is zero.");
+        reportError(
+            info.Env(),
+            "Failed to release AsyncInferQueue resources. AsyncInferQueue.release() could be called more than once.");
     } else if (status != napi_ok) {
-        reportError(info.Env(), "Failed to release AsyncInferQueue thread-safe function.");
+        reportError(info.Env(), "Failed to release AsyncInferQueue resources.");
     }
 }
 

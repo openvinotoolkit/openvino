@@ -110,7 +110,7 @@ describe('Tests for AsyncInferQueue.', () => {
 
   });
 
-  it('test Promise.all() ~ infer_queue.wait_all()', async () => {
+  it('test Promise.all()', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
 
@@ -151,22 +151,13 @@ describe('Tests for AsyncInferQueue.', () => {
     }
   });
 
-  it('Test AsyncInferQueue.release()', async () => {
-    try {
-      const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-      inferQueue.release();
-    } catch(err) {
-      assert.fail(`Unexpected error thrown: ${err.message}`);
-    }
-  });
-
   it('Test repeated AsyncInferQueue.release()', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
     inferQueue.release();
     assert.throws(() => {
       inferQueue.release();
-    }, /Failed to release AsyncInferQueue thread-safe function./);
+    }, /Error: Failed to release AsyncInferQueue resources. AsyncInferQueue.release/);
 
   });
 
