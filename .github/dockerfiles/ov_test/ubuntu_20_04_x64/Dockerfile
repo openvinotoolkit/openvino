@@ -53,5 +53,6 @@ RUN ln -sfv $(which python3.9) /usr/local/bin/python && \
     ln -sfv $(which python3.9) /usr/local/bin/python3
 RUN ln -sfv $(which pip3.9) /usr/local/bin/pip && \
     ln -sfv $(which pip3.9) /usr/local/bin/pip3
+RUN pip install pycairo
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
