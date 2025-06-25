@@ -1925,7 +1925,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     ???(Act) -------------------------------------------->
 //
 // TO:
-//     Param(W) -> to(f16) ->
+//     Const(W) -> to(f16) ->
 //     Const(Z) -> to(f16) -> Subtract
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
@@ -1950,6 +1950,7 @@ DQParamToConstDictMatMulCWu::DQParamToConstDictMatMulCWu(Context::Ref ctx) {
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
         auto matched_node_cvtz = node_to_output.at(qcvtz).get_node_shared_ptr();
+        auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
@@ -1963,14 +1964,18 @@ DQParamToConstDictMatMulCWu::DQParamToConstDictMatMulCWu(Context::Ref ctx) {
 
         if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            auto const_weight =
+                std::make_shared<ov::op::v0::Constant>(matched_qweight->get_element_type(), matched_qweight->get_shape());
             auto const_coeff =
                 std::make_shared<ov::op::v0::Constant>(matched_qcoeff->get_element_type(), matched_qcoeff->get_shape());
             auto const_zerop =
                 std::make_shared<ov::op::v0::Constant>(matched_qzerop->get_element_type(), matched_qzerop->get_shape());
 
+            ctx.get().params_to_consts[matched_qweight] = const_weight;
             ctx.get().params_to_consts[matched_qcoeff] = const_coeff;
             ctx.get().params_to_consts[matched_qzerop] = const_zerop;
 
+            matched_node_cvtw->input(0).replace_source_output(const_weight);
             matched_node_qmuls->input(1).replace_source_output(const_coeff);
             matched_node_cvtz->input(0).replace_source_output(const_zerop);
 
@@ -2007,6 +2012,7 @@ DQParamToConstDictMatMulCWf8::DQParamToConstDictMatMulCWf8(Context::Ref ctx) {
         auto& node_to_output = m.get_pattern_value_map();
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
@@ -2021,10 +2027,15 @@ DQParamToConstDictMatMulCWf8::DQParamToConstDictMatMulCWf8(Context::Ref ctx) {
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            auto const_weight =
+                std::make_shared<ov::op::v0::Constant>(matched_qweight->get_element_type(), matched_qweight->get_shape());
             auto const_coeff =
                 std::make_shared<ov::op::v0::Constant>(matched_qcoeff->get_element_type(), matched_qcoeff->get_shape());
+            
+            ctx.get().params_to_consts[matched_qweight] = const_weight;
             ctx.get().params_to_consts[matched_qcoeff] = const_coeff;
 
+            matched_node_cvtw->input(0).replace_source_output(const_weight);
             matched_node_qmuls->input(1).replace_source_output(const_coeff);
 
             matched_matmul->validate_and_infer_types();
