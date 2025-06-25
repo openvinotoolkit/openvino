@@ -100,13 +100,16 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
             Napi::ThreadSafeFunction::New(info.Env(), info[0].As<Napi::Function>(), "AsyncInferQueueCallback", 0, 1);
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
-                if (exception_ptr == nullptr) {
-                    auto ov_callback = [this](Napi::Env env, Napi::Function user_callback, int* handle) {
-                        Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[*handle]);
-                        const auto promise = m_user_ids[*handle].second;
+                try {
+                    if (exception_ptr) {
+                        std::rethrow_exception(exception_ptr);
+                    }
+                    auto ov_callback = [this, handle](Napi::Env env, Napi::Function user_callback) {
+                        Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[handle]);
+                        const auto promise = m_user_ids[handle].second;
                         try {
-                            user_callback.Call({js_ir, m_user_ids[*handle].first.Value()});
-                            promise.Resolve(m_user_ids[*handle].first.Value());
+                            user_callback.Call({js_ir, m_user_ids[handle].first.Value()});
+                            promise.Resolve(m_user_ids[handle].first.Value());
                             // returns before the promise's .then() is completed
                         } catch (Napi::Error& e) {
                             promise.Reject(Napi::Error::New(env, e.Message()).Value());
@@ -116,24 +119,18 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                             std::lock_guard<std::mutex> lock(m_mutex);
                             if (m_awaiting_requests.size() > 0) {
                                 auto& request = m_awaiting_requests.front();
-                                start_async_impl(*handle,
+                                start_async_impl(handle,
                                                  std::get<2>(request),
                                                  std::get<0>(request).Value(),
                                                  std::get<1>(request).Value());
                                 m_awaiting_requests.pop();
                             } else {
-                                m_idle_handles.push(*handle);
+                                m_idle_handles.push(handle);
                             }
                         }
-                        delete handle;
                     };
-                    // The ov_callback will execute when the main event loop becomes idle
-                    m_tsfn.BlockingCall(new int(handle), ov_callback);
-                }
-                try {
-                    if (exception_ptr) {
-                        std::rethrow_exception(exception_ptr);
-                    }
+                    // The ov_callback will execute when the main event loop will be free
+                    m_tsfn.BlockingCall(ov_callback);
                 } catch (const std::exception& e) {
                     OPENVINO_THROW(e.what());
                 }
