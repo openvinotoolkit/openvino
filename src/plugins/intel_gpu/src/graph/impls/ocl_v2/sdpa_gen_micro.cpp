@@ -50,6 +50,8 @@ micro::Type convert_type(ov::element::Type t) {
         return micro::Type::s8;
     case ov::element::u8:
         return micro::Type::u8;
+    case ov::element::i32:
+        return micro::Type::s32;
     default:
         break;
     }
@@ -164,19 +166,14 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
 }
 
 inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, size_t qkv_idx, const sdpa_configuration& config) {
+    if (qkv_idx < 0 || qkv_idx > 2) {
+        OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
+    }
     if (config.is_paged_attention) {
         // How to get seq length for paged attention?
         // OPENVINO_THROW("Getting sequence length for paged attention is not implemented yet");
-        switch (qkv_idx) {
-        case 0:
-            return ov::Dimension(config.paged_attention_aligned_seq_len);
-        case 1:
-            return ov::Dimension(params.input_layouts[1].get_partial_shape()[0]);  // k_seq_len
-        case 2:
-            return ov::Dimension(params.input_layouts[2].get_partial_shape()[0]);  // v_seq_len
-        default:
-            OPENVINO_THROW("Invalid qkv index for paged attention");
-        }
+        return ov::Dimension(params.input_layouts[qkv_idx].get_partial_shape()[0]);
+        // return ov::Dimension(config.paged_attention_aligned_seq_len);;
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
@@ -778,8 +775,7 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
         auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
-        sdpa_config =
-            get_sdpa_configuration(impl_param, extended_input_q_transpose_order, extended_input_k_transpose_order, extended_input_v_transpose_order);
+        sdpa_config = get_sdpa_configuration(impl_param, extended_input_q_transpose_order, extended_input_k_transpose_order, extended_input_v_transpose_order);
     } else {
         bool is_dynamic = impl_param.is_dynamic();
         const auto desc = impl_param.typed_desc<paged_attention>();
@@ -828,10 +824,26 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
         }
 
         // PagedAttentionInputIdx::KEY_CACHE
-        if (data_type_traits::is_i8_u8(impl_param.get_input_layout(3).data_type)) {
-            sdpa_config.is_kv_compressed = true;
-            sdpa_config.use_asymmetric_quantization = true;
-        }
+        // if (data_type_traits::is_i8_u8(impl_param.get_input_layout(3).data_type)) {
+        //     sdpa_config.is_kv_compressed = true;
+        //     sdpa_config.use_asymmetric_quantization = true;
+        // }
+        // If micro sdpa kernel is called by paged attention, then it is always used for prefill stage, and uncompressed QKV is used
+        sdpa_config.is_kv_compressed = false;
+        sdpa_config.use_asymmetric_quantization = false;
+
+        // Test
+        // sdpa_config.paged_attention_aligned_seq_len = 128;
+
+        // PagedAttentionInputIdx::ALIBI
+        const auto has_alibi = impl_param.get_input_layout(11).count() > 0;
+        const auto has_scale_input = !desc->scale_val.has_value();
+        sdpa_config.input_num = 7;
+        if (has_scale_input)
+            sdpa_config.input_num++;
+
+        if (has_alibi)
+            sdpa_config.input_num++;
     }
 }
 
@@ -856,6 +868,9 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 
     kd.params.arguments = get_arguments_desc(params);
     kd.update_dispatch_data_func = get_dispatch_data_func();
+
+    kd.need_args_update = true;
+    kd.need_dispatch_data_update = true;
 
     /* Generate microkernel shims */
     micro::ShimOptions shim_options;
@@ -882,10 +897,44 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
     auto jit = SDPABase::get_jit_constants(params);
-    jit.add(make_tensors_jit_constants(params));
+    // const sdpa_configuration& config = m_sdpa_config;
+    sdpa_configuration config;
+    init_sdpa_configuration(params, config);
+
+    if (config.is_paged_attention) {
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto has_alibi = params.get_input_layout(paged_attention::PagedAttentionInputIdx::ALIBI).count() > 0;
+        const auto has_scale_input = !desc->scale_val.has_value();
+        const auto has_scores_output = desc->has_scores_output();
+
+        const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+        const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+        constexpr static std::array input_ids = {paged_attention::PagedAttentionInputIdx::QUERY,
+                                                 paged_attention::PagedAttentionInputIdx::KEY,
+                                                 paged_attention::PagedAttentionInputIdx::VALUE,
+                                                 paged_attention::PagedAttentionInputIdx::SUBSEQUENCE_BEGINS};
+        for (size_t i = 0; i < input_ids.size(); i++) {
+            const size_t tensor_id = input_ids[i];
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+        if (has_scale_input) {
+            const size_t tensor_id = paged_attention::PagedAttentionInputIdx::SCALE;
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(4), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+        if (has_alibi) {
+            const size_t tensor_id = paged_attention::PagedAttentionInputIdx::ALIBI;
+            jit.add(make_layout_jit_constants("INPUT" + to_code_string(5), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+        }
+
+        jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        if (has_scores_output) {
+            jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
+        }
+    } else {
+        jit.add(make_tensors_jit_constants(params));
+    }
     // auto desc = params.typed_desc<scaled_dot_product_attention>();
     const auto& device_info = params.get_device_info();
-    const sdpa_configuration& config = m_sdpa_config;
 
     const auto& Q = params.input_layouts[0];
     const auto& K = params.input_layouts[1];
@@ -1136,12 +1185,18 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.add(unit_parameters("MSK"));
     }
 
+    for (auto it : jit) {
+        std::cout << "jit[" << it.name << "] = " << it.value << std::endl;
+    }
+
     return jit;
 }
 
 Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    const sdpa_configuration& config = m_sdpa_config;
+    // const sdpa_configuration& config = m_sdpa_config;
+    sdpa_configuration config;
+    init_sdpa_configuration(params, config);
     if (params.is_dynamic())
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
 
@@ -1155,11 +1210,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // A
 
     if (config.is_paged_attention) {
-        args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // subsequence_begins
-        if (config.input_num >= 5)
-            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // scale
-
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // paged attention helper buffer
+        args.push_back({ArgumentDescriptor::Types::INPUT, 6});  // subsequence_begins
+        // if (config.input_num >= 5)
+        //     args.push_back({ArgumentDescriptor::Types::INPUT, 9});  // scale
+        if (!config.has_const_scale_val)
+            args.push_back({ArgumentDescriptor::Types::INPUT, 9});        // scale
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});  // blocked_indexes_start_and_gws_mapping
     } else {
         uint32_t attn_mask_idx = 3;
         uint32_t scale_idx = config.has_const_attn_mask_val ? 3 : 4;
@@ -1207,7 +1263,9 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             const auto& out = params.output_layouts[0];
             const auto& out_ps = out.get_partial_shape();
 
-            const auto& config = m_sdpa_config;
+            // const auto& config = m_sdpa_config;
+            sdpa_configuration config;
+            init_sdpa_configuration(params, config);
             const auto v_head_size = config.v_head_size;
             // const auto head_size = Q.get_partial_shape()[3].get_length();
             // const ov::Dimension n_keys = get_seq_length(K, desc->input_k_transpose_order);
@@ -1224,20 +1282,32 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             wgs.global = wgs.local;
 
             wgs.global[0] *= ceil_div(n_queries.get_length(), wg_tile_q);
-            wgs.global[1] *= out_ps[1].get_length();
-            wgs.global[2] *= out_ps[0].get_length();
+            if (config.is_paged_attention) {
+                wgs.global[1] *= config.heads_num;
+                wgs.global[2] *= 1;
+            } else {
+                wgs.global[1] *= out_ps[1].get_length();
+                wgs.global[2] *= out_ps[0].get_length();
+            }
 
             ScalarDescriptor s_d{ScalarDescriptor::Types::INT32};
             s_d.v.s32 = static_cast<uint32_t>(v_head_size);
             scalars.push_back(s_d);
 
             ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
-            s_k.v.s32 = static_cast<uint32_t>(n_keys.get_length());
+            // Test
+            s_k.v.s32 = static_cast<uint32_t>(v_head_size);
+            // s_k.v.s32 = static_cast<uint32_t>(n_keys.get_length());
             scalars.push_back(s_k);
 
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
-            s_q.v.s32 = static_cast<uint32_t>(n_queries.get_length());
+            s_q.v.s32 = static_cast<uint32_t>(v_head_size);
+            // s_q.v.s32 = static_cast<uint32_t>(n_queries.get_length());
             scalars.push_back(s_q);
+
+            std::cout << "s_d = " << s_d.v.s32 << ", s_k = " << s_k.v.s32 << ", s_q = " << s_q.v.s32 << std::endl;
+            // std::cout << "wgs.global = " << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << std::endl;
+            // std::cout << "wgs.local = " << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << std::endl;
         }
     }};
 }
@@ -1267,7 +1337,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& Q = params.input_layouts[0];
     const auto& K = params.input_layouts[1];
     const auto& V = params.input_layouts[2];
-    auto& out = params.input_layouts[0];
+    auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
 
     // const sdpa_configuration& configuration = m_sdpa_config;
@@ -1288,7 +1358,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     // const ov::Dimension n_values = V.get_partial_shape()[3];
     const ov::Dimension n_keys = micro_get_seq_length(params, 1, configuration);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0, configuration);
-    const ov::Dimension n_values = micro_get_seq_length(params, 2, configuration);
+    // const ov::Dimension n_values = micro_get_seq_length(params, 2, configuration);
+    const ov::Dimension n_values = ov::Dimension(v_head_size);
     const auto batch = out_ps[0] * out_ps[1];
 
     /* Retrieve pre-tuned kernel configuration */
@@ -1388,10 +1459,12 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     /* Set up problem size information */
     micro::SizeParams sizes;
-    sizes.m = n_keys.is_dynamic() ? 0 : n_keys.get_length();
-    sizes.n = n_queries.is_dynamic() ? 0 : n_queries.get_length();
+    sizes.m = n_keys.is_dynamic() ? -1 : n_keys.get_length();
+    sizes.n = n_queries.is_dynamic() ? -1 : n_queries.get_length();
     sizes.k = static_cast<int64_t>(k_head_size);
     sizes.batch = batch.is_dynamic() ? 0 : batch.get_length();
+
+    std::cout << "kq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
 
     /* Set up microkernel requirements */
     std::vector<micro::StrategyRequirement> reqs_kq;
@@ -1404,7 +1477,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     try {
         gemm_kq = micro::select_gemm_microkernel(opts_kq, hw_info, sizes, problem_kq, reqs_kq);
     } catch (const std::runtime_error& ex) {
-        GPU_DEBUG_TRACE_DETAIL << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
+        std::cout << "Can't create KQ sdpa_micro kernel: " << ex.what() << "\n";
         throw;
     }
 
@@ -1451,9 +1524,11 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
     problem_vs.B.setAlignment(64);  // S is packed in SLM
     problem_vs.B.crosspack = 16;
-    sizes.m = n_values.is_dynamic() ? 0 : n_values.get_length();
+    sizes.m = n_values.is_dynamic() ? -1 : n_values.get_length();
     sizes.n = gemm_kq.getSetting("wg_tile_n");
     sizes.k = gemm_kq.getSetting("wg_tile_m");
+
+    std::cout << "vs: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
 
     /* Set up special kernel requirements */
     std::vector<micro::StrategyRequirement> reqs_vs;
@@ -1470,7 +1545,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     try {
         gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);
     } catch (const std::runtime_error& ex) {
-        GPU_DEBUG_TRACE_DETAIL << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
+        std::cout << "Can't create VS sdpa_micro kernel: " << ex.what() << "\n";
         throw;
     }
 }

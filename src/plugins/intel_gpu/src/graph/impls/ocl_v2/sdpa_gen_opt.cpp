@@ -26,8 +26,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         jit.add(make_tensors_jit_constants(params));
     }
     const auto& info = params.get_device_info();
-    const auto& v_layout = params.get_input_layout(2);
-    auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
 
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
@@ -35,25 +34,27 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
     auto [broadcast_axis, group_size] = get_gqa_params(params);
-    int64_t v_head_size = -1;
-    if (params.is_type<scaled_dot_product_attention>()) {
+    int64_t v_head_size = -1, k_head_size = -1;
+
+    if (is_paged_attention) {
+        auto desc = params.typed_desc<paged_attention>();
+        v_head_size = static_cast<int64_t>(desc->v_head_size);
+        k_head_size = static_cast<int64_t>(desc->k_head_size);
+        jit.make("IS_PAGED_ATTENTION", 1);
+        jit.make("NUM_KV_HEADS", desc->kv_heads_num);
+        if (desc->has_alibi) {
+            jit.make("HAS_ALIBI", 1);
+        }
+
+        if (params.output_layouts.size() > 1) {
+            jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
+        }
+    } else {
+        auto desc = params.typed_desc<scaled_dot_product_attention>();
+        const auto& k_layout = params.get_input_layout(1);
+        const auto& v_layout = params.get_input_layout(2);
         v_head_size = v_layout.get_partial_shape()[3].get_length();
-    } else if (params.is_type<paged_attention>()) {
-        OPENVINO_THROW("SDPAOptGeneratorBase::get_jit_constants_base() should not go there for SDPA due to it is for PA!");
-        // auto desc = params.typed_desc<paged_attention>();
-        // v_head_size = static_cast<int64_t>(desc->v_head_size);
-    }
-
-    const auto& k_layout = params.get_input_layout(1);
-    int64_t k_head_size = k_layout.get_partial_shape()[3].get_length();
-    if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
-        jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
-        jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
-    }
-    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
-    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
-
-    if (params.is_type<scaled_dot_product_attention>()) {
+        k_head_size = k_layout.get_partial_shape()[3].get_length();
         // size_t scale_idx = desc->attn_mask_val.has_value() ? 3 : 4;
         if (desc->has_scale_input) {
             jit.make("HAS_SCALE_INPUT", 1);
@@ -65,28 +66,21 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             jit.make("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(k_head_size)));
         }
         // jit.make("NUM_KV_HEADS", -1);
-    } else if (params.is_type<paged_attention>()) {
-        OPENVINO_THROW("SDPAOptGeneratorBase::get_jit_constants_base() should not go there for SDPA due to it is for PA!");
-        // auto desc = params.typed_desc<paged_attention>();
-        // jit.make("IS_PAGED_ATTENTION", 1);
-        // jit.make("NUM_KV_HEADS", desc->kv_heads_num);
-        // if (desc->has_alibi) {
-        //     jit.make("HAS_ALIBI", 1);
-        // }
-
-        // if (params.output_layouts.size() > 1) {
-        //     jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
-        // }
+        bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
+        if (could_use_flashattn_v2) {
+            jit.make("IS_FLASHATTEN_V2", 1);
+        }
+        if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
+            jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
+        }
     }
 
-    bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
-    if (could_use_flashattn_v2) {
-        jit.make("IS_FLASHATTEN_V2", 1);
+    if (unaligned_head_size(k_head_size, v_head_size, subgroup_size)) {
+        jit.make("K_HEAD_SIZE_LEFTOVER", k_head_size % subgroup_size);
+        jit.make("V_HEAD_SIZE_LEFTOVER", v_head_size % subgroup_size);
     }
-
-    if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
-        jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
-    }
+    jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
+    jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
 
     return jit;
 }
@@ -105,7 +99,6 @@ Arguments SDPAOptGeneratorBase::get_arguments_desc_impl(const kernel_impl_params
     for (uint32_t i = 0; i < data_inputs_num; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
     }
-
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
     auto beam_table_idx = data_inputs_num;

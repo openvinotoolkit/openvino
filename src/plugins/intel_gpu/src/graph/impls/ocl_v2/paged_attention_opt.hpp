@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <utility>
+#include <iostream>
 
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
