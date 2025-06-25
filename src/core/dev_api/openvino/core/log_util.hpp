@@ -28,6 +28,14 @@ private:
     static Callback current_callback;
 };
 
+/** @brief To be used by ov::util::LogHelper only.
+ * @note Common/Util is stateless, independent from Core and unique per component. But log dispatching must be stateful
+ * and single to all the components. To allow ov::util::LogHelper use actual callback only definition of exported
+ * function is provided, but no declaration in Core headers.
+ */
+OPENVINO_DEPRECATED("For ov::util::LogHelper usage only, till its dependency is resolved.")
+OPENVINO_API LogDispatch::Callback get_log_callback();
+
 #ifdef ENABLE_OPENVINO_DEBUG
 
 class OPENVINO_API LevelString {
