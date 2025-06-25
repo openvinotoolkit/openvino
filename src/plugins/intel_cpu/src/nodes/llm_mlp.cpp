@@ -25,7 +25,7 @@
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "utils/debug_capabilities.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "kernels/x64/mlp_kernel.hpp"
 #    include "kernels/x64/mlp_utils.hpp"
 #endif

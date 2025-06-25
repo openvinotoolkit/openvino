@@ -185,7 +185,7 @@
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
 #endif
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <functional>
 #    include <numeric>
 

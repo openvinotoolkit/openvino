@@ -41,7 +41,7 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/xbyak/xbyak.h>
 
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"

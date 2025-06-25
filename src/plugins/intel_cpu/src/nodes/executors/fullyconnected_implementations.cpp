@@ -33,7 +33,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <common/memory_desc_wrapper.hpp>
 
 #    include "cpu_types.h"

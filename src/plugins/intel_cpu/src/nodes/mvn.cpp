@@ -43,7 +43,7 @@
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/xbyak/xbyak.h>
 
 #    include <common/c_types_map.hpp>

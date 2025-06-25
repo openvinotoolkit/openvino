@@ -108,7 +108,7 @@
 #include "openvino/cc/factory.h"
 #include "selective_build.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/fake_quantize.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"

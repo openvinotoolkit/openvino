@@ -22,7 +22,7 @@
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "nodes/executors/debug_messages.hpp"
 #    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"

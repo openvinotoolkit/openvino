@@ -45,7 +45,7 @@
 #include "transformations/defs.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 #endif
 

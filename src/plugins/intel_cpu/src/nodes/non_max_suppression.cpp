@@ -40,7 +40,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include "nodes/kernels/x64/jit_kernel_base.hpp"

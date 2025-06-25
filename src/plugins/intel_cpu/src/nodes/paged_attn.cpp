@@ -29,7 +29,7 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "kernels/scaled_attn/executor_pa.hpp"
 
 using namespace ov::Extensions::Cpu::XARCH;

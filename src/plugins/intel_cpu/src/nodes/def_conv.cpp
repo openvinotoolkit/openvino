@@ -40,7 +40,7 @@
 #include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"

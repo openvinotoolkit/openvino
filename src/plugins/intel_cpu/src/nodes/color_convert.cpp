@@ -32,7 +32,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/xbyak/xbyak.h>
 
 #    include <array>

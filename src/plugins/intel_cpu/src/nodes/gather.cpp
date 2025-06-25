@@ -44,7 +44,7 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include "kernels/x64/gather_uni_kernel.hpp"

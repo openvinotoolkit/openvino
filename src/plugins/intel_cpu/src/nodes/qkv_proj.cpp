@@ -24,7 +24,7 @@
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "utils/debug_capabilities.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <algorithm>
 #    include <type_traits>
 #    include <utility>

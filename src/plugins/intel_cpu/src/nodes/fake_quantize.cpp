@@ -52,7 +52,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
