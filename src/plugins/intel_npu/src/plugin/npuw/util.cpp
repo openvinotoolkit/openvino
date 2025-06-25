@@ -551,52 +551,7 @@ inline void twrite(ov::Tensor& t, T value, std::size_t r, std::size_t c, std::si
     T* telem = trow + c;
     *telem = value;
 }
-/*
-ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
-    LOG_INFO("original transpose begin.");
-    ov::Shape shape = t.get_shape();
-    NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
-    NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32);
 
-    ov::Shape tshape = {shape[2], shape[0], shape[1]};
-    ov::Tensor tnew(t.get_element_type(), tshape);
-
-    const auto IN_ROWS = shape[0] * shape[1];
-    const auto IN_COLS = shape[2];
-    for (std::size_t i = 0; i < IN_ROWS; i++) {
-        for (std::size_t j = 0; j < IN_COLS; j++) {
-            switch (t.get_element_type()) {
-            case ov::element::i4:
-                twrite_4b(tnew, tread_4b(t, i, j, IN_COLS), j, i, IN_ROWS);
-                break;
-            case ov::element::f32:
-                twrite<float>(tnew, tread<float>(t, i, j, IN_COLS), j, i, IN_ROWS);
-                break;
-            default:
-                NPUW_ASSERT(false && "Element type is not supported yet");
-            }
-        }
-    }
-    return tnew;
-}
-*/
-/* Need AVX512
-inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
-    __m256i lo = _mm256_and_si256(packed, _mm256_set1_epi8(0x0F));
-    __m256i hi = _mm256_and_si256(_mm256_srli_epi8(packed, 4), _mm256_set1_epi8(0x0F));
-    _mm256_storeu_si256((__m256i*)(unpacked), lo);
-    _mm256_storeu_si256((__m256i*)(unpacked + 32), hi);
-}
-
-inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
-    alignas(32) uint8_t bytes[32];
-    _mm256_storeu_si256((__m256i*)bytes, packed);
-    for (int i = 0; i < 32; ++i) {
-        unpacked[i * 2] = bytes[i] & 0x0F;
-        unpacked[i * 2 + 1] = (bytes[i] >> 4) & 0x0F;
-    }
-}
-*/
 inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
     for (int i = 0; i < 32; ++i) {
         unpacked[i * 2] = ((uint8_t*)&packed)[i] & 0x0F;
@@ -605,7 +560,6 @@ inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
 }
 
 void transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
-    LOG_INFO("transpose_int4_avx2 begin.");
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
@@ -658,11 +612,9 @@ void transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, si
             }
         }
     });
-    LOG_INFO("transpose_int4_avx2 end.");
 }
 
 void transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
-    LOG_INFO("transpose_f32_avx2 begin.");
     const float* src = static_cast<const float*>(t.data());
     float* dst = static_cast<float*>(tnew.data());
 
@@ -672,10 +624,6 @@ void transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, s
         size_t c = 0;
         for (; c + blockSize <= IN_COLS; c += blockSize) {
             __m256 vec = _mm256_loadu_ps(&src[r * IN_COLS + c]);
-
-            // Write transposed block
-            // alignas(32) float tmp[8];
-            //_mm256_store_ps(tmp, vec);
             for (size_t k = 0; k < blockSize; ++k) {
                 dst[(c + k) * IN_ROWS + r] = ((float*)&vec)[k];
             }
@@ -684,12 +632,10 @@ void transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, s
             dst[c * IN_ROWS + r] = src[r * IN_COLS + c];
         }
     });
-    LOG_INFO("transpose_f32_avx2 end.");
 }
 
 template <typename T>
 void transpose_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
-    LOG_INFO("transpose_avx2 begin.");
     const T* src = static_cast<const T*>(t.data());
     T* dst = static_cast<T*>(tnew.data());
 
@@ -709,7 +655,6 @@ void transpose_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_
             dst[c * IN_ROWS + r] = src[r * IN_COLS + c];
         }
     });
-    LOG_INFO("transpose_avx2 end.");
 }
 
 ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
@@ -723,8 +668,6 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     const auto IN_ROWS = shape[0] * shape[1];
     const auto IN_COLS = shape[2];
 
-    LOG_INFO(std::string("transpose: IN_ROWS = ") + std::to_string(IN_ROWS) + ", IN_COLS = " + std::to_string(IN_COLS));
-    std::cout << "###################transpose" << std::endl;
     switch (t.get_element_type()) {
     case ov::element::i4:
         transpose_i4_avx2(t, tnew, IN_ROWS, IN_COLS);
@@ -805,9 +748,6 @@ void permute021_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, 
             size_t c = 0;
             for (c = 0; c + blockSize - 1 < IN_COLS; c += blockSize) {
                 __m256 vec = _mm256_loadu_ps(src + src_base + c);
-                // Write transposed block
-                // alignas(32) float tmp[8];
-                //_mm256_store_ps(tmp, vec);
                 for (size_t k = 0; k < blockSize; ++k) {
                     dst[dst_base + (c + k) * IN_ROWS] = ((float*)&vec)[k];
                 }
@@ -820,7 +760,6 @@ void permute021_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, 
 }
 
 void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS) {
-    LOG_INFO("permute102_i4_avx2 begin.");
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
@@ -838,10 +777,10 @@ void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
                 unpack_64_i4(packed, unpacked);
 
                 // dst[r, p, c~c+63]
-                size_t dst_offset = r * IN_PLAS * IN_COLS + p * IN_COLS + c;
+                size_t dst_base = r * IN_PLAS * IN_COLS + p * IN_COLS + c;
                 if ((IN_COLS % 2 != 0) && ((p * IN_ROWS + r) % 2 != 0) && (c == 0)) {
                     for (int k = 0; k < PACK - 1; ++k) {
-                        dst_offset = dst_offset + k;
+                        size_t dst_offset = dst_base + k;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
                             dst[dst_byte] = (dst[dst_byte] & 0xF0) | (unpacked[k + 1] & 0x0F);
@@ -852,7 +791,7 @@ void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
                     c--;
                 } else {
                     for (int k = 0; k < PACK; ++k) {
-                        dst_offset = dst_offset + k;
+                        size_t dst_offset = dst_base + k;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
                             dst[dst_byte] = (dst[dst_byte] & 0xF0) | (unpacked[k] & 0x0F);
@@ -878,11 +817,9 @@ void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
             }
         }
     });
-    LOG_INFO("permute102_i4_avx2 end.");
 }
 
 void permute102_f16_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS) {
-    LOG_INFO("permute102_f16_avx2 begin.");
     const uint16_t* src = static_cast<const uint16_t*>(t.data());
     uint16_t* dst = static_cast<uint16_t*>(tnew.data());
 
@@ -907,46 +844,18 @@ void permute102_f16_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, 
             }
         }
     });
-    LOG_INFO("permute102_f16_avx2 end.");
 }
-
-/*
-template <typename T>
-void permute120(const ov::Tensor& src, ov::Tensor& dst) {
-    const ov::Shape src_shape = src.get_shape();
-    const ov::Shape dst_shape = dst.get_shape();
-    NPUW_ASSERT(src_shape.size() == 3);  // Yes, so far only transpose 3D tensors
-
-    const T* pSrc = static_cast<const T*>(src.data());
-    T* pDst = static_cast<T*>(dst.data());
-
-    // DSTs [b,r,c] map to SRC's [r,c,b]
-
-    for (std::size_t b = 0; b < dst_shape[0]; b++) {
-        for (std::size_t r = 0; r < dst_shape[1]; r++) {
-            for (std::size_t c = 0; c < dst_shape[2]; c++) {
-                auto dst_idx = b * dst_shape[1] * dst_shape[2] + r * dst_shape[2] + c;
-                auto src_idx = r * src_shape[1] * src_shape[2] + c * src_shape[1] + b;
-                pDst[dst_idx] = pSrc[src_idx];
-            }
-        }
-    }
-}
-*/
 
 ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::size_t>& axes) {
     ov::Shape shape = t.get_shape();
     NPUW_ASSERT(shape.size() == 3);  // Yes, so far only transpose 3D tensors
     LOG_INFO("permute.");
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
-        LOG_INFO("permute case transpose.");
         return transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
-        LOG_INFO("permute case permute021.");
         NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32);
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
-
         switch (t.get_element_type()) {
         case ov::element::i4:
             permute021_i4_avx2(t, tnew, shape[0], shape[1], shape[2]);
@@ -957,75 +866,23 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         default:
             NPUW_ASSERT(false && "Element type is not supported yet");
         }
-
-        /*
-                for (std::size_t p = 0; p < shape[0]; p++) {
-                    for (std::size_t r = 0; r < shape[1]; r++) {
-                        for (std::size_t c = 0; c < shape[2]; c++) {
-                            switch (t.get_element_type()) {
-                            case ov::element::i4:
-                                twrite_4b(tnew, tread_4b(t, p * shape[1] + r, c, shape[2]), p * shape[2] + c, r,
-           shape[1]); break; case ov::element::f32: twrite<float>(tnew, tread<float>(t, p * shape[1] + r, c, shape[2]),
-                                              p * shape[2] + c,
-                                              r,
-                                              shape[1]);
-                                break;
-                            default:
-                                NPUW_ASSERT(false && "Element type is not supported yet");
-                            }
-                        }
-                    }
-                }
-        */
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        LOG_INFO("permute case permute102.");
         NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
-        
-        LOG_INFO(std::string("permute102: IN_PLAS = ") + std::to_string(shape[0]) + ", IN_ROWS = " + std::to_string(shape[1]) + ", IN_COLS = " + std::to_string(shape[2]));
-        /*
-        // Iterate over output tensor coordinates
-        for (std::size_t p = 0; p < tshape[0]; p++) {
-            for (std::size_t r = 0; r < tshape[1]; r++) {
-                for (std::size_t c = 0; c < tshape[2]; c++) {
-                    switch (t.get_element_type()) {
-                    case ov::element::i4:
-                        twrite_4b(tnew,
-                                  tread_4b(t, r, p * shape[2] + c, shape[1] * shape[2]),
-                                  p * tshape[1] + r,
-                                  c,
-                                  tshape[2]);
-                        break;
-                    case ov::element::f16:
-                        twrite<uint16_t>(tnew,
-                                         tread<uint16_t>(t, r, p * shape[2] + c, shape[1] * shape[2]),
-                                         p * tshape[1] + r,
-                                         c,
-                                         tshape[2]);
-                        break;
-                    default:
-                        NPUW_ASSERT(false && "Element type is not supported yet");
-                    }
-                }
-            }
-        }
-        */
-        
         switch (t.get_element_type()) {
         case ov::element::i4:
             permute102_i4_avx2(t, tnew, shape[0], shape[1], shape[2]);
             break;
         case ov::element::f16:
-            permute102_f16_avx2(t, tnew, shape[0], shape[1], shape[2]);
-            break;
+             permute102_f16_avx2(t, tnew, shape[0], shape[1], shape[2]);
+             break;
         default:
             NPUW_ASSERT(false && "Element type is not supported yet");
         }
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 2 && axes[2] == 0) {
-        LOG_INFO("permute case permute120.");
         ov::Shape tshape = {shape[1], shape[2], shape[0]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
