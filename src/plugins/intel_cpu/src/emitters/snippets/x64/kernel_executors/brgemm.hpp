@@ -20,16 +20,14 @@
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu::x64 {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
-    BrgemmKernelConfig(const element::Type& in0_dtype,
-                       const element::Type& in1_dtype,
+    BrgemmKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
                        const element::Type& out_dtype,
-                       bool is_with_comp,
-                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                        const dnnl_post_ops& post_ops);
     BrgemmKernelConfig() = delete;
 
@@ -113,7 +111,7 @@ protected:
 
 struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
     brgemm_ref_kernel(BrgemmKernelConfig c);
-    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*) const override;
+    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const override;
     dnnl_status_t create_kernel() override {
         return dnnl_status_t::dnnl_success;
     }

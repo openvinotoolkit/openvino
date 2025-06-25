@@ -15,9 +15,7 @@
 #include "openvino/core/node.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class LLMMLP : public Node {
 public:
@@ -48,9 +46,7 @@ private:
     std::shared_ptr<ExecutorBase> m_executor;
     template <typename T>
     struct Executor;
-    LLMMLPNode::Config m_mlp_config;
+    LLMMLPNode::Config m_mlp_config{};
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

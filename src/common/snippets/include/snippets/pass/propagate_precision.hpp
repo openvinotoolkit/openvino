@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+
 #include "openvino/pass/pass.hpp"
 #include "snippets/generator.hpp"
 
@@ -17,7 +18,7 @@ namespace pass {
  * @ingroup snippets
  * @brief PropagatePrecision transformation propagate precision from parameters to results.
  */
-class PropagatePrecision: public ov::pass::ModelPass {
+class PropagatePrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::PropagatePrecision");
     PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine);
