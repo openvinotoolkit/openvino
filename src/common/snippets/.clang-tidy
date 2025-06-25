@@ -150,11 +150,7 @@ CheckOptions:
   # itt and conditional compilation are implemented via tricky macro combinations
   - key: misc-include-cleaner.IgnoreHeaders
     value: >
-      .*/itt.h;
       .*/itt.hpp;
-      .*/selective_build.h;
-      src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.hpp;
-      src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.cpp;
       snippets/runtime_configurator.hpp;
       snippets/lowered/loop_manager.hpp;
 #  Reasonable way to enforce splitting complex code into simple functions
