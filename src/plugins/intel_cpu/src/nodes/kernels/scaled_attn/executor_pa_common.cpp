@@ -1,27 +1,30 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "executor_pa_common.hpp"
-
-#include <cpu/x64/xbyak/xbyak.h>
 
 #include <cfloat>
 #include <cmath>
-#include <cpu/x64/jit_generator.hpp>
-#include <cstdint>
 #include <cstring>
-#include <stdexcept>
-#include <utility>
-#include <vector>
 
-#include "openvino/core/type/element_type.hpp"
+#ifdef OPENVINO_ARCH_X86_64
+#    include <cpu/x64/xbyak/xbyak.h>
 
-namespace ov::Extensions::Cpu {
+#    include <cpu/x64/jit_generator.hpp>
+#    include <cstdint>
+#    include <stdexcept>
+#    include <utility>
+#    include <vector>
+
+#    include "executor_pa_common.hpp"
+#    include "openvino/core/type/element_type.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
+#endif
+
+namespace ov::Extensions::Cpu {
 
 #ifdef OPENVINO_ARCH_X86_64
 

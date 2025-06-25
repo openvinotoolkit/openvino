@@ -10,6 +10,7 @@
 #    include <memory>
 
 #    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/shl/shl_eltwise.hpp"
 #endif
 #include "utils/arch_macros.h"
 

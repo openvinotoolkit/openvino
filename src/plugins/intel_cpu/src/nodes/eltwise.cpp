@@ -113,14 +113,16 @@
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
-#include "utils/precision_support.h"
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "kernels/aarch64/jit_uni_eltwise_generic.hpp"
 #elif defined(OPENVINO_ARCH_X86_64)
+#    include <set>
+
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "kernels/x64/jit_uni_eltwise_generic.hpp"
+#    include "utils/precision_support.h"
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
@@ -734,20 +736,18 @@ public:
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
-#endif  // OPENVINO_ARCH_X86_64
-
-#if defined(OPENVINO_ARCH_ARM64)
+#elif defined(OPENVINO_ARCH_ARM64)
         if (mayiuse(aarch64::asimd)) {
             _pKernel.reset(new jit_uni_eltwise_generic<aarch64::asimd>(jep, eltwise_data, ops_list, post_ops));
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
-#endif  // OPENVINO_ARCH_ARM64
-
-#if defined(OPENVINO_ARCH_RISCV64)
+#elif defined(OPENVINO_ARCH_RISCV64)
+        (void)post_ops;
         if (mayiuse(ov::intel_cpu::riscv64::gv)) {
-            _pKernel.reset(
-                new ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gv>(jep, eltwise_data));
+            _pKernel = std::make_unique<ov::intel_cpu::riscv64::jit_uni_eltwise_generic<ov::intel_cpu::riscv64::gv>>(
+                jep,
+                eltwise_data);
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
@@ -1665,8 +1665,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         if (useSHL && ShlEltwiseExecutor::isEltwiseAlgorithmSupported(getAlgorithm())) {
             // SHL implementation supports only identical precisions on inputs/outputs and only FP32 for now
             const ov::element::Type forcedPrec = ov::element::f32;
-            for (size_t i = 0; i < inputPrecisions.size(); i++) {
-                inputPrecisions[i] = forcedPrec;
+            for (auto& inputPrecision : inputPrecisions) {
+                inputPrecision = forcedPrec;
             }
             outputPrecision = forcedPrec;
         } else {

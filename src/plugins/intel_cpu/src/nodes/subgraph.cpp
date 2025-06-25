@@ -13,12 +13,10 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <set>
 
-#include "cache/cache_entry.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "edge.h"
-#include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
@@ -33,19 +31,12 @@
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/subgraph.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "snippets/lowered/pass/init_loops.hpp"
-#include "snippets/lowered/pass/insert_buffers.hpp"
-#include "snippets/lowered/pass/insert_loops.hpp"
-#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
-#include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/hash.hpp"
-#include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/positioned_pass.hpp"
-#include "snippets/pass/propagate_precision.hpp"
 #include "snippets/shape_types.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
@@ -60,9 +51,18 @@
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
 #    include "transformations/snippets/aarch64/shape_inference.hpp"
-#else
+#elif defined(OPENVINO_ARCH_X86_64)
+#    include "cache/cache_entry.h"
+#    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
+#    include "snippets/lowered/pass/init_loops.hpp"
+#    include "snippets/lowered/pass/insert_buffers.hpp"
+#    include "snippets/lowered/pass/insert_loops.hpp"
+#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+#    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "snippets/pass/matmul_to_brgemm.hpp"
+#    include "snippets/pass/propagate_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
@@ -73,12 +73,11 @@
 #    include "transformations/snippets/x64/pass/lowered/init_repacked_constant_inputs.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
-#    include "transformations/snippets/x64/shape_inference.hpp"
 #endif
-
 #include <utility>
 #include <vector>
 
+#include "transformations/snippets/x64/shape_inference.hpp"
 #include "utils/ngraph_utils.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP

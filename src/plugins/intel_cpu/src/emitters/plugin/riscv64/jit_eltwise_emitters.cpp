@@ -258,7 +258,8 @@ void jit_equal_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
 }
 
-std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>&) {
+std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -274,10 +275,10 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
-    VReg src0 = VReg(in_vec_idxs[0]);
-    VReg src1 = VReg(in_vec_idxs[1]);
-    VReg dst = VReg(out_vec_idxs[0]);
-    FReg one = FReg(aux_fp_gpr_idxs[0]);
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto src1 = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
     h->vmv_v_x(dst, zero);                   // set dst to 0
@@ -608,11 +609,11 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                          const std::vector<size_t>& out_vec_idxs) const {
-    VReg src0 = VReg(in_vec_idxs[0]);
-    VReg src1 = VReg(in_vec_idxs[1]);
-    VReg dst = VReg(out_vec_idxs[0]);
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto src1 = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
 
-    FReg one = FReg(aux_fp_gpr_idxs[0]);
+    auto one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
     h->vmv_v_x(dst, zero);
@@ -625,7 +626,7 @@ void jit_greater_equal_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_greater_equal_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 /// MAXIMUM ///
@@ -665,10 +666,10 @@ size_t jit_less_equal_emitter::aux_fp_gprs_count() const {
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
-    VReg src0 = VReg(in_vec_idxs[0]);
-    VReg src1 = VReg(in_vec_idxs[1]);
-    VReg dst = VReg(out_vec_idxs[0]);
-    FReg one = FReg(aux_fp_gpr_idxs[0]);
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto src1 = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
     h->vmv_v_x(dst, zero);                   // set dst to 0
@@ -686,7 +687,7 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_less_equal_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -850,10 +851,10 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
-    VReg src0 = VReg(in_vec_idxs[0]);
-    VReg dst = VReg(out_vec_idxs[0]);
-    FReg fzero = FReg(aux_fp_gpr_idxs[0]);
-    FReg fone = FReg(aux_fp_gpr_idxs[1]);
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto fzero = FReg(aux_fp_gpr_idxs[0]);
+    auto fone = FReg(aux_fp_gpr_idxs[1]);
     load_table_val("one", fone);
     h->fmv_w_x(fzero, zero);
     h->vfmv_v_f(dst, fone);
@@ -863,7 +864,7 @@ void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_logical_not_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    const std::shared_ptr<ov::Node>& /*node*/) {
     return {{element::f32}};
 }
 
@@ -908,13 +909,13 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_logical_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
-    VReg src0 = VReg(in_vec_idxs[0]);
-    VReg src1 = VReg(in_vec_idxs[1]);
-    VReg aux0 = VReg(aux_vec_idxs[0]);
-    VReg aux1 = VReg(aux_vec_idxs[1]);
-    VReg dst = VReg(out_vec_idxs[0]);
-    FReg fzero = FReg(aux_fp_gpr_idxs[0]);
-    FReg fone = FReg(aux_fp_gpr_idxs[1]);
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto src1 = VReg(in_vec_idxs[1]);
+    auto aux0 = VReg(aux_vec_idxs[0]);
+    auto aux1 = VReg(aux_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto fzero = FReg(aux_fp_gpr_idxs[0]);
+    auto fone = FReg(aux_fp_gpr_idxs[1]);
     load_table_val("one", fone);
     h->fmv_w_x(fzero, zero);
     h->vmv_v_x(aux0, zero);
@@ -933,7 +934,7 @@ void jit_logical_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_logical_xor_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
