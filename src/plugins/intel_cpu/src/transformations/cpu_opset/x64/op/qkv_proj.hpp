@@ -43,7 +43,7 @@ public:
     }
 
 private:
-    Config m_config;
+    Config m_config{};
 };
 
 }  // namespace ov::intel_cpu

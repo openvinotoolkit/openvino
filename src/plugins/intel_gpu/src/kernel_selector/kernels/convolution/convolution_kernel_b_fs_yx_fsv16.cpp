@@ -256,7 +256,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
 
     auto outFeaturesPerGroup = output.Feature().v / params.groups;
     auto inFeaturesPerGroup = input.Feature().v / params.groups;
-    auto multipleGroupsInputPreload = (tuning_data.feature_block_size % outFeaturesPerGroup == 0) &&
+    auto multipleGroupsInputPreload = (params.groups > 1) &&
+                                      (tuning_data.feature_block_size % outFeaturesPerGroup == 0) &&
                                       (tuning_data.feature_block_size % inFeaturesPerGroup == 0) &&
                                       (tuning_data.feature_block_size / outFeaturesPerGroup > 1) &&
                                       (tuning_data.feature_block_size / inFeaturesPerGroup > 1);
