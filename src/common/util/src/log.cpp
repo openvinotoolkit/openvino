@@ -20,10 +20,10 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, LogCallback hand
 
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:
-        m_stream << "[ERR] ";
+        m_stream << "[ERROR] ";
         break;
     case LOG_TYPE::_LOG_TYPE_WARNING:
-        m_stream << "[WARN] ";
+        m_stream << "[WARNING] ";
         break;
     case LOG_TYPE::_LOG_TYPE_INFO:
         m_stream << "[INFO] ";
@@ -49,7 +49,7 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, LogCallback hand
         }
 
         m_stream << util::trim_file_name(file);
-        m_stream << " " << line;
+        m_stream << ":" << line;
         m_stream << "\t";
     }
 }
