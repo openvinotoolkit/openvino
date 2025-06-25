@@ -60,16 +60,18 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor,
         mem_ptrs.reserve(num_ptrs);
         for (int i = 0; i < num_ptrs; i++) {
             const auto stack_ptr_offset = ptr_increments[i] * dtype_sizes[i] * start;
-            // Note: need to cast to char* to allow for arbitrary pointer shifts
-            mem_ptrs.push_back(reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(stack_ptr[i]) + stack_ptr_offset));
+            mem_ptrs.push_back(apply_byte_offset(stack_ptr[i], stack_ptr_offset));
         }
         auto* updated_ptrs = reinterpret_cast<void*>(mem_ptrs.data());
         preamble_ptr(end - start, updated_ptrs);
     });
     // todo: we can precompute these ptr shifts when loop_info_t is created
     for (int i = 0; i < num_ptrs; i++) {
-        stack_ptr[i] +=
-            (loop_args.m_finalization_offsets[i] - ptr_increments[i] * loop_args.m_work_amount) * dtype_sizes[i];
+        // Note: since we don't apply ptr_increments in the parallel section,
+        // they are applied here together with finalization offsets
+        const auto final_offset =
+            (ptr_increments[i] * loop_args.m_work_amount + loop_args.m_finalization_offsets[i]) * dtype_sizes[i];
+        stack_ptr[i] = apply_byte_offset(stack_ptr[i], final_offset);
     }
 }
 
