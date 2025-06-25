@@ -36,42 +36,49 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         }
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
+        uint64_t adj_group_size = group_size; // If group_size is not supported, it can be reduced to proper group size
 
         auto m_fc = ov::as_type_ptr<op::FullyConnectedCompressed>(m.get_match_root());
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
-        if (group_size != UINT64_MAX &&
-            (group_size == 0 || (innermost_size % group_size != 0 && innermost_size > group_size))) {
-            GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << group_size << std::endl;
+
+        auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto rank = m_fc->get_input_partial_shape(0).size();
+        ov::op::internal::DynamicQuantize::Attributes config;
+
+        if (precompute_sum && adj_group_size != UINT64_MAX && adj_group_size > 0 && optional_w_zp->get_output_partial_shape(0).rank().is_static()) {
+            auto weight_zp_shape = m_fc->get_input_partial_shape(4);
+            const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
+            if (wei_zp_group_size < adj_group_size) {
+                GPU_DEBUG_LOG << "Dynamic quantization: adjusting group_size " << adj_group_size
+                               << " to wei_zp_group_size " << wei_zp_group_size << std::endl;
+                adj_group_size = wei_zp_group_size;
+            }
+            std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
+            group_sizes_partial_sum.back() = adj_group_size;
+            config.group_sizes_partial_sum = group_sizes_partial_sum;
+            config.partial_sum_dt = element::i32; // it supports i32 only now
+        }
+
+        if (adj_group_size != UINT64_MAX &&
+            (adj_group_size == 0 || (innermost_size % adj_group_size != 0 && innermost_size > adj_group_size))) {
+            GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
             return false;
         }
 
-        auto rank = m_fc->get_input_partial_shape(0).size();
         std::vector<uint64_t> shape_group_size(rank, 1);
-        shape_group_size.back() = group_size;
+        shape_group_size.back() = adj_group_size;
 
-        ov::op::internal::DynamicQuantize::Attributes config;
         config.quantization_dt = element::i8;
         config.quantization_type = QuantizationType::Symmetric;
         config.scale_dt = element::f16;
         config.group_sizes = shape_group_size;
 
-        if (asymmetric && group_size == UINT64_MAX) {
+        if (asymmetric && adj_group_size == UINT64_MAX) {
             config.quantization_type = QuantizationType::Asymmetric;
             config.quantization_dt = element::u8;
             config.zp_dt = element::u8; // it supports u8 only now
-        }
-
-        auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
-
-        if (precompute_sum && group_size != UINT64_MAX && group_size > 0 && optional_w_zp->get_output_partial_shape(0).rank().is_static()) {
-            // FIXME: it should be aligned with wei-zp group size
-            // FIXME: weight should have ZP
-            std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
-            group_sizes_partial_sum.back() = group_size;
-            config.group_sizes_partial_sum = group_sizes_partial_sum;
-            config.partial_sum_dt = element::i32; // it supports i32 only now
         }
 
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, config);
