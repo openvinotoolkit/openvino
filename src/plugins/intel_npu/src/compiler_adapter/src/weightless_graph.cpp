@@ -31,7 +31,6 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
     const ov::RTMap& runtimeInfoMap = model->get_rt_info();
     const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
     if (weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>()) {
-        std::cout << "Weightless cache attribute found in the model." << std::endl;
         for (auto&& node : model->get_ordered_ops()) {
             if (!ov::is_type<ov::op::v0::Constant>(node)) {
                 continue;
@@ -469,7 +468,7 @@ void WeightlessGraph::run_init_single_threaded() {
 
 void WeightlessGraph::run_init_multi_threaded() {
     if (_initsHandles.size() == 1) {
-        std::cout << "::run_init_multi_threaded() for single init - fallback to ::runInit()" << std::endl;
+        _logger.info("::run_init_multi_threaded() for single init - fallback to ::runInit()");
         run_init_single_threaded();
         return;
     }
