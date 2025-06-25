@@ -4,6 +4,16 @@
 
 #include "snippets/lowered/pass/assign_registers.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <map>
+#include <set>
+#include <stack>
+#include <tuple>
+#include <vector>
+
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
@@ -17,16 +27,6 @@
 #include "snippets/op/horizon_sum.hpp"
 #include "snippets/op/kernel.hpp"
 #include "snippets/op/vector_buffer.hpp"
-
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <iterator>
-#include <map>
-#include <set>
-#include <stack>
-#include <tuple>
-#include <vector>
 
 namespace ov::snippets::lowered::pass {
 
