@@ -941,28 +941,10 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (i8_u8_input) {
-            cldnn::program_node& mutable_node = const_cast<cldnn::convolution_node&>(node);
-            mutable_node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
-            bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
-            if (i8_u8_output) {
-                mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
-            } else {
-                mutable_node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
-            }
-            // shallow channel
-            if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
-                mutable_node.set_preferred_input_fmt(0, cldnn::format::byxf);
-            }
-            if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
-                mutable_node.set_preferred_output_fmt(0, cldnn::format::byxf);
-            }
-        } else {
-            if (input_layout.get_partial_shape().size() <= 4)
-                expected_format = format::b_fs_yx_fsv16;
-            else if (input_layout.get_partial_shape().size() == 5)
-                expected_format = format::b_fs_zyx_fsv16;
-        }
+        if (input_layout.get_partial_shape().size() <= 4)
+            expected_format = format::b_fs_yx_fsv16;
+        else if (input_layout.get_partial_shape().size() == 5)
+            expected_format = format::b_fs_zyx_fsv16;
         return expected_format;
     }
 
@@ -1241,6 +1223,25 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         expected = get_expected_format(node.as<convolution>());
+        // Set expected input and output preferred format for int8 onednn convolution in dynamic.
+        auto input_layout = node.get_input_layout(0);
+        bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
+        if ((input_layout.is_dynamic() || output_layout.is_dynamic()) && i8_u8_input && use_onednn_impls) {
+            node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+            if (i8_u8_output) {
+                node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            } else {
+                node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            }
+            // shallow channel
+            if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
+                node.set_preferred_input_fmt(0, cldnn::format::byxf);
+            }
+            if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
+                node.set_preferred_output_fmt(0, cldnn::format::byxf);
+            }
+        }
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {

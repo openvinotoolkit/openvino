@@ -1185,7 +1185,7 @@ bool primitive_inst::use_async_compilation() {
 
     bool compile_conv_impls = get_node().is_type<convolution>();
     if (compile_conv_impls) {
-        compile_conv_impls = _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
     }
 
     return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
