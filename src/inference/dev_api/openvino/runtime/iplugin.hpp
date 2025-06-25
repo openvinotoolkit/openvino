@@ -194,6 +194,9 @@ public:
     virtual ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                             const ov::AnyMap& properties) const = 0;
 
+    virtual std::shared_ptr<ov::Model> get_transformation_model(const std::shared_ptr< ov::Model>& model,
+                                            const ov::AnyMap& properties) const;
+
     /**
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface

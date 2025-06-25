@@ -68,6 +68,11 @@ std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {
     return m_core.lock();
 }
 
+std::shared_ptr<ov::Model> ov::IPlugin::get_transformation_model(const std::shared_ptr< ov::Model>& model,
+                                            const ov::AnyMap& properties) const {
+    std::cout << "iplugin get_transformation_model\n";
+}
+
 const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
     return m_executor_manager;
 }
@@ -102,11 +107,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
 
     auto transformed_model = model->clone();
     // Cleanup fused names if there are present in original model
-    ov::pass::Manager m;
-    m.register_pass<ov::pass::FusedNamesCleanup>();
-    m.run_passes(transformed_model);
+    // ov::pass::Manager m;
+    // m.register_pass<ov::pass::FusedNamesCleanup>();
+    // m.run_passes(transformed_model);
 
-    transform(transformed_model);
+    // transform(transformed_model);
     const auto& ops = transformed_model->get_ordered_ops();
 
     NameSet supported;

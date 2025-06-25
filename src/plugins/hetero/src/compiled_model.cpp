@@ -68,7 +68,9 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
                 device_config.insert(ov::internal::exclusive_async_requests(true));
             }
         }
-        compiled_model_desc.compiled_model = get_hetero_plugin()->get_core()->compile_model(compiled_model_desc.model,
+        auto model_ = compiled_model_desc.model->clone();
+        device_config[ov::internal::disable_transformation.name()] = true;
+        compiled_model_desc.compiled_model = get_hetero_plugin()->get_core()->compile_model(model_,
                                                                                             compiled_model_desc.device,
                                                                                             device_config);
     };
@@ -99,8 +101,9 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
             full_properties[property.first] = property.second;
 
         // This function modifes original model
-        auto cloned_model = model->clone();
-        std::tie(query_model_result, m_mapping_info) =
+        // auto cloned_model = model->clone();
+        std::shared_ptr<ov::Model> cloned_model;
+        std::tie(query_model_result, m_mapping_info, cloned_model) =
             get_hetero_plugin()->query_model_update(cloned_model, full_properties, true);
 
         ov::hetero::op::DeviceSubgraphVector ordered_subgraphs;

@@ -24,6 +24,7 @@ OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, enable_loop_unrolling, true, "Enable/Dis
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disable_winograd_convolution, false, "Enable/Disable winograd convolution implementation if available")
 OV_CONFIG_RELEASE_OPTION(ov::internal, exclusive_async_requests, false, "")
 OV_CONFIG_RELEASE_OPTION(ov::internal, query_model_ratio, 1.0f, "")
+OV_CONFIG_RELEASE_OPTION(ov::internal, disable_transformation, false, "")
 OV_CONFIG_RELEASE_OPTION(ov, cache_mode, ov::CacheMode::OPTIMIZE_SPEED, "Cache mode defines the trade-off between the model compilation time and the disk space required for the cache")
 OV_CONFIG_RELEASE_OPTION(ov, cache_encryption_callbacks, ov::EncryptionCallbacks{}, "Callbacks used to encrypt/decrypt the model")
 OV_CONFIG_RELEASE_OPTION(ov::hint, dynamic_quantization_group_size, 0, "Dynamic quantization group size")

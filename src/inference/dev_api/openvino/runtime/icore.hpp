@@ -171,6 +171,10 @@ public:
                                             const std::string& device_name,
                                             const ov::AnyMap& config) const = 0;
 
+    virtual std::shared_ptr<ov::Model> get_transformation_model(const std::shared_ptr< ov::Model>& model,
+                                            const std::string& device_name,
+                                            const ov::AnyMap& config) const = 0;
+
     /**
      * @brief Returns devices available for neural networks inference
      *

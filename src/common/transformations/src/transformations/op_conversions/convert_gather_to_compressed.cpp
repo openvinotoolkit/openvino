@@ -115,7 +115,7 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
             auto last_covert_node = pattern_map.at(last_convert_m).get_node_shared_ptr();
             gather_input_scale = last_covert_node->clone_with_new_inputs({scale});
             ov::copy_runtime_info(last_covert_node, gather_input_scale);
-            gather_input_scale->set_friendly_name(last_covert_node->get_friendly_name() + "/scale");
+            gather_input_scale->set_friendly_name(last_covert_node->get_friendly_name());
         }
 
         std::shared_ptr<ov::Node> new_gather_node = nullptr;

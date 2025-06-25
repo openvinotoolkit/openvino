@@ -86,12 +86,14 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
 }
 
 void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
-    TransformationsPipeline transformations(config, context);
+    if (!config.get_disable_transformation()) {
+        OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
+        TransformationsPipeline transformations(config, context);
 
-    auto start = Time::now();
-    transformations.apply(model);
-    GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
+        auto start = Time::now();
+        transformations.apply(model);
+        GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
+    }
 }
 
 std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
@@ -189,7 +191,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
-    auto transformed_model = clone_and_transform_model(model, config, context);
+    // auto transformed_model = clone_and_transform_model(model, config, context);
+    auto transformed_model = model->clone();
 
     config.finalize(context.get(), transformed_model.get());
     {
@@ -305,6 +308,18 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     return res;
+}
+
+std::shared_ptr<ov::Model> Plugin::get_transformation_model(const std::shared_ptr< ov::Model>& model, const ov::AnyMap& properties) const {
+    std::string device_id = get_device_id(properties);
+
+    auto ctx = get_default_context(device_id);
+
+    ExecutionConfig config = m_configs_map.at(device_id);
+    config.set_user_property(properties, OptionVisibility::RELEASE);
+    config.finalize(ctx.get(), model.get());
+
+    return clone_and_transform_model(model, config, ctx);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& config) const {
@@ -651,6 +666,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
+            ov::PropertyName{ov::internal::disable_transformation.name(), PropertyMutability::RW},
             ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO}};
     return supported_internal_properties;
 }
