@@ -44,9 +44,7 @@ void TransposeMatMul::SetUp() {
     const auto builder = get_builder(elem_types);
     function = builder->getOriginal();
     filter_shape_info(builder->get_constant_input_idces());
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 std::shared_ptr<MatMulFunctionBase> TransposeMatMul::get_builder(const std::vector<ov::element::Type>& types) {

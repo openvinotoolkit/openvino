@@ -75,9 +75,7 @@ void Select::SetUp() {
     auto f = ov::test::snippets::SelectFunction(inputDynamicShapes);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void Select::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -126,9 +124,7 @@ void BroadcastSelect::SetUp() {
     auto f = ov::test::snippets::BroadcastSelectFunction({inputDynamicShapes[0], inputDynamicShapes[1], inputDynamicShapes[2]}, broadcastShape);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 void BroadcastSelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
