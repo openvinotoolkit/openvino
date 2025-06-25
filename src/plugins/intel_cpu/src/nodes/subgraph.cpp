@@ -196,9 +196,9 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
 #if defined(OPENVINO_ARCH_ARM64)
     subgraph_attrs->snippet->set_generator(
-        std::make_shared<aarch64::CPUGenerator>(host_isa, context->getParamsCache()));
+        std::make_shared<aarch64::CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
 #elif defined(OPENVINO_ARCH_X86_64)
-    subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getParamsCache()));
+    subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
 #else
     THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
 #endif
@@ -644,7 +644,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd,
                                            ov::intel_cpu::pass::InitRepackedConstantInputs,
-                                           context->getParamsCache(),
+                                           context->getSnippetsParamsCache(),
                                            repacked_constant_input_config);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::MarkLoops,
@@ -767,7 +767,7 @@ void Subgraph::prepareWeights() {
 
 void Subgraph::prepareParams() {
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
-    const auto& cache = context->getParamsCache();
+    const auto& cache = context->getSnippetsParamsCache();
 
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
@@ -846,7 +846,7 @@ IShapeInfer::Result Subgraph::shapeInfer() const {
         return std::make_shared<SubgraphShapeInferResult>(Node::shapeInfer());
     };
 
-    const auto cache = context->getParamsCache();
+    const auto cache = context->getSnippetsParamsCache();
     const auto result = cache->getOrCreate(SubgraphShapeInferResultKey(in_shapes, subgraph_attrs->bodyHash), builder);
     return result.first->result;
 }
