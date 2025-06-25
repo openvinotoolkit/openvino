@@ -9,7 +9,6 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/range.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
@@ -22,13 +21,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/pass/serialize.hpp"
-
 using namespace ov::op;
-using namespace ov;
-using namespace ov::pass::pattern::op;
-
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_per_layer_block_indices_inputs,
                                                      bool use_score_outputs,
@@ -235,7 +228,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(kv_parameters);
     model->add_parameters(model_wide_params);
     model->add_parameters({std::move(max_context_len)});
-
     model->validate_nodes_and_infer_types();
     return true;
 }
