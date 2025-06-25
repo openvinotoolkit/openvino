@@ -11,6 +11,7 @@ namespace test {
 
 class LoraPatternBase : public SubgraphBaseTest {
 protected:
+    bool is_low_precision(ov::element::Type net_type) const;
     void run_test_empty_tensors();
     void run_test_random_tensors(ov::element::Type net_type, size_t lora_rank);
 
@@ -29,6 +30,7 @@ using LoraMatMulParams = std::tuple<std::string,         // Device name
 class LoraPatternMatmul : public LoraPatternBase, public testing::WithParamInterface<LoraMatMulParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LoraMatMulParams> obj);
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 };
 
