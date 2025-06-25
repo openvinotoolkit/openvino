@@ -840,6 +840,15 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#116761 -->
+    <skip_config>
+        <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER and PV driver</message>
+        <filters>
+            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*_driverVersion=1688.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*_driverVersion=1688.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- E#109040 -->
     <skip_config>
         <message>CheckWrongGraphExtAndThrow tests do not work with COMPILER_TYPE=DRIVER</message>
