@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//#if defined(HAVE_AVX2)
-//#    include <immintrin.h>
-//#endif
 #include "util.hpp"
 
 #include <immintrin.h>
@@ -56,12 +53,10 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
 }
 
 namespace {
-// high cut 4 bits.
 inline uint8_t hi4(uint8_t x) {
     return x >> 4;
 }
 
-// low cut 4 bits.
 inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
@@ -876,8 +871,8 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
             permute102_i4_avx2(t, tnew, shape[0], shape[1], shape[2]);
             break;
         case ov::element::f16:
-             permute102_f16_avx2(t, tnew, shape[0], shape[1], shape[2]);
-             break;
+            permute102_f16_avx2(t, tnew, shape[0], shape[1], shape[2]);
+            break;
         default:
             NPUW_ASSERT(false && "Element type is not supported yet");
         }
