@@ -34,10 +34,11 @@ void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>&
     const auto& y_zero_point_et = y_zero_point.get_element_type();
     CHECK_VALID_NODE(
         onnx_node,
-        y_zero_point_et.is_static() && (y_zero_point_et == ov::element::u8 || y_zero_point_et == ov::element::i8 ||
+        y_zero_point_et.is_static() && (y_zero_point_et == ov::element::u4 || y_zero_point_et == ov::element::i4 ||
+                                        y_zero_point_et == ov::element::u8 || y_zero_point_et == ov::element::i8 ||
                                         y_zero_point_et == ov::element::u16 || y_zero_point_et == ov::element::i16),
-        "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u8, i8, u16 or i16"
-        "integer type.");
+        "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u4, i4, u8, i8, "
+        "u16 or i16 integer type.");
 }
 
 ov::Output<ov::Node> validate_scale(const Node& onnx_node, const ov::Output<ov::Node>& y_scale) {
@@ -68,6 +69,14 @@ std::tuple<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>> get_output_band
     // These values could be used in a ConvertQuantizeDequantize transformation and
     // should be aligned
     switch (destination_type) {
+    case ov::element::i4:
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -8);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 7);
+        break;
+    case ov::element::u4:
+        output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 0);
+        output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 15);
+        break;
     case ov::element::i8:
         output_low = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, -128);
         output_high = std::make_shared<v0::Constant>(data_type, ov::Shape{1}, 127);
