@@ -168,12 +168,6 @@ void Graph::initialize(const Config& config) {
 
     _batch_size = get_batch_size(_metadata, {}, {});
 
-    const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
-    if (firstOutputShape[0].is_dynamic()) {
-        _logger.info("Dynamic batch, will initialize command_lists later");
-        return;
-    }
-
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
