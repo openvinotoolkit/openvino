@@ -151,10 +151,10 @@ TEST_P(reduce_eltwise_activation_quantize, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p, true)),
         reorder("input_reorder", input_info("input"), p.input_format, p.data_type),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -128)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(p.out_shape.size() == 5 ? get_per_channel_layout_5d(p) : get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(p.out_shape.size() == 5 ? get_per_channel_layout_5d(p) : get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(p.out_shape.size() == 5 ? get_single_element_layout_5d(p) : get_single_element_layout(p), -128)),
+        data("out_hi", get_mem(p.out_shape.size() == 5 ? get_single_element_layout_5d(p) : get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         reduce("reduce", input_info("input_reorder"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         eltwise("eltwise", { input_info("reduce"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
@@ -277,7 +277,7 @@ TEST_P(reduce_scale_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_single_element_layout(p), -0.125f)),
+        data("scale_data", get_mem(p.out_shape.size() == 5 ? get_single_element_layout_5d(p) : get_single_element_layout(p), -0.125f)),
         reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         eltwise("scale", { input_info("reduce"), input_info("scale_data") }, eltwise_mode::prod),
         activation("activation", input_info("scale"), activation_func::cos),
@@ -295,7 +295,7 @@ TEST_P(reduce_scale_activation, per_channel) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -0.125f)),
+        data("scale_data", get_mem(p.out_shape.size() == 5 ? get_per_channel_layout_5d(p) : get_per_channel_layout(p), -0.125f)),
         reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         eltwise("scale", { input_info("reduce"), input_info("scale_data") }, eltwise_mode::prod),
         activation("activation", input_info("scale"), activation_func::cos),
@@ -313,7 +313,7 @@ TEST_P(reduce_scale_activation, dynamic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_dynamic_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p), -0.125f)),
+        data("scale_data", get_mem(p.out_shape.size() == 5 ? get_per_channel_layout_5d(p) : get_per_channel_layout(p), -0.125f)),
         reduce("reduce", input_info("input"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         eltwise("scale", { input_info("reduce"), input_info("scale_data") }, eltwise_mode::prod),
         activation("activation", input_info("scale"), activation_func::cos),
