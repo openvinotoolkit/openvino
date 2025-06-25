@@ -153,9 +153,9 @@ ov::pass::TotalSequenceLengthPatternQwen::TotalSequenceLengthPatternQwen(
     register_matcher(m, callback);
 }
 
-ov::pass::TotalSequenceLengthPatternCodeGen::TotalSequenceLengthPatternCodeGen(
+ov::pass::TotalSequenceLengthPatternCodeGen2::TotalSequenceLengthPatternCodeGen2(
     const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
-    MATCHER_SCOPE(TotalSequenceLengthPatternCodeGen);
+    MATCHER_SCOPE(TotalSequenceLengthPatternCodeGen2);
 
     
     auto p_max_context_len = wrap_type<v0::Parameter>();
@@ -167,11 +167,9 @@ ov::pass::TotalSequenceLengthPatternCodeGen::TotalSequenceLengthPatternCodeGen(
     auto p_gather = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
     auto p_total_seq = wrap_type<v1::Add>({p_gather, p_conv});
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
-        std::cout << "TotalSequenceLengthPatternCodeGen start" << std::endl;
+    ov::matcher_pass_callback callback = [=, &max_context_len](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
-        std::cout << "total_seq: " << total_seq << std::endl;
         std::shared_ptr<Node> replacement = max_context_len;
 
         auto target_type = total_seq->get_output_element_type(0);
@@ -179,7 +177,6 @@ ov::pass::TotalSequenceLengthPatternCodeGen::TotalSequenceLengthPatternCodeGen(
         align_replacement(replacement, required_shape, target_type);
 
         replace_node(total_seq, replacement);
-        std::cout << "TotalSequenceLengthPatternCodeGen end" << std::endl;
         return true;
     };
 

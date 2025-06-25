@@ -22,6 +22,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/concat.hpp"
@@ -47,6 +49,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API PositionIDsReplacer;
 class TRANSFORMATIONS_API PositionIDsReplacerQwen;
+class TRANSFORMATIONS_API ReplaceSliceStartRangeCodegen2;
 
 }  // namespace pass
 }  // namespace ov
@@ -76,43 +79,9 @@ public:
     explicit PositionIDsReplacerQwen(const Output<Node>& position_ids);
 };
 
-class ReplaceRoPERangeWithPositionIds : public ov::pass::MatcherPass {
-
+class ov::pass::ReplaceSliceStartRangeCodegen2 : public ov::pass::MatcherPass {
 public:
-    ReplaceRoPERangeWithPositionIds(const ov::Output<ov::Node>& unsqueenzed_position_ids, ResultVector& dbg_results, int& layer_index1) {
-    using namespace ov::op;
-    using namespace ov;
-    using namespace ov::pass::pattern;
-
-    MATCHER_SCOPE(ReplaceRoPERangeWithPositionIds);
-
-    auto _const = []() {
-        return ov::pass::pattern::wrap_type<v0::Constant>();
-    };
-
-    auto reshape = ov::pass::pattern::wrap_type<v1::Reshape>();
-    auto unsq = ov::pass::pattern::wrap_type<v0::Unsqueeze>({reshape, any_input()});
-    auto p_slice = ov::pass::pattern::wrap_type<v8::Slice>({unsq, any_input(), any_input(), any_input(), any_input()});
-    auto unsq_1 = ov::pass::pattern::wrap_type<v0::Unsqueeze>({p_slice, any_input()});
-
-
-    ov::matcher_pass_callback callback = [=, &layer_index1, &dbg_results](Matcher& m) {
-        std::cout << matcher_name << " start" << std::endl;
-        auto pvm = m.get_pattern_value_map();
-        auto slice = pvm.at(p_slice).get_node_shared_ptr();
-
-        auto gather = std::make_shared<v8::Gather>(slice->input_value(0), unsqueenzed_position_ids, v0::Constant::create(element::i64, {}, {1}));
-        auto gather_result = std::make_shared<v0::Result>(gather);
-        gather_result->get_output_tensor(0).set_names({"gather_result_" + std::to_string(layer_index1++)});
-        dbg_results.push_back({gather_result});
-
-        replace_node(slice, gather);
-
-        std::cout << matcher_name << " end" << std::endl;
-        return true;
-    };
-
-    auto m = std::make_shared<Matcher>(unsq_1, matcher_name);
-    register_matcher(m, callback);
-    }
+    OPENVINO_MATCHER_PASS_RTTI("ReplaceSliceStartRangeCodegen2");
+    explicit ReplaceSliceStartRangeCodegen2(const std::shared_ptr<ov::op::v0::Unsqueeze>& unsqueezed_position_ids,
+                                            const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
 };
