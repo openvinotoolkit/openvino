@@ -73,10 +73,10 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
     
-# Use default system Python 3.8 (deb/rpm build requires it)
-RUN ln -sfv $(which python3.8) /usr/local/bin/python && \
-    ln -sfv $(which python3.8) /usr/local/bin/python3
-RUN ln -sfv $(which pip3.8) /usr/local/bin/pip && \
-    ln -sfv $(which pip3.8) /usr/local/bin/pip3
+# Use Python 3.9 as default instead of Python 3.8
+RUN ln -sfv $(which python3.9) /usr/local/bin/python && \
+    ln -sfv $(which python3.9) /usr/local/bin/python3
+RUN ln -sfv $(which pip3.9) /usr/local/bin/pip && \
+    ln -sfv $(which pip3.9) /usr/local/bin/pip3
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
