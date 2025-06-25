@@ -82,7 +82,7 @@ int AsyncInferQueue::check_idle_request_id() {
     if (m_idle_handles.empty()) {
         return -1;
     }
-    int idle_handle = static_cast<int>(m_idle_handles.front());
+    auto idle_handle = static_cast<int>(m_idle_handles.front());
     // wait for request to make sure it returned from callback
     m_requests[idle_handle].wait();
     m_idle_handles.pop();
@@ -119,10 +119,10 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                             std::lock_guard<std::mutex> lock(m_mutex);
                             if (m_awaiting_requests.size() > 0) {
                                 auto& request = m_awaiting_requests.front();
-                                start_async_impl(handle,
-                                                 std::get<2>(request),
+                                start_async_impl(static_cast<int>(handle),
                                                  std::get<0>(request).Value(),
-                                                 std::get<1>(request).Value());
+                                                 std::get<1>(request).Value(),
+                                                 std::get<2>(request));
                                 m_awaiting_requests.pop();
                             } else {
                                 m_idle_handles.push(handle);
@@ -142,11 +142,11 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
 }
 
 void AsyncInferQueue::start_async_impl(const int handle,
-                                       Napi::Promise::Deferred deferred,
                                        Napi::Object infer_data,
-                                       Napi::Object user_data) {
-    m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
+                                       Napi::Object user_data,
+                                       Napi::Promise::Deferred deferred) {
     m_user_inputs[handle] = Napi::Persistent(infer_data);  // keep reference to inputs so they are not garbage collected
+    m_user_ids[handle] = std::make_pair(Napi::Persistent(user_data), deferred);
 
     // CVS-166764
     const auto& keys = infer_data.GetPropertyNames();
@@ -171,13 +171,13 @@ Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
                         "'startAsync'",
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
-        const int handle = check_idle_request_id();
+        const auto handle = check_idle_request_id();
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
         if (handle == -1) {
             m_awaiting_requests.push(
                 std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject()), deferred));
         } else {
-            start_async_impl(handle, deferred, info[0].ToObject(), info[1].ToObject());
+            start_async_impl(handle, info[0].ToObject(), info[1].ToObject(), deferred);
         }
         return deferred.Promise();
 

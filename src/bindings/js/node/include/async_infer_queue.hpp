@@ -20,20 +20,25 @@ public:
 
     void release(const Napi::CallbackInfo& info);
     void set_custom_callbacks(const Napi::CallbackInfo& info);
+    /**
+     * Requires two arguments:
+     * @param info[0] Napi::Object containing data for inference.
+     * @param info[1] Napi::Object containing user data that will be passed to the callback.
+     */
     Napi::Value start_async(const Napi::CallbackInfo& info);
 
 private:
     int check_idle_request_id();
     void start_async_impl(const int handle,
-                          Napi::Promise::Deferred deferred,
                           Napi::Object infer_data,
-                          Napi::Object user_data);
+                          Napi::Object user_data,
+                          Napi::Promise::Deferred deferred);
 
     // AsyncInferQueue is the owner of all requests. When AsyncInferQueue is destroyed,
     // all of requests are destroyed as well.
     std::vector<ov::InferRequest> m_requests;
-    std::vector<std::pair<Napi::ObjectReference, Napi::Promise::Deferred>> m_user_ids;
     std::vector<Napi::ObjectReference> m_user_inputs;  // to prevent garbage collection
+    std::vector<std::pair<Napi::ObjectReference, Napi::Promise::Deferred>> m_user_ids;
 
     std::queue<size_t> m_idle_handles;
     std::queue<std::tuple<Napi::ObjectReference, Napi::ObjectReference, Napi::Promise::Deferred>> m_awaiting_requests;
