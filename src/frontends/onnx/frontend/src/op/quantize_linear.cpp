@@ -168,6 +168,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_scale,
                                  ov::Output<ov::Node> y_zero_point,
                                  int64_t axis,
+                                 int64_t block_size,
                                  Node node) {
     namespace detail = ov::frontend::onnx::ai_onnx::detail;
 
@@ -183,6 +184,36 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
     const auto& y_scale_shape = y_scale.get_partial_shape();
     const auto& y_zero_point_shape = y_zero_point.get_partial_shape();
+
+    if (block_size > 1) {
+        if (x_shape.rank().is_static() && x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
+            CHECK_VALID_NODE(node,
+                             x_shape[axis].get_length() % block_size == 0,
+                             "The input data axis size: ",
+                             x_shape[axis],
+                             " must be divisible by the block size: ",
+                             block_size);
+            ov::Shape target_shape(x_shape.rank().get_length() + 1, 1);
+            // Copy the shape to dimensions before the axis
+            for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
+                target_shape[i] = x_shape[i].get_length();
+            }
+            target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length() / block_size);
+            target_shape[axis + 1] = static_cast<size_t>(block_size);
+            // Copy the shape to dimensions after the axis
+            for (size_t i = axis + 2; i < target_shape.size(); ++i) {
+                target_shape[i] = x_shape[i - 1].get_length();
+            }
+            auto input_x = ov::op::util::reshape(x, target_shape);
+
+            target_shape[axis + 1] = 1;
+            y_scale = ov::op::util::reshape(y_scale, target_shape);
+            y_zero_point = ov::op::util::reshape(y_zero_point, target_shape);
+
+            auto fake_quantize = detail::make_fake_quantize(y_scale, y_zero_point, input_x);
+            return {ov::op::util::reshape(fake_quantize, x_shape.to_shape())};
+        }
+    }
 
     if (y_scale_shape.rank().is_static() && y_scale_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
         x_shape.rank().get_length() > 0 && x_shape[axis].is_static()) {
@@ -240,7 +271,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
 
-    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
+    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node.get_attribute_value<int64_t>("block_size", 0), node);
 }
 ONNX_OP("QuantizeLinear", OPSET_SINCE(13), ai_onnx::opset_13::quantize_linear);
 }  // namespace opset_13
