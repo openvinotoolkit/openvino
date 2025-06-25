@@ -157,13 +157,12 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             }
         }
 
-        QKVProjectionNode::Config config;
-        config.quantized = is_quantized_int8;
-        config.hidden_size = hidden_size;
-        config.weights_combined = false;
-        config.proj_size0 = proj_size[0];
-        config.proj_size1 = proj_size[1];
-        config.proj_size2 = proj_size[2];
+        QKVProjectionNode::Config config{is_quantized_int8,
+                                         static_cast<int>(hidden_size),
+                                         proj_size[0],
+                                         proj_size[1],
+                                         proj_size[2],
+                                         false};
 
         auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
@@ -257,13 +256,12 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        QKVProjectionNode::Config config;
-        config.quantized = is_quantized_int8;
-        config.hidden_size = w_shape[1];
-        config.weights_combined = true;
-        config.proj_size0 = split_lengths[0];
-        config.proj_size1 = split_lengths[1];
-        config.proj_size2 = split_lengths[2];
+        QKVProjectionNode::Config config{is_quantized_int8,
+                                         static_cast<int>(w_shape[1]),
+                                         1,
+                                         split_lengths[0],
+                                         split_lengths[1],
+                                         static_cast<bool>(split_lengths[2])};
 
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {

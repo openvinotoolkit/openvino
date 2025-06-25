@@ -24,13 +24,13 @@
 namespace ov::intel_cpu::node {
 
 struct jit_mvn_config_params {
-    MVNLayoutType layout;
-    bool across_channels;
-    bool normalize_variance;
+    MVNLayoutType layout = mvn_planar;
+    bool across_channels = false;
+    bool normalize_variance = false;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    int src_data_size;
-    int dst_data_size;
+    int src_data_size = 0;
+    int dst_data_size = 0;
 };
 
 struct jit_mvn_call_args {

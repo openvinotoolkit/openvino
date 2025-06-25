@@ -86,10 +86,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
                           const uint8_t* src,
                           uint8_t* dst,
                           const float* scale) {
-    kernel::jit_rms_call_args call_args;
-    call_args.src = src;
-    call_args.dst = dst;
-    call_args.scale = scale;
+    kernel::jit_rms_call_args call_args{src, scale, dst};
     (*ker)(&call_args);
 }
 

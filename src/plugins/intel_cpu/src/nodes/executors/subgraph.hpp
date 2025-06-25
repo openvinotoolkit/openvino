@@ -26,7 +26,7 @@ namespace ov::intel_cpu {
 struct SubgraphAttrs {
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<snippets::op::Subgraph> snippet;
-    uint64_t bodyHash;
+    uint64_t bodyHash = 0UL;
     std::vector<VectorDims> inMemOrders;
     std::vector<VectorDims> outMemOrders;
     std::vector<ov::element::Type> inMemPrecs;

@@ -665,8 +665,7 @@ void SyncInferRequest::sub_streams_infer() {
             }
 
             requests[i]->set_callback([message]([[maybe_unused]] const std::exception_ptr& ptr) {
-                ov::threading::MessageInfo msg_info;
-                msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
+                ov::threading::MessageInfo msg_info{ov::threading::MsgType::CALL_BACK};
                 message->send_message(msg_info);
             });
         }

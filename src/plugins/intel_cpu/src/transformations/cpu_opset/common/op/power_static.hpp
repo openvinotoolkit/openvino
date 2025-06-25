@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    float scale, power, shift;
+    float scale = 0.0F, power = 0.0F, shift = 0.0F;
     ov::element::Type m_output_type;
 };
 

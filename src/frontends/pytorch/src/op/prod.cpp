@@ -11,6 +11,25 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::op;
+
+Output<Node> translate_prod_common(const NodeContext& context,
+                                   const Output<Node>& input,
+                                   const Output<Node>& dim,
+                                   bool keepdim,
+                                   bool skip_bool_check) {
+    // ReduceProd doesn't support boolean inputs
+    auto input_tensor = input;
+    if (!skip_bool_check) {
+        auto data_dtype = simplified_type_interpret(context.get_input_type(0));
+        if (input_tensor.get_element_type() == element::boolean ||
+            (data_dtype.is<element::Type>() && data_dtype.as<element::Type>() == element::boolean)) {
+            input_tensor = context.mark_node(std::make_shared<ov::op::v0::Convert>(input_tensor, element::i64));
+        }
+    }
+    return context.mark_node(std::make_shared<ov::op::v1::ReduceProd>(input_tensor, dim, keepdim));
+}
+
 OutputVector translate_prod(const NodeContext& context) {
     // aten::prod.dim_int(Tensor self, int dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
     // aten::prod(Tensor self, *, ScalarType? dtype=None) -> Tensor
@@ -30,19 +49,40 @@ OutputVector translate_prod(const NodeContext& context) {
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unexpected number of inputs.");
     }
+    bool skip_bool_check = false;
     if (!context.input_is_none(dtype_idx)) {
+        skip_bool_check = true;
         input = apply_dtype(context, dtype_idx, input);
-    } else {
-        // ReduceProd doesn't support boolean inputs
-        auto data_dtype = simplified_type_interpret(context.get_input_type(0));
-        if (input.get_element_type() == element::boolean ||
-            (data_dtype.is<element::Type>() && data_dtype.as<element::Type>() == element::boolean)) {
-            input = context.mark_node(std::make_shared<ov::op::v0::Convert>(input, element::i64));
-        }
     }
-    Output<Node> prod = context.mark_node(std::make_shared<ov::op::v1::ReduceProd>(input, dim, keepdim));
+    auto prod = translate_prod_common(context, input, dim, keepdim, skip_bool_check);
     return {prod};
-}
+};
+
+OutputVector translate_prod_fx(const NodeContext& context) {
+    // aten.prod.dim_int(Tensor self, int dim, bool keepdim=False, *, ScalarType? dtype=None) -> Tensor
+    // aten.prod(Tensor self, *, ScalarType? dtype=None) -> Tensor
+
+    num_inputs_check(context, 1, 3);
+    auto input = context.get_input(0);
+    bool keepdim = false;
+    Output<Node> dim;
+    if (!context.input_is_none(1)) {
+        dim = context.get_input(1);
+    } else {
+        dim = get_axes_range(context, 0);
+    }
+    if (!context.input_is_none(2)) {
+        keepdim = context.const_input<bool>(2);
+    }
+    bool skip_bool_check = false;
+    if (context.has_attribute("dtype")) {
+        skip_bool_check = true;
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        input = context.mark_node(std::make_shared<ov::op::v0::Convert>(input, dtype));
+    }
+    auto prod = translate_prod_common(context, input, dim, keepdim, skip_bool_check);
+    return {prod};
+};
 
 }  // namespace op
 }  // namespace pytorch

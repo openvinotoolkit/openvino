@@ -915,4 +915,12 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#170977 -->
+    <skip_config>
+        <message>Tests currently skipped until u2 precision fully supported (need NPU compiler alignment/driver update)</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
