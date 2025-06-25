@@ -101,6 +101,13 @@ public:
         return layout{ {1, p.in_shape[1], 1, 1}, p.default_type, p.default_format };
     }
 
+    layout get_per_channel_layout_5d(reduce_test_params& p) {
+        return layout{ {1, p.in_shape[1], 1, 1, 1}, p.default_type, format::bfzyx };
+    }
+
+    layout get_single_element_layout_5d(reduce_test_params& p) {
+        return layout{ p.default_type, format::bfzyx, tensor{1, 1, 1, 1, 1} };
+    }
 };
 }  // namespace
 
@@ -168,10 +175,10 @@ TEST_P(reduce_eltwise_activation_quantize, per_channel) {
     create_topologies(
         input_layout("input", get_input_layout(p, true)),
         reorder("input_reorder", input_info("input"), p.input_format, p.data_type),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -128)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(p.out_shape.size() == 5 ? get_per_channel_layout_5d(p) : get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(p.out_shape.size() == 5 ? get_per_channel_layout_5d(p) : get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(p.out_shape.size() == 5 ? get_single_element_layout_5d(p) : get_single_element_layout(p), -128)),
+        data("out_hi", get_mem(p.out_shape.size() == 5 ? get_single_element_layout_5d(p) : get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_output_layout(p))),
         reduce("reduce", input_info("input_reorder"), p.reduce_mode, p.reduce_axes, p.keep_dims),
         eltwise("eltwise", { input_info("reduce"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
