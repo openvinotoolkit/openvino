@@ -36,10 +36,8 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulRelu) {
                                                    std::make_shared<ov::op::v0::Relu>()};
     std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
     const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
-    model = f.getOriginal();
     // Fully tokenizable, since Mul isn't fused into Convolution
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvSumRelu) {
@@ -48,10 +46,8 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvSumRelu) {
                                                    std::make_shared<ov::op::v0::Relu>()};
     std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
     const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
-    model = f.getOriginal();
     // Fully tokenizable, since Add isn't fused into Convolution
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvBiasRelu) {
@@ -71,10 +67,8 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvBiasTwoRelu) {
                                                    std::make_shared<ov::op::v0::Relu>()};
     std::vector<PartialShape> inputShapes {{1, 2, 16, 16}};
     const auto &f = ConvBiasTwoActivationFunction(inputShapes, eltwiseOps);
-    model = f.getOriginal();
     // Partially tokenizable, since Bias and first Relu can be fused into Convolution
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipMatMulFused_MatMulBiasTwoRelu) {
@@ -95,10 +89,8 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipMatMulFused_MatMulBiasReluDi
                                                    std::make_shared<ov::op::v1::Divide>()};
     std::vector<PartialShape> inputShapes {{1, 2, 2, 16}, {16, 4}, {1, 2, 2, 4}};
     const auto &f = MatMulBiasActivationBinaryFunction(inputShapes, eltwiseOps);
-    model = f.getOriginal();
     // There will one Subgraph with Divide since Bias and Relu can be fused into MatMul
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 }  // namespace snippets
