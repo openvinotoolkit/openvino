@@ -6,7 +6,7 @@ const assert = require('assert');
 const { addon: ov } = require('../..');
 const { describe, it, before } = require('node:test');
 const {
-  getReluModel,
+  testModels,
 } = require('../utils.js');
 
 describe('Tests for AsyncInferQueue.', () => {
@@ -14,10 +14,11 @@ describe('Tests for AsyncInferQueue.', () => {
   const numRequest = 4;
   let core = null;
   let compiledModel = null;
+  const { reluModel } = testModels;
 
   before(async () => {
     core = new ov.Core();
-    const model = await core.readModel(getReluModel());
+    const model = await core.readModel(reluModel.xml);
     compiledModel = core.compileModelSync(model, 'CPU');
   });
 
