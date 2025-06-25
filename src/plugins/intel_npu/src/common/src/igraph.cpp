@@ -15,17 +15,32 @@ namespace intel_npu {
 
 IONodeMetadata::IONodeMetadata(const ArgumentDescriptor& d) : descriptor(d) {}
 
+std::optional<size_t> extract_batch_impl(const ov::Shape& shape,
+                                         std::optional<ov::PartialShape> partial_shape,
+                                         size_t index) {
+    if (partial_shape.has_value()) {
+        if (partial_shape.value()[index].is_dynamic()) {
+            return shape[index];
+        }
+        return std::nullopt;
+    }
+    return shape[index];
+}
+
 std::optional<size_t> IONodeMetadata::extract_batch(const ov::Shape& shape) const {
+    return extract_batch(shape, std::nullopt);
+}
+
+std::optional<size_t> IONodeMetadata::extract_batch(const ov::Shape& shape,
+                                                    std::optional<ov::PartialShape> partial_shape) const {
     if (descriptor.has_value()) {
         auto nLayout = descriptor.value().info.networkLayout;
         if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NHWC ||
             nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC ||
             nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NC) {
-            return shape.at(0);
+            return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 0);
         } else if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_CN) {
-            return shape.at(1);
-        } else {
-            return std::nullopt;  // TODO get layout from shape
+            return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 1);
         }
     }
     return std::nullopt;  // TODO get layout from shape
@@ -121,7 +136,8 @@ uint32_t IGraph::get_last_submitted_id() const {
     return _last_submitted_id;
 }
 
-std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+std::optional<size_t> IGraph::determine_batch_size(const NetworkMetadata& metadata,
+                                                   const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
                                                    const IONodeMetadata& input_output_info) const {
     if (get_batch_size() > 1) {
         return get_batch_size();
@@ -144,7 +160,8 @@ std::optional<size_t> IGraph::determine_batch_size(const std::vector<ov::SoPtr<o
     // A first dimensionin shape  may be appeared 'C' as well.
     // We need to get batch Idx and determine a true batch value here.
     // Let's use input_output_info as a helper.
-    auto candidateBatchSizeIfExist = input_output_info.extract_batch(first_shape);
+    const ov::PartialShape& first_partial_shape = *metadata.inputs.at(0).shapeFromIRModel;
+    auto candidateBatchSizeIfExist = input_output_info.extract_batch(first_shape, first_partial_shape);
     if (!candidateBatchSizeIfExist.has_value()) {
         return std::nullopt;  // Return std::nullopt if there is no batch dimension
     }
@@ -197,7 +214,7 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata,
         _logger.debug(
             "Networks using dynamic batch are handled by the plugin. Let's determine batch size over tensors: %zu",
             tensors.size());
-        return !tensors.empty() ? determine_batch_size(tensors, input_output_info) : std::nullopt;
+        return !tensors.empty() ? determine_batch_size(metadata, tensors, input_output_info) : std::nullopt;
     }
     if (firstOutputShape.rank().get_length() == 0) {
         _logger.warning("Networks using rank 0 shapes for inputs/outputs are not supported when batching is "
