@@ -50,31 +50,17 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
-    const auto& brg0Prc = brgemm_node->get_input_element_type(0);
-    const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto& brgOutPrc = brgemm_node->get_output_element_type(0);
     const auto& brgemm_config = brgemm_node->get_config();
     const auto& post_ops_config = brgemm_node->get_postops_config();
     m_binary_postops_offset = post_ops_config.binary_postops_offset;
 
     if (brgemm_config.is_amx()) {
-        BrgemmAMXKernelConfig kernel_config(brg0Prc,
-                                            brg1Prc,
-                                            brgOutPrc,
-                                            brgemm_config.wei_k_blk(),
-                                            brgemm_config.isa(),
-                                            post_ops_config.post_ops);
-        m_kernel_executor =
-            kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        BrgemmAMXKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
+        m_kernel_executor = kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, config);
     } else {
-        BrgemmKernelConfig kernel_config(brg0Prc,
-                                         brg1Prc,
-                                         brgOutPrc,
-                                         brgemm_config.with_compensations(),
-                                         brgemm_config.isa(),
-                                         post_ops_config.post_ops);
-        m_kernel_executor =
-            kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+        BrgemmKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
+        m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, config);
     }
     // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()
     // are performed before the BrgemmKernelExecutor registration. So we have to trigger update() manually

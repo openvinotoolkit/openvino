@@ -11,6 +11,7 @@
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/reference/convert.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
 
@@ -61,8 +62,24 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
                 "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
 
     if (ctx.weights) {
-        m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
-        std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+        if (ctx.bf16_consts.find({m_offset, m_byte_size}) != ctx.bf16_consts.end()) {
+            NPUW_ASSERT(m_cached_type == ov::element::f16);
+            // Read original bf16 weight
+            auto bf16_tensor = ov::Tensor(ov::element::bf16, m_cached_shape);
+            NPUW_ASSERT(bf16_tensor.get_byte_size() == m_byte_size);
+            std::memcpy(bf16_tensor.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+
+            m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
+            NPUW_ASSERT(bf16_tensor.get_size() == m_read_from_bin.get_size());
+            // Transform bf16 to f16 tensor
+            using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
+            auto src_data = bf16_tensor.data<ov::bfloat16>();
+            auto dst_data = m_read_from_bin.data<dst_type>();
+            ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, m_read_from_bin.get_size());
+        } else {
+            m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
+            std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+        }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
