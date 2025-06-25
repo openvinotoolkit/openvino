@@ -85,6 +85,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_AddSoftmax, AddSoftmax,
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                      AddSoftmax::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_SoftmaxAdd, SoftmaxAdd,
+                     ::testing::Combine(
+                             ::testing::ValuesIn(inputShapesPair),
+                             ::testing::Values(-1),
+                             ::testing::Values(1),
+                             ::testing::Values(1),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                     SoftmaxAdd::getTestCaseName);
 } // namespace
 } // namespace snippets
 } // namespace test
