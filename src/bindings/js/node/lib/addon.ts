@@ -660,6 +660,48 @@ interface PartialShape {
 }
 
 /**
+ * Creates AsyncInferQueue.
+ * @param compiledModel The compiled model to be used to create InferRequests in the pool.
+ * @param jobs Number of InferRequest objects in the pool.
+ */
+interface AsyncInferQueueConstructor {
+  new (compiledModel: CompiledModel, jobs: number): AsyncInferQueue;
+}
+
+interface AsyncInferQueue {
+  /**
+   * Sets unified callback on all InferRequests from queue's pool.
+   * Signature of such function should have two arguments, where
+   * The first argument is {@link InferRequest} object and second one
+   * is any userdata connected to {@link InferRequest}
+   * from the AsyncInferQueue's pool.
+   * @param callback - Any function that matches callback's requirements.
+   */
+  setCallback(
+    callback: (
+      inferRequest: InferRequest,
+      userData: Object,
+      error?: Error) => void,
+  ): void;
+  /**
+   * It starts asynchronous inference for the specified input data.
+   * @param inputData An object with the key-value pairs where the key is the
+   * input name and value is a tensor or an array with tensors.
+   * @param userData User data that will be passed to the callback.
+   * @returns A Promise that can be used to track the callback completion.
+   */
+  startAsync(
+    inputData: { [inputName: string]: Tensor } | Tensor[], userData: Object
+  ): Promise<Object>;
+  /**
+   * Releases resources associated with this AsyncInferQueue instance.
+   * Call this method after all `startAsync` requests have completed
+   * and the AsyncInferQueue is no longer needed.
+   */
+  release(): void;
+}
+
+/**
  * This interface contains constructor of the {@link PartialShape} class.
  */
 interface PartialShapeConstructor {
@@ -695,6 +737,7 @@ export interface NodeAddon {
   Core: CoreConstructor;
   Tensor: TensorConstructor;
   PartialShape: PartialShapeConstructor;
+  AsyncInferQueue: AsyncInferQueueConstructor;
 
   preprocess: {
     resizeAlgorithm: typeof resizeAlgorithm;
