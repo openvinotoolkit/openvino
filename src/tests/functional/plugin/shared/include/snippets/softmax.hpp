@@ -26,6 +26,14 @@ typedef std::tuple<
         std::string                       // Target Device
 > AddSoftmaxParams;
 
+typedef std::tuple<
+        std::pair<InputShape, InputShape>,// Input Shapes
+        int,                              // Axis
+        size_t,                           // Expected num nodes
+        size_t,                           // Expected num subgraphs
+        std::string                       // Target Device
+> SoftmaxAddParams;
+
 class Softmax : public testing::WithParamInterface<ov::test::snippets::SoftmaxParams>,
                 virtual public SnippetsTestsCommon {
 public:
@@ -39,6 +47,15 @@ class AddSoftmax : public testing::WithParamInterface<ov::test::snippets::AddSof
                    virtual public SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddSoftmaxParams> obj);
+
+protected:
+    void SetUp() override;
+};
+
+class SoftmaxAdd : public testing::WithParamInterface<ov::test::snippets::SoftmaxAddParams>,
+                   virtual public SnippetsTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::SoftmaxAddParams> obj);
 
 protected:
     void SetUp() override;

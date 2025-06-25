@@ -80,6 +80,45 @@ void AddSoftmax::SetUp() {
     setIgnoreCallbackMode();
 }
 
+std::string SoftmaxAdd::getTestCaseName(testing::TestParamInfo<ov::test::snippets::SoftmaxAddParams> obj) {
+    std::pair<InputShape, InputShape> inputShapes;
+    int axis;
+    std::string targetDevice;
+    size_t num_nodes, num_subgraphs;
+    std::tie(inputShapes, axis, num_nodes, num_subgraphs, targetDevice) = obj.param;
+
+    std::ostringstream result;
+    result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes.first.first}) << "_";
+    result << "TS[0]=";
+    for (const auto& shape : inputShapes.first.second) {
+        result << "(" << ov::test::utils::vec2str(shape) << ")_";
+    }
+    result << "IS[1]=" << ov::test::utils::partialShape2str({inputShapes.second.first}) << "_";
+    result << "TS[1]=";
+    for (const auto& shape : inputShapes.second.second) {
+        result << "(" << ov::test::utils::vec2str(shape) << ")_";
+    }
+    result << "Axis=" << axis << "_";
+    result << "#N=" << num_nodes << "_";
+    result << "#S=" << num_subgraphs << "_";
+    result << "targetDevice=" << targetDevice;
+    return result.str();
+}
+
+void SoftmaxAdd::SetUp() {
+    std::pair<InputShape, InputShape> inputShapes;
+    int axis;
+    std::tie(inputShapes, axis, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    init_input_shapes({inputShapes.first, inputShapes.second});
+
+    auto f = ov::test::snippets::AddSoftmaxFunction(inputDynamicShapes, axis);
+    function = f.getOriginal();
+
+    if (!configuration.count("SNIPPETS_MODE")) {
+        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+}
+
 TEST_P(Softmax, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
@@ -87,6 +126,12 @@ TEST_P(Softmax, CompareWithRefImpl) {
 }
 
 TEST_P(AddSoftmax, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(SoftmaxAdd, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
