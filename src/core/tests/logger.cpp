@@ -45,8 +45,8 @@ protected:
 
     auto get_log_regex() const {
         static auto log_prefix_pattern =
-            std::map<LOG_TYPE, const std::string>{{LOG_TYPE::_LOG_TYPE_ERROR, R"(\[ERR\])"},
-                                                  {LOG_TYPE::_LOG_TYPE_WARNING, R"(\[WARN\])"},
+            std::map<LOG_TYPE, const std::string>{{LOG_TYPE::_LOG_TYPE_ERROR, R"(\[ERROR\])"},
+                                                  {LOG_TYPE::_LOG_TYPE_WARNING, R"(\[WARNING\])"},
                                                   {LOG_TYPE::_LOG_TYPE_INFO, R"(\[INFO\])"},
                                                   {LOG_TYPE::_LOG_TYPE_DEBUG, R"(\[DEBUG\])"}};
         std::stringstream log_regex;
