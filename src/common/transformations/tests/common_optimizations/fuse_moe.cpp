@@ -431,7 +431,6 @@ static std::shared_ptr<ov::Model> BuildFusedMOE(const int expert_num, const int 
     config.hidden_size = 2048;
     config.intermediate_size = 768;
     config.topk = topk;
-    config.fused_router_logic = true;
     if (weight_format == WeightFormat_INT4) {
         config.group_size = 128;
         config.weight_type = ov::element::u4;
@@ -467,7 +466,6 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_INT4) {
 
     model = BuildMOE(expert_num, topk, WeightFormat_INT4);
     manager.register_pass<ov::pass::FuseMOE>();
-    manager.register_pass<ov::pass::FuseMOERouter>();
 
     model_ref = BuildFusedMOE(expert_num, topk, WeightFormat_INT4);
 }
@@ -481,7 +479,6 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_INT8) {
 
     model = BuildMOE(expert_num, topk, WeightFormat_INT8);
     manager.register_pass<ov::pass::FuseMOE>();
-    manager.register_pass<ov::pass::FuseMOERouter>();
 
     model_ref = BuildFusedMOE(expert_num, topk, WeightFormat_INT8);
 }
@@ -495,7 +492,6 @@ TEST_F(TransformationTestsF, ConvertMOEToFuseMOE_FP16) {
 
     model = BuildMOE(expert_num, topk, WeightFormat_FP16);
     manager.register_pass<ov::pass::FuseMOE>();
-    manager.register_pass<ov::pass::FuseMOERouter>();
 
     model_ref = BuildFusedMOE(expert_num, topk, WeightFormat_FP16);
 }

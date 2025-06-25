@@ -143,7 +143,6 @@ static void fill_weights_memory(ProgramBuilder& p, const std::shared_ptr<ov::op:
 static void CreateMOEOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MOE>& op) {
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();
-    OPENVINO_ASSERT(config.fused_router_logic, "MOE must fuse router logic");
     OPENVINO_ASSERT(inputs.size() == 2, "Inputs count of MOE should be 2");
 
     const std::string layerName = layer_type_name_ID(op);

@@ -27,7 +27,6 @@ public:
         size_t expert_num = 0;
         size_t hidden_size = 0;
         size_t intermediate_size = 0;
-        size_t fused_router_logic = false;
         size_t group_size = 0;  // quantized group size, 0 for no group size. same for gate/up/down
         ov::element::Type weight_type = ov::element::dynamic;  // same for gate/up/down
         ov::element::Type scale_type = ov::element::dynamic;   // same for gate/up/down
@@ -37,7 +36,6 @@ public:
                             expert_num,
                             hidden_size,
                             intermediate_size,
-                            fused_router_logic,
                             group_size,
                             weight_type,
                             scale_type,
@@ -45,7 +43,6 @@ public:
                                                  rhs.expert_num,
                                                  rhs.hidden_size,
                                                  rhs.intermediate_size,
-                                                 rhs.fused_router_logic,
                                                  rhs.group_size,
                                                  rhs.weight_type,
                                                  rhs.scale_type,

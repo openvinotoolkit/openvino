@@ -6,9 +6,11 @@
 
 #include <cstdint>
 #include <limits>
+#include <tuple>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rank.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -32,6 +34,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -44,18 +47,14 @@
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
-ov::pass::FuseMOE::FuseMOE() {
-    MATCHER_SCOPE(FuseMOE);
+namespace {
 
-    auto expert_mask = makePattern(ov::Rank(3));
-    // shape: [batch * seq_len, hidden_dim]
-    auto final_hidden_states = makePattern(ov::Rank(2));
-    // shape: [1, batch * seq_len, hidden_dim]
-    auto hidden_states = makePattern(ov::Rank(3));
+auto gen_expert_pattern(std::shared_ptr<ov::Node> final_hidden_states,
+                        std::shared_ptr<ov::Node> hidden_states,
+                        std::shared_ptr<ov::Node> expert_mask,
+                        std::shared_ptr<ov::Node> routing_weights) {
     // shape: [1], aka topk
     auto routing_weights_shapeof_split = makePattern(ov::Rank(1));
-    // shape: [self.topk * batch, 1]
-    auto routing_weights = makePattern(ov::Rank(2));
     // shape: [2], data = [1, hidden_size]
     auto index_add__ShapeOf_22 = makePattern("[2]");
 
@@ -141,11 +140,12 @@ ov::pass::FuseMOE::FuseMOE() {
         {{"reduction", "sum"}, {"use_init_val", true}});
 
     auto result = index_add__ScatterElementsUpdate_8;
-
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    auto extract_expert = [=](ov::pass::pattern::Matcher& m,
+                              ov::op::internal::MOE::Config& config,
+                              ov::op::internal::MOE::ConstsPerExpert& consts) {
         PatternValidator validator(m);
         if (!validator) {
-            return false;
+            return -1;
         }
 
         const auto& pattern_map = m.get_pattern_value_map();
@@ -156,7 +156,7 @@ ov::pass::FuseMOE::FuseMOE() {
         auto expert_mask_node = pattern_map.at(expert_mask);
         auto ps = expert_mask_node.get_partial_shape();
         if (ps.rank().is_dynamic() || ps[0].is_dynamic() || ps[1].is_dynamic()) {
-            return false;
+            return -1;
         }
 
         auto expert_num = ps[0].get_length();
@@ -164,7 +164,6 @@ ov::pass::FuseMOE::FuseMOE() {
 
         auto last_node = pattern_map.at(index_add__ScatterElementsUpdate_8).get_node_shared_ptr();
 
-        op::internal::MOE::ConstsPerExpert consts;
 #define GET_MATMUL_PARAM(mat, idx)                                                                              \
     mat[0] = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weight_const##idx).get_node_shared_ptr());    \
     if (pattern_map.count(scale_const##idx)) {                                                                  \
@@ -204,7 +203,6 @@ ov::pass::FuseMOE::FuseMOE() {
                             down_shape);
         }
 
-        op::internal::MOE::Config config;
         config.expert_num = expert_num;
         config.hidden_size = hidden_size;
         config.intermediate_size = intermediate_size;
@@ -247,36 +245,47 @@ ov::pass::FuseMOE::FuseMOE() {
                             ", down: ",
                             consts.downs[2]->get_element_type());
         }
+        return expert_no;
+    };
 
-        OutputVector new_args(4);
-        // [final_hidden_states, hidden_states, expert_mask, routing_weights]
-        new_args[0] = pattern_map.at(final_hidden_states).get_node_shared_ptr();
-        new_args[1] = pattern_map.at(hidden_states).get_node_shared_ptr();
-        new_args[2] = pattern_map.at(expert_mask).get_node_shared_ptr();
-        new_args[3] = pattern_map.at(routing_weights).get_node_shared_ptr();
-        if (new_args[0].get_node_shared_ptr()->get_type_info() == op::internal::MOE::get_type_info_static()) {
-            auto moe = ov::as_type_ptr<op::internal::MOE>(new_args[0].get_node_shared_ptr());
+    return std::make_tuple(result, extract_expert);
+}
+
+}  // namespace
+
+ov::pass::FuseMOEExpert::FuseMOEExpert() {
+    MATCHER_SCOPE(FuseMOE);
+
+    auto expert_mask = makePattern(ov::Rank(3));
+    // shape: [batch * seq_len, hidden_dim]
+    auto final_hidden_states = makePattern<ov::op::internal::MOE>({pattern::any_input(), pattern::any_input()});
+    // shape: [1, batch * seq_len, hidden_dim]
+    auto hidden_states = makePattern(ov::Rank(3));
+    // shape: [self.topk * batch, 1]
+    auto routing_weights = makePattern(ov::Rank(2));
+    auto [result, extract_func] = gen_expert_pattern(final_hidden_states, hidden_states, expert_mask, routing_weights);
+
+    matcher_pass_callback callback =
+        [OV_CAPTURE_CPY_AND_THIS, result = result, extract_func = extract_func](ov::pass::pattern::Matcher& m) {
+            op::internal::MOE::Config config;
+            op::internal::MOE::ConstsPerExpert consts;
+            auto expert_no = extract_func(m, config, consts);
+            if (expert_no < 0)
+                return false;
+
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto last_node = pattern_map.at(result).get_node_shared_ptr();
+
+            // [final_hidden_states, hidden_states, expert_mask, routing_weights]
+            auto prev_moe = pattern_map.at(final_hidden_states).get_node_shared_ptr();
+            auto moe = ov::as_type_ptr<op::internal::MOE>(prev_moe);
             OPENVINO_ASSERT(config == moe->get_config(), "each expert config must be same");
             moe->add_consts(static_cast<size_t>(expert_no), consts);
 
             ov::replace_node(last_node, moe);
             register_new_node(moe);
-        } else {
-            op::internal::MOE::Attributes attrs = {config, std::vector<op::internal::MOE::ConstsPerExpert>{consts}};
-            auto new_node = std::make_shared<op::internal::MOE>(new_args, attrs);
-            // check whether the plugin accepts the config
-            if (transformation_callback(new_node)) {
-                return false;
-            }
-
-            OPENVINO_ASSERT(expert_no == 0, "MOE expert must begin with 0, current: ", expert_no);
-            new_node->set_friendly_name("moe");
-
-            ov::replace_node(last_node, new_node);
-            register_new_node(new_node);
-        }
-        return true;
-    };
+            return true;
+        };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
@@ -315,42 +324,58 @@ ov::pass::FuseMOERouter::FuseMOERouter() {
     auto index_Reshape =
         makePattern<ov::op::v1::Reshape>({unsqueeze_Unsqueeze_1, index_Concat}, {{"special_zero", true}});
 
-    auto moe03 = makePattern<ov::op::internal::MOE>(
-        {final_hidden_states, unsqueeze_Unsqueeze, permute_Transpose, index_Reshape});
-    auto result = moe03;
+    auto [result, extract_func] =
+        gen_expert_pattern(final_hidden_states, unsqueeze_Unsqueeze, permute_Transpose, index_Reshape);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
+    matcher_pass_callback callback =
+        [OV_CAPTURE_CPY_AND_THIS, result = result, extract_func = extract_func](ov::pass::pattern::Matcher& m) {
+            op::internal::MOE::Config config;
+            op::internal::MOE::ConstsPerExpert consts;
+            auto expert_no = extract_func(m, config, consts);
+            // must be first expert
+            if (expert_no != 0)
+                return false;
 
-        const auto& pattern_map = m.get_pattern_value_map();
-        auto root = m.get_match_root();
-        // router_logits: i32[batch*seq, 128]
-        auto router_logits_node = pattern_map.at(router_logits).get_node_shared_ptr();
-        // f32[batch*seq, 2048]
-        auto hidden_states_2d = pattern_map.at(view_Reshape).get_node_shared_ptr();
-        // f32[batch*seq, 2048]
-        auto moe_node = pattern_map.at(moe03).get_node_shared_ptr();
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto root = m.get_match_root();
+            // router_logits: i32[batch*seq, 128]
+            auto router_logits_node = pattern_map.at(router_logits).get_node_shared_ptr();
+            // f32[batch*seq, 2048]
+            auto hidden_states_2d = pattern_map.at(view_Reshape).get_node_shared_ptr();
+            // f32[batch*seq, 2048]
+            auto last_node = pattern_map.at(result).get_node_shared_ptr();
 
-        auto moe = ov::as_type_ptr<op::internal::MOE>(moe_node);
+            OutputVector new_args(2);
+            // hidden_states_2d: f32[batch*seq, 2048]
+            // router_logits: i32[batch*seq, 128]
+            new_args[0] = hidden_states_2d;
+            new_args[1] = router_logits_node;
+            op::internal::MOE::Attributes attrs = {config, std::vector<op::internal::MOE::ConstsPerExpert>{consts}};
+            auto new_node = std::make_shared<op::internal::MOE>(new_args, attrs);
+            // check whether the plugin accepts the config
+            if (transformation_callback(new_node)) {
+                return false;
+            }
 
-        OutputVector new_args(2);
-        // hidden_states_2d: f32[batch*seq, 2048]
-        // router_logits: i32[batch*seq, 128]
-        new_args[0] = hidden_states_2d;
-        new_args[1] = router_logits_node;
-        moe->set_arguments(new_args);
-        auto cfg = moe->get_config();
-        cfg.fused_router_logic = true;
-        moe->set_config(cfg);
+            ov::replace_node(last_node, new_node);
+            register_new_node(new_node);
 
-        moe->set_friendly_name("moe_router");
+            new_node->set_friendly_name("moe_router");
 
-        return true;
-    };
+            return true;
+        };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
+}
+
+bool ov::pass::FuseMOE::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(FuseMOE);
+    ov::pass::Manager manager(get_pass_config(), "FuseMOE");
+
+    manager.register_pass<FuseMOERouter>();
+    manager.register_pass<FuseMOEExpert>();
+
+    manager.run_passes(model);
+    return false;
 }

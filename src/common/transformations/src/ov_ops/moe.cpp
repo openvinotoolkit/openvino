@@ -31,9 +31,7 @@ std::shared_ptr<ov::Node> MOE::clone_with_new_inputs(const ov::OutputVector& new
 
 void MOE::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MOE_validate_and_infer_types);
-    OPENVINO_ASSERT(get_input_size() == 2 || get_input_size() == 4,
-                    "MOE must have 2/4 inputs whereas it has ",
-                    get_input_size());
+    OPENVINO_ASSERT(get_input_size() == 2, "MOE must have 2 inputs whereas it has ", get_input_size());
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
@@ -47,7 +45,6 @@ bool MOE::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("hidden_size", m_attrs.config.hidden_size);
     visitor.on_attribute("intermediate_size", m_attrs.config.intermediate_size);
     visitor.on_attribute("group_size", m_attrs.config.group_size);
-    visitor.on_attribute("fused_router_logic", m_attrs.config.fused_router_logic);
     visitor.on_attribute("weight_type", m_attrs.config.weight_type);
     visitor.on_attribute("scale_type", m_attrs.config.scale_type);
     visitor.on_attribute("zp_type", m_attrs.config.zp_type);

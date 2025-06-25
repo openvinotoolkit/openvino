@@ -449,8 +449,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // moe expert requires onednn enabled which needs in order queue.
         if (config.get_queue_type() == QueueTypes::in_order) {
             manager.register_pass<ov::pass::FuseMOE>();
-            manager.register_pass<ov::pass::FuseMOERouter>();
-            pass_config->set_callback<ov::pass::FuseMOE>([](const_node_ptr& node) -> bool {
+            pass_config->set_callback<ov::pass::FuseMOERouter>([](const_node_ptr& node) -> bool {
                 auto moe = as_type_ptr<const ov::op::internal::MOE>(node);
                 const auto& config = moe->get_config();
                 // TODO(MOE): support more cases
