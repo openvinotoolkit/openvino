@@ -71,29 +71,33 @@ protected:
 
 TEST_P(TestLogHelper, std_cout) {
     log_test_params();
-    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()));
+    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()))
+        << "Mock cout got: '" << m_mock_out_stream.str() << "'\n";
 }
 
 TEST_P(TestLogHelper, callback) {
     LogDispatch::set_callback(m_log_callback);
     log_test_params();
-    EXPECT_TRUE(m_mock_out_stream.str().empty());
-    EXPECT_TRUE(are_params_logged_to(m_callback_message));
+    EXPECT_TRUE(m_mock_out_stream.str().empty())
+        << "Expected empty mock cout. Got: '" << m_mock_out_stream.str() << "'\n";
+    EXPECT_TRUE(are_params_logged_to(m_callback_message)) << "Callback got: '" << m_callback_message << "'\n";
 }
 
 TEST_P(TestLogHelper, reset) {
     LogDispatch::set_callback(m_log_callback);
     LogDispatch::reset_callback();
     log_test_params();
-    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()));
-    EXPECT_TRUE(m_callback_message.empty());
+    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()))
+        << "Mock cout got: '" << m_mock_out_stream.str() << "'\n";
+    EXPECT_TRUE(m_callback_message.empty()) << "Expected empty callback. Got: '" << m_callback_message << "'\n";
 }
 
 TEST_P(TestLogHelper, no_log) {
     LogDispatch::set_callback(nullptr);
     log_test_params();
-    EXPECT_TRUE(m_mock_out_stream.str().empty());
-    EXPECT_TRUE(m_callback_message.empty());
+    EXPECT_TRUE(m_mock_out_stream.str().empty())
+        << "Expected empty mock cout. Got: '" << m_mock_out_stream.str() << "'\n";
+    EXPECT_TRUE(m_callback_message.empty()) << "Expected empty callback. Got: '" << m_callback_message << "'\n";
 }
 
 INSTANTIATE_TEST_SUITE_P(Logging,
