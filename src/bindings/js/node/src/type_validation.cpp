@@ -128,7 +128,7 @@ const char* get_attr_type<TensorWrap>() {
     return BindingTypename::TENSOR;
 }
 
-template<>
+template <>
 const char* get_attr_type<Output<ov::Node>>() {
     return BindingTypename::OUTPUT;
 }
