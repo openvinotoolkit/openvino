@@ -27,7 +27,7 @@ class TestLogHelper : public testing::TestWithParam<LogEntries> {
 
 protected:
     void SetUp() override {
-        reset_log_callback();
+        LogDispatch::reset_callback();
         actual_out_stream->flush();
         actual_out_stream->rdbuf(m_mock_out_stream.rdbuf());
 
@@ -36,11 +36,11 @@ protected:
 
     void TearDown() override {
         actual_out_stream->rdbuf(actual_out_buf);
-        reset_log_callback();
+        LogDispatch::reset_callback();
     }
 
     auto log_test_params() {
-        LogHelper{m_log_type, m_log_path, m_log_line, get_log_callback()}.stream() << m_log_message;
+        LogHelper{m_log_type, m_log_path, m_log_line, LogDispatch::get_callback()}.stream() << m_log_message;
     }
 
     auto get_log_regex() const {
@@ -64,7 +64,7 @@ protected:
     std::stringstream m_mock_out_stream;
 
     std::string m_callback_message;
-    LogCallback m_log_callback{[this](std::string_view msg) {
+    LogDispatch::Callback m_log_callback{[this](std::string_view msg) {
         m_callback_message = msg;
     }};
 };
@@ -75,22 +75,22 @@ TEST_P(TestLogHelper, std_cout) {
 }
 
 TEST_P(TestLogHelper, callback) {
-    set_log_callback(m_log_callback);
+    LogDispatch::set_callback(m_log_callback);
     log_test_params();
     EXPECT_TRUE(m_mock_out_stream.str().empty());
     EXPECT_TRUE(are_params_logged_to(m_callback_message));
 }
 
 TEST_P(TestLogHelper, reset) {
-    set_log_callback(m_log_callback);
-    reset_log_callback();
+    LogDispatch::set_callback(m_log_callback);
+    LogDispatch::reset_callback();
     log_test_params();
     EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()));
     EXPECT_TRUE(m_callback_message.empty());
 }
 
 TEST_P(TestLogHelper, no_log) {
-    set_log_callback(nullptr);
+    LogDispatch::set_callback(nullptr);
     log_test_params();
     EXPECT_TRUE(m_mock_out_stream.str().empty());
     EXPECT_TRUE(m_callback_message.empty());
@@ -102,7 +102,7 @@ INSTANTIATE_TEST_SUITE_P(Logging,
                              {LOG_TYPE::_LOG_TYPE_ERROR, "uno", 42, "tre"},
                              {LOG_TYPE::_LOG_TYPE_WARNING, "due", 101, "null"},
                              {LOG_TYPE::_LOG_TYPE_INFO, "to long", 3141592, "to read"},
-                             {LOG_TYPE::_LOG_TYPE_DEBUG, "in the middle", 0.f, "the nowhere"},
+                             {LOG_TYPE::_LOG_TYPE_DEBUG, "in the middle", 0xF, "the nowhere"},
                              {LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, "a:\\mio.c++", -101, "loading..."},
                          }));
 }  // namespace ov::util::test

@@ -13,10 +13,18 @@
 namespace ov {
 namespace util {
 
-using LogCallback = std::function<void(std::string_view)>;
-OPENVINO_API LogCallback get_log_callback();
-OPENVINO_API void set_log_callback(LogCallback handler);
-OPENVINO_API void reset_log_callback();
+class OPENVINO_API LogDispatch {
+public:
+    using Callback = std::function<void(std::string_view)>;
+
+    static Callback get_callback();
+    static void set_callback(Callback);
+    static void reset_callback();
+
+private:
+    static const Callback default_callback;
+    static Callback current_callback;
+};
 
 #ifdef ENABLE_OPENVINO_DEBUG
 
