@@ -241,7 +241,7 @@ protected:
 
                 size_t local_range_m = (tilingA.wg_m + tilingA.sg_m - 1) / tilingA.sg_m;
                 size_t local_range_nA = (tilingA.wg_n + tilingA.sg_n - 1) / tilingA.sg_n;
-                size_t local_range_nB = (tilingB.wg_n + tilingB.sg_n - 1) / tilingB.wg_n;
+                size_t local_range_nB = (tilingB.wg_n + tilingB.sg_n - 1) / tilingB.sg_n;
                 size_t local_range_n = local_range_nA > local_range_nB ? local_range_nA : local_range_nB;
 
                 size_t group_range_m = (LoraShapeUtils::get_total_tokens(params) + tilingA.wg_m - 1) / tilingA.wg_m;
@@ -628,7 +628,7 @@ private:
         const bool is_aligned_temp = lora::is_2dload_aligned(ld_state_temp, instance.get_input_layout(1).data_type);
         const bool is_aligned_output = lora::is_2dload_aligned(ld_state_output, instance.get_output_layout(0).data_type);
 
-        const bool can_use_fused_reg = false;  // rank <= 128 && is_aligned_input && is_aligned_state_a && is_aligned_state_b && is_aligned_output;
+        const bool can_use_fused_reg = rank <= 128 && is_aligned_input && is_aligned_state_a && is_aligned_state_b && is_aligned_output;
         const bool is_gemmA_aligned = is_aligned_input && is_aligned_state_a && is_aligned_temp;
         const bool is_gemmB_aligned = is_aligned_temp && is_aligned_state_b && is_aligned_output;
 
