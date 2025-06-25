@@ -124,11 +124,11 @@ struct PlainTensor {
         if (i < 0) {
             i += m_rank;
         }
-        assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_dims[i];
     }
     [[nodiscard]] size_t stride(int i) const {
-        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_strides[i];
     }
 
@@ -257,7 +257,7 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     [[nodiscard]] PlainTensor slice(int axis, int start, int end, int step = 1) const {
         PlainTensor sub_tensor;
-        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
+        assert(axis >= 0 && static_cast<std::make_unsigned_t<decltype(axis)>>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
@@ -415,13 +415,11 @@ struct PlainTensor {
         return m_offset;
     }
     template <int dim, typename I>
-    [[nodiscard]] [[nodiscard]] int64_t offset(I i) const {
+    [[nodiscard]] int64_t offset(I i) const {
         return m_offset + i * m_strides[dim];
     }
     template <int dim, typename I, typename... Is>
-    [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] int64_t offset(
-        I i,
-        Is... indices) const {
+    [[nodiscard]] int64_t offset(I i, Is... indices) const {
         return i * m_strides[dim] + offset<dim + 1>(indices...);
     }
     template <typename DT, typename... Is>
@@ -452,7 +450,7 @@ struct PlainTensor {
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
     template <typename DT>
-    [[nodiscard]] [[nodiscard]] DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
+    [[nodiscard]] DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
         size_t off = 0;
         const auto* it = index.begin();
         for (size_t i = 0; i < m_rank; i++) {
