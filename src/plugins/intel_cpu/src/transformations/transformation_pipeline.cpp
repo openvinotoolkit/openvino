@@ -538,7 +538,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                 int64_t& block_size) {
         if (precision == ov::element::i8) {
             if (bychannel) {
-                OPENVINO_THROW("i8 doesn't support sage_attn");
+                block_size += sizeof(float);
             } else {
                 head_size += sizeof(float) * group_num;
             }
@@ -1040,52 +1040,52 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
 #if defined(OPENVINO_ARCH_X86_64)
-    // // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
-    // auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-    //                              (config.inferencePrecision == element::bf16);
-    // auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-    //                         (config.inferencePrecision == element::f16);
+    // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
+    auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
+                                 (config.inferencePrecision == element::bf16);
+    auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
+                            (config.inferencePrecision == element::f16);
 
-    // if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
-    //     const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
-    //     CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
-    //     CPU_SET_CALLBACK_X64(
-    //         postLPTPassManager,
-    //         [fcDynamicQuantizationGroupSize](const_node_ptr& node) -> bool {
-    //             std::string errorMsg;
-    //             return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
-    //         },
-    //         MLPFusion);
+    if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
+        const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;
+        CPU_REGISTER_PASS_X64(postLPTPassManager, MLPFusion);
+        CPU_SET_CALLBACK_X64(
+            postLPTPassManager,
+            [fcDynamicQuantizationGroupSize](const_node_ptr& node) -> bool {
+                std::string errorMsg;
+                return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
+            },
+            MLPFusion);
 
-    //     size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
-    //     if (concurrency == 0) {
-    //         concurrency = parallel_get_max_threads();
-    //     }
+        size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
+        if (concurrency == 0) {
+            concurrency = parallel_get_max_threads();
+        }
 
-    //     CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
-    //     CPU_SET_CALLBACK_X64(
-    //         postLPTPassManager,
-    //         [=](const_node_ptr& node) -> bool {
-    //             std::string errorMsg;
-    //             return node::QKVProjection::isSupportedOperation(node,
-    //                                                              errorMsg,
-    //                                                              concurrency,
-    //                                                              fcDynamicQuantizationGroupSize);
-    //         },
-    //         QKVProjFusion);
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion);
+        CPU_SET_CALLBACK_X64(
+            postLPTPassManager,
+            [=](const_node_ptr& node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node,
+                                                                 errorMsg,
+                                                                 concurrency,
+                                                                 fcDynamicQuantizationGroupSize);
+            },
+            QKVProjFusion);
 
-    //     CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2);
-    //     CPU_SET_CALLBACK_X64(
-    //         postLPTPassManager,
-    //         [=](const_node_ptr& node) -> bool {
-    //             std::string errorMsg;
-    //             return node::QKVProjection::isSupportedOperation(node,
-    //                                                              errorMsg,
-    //                                                              concurrency,
-    //                                                              fcDynamicQuantizationGroupSize);
-    //         },
-    //         QKVProjFusion2);
-    // }
+        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2);
+        CPU_SET_CALLBACK_X64(
+            postLPTPassManager,
+            [=](const_node_ptr& node) -> bool {
+                std::string errorMsg;
+                return node::QKVProjection::isSupportedOperation(node,
+                                                                 errorMsg,
+                                                                 concurrency,
+                                                                 fcDynamicQuantizationGroupSize);
+            },
+            QKVProjFusion2);
+    }
 #endif  // OPENVINO_ARCH_X86_64
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RMSFusion, false);
