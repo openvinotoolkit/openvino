@@ -2137,7 +2137,7 @@ MVN::MVNExecutorBase::MVNExecutorBase(const MVNAttrs& mvnAttrs)
       src_data_size(mvnAttrs.src_prc.size()),
       dst_data_size(mvnAttrs.dst_prc.size()) {}
 
-MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& /*attr*/)
+MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, [[maybe_unused]] const dnnl::primitive_attr& attr)
     : MVNExecutorBase(mvnAttrs) {
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;

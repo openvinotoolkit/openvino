@@ -26,8 +26,24 @@
 #include "utils/debug_capabilities.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <oneapi/dnnl/dnnl_types.h>
+
+#    include <algorithm>
+#    include <atomic>
+#    include <cstddef>
+#    include <type_traits>
+#    include <utility>
+
+#    include "cpu_memory.h"
 #    include "kernels/x64/mlp_kernel.hpp"
 #    include "kernels/x64/mlp_utils.hpp"
+#    include "memory_desc/blocked_memory_desc.h"
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#    include "openvino/core/parallel.hpp"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#    include "utils/plain_tensor.hpp"
 #endif
 
 namespace ov::intel_cpu::node {
@@ -501,7 +517,10 @@ private:
 #else
 template <typename T>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
-    Executor(LLMMLP* /*unused*/, const LLMMLPNode::Config& /*unused*/, const DnnlScratchPadPtr& /*unused*/) {}
+    Executor([[maybe_unused]] LLMMLP* node,
+             [[maybe_unused]] const LLMMLPNode::Config& config,
+             [[maybe_unused]] const DnnlScratchPadPtr& scratchPad) {}
+
     void execute() override {}
 };
 #endif
@@ -605,9 +624,9 @@ void LLMMLP::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
-bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& /*op*/,
-                                  std::string& /*errorMessage*/,
-                                  uint64_t /*fcDynamicQuantizationGroupSize*/) noexcept {
+bool LLMMLP::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                  [[maybe_unused]] std::string& errorMessage,
+                                  [[maybe_unused]] uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);

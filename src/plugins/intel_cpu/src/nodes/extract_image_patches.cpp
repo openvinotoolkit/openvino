@@ -672,13 +672,13 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
 }
 
 ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecutor(
-    const VectorDims& /*inDims*/,
-    const VectorDims& /*outDims*/,
-    const VectorDims& /*kSizes*/,
-    const VectorDims& /*strides*/,
-    const VectorDims& /*rates*/,
-    const ExtImgPatcherPadType& /*padType*/,
-    const size_t /*prcSize*/) {
+    [[maybe_unused]] const VectorDims& inDims,
+    [[maybe_unused]] const VectorDims& outDims,
+    [[maybe_unused]] const VectorDims& kSizes,
+    [[maybe_unused]] const VectorDims& strides,
+    [[maybe_unused]] const VectorDims& rates,
+    [[maybe_unused]] const ExtImgPatcherPadType& padType,
+    [[maybe_unused]] const size_t prcSize) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {

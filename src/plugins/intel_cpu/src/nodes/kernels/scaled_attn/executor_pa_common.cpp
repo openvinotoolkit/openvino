@@ -2,29 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// NOLINTBEGIN(misc-include-cleaner)
+
+#include "executor_pa_common.hpp"
+
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <cfloat>
 #include <cmath>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstdint>
 #include <cstring>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
-#ifdef OPENVINO_ARCH_X86_64
-#    include <cpu/x64/xbyak/xbyak.h>
+#include "openvino/core/type/element_type.hpp"
 
-#    include <cpu/x64/jit_generator.hpp>
-#    include <cstdint>
-#    include <stdexcept>
-#    include <utility>
-#    include <vector>
+// NOLINTEND(misc-include-cleaner)
 
-#    include "executor_pa_common.hpp"
-#    include "openvino/core/type/element_type.hpp"
+namespace ov::Extensions::Cpu {
 
 using namespace ov;
 using namespace ov::intel_cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-#endif
-
-namespace ov::Extensions::Cpu {
 
 #ifdef OPENVINO_ARCH_X86_64
 

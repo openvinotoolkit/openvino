@@ -115,11 +115,11 @@
 #include "utils/ngraph_utils.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
+#    include <set>
+
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
 #    include "kernels/aarch64/jit_uni_eltwise_generic.hpp"
 #elif defined(OPENVINO_ARCH_X86_64)
-#    include <set>
-
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "kernels/x64/jit_uni_eltwise_generic.hpp"
 #    include "utils/precision_support.h"
