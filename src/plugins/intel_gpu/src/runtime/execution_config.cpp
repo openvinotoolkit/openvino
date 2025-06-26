@@ -71,7 +71,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         if (op->get_input_size() > 3) {
             bool rank_ge_4 = false;
             bool rank_dynamic = false;
-            for(int i = 0;i < op->get_input_size();i++) {
+            for (int i = 0; i < op->get_input_size(); i++) {
                 auto input_shape = op->get_input_partial_shape(i);
                 if (input_shape.rank().is_dynamic()) {
                     rank_dynamic = true;
