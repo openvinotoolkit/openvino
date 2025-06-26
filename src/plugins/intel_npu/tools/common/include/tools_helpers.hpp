@@ -110,12 +110,11 @@ void boundDynamicShape(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven
             if (shapeOrBatchGiven) {
                 throw std::logic_error("ERROR: Shape \"" + shape.to_string() + "\"" +
                                        " has dynamic batch size which is not supported by NPU\n");
-            }
-            else {
+            } else {
                 std::cout << "WARNING: Shape \"" + shape.to_string() + "\"" +
-                             " has dynamic batch size which is not supported by NPU\n"
-                             "         Setting batch to 1 forcibly" 
-                            << std::endl;
+                                 " has dynamic batch size which is not supported by NPU\n"
+                                 "         Setting batch to 1 forcibly"
+                          << std::endl;
                 ov::set_batch(model, 1);
                 // Get the shape again
                 shape = item->get_partial_shape();
@@ -148,8 +147,12 @@ void boundDynamicShape(std::shared_ptr<ov::Model>& model, bool shapeOrBatchGiven
  *                          the shape string contains multiple shapes for one input, or if the
  *                          model's shape is dynamic and not supported by the device.
  */
-void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<ov::Model>& model,
-             std::string& shapeString, int overrideModelBatchSize, std::string_view device) {
+void reshape(ov::OutputVector inputsInfo,
+             InputsInfo& infoMap,
+             std::shared_ptr<ov::Model>& model,
+             std::string& shapeString,
+             int overrideModelBatchSize,
+             std::string_view device) {
     std::vector<InputsInfo> infoMaps;
 
     // shape and override_model_batch_size cannot be specificed together
@@ -212,8 +215,8 @@ void reshape(ov::OutputVector inputsInfo, InputsInfo& infoMap, std::shared_ptr<o
             }
         }
         model->reshape(newShapes);
-    } else { // FLAGS_shape is empty
-        if (device.find("NPU") != std::string::npos ||
+    } else {  // FLAGS_shape is empty
+        if (device.find("NPU") != std::string::npos || device.find("IMD") != std::string::npos ||
             // FIXME: SIT on CPU also requires to bound dynamic shapes
             device.find("CPU") != std::string::npos || device.find("TEMPLATE") != std::string::npos) {
             boundDynamicShape(model, false);
