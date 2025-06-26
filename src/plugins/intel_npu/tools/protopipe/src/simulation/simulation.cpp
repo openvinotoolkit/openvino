@@ -7,6 +7,7 @@
 
 #include "scenario/inference.hpp"
 #include "utils/error.hpp"
+#include "utils/model.hpp"
 
 #include <opencv2/gapi/infer/onnx.hpp>  // onnx::Params
 #include <opencv2/gapi/infer/ov.hpp>    // ov::Params
@@ -15,7 +16,7 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
     using P = cv::gapi::ov::Params<cv::gapi::Generic>;
     std::unique_ptr<P> network;
     if (std::holds_alternative<OpenVINOParams::ModelPath>(params.path)) {
-        const auto& model_path = std::get<OpenVINOParams::ModelPath>(params.path);
+        const auto& model_path = utils::ensureNamedModel(std::get<OpenVINOParams::ModelPath>(params.path));
         network = std::make_unique<P>(tag, model_path.model, model_path.bin, params.device);
     } else {
         GAPI_Assert(std::holds_alternative<OpenVINOParams::BlobPath>(params.path));
