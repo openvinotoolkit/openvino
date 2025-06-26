@@ -11,6 +11,8 @@
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/op/indirect_sdpa.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
 #include "openvino/op/istft.hpp"
@@ -61,10 +63,26 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
             return true;
     }
 
-    if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op) || 
-        ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+    if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
         return true;
     }
+
+    if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op) || ov::is_type<ov::intel_gpu::op::IndirectSDPA>(op) || ov::is_type<ov::intel_gpu::op::SDPA>(op)) {
+        if (op->get_input_size() > 3) {
+            bool rank_ge_4 = false;
+            for(int i=0;i<op->get_input_size();i++) {
+                auto input_shape = op->get_input_partial_shape(i);
+                if (input_shape.size() >= 4) {
+                    rank_ge_4 = true;
+                    break;
+                }
+            }
+            if (!rank_ge_4) {
+                return true;
+            }
+        }
+    }
+
     // When input node has dynamic shape with 4 dimension, this function return false
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
