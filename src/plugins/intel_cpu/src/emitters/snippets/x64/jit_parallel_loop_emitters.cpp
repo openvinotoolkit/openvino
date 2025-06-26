@@ -86,6 +86,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
                                                                  const snippets::KernelExecutorTablePtr& kernel_table)
     : jit_parallel_loop_base_emitter(h, isa, expr),
       loop_begin_label{new Xbyak::Label()},
+      loop_preamble_label{new Xbyak::Label()},
       loop_end_label(nullptr),
       m_loop_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
@@ -115,10 +116,7 @@ void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& 
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
-void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
-                                                [[maybe_unused]] const std::vector<size_t>& out) const {
-    Xbyak::Label loop_preamble_label;
-
+void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     init_binary_call_regs(2, mem_ptr_regs_idxs);
 
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
@@ -137,7 +135,7 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_parallel_loop_executor.get()));
     h->mov(abi_param2, h->rsp);
-    h->mov(abi_param3, loop_preamble_label);
+    h->mov(abi_param3, *loop_preamble_label);
 
     spill.rsp_align(callee_saved_reg.getIdx());
     // Note: we will return from this call only when the parallel region is finished (return from
@@ -151,13 +149,13 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
     for (auto i : mem_ptr_regs_idxs) {
         h->mov(Xbyak::Reg64(i), h->qword[h->rsp + i * sizeof(Xbyak::Reg64)]);
     }
-
     h->add(h->rsp, reserved_stack_size);
 
     h->jmp(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
+}
 
-    // Note: parallel region starts here. The only legal entry point is from ParallelLoopExecutor::execute(...)
-    h->L(loop_preamble_label);
+void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() const {
+    h->L(*loop_preamble_label);
 
     std::set<snippets::Reg> loop_premble_spill;
     // todo: we don't have to spill all calle+saved_regs, only the ones that will be used in the loop's body
@@ -181,6 +179,13 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
     }
 
     h->L(*loop_begin_label);
+}
+
+void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                                [[maybe_unused]] const std::vector<size_t>& out) const {
+    emit_parallel_executor_call();
+    // Note: parallel region starts here. The only legal entry point is from ParallelLoopExecutor::execute(...)
+    emit_parallel_region_initialization();
 }
 
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
