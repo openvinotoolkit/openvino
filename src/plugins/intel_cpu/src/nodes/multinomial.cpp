@@ -75,8 +75,7 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
                               {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]}},
                              {{LayoutType::ncsp, m_output_precision}},
                              ref_any);
-    }
-    {
+    } else {
         addSupportedPrimDesc({{LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT]},
                               {LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT]},
                               {LayoutType::ncsp, m_probs_precision, m_const_inputs[RANDOM_SAMPLES_PORT]}},
