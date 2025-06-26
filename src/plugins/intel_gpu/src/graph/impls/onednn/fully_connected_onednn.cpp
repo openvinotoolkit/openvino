@@ -456,7 +456,6 @@ public:
                     int src_ngroups_partial_sum = src_partial_sum_shape[src_partial_sum_shape.size() - 1].get_length();
                     int src_group_size_partial_sum = innermost_len / src_ngroups_partial_sum;
                     auto act_partial_sum_data_type = convert_data_type(impl_params.input_layouts[activation_partial_sum_idx].data_type);
-                    GPU_DEBUG_COUT << "src_group_size_partial_sum " << src_group_size_partial_sum << " impl_params.input_layouts[activation_partial_sum_idx].data_type " << impl_params.input_layouts[activation_partial_sum_idx].data_type << "  act_partial_sum_data_type " << (int)act_partial_sum_data_type << "  f16 " << (int)dnnl::memory::data_type::f16 << std::endl;
                     attr->set_zero_points(DNNL_ARG_ATTR_USER_PRECOMP | DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size_partial_sum}, act_partial_sum_data_type);
                 }
             }
