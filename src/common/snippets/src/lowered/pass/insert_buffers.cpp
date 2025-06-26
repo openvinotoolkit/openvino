@@ -89,7 +89,6 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
 
 void InsertBuffers::insertion(LinearIR& linear_ir,
                               const LinearIR::constExprIt& begin_it,
-                              [[maybe_unused]] const LinearIR::constExprIt& end_it,
                               const LoopManagerPtr& loop_manager,
                               const std::vector<ExpressionPort>& loop_entries,
                               const std::vector<ExpressionPort>& loop_exits) {
@@ -257,7 +256,7 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
             return expr_ports;
         };
         // using begin() as expr_it because we work with LoopInfo, not expressions in Linear IR
-        insertion(linear_ir, begin, end, loop_manager, cvt_to_expr_ports(loop_entries), cvt_to_expr_ports(loop_exits));
+        insertion(linear_ir, begin, loop_manager, cvt_to_expr_ports(loop_entries), cvt_to_expr_ports(loop_exits));
     }
 
     for (auto expr_it = begin; expr_it != end; expr_it++) {
@@ -278,7 +277,7 @@ bool InsertBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begi
             loop_exits[p.first] = expr->get_output_port(p.first);
         }
 
-        insertion(linear_ir, expr_it, end, loop_manager, loop_entries, loop_exits);
+        insertion(linear_ir, expr_it, loop_manager, loop_entries, loop_exits);
     }
 
     return true;

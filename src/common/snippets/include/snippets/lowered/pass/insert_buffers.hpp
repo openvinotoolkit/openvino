@@ -33,7 +33,6 @@ public:
 private:
     static void insertion(LinearIR& linear_ir,
                           const LinearIR::constExprIt& begin_it,
-                          const LinearIR::constExprIt& end_it,
                           const LoopManagerPtr& loop_manager,
                           const std::vector<ExpressionPort>& loop_entries,
                           const std::vector<ExpressionPort>& loop_exits);
