@@ -26,7 +26,7 @@ protected:
     size_t num_outputs = 0;
     size_t loop_id = 0;
     bool evaluate_once = false;
-    size_t work_amount_reg_idx;
+    size_t work_amount_reg_idx = 0;
     std::vector<size_t> mem_ptr_regs_idxs;
     jit_snippets_call_args::loop_args_t loop_args;
 };
@@ -60,6 +60,7 @@ protected:
 
     void emit_parallel_executor_call() const;
     void emit_parallel_region_initialization() const;
+    std::set<snippets::Reg> get_regs_to_spill_except_mem_ptr_regs() const;
 
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
