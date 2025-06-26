@@ -898,10 +898,18 @@ std::vector<std::string> disabledTestPatterns() {
         });
 
         // CACHE_MODE is not supported on NPU, update test with correct property to make weightless compiled model
-        _skipRegistry.addPatterns("compiled_blob test use `CACHE_MOD` which is not supported on NPU", {
-                R"(.*OVCompiledModelBaseTest.*import_from_.*_blob.*)",
-                R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*)",
-                R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*)",
+        _skipRegistry.addPatterns("compiled_blob test use `CACHE_MODE` which is not supported on NPU", {
+                R"(.*smoke_BehaviorTests/OVCompiledModelBaseTest.import_from_weightless_blob/.*)",
+                R"(.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*)",
+                R"(.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*)",
+                R"(.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_which_fails_load_from_cache/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_use_weight_hint/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_which_fails_load_from_cache/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.import_from_weightless_blob/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_regular_blob/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*)",
+                R"(.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*)",
         });
         return _skipRegistry;
     }();
