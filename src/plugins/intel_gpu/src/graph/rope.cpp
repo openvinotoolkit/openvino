@@ -80,6 +80,7 @@ std::string rope_inst::to_string(rope_node const& node) {
     rope_info.add("output_trans0213", desc->config.output_trans0213);
     rope_info.add("is_interleaved", desc->config.is_interleaved);
     rope_info.add("is_qwen", desc->config.is_qwen);
+    rope_info.add("use_rope_cache", desc->config.use_rope_cache);
     rope_info.add("rotary_ndims", desc->config.rotary_ndims);
     rope_info.add("slice_start", desc->config.slice_start);
     rope_info.add("slice_stop", desc->config.slice_stop);
