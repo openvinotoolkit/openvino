@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/variadic_split_merge.hpp"
 
 #include <optional>
+
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/slice.hpp"
@@ -199,13 +200,12 @@ VariadicSplitMerge::VariadicSplitMerge() {
                     auto axis_ret = get_scalar(axis_input);
                     if (!axis_ret.has_value())
                         return false;
-                  
+
                     if (axis_ret.value() < -rank || axis_ret.value() > (rank - 1))
                         return false;
 
                     splitlist[i].axis = convert_value(axis_ret.value(), rank - 1);
                 }
-
 
                 auto step_input = slice->get_input_node_shared_ptr(3);
                 auto step_ret = get_scalar(step_input);
