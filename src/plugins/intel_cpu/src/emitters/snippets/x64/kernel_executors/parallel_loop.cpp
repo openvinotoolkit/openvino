@@ -4,6 +4,7 @@
 
 #include "parallel_loop.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -14,6 +15,10 @@
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
+static inline uintptr_t* apply_byte_offset(uintptr_t* ptr, size_t offset) {
+    // Note: we need to cast to char* to allow for arbitrary pointer shifts
+    return reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(ptr) + offset);
+}
 
 size_t ParallelLoopConfig::hash() const {
     auto hash = dnnl::impl::hash_combine(0, m_loop_args.m_work_amount);
@@ -41,8 +46,8 @@ void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor,
     const auto increment = config.get_increment();
     int num_chunks = loop_args.m_work_amount / increment;
     // todo: do we need to pass num_threads through config?
-    int num_threads = std::getenv("N") ? std::atoi(std::getenv("N")) : parallel_get_max_threads();
-    int nthr = std::min(num_threads, num_chunks);
+    // int num_threads = std::getenv("N") ? std::atoi(std::getenv("N")) : parallel_get_max_threads();
+    int nthr = std::min(parallel_get_max_threads(), num_chunks);
 
     // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
     //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
