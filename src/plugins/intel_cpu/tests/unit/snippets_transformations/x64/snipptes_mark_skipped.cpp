@@ -33,10 +33,8 @@ public:
 
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipAfterInputsMatMulEltwise) {
     const auto &f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
-    model = f.getOriginal();
     // Fully tokenizable, since inputs are followed by MatMul
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulActivation) {
@@ -45,10 +43,8 @@ TEST_F(SnippetsMarkSkippedTests, smoke_Snippets_SkipConvFused_ConvMulActivation)
                                                    std::make_shared<ov::op::v0::Sqrt>()};
     std::vector<PartialShape> inputShapes {{1, 2, 16, 16}, {1, 2, 1, 16}};
     const auto &f = ConvMulActivationFunction(inputShapes, eltwiseOps);
-    model = f.getOriginal();
     // Fully tokenizable, since Mul with 2 inputs isn't fused into Convolution
-    model_ref = f.getReference();
-    run();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(SnippetsMarkSkippedTests, smoke_SkipConvFused_ConvSumActivation) {

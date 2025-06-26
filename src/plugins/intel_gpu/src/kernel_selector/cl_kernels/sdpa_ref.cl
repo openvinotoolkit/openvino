@@ -157,7 +157,7 @@ KERNEL(sdpa_ref)(
 #if HAS_SCALE_INPUT
     const OUTPUT_TYPE scale_val = *scale;
 #elif defined(STATIC_SCALE_VALUE)
-    const OUTPUT_TYPE scale_val = STATIC_SCALE_VALUE;
+    const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
 #else
     const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_TYPE(INPUT1_SIZE_X));
 #endif
