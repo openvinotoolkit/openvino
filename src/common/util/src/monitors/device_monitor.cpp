@@ -13,21 +13,13 @@
 namespace ov {
 namespace util {
 
-DeviceMonitor::DeviceMonitor() {}
-
-DeviceMonitor::~DeviceMonitor() = default;
-
-std::map<std::string, float> DeviceMonitor::get_utilization(const std::string& device_id) {
-    if (device_id.empty() && !m_device_performance)
+std::map<std::string, float> get_device_utilization(const std::string& device_id) {
+    std::shared_ptr<ov::util::IDeviceMonitor> m_device_performance;
+    if (device_id.empty())
         m_device_performance = std::make_shared<ov::util::CPUDeviceMonitor>();
     else
         m_device_performance = std::make_shared<ov::util::XPUDeviceMonitor>(device_id);
     return m_device_performance->get_utilization();
-}
-
-std::map<std::string, float> get_device_utilization(const std::string& device_id) {
-    DeviceMonitor devices_monitor;
-    return devices_monitor.get_utilization(device_id);
 }
 }  // namespace util
 }  // namespace ov
