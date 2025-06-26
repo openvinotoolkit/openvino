@@ -249,9 +249,7 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
-          poetry env use /usr/bin/python3
           eval $(poetry env activate)
-          poetry install --only build
           # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
           cmake -UPython* -U_Python* -UPYTHON* \
