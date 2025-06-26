@@ -1175,6 +1175,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_blocksize) {
     test_case.add_input(std::vector<float>{0.2800687253475189f, 9.343092918395996f});
     test_case.add_input(std::vector<uint8_t>{128, 189});
 
-    test_case.add_expected_output(std::vector<std::uint8_t>{119, 111, 129, 129});
+    test_case.add_expected_output(std::vector<std::uint8_t>{119, 111, 190, 190});
     test_case.run();
 }
