@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <optional>
 #include "transformations/common_optimizations/variadic_split_merge.hpp"
 
+#include <optional>
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/slice.hpp"
