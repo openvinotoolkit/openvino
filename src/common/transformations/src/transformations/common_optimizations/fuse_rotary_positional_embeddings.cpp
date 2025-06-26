@@ -67,8 +67,8 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     if (m_support_2d_rope) {
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0, true);
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1, true);
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLMHF>();
     }
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLMHF>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
 
