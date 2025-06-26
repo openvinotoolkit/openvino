@@ -75,17 +75,18 @@ jobs:
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python and install wheels actions
+      - name: Fetch custom actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
         with:
           sparse-checkout: |
             .github/actions
+            pyproject.toml
+            poetry.lock
           sparse-checkout-cone-mode: false
-          path: 'action_root'
 
       - name: Setup Python ${{ inputs.python-version }}
-        uses: ./action_root/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
@@ -93,14 +94,14 @@ jobs:
           self-hosted-runner: ${{ runner.os == 'Linux' }}
           
       - name: Find OpenVINO wheel
-        uses: ./action_root/.github/actions/find_wheel
+        uses: ./.github/actions/find_wheel
         id: ov_wheel
         with:
           wheels_dir: ${{ env.INSTALL_WHEELS_DIR }}
           package_name: 'openvino'
       
       - name: Configure poetry
-        uses: ./action_root/.github/actions/install_poetry
+        uses: ./.github/actions/install_poetry
              
       - name: Install OpenVINO wheel
         run: poetry add ${{ steps.ov_wheel.outputs.wheel_path }}
@@ -109,7 +110,7 @@ jobs:
         run: poetry install --with tests,torch,onnx,tensorflow
 
       - name: Install OpenVINO Python wheels
-        uses: ./action_root/.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
