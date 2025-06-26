@@ -17,7 +17,6 @@
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
-#include "transformations/snippets/common/shape_infer_utils.hpp"
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "transformations/tpp/common/op/brgemm.hpp"
 #    include "transformations/tpp/x64/op/equation.hpp"

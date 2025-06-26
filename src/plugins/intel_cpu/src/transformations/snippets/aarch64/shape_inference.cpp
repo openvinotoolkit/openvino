@@ -14,7 +14,6 @@
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
-#include "transformations/snippets/common/shape_infer_utils.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::snippets {
