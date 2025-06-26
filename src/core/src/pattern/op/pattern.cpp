@@ -219,14 +219,10 @@ public:
     ACCESSOR_V(double)
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (m_expected_attrs.count(name) == 0)
-            return;
-        OPENVINO_ASSERT("Can not compare void");
+        OPENVINO_ASSERT(m_expected_attrs.count(name) == 0, "Can not compare void");
     };
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
-        if (m_expected_attrs.count(name) == 0)
-            return;
-        OPENVINO_ASSERT("Can not compare void*");
+        OPENVINO_ASSERT(m_expected_attrs.count(name) == 0, "Can not compare void*");
     };
     void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
