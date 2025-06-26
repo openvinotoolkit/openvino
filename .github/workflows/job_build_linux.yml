@@ -98,7 +98,6 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
-      # POETRY_VIRTUALENVS_CREATE: false
       
     steps:
       - name: Clone OpenVINO (with trace)
@@ -250,7 +249,9 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
+          poetry env use /usr/bin/python3
           eval $(poetry env activate)
+          poetry install --only build
           # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
           cmake -UPython* -U_Python* -UPYTHON* \
