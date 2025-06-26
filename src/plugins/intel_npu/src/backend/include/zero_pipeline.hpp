@@ -13,7 +13,7 @@
 
 namespace intel_npu {
 
-struct Pipeline final{
+struct Pipeline final {
 public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
