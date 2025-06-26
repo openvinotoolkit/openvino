@@ -16,8 +16,10 @@
 #include <pdhmsg.h>
 #include <windows.h>
 
+#include <chrono>
 #include <string>
 #include <system_error>
+#include <thread>
 
 #include "openvino/util/wstring_convert_util.hpp"
 #include "query_wrapper.hpp"
@@ -148,7 +150,9 @@ private:
     int m_monitor_duration = 500;
 };
 
-XPUDeviceMonitor::XPUDeviceMonitor(const std::string& device_luid) : IDeviceMonitor("XPU"), m_device_luid(device_luid) {}
+XPUDeviceMonitor::XPUDeviceMonitor(const std::string& device_luid)
+    : IDeviceMonitor("XPU"),
+      m_device_luid(device_luid) {}
 std::map<std::string, float> XPUDeviceMonitor::get_utilization() {
     if (!m_perf_impl) {
         m_perf_impl = std::make_shared<PerformanceImpl>(m_device_luid);
