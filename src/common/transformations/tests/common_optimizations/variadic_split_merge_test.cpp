@@ -489,9 +489,7 @@ TEST_F(TransformationTestsF, VariadicSplitMergeStep) {
         model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::VariadicSplitMerge>();
     }
-    {
-        model_ref = model->clone();
-    }
+    { model_ref = model->clone(); }
 }
 
 TEST_F(TransformationTestsF, VariadicSplitMergeStridedStep) {
@@ -507,9 +505,7 @@ TEST_F(TransformationTestsF, VariadicSplitMergeStridedStep) {
         model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::VariadicSplitMerge>();
     }
-    {
-        model_ref = model->clone();
-    }
+    { model_ref = model->clone(); }
 }
 
 TEST_F(TransformationTestsF, VariadicSplitMergeNegativeAxis) {
