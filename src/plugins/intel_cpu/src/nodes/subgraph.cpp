@@ -70,9 +70,9 @@
 #    include "transformations/snippets/x64/pass/lowered/adjust_brgemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
-#    include "transformations/snippets/x64/pass/lowered/init_repacked_constant_inputs.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
+#    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
 
 #include <utility>
@@ -397,7 +397,6 @@ void Subgraph::createPrimitive() {
         initPluginBlockedShapes();
         initAttributes();
         optimizeIR();
-        prepareWeights();
         // Init starts offsets should be after `prepareWeights`
         initStartOffsets();
     }
@@ -558,8 +557,13 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                                ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                               cpu_config->repacked_input_config,
-                                               repacked_constant_input_config);
+                                               cpu_config->input_repackers);
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::intel_cpu::pass::EliminateBrgemmCopyB,
+                                               ov::intel_cpu::pass::RepackMatMulWeights,
+                                               context,
+                                               cpu_config->input_repackers,
+                                               srcMemPtrs);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
@@ -641,10 +645,6 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::lowered::pass::InsertBuffers,
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
-    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd,
-                                           ov::intel_cpu::pass::InitRepackedConstantInputs,
-                                           context->getSnippetsParamsCache(),
-                                           repacked_constant_input_config);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::MarkLoops,
                                           ov::intel_cpu::pass::GemmCPUBlocking);
@@ -750,18 +750,6 @@ void Subgraph::optimizeIR() {
                                            std::make_shared<snippets::CPUShapeInferSnippetsFactory>(),
                                            control_flow_config,
                                            control_flow_passes);
-}
-
-void Subgraph::prepareWeights() {
-    if (repacked_constant_input_config.empty()) {
-        return;
-    }
-
-#if defined(OPENVINO_ARCH_X86_64)
-    srcMemPtrs = SubgraphExecutor::prepare_weights(srcMemPtrs, repacked_constant_input_config, context);
-#else
-    OPENVINO_THROW("Weight repacking is unimplemented on this platform");
-#endif
 }
 
 void Subgraph::prepareParams() {
