@@ -6,12 +6,11 @@
 
 #include <regex>
 
+#include "../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "util_xarch.hpp"
-
-#include "../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
 
 namespace {
 template <typename T>
@@ -141,7 +140,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_input_ids_name = "inputs_embeds";
     }
 
-    auto enc_hidden_state_port = find_port_by_name(compiled_model->m_prefill_compiled->inputs(), "encoder_hidden_states");
+    auto enc_hidden_state_port =
+        find_port_by_name(compiled_model->m_prefill_compiled->inputs(), "encoder_hidden_states");
     if (enc_hidden_state_port.has_value()) {
         m_is_whisper = true;
     }
@@ -222,17 +222,16 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             enc_hidden_states_data = remoteTensor->get_original_memory();
         }
 
-        std::copy_n(
-            reinterpret_cast<uint8_t*>(enc_hidden_states_data),
-            enc_hidden_states->get_byte_size(),
-            reinterpret_cast<uint8_t*>(encoder_hidden_states->data()));
-    } else { // LLM/VLM
+        std::copy_n(reinterpret_cast<uint8_t*>(enc_hidden_states_data),
+                    enc_hidden_states->get_byte_size(),
+                    reinterpret_cast<uint8_t*>(encoder_hidden_states->data()));
+    } else {  // LLM/VLM
         auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
         // NB: padded_input can be either fp32(VLM) or i64(LLM)
-        std::copy_n(
-            reinterpret_cast<uint8_t*>(input_ids->data()),
-            input_ids->get_byte_size(),
-            reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() - input_ids->get_byte_size());
+        std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
+                    input_ids->get_byte_size(),
+                    reinterpret_cast<uint8_t*>(padded_input->data()) + padded_input->get_byte_size() -
+                        input_ids->get_byte_size());
 
         auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
         std::copy_n(
@@ -304,10 +303,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                                      ? 3u
                                      : kvcache_desc.dim;
 
-            auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                        kv_dim,
-                                                        m_is_whisper ? 0 : kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                        m_is_whisper ? kvcache_desc.num_stored_tokens : kvcache_desc.max_prompt_size);
+            auto prefill_out_slice =
+                make_tensor_slice(prefill_out_tensor,
+                                  kv_dim,
+                                  m_is_whisper ? 0 : kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                  m_is_whisper ? kvcache_desc.num_stored_tokens : kvcache_desc.max_prompt_size);
 
             auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
@@ -323,7 +323,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         if (m_is_whisper) {
             LOG_DEBUG("Copying cross attn key value for Whisper.");
             const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-            for (std::size_t i = 0; i < prefill_compiled-> outputs().size() - 1; ++i) {
+            for (std::size_t i = 0; i < prefill_compiled->outputs().size() - 1; ++i) {
                 const auto& output_name = prefill_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
                 auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
@@ -339,10 +339,14 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Prepare attention mask pattern.");
         if (m_is_whisper) {
             // NB: Prepare attention mask to be in a format [0, 0, 0, 1, 1, 1, ..., 1, 0, 1]
-            auto* attention_mask_data = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<uint64_t>();
-            auto attention_mask_size = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->get_size();
+            auto* attention_mask_data =
+                m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<uint64_t>();
+            auto attention_mask_size =
+                m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->get_size();
             std::fill(attention_mask_data, attention_mask_data + kvcache_desc.num_stored_tokens, 0);
-            std::fill(attention_mask_data + kvcache_desc.num_stored_tokens, attention_mask_data + attention_mask_size - 2, 1);
+            std::fill(attention_mask_data + kvcache_desc.num_stored_tokens,
+                      attention_mask_data + attention_mask_size - 2,
+                      1);
             attention_mask_data[attention_mask_size - 2] = 0;
             attention_mask_data[attention_mask_size - 1] = 1;
         } else {
@@ -427,9 +431,9 @@ void ov::npuw::LLMInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::f32 == input_ids->get_element_type() ||
                     ov::element::i64 == input_ids->get_element_type());
 
-    ov::SoPtr<ov::ITensor> attention_mask; // LLM/VLM input
-    ov::SoPtr<ov::ITensor> position_ids; // LLM/VLM input
-    ov::SoPtr<ov::ITensor> encoder_hidden_states; // Whisper input
+    ov::SoPtr<ov::ITensor> attention_mask;         // LLM/VLM input
+    ov::SoPtr<ov::ITensor> position_ids;           // LLM/VLM input
+    ov::SoPtr<ov::ITensor> encoder_hidden_states;  // Whisper input
 
     if (m_is_whisper) {
         encoder_hidden_states = get_tensor(find_port_by_name(inputs, "encoder_hidden_states").value());
