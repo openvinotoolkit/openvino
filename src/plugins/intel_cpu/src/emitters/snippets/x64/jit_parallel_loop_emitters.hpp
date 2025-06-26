@@ -58,12 +58,16 @@ protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
+    void emit_parallel_executor_call() const;
+    void emit_parallel_region_initialization() const;
+
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
     std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
+    std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
     std::shared_ptr<ParallelLoopExecutor> m_parallel_loop_executor = nullptr;
     std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
