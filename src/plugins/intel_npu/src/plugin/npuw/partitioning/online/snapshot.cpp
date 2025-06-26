@@ -397,10 +397,10 @@ void Snapshot::markInternalCompute() {
             Group::GPtr group_with_tag = nullptr;
             if (group->srcNodes().empty()) {
                 NPUW_ASSERT(!group->dstNodes().empty());
-                const auto& cons_nh = group->dstNodes().at(0);  // all tags are the same, pick either group
+                const auto cons_nh = group->dstNodes().at(0);  // all tags are the same, pick either group
                 group_with_tag = m_graph->meta(cons_nh).get<Group::GPtr>();
             } else {
-                const auto& prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
+                const auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
                 group_with_tag = m_graph->meta(prod_nh).get<Group::GPtr>();
             }
 
