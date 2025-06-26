@@ -477,7 +477,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
-        manager.register_pass<ov::pass::ConstantFolding>();
         manager.register_pass<ov::pass::VariadicSplitMerge>();
         manager.register_pass<ov::pass::CommonOptimizations>();
 
