@@ -34,7 +34,7 @@ public:
         auto weights_shape = Shape{16, 3, 9, 9};
         auto weights = utils::make_constant(element::i8, weights_shape, ov::test::utils::InputGenerateData(0, 2, 1));
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {0.1}));
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {1.0}));
 
         std::shared_ptr<Node> conv;
         {

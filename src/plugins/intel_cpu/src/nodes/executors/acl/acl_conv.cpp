@@ -93,17 +93,19 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
 }
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
-    auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
+    //auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
     if (inputScale.empty()) {//(dequantizationScales.empty()) {
-        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.0, 0, true));
+        aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0, 0, false));
     } else {
-        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(inputScale[0], -inputShift[0], true/*dequantizationScales[0]*/));
+        //tensor_info->set_quantization_info(arm_compute::QuantizationInfo(inputScale[0], inputShift[0], true/*dequantizationScales[0]*/));
+        aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0, 0, false));
     }
 
-    auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
-    tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1, 0, true));
-    auto& tensor_info_out = aclMemoryInfos[ACLArgs::ACL_DST];
-    tensor_info_out->set_quantization_info(arm_compute::QuantizationInfo(outputScale[0], -outputShift[0], true));
+    //auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
+    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(arm_compute::QuantizationInfo(1, 0, false));
+    //auto& tensor_info_out = aclMemoryInfos[ACLArgs::ACL_DST];
+    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(arm_compute::QuantizationInfo(inputScale[0], inputShift[0], false));
+    //tensor_info_out->set_quantization_info(arm_compute::QuantizationInfo(outputScale[0], outputShift[0], true));
     /*dstTensorInfo = std::make_shared<arm_compute::TensorInfo>(aclMemoryInfos[ACLArgs::ACL_DST].get()->tensor_shape(),
                                             aclMemoryInfos[ACLArgs::ACL_DST].get()->num_channels(),
                                             aclMemoryInfos[ACLArgs::ACL_SRC_0].get()->data_type(),
