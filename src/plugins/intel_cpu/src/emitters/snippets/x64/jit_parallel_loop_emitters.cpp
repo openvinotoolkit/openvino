@@ -98,13 +98,17 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
 
 void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
                                                          const std::vector<size_t>& out) const {
-    // todo: re-enable
-    // OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
-    // // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
-    // OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
-    // OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
-    // OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
-    //                           "loop increment might be dynamic only if loop evaluates once!");
+    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got ", in.size());
+    // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
+    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs: expected 1 got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.back() == work_amount_reg_idx,
+                              "Invalid out reg: expected ",
+                              work_amount_reg_idx,
+                              " got ",
+                              out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
+    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
+                              "loop increment might be dynamic only if loop evaluates once!");
 }
 
 void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
@@ -116,40 +120,47 @@ void jit_parallel_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& 
     jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs);
 }
 
+std::set<snippets::Reg> jit_parallel_loop_begin_emitter::get_regs_to_spill_except_mem_ptr_regs() const {
+    auto regs_to_spill = get_regs_to_spill();
+    for (auto i : mem_ptr_regs_idxs) {
+        regs_to_spill.erase({snippets::RegType::gpr, i});
+    }
+    return regs_to_spill;
+}
+
 void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
-    init_binary_call_regs(2, mem_ptr_regs_idxs);
+    init_binary_call_regs(3, mem_ptr_regs_idxs);
+    EmitABIRegSpills spill(h);
+    // Note: mem_ptr_regs_idxs regs are not spilled, since they are handled manually:
+    // before the parallel region call, they are passed via stack as ParallelLoopExecutor::execute parameter,
+    // and restored after it with applied finalization offsets.
+    spill.preamble(get_regs_to_spill_except_mem_ptr_regs());
 
-    const Xbyak::Reg64& aux_reg = get_call_address_reg();
-    const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
-
-    auto reserved_stack_size = sizeof(Xbyak::Reg64) * mem_ptr_regs_idxs.size();
+    const auto reserved_stack_size = mem_ptr_regs_idxs.size() * sizeof(uintptr_t*);
     // Spill before parallel for => we'll need them to update data ptrs afterwards
     h->sub(h->rsp, reserved_stack_size);
     for (auto i : mem_ptr_regs_idxs) {
-        h->mov(h->qword[h->rsp + i * sizeof(Xbyak::Reg64)], Xbyak::Reg64(i));
+        h->mov(h->ptr[h->rsp + i * sizeof(uintptr_t*)], Xbyak::Reg64(i));
     }
 
-    EmitABIRegSpills spill(h);
-    spill.preamble(get_regs_to_spill());
-
+    const auto& aux_reg = get_call_address_reg();
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_parallel_loop_executor.get()));
     h->mov(abi_param2, h->rsp);
     h->mov(abi_param3, *loop_preamble_label);
 
-    spill.rsp_align(callee_saved_reg.getIdx());
+    spill.rsp_align(get_callee_saved_reg().getIdx());
     // Note: we will return from this call only when the parallel region is finished (return from
     // jit_parallel_loop_end_emitter)
     h->call(aux_reg);
     spill.rsp_restore();
 
-    spill.postamble();
-
     // Restore data ptrs with applied finalization offsets
     for (auto i : mem_ptr_regs_idxs) {
-        h->mov(Xbyak::Reg64(i), h->qword[h->rsp + i * sizeof(Xbyak::Reg64)]);
+        h->mov(Xbyak::Reg64(i), h->ptr[h->rsp + i * sizeof(uintptr_t*)]);
     }
     h->add(h->rsp, reserved_stack_size);
+    spill.postamble();
 
     h->jmp(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
 }
@@ -166,16 +177,16 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() cons
     // Note: work_amount reg is guaranteed to differ from any mem_ptr_regs_idxs.
     // However some of mem_ptr_regs_idxs might coincide with abi_param_1 or abi_param_2.
     h->mov(Xbyak::Reg64(work_amount_reg_idx), abi_param1);
-    bool abi_param_collision = false;
+    bool abi_param2_collision = false;
     for (int i : mem_ptr_regs_idxs) {
         if (i == abi_param2.getIdx()) {
-            abi_param_collision = true;
+            abi_param2_collision = true;
         } else {
-            h->mov(Xbyak::Reg64(i), h->qword[abi_param2 + i * sizeof(Xbyak::Reg64)]);
+            h->mov(Xbyak::Reg64(i), h->ptr[abi_param2 + i * sizeof(uintptr_t*)]);
         }
     }
-    if (abi_param_collision) {
-        h->mov(abi_param2, h->qword[abi_param2 + abi_param2.getIdx() * sizeof(Xbyak::Reg64)]);
+    if (abi_param2_collision) {
+        h->mov(abi_param2, h->ptr[abi_param2 + abi_param2.getIdx() * sizeof(uintptr_t*)]);
     }
 
     h->L(*loop_begin_label);
@@ -217,7 +228,7 @@ ov::snippets::lowered::ExpressionPtr jit_parallel_loop_end_emitter::get_loop_beg
 void jit_parallel_loop_end_emitter::validate_arguments(const std::vector<size_t>& in,
                                                        const std::vector<size_t>& out) const {
     const auto io_size = num_inputs + num_outputs;
-    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected ", 0, " got ", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "Invalid number of out arguments: expected 0 got ", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1,
                               "Invalid number of in arguments: expected ",
                               io_size + 1,
