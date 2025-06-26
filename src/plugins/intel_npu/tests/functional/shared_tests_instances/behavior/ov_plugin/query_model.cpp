@@ -16,7 +16,7 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassModelTestP, OV
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassQueryModelTestTests, OVClassQueryModelTest,
                          ::testing::Values(ov::test::utils::DEVICE_NPU),
-                         (ov::test::utils::appendPlatformTypeTestName<OVClassQueryModelTest>));
+                         (ov::test::utils::appendDriverVersionTestName<OVClassQueryModelTest>));
 
 }  // namespace behavior
 }  // namespace test
