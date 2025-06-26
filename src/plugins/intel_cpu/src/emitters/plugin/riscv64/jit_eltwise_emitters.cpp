@@ -605,8 +605,6 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     h->vfmul_vv(tmp1, tmp2, src1);
     h->vfsub_vv(dst, src0, tmp1);
-    h->vfmul_vv(tmp1, tmp2, src1);
-    h->vfsub_vv(dst, src0, tmp1);
 }
 void jit_floor_mod_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
@@ -707,13 +705,10 @@ void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     VReg src1 = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
     FReg one = FReg(aux_fp_gpr_idxs[0]);
-
-    h->vmv_v_x(dst, x0);
-
     load_table_val("one", one);
 
     h->vmflt_vv(mask_vreg(), src0, src1);
-
+    h->vmv_v_x(dst, x0);
     h->vfadd_vf(dst, dst, one, VM::masked);
 }
 
@@ -744,7 +739,7 @@ size_t jit_logical_or_emitter::aux_vecs_count() const {
     return 2;  
 }
 size_t jit_logical_or_emitter::aux_gprs_count() const {
-    return 1;  
+    return 2;  
 }
 
 void jit_logical_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -767,7 +762,6 @@ void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const VReg dst = VReg(out_vec_idxs[0]);
     Reg one_reg = Reg(aux_gpr_idxs[0]);   
     
-
     load_table_val("one", one_reg);
 
     h->vmv_v_x(aux0, x0);  
