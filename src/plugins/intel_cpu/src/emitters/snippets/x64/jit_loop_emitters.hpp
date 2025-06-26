@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -22,7 +22,7 @@ namespace ov::intel_cpu {
 
 class jit_loop_begin_emitter : public jit_emitter {
 public:
-    jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                            const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -66,7 +66,7 @@ protected:
 
 class jit_loop_end_emitter : public jit_emitter {
 public:
-    jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                          dnnl::impl::cpu::x64::cpu_isa_t isa,
                          const ov::snippets::lowered::ExpressionPtr& expr);
 

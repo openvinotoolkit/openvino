@@ -32,7 +32,7 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
@@ -84,7 +84,7 @@ inline static std::vector<XReg> transform_idxs_to_regs(const std::vector<size_t>
 // two-level loops, so the actual number of Data pointer register is 23.
 //====================================================================================
 
-jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
+jit_kernel_emitter::jit_kernel_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
