@@ -65,8 +65,7 @@ static int64_t convert_value(int64_t value, int64_t max) {
             return max;
 
         return value;
-    }
-    else {
+    } else {
         int64_t temp = max + (value + 1);
         if (temp < 0)
             return 0;
@@ -201,7 +200,7 @@ VariadicSplitMerge::VariadicSplitMerge() {
                     if (!axis_ret.has_value())
                         return false;
                   
-                    if(axis_ret.value() < -rank || axis_ret.value() > (rank - 1))
+                    if (axis_ret.value() < -rank || axis_ret.value() > (rank - 1))
                         return false;
 
                     splitlist[i].axis = convert_value(axis_ret.value(), rank - 1);
