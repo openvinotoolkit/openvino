@@ -188,10 +188,9 @@ namespace {
 
 #define ACCESSOR(type)                                                                \
     void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { \
-        if (m_expected_attrs.count(name) == 0) {                                      \
-            return;                                                                   \
+        if (m_expected_attrs.count(name) != 0) {                                      \
+            match(name, {adapter.get()});                                             \
         }                                                                             \
-        match(name, {adapter.get()});                                                 \
     };
 
 #define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
@@ -222,12 +221,12 @@ public:
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
         if (m_expected_attrs.count(name) == 0)
             return;
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+        OPENVINO_ASSERT("Can not compare void");
     };
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
         if (m_expected_attrs.count(name) == 0)
             return;
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
+        OPENVINO_ASSERT("Can not compare void*");
     };
     void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
