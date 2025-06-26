@@ -95,7 +95,10 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     _logger.debug("ZeroInferRequest::ZeroInferRequest - checking level zero attributes and allocating tensors");
 
     size_t ioIndex = 0;
-    auto batchSize = _graph->get_batch_size(_metadata, _userInputTensors.at(0), _graphInputDescriptors[0]);
+    auto batchSize = _graph->get_batch_size(_metadata, {}, {});
+    if (!_userInputTensors.empty() && !_graphInputDescriptors.empty()) {
+        batchSize = _graph->get_batch_size(_metadata, _userInputTensors.at(0), _graphInputDescriptors[0]);
+    }
     for (const IODescriptor& inputDescriptor : _metadata.inputs) {
         check_level_zero_attributes_match(inputDescriptor, _graphInputDescriptors.at(ioIndex));
 
@@ -129,9 +132,12 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
 void ZeroInferRequest::create_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline");
-    auto batch_size = _graph->get_batch_size(_metadata, _userInputTensors.at(0), _graphInputDescriptors[0]);
+    auto batchSize = _graph->get_batch_size(_metadata, {}, {});
+    if (!_userInputTensors.empty() && !_graphInputDescriptors.empty()) {
+        batchSize = _graph->get_batch_size(_metadata, _userInputTensors.at(0), _graphInputDescriptors[0]);
+    }
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
-        if (is_batched_input(inputIndex) && batch_size.has_value()) {
+        if (is_batched_input(inputIndex) && batchSize.has_value()) {
             if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
                 _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
                               _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
@@ -142,13 +148,13 @@ void ZeroInferRequest::create_pipeline() {
                     _logger.debug("ZeroInferRequest::create_pipeline - allocate new input tensor for batched input: "
                                   "%s, batch_size: %zu",
                                   _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
-                                  batch_size.value());
+                                  batchSize.value());
 
                     get_level_zero_input(inputIndex, i) = allocate_tensor(_metadata.inputs.at(inputIndex),
                                                                           inputIndex,
                                                                           true,
                                                                           *_inputAllocator,
-                                                                          batch_size);
+                                                                          batchSize);
                 }
             }
             continue;
@@ -165,7 +171,7 @@ void ZeroInferRequest::create_pipeline() {
         _logger.debug("ZeroInferRequest::create_pipeline - allocate new input tensor %s",
                       _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
         get_level_zero_input(inputIndex) =
-            allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, INPUT, *_inputAllocator, batch_size);
+            allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, INPUT, *_inputAllocator, batchSize);
         _logger.debug("ZeroInferRequest::create_pipeline - new input tensor %s allocated, size: %zu",
                       _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                       get_level_zero_input(inputIndex)->get_byte_size());
@@ -180,7 +186,7 @@ void ZeroInferRequest::create_pipeline() {
         _logger.debug("ZeroInferRequest::create_pipeline - allocate new output tensor %s",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
         _levelZeroOutputTensors.at(outputIndex) =
-            allocate_tensor(_metadata.outputs.at(outputIndex), outputIndex, OUTPUT, *_outputAllocator, batch_size);
+            allocate_tensor(_metadata.outputs.at(outputIndex), outputIndex, OUTPUT, *_outputAllocator, batchSize);
         _logger.debug("ZeroInferRequest::create_pipeline - new output tensor %s allocated, size: %zu",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str(),
                       _levelZeroOutputTensors.at(outputIndex)->get_byte_size());
@@ -218,7 +224,7 @@ void ZeroInferRequest::create_pipeline() {
                                            _graph,
                                            _levelZeroInputTensors,
                                            _levelZeroOutputTensors,
-                                           batch_size.has_value() ? batch_size.value() : 1);
+                                           batchSize.has_value() ? batchSize.value() : 1);
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
