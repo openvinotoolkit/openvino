@@ -107,11 +107,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
 
     auto transformed_model = model->clone();
     // Cleanup fused names if there are present in original model
-    // ov::pass::Manager m;
-    // m.register_pass<ov::pass::FusedNamesCleanup>();
-    // m.run_passes(transformed_model);
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::FusedNamesCleanup>();
+    m.run_passes(transformed_model);
 
-    // transform(transformed_model);
+    transform(transformed_model);
     const auto& ops = transformed_model->get_ordered_ops();
 
     NameSet supported;

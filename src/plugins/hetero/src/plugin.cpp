@@ -197,16 +197,48 @@ std::tuple<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo, std::shared_pt
         }
     }
     model->add_results(new_outputs);
-    auto& device_config1 = properties_per_device.at("GPU.0");
-    std::cout << "start get_transformation_model\n";
-    auto tranfored_model = get_core()->get_transformation_model(model, "GPU.0", device_config1);
-    std::cout << "get_transformation_model\n";
+    auto are_all_same_gpu_type = [&](const std::vector<std::string>& device_names) -> bool {
+        if (device_names.empty()) return true;
+        try {
+            const auto& ref = device_names[0];
+            if (ref.find("GPU") != 0) return false;
+
+            const auto ref_arch = get_core()->get_property(ref, ov::device::architecture);
+            const auto ref_name = get_core()->get_property(ref, ov::device::full_name);
+
+            for (size_t i = 1; i < device_names.size(); ++i) {
+                const auto& dev = device_names[i];
+                if (dev.find("GPU") != 0) return false;
+
+                if (get_core()->get_property(dev, ov::device::architecture) != ref_arch ||
+                    get_core()->get_property(dev, ov::device::full_name) != ref_name) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (...) {
+            return false;
+        }
+    };
+    auto tranfored_model = model;
+    bool transformed = false;
+    if (are_all_same_gpu_type(device_names)) {
+        auto& device_config1 = properties_per_device.at("GPU.0");
+        std::cout << "start get_transformation_model\n";
+        tranfored_model = get_core()->get_transformation_model(model, "GPU.0", device_config1);
+        std::cout << "get_transformation_model\n";
+        transformed = true;
+    }
+
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed
         bool fallback_device = (device_name == device_names.back());
         const auto& default_device = (!allow_exception || !fallback_device) ? get_device_name() : "";
         auto& device_config = properties_per_device.at(device_name);
+        if (transformed) {
+            device_config[ov::internal::disable_transformation.name()] = true;
+        }
         if (!has_subgraph_ops(tranfored_model)) {
             if (hetero_query_model_by_device)
                 update_config(device_config, tranfored_model, device_name, fallback_device);
