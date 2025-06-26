@@ -47,18 +47,27 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto rank = m_fc->get_input_partial_shape(0).size();
         ov::op::internal::DynamicQuantize::Attributes config;
 
-        if (precompute_sum && adj_group_size != UINT64_MAX && adj_group_size > 0 && optional_w_zp->get_output_partial_shape(0).rank().is_static()) {
+        const bool has_wzp = optional_w_zp->get_output_partial_shape(0).rank().is_static();
+        if (precompute_sum && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_wzp) {
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
+            auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();
-            if (wei_zp_group_size < adj_group_size) {
+            const size_t wei_scale_group_size = innermost_size / weight_scale_shape[weight_scale_shape.size() - 1].get_length();
+            const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
+            if (adj_group_size > required_group_size) {
                 GPU_DEBUG_LOG << "Dynamic quantization: adjusting group_size " << adj_group_size
-                               << " to wei_zp_group_size " << wei_zp_group_size << std::endl;
-                adj_group_size = wei_zp_group_size;
+                               << " to wei_zp_group_size " << wei_zp_group_size << " and wei_scale_group_size " << wei_scale_group_size << std::endl;
+                adj_group_size = required_group_size;
             }
-            std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
-            group_sizes_partial_sum.back() = adj_group_size;
-            config.group_sizes_partial_sum = group_sizes_partial_sum;
-            config.partial_sum_dt = element::i32; // it supports i32 only now
+            if (required_group_size % adj_group_size == 0) {
+                std::vector<uint64_t> group_sizes_partial_sum(rank, 1);
+                group_sizes_partial_sum.back() = adj_group_size;
+                config.group_sizes_partial_sum = group_sizes_partial_sum;
+                config.partial_sum_dt = element::i32; // it supports i32 only now
+            } else {
+                GPU_DEBUG_LOG << "Dynamic quantization: precompute is turned off because group_size " << adj_group_size
+                               << " is not aligned with required_group_size " << required_group_size << std::endl;
+            }
         }
 
         if (adj_group_size != UINT64_MAX &&
