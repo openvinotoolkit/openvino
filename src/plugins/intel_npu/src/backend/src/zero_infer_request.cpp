@@ -150,11 +150,8 @@ void ZeroInferRequest::create_pipeline() {
                                   _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                                   batchSize.value());
 
-                    get_level_zero_input(inputIndex, i) = allocate_tensor(_metadata.inputs.at(inputIndex),
-                                                                          inputIndex,
-                                                                          true,
-                                                                          *_inputAllocator,
-                                                                          batchSize);
+                    get_level_zero_input(inputIndex, i) =
+                        allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator, batchSize);
                 }
             }
             continue;
