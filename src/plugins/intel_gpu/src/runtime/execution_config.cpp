@@ -70,14 +70,21 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op) || ov::is_type<ov::intel_gpu::op::IndirectSDPA>(op) || ov::is_type<ov::intel_gpu::op::SDPA>(op)) {
         if (op->get_input_size() > 3) {
             bool rank_ge_4 = false;
-            for(int i=0;i<op->get_input_size();i++) {
+            bool rank_dynamic = false;
+            for(int i = 0;i < op->get_input_size();i++) {
                 auto input_shape = op->get_input_partial_shape(i);
+                if (input_shape.rank().is_dynamic()) {
+                    rank_dynamic = true;
+                    break;
+                }
+
                 if (input_shape.size() >= 4) {
                     rank_ge_4 = true;
                     break;
                 }
             }
-            if (!rank_ge_4) {
+
+            if (!rank_ge_4 && !rank_dynamic) {
                 return true;
             }
         }
