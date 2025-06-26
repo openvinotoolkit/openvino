@@ -129,14 +129,6 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'ubuntu_20_04'
 
-  Debian_Packages:
-    name: Debian Packages
-    needs: [ Docker, Build ]
-    uses: ./.github/workflows/job_debian_packages.yml
-    with:
-      runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }} # Docker image with python 3.9
-
   Samples:
     needs: [ Docker, Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples
