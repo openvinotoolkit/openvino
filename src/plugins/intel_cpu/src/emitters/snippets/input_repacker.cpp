@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "repacked_input.hpp"
+#include "input_repacker.hpp"
 
 #include <memory>
 #include <utility>
@@ -13,7 +13,7 @@
 
 namespace ov::intel_cpu {
 
-RepackedInput::RepackedInput(std::shared_ptr<const RepackedInputKernel> kernel,
+InputRepacker::InputRepacker(std::shared_ptr<const InputRepackerKernel> kernel,
                              CpuBlockedMemoryDescPtr desc,
                              VectorDims in_offsets,
                              VectorDims out_offsets)
@@ -25,15 +25,15 @@ RepackedInput::RepackedInput(std::shared_ptr<const RepackedInputKernel> kernel,
     OPENVINO_ASSERT(m_desc, "Descriptor is empty");
 }
 
-const CpuBlockedMemoryDescPtr& RepackedInput::desc() const {
+const CpuBlockedMemoryDescPtr& InputRepacker::desc() const {
     return m_desc;
 }
 
-const VectorDims& RepackedInput::in_offsets() const {
+const VectorDims& InputRepacker::in_offsets() const {
     return m_in_offsets;
 }
 
-const VectorDims& RepackedInput::out_offsets() const {
+const VectorDims& InputRepacker::out_offsets() const {
     return m_out_offsets;
 }
 }  // namespace ov::intel_cpu

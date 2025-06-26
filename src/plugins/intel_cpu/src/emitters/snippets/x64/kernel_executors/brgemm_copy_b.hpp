@@ -19,7 +19,7 @@
 
 #include "cache/multi_cache.h"
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
-#include "emitters/snippets/repacked_input.hpp"
+#include "emitters/snippets/input_repacker.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
@@ -166,7 +166,7 @@ private:
     size_t m_hash{SIZE_MAX};
 };
 
-struct BrgemmCopyBKernel : public RepackedInputKernel, public dnnl::impl::cpu::x64::jit_generator {
+struct BrgemmCopyBKernel : public InputRepackerKernel, public dnnl::impl::cpu::x64::jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(BrgemmCopyBKernel)
     struct call_args {
         const void* src = nullptr;

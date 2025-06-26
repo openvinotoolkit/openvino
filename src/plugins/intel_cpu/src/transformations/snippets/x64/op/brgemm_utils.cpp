@@ -6,8 +6,10 @@
 
 #include <oneapi/dnnl/dnnl_common_types.h>
 
+#include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <numeric>
 #include <string>
 
 #include "dnnl_extension_utils.h"
@@ -17,6 +19,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -148,7 +151,7 @@ void BrgemmConfig::validate() const {
     OPENVINO_ASSERT(m_wei_n_blk > 0 && m_wei_k_blk > 0, "Weight block sizes must be positive");
 }
 
-size_t BrgemmConfig::get_elems_in_vec(const ov::element::Type& precision) {
+size_t get_elems_in_vec(const ov::element::Type& precision) {
     using namespace dnnl::impl::cpu;
     OV_CPU_JIT_EMITTER_ASSERT(x64::mayiuse(x64::avx2), "doesn't support non avx512 platforms");
     const auto vlen =
@@ -162,13 +165,80 @@ size_t compute_vnni_factor(const ov::element::Type& precision) {
 }
 
 namespace repacking {
-ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K, size_t N, size_t wei_k_blk, size_t wei_n_blk) {
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(const ov::snippets::VectorDims& planar_shape,
+                                                           const ov::element::Type& prc,
+                                                           size_t wei_k_blk,
+                                                           size_t wei_n_blk,
+                                                           bool are_wei_blocked,
+                                                           bool is_transposed) {
     OPENVINO_ASSERT(
         !ov::snippets::utils::is_dynamic_value(wei_k_blk) && !ov::snippets::utils::is_dynamic_value(wei_n_blk),
         "wei_k_blk and wei_n_blk cannot be dynamic");
+    OPENVINO_ASSERT(planar_shape.size() >= 2, "Incorrect rank of buffer B: ", planar_shape.size());
+    const auto K = *++planar_shape.rbegin();
+    const auto N = *planar_shape.rbegin();
 
     const size_t new_N = compute_blocked_dim(N, wei_n_blk);
-    return ov::snippets::VectorDims{ov::snippets::utils::div_up(K, wei_k_blk), new_N, wei_k_blk};
+    //  - In case of transpose, K dimension must be rounded-up to number of elems in vector register
+    //    For the details, please see 'transpose16x8' and 'fixup16x16' implementations and usage in
+    //    onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+    //  - Low precision repacking writes the result by VNNIFactor * wei_n_blk blocks
+    //    despite the actual size of the input data. Because of that we have to round-up the allocation shape to always
+    //    have enough memory allocated. For the details, please see 'copy_4x64' and 'copy_2x32' implementations and
+    //    usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+    // Due to these facts, we cannot use just blocked shapes to calculate allocation size. BrgemmCopyB requires greater
+    // size.
+    const auto vnni_f = brgemm_utils::compute_vnni_factor(prc);
+    size_t K_alignment = are_wei_blocked ? wei_k_blk * vnni_f : vnni_f;
+    if (is_transposed) {
+        K_alignment = std::max(K_alignment, brgemm_utils::get_elems_in_vec(prc));
+    }
+    const size_t new_K = compute_blocked_dim(K, K_alignment);
+
+    ov::snippets::VectorDims allocation_shape(planar_shape);
+    *++allocation_shape.rbegin() = new_K;
+    *allocation_shape.rbegin() = new_N;
+
+    return allocation_shape;
+}
+
+ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippets::VectorDims& planar_shape,
+                                                               const ov::element::Type& prc,
+                                                               size_t wei_k_blk,
+                                                               size_t wei_n_blk,
+                                                               bool are_wei_blocked) {
+    const auto rank = planar_shape.size();
+    OPENVINO_ASSERT(rank >= 2, "Incorrect rank of weights: ", rank);
+    const auto K_idx = rank - 2;
+    const auto N_idx = rank - 1;
+    const auto K = planar_shape[K_idx];
+    const auto N = planar_shape[N_idx];
+    const auto vnni_factor = compute_vnni_factor(prc);
+    ov::snippets::VectorDims blocked_dims(planar_shape.cbegin(), planar_shape.cbegin() + (rank - 2));
+    ov::snippets::VectorDims blocked_order(rank - 2);
+    std::iota(blocked_order.begin(), blocked_order.end(), 0);
+
+    if (are_wei_blocked) {
+        blocked_order.insert(blocked_order.end(), {N_idx, K_idx, K_idx, N_idx, K_idx});
+        blocked_dims.insert(blocked_dims.end(),
+                            {ov::snippets::utils::div_up(N, wei_n_blk),
+                             ov::snippets::utils::div_up(K, wei_k_blk * vnni_factor),
+                             wei_k_blk,
+                             wei_n_blk,
+                             vnni_factor});
+    } else {
+        blocked_order.insert(blocked_order.end(), {K_idx, N_idx, K_idx});
+        blocked_dims.insert(
+            blocked_dims.end(),
+            {ov::snippets::utils::div_up(K, vnni_factor), ov::snippets::utils::rnd_up(N, wei_n_blk), vnni_factor});
+    }
+
+    if (vnni_factor == 1) {
+        blocked_order.pop_back();
+        blocked_dims.pop_back();
+    }
+
+    return {blocked_dims, blocked_order};
 }
 
 ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
