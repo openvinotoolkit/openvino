@@ -147,5 +147,19 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
 };
 
+class RoPETestChatGLMHF : public SubgraphBaseTest, public testing::WithParamInterface<rope_params> {
+private:
+    std::shared_ptr<ov::Model> buildROPE_ChatGLMHF(int seq_length,
+                                                   int num_heads,
+                                                   int rotary_ndims,
+                                                   ov::element::Type element_type);
+protected:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
+    void SetUp() override;
+
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<rope_params>& obj);
+};
+
 }  // namespace test
 }  // namespace ov

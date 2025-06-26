@@ -84,6 +84,9 @@ protected:
             if (desc->config.support_2d_rope) {
                 jit.make("SUPPORT_2D_ROPE", true);
             }
+            if (desc->config.use_rope_cache) {
+                jit.make("USE_ROPE_CACHE", true);
+            }
             jit.make("CHATGLM", true);
         } else if (desc->config.is_interleaved) {
             jit.make("RotateInterleaved", true);
@@ -101,7 +104,8 @@ protected:
         }
 
         auto desc = params.typed_desc<rope>();
-        uint32_t num_of_inputs = desc->config.is_chatglm || (desc->config.output_trans0213 && desc->config.is_interleaved) ? 2 : 3;
+        uint32_t num_of_inputs =
+            (desc->config.is_chatglm && desc->config.use_rope_cache) || (desc->config.output_trans0213 && desc->config.is_interleaved) ? 2 : 3;
 
         if (desc->gather_rank > 0) {
             num_of_inputs++;
