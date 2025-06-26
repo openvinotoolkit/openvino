@@ -122,7 +122,7 @@ TEST_F(TransformationTestsF, VariadicSplitMergeNegativeValue1) {
 
         auto slice_0 = make_slice(data, 0, 16, 1, 0);
         auto slice_1 = make_slice(data, 16, 32, 1, 0);
-        auto slice_2 = make_slice(data, 32, -1, 1, 0);
+        auto slice_2 = make_slice(data, 32, 50000, 1, 0);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0, slice_1, slice_2}, 0);
 
@@ -146,7 +146,7 @@ TEST_F(TransformationTestsF, VariadicSplitMergeNegativeValue2) {
 
         auto slice_0 = make_slice(data, 0, 16, 1, 0);
         auto slice_1 = make_slice(data, 16, -17, 1, 0);
-        auto slice_2 = make_slice(data, -17, -1, 1, 0);
+        auto slice_2 = make_slice(data, -17, 300, 1, 0);
 
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0, slice_1, slice_2}, 0);
 
@@ -489,7 +489,9 @@ TEST_F(TransformationTestsF, VariadicSplitMergeStep) {
         model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::VariadicSplitMerge>();
     }
-    { model_ref = model->clone(); }
+    {
+        model_ref = model->clone();
+    }
 }
 
 TEST_F(TransformationTestsF, VariadicSplitMergeStridedStep) {
@@ -505,5 +507,31 @@ TEST_F(TransformationTestsF, VariadicSplitMergeStridedStep) {
         model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
         manager.register_pass<ov::pass::VariadicSplitMerge>();
     }
-    { model_ref = model->clone(); }
+    {
+        model_ref = model->clone();
+    }
+}
+
+TEST_F(TransformationTestsF, VariadicSplitMergeNegativeAxis) {
+    {
+        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 12});
+
+        auto slice_0 = make_strided_slice(data, 0, 3, 1, 2);
+        auto slice_1 = make_slice(data, 3, 6, 1, -1);
+        auto slice_2 = make_strided_slice(data, 6, 12, 1, 2);
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{slice_0, slice_1, slice_2}, 2);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
+        manager.register_pass<ov::pass::VariadicSplitMerge>();
+    }
+    {
+        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 12});
+
+        auto vsplit = make_vsplit(data, 2, {3, 3, 6});
+
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{vsplit[0], vsplit[1], vsplit[2]}, 2);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{data});
+    }
 }
