@@ -67,7 +67,8 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         return true;
     }
 
-    if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op) || ov::is_type<ov::intel_gpu::op::IndirectSDPA>(op) || ov::is_type<ov::intel_gpu::op::SDPA>(op)) {
+    if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op) || ov::is_type<ov::intel_gpu::op::IndirectSDPA>(op) ||
+        ov::is_type<ov::intel_gpu::op::SDPA>(op)) {
         if (op->get_input_size() > 3) {
             bool rank_ge_4 = false;
             bool rank_dynamic = false;
