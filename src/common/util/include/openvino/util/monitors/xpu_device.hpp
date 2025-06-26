@@ -4,16 +4,13 @@
 
 #pragma once
 
-#include <deque>
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "openvino/util/monitors/idevice.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 class XPUDevice : public IDevice {
     // This class is used to monitor GPU/NPU performance data.
     // It uses the PerformanceImpl class to get the actual performance data.
@@ -28,5 +25,4 @@ private:
     class PerformanceImpl;
     std::shared_ptr<PerformanceImpl> m_perf_impl = nullptr;
 };
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

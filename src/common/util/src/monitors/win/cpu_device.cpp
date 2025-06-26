@@ -4,22 +4,19 @@
 
 #include "openvino/util/monitors/cpu_device.hpp"
 
-#include <algorithm>
-#include <iostream>
 #include <map>
 
-#ifdef _WIN32
-#    define NOMINMAX
-#    include <pdh.h>
-#    include <pdhmsg.h>
-#    include <windows.h>
+#define NOMINMAX
+#include <pdh.h>
+#include <pdhmsg.h>
+#include <windows.h>
 
-#    include <chrono>
-#    include <string>
-#    include <system_error>
-#    include <thread>
+#include <chrono>
+#include <string>
+#include <system_error>
+#include <thread>
 
-#    include "query_wrapper.hpp"
+#include "query_wrapper.hpp"
 
 namespace ov {
 namespace util {
@@ -96,49 +93,11 @@ private:
     int monitor_duration = 10;
 };
 
-#elif defined(__linux__)
-#    include <unistd.h>
-
-#    include <chrono>
-#    include <fstream>
-#    include <regex>
-#    include <utility>
-
-namespace ov {
-namespace util {
-class CPUDevice::PerformanceImpl {
-public:
-    PerformanceImpl() {}
-
-    std::map<std::string, float> get_utilization() {
-        // TODO: Implement.
-        return {{"Total", -1.0f}};
-    }
-};
-
-#else
-namespace ov {
-namespace util {
-// not implemented
-class CPUDevice::PerformanceImpl {
-public:
-    std::map<std::string, float> get_utilization() {
-        return {{"Total", -1.0f}};
-    }
-};
-#endif
-CPUDevice::CPUDevice(int numCores) : IDevice("CPU"), n_cores(numCores >= 0 ? numCores : 0) {}
+CPUDevice::CPUDevice() : IDevice("CPU") {}
 std::map<std::string, float> CPUDevice::get_utilization() {
     if (!m_perf_impl)
         m_perf_impl = std::make_shared<PerformanceImpl>();
-    if (n_cores == 0)
-        return m_perf_impl->get_utilization();
-    std::map<std::string, float> ret;
-    ret["Total"] = -1.0f;
-    for (int i = 0; i < n_cores; i++) {
-        ret[std::to_string(i)] = -1.0f;
-    }
-    return ret;
+    return m_perf_impl->get_utilization();
 }
-}
-}
+}  // namespace util
+}  // namespace ov

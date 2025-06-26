@@ -12,7 +12,9 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${UTIL_INCLUDE_DIR}/*.hpp)
 if (WIN32)
     # Remove linux specific files
     file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/*.hpp
+                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/*.cpp)
     list(REMOVE_ITEM LIBRARY_SRC ${LIN_FILES})
 else()
     # Remove windows specific files

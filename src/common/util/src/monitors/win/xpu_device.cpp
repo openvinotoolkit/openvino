@@ -5,31 +5,25 @@
 #include "openvino/util/monitors/xpu_device.hpp"
 
 #include <algorithm>
-#include <iomanip>
-#include <iostream>
 #include <map>
-#include <sstream>
 #include <string>
 
 #include "openvino/util/monitors/idevice.hpp"
 
-#ifdef _WIN32
-#    define NOMINMAX
-#    include <dxgi.h>
-#    include <pdh.h>
-#    include <pdhmsg.h>
-#    include <windows.h>
+#define NOMINMAX
+#include <dxgi.h>
+#include <pdh.h>
+#include <pdhmsg.h>
+#include <windows.h>
 
-#    include <chrono>
-#    include <string>
-#    include <system_error>
-#    include <thread>
+#include <string>
+#include <system_error>
 
-#    include "openvino/util/wstring_convert_util.hpp"
-#    include "query_wrapper.hpp"
-#    define RENDER_ENGINE_COUNTER_INDEX  0
-#    define COMPUTE_ENGINE_COUNTER_INDEX 1
-#    define MAX_COUNTER_INDEX            2
+#include "openvino/util/wstring_convert_util.hpp"
+#include "query_wrapper.hpp"
+#define RENDER_ENGINE_COUNTER_INDEX  0
+#define COMPUTE_ENGINE_COUNTER_INDEX 1
+#define MAX_COUNTER_INDEX            2
 
 namespace ov {
 namespace util {
@@ -154,39 +148,6 @@ private:
     int m_monitor_duration = 500;
 };
 
-#elif defined(__linux__)
-#    include <unistd.h>
-
-#    include <chrono>
-#    include <fstream>
-#    include <regex>
-#    include <utility>
-
-namespace ov {
-namespace util {
-class XPUDevice::PerformanceImpl {
-public:
-    PerformanceImpl(const std::string& device_luid) {}
-
-    std::map<std::string, float> get_utilization() {
-        // TODO: Implement.
-        return {};
-    }
-};
-
-#else
-namespace ov {
-namespace util {
-// not implemented
-class XPUDevice::PerformanceImpl {
-public:
-    PerformanceImpl(const std::string& device_luid) {}
-    std::map<std::string, float> get_utilization() {
-        // TODO: Implement.
-        return {};
-    }
-};
-#endif
 XPUDevice::XPUDevice(const std::string& device_luid) : IDevice("XPU"), m_device_luid(device_luid) {}
 std::map<std::string, float> XPUDevice::get_utilization() {
     if (!m_perf_impl) {
@@ -194,5 +155,5 @@ std::map<std::string, float> XPUDevice::get_utilization() {
     }
     return m_perf_impl->get_utilization();
 }
-}
-}
+}  // namespace util
+}  // namespace ov
