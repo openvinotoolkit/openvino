@@ -73,6 +73,10 @@ void LoraPatternMatmul::generate_inputs(const std::vector<ov::Shape>& targetInpu
 }
 
 void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t lora_rank) {
+    if (net_type == ov::element::f16) {
+        GTEST_SKIP() << "Skipping test for f16 - accuracy issues on devices without DPAS";
+    }
+
     compile_model();
     inferRequest = compiledModel.create_infer_request();
     ASSERT_TRUE(inferRequest);
