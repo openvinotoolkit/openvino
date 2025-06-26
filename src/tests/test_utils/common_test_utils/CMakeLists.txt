@@ -44,7 +44,10 @@ function(add_common_utils ADD_TARGET_NAME)
     )
 
     ov_developer_package_export_targets(TARGET ${ADD_TARGET_NAME}
-                                        INSTALL_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+                                        INSTALL_INCLUDE_DIRECTORIES
+                                            "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+                                            "${CMAKE_CURRENT_SOURCE_DIR}/src/"
+    )
 
     if(ENABLE_CONFORMANCE_PGQL)
         target_compile_definitions(${ADD_TARGET_NAME} PUBLIC ENABLE_CONFORMANCE_PGQL)
