@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/util/monitors/idevice.hpp"
+#include "openvino/util/monitors/idevice_monitor.hpp"
 namespace ov {
 namespace util {
 class DeviceMonitor {
@@ -18,7 +18,7 @@ public:
     std::map<std::string, float> get_utilization(const std::string& device_id);
 
 private:
-    std::shared_ptr<ov::util::IDevice> m_device_performance;
+    std::shared_ptr<ov::util::IDeviceMonitor> m_device_performance;
 };
 
 std::map<std::string, float> get_device_utilization(const std::string& device_id);

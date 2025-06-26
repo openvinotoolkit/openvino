@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/monitors/cpu_device.hpp"
+#include "openvino/util/monitors/cpu_device_monitor.hpp"
 
 #include <map>
 
@@ -21,7 +21,7 @@
 namespace ov {
 namespace util {
 
-class CPUDevice::PerformanceImpl {
+class CPUDeviceMonitor::PerformanceImpl {
 public:
     PerformanceImpl() {
         int n_cores = query_number_of_cores();
@@ -93,8 +93,8 @@ private:
     int monitor_duration = 10;
 };
 
-CPUDevice::CPUDevice() : IDevice("CPU") {}
-std::map<std::string, float> CPUDevice::get_utilization() {
+CPUDeviceMonitor::CPUDeviceMonitor() : IDeviceMonitor("CPU") {}
+std::map<std::string, float> CPUDeviceMonitor::get_utilization() {
     if (!m_perf_impl)
         m_perf_impl = std::make_shared<PerformanceImpl>();
     return m_perf_impl->get_utilization();

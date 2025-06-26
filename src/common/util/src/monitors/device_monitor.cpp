@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <iostream>
 
-#include "openvino/util/monitors/cpu_device.hpp"
-#include "openvino/util/monitors/xpu_device.hpp"
+#include "openvino/util/monitors/cpu_device_monitor.hpp"
+#include "openvino/util/monitors/xpu_device_monitor.hpp"
 
 namespace ov {
 namespace util {
@@ -19,9 +19,9 @@ DeviceMonitor::~DeviceMonitor() = default;
 
 std::map<std::string, float> DeviceMonitor::get_utilization(const std::string& device_id) {
     if (device_id.empty() && !m_device_performance)
-        m_device_performance = std::make_shared<ov::util::CPUDevice>();
+        m_device_performance = std::make_shared<ov::util::CPUDeviceMonitor>();
     else
-        m_device_performance = std::make_shared<ov::util::XPUDevice>(device_id);
+        m_device_performance = std::make_shared<ov::util::XPUDeviceMonitor>(device_id);
     return m_device_performance->get_utilization();
 }
 

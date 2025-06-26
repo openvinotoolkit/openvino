@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/monitors/xpu_device.hpp"
+#include "openvino/util/monitors/xpu_device_monitor.hpp"
 
-#include "openvino/util/monitors/idevice.hpp"
+#include "openvino/util/monitors/idevice_monitor.hpp"
 namespace ov {
 namespace util {
-class XPUDevice::PerformanceImpl {
+class XPUDeviceMonitor::PerformanceImpl {
 public:
     PerformanceImpl(const std::string& device_luid) {}
 
@@ -16,8 +16,10 @@ public:
     }
 };
 
-XPUDevice::XPUDevice(const std::string& device_luid) : IDevice("XPU"), m_device_luid(device_luid) {}
-std::map<std::string, float> XPUDevice::get_utilization() {
+XPUDeviceMonitor::XPUDeviceMonitor(const std::string& device_luid)
+    : IDeviceMonitor("XPU"),
+      m_device_luid(device_luid) {}
+std::map<std::string, float> XPUDeviceMonitor::get_utilization() {
     if (!m_perf_impl) {
         m_perf_impl = std::make_shared<PerformanceImpl>(m_device_luid);
     }

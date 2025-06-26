@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/monitors/xpu_device.hpp"
+#include "openvino/util/monitors/xpu_device_monitor.hpp"
 
 #include <algorithm>
 #include <map>
 #include <string>
 
-#include "openvino/util/monitors/idevice.hpp"
+#include "openvino/util/monitors/idevice_monitor.hpp"
 
 #define NOMINMAX
 #include <dxgi.h>
@@ -27,7 +27,7 @@
 
 namespace ov {
 namespace util {
-class XPUDevice::PerformanceImpl {
+class XPUDeviceMonitor::PerformanceImpl {
 public:
     PerformanceImpl(const std::string& device_luid) {
         m_luid = device_luid;
@@ -148,8 +148,8 @@ private:
     int m_monitor_duration = 500;
 };
 
-XPUDevice::XPUDevice(const std::string& device_luid) : IDevice("XPU"), m_device_luid(device_luid) {}
-std::map<std::string, float> XPUDevice::get_utilization() {
+XPUDeviceMonitor::XPUDeviceMonitor(const std::string& device_luid) : IDeviceMonitor("XPU"), m_device_luid(device_luid) {}
+std::map<std::string, float> XPUDeviceMonitor::get_utilization() {
     if (!m_perf_impl) {
         m_perf_impl = std::make_shared<PerformanceImpl>(m_device_luid);
     }
