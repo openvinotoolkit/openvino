@@ -101,8 +101,8 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
             full_properties[property.first] = property.second;
 
         // This function modifes original model
-        // auto cloned_model = model->clone();
-        std::shared_ptr<ov::Model> cloned_model;
+        auto cloned_model = model->clone();
+        // std::shared_ptr<ov::Model> cloned_model;
         std::tie(query_model_result, m_mapping_info, cloned_model) =
             get_hetero_plugin()->query_model_update(cloned_model, full_properties, true);
 

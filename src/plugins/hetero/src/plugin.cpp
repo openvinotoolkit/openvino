@@ -198,6 +198,7 @@ std::tuple<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo, std::shared_pt
     }
     model->add_results(new_outputs);
     auto& device_config1 = properties_per_device.at("GPU.0");
+    std::cout << "start get_transformation_model\n";
     auto tranfored_model = get_core()->get_transformation_model(model, "GPU.0", device_config1);
     std::cout << "get_transformation_model\n";
     for (const auto& device_name : device_names) {
