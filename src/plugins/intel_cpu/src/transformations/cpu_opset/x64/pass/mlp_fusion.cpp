@@ -5,6 +5,7 @@
 #include "mlp_fusion.hpp"
 
 #include <memory>
+#include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -213,25 +214,33 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
             return false;
         }
 
-        LLMMLPNode::Config config;
-        OutputVector new_args;
-        std::shared_ptr<Node> gate_act;
+        auto [config, gate_act] = [&]() -> std::pair<LLMMLPNode::Config, std::shared_ptr<Node>> {
+            LLMMLPNode::Config cfg{};
 
-        config.gate_up_quantized = is_gate_up_quantized_int8;
-        config.down_quantized = is_down_proj_int8;
-        config.hidden_size = down_size;
-        config.up_size = up_size;
-        config.gate_up_combined = is_gate_up_combined;
-        if (pattern_map.count(mlp_silu_gate) > 0) {
-            config.act = LLMMLPNode::ACT_FN::SILU;
-            gate_act = mlp_silu_gate;
-        } else if (pattern_map.count(mlp_gelu_gate) > 0) {
-            config.act = LLMMLPNode::ACT_FN::GELU;
-            gate_act = mlp_gelu_gate;
-        } else {
+            cfg.gate_up_quantized = is_gate_up_quantized_int8;
+            cfg.down_quantized = is_down_proj_int8;
+            cfg.hidden_size = down_size;
+            cfg.up_size = up_size;
+            cfg.gate_up_combined = is_gate_up_combined;
+
+            if (pattern_map.count(mlp_silu_gate) > 0) {
+                cfg.act = LLMMLPNode::ACT_FN::SILU;
+                return {cfg, mlp_silu_gate};
+            }
+
+            if (pattern_map.count(mlp_gelu_gate) > 0) {
+                cfg.act = LLMMLPNode::ACT_FN::GELU;
+                return {cfg, mlp_gelu_gate};
+            }
+
+            return {cfg, nullptr};
+        }();
+
+        if (!gate_act) {
             return false;
         }
 
+        OutputVector new_args;
         new_args.push_back(src);
         new_args.push_back(gate_proj_w);
         new_args.push_back(up_proj_w);

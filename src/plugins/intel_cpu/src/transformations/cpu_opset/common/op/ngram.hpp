@@ -30,13 +30,13 @@ public:
     OPENVINO_OP("Ngram", "cpu_plugin_opset");
 
     NgramNode() = default;
-    NgramNode(const ov::Output<Node>& embeddings, const ov::Output<Node>& batch_idces, const size_t k);
+    NgramNode(const ov::Output<Node>& embeddings, const ov::Output<Node>& batch_idces, size_t k);
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     size_t get_k() const;
 
 private:
-    size_t m_k;
+    size_t m_k = 0UL;
 };
 }  // namespace ov::intel_cpu

@@ -120,7 +120,7 @@ int Composite::registerToAllocationContext(int offset, AllocationContext& contex
     return m_graph.RegisterToAllocationContext(offset, context);
 }
 
-void Composite::execute(const dnnl::stream& /*strm*/) {
+void Composite::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_graph.Infer();
 }
 

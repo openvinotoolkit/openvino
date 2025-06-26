@@ -38,7 +38,7 @@ struct PagedAttentionExecutor {
     static const size_t ID_ROTATION_DELTAS = 15;           // [num_rotated_blocks * block_size || 0], int32
     static const size_t ID_ROTATION_TRIG_LUT = 16;         // [max_context_length * S || 0], f32
     virtual void execute(const std::vector<ov::intel_cpu::MemoryPtr>& inputs,
-                         const std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
+                         std::vector<ov::intel_cpu::MemoryPtr> outputs) = 0;
     virtual ~PagedAttentionExecutor() = default;
 };
 
@@ -68,15 +68,14 @@ public:
 };
 
 class JitMatMulVecAMX : public dnnl::impl::cpu::x64::jit_generator {
-    void operator=(const JitMatMulVecAMX&);
-
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(JitMatMulVecAMX)
+    void operator=(const JitMatMulVecAMX&) = delete;
     int m_head_size;
     int m_block_size;
     ov::element::Type m_amx_prec;
     TileConfiger m_tile_configer;
-    TileConfig m_tile_cfg;
+    TileConfig m_tile_cfg{};
     JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec);
 
     void tile_config() {

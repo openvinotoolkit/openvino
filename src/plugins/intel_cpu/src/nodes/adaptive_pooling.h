@@ -17,9 +17,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class AdaptivePooling : public Node {
 public:
@@ -34,7 +32,7 @@ public:
 
 private:
     int spatialDimsCount;
-    mutable std::vector<Dim> spatialDimsValue = {};
+    mutable std::vector<Dim> spatialDimsValue;
     ov::element::Type precision = ov::element::f32;
     static inline void setBinBorders(size_t* startPtr,
                                      size_t* endPtr,
@@ -50,6 +48,4 @@ protected:
     void executeDynamicImpl(const dnnl::stream& strm) override;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

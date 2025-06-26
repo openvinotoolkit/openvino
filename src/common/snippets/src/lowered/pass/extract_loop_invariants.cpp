@@ -24,13 +24,18 @@ std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
         loop_ids_need_extract.push_back(p.first);
 
     auto sorter = [&](size_t lhs, size_t rhs) {
-        const auto lhs_last_expr = loop_manager->get_loop_info(lhs)->get_output_ports().back().get_expr_port()->get_expr();
-        const auto rhs_last_expr = loop_manager->get_loop_info(rhs)->get_output_ports().back().get_expr_port()->get_expr();
-        // If last output loop ports are the same expressions - first executive Loop has inner ID in expression loop IDs.
+        const auto lhs_last_expr =
+            loop_manager->get_loop_info(lhs)->get_output_ports().back().get_expr_port()->get_expr();
+        const auto rhs_last_expr =
+            loop_manager->get_loop_info(rhs)->get_output_ports().back().get_expr_port()->get_expr();
+        // If last output loop ports are the same expressions - first executive Loop has inner ID in expression loop
+        // IDs.
         if (lhs_last_expr == rhs_last_expr) {
             for (const auto& id : lhs_last_expr->get_loop_ids()) {
-                if (id == lhs) return false;
-                if (id == rhs) return true;
+                if (id == lhs)
+                    return false;
+                if (id == rhs)
+                    return true;
             }
             OPENVINO_THROW("Incorrect Loop IDs");
         } else {
@@ -79,10 +84,11 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
         bool parent_scalar_with_single_consumer = ov::is_type<snippets::op::Scalar>(parent->get_node()) &&
                                                   parent->get_output_port_connector(0)->get_consumers().size() == 1;
         const auto& is_loop_port = inner_loop_info->is_loop_port(expr_input_ports[i]);
-        // If expr input port is not a loop input port, then should not extract. In this case expr depend on result of another expr in inner loop,
-        // i.e. move expr to top(outside) of inner loop does not keep data dependency.
-        // If expr has parent scalar which has single consumer, expr and parent scalar could be extracted together. If parent scalar has multiple
-        // consumers, the scalar has chance to move with other consumers, which maybe break data dependency as well.
+        // If expr input port is not a loop input port, then should not extract. In this case expr depend on result of
+        // another expr in inner loop, i.e. move expr to top(outside) of inner loop does not keep data dependency. If
+        // expr has parent scalar which has single consumer, expr and parent scalar could be extracted together. If
+        // parent scalar has multiple consumers, the scalar has chance to move with other consumers, which maybe break
+        // data dependency as well.
         if (!is_loop_port && !parent_scalar_with_single_consumer) {
             return false;
         }
@@ -97,8 +103,10 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
     return true;
 }
 
-void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir,
-                  LinearIR::constExprIt& inner_loop_begin_pos, const LinearIR::constExprIt& inner_loop_end_pos) {
+void extract_expr(const ExpressionPtr& expr,
+                  LinearIR& linear_ir,
+                  LinearIR::constExprIt& inner_loop_begin_pos,
+                  const LinearIR::constExprIt& inner_loop_end_pos) {
     // update expr loop id
     remove_last_loop_id(expr);
     // move if it is not the first
@@ -132,7 +140,8 @@ void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_man
     bool inserted = false;
     for (const auto& port : expr->get_input_ports()) {
         if (inner_loop_info->is_loop_port(port)) {
-            inner_loop_info->replace_with_new_ports(port, (inserted ? std::vector<ExpressionPort>{} : new_loop_input_ports));
+            inner_loop_info->replace_with_new_ports(port,
+                                                    (inserted ? std::vector<ExpressionPort>{} : new_loop_input_ports));
             inserted = true;
         }
     }
@@ -172,7 +181,8 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
             if (is_extraction_applicable(port_expr, inner_loop_info, inner_loop_id)) {
                 status = true;
                 LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
-                std::tie(inner_loop_begin_pos, inner_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
+                std::tie(inner_loop_begin_pos, inner_loop_end_pos) =
+                    loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
 
                 // extract scalar on inputs if there are
                 for (size_t i = 0; i < port_expr->get_input_count(); ++i) {
@@ -182,8 +192,8 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
                     }
                 }
                 // Inner Loops can contain ports which are ports of outer Loops as well.
-                // When we move extract expressions from inner loops and move them, we can corrupt the sort of LoopPorts of outer Loops.
-                // Firstly, we should save outer loop ids, before extraction
+                // When we move extract expressions from inner loops and move them, we can corrupt the sort of LoopPorts
+                // of outer Loops. Firstly, we should save outer loop ids, before extraction
                 const auto outer_loop_ids = LoopManager::get_outer_expr_loops(port_expr, inner_loop_id);
 
                 // Secondly, complete extraction
@@ -194,7 +204,8 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
                 loop_manager->sort_loop_ports(outer_loop_ids);
 
                 expr_extracted = true;
-                break;  // extracted and refreshed loop_input_ports. break potential_extractable_exprs loop, and go while() to start again.
+                break;  // extracted and refreshed loop_input_ports. break potential_extractable_exprs loop, and go
+                        // while() to start again.
             }
         }
         if (inner_loop_input_ports.size() == 0 && inner_loop_info->get_output_ports().size() == 0) {
@@ -210,7 +221,9 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
 }
 }  // namespace
 
-bool ExtractLoopInvariants::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool ExtractLoopInvariants::run(LinearIR& linear_ir,
+                                lowered::LinearIR::constExprIt begin,
+                                lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractLoopInvariants")
     bool modified = false;
 

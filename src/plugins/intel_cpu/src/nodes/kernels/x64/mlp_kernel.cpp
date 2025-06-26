@@ -513,7 +513,7 @@ void MKernel::run(int M,  // actual M
                   int strideC,                // C [M, N]
                   const uint8_t* prefetch_B,  // prefetch B
                   bool do_accumulation) {
-    call_args args;
+    call_args args{};
 
     auto* pB = repacked_B.ptr;
     auto strideB = repacked_B.Bpair_rows * repacked_B.Bpair_size;

@@ -8,6 +8,7 @@
 #include "pass_manager.h"
 #include "convolution_inst.h"
 #include "mvn_inst.h"
+#include "col2im_inst.h"
 #include "sliding_window_utils.hpp"
 #include <algorithm>
 
@@ -249,15 +250,16 @@ void prepare_padding::run(program& p) {
 
         auto needed_padding = get_needed_padding_for_convolution(node);
 
-        auto& input = node.get_dependency(0);
-        // WA to add reorder between MVN and Conv because Conv need input data with padding but MVN opt kernel with default format does not support padding.
-        // TODO: MVN opt kernel should support padding.
-        if (node.get_preferred_impl_type() == impl_types::ocl && input.is_type<mvn>()
-            && format::is_default_format(input.get_output_layout().format)) { // check the allowed format to avoid perf drop by unnecessary reorder addition.
-            auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
-            auto& new_reorder_node = p.get_or_create(new_reorder);
-            p.add_intermediate(new_reorder_node, node, input);
-            new_reorder_node.recalc_output_layouts(false);
+        // WA to add reorder between MVN and Convolution or between col2im and Convolution
+        // because Conv need input_node data with padding but MVN opt with default format and col2im do not support padding.
+        if (node.get_preferred_impl_type() == impl_types::ocl && format::is_default_format(conv_input_node.get_output_layout().format)) {
+            if (conv_input_node.is_type<mvn>() || conv_input_node.is_type<col2im>()) {
+                auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + conv_input_node.id(),
+                                                            conv_input_node.id(), conv_input_node.get_output_layout());
+                auto& new_reorder_node = p.get_or_create(new_reorder);
+                p.add_intermediate(new_reorder_node, node, conv_input_node);
+                new_reorder_node.recalc_output_layouts(false);
+            }
         }
 
         p.apply_needed_padding(node, node.get_dependency(0), needed_padding);

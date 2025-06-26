@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/snippets_isa.hpp"
-
-#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/snippets_isa.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -34,23 +32,26 @@ bool FuseTransposeBrgemm::is_supported_transpose_order(const std::vector<int32_t
 
 FuseTransposeBrgemm::FuseTransposeBrgemm() {
     MATCHER_SCOPE(FuseTransposeBrgemm);
-    auto constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), constant}, is_supported_transpose);
-    auto transpose_matcher = std::make_shared<ov::pass::pattern::Matcher>(transpose);
+    auto m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), m_constant},
+                                                                           is_supported_transpose);
 
     // Pattern 0: Transpose on 0-th input of MatMul
-    auto brgemm_in0 = ov::pass::pattern::wrap_type<op::Brgemm>({transpose, ov::pass::pattern::any_input()});
+    auto m_brgemm_in0 = ov::pass::pattern::wrap_type<op::Brgemm>({m_transpose, ov::pass::pattern::any_input()});
 
     // Pattern 1: Transpose on 1-st input of MatMul
-    auto brgemm_in1 = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), transpose});
+    auto m_brgemm_in1 = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), m_transpose});
 
     // Pattern 2: Transpose on output of MatMul
-    auto brgemm_out = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto transpose2 = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({brgemm_out, constant}, is_supported_transpose);
+    auto m_brgemm_out =
+        ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
+    auto m_transpose2 =
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_brgemm_out, m_constant}, is_supported_transpose);
 
-    auto brgemm_or_transpose = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{brgemm_in0, brgemm_in1, transpose2});
+    auto m_brgemm_or_transpose =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_brgemm_in0, m_brgemm_in1, m_transpose2});
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root());
 
@@ -73,7 +74,8 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root()->get_input_node_shared_ptr(0));
             const auto& brgemm_out = brgemm->output(0);
             const auto& transpose_out = m.get_match_value();
-            const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose_out.get_node_shared_ptr()->get_input_node_shared_ptr(1));
+            const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(
+                transpose_out.get_node_shared_ptr()->get_input_node_shared_ptr(1));
             const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(brgemm_out);
             original_port->set_shape(utils::pshape_to_vdims(transpose_out.get_partial_shape()));
             const auto& out_layout = original_port->get_layout();
@@ -86,9 +88,10 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         for (size_t i = 0; i < brgemm->get_input_size(); i++) {
             const auto& in = brgemm->input(i);
             const auto& in_value = in.get_source_output();
-            if (transpose_matcher->match(in_value)) {
+            if (is_supported_transpose(in_value)) {
                 const auto& transpose = as_type_ptr<ov::op::v1::Transpose>(in_value.get_node_shared_ptr());
-                const auto& const_order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
+                const auto& const_order =
+                    ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
                 brgemm->set_argument(i, transpose->input_value(0));
                 const auto& original_port = ov::snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
                 const auto& in_layout = original_port->get_layout();
@@ -104,7 +107,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         return true;
     };
 
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(brgemm_or_transpose, matcher_name), callback);
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_brgemm_or_transpose, matcher_name), callback);
 }
 
 }  // namespace pass

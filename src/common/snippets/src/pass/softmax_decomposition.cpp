@@ -4,6 +4,7 @@
 
 #include "snippets/pass/softmax_decomposition.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -11,7 +12,6 @@
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace snippets {

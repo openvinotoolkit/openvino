@@ -380,73 +380,70 @@ std::pair<int64_t, int64_t> calculateOptimalMemorySize(std::vector<MemorySolver:
 }
 
 MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj) {
-    MemoryStatisticsRecord retVal;
-    retVal.id = MemoryManagerIO::getClassName();
-    retVal.total_regions = obj.m_blocks.size();  // as the number of blocks ie equal to regions
-    retVal.total_unique_blocks = obj.m_blocks.size();
-    retVal.total_size = std::accumulate(obj.m_blocks.begin(),
-                                        obj.m_blocks.end(),
-                                        0,
-                                        [](size_t acc, const MemoryManagerIO::BlockType& item) {
-                                            return acc + item.size();
-                                        });
-    retVal.optimal_total_size = retVal.total_size;
-    retVal.max_region_size = std::accumulate(obj.m_blocks.begin(),
-                                             obj.m_blocks.end(),
-                                             static_cast<size_t>(0),
-                                             [](size_t acc, const MemoryManagerIO::BlockType& item) {
-                                                 return std::max(acc, item.size());
-                                             });
-    return retVal;
+    auto total_size = std::accumulate(obj.m_blocks.begin(),
+                                      obj.m_blocks.end(),
+                                      static_cast<size_t>(0),
+                                      [](size_t acc, const MemoryManagerIO::BlockType& item) {
+                                          return acc + item.size();
+                                      });
+    auto max_region_size = std::accumulate(obj.m_blocks.begin(),
+                                           obj.m_blocks.end(),
+                                           static_cast<size_t>(0),
+                                           [](size_t acc, const MemoryManagerIO::BlockType& item) {
+                                               return std::max(acc, item.size());
+                                           });
+    return {MemoryManagerIO::getClassName(),
+            obj.m_blocks.size(),  // as the number of blocks ie equal to regions
+            obj.m_blocks.size(),
+            total_size,
+            total_size,
+            max_region_size};
 }
 
 MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerStatic& obj) {
-    MemoryStatisticsRecord retVal;
-    retVal.id = MemoryManagerStatic::getClassName();
-    retVal.total_regions = obj.m_boxes.size();
-    retVal.total_unique_blocks = 1;  // in fact there is only one unique block
-    retVal.total_size = obj.m_totalSize;
+    auto [optimal_total_size, max_region_size] = [&obj]() {
+        return calculateOptimalMemorySize(obj.m_boxes);
+    }();
 
-    {
-        auto result = calculateOptimalMemorySize(obj.m_boxes);
-
-        retVal.optimal_total_size = result.first;
-        retVal.max_region_size = result.second;
-    }
-    return retVal;
+    return {MemoryManagerStatic::getClassName(),
+            obj.m_boxes.size(),
+            1,  // in fact there is only one unique block
+            obj.m_totalSize,
+            static_cast<size_t>(optimal_total_size),
+            static_cast<size_t>(max_region_size)};
 }
 
 MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets& obj) {
     static_assert(std::is_same_v<MemoryManagerNonOverlappingSets::InternalBlock, IndividualMemoryBlockWithRelease>,
                   "Unexpected block type");
 
-    MemoryStatisticsRecord retVal;
-    retVal.id = MemoryManagerNonOverlappingSets::getClassName();
-    retVal.total_regions = obj.m_boxes.size();
-
     std::unordered_set<std::shared_ptr<const MemoryBlockWithRelease>> uniqueBlocks;
     for (auto&& item : obj.m_internalBlocks) {
         uniqueBlocks.insert(item.second->getParentBlock());
     }
 
-    retVal.total_unique_blocks = uniqueBlocks.size();
-    retVal.total_size = std::accumulate(uniqueBlocks.begin(),
-                                        uniqueBlocks.end(),
-                                        static_cast<size_t>(0),
-                                        [](size_t acc, const auto& item) {
-                                            return acc + item->size();
-                                        });
+    auto total_size = std::accumulate(uniqueBlocks.begin(),
+                                      uniqueBlocks.end(),
+                                      static_cast<size_t>(0),
+                                      [](size_t acc, const auto& item) {
+                                          return acc + item->size();
+                                      });
 
-    auto tmp_boxes = obj.m_boxes;
-    for (auto&& box : tmp_boxes) {
-        auto block = obj.m_internalBlocks.at(box.id);
-        box.size = block->size();
-    }
+    auto [optimal_total_size, max_region_size] = [&obj]() {
+        auto tmp_boxes = obj.m_boxes;
+        for (auto&& box : tmp_boxes) {
+            auto block = obj.m_internalBlocks.at(box.id);
+            box.size = block->size();
+        }
+        return calculateOptimalMemorySize(std::move(tmp_boxes));
+    }();
 
-    auto result = calculateOptimalMemorySize(std::move(tmp_boxes));
-    retVal.optimal_total_size = result.first;
-    retVal.max_region_size = result.second;
-    return retVal;
+    return {MemoryManagerNonOverlappingSets::getClassName(),
+            obj.m_boxes.size(),
+            uniqueBlocks.size(),
+            total_size,
+            static_cast<size_t>(optimal_total_size),
+            static_cast<size_t>(max_region_size)};
 }
 #endif
 

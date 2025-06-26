@@ -18,15 +18,13 @@
  * @attention This cache implementation IS NOT THREAD SAFE!
  */
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 template <typename Key, typename Value>
 class LruCache {
 public:
     using value_type = std::pair<Key, Value>;
 
-public:
     explicit LruCache(size_t capacity) : _capacity(capacity) {}
 
     /**
@@ -84,7 +82,7 @@ public:
      * @brief Returns the current capacity value
      * @return the current capacity value
      */
-    size_t getCapacity() const noexcept {
+    [[nodiscard]] size_t getCapacity() const noexcept {
         return _capacity;
     }
 
@@ -107,5 +105,4 @@ private:
     size_t _capacity;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

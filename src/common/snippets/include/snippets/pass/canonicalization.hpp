@@ -5,9 +5,9 @@
 #pragma once
 
 #include "openvino/pass/pass.hpp"
-#include "transformations_visibility.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace snippets {
@@ -20,7 +20,7 @@ namespace pass {
  *  - layouts mismatch (only planar + blocked is supported), planar shapes are postpended with 1
  *  @ingroup snippets
  */
-class Canonicalization: public ov::pass::ModelPass {
+class Canonicalization : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::Canonicalization");
     using BlockedShapeVector = op::Subgraph::BlockedShapeVector;

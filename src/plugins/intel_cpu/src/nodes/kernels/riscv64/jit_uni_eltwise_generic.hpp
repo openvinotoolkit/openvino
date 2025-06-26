@@ -126,7 +126,7 @@ private:
     }
 
     inline Xbyak_riscv::VReg aux_vec(const int idx = 0) const {
-        const auto vstart = src_vec(jep_.inputs_number + 1).getIdx();
+        const auto vstart = src_vec(jep_.inputs_number).getIdx();
         const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
         const auto vec_idx = vstart + idx * (lmul_v == 0 ? 1 : lmul_v);
         OPENVINO_ASSERT(static_cast<size_t>(vec_idx) < (vec_count - lmul_v + 1),

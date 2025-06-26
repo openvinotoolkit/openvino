@@ -192,7 +192,7 @@ static void find_params_by_channel(const T* src,
                                    float* zp,
                                    size_t bits) {
     size_t j = 0;
-    float integer_range = static_cast<float>((1 << bits) - 1);
+    auto integer_range = static_cast<float>((1 << bits) - 1);
 #if defined(HAVE_AVX512F)
     for (; j + vec_len_f32_avx512 <= hidden_dims; j += vec_len_f32_avx512) {
         auto v_max = _mm512_set1_ps(-std::numeric_limits<float>::max());

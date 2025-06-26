@@ -7,11 +7,9 @@
 #include <node.h>
 
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -19,9 +17,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Pad : public Node {
 public:
@@ -46,7 +42,7 @@ protected:
 private:
     using VectorIdxs = std::vector<int32_t>;
 
-    enum PadMode { CONSTANT = 0, EDGE = 1, REFLECT = 2, SYMMETRIC = 3 };
+    enum PadMode : uint8_t { CONSTANT = 0, EDGE = 1, REFLECT = 2, SYMMETRIC = 3 };
 
     struct PadAttrs {
         PadMode padMode = CONSTANT;
@@ -72,9 +68,7 @@ private:
         void padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         void padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
         void padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr);
-        void padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
-                                   const MemoryPtr& dstMemPtr,
-                                   const bool isSymmetric = false);
+        void padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, bool isSymmetric = false);
         void paramsInitialization(const PadAttrs& attrs,
                                   const std::vector<MemoryCPtr>& srcMemory,
                                   const std::vector<MemoryCPtr>& dstMemory);
@@ -117,7 +111,7 @@ private:
             size_t innerCopySize = 0lu;
             size_t innerBeginPadCount = 0lu;
             size_t innerEndPadCount = 0lu;
-            PadMode padMode;
+            PadMode padMode = PadMode::CONSTANT;
         } params;
     };
 
@@ -135,6 +129,4 @@ private:
     bool shapeHasDataDependency = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

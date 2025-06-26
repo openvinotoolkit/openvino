@@ -275,6 +275,10 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     size_t element_count = get_data_size();
     if (ov::element::is_nibble_type(ov_type)) {
         element_count *= 2;  // Each byte contains 2 data items
+        if (shape_size(m_shape) % 2) {
+            // Odd elements
+            element_count--;
+        }
     }
     if (has_external_data()) {
         const auto ext_data = detail::TensorExternalData(*m_tensor_proto);

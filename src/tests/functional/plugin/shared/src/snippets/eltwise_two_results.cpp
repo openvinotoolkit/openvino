@@ -41,9 +41,7 @@ void EltwiseTwoResults::SetUp() {
 
     auto f = ov::test::snippets::EltwiseTwoResultsFunction({inputDynamicShapes[0], inputDynamicShapes[1]});
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(EltwiseTwoResults, CompareWithRefImpl) {

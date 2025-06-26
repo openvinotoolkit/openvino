@@ -14,9 +14,7 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class EmbeddingBagPacked : public Node, public EmbeddingBag {
 public:
@@ -44,6 +42,4 @@ private:
     size_t _indicesPerBag = 0;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

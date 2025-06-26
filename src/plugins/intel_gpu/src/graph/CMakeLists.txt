@@ -132,6 +132,8 @@ ov_add_target(
     ADD_CPPLINT
 )
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
 ov_set_threading_interface_for(${TARGET_NAME})

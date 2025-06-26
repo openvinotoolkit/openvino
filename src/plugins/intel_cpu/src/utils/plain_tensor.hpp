@@ -119,11 +119,11 @@ struct PlainTensor {
         if (i < 0) {
             i += m_rank;
         }
-        assert(static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_dims[i];
     }
     [[nodiscard]] size_t stride(int i) const {
-        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        assert(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_strides[i];
     }
 
@@ -146,7 +146,10 @@ struct PlainTensor {
 
     PlainTensor() = default;
 
-    PlainTensor operator=(const PlainTensor& other) {
+    PlainTensor& operator=(const PlainTensor& other) {
+        if (this == &other) {
+            return *this;
+        }
         memcpy(&m_strides, &other.m_strides, sizeof(m_strides));
         memcpy(&m_dims, &other.m_dims, sizeof(m_dims));
         m_rank = other.m_rank;
@@ -185,10 +188,10 @@ struct PlainTensor {
         int start;
         int end;
         int step;
-        int count;
+        int count = 0;
         // select all
         tensor_index() : start(0), end(INT_MAX), step(1) {}
-        bool slice_with_squeeze() {
+        [[nodiscard]] bool slice_with_squeeze() const {
             return end == INT_MIN;
         }
         // tensor_index(start)            : select 1 element (with squeeze)
@@ -249,7 +252,7 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     [[nodiscard]] PlainTensor slice(int axis, int start, int end, int step = 1) const {
         PlainTensor sub_tensor;
-        assert(axis >= 0 && static_cast<typename std::make_unsigned<decltype(axis)>::type>(axis) < m_rank);
+        assert(axis >= 0 && static_cast<std::make_unsigned_t<decltype(axis)>>(axis) < m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
@@ -364,7 +367,7 @@ struct PlainTensor {
         if (!data) {
             auto capacity_new = m_strides[0] * m_dims[0] * m_element_size;
             if (capacity_new > m_capacity) {
-                void* ptr;
+                void* ptr = nullptr;
 #ifdef _WIN32
                 ptr = _aligned_malloc(capacity_new, 64);
 #else
@@ -377,7 +380,7 @@ struct PlainTensor {
 #ifdef _WIN32
                     _aligned_free(ptr);
 #else
-                        ::free(ptr);
+                        ::free(ptr);  // NOLINT(cppcoreguidelines-no-malloc)
 #endif
                 });
                 m_capacity = capacity_new;
@@ -395,9 +398,10 @@ struct PlainTensor {
         resize(new_dims, sizeof(DT), precision_of<DT>::value, data, strides);
     }
 
-    size_t sub_byte_data_type_multiplier() const {
-        if (one_of(m_dt, ov::element::i4, ov::element::u4))
+    [[nodiscard]] size_t sub_byte_data_type_multiplier() const {
+        if (one_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
+        }
         return 1;
     }
 
@@ -406,11 +410,11 @@ struct PlainTensor {
         return m_offset;
     }
     template <int dim, typename I>
-    int64_t offset(I i) const {
+    [[nodiscard]] int64_t offset(I i) const {
         return m_offset + i * m_strides[dim];
     }
     template <int dim, typename I, typename... Is>
-    int64_t offset(I i, Is... indices) const {
+    [[nodiscard]] int64_t offset(I i, Is... indices) const {
         return i * m_strides[dim] + offset<dim + 1>(indices...);
     }
     template <typename DT, typename... Is>
@@ -435,15 +439,15 @@ struct PlainTensor {
     }
 
     template <typename... Is>
-    void* ptr_v(Is... indices) const {
+    [[nodiscard]] void* ptr_v(Is... indices) const {
         return reinterpret_cast<void*>(m_ptr.get() + offset<0>(indices...) * m_element_size / m_sub_byte_multiplier);
     }
 
     // when allow_broadcast is true, index to size-1 dim will always access 0.
     template <typename DT>
-    DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
+    [[nodiscard]] DT& at(const std::initializer_list<size_t>& index, bool allow_broadcast = false) const {
         size_t off = 0;
-        auto it = index.begin();
+        const auto* it = index.begin();
         for (size_t i = 0; i < m_rank; i++) {
             size_t coordinate = (it != index.end()) ? (*it++) : 0;
             if (allow_broadcast && m_dims[i] == 1) {
@@ -491,7 +495,7 @@ struct PlainTensor {
         bool match = false;
         if (m_rank == expect_dims.size()) {
             match = true;
-            auto it = expect_dims.begin();
+            const auto* it = expect_dims.begin();
             for (size_t i = 0; i < m_rank; ++i, ++it) {
                 if (*it == 0 && special_zero) {
                     continue;
@@ -510,7 +514,7 @@ struct PlainTensor {
                 ss << m_dims[i] << ",";
             }
             ss << "] expect_dims=[";
-            for (auto& i : expect_dims) {
+            for (const auto& i : expect_dims) {
                 ss << i << ",";
             }
             ss << "]";
@@ -549,7 +553,7 @@ struct PlainTensor {
         int cur_row_lines_left = lines_per_row;
         size_t cur_line_elecnt = 0;
         size_t cur_row_elecnt = 0;
-        size_t i;
+        size_t i = 0;
         for (i = 0; i < sz && max_total_lines > 0; i++) {
             if ((i % last_dim_size) == 0 && m_rank > 1) {
                 ss << row_id << ":\t\t";

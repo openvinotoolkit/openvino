@@ -22,13 +22,13 @@ namespace modifier {
 class MemoryAccess {
 public:
     /**
-    * @interface PortDescriptor
-    * @brief This class describes port of MemoryAccess operation
-    * @param m_count - count of elements to load/store
-    * @param m_offset - starting index of elements to load/store
-    * @param m_index - port index
-    * @ingroup snippets
-    */
+     * @interface PortDescriptor
+     * @brief This class describes port of MemoryAccess operation
+     * @param m_count - count of elements to load/store
+     * @param m_offset - starting index of elements to load/store
+     * @param m_index - port index
+     * @ingroup snippets
+     */
     struct PortDescriptor {
         PortDescriptor(size_t count, size_t offset) : count(count), offset(offset) {}
         PortDescriptor() = default;
@@ -40,8 +40,11 @@ public:
         size_t index = 0lu;
 
     private:
-        PortDescriptor(size_t count, size_t offset, size_t stride, size_t index) :
-            count(count), offset(offset), stride(stride), index(index) {}
+        PortDescriptor(size_t count, size_t offset, size_t stride, size_t index)
+            : count(count),
+              offset(offset),
+              stride(stride),
+              index(index) {}
 
         friend class MemoryAccess;
     };
@@ -61,8 +64,12 @@ public:
     size_t get_input_stride(size_t idx = 0) const;
     size_t get_output_stride(size_t idx = 0) const;
 
-    PortMap get_memory_access_input_ports() const { return m_input_ports; }
-    PortMap get_memory_access_output_ports() const { return m_output_ports; }
+    PortMap get_memory_access_input_ports() const {
+        return m_input_ports;
+    }
+    PortMap get_memory_access_output_ports() const {
+        return m_output_ports;
+    }
 
     bool is_memory_access_input_port(size_t idx) const;
     bool is_memory_access_output_port(size_t idx) const;
@@ -95,6 +102,6 @@ protected:
     PortMap m_output_ports;
 };
 
-} // namespace modifier
-} // namespace snippets
-} // namespace ov
+}  // namespace modifier
+}  // namespace snippets
+}  // namespace ov

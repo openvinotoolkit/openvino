@@ -52,7 +52,7 @@ struct EltwiseAttrs {
     }
 };
 
-enum class EltwisePostOpType { Undefined, Eltwise, Dnnl };
+enum class EltwisePostOpType : uint8_t { Undefined, Eltwise, Dnnl };
 
 class EltwisePostOp {
 public:
@@ -115,7 +115,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const EltwiseAttrs& eltwiseAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual EltwiseExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using EltwiseExecutorBuilderPtr = std::shared_ptr<EltwiseExecutorBuilder>;

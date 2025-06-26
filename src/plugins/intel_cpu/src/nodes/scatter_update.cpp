@@ -101,9 +101,7 @@ bool ScatterUpdate::isExecutable() const {
 
 ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      dataSize(0LU),
-      indicesSize(0LU),
-      axisSize(0LU),
+
       dataPrec(ov::element::dynamic),
       indicesPrec(ov::element::dynamic),
       axisPrec(ov::element::dynamic) {

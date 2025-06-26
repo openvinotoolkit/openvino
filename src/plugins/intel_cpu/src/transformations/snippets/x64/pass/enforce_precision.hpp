@@ -20,8 +20,8 @@ class EnforcePrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("EnforcePrecision");
 
-    EnforcePrecision(const element::Type source,
-                     const element::Type target,
+    EnforcePrecision(element::Type source,
+                     element::Type target,
                      const std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)>&
                          get_supported_precisions = nullptr);
 

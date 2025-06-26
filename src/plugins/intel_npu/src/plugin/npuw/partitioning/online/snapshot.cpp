@@ -235,6 +235,9 @@ void Snapshot::collectLHF() {
                 if (group->isFrozen() || prod_group->isFrozen()) {
                     continue;
                 }
+                if (group->avoidedTargets() != prod_group->avoidedTargets()) {
+                    continue;
+                }
                 // stop merging groups if the graph is already small enough
                 if (graphSize() <= m_ctx.min_graph_size) {
                     break;
@@ -287,7 +290,7 @@ void Snapshot::fuseRemnants() {
             for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
                 Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
                 if (!group->hasCycle(cons_group)) {
-                    if (!cons_group->isFrozen()) {
+                    if (!cons_group->isFrozen() && group->avoidedTargets() == cons_group->avoidedTargets()) {
                         group->fuseWith(cons_group);
                         break;
                     }
@@ -340,6 +343,10 @@ void Snapshot::fuseInputs() {
             }
             // Found 2 inputs to fuse
             if (inputs_to_fuse.first && inputs_to_fuse.second) {
+                if (inputs_to_fuse.first->avoidedTargets() != inputs_to_fuse.second->avoidedTargets()) {
+                    inputs_to_fuse = {nullptr, nullptr};
+                    continue;
+                }
                 group->fuseInputs(inputs_to_fuse);
                 break;
             }

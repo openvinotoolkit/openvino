@@ -86,8 +86,8 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
             }
         }
     } else {
-        for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-            if (normalizedSecondInputDims[i] != 1) {
+        for (uint64_t normalizedSecondInputDim : normalizedSecondInputDims) {
+            if (normalizedSecondInputDim != 1) {
                 return false;
             }
         }

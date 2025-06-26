@@ -766,9 +766,13 @@ int main(int argc, char* argv[]) {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
                     name = item.get_any_name();
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
                 } catch (...) {
                 }
+                const auto& prc = user_precisions_map.find(name);
+                if (prc != user_precisions_map.end()) {
+                    iop_precision = getPrecision2(prc->second);
+                }
+
                 if (iop_precision != ov::element::dynamic) {
                     type_to_set = iop_precision;
                 } else if (input_precision != ov::element::dynamic) {
@@ -800,12 +804,18 @@ int main(int argc, char* argv[]) {
             for (size_t i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
                 auto iop_precision = ov::element::dynamic;
+                std::string name;
                 try {
                     // Some tensors might have no names, get_any_name will throw exception in that case.
                     // -iop option will not work for those tensors.
-                    iop_precision = getPrecision2(user_precisions_map.at(item.get_any_name()));
+                    name = item.get_any_name();
                 } catch (...) {
                 }
+                const auto& prc = user_precisions_map.find(name);
+                if (prc != user_precisions_map.end()) {
+                    iop_precision = getPrecision2(prc->second);
+                }
+
                 if (iop_precision != ov::element::dynamic) {
                     preproc.output(i).tensor().set_element_type(iop_precision);
                 } else if (output_precision != ov::element::dynamic) {

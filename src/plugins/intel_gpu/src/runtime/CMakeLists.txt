@@ -75,4 +75,6 @@ elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

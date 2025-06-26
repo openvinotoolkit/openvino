@@ -88,7 +88,7 @@ using CPUSpecificParams = std::tuple<std::vector<cpu_memory_format_t>,  // input
                                      std::string                        // selected primitive type
                                      >;
 
-enum class nodeType { convolution, convolutionBackpropData, groupConvolution, groupConvolutionBackpropData };
+enum class nodeType : uint8_t { convolution, convolutionBackpropData, groupConvolution, groupConvolutionBackpropData };
 
 inline std::string nodeType2PluginType(nodeType nt) {
     if (nt == nodeType::convolution)

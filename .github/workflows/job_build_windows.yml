@@ -232,7 +232,7 @@ jobs:
         if: ${{ inputs.build-additional-python-wheels }}
         uses: ./openvino/.github/actions/setup_python
         with:
-          version: '3.13.3'
+          version: '3.13'
           pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           should-setup-pip-paths: 'true'
           self-hosted-runner: 'true'

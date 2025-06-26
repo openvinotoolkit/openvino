@@ -26,7 +26,7 @@ namespace ov::intel_cpu {
 struct SubgraphAttrs {
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<snippets::op::Subgraph> snippet;
-    uint64_t bodyHash;
+    uint64_t bodyHash = 0UL;
     std::vector<VectorDims> inMemOrders;
     std::vector<VectorDims> outMemOrders;
     std::vector<ov::element::Type> inMemPrecs;
@@ -83,7 +83,7 @@ protected:
     virtual void parallel_for6d(const initializer_functor& initializer, const call_functor& caller);
     virtual void parallel_forNd(const initializer_functor& initializer, const call_functor& caller);
 
-    inline void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
+    void update_scratchpad_ptr(void*& scratchpad_ptr, size_t ithr) const {
         if (m_buffer_scratchpad_size > 0) {
             scratchpad_ptr = m_buffer_scratchpad->getDataAs<uint8_t>() + ithr * m_buffer_scratchpad_size;
         }
@@ -92,7 +92,7 @@ protected:
     std::shared_ptr<snippets::Schedule> m_schedule;
     // Holds index of output used as in execution domain
     // it should be compatible with a schedule's work size
-    std::vector<size_t> m_parallel_exec_domain = {};
+    std::vector<size_t> m_parallel_exec_domain;
     size_t m_harness_work_amount = 0;
 
     // Buffer scratchpad
@@ -106,8 +106,8 @@ protected:
     // Count of threads for parallel_nt
     int m_nthreads = 0;
 
-    std::vector<ptrdiff_t> m_start_offset_in = {};
-    std::vector<ptrdiff_t> m_start_offset_out = {};
+    std::vector<ptrdiff_t> m_start_offset_in;
+    std::vector<ptrdiff_t> m_start_offset_out;
 };
 
 class SubgraphSpecializedBaseExecutor {
@@ -148,11 +148,11 @@ public:
 protected:
     using kernel = void (*)(const void*, const void*);
 
-    inline void init_call_args(jit_snippets_call_args& call_args,
-                               const std::vector<MemoryPtr>& srcMemPtrs,
-                               const std::vector<MemoryPtr>& dstMemPtrs,
-                               const std::vector<ptrdiff_t>& start_offset_in,
-                               const std::vector<ptrdiff_t>& start_offset_out) {
+    void init_call_args(jit_snippets_call_args& call_args,
+                        const std::vector<MemoryPtr>& srcMemPtrs,
+                        const std::vector<MemoryPtr>& dstMemPtrs,
+                        const std::vector<ptrdiff_t>& start_offset_in,
+                        const std::vector<ptrdiff_t>& start_offset_out) {
         call_args.init_external_ptrs(m_external_ptr_mappings.size());
         for (const auto& mapping : m_src_ptr_mappings) {
             call_args.src_ptrs[mapping.postprocessed_idx] =
@@ -184,13 +184,13 @@ public:
 protected:
     using dynamic_kernel = void (*)(const void*);
 
-    inline void init_call_args(jit_snippets_call_args& call_args) {
+    void init_call_args(jit_snippets_call_args& call_args) {
         call_args.register_loops(m_loop_args);
         call_args.init_external_ptrs(m_external_ptr_mappings.size());
         std::copy(m_buffer_offsets.cbegin(), m_buffer_offsets.cend(), call_args.buffer_offsets);
     }
 
-    inline void init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs,
+    static void init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs,
                                    const std::vector<MemoryPtr>& dstMemPtrs,
                                    std::vector<const uint8_t*>& src_ptrs,
                                    std::vector<uint8_t*>& dst_ptrs,
@@ -210,12 +210,12 @@ protected:
         }
     }
 
-    inline void update_ptrs(jit_snippets_call_args& call_args,
-                            const std::vector<const uint8_t*>& src_ptrs,
-                            const std::vector<uint8_t*>& dst_ptrs,
-                            const std::vector<size_t>& indexes) const {
+    void update_ptrs(jit_snippets_call_args& call_args,
+                     const std::vector<const uint8_t*>& src_ptrs,
+                     const std::vector<uint8_t*>& dst_ptrs,
+                     const std::vector<size_t>& indexes) const {
         for (const auto& mapping : m_src_ptr_mappings) {
-            auto i_ptr = src_ptrs[mapping.original_idx];
+            const auto* i_ptr = src_ptrs[mapping.original_idx];
             for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += m_data_offsets[mapping.original_idx][j] * indexes[j];
             }
@@ -223,7 +223,7 @@ protected:
         }
 
         for (const auto& mapping : m_external_ptr_mappings) {
-            auto i_ptr = src_ptrs[mapping.original_idx];
+            const auto* i_ptr = src_ptrs[mapping.original_idx];
             for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += m_data_offsets[mapping.original_idx][j] * indexes[j];
             }
@@ -231,7 +231,7 @@ protected:
         }
 
         for (size_t i = 0; i < dst_ptrs.size(); i++) {
-            auto i_ptr = dst_ptrs[i];
+            auto* i_ptr = dst_ptrs[i];
             for (size_t j = 0; j < indexes.size(); j++) {
                 i_ptr += m_data_offsets[i + src_ptrs.size()][j] * indexes[j];
             }
@@ -239,9 +239,9 @@ protected:
         }
     }
 
-    std::vector<size_t> m_buffer_offsets = {};
-    std::vector<std::vector<size_t>> m_data_offsets = {};
-    std::vector<jit_snippets_call_args::loop_args_t> m_loop_args = {};
+    std::vector<size_t> m_buffer_offsets;
+    std::vector<std::vector<size_t>> m_data_offsets;
+    std::vector<jit_snippets_call_args::loop_args_t> m_loop_args;
     std::function<void()> m_reset_exec_table_state;
 };
 

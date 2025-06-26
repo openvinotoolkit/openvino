@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "utils/cpp/bit_cast.hpp"
+
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the
  * float data type.
@@ -35,7 +37,8 @@ public:
     {}
 
     operator float() const {
-        return F32{static_cast<uint32_t>(m_value) << 16}.vfloat;
+        auto bits = static_cast<uint32_t>(m_value) << 16;
+        return ov::intel_cpu::bit_cast<float>(bits);
     }
     static constexpr bfloat16_t from_bits(uint16_t bits) {
         return {bits, true};
@@ -44,28 +47,24 @@ public:
         return m_value;
     }
 
-    static inline uint16_t round_to_nearest_even(float x) {
-        return static_cast<uint16_t>((F32(x).vint + ((F32(x).vint & 0x00010000) >> 1)) >> 16);
+    static uint16_t round_to_nearest_even(float x) {
+        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        return static_cast<uint16_t>((bits + ((bits & 0x00010000u) >> 1)) >> 16);
     }
 
-    static inline uint16_t round_to_nearest(float x) {
-        return static_cast<uint16_t>((F32(x).vint + 0x8000) >> 16);
+    static uint16_t round_to_nearest(float x) {
+        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        return static_cast<uint16_t>((bits + 0x8000u) >> 16);
     }
 
-    static inline uint16_t truncate(float x) {
-        return static_cast<uint16_t>((F32(x).vint) >> 16);
+    static uint16_t truncate(float x) {
+        uint32_t bits = ov::intel_cpu::bit_cast<uint32_t>(x);
+        return static_cast<uint16_t>(bits >> 16);
     }
 
 private:
-    constexpr bfloat16_t(uint16_t x, bool) : m_value{x} {}
-    union alignas(16) F32 {
-        F32(float val) : vfloat{val} {}
-
-        F32(uint32_t val) : vint{val} {}
-        float vfloat;
-        uint32_t vint;
-    };
-    uint16_t m_value;
+    constexpr bfloat16_t(uint16_t x, [[maybe_unused]] bool flag) : m_value{x} {}
+    uint16_t m_value{};
 };
 
 }  // namespace ov::intel_cpu

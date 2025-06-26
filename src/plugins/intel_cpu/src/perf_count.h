@@ -8,38 +8,37 @@
 #include <cstdint>
 #include <ratio>
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class PerfCount {
-    uint64_t total_duration;
-    uint32_t num;
+    uint64_t total_duration = 0;
+    uint32_t num = 0;
 
-    std::chrono::high_resolution_clock::time_point __start = {};
-    std::chrono::high_resolution_clock::time_point __finish = {};
+    std::chrono::high_resolution_clock::time_point _start;
+    std::chrono::high_resolution_clock::time_point _finish;
 
 public:
-    PerfCount() : total_duration(0), num(0) {}
+    PerfCount() = default;
 
-    std::chrono::duration<double, std::milli> duration() const {
-        return __finish - __start;
+    [[nodiscard]] std::chrono::duration<double, std::milli> duration() const {
+        return _finish - _start;
     }
 
-    uint64_t avg() const {
+    [[nodiscard]] uint64_t avg() const {
         return (num == 0) ? 0 : total_duration / num;
     }
-    uint32_t count() const {
+    [[nodiscard]] uint32_t count() const {
         return num;
     }
 
 private:
     void start_itr() {
-        __start = std::chrono::high_resolution_clock::now();
+        _start = std::chrono::high_resolution_clock::now();
     }
 
     void finish_itr() {
-        __finish = std::chrono::high_resolution_clock::now();
-        total_duration += std::chrono::duration_cast<std::chrono::microseconds>(__finish - __start).count();
+        _finish = std::chrono::high_resolution_clock::now();
+        total_duration += std::chrono::duration_cast<std::chrono::microseconds>(_finish - _start).count();
         num++;
     }
 
@@ -59,8 +58,7 @@ public:
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
-#define GET_PERF(_node)    std::unique_ptr<PerfHelper>(new PerfHelper(_node->PerfCounter()))
-#define PERF(_node, _need) auto pc = _need ? GET_PERF(_node) : nullptr;
+#define GET_PERF(_node)    std::unique_ptr<PerfHelper>(new PerfHelper((_node)->PerfCounter()))
+#define PERF(_node, _need) auto pc = (_need) ? GET_PERF(_node) : nullptr;
