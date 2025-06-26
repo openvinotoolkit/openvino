@@ -120,7 +120,7 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
             return false;
         }
         const auto& out_shape = out.get_shape();
-        return ((!out_shape.empty()) && (out_shape[0] == 1));
+        return (!out_shape.empty() && out_shape[0] == 1);
     };
     // reshape_2_m delete leading dimension of 1.
     auto rank_reduction_reshape = [&](const ov::Output<ov::Node>& out) {

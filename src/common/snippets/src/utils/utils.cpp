@@ -340,7 +340,7 @@ std::vector<lowered::ExpressionPtr> get_first_parent_shape_infer_expr_seq(const 
 
 std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node) {
     auto get_first_shape_infer_node = [](const std::set<ov::Input<ov::Node>>& consumers) -> std::shared_ptr<ov::Node> {
-        for (auto consumer : consumers) {
+        for (const auto& consumer : consumers) {
             auto node = consumer.get_node()->shared_from_this();
             if (op::Subgraph::is_shape_infer_op(node)) {
                 return node;

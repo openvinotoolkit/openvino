@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include "openvino/opsets/opset10.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"

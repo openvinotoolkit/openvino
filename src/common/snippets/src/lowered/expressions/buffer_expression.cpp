@@ -109,7 +109,6 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
             return buffer_consumer && buffer_consumer->get_cluster_id() == m_cluster_id &&
                    consumer.get_index() == buffer_in_idx;
         });
-        return false;
     };
 
     m_allocation_size = 1;

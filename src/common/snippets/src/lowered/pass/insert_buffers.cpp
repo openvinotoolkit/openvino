@@ -89,7 +89,7 @@ LinearIR::constExprIt InsertBuffers::insertion_position(const LinearIR& linear_i
 
 void InsertBuffers::insertion(LinearIR& linear_ir,
                               const LinearIR::constExprIt& begin_it,
-                              const LinearIR::constExprIt& /*end_it*/,
+                              [[maybe_unused]] const LinearIR::constExprIt& end_it,
                               const LoopManagerPtr& loop_manager,
                               const std::vector<ExpressionPort>& loop_entries,
                               const std::vector<ExpressionPort>& loop_exits) {

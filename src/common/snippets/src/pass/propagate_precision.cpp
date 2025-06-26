@@ -30,18 +30,18 @@
 ov::snippets::pass::PropagatePrecision::PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine)
     : target_machine(target_machine) {}
 
-bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool ov::snippets::pass::PropagatePrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(PropagatePrecision);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::PropagatePrecision")
 
     std::unordered_map<std::shared_ptr<ov::opset1::Result>, element::Type> result_types;
-    auto results = f->get_results();
+    auto results = m->get_results();
     for (auto& result : results) {
         result_types.emplace(result, result->get_input_element_type(0));
     }
 
     bool was_updated = false;
-    for (const auto& op : f->get_ordered_ops()) {
+    for (const auto& op : m->get_ordered_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
         auto type_info = op->get_type_info();

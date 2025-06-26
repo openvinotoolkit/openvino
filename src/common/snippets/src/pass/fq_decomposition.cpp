@@ -416,13 +416,13 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(
            is_valid_range_values(fq);
 }
 
-bool ov::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool ov::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(CommonFakeQuantizeDecomposition);
     ov::pass::Manager manager("Snippets:CommonFakeQuantizeDecomposition");
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::snippets::pass::FakeQuantizeDecomposition>();
     manager.register_pass<ov::pass::ConstantFolding>();
     manager.register_pass<ov::pass::Validate>();
-    manager.run_passes(f);
+    manager.run_passes(m);
     return false;
 }

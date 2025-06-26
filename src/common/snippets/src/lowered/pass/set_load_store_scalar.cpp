@@ -14,7 +14,7 @@
 
 namespace ov::snippets::lowered::pass {
 
-bool SetLoadStoreScalar::run(LinearIR& /*linear_ir*/,
+bool SetLoadStoreScalar::run([[maybe_unused]] LinearIR& linear_ir,
                              lowered::LinearIR::constExprIt begin,
                              lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetLoadStoreScalar")

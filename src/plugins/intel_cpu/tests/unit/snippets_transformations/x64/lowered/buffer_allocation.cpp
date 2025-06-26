@@ -4,7 +4,6 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"

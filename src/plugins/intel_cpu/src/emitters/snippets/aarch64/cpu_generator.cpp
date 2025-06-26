@@ -40,7 +40,6 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"

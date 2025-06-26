@@ -5,7 +5,6 @@
 #include "lowered/pass/buffer_allocation.hpp"
 
 #include "openvino/opsets/opset1.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"

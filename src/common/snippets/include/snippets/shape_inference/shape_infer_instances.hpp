@@ -46,14 +46,14 @@ public:
 
 class EmptyShapeInfer : public IShapeInferSnippets {
 public:
-    Result infer(const std::vector<VectorDimsRef>& /*input_shapes*/) override {
+    Result infer([[maybe_unused]] const std::vector<VectorDimsRef>& input_shapes) override {
         return {{}, ShapeInferStatus::success};
     }
 };
 
 class SingleElementShapeInfer : public IShapeInferSnippets {
 public:
-    Result infer(const std::vector<VectorDimsRef>& /*input_shapes*/) override {
+    Result infer([[maybe_unused]] const std::vector<VectorDimsRef>& input_shapes) override {
         return {{{1}}, ShapeInferStatus::success};
     }
 };

@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef SNIPPETS_DEBUG_CAPS
+
 #include <cstddef>
 #include <iterator>
 #include <map>
@@ -13,7 +15,6 @@
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/perf_count.hpp"
-#ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "snippets/itt.hpp"
 #    include "snippets/lowered/linear_ir.hpp"

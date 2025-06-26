@@ -140,7 +140,6 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
         return RegType::vec;
     }
     OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
-    return reg_type;
 }
 
 RegType Generator::get_specific_op_out_reg_type(const ov::Output<Node>& out) const {

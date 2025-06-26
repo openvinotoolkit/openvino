@@ -81,7 +81,8 @@ RegSpillBegin::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     num_out_shapes = reg_spill_begin->get_regs_to_spill().size();
 }
 
-RegSpillBegin::ShapeInfer::Result RegSpillBegin::ShapeInfer::infer(const std::vector<VectorDimsRef>& /*input_shapes*/) {
+RegSpillBegin::ShapeInfer::Result RegSpillBegin::ShapeInfer::infer(
+    [[maybe_unused]] const std::vector<VectorDimsRef>& input_shapes) {
     return {std::vector<VectorDims>(num_out_shapes, VectorDims{1}), ShapeInferStatus::success};
 }
 

@@ -5,7 +5,6 @@
 #include "subgraph_lowered.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include <snippets/snippets_isa.hpp>
 #include <snippets/op/broadcastload.hpp>
 #include <snippets/op/broadcastmove.hpp>
 #include <snippets/op/convert_saturation.hpp>

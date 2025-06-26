@@ -425,12 +425,12 @@ void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
 
 }  // namespace
 
-bool Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool Hash::run_on_model(const std::shared_ptr<ov::Model>& m) {
     uint64_t seed = 0;
     std::string name = "net";
     SnippetsHasher visitor(seed, name);
-    std::shared_ptr<ov::Model> m(f);  // for complilation error, on_attribute don't accept f
-    visitor.on_attribute(name, m);
+    std::shared_ptr<ov::Model> model(m);  // for complilation error, on_attribute don't accept f
+    visitor.on_attribute(name, model);
     m_hash = seed;
     // Return false because we didn't change OpenVINO Model
     return false;
