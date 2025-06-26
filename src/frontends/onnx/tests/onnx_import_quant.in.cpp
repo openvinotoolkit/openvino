@@ -1167,10 +1167,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_opsets_10_and_13_axis1
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_blocksize) {
-    auto model = convert_model("quantize_linear_blocksize.onnx");
+    auto model = convert_model("quantization/quantize_linear_blocksize.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_input(std::vector<float>{-2.549168109893799f, -4.794857501983643f, 8.413617134094238f, 6.108623504638672f});
+    test_case.add_input(
+        std::vector<float>{-2.549168109893799f, -4.794857501983643f, 8.413617134094238f, 6.108623504638672f});
     test_case.add_input(std::vector<float>{0.2800687253475189f, 9.343092918395996f});
     test_case.add_input(std::vector<uint8_t>{128, 189});
 
