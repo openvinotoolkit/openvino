@@ -3,22 +3,22 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include <cstddef>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
+#    include "snippets/lowered/pass/insert_perf_count.hpp"
 
-#include "openvino/core/except.hpp"
-#include "snippets/lowered/pass/pass.hpp"
-#include "snippets/lowered/port_connector.hpp"
-#include "snippets/op/perf_count.hpp"
+#    include <cstddef>
+#    include <iterator>
+#    include <map>
+#    include <memory>
+#    include <string>
+#    include <utility>
+#    include <vector>
 
+#    include "openvino/core/except.hpp"
 #    include "snippets/itt.hpp"
 #    include "snippets/lowered/linear_ir.hpp"
-#    include "snippets/lowered/pass/insert_perf_count.hpp"
+#    include "snippets/lowered/pass/pass.hpp"
+#    include "snippets/lowered/port_connector.hpp"
+#    include "snippets/op/perf_count.hpp"
 
 namespace ov::snippets::lowered::pass {
 
