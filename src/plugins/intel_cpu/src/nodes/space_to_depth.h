@@ -35,8 +35,8 @@ public:
     enum Mode : uint8_t { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
 
     struct SpaceToDepthAttrs {
-        LayoutType layoutType;
-        Mode mode;
+        LayoutType layoutType = LayoutType::nspc;
+        Mode mode = BLOCKS_FIRST;
         size_t blockSize = 0lu;
         size_t blockStep = 1lu;
         size_t dataSize = 1lu;

@@ -33,7 +33,7 @@ public:
 
     void prepareParams() override;
     struct ShuffleChannelsAttributes {
-        LayoutType layoutType;
+        LayoutType layoutType = LayoutType::nspc;
         int dataRank = 0;
         int axis = 0;
         int spatialRank = 0;
