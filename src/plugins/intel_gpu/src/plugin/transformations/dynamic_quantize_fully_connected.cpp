@@ -43,12 +43,14 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
 
-        auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
+        const bool has_wzp = m_fc->get_input_size() > 4;
+        auto optional_w_zp = has_wzp ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto rank = m_fc->get_input_partial_shape(0).size();
         ov::op::internal::DynamicQuantize::Attributes config;
+        const bool has_static_wzp = m_fc->get_input_size() > 4 && optional_w_zp->get_output_partial_shape(0).rank().is_static();
 
-        const bool has_wzp = optional_w_zp->get_output_partial_shape(0).rank().is_static();
-        if (precompute_sum && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_wzp) {
+        // Add precompute_sum connection, if possible
+        if (precompute_sum && adj_group_size != UINT64_MAX && adj_group_size > 0 && has_static_wzp) {
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const size_t wei_zp_group_size = innermost_size / weight_zp_shape[weight_zp_shape.size() - 1].get_length();

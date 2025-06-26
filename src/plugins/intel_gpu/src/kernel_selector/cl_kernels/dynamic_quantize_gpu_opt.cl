@@ -21,10 +21,6 @@
 #if DYNAMIC_QUANTIZAION_IMPL_MODE == MODE_SMALL_GS
 // ***********************************************
 
-#if GENERATE_PARTIAL_SUM != 0
-#error "UNIMPLMENTED: partial_sum generation"
-#endif
-
 #if ASYMMETRIC_QUANTIZATION
 #error "UNIMPLMENTED: asymmetric quantization when group size is small"
 #endif
@@ -37,6 +33,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
     __global OUTPUT1_TYPE* output_scale
+#if GENERATE_PARTIAL_SUM
+    , __global OUTPUT2_TYPE* output_partial_sum
+#endif
     ) {
 
 #if OUTPUT_DIMS == 2
@@ -69,16 +68,24 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
     half quan_scale = 128.0h / max_value;
+    int partial_sum = 0;
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
+        partial_sum += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3];
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 
 #if OUTPUT_DIMS == 2
-    output_scale[OUTPUT1_GET_INDEX(b, f_grp, 0, 0)] = 1.0h / quan_scale;
+    const uint output_idx = OUTPUT1_GET_INDEX(b, f_grp, 0, 0);
 #else
-    output_scale[OUTPUT1_GET_INDEX(b, f, y_grp, 0)] = 1.0h / quan_scale;
+    const uint output_idx = OUTPUT1_GET_INDEX(b, f, y_grp, 0);
+#endif
+    output_scale[output_idx] = 1.0h / quan_scale;
+#if GENERATE_PARTIAL_SUM
+    // FIXME: f_grp may not be aligned with dyn_quan gs
+    // XXX: can partial_sum be f16? this may go out of range for large group size
+    output_partial_sum[output_idx] = partial_sum;
 #endif
 }
 
