@@ -1,4 +1,4 @@
-name: PyTorch Layer Tests
+name: PyTorch FX Layer Tests
 
 on:
   workflow_call:
@@ -28,8 +28,8 @@ env:
   PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
 
 jobs:
-  PyTorch_Layer_Tests:
-    name: PyTorch Layer Tests
+  PyTorch_FX_Layer_Tests:
+    name: PyTorch FX Layer Tests
     timeout-minutes: 60
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
@@ -114,35 +114,25 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
           wheels-to-install: 'openvino'
 
-      - name: Install Pytorch Layer tests dependencies
+      - name: Install Pytorch FX Layer tests dependencies
         run: |
           # pytorch test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
 
-      - name: PyTorch Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
-        # due to CVS-152795, parallel run is not possible on Windows
-        run: python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP32
-          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
-
-      - name: PyTorch torch.export Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
+      - name: PyTorch torch.compile TORCHFX Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests ${PARALLEL} -m precommit_torch_export -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_export.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
-          PYTORCH_TRACING_MODE: EXPORT
-          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
+          PYTORCH_TRACING_MODE: TORCHFX
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
-          name: test-results-python-pytorch-layers
+          name: test-results-python-pytorch-fx-layers
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
             ${{ env.INSTALL_TEST_DIR }}/TEST*.xml

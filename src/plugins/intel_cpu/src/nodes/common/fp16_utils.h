@@ -6,6 +6,8 @@
 
 #include <cstdint>
 
+#include "utils/cpp/bit_cast.hpp"
+
 namespace ov {
 namespace intel_cpu {
 
@@ -16,18 +18,6 @@ typedef short ie_fp16;
 // F16: exp_bias:15  SEEEEEMM MMMMMMMM
 #define EXP_MASK_F32 0x7F800000U
 #define EXP_MASK_F16 0x7C00U
-
-// small helper function to represent uint32_t value as float32
-inline float asfloat(uint32_t v) {
-    // Both type-punning casts and unions are UB per C++ spec
-    // But compilers usually only break code with casts
-    union {
-        float f;
-        uint32_t i;
-    } u;
-    u.i = v;
-    return u.f;
-}
 
 // Function to convert F32 into F16
 inline float f16tof32(ie_fp16 x) {
@@ -82,7 +72,7 @@ inline float f16tof32(ie_fp16 x) {
     }
 
     // finaly represent result as float and return
-    return asfloat(u);
+    return ov::intel_cpu::bit_cast<float>(u);
 }
 
 }  // namespace intel_cpu

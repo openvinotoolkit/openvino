@@ -275,6 +275,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             // any negative value will be treated
             // as zero that means disabling the cache
             rtCacheCapacity = std::max(val_i, 0);
+            snippetsCacheCapacity = std::max(val_i, 0);
         } else if (ov::intel_cpu::denormals_optimization.name() == key) {
             try {
                 denormalsOptMode = val.as<bool>() ? DenormalsOptMode::DO_On : DenormalsOptMode::DO_Off;
