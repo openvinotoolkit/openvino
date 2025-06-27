@@ -231,7 +231,7 @@ For more details, see the following `documentation <https://github.com/openvinot
 Deploying pruned model
 ######################
 
-The pruned model requres an extra step that should be done to get performance improvement. This step involves removal of the
+The pruned model requires an extra step that should be done to get performance improvement. This step involves removal of the
 zero filters from the model. This is done at the model conversion step using  :doc:`model conversion API <../../model-preparation>` tool when model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
 
 * To remove zero filters from the pruned model add the following parameter to the model conversion command: ``transform=Pruning``
