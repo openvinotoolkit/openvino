@@ -91,7 +91,7 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
     }
 
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
-    internal_work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
+    internal_work_amount_reg_idx = loop_end_input_regs.back().idx;
     loop_end_input_regs.pop_back();
     mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
     for (const auto& r : loop_end_input_regs) {
