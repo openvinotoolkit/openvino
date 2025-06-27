@@ -26,6 +26,7 @@ protected:
     size_t num_outputs = 0;
     size_t loop_id = 0;
     bool evaluate_once = false;
+    bool is_dynamic = false;
     size_t work_amount_reg_idx = 0;
     std::vector<size_t> mem_ptr_regs_idxs;
     jit_snippets_call_args::loop_args_t loop_args;
