@@ -192,7 +192,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
     auto transformed_model = clone_and_transform_model(model, config, context);
-    // auto transformed_model = model->clone();
 
     config.finalize(context.get(), transformed_model.get());
     {
@@ -310,7 +309,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::Model> Plugin::get_transformation_model(const std::shared_ptr< ov::Model>& model, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::Model> Plugin::get_transformed_model(const std::shared_ptr< ov::Model>& model, const ov::AnyMap& properties) const {
     std::string device_id = get_device_id(properties);
 
     auto ctx = get_default_context(device_id);

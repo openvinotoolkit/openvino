@@ -170,10 +170,17 @@ public:
     virtual ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                             const std::string& device_name,
                                             const ov::AnyMap& config) const = 0;
-
-    virtual std::shared_ptr<ov::Model> get_transformation_model(const std::shared_ptr< ov::Model>& model,
-                                            const std::string& device_name,
-                                            const ov::AnyMap& config) const = 0;
+    /**
+     * @brief Get a transformed model of the input model with specified configuration
+     *
+     * @param model OpenVINO Model to be transformed
+     * @param device_name The target device name for which the transformation should be applied
+     * @param config Optional map of pairs: (config parameter name, config parameter value)
+     * @return A shared pointer to the transformed ov::Model object
+     */
+    virtual std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<ov::Model>& model,
+                                                             const std::string& device_name,
+                                                             const ov::AnyMap& config) const = 0;
 
     /**
      * @brief Returns devices available for neural networks inference

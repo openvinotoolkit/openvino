@@ -224,9 +224,9 @@ std::tuple<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo, std::shared_pt
     bool transformed = false;
     if (are_all_same_gpu_type(device_names)) {
         auto& device_config1 = properties_per_device.at("GPU.0");
-        std::cout << "start get_transformation_model\n";
-        tranfored_model = get_core()->get_transformation_model(model, "GPU.0", device_config1);
-        std::cout << "get_transformation_model\n";
+        std::cout << "start get_transformed_model\n";
+        tranfored_model = get_core()->get_transformed_model(model, "GPU.0", device_config1);
+        std::cout << "get_transformed_model\n";
         transformed = true;
     }
 

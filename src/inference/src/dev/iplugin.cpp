@@ -68,9 +68,9 @@ std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {
     return m_core.lock();
 }
 
-std::shared_ptr<ov::Model> ov::IPlugin::get_transformation_model(const std::shared_ptr< ov::Model>& model,
-                                            const ov::AnyMap& properties) const {
-    std::cout << "iplugin get_transformation_model\n";
+std::shared_ptr<ov::Model> ov::IPlugin::get_transformed_model(const std::shared_ptr<ov::Model>& model,
+                                                              const ov::AnyMap& properties) const {
+    std::cout << "iplugin get_transformed_model\n";
 }
 
 const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
