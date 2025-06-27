@@ -16,12 +16,22 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/einsum.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
 using namespace ov::pass::pattern;
+
+static auto _const = []() {
+    return wrap_type<v0::Constant>();
+};
 
 // TODO: Instead of using the following transformation that matches quite a specific place in a model graph in case when
 // position_ids parameter is missing, consider replacing always existing attention_mask parameter with a sub-graph using
@@ -54,10 +64,6 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
 
 ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& position_ids) {
     MATCHER_SCOPE(PositionIDsReplacerQwen);
-
-    auto _const = []() {
-        return wrap_type<v0::Constant>();
-    };
 
     // total seq len:
     auto p_max_context_len = wrap_type<v0::Parameter>();
@@ -130,11 +136,20 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
     const std::shared_ptr<ov::op::v0::Parameter>& position_ids) {
     MATCHER_SCOPE(PositionIDsReplacerCodeGen2);
 
-    auto p_reshape = ov::pass::pattern::wrap_type<v1::Reshape>();
-    auto p_unsq = ov::pass::pattern::wrap_type<v0::Unsqueeze>();
-    auto p_add = ov::pass::pattern::wrap_type<v1::Add>();
-    auto p_slice = ov::pass::pattern::wrap_type<v8::Slice>({p_unsq, p_reshape, p_add, any_input(), any_input()});
+    auto p_range = ov::pass::pattern::wrap_type<v4::Range>();
+    auto p_power = ov::pass::pattern::wrap_type<v1::Power>();
+    auto p_einsum = ov::pass::pattern::wrap_type<v7::Einsum>({p_range, p_power});
+    auto p_sin_cos = ov::pass::pattern::wrap_type<v0::Sin, v0::Cos>({p_einsum});
+    auto p_reshape = ov::pass::pattern::wrap_type<v1::Reshape>({p_sin_cos, pattern::any_input()});
+    auto p_tile = ov::pass::pattern::wrap_type<v0::Tile>({p_reshape, pattern::any_input()});
+    auto p_opt_reshape = ov::pass::pattern::optional<v1::Reshape>({p_tile, pattern::any_input()});
+    auto p_opt_unsq = ov::pass::pattern::optional<v0::Unsqueeze>({p_opt_reshape, pattern::any_input()});
 
+    auto p_reshape_1in = ov::pass::pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
+    auto p_add_2in = ov::pass::pattern::wrap_type<v1::Add>({pattern::any_input(), pattern::any_input()});
+    auto p_slice = ov::pass::pattern::wrap_type<v8::Slice>({p_opt_unsq, p_reshape_1in, p_add_2in, _const(), _const()});
+
+    auto p_add = ov::pass::pattern::wrap_type<v1::Add>();
     ov::matcher_pass_callback callback = [=, &position_ids](Matcher& m) {
         auto pvm = m.get_pattern_value_map();
         auto slice = pvm.at(p_slice).get_node_shared_ptr();
@@ -142,6 +157,10 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
         auto gather = std::make_shared<v8::Gather>(slice->input_value(0),
                                                    position_ids,
                                                    v0::Constant::create(element::i64, Shape{}, {1}));
+        if (gather->output(0).get_partial_shape().rank() != 3) {
+            return false;
+        }
+
         auto transpose =
             std::make_shared<v1::Transpose>(gather, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
 
