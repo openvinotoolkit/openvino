@@ -90,8 +90,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
-
-    return std::make_shared<ov::Model>(results, parameters);
+    auto model = std::make_shared<ov::Model>(results, parameters);
+    auto& rtInfo = model->get_rt_info();
+    rtInfo["dummy_NPU_model"] = true;
+    return model;
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -212,7 +214,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
-    REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
@@ -229,9 +230,8 @@ void Plugin::init_options() {
     // filter out unsupported options
     filter_config_by_compiler_support(_globalConfig);
 
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need to enable those for OV Core to query.
-    // Note: do this last to not filter them out.
-    // register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
+    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
     REGISTER_OPTION(NPU_USE_NPUW);
     REGISTER_OPTION(NPUW_DEVICES);
     REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
@@ -599,6 +599,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         npu_plugin_properties.erase(blob_it);
     }
 
+    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+    if (auto modelPtrIt = npu_plugin_properties.find(ov::hint::model.name());
+        modelPtrIt != npu_plugin_properties.end()) {
+        modelPtr = modelPtrIt->second.as<std::shared_ptr<const ov::Model>>();
+        npu_plugin_properties.erase(modelPtrIt);
+    }
+
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
@@ -675,10 +684,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         auto graph = compiler->parse(std::move(tensor), !tensorFromProperty, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
-        const std::shared_ptr<ov::Model> modelDummy =
-            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+        const std::shared_ptr<const ov::Model> model =
+            modelPtr != nullptr ? modelPtr
+                                : create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
 
-        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+        compiledModel = std::make_shared<CompiledModel>(modelPtr, shared_from_this(), device, graph, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
