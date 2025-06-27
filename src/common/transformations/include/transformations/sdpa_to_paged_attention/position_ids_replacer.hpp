@@ -6,6 +6,7 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -16,6 +17,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API PositionIDsReplacer;
 class TRANSFORMATIONS_API PositionIDsReplacerQwen;
+class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
 
 }  // namespace pass
 }  // namespace ov
@@ -43,4 +45,10 @@ class ov::pass::PositionIDsReplacerQwen : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerQwen");
     explicit PositionIDsReplacerQwen(const Output<Node>& position_ids);
+};
+
+class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerCodeGen2");
+    explicit PositionIDsReplacerCodeGen2(const std::shared_ptr<ov::op::v0::Parameter>& position_ids);
 };
