@@ -15,7 +15,7 @@
 #include "nodes/executors/transpose.hpp"
 #include "utils/arch_macros.h"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#include "nodes/executors/x64/jit_transpose.hpp"
+#    include "nodes/executors/x64/jit_transpose.hpp"
 #elif defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
 #    include "nodes/executors/mlas/mlas_transpose.hpp"
 #endif

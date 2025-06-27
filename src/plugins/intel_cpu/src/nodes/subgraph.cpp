@@ -45,7 +45,11 @@
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
+#    include "snippets/lowered/pass/init_loops.hpp"
+#    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_reg_spills.hpp"
+#    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "snippets/pass/propagate_precision.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
@@ -73,11 +77,11 @@
 #    include "transformations/snippets/x64/pass/lowered/init_repacked_constant_inputs.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
+#    include "transformations/snippets/x64/shape_inference.hpp"
 #endif
 #include <utility>
 #include <vector>
 
-#include "transformations/snippets/x64/shape_inference.hpp"
 #include "utils/ngraph_utils.hpp"
 
 #ifdef SNIPPETS_LIBXSMM_TPP

@@ -28,6 +28,7 @@
 #include "openvino/core/type/nf4.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <cpu/x64/xbyak/xbyak.h>
@@ -42,8 +43,6 @@
 #elif defined(OPENVINO_ARCH_ARM64)
 #    include "cpu_memory.h"
 #    include "openvino/core/type/element_type_traits.hpp"
-#else
-#    include "utils/general_utils.h"
 #endif
 
 namespace ov::intel_cpu {

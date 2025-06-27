@@ -118,6 +118,10 @@
 #    include "nodes/rms_norm.h"
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "nodes/paged_attn.h"
+#endif
+
 namespace ov::intel_cpu {
 
 #define INTEL_CPU_NODE(__prim, __type) registerNodeIfRequired(intel_cpu, __prim, __type, NodeImpl<__prim>)

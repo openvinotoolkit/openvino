@@ -22,10 +22,13 @@
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
+#if not defined(OPENVINO_ARCH_RISCV)
+#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "nodes/executors/debug_messages.hpp"
-#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #    include "nodes/executors/executor.hpp"
 #    include "post_ops.hpp"
 #endif
