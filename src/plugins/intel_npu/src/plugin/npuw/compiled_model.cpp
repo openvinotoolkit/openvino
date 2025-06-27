@@ -1159,7 +1159,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
     auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start).count();
     LOG_INFO("evaluate_and_allocate() cost: " << duration_ms << " ms");
 
-
     // Set evaluated and allocated ov::Tensors to closures
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
