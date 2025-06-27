@@ -8,9 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/util/monitors/idevice_monitor.hpp"
-namespace ov {
-namespace util {
+#include "openvino/util/idevice_monitor.hpp"
+namespace ov::util {
 std::map<std::string, float> get_device_utilization(const std::string& device_id);
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

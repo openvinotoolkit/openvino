@@ -26,8 +26,8 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/util/device_monitor.hpp"
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/monitors/device_monitor.hpp"
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {

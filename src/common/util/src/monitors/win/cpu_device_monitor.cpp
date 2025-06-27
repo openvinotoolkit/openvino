@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/monitors/cpu_device_monitor.hpp"
+#include "openvino/util/cpu_device_monitor.hpp"
 
 #include <map>
 

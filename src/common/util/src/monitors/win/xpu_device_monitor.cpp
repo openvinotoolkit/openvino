@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/monitors/xpu_device_monitor.hpp"
+#include "openvino/util/xpu_device_monitor.hpp"
 
 #include <algorithm>
 #include <map>
 #include <string>
 
-#include "openvino/util/monitors/idevice_monitor.hpp"
+#include "openvino/util/idevice_monitor.hpp"
 
 #define NOMINMAX
 #include <dxgi.h>
@@ -23,9 +23,9 @@
 
 #include "openvino/util/wstring_convert_util.hpp"
 #include "query_wrapper.hpp"
-#define RENDER_ENGINE_COUNTER_INDEX  0
-#define COMPUTE_ENGINE_COUNTER_INDEX 1
-#define MAX_COUNTER_INDEX            2
+constexpr int RENDER_ENGINE_COUNTER_INDEX = 0;
+constexpr int COMPUTE_ENGINE_COUNTER_INDEX = 1;
+constexpr int MAX_COUNTER_INDEX = 2;
 
 namespace ov {
 namespace util {

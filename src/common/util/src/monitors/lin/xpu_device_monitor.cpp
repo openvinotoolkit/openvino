@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/util/monitors/xpu_device_monitor.hpp"
+#include "openvino/util/xpu_device_monitor.hpp"
 
-#include "openvino/util/monitors/idevice_monitor.hpp"
+#include "openvino/util/idevice_monitor.hpp"
 namespace ov {
 namespace util {
 class XPUDeviceMonitor::PerformanceImpl {
