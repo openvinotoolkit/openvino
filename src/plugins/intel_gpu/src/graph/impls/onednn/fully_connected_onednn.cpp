@@ -287,11 +287,12 @@ public:
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
         auto weights_layout = impl_params->get_input_layout(1);
+        OPENVINO_ASSERT(prim->input_size <= 3, "not implemented for 4d matmul");
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
-        int grouped = (1 << (GROUPED + shift_size - 1)) - 1;
+        int grouped = GROUPED | (1 << (prim->input_size - 1));
 
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
@@ -373,9 +374,10 @@ public:
                 attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
 
             auto weights_layout = impl_params.get_input_layout(1);
+            OPENVINO_ASSERT(prim->input_size <= 3, "not implemented for 4d matmul");
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
-            int grouped = (1 << (GROUPED + shift_size - 1)) - 1;
+            int grouped = GROUPED | (1 << (prim->input_size - 1));
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
