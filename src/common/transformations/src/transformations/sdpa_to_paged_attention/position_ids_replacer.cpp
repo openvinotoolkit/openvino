@@ -126,33 +126,22 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     register_matcher(m, callback);
 }
 
-ov::pass::ReplaceSliceStartRangeCodegen2::ReplaceSliceStartRangeCodegen2(
-    const std::shared_ptr<ov::op::v0::Unsqueeze>& unsqueezed_position_ids,
-    const std::shared_ptr<ov::op::v0::Parameter>& max_context_len) {
-    MATCHER_SCOPE(ReplaceSliceStartRangeCodegen2);
+ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
+    const std::shared_ptr<ov::op::v0::Parameter>& position_ids) {
+    MATCHER_SCOPE(PositionIDsReplacerCodeGen2);
 
     auto p_reshape = ov::pass::pattern::wrap_type<v1::Reshape>();
     auto p_unsq = ov::pass::pattern::wrap_type<v0::Unsqueeze>();
     auto p_add = ov::pass::pattern::wrap_type<v1::Add>();
     auto p_slice = ov::pass::pattern::wrap_type<v8::Slice>({p_unsq, p_reshape, p_add, any_input(), any_input()});
 
-    ov::matcher_pass_callback callback = [=, &unsqueezed_position_ids, &max_context_len](Matcher& m) {
+    ov::matcher_pass_callback callback = [=, &position_ids](Matcher& m) {
         auto pvm = m.get_pattern_value_map();
         auto slice = pvm.at(p_slice).get_node_shared_ptr();
 
-        auto cur_seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(unsqueezed_position_ids),
-                                                        v0::Constant::create(element::i64, Shape{}, {0}),
-                                                        v0::Constant::create(element::i64, Shape{}, {0}));
-        auto cur_seq_len_i32 = std::make_shared<v0::Convert>(cur_seq_len, element::i32);
-        auto prev_max_seq_len = std::make_shared<v1::Subtract>(max_context_len, cur_seq_len_i32);
-        auto prev_max_seq_len_i64 = std::make_shared<v0::Convert>(prev_max_seq_len, element::i64);
-        auto prev_max_seq_len_i64_reshape =
-            std::make_shared<v1::Reshape>(prev_max_seq_len_i64,
-                                          v0::Constant::create(element::i64, Shape{1}, {1}),
-                                          true);
-        slice->input(1).replace_source_output(prev_max_seq_len_i64_reshape);
+        auto gather = std::make_shared<v8::Gather>(slice->input_value(0), position_ids, v0::Constant::create(element::i64, Shape{}, {1}));
         auto transpose =
-            std::make_shared<v1::Transpose>(slice, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+            std::make_shared<v1::Transpose>(gather, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
 
         replace_node(slice, transpose);
         return true;

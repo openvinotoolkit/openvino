@@ -17,7 +17,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API PositionIDsReplacer;
 class TRANSFORMATIONS_API PositionIDsReplacerQwen;
-class TRANSFORMATIONS_API ReplaceSliceStartRangeCodegen2;
+class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
 
 }  // namespace pass
 }  // namespace ov
@@ -47,9 +47,8 @@ public:
     explicit PositionIDsReplacerQwen(const Output<Node>& position_ids);
 };
 
-class ov::pass::ReplaceSliceStartRangeCodegen2 : public ov::pass::MatcherPass {
+class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ReplaceSliceStartRangeCodegen2");
-    explicit ReplaceSliceStartRangeCodegen2(const std::shared_ptr<ov::op::v0::Unsqueeze>& unsqueezed_position_ids,
-                                            const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerCodeGen2");
+    explicit PositionIDsReplacerCodeGen2(const std::shared_ptr<ov::op::v0::Parameter>& position_ids);
 };
