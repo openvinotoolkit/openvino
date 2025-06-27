@@ -22,7 +22,7 @@ add_library(${TARGET_NAME} STATIC
 
 add_library(openvino::snippets ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME snippets)
-if (ENABLE_CLANG_TIDY)
+if (ENABLE_CLANG_TIDY AND NOT RISCV64)
     set(clang_tidy_options "--extra-arg=-Wno-unused-command-line-argument")
     if(DEFINED CMAKE_CXX_COMPILER_TARGET)
         list(APPEND clang_tidy_options "--extra-arg=--target=${CMAKE_CXX_COMPILER_TARGET}")

@@ -44,6 +44,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_ARM64)
+#    include "cache/cache_entry.h"
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
@@ -56,6 +57,8 @@
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
 #else
+#    include "cache/cache_entry.h"
+#    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
