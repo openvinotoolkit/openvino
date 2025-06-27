@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/utils.hpp>
@@ -63,7 +63,7 @@ struct jit_uni_fft_kernel {
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public dnnl::impl::cpu::x64::jit_generator {
+struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_dft_kernel_f32)
 
     jit_uni_dft_kernel_f32();
@@ -77,7 +77,7 @@ private:
                                                          isa == dnnl::impl::cpu::x64::avx2,
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
-    size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
+    size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 reg_dst = r9;
@@ -100,7 +100,7 @@ private:
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public dnnl::impl::cpu::x64::jit_generator {
+struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_fft_kernel_f32)
 
     jit_uni_fft_kernel_f32();
@@ -114,7 +114,7 @@ private:
                                                          isa == dnnl::impl::cpu::x64::avx2,
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
-    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
+    const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_even_in_diff = rax;
     Xbyak::Reg64 reg_even_out_diff = rbx;

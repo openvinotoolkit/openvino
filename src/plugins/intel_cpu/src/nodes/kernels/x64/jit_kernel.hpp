@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <array>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -590,7 +590,7 @@ private:
 
 }  // namespace internal
 
-struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
+struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
     using reg_indices = std::vector<int>;
     template <typename T>
     using reg_traits = internal::reg_traits<T>;

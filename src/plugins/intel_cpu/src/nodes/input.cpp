@@ -43,7 +43,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <atomic>
 #    include <common/c_types_map.hpp>
@@ -63,7 +63,7 @@ namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
-struct jit_has_special_value_base : public jit_generator {
+struct jit_has_special_value_base : public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_special_value_base)
 
     using args_t = struct {
@@ -74,7 +74,7 @@ struct jit_has_special_value_base : public jit_generator {
 
     using fn_t = void (*)(const args_t*);
 
-    jit_has_special_value_base() : jit_generator(jit_name()) {
+    jit_has_special_value_base() : jit_generator_t(jit_name()) {
         jit_ker_ = nullptr;
     }
 

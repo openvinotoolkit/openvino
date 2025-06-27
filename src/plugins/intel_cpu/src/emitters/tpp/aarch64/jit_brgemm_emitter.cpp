@@ -13,11 +13,11 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
+jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
