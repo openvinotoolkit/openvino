@@ -11,10 +11,12 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
-
 namespace {
 
 template <typename Set>
@@ -606,6 +608,32 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
     return subgraph_collector.run();
 }
 
+void ov::hetero::fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& model) {
+    for (auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
+            std::vector<std::shared_ptr<ov::Node>> reshape_nodes;
+            for (size_t i = 0; i < 3; i++) {
+                auto input_node = op->get_input_node_shared_ptr(i);
+                auto input_value = input_node->input_value(0);
+                const auto& shape = input_value.get_partial_shape();
+                if (shape.rank().is_dynamic() || shape[2].is_dynamic() || shape[3].is_dynamic()) {
+                    continue;
+                }
+                std::vector<int64_t> new_shape_values = {
+                    -1,
+                    static_cast<int>(shape[2].get_length() * shape[3].get_length())};
+                auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                          ov::Shape{new_shape_values.size()},
+                                                                          new_shape_values.data());
+
+                auto new_reshape = std::make_shared<ov::op::v1::Reshape>(input_value, shape_const, false);
+                new_reshape->set_friendly_name(input_node->get_friendly_name());
+                ov::replace_node(input_node, new_reshape);
+            }
+        }
+    }
+}
+
 ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::shared_ptr<ov::Model>& model,
                                                                          ov::SupportedOpsMap& supported_ops,
                                                                          const bool dump_dot_files,
@@ -691,7 +719,7 @@ ov::hetero::SubgraphsMappingInfo ov::hetero::mask_model_subgraphs_by_ops(std::sh
     merge_submodels(submodels, mapping_info._submodels_input_to_prev_output);
 
     model = submodels[0];
-
+    fix_submodel_with_paged_attention(model);
     // Finally update mapping information according to the new operation order
     std::map<size_t, size_t> subgraph_id_map;
     std::map<size_t, std::map<size_t, size_t>> input_id_map;
