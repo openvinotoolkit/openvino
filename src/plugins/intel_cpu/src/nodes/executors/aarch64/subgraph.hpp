@@ -24,6 +24,10 @@ public:
                      const std::vector<ptrdiff_t>& start_offset_out,
                      const BufferScratchpadAllocator& allocator,
                      const ov::intel_cpu::MultiCacheWeakPtr& kernel_cache);
+#ifdef SNIPPETS_DEBUG_CAPS
+    bool enabled_segfault_detector = false;
+    inline void segfault_detector() const;
+#endif
 };
 
 class SubgraphStaticExecutor : public SubgraphExecutor, public SubgraphStaticBaseExecutor {
