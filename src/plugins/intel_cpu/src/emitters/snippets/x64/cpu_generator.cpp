@@ -27,7 +27,6 @@
 #include "emitters/snippets/x64/jit_horizon_emitter.hpp"
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/x64/jit_loop_emitters.hpp"
-#include "emitters/snippets/x64/jit_parallel_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
 #include "emitters/snippets/x64/jit_parallel_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
