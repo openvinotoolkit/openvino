@@ -101,7 +101,7 @@ public:
     using HashValue = size_t;
     using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, const void*>>;
 
-    ConstantWriter(std::map<int64_t, std::reference_wrapper<ov::ValueAccessor<void>>>& offset_const_map,
+    ConstantWriter(std::map<int64_t, ov::pass::WeightsVariant>& offset_const_map,
                    bool enable_compression = true)
         : m_offset_const_map(offset_const_map),
           m_enable_compression(enable_compression),
@@ -109,17 +109,17 @@ public:
         m_write_hash_value = false;
     }
 
-    FilePosition write(ov::ValueAccessor<void>& adapter, size_t& new_size) {
+    FilePosition write(ov::pass::WeightsVariant object, size_t& new_size) {
         const auto offset = m_blob_offset + 1;
         new_size = 1;
 
-        m_offset_const_map[offset] = std::ref(adapter);
+        m_offset_const_map[offset] = object;
         return offset;
     }
 
 private:
     ConstWritePositions m_hash_to_file_positions;
-    std::map<int64_t, std::reference_wrapper<ov::ValueAccessor<void>>>& m_offset_const_map;
+    std::map<int64_t, ov::pass::WeightsVariant>& m_offset_const_map;
     bool m_enable_compression;
     bool m_write_hash_value = false;
     FilePosition m_blob_offset;  // blob offset inside output stream
@@ -456,7 +456,6 @@ public:
                 auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
                 auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
                 size_t new_size = 0;
-                size_t inter_size = 0;
                 // Q: 从openvino的角度看这里的header的作用是什么
                 // A: The header contains metadata about the packed string tensor, such as its size and offsets.
                 //    It is necessary for the deserialization process to correctly reconstruct the string tensor.
@@ -483,18 +482,23 @@ public:
                 //    The `ConstantWriter` will use this pointer to write the packed string tensor data to the output
                 //    stream. The `const_adapter` will remain valid as long as the `ov::Model` is valid, ensuring that
                 //    the data can be correctly serialized and deserialized.
-                int64_t offset = m_constant_write_handler.write(adapter, new_size);
 
-                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                int64_t offset = 0;
+                if (a1) {
+                    offset = m_constant_write_handler.write(a1->get(), new_size);
+                } else {
+                    offset = m_constant_write_handler.write(a2->get(), new_size);
+                }
+
+                m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const int64_t size = a->get()->size();
                 size_t new_size;
-                int64_t offset = m_constant_write_handler.write(adapter, new_size);
+                int64_t offset = m_constant_write_handler.write(a->get(), new_size);
 
-                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -1136,7 +1140,7 @@ std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, co
 }
 
 void serializeFunc(std::ostream& xml_file,
-                   std::map<int64_t, std::reference_wrapper<ov::ValueAccessor<void>>>& offset_const_map,
+                   std::map<int64_t, ov::pass::WeightsVariant>& offset_const_map,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::LightSerialize::Version ver,
                    bool deterministic = false) {
@@ -1192,7 +1196,7 @@ bool pass::LightSerialize::run_on_model(const std::shared_ptr<ov::Model>& model)
 }
 
 pass::LightSerialize::LightSerialize(std::ostream& xmlFile,
-                                     std::map<int64_t, std::reference_wrapper<ov::ValueAccessor<void>>>& offsetConstMap,
+                                     std::map<int64_t, ov::pass::WeightsVariant>& offsetConstMap,
                                      pass::LightSerialize::Version version)
     : m_xmlFile{&xmlFile},
       m_offsetConstMap(offsetConstMap),
