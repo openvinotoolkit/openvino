@@ -40,6 +40,7 @@
 #include "snippets/shape_types.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
+#include "transformations/snippets/common/shape_inference.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -54,10 +55,7 @@
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
-#    include "transformations/snippets/aarch64/shape_inference.hpp"
-#elif defined(OPENVINO_ARCH_X86_64)
-#    include "cache/cache_entry.h"
-#    include "emitters/snippets/cpu_runtime_configurator.hpp"
+#else
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
@@ -77,7 +75,6 @@
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
 #    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
-#    include "transformations/snippets/x64/shape_inference.hpp"
 #endif
 #include <utility>
 #include <vector>
