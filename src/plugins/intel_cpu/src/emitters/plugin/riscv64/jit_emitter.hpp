@@ -24,7 +24,7 @@ enum emitter_in_out_map : uint8_t {
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
-    jit_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+    jit_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                 ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec);
@@ -178,7 +178,7 @@ protected:
         h->vmv_v_x(vreg, tmp);
     }
 
-    ov::intel_cpu::riscv64::jit_generator* h;
+    ov::intel_cpu::riscv64::jit_generator_t* h;
     ov::intel_cpu::riscv64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
 

@@ -51,7 +51,7 @@
 #include "utils/precision_support.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <common/c_types_map.hpp>
 #    include <unordered_map>
@@ -83,15 +83,15 @@ static inline bool isFloatCompatible(ov::element::Type prc) {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator {
+struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_interpolate_kernel_f32)
 
     explicit jit_uni_interpolate_kernel_f32(jit_interpolate_config_params jcp, const dnnl_primitive_attr& attr)
         : jit_uni_interpolate_kernel(jcp, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -105,12 +105,12 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
-                                                                                            post_op.eltwise.alg,
-                                                                                            post_op.eltwise.alpha,
-                                                                                            post_op.eltwise.beta,
-                                                                                            1.F,
-                                                                                            data_type::f32));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                                              post_op.eltwise.alg,
+                                                                                              post_op.eltwise.alpha,
+                                                                                              post_op.eltwise.beta,
+                                                                                              1.F,
+                                                                                              data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
@@ -225,7 +225,7 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vlen = cpu_isa_traits_t<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
     const int tail_step = jcp_.C % vector_step;
     const int scalar_step = 1;
@@ -309,7 +309,7 @@ private:
     std::vector<size_t> store_pool_vec_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
@@ -552,7 +552,7 @@ private:
             mov(reg_src_h, reg_src);
             // index_h * IW * dataSize done when built to avoid redundent compute
             mov(reg_index_offset, dword[reg_index_h]);
-            add(reg_src_h, reg_index_offset);  // reg_src_h now point to begin of row
+            add(reg_src_h, Xbyak::Reg64(reg_index_offset.getIdx()));  // reg_src_h now point to begin of row
 
             // reset index_w, index_w * dataSize done when built to avoid redundent compute
             mov(reg_index, reg_index_w);
@@ -590,7 +590,7 @@ private:
 
                 mov(reg_src_aux, reg_src_h);
                 mov(reg_index_offset, dword[reg_index]);
-                add(reg_src_aux, reg_index_offset);
+                add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
 
                 load(reg_src_aux, vmm_val, scalar_step);
                 if (attr_.post_ops_.len() != 0) {
@@ -625,7 +625,7 @@ private:
 
             mov(reg_src_aux, reg_src);
             mov(reg_index_offset, dword[reg_index]);
-            add(reg_src_aux, reg_index_offset);
+            add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
 
             load(reg_src_aux, vmm_val, vector_step);
             if (attr_.post_ops_.len() != 0) {
@@ -686,7 +686,8 @@ private:
             mov(reg_src_aux, reg_src);
             // index*C*dataSize done when built to avoid redundent compute
             mov(reg_index_offset, dword[reg_index]);
-            add(reg_src_aux, reg_index_offset);
+            // opRR need same bit length input
+            add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
 
             mov(reg_work_amount, reg_work_amount_bk);
             if (attr_.post_ops_.len() != 0) {
@@ -1020,12 +1021,12 @@ private:
 
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index]);
-            add(reg_src_aux1, reg_index_offset);
+            add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
             load(reg_src_aux1, vmm_valTL, scalar_step);
 
             mov(reg_src_aux1, reg_src);
             mov(reg_index_offset, dword[reg_index + index_stride]);
-            add(reg_src_aux1, reg_index_offset);
+            add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
             load(reg_src_aux1, vmm_valTR, scalar_step);
 
             load_weights(reg_src_aux, vmm_weightL, scalar_step, 0);
@@ -1037,12 +1038,12 @@ private:
             if (jcp_.spatial_dim_size > 1) {
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 2 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 3 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBR, scalar_step);
 
                 load_weights(reg_src_aux, vmm_weightT, scalar_step, 2 * weight_stride);
@@ -1056,22 +1057,22 @@ private:
                 // for end depth
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 4 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valTL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 5 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valTR, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 6 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBL, scalar_step);
 
                 mov(reg_src_aux1, reg_src);
                 mov(reg_index_offset, dword[reg_index + 7 * index_stride]);
-                add(reg_src_aux1, reg_index_offset);
+                add(reg_src_aux1, Xbyak::Reg64(reg_index_offset.getIdx()));
                 load(reg_src_aux1, vmm_valBR, scalar_step);
 
                 linear_onnx_worker_2d();
@@ -1249,7 +1250,7 @@ private:
     void cubic_c_gathered_pixel(int i, Vmm vmm_weight, bool is_scalar) {
         mov(reg_src_aux, reg_src);
         mov(reg_index_offset, dword[reg_index + i * jcp_.indices_size]);
-        add(reg_src_aux, reg_index_offset);
+        add(reg_src_aux, Xbyak::Reg64(reg_index_offset.getIdx()));
         int step = is_scalar ? 1 : vlen / sizeof(float);
         load(reg_src_aux, vmm_src, step);
         uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weight);

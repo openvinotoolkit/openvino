@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -31,7 +31,7 @@ namespace ov::intel_cpu {
 const std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler =
     std::make_shared<ThreadLocal<jit_uni_segfault_detector_emitter*>>();
 
-jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_uni_segfault_detector_emitter::jit_uni_segfault_detector_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                                                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                                                      jit_emitter* target_emitter,
                                                                      bool is_load,

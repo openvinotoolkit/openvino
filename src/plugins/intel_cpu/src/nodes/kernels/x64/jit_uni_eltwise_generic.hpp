@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <memory>
@@ -24,7 +24,7 @@
 namespace ov::intel_cpu::x64 {
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public dnnl::impl::cpu::x64::jit_generator {
+struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
     jit_uni_eltwise_generic(const jit_eltwise_params& jep,
@@ -33,7 +33,7 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public dnnl::imp
                             const dnnl::post_ops& post_ops);
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
