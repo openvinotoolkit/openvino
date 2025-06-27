@@ -5,6 +5,7 @@
 #include "fake_quantize_helper.hpp"
 #include "subgraph_mha.hpp"
 
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "common_test_utils/node_builders/constant.hpp"

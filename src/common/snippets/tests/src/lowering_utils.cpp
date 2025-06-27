@@ -9,6 +9,23 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/vector_buffer.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/target_machine.hpp"
 
 
 namespace ov {

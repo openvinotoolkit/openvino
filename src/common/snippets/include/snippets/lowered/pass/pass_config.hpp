@@ -4,14 +4,11 @@
 
 #pragma once
 
-#include "openvino/core/rtti.hpp"
-#include "openvino/core/type.hpp"
-#include "snippets/lowered/linear_ir.hpp"
+#include <unordered_set>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/type.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface PassConfig
@@ -55,7 +52,4 @@ private:
     std::unordered_set<DiscreteTypeInfo> m_enabled;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

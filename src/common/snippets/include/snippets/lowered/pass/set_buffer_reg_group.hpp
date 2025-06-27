@@ -4,14 +4,17 @@
 
 #pragma once
 
-#include "pass.hpp"
-#include "snippets/lowered/loop_info.hpp"
-#include "snippets/utils/utils.hpp"
+#include <cstddef>
+#include <map>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/rtti.hpp"
+#include "pass.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface SetBufferRegGroup
@@ -122,7 +125,4 @@ private:
     static BufferMap get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

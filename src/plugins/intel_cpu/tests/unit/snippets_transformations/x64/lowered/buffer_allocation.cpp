@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/opsets/opset.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
@@ -15,8 +14,14 @@
 #include "snippets/lowered/pass/split_loops.hpp"
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/reduce.hpp"
 
-#include "transformations/snippets/x64/shape_inference.hpp"
+#include "transformations/snippets/common/shape_inference.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"

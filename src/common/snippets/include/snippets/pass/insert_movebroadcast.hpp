@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface InsertMoveBroadcast
@@ -26,6 +27,4 @@ public:
                                                  const ov::PartialShape& normalized_shape);
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

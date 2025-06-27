@@ -4,21 +4,35 @@
 
 #include "snippets/pass/gated_mlp_tokenization.hpp"
 
-#include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/predicate.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 using namespace ov::pass::pattern;
 
@@ -112,6 +126,4 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const SnippetsTokenization::C
         });
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

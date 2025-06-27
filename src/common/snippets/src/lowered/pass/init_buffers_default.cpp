@@ -4,17 +4,17 @@
 
 #include "snippets/lowered/pass/init_buffers_default.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/op/buffer.hpp"
+#include <cstddef>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "snippets/itt.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/utils/utils.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 bool InitBuffersDefault::run(lowered::LinearIR& linear_ir,
-                             lowered::LinearIR::constExprIt begin,
-                             lowered::LinearIR::constExprIt end) {
+                             [[maybe_unused]] lowered::LinearIR::constExprIt begin,
+                             [[maybe_unused]] lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitBuffersDefault");
 
     size_t idx = 0;
@@ -36,7 +36,4 @@ bool InitBuffersDefault::run(lowered::LinearIR& linear_ir,
     return m_buffer_scratchpad_size > 0;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

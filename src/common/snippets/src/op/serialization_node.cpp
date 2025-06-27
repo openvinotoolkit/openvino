@@ -4,9 +4,19 @@
 
 #include "snippets/op/serialization_node.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include <cstddef>
+#include <memory>
+#include <string>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/lowered/expression.hpp"
+
+namespace ov::snippets::op {
 
 SerializationNode::SerializationNode(const ov::OutputVector& args,
                                      const std::shared_ptr<lowered::Expression>& expr,
@@ -29,8 +39,9 @@ void SerializationNode::validate_and_infer_types() {
     if (m_mode == SerializationMode::CONTROL_FLOW) {
         set_output_type(0, element::f32, {});
     } else if (m_mode == SerializationMode::DATA_FLOW) {
-        for (size_t i = 0; i < m_expr->get_output_count(); ++i)
+        for (size_t i = 0; i < m_expr->get_output_count(); ++i) {
             set_output_type(i, element::f32, {});
+        }
     }
 }
 
@@ -43,6 +54,4 @@ bool SerializationNode::visit_attributes(AttributeVisitor& visitor) {
     return m_expr->visit_attributes(visitor);
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

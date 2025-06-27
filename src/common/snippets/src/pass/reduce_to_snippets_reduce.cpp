@@ -4,19 +4,24 @@
 
 #include "snippets/pass/reduce_to_snippets_reduce.hpp"
 
+#include <cstdint>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/reduce.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
-using namespace lowered;
+namespace ov::snippets::pass {
 snippets::pass::ReduceToSnippetsReduce::ReduceToSnippetsReduce() {
     MATCHER_SCOPE(ReduceToSnippetsReduce);
     auto reduce_pattern = ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum, ov::op::v1::ReduceMax>();
@@ -37,12 +42,13 @@ snippets::pass::ReduceToSnippetsReduce::ReduceToSnippetsReduce() {
         const auto axis = ov::util::try_normalize_axis(axis_constant->cast_vector<int32_t>(1)[0], reduce_rank, *reduce);
 
         std::shared_ptr<snippets::op::ReduceBase> snippets_reduce = nullptr;
-        if (ov::is_type<ov::op::v1::ReduceSum>(reduce))
+        if (ov::is_type<ov::op::v1::ReduceSum>(reduce)) {
             snippets_reduce = std::make_shared<ov::snippets::op::ReduceSum>(data_input, axis);
-        else if (ov::is_type<ov::op::v1::ReduceMax>(reduce))
+        } else if (ov::is_type<ov::op::v1::ReduceMax>(reduce)) {
             snippets_reduce = std::make_shared<ov::snippets::op::ReduceMax>(data_input, axis);
-        else
+        } else {
             OPENVINO_THROW("Reduce ", reduce, " can't be converted to snippets opset.");
+        }
         ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(snippets_reduce);
 
         ov::replace_node(reduce, snippets_reduce);
@@ -55,6 +61,4 @@ snippets::pass::ReduceToSnippetsReduce::ReduceToSnippetsReduce() {
     register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

@@ -4,15 +4,31 @@
 
 #include "snippets/lowered/pass/validate.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <limits>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/perf_count.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 namespace {
 
@@ -30,7 +46,7 @@ void validate_ports(const ExpressionPtr& expr) {
     std::for_each(out_descs.cbegin(), out_descs.cend(), validate_descriptor);
 }
 
-void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
+void validate_parameter(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<ov::op::v0::Parameter>(expr->get_node()), "Parameter validation expects Parameter op");
     const auto& shape_infer_seq = utils::get_first_child_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
@@ -50,7 +66,7 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(layouts.size() == 1, "All consumers of Parameter must have the same layout");
 }
 
-void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
+void validate_result(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<ov::op::v0::Result>(expr->get_node()), "Result validation expects Result op");
     const auto& shape_infer_seq = utils::get_first_parent_shape_infer_expr_seq(expr);
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
@@ -59,7 +75,7 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()), "Result expects MemoryAccess parent");
 }
 
-void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
+void validate_buffer(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<op::Buffer>(expr->get_node()), "Buffer validation expects Buffer op");
     OPENVINO_ASSERT(ov::is_type<BufferExpression>(expr), "Buffer validation expects Buffer expression");
     for (const auto& input : expr->get_input_port_connectors()) {
@@ -143,7 +159,7 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
 
     double prev_exec_order = -1 * std::numeric_limits<double>::max();
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
-        const auto expr = *expr_it;
+        const auto& expr = *expr_it;
         const auto node = expr->get_node();
         const auto found = m_validation_map.find(node->get_type_info());
         if (found != m_validation_map.cend()) {
@@ -159,8 +175,9 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
                         "Incorrect count of output port descriptors!");
         expr->validate();
         // Loop expr doesn't have shapes and layouts
-        if (!ov::is_type<op::LoopBase>(node))
+        if (!ov::is_type<op::LoopBase>(node)) {
             validate_ports(expr);
+        }
 
         OPENVINO_ASSERT(expr->get_exec_num() > prev_exec_order, "Invalid execution order of expression");
         prev_exec_order = expr->get_exec_num();
@@ -169,7 +186,4 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
     return false;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -4,16 +4,27 @@
 
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <map>
+#include <set>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/runtime/memory_solver.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/pass/allocate_buffers.hpp"
-#include "snippets/op/buffer.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 namespace {
 std::map<double, int> create_execution_number_mapping(const LinearIR& linear_ir) {
     std::map<double, int> mapping;
@@ -130,23 +141,26 @@ void SolveBufferMemory::solve_static_buffer_memory(const Buffers& static_buffer_
     }
 }
 
-void SolveBufferMemory::set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions) {
-    size_t offset = utils::get_dynamic_value<size_t>();
+void SolveBufferMemory::set_dynamic_buffer_offset(const Buffers& dynamic_buffer_expressions) const {
+    auto offset = utils::get_dynamic_value<size_t>();
 
     // If there are not allocated memory for static buffers in LinearIR and there is only one cluster of dynamic buffer
     // exprs, we can force offset = 0
     if (m_static_buffer_scratchpad_size == 0) {
         std::set<size_t> dynamic_clusters;
-        for (const auto& dynamic_buffer_expr : dynamic_buffer_expressions)
+        for (const auto& dynamic_buffer_expr : dynamic_buffer_expressions) {
             dynamic_clusters.insert(dynamic_buffer_expr->get_cluster_id());
+        }
 
-        if (dynamic_clusters.size() == 1)
+        if (dynamic_clusters.size() == 1) {
             offset = 0;
+        }
     }
 
     // Set offsets for Buffers
-    for (const auto& buffer_expr : dynamic_buffer_expressions)
+    for (const auto& buffer_expr : dynamic_buffer_expressions) {
         buffer_expr->set_offset(offset);
+    }
 }
 
 bool SolveBufferMemory::run(LinearIR& linear_ir) {
@@ -157,16 +171,15 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
     Buffers static_buffer_exprs, dynamic_buffer_exprs;
     std::tie(static_buffer_exprs, dynamic_buffer_exprs) = extract_static_and_dynamic_buffers(linear_ir.get_buffers());
 
-    if (!static_buffer_exprs.empty())
+    if (!static_buffer_exprs.empty()) {
         solve_static_buffer_memory(static_buffer_exprs, linear_ir);
+    }
 
-    if (!dynamic_buffer_exprs.empty())
+    if (!dynamic_buffer_exprs.empty()) {
         set_dynamic_buffer_offset(dynamic_buffer_exprs);
+    }
 
     return !static_buffer_exprs.empty() && !dynamic_buffer_exprs.empty();
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

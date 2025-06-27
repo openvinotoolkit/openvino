@@ -6,6 +6,7 @@
 #include <snippets_helpers.hpp>
 #include <transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp>
 #include "openvino/core/visibility.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 
