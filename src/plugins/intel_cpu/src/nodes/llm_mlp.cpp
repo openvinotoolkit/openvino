@@ -520,9 +520,11 @@ private:
 #else
 template <typename T>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
-    Executor([[maybe_unused]] LLMMLP* node,
-             [[maybe_unused]] const LLMMLPNode::Config& config,
-             [[maybe_unused]] const DnnlScratchPadPtr& scratchPad) {}
+    Executor(LLMMLP* node, const LLMMLPNode::Config& config, const DnnlScratchPadPtr& scratchPad) {
+        (void)node;
+        (void)config;
+        (void)scratchPad;
+    }
 
     void execute() override {}
 };
