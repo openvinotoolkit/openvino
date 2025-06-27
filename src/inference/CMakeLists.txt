@@ -140,6 +140,13 @@ endif()
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+    set_source_files_properties(
+        src/dev/make_tensor.cpp
+        PROPERTIES
+        COMPILE_OPTIONS "/guard:cf-;/sdl-"
+    )
+endif()
 # LTO
 
 set_target_properties(${TARGET_NAME}_obj
