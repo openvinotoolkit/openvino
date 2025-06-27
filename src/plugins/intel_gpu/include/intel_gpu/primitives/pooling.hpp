@@ -88,6 +88,64 @@ struct pooling : public primitive_base<pooling> {
           with_output_size(true),
           output_size(output_size) {}
 
+    /// @brief Constructs pooling primitive.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param mode Pooling mode.
+    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
+    /// @param size Pooling kernel size.
+    /// @param pad Defines logical pad value added to input tensor.
+    pooling(const primitive_id& id,
+            const input_info& input,
+            pooling_mode mode,
+            const ov::Shape& size,
+            const ov::Strides& stride,
+            const ov::Strides& dilation,
+            const ov::Shape& pads_begin = {0, 0},
+            const ov::Shape& pads_end = {0, 0},
+            ov::op::PadType auto_pad = ov::op::PadType::EXPLICIT,
+            ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR)
+        : primitive_base(id, {input}),
+          mode(static_cast<pooling_mode>(mode)),
+          size(size),
+          stride(stride),
+          dilation(dilation),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          auto_pad(auto_pad),
+          rounding_type(rounding_type),
+          with_output_size(false) {}
+
+    /// @brief Constructs pooling primitive with known output shape.
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param mode Pooling mode.
+    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
+    /// @param size Pooling kernel size.
+    /// @param pad Defines logical pad value added to input tensor.
+    /// @param output_size User-defined output data size of the primitive (w/o padding).
+    pooling(const primitive_id& id,
+            const input_info& input,
+            pooling_mode mode,
+            const ov::Shape& size,
+            const ov::Strides& stride,
+            const ov::Strides& dilation,
+            const ov::Shape& pads_begin,
+            const ov::Shape& pads_end,
+            tensor output_size,
+            const data_types output_data_type)
+        : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
+          mode(static_cast<pooling_mode>(mode)),
+          size(size),
+          stride(stride),
+          dilation(dilation),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          auto_pad(ov::op::PadType::EXPLICIT),
+          rounding_type(ov::op::RoundingType::CEIL),
+          with_output_size(true),
+          output_size(output_size) {}
+
     /// @brief Constructs pooling primitive that supports MaxPool features from opset8 (dilation and indices output).
     /// @param id This primitive id.
     /// @param input Input primitive id.
