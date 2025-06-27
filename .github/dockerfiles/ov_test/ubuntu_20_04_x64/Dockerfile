@@ -26,6 +26,8 @@ RUN apt-get update && \
         pigz \
         # Samples
         clang \
+        # python prerequisites
+        libcairo2-dev \ 
         # Python
         python3.9-dev \
         python3.9-venv \
@@ -54,4 +56,3 @@ RUN python3.9 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
-ENV PIP_INSTALL_PATH=/venv/lib/python3.9/site-packages
