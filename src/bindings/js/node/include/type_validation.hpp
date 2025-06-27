@@ -5,6 +5,7 @@
 #include <napi.h>
 
 #include "node/include/addon.hpp"
+#include "node/include/compiled_model.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/partial_shape_wrap.hpp"
@@ -28,6 +29,9 @@ const char* get_attr_type() {
 };
 
 template <>
+const char* get_attr_type<Napi::Value>();
+
+template <>
 const char* get_attr_type<Napi::String>();
 
 template <>
@@ -37,6 +41,9 @@ template <>
 const char* get_attr_type<Napi::Boolean>();
 
 template <>
+const char* get_attr_type<Napi::Function>();
+
+template <>
 const char* get_attr_type<Napi::Buffer<uint8_t>>();
 
 template <>
@@ -44,6 +51,9 @@ const char* get_attr_type<int>();
 
 template <>
 const char* get_attr_type<ModelWrap>();
+
+template <>
+const char* get_attr_type<CompiledModelWrap>();
 
 template <>
 const char* get_attr_type<TensorWrap>();
@@ -60,6 +70,9 @@ bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
 };
 
 template <>
+bool validate_value<Napi::Value>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
 bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
@@ -69,6 +82,9 @@ template <>
 bool validate_value<Napi::Boolean>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
+bool validate_value<Napi::Function>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
 bool validate_value<Napi::Buffer<uint8_t>>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
@@ -76,6 +92,9 @@ bool validate_value<int>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+bool validate_value<CompiledModelWrap>(const Napi::Env& env, const Napi::Value& value);
 
 /** @brief Checks if Napi::Value is a Tensor.*/
 template <>
