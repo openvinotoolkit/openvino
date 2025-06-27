@@ -68,6 +68,8 @@ private:
     std::unique_ptr<Properties> _properties;
 
     std::shared_ptr<IGraph> _graph;
+
+    std::shared_ptr<const ov::Model> _model;
 };
 
 }  //  namespace intel_npu
