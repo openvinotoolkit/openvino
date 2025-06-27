@@ -10,10 +10,33 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
-
 namespace ov {
 namespace util {
+
+/** @brief Allows toggling log message output between std::cout and user provided callback.
+ */
+class OPENVINO_API LogDispatch {
+public:
+    using Callback = std::function<void(std::string_view)>;
+
+    static Callback get_callback();
+    static void set_callback(Callback);
+    static void reset_callback();
+
+private:
+    static const Callback default_callback;
+    static Callback current_callback;
+};
+
+/** @brief To be used by ov::util::LogHelper only.
+ * @note Common/Util is stateless, independent from Core and unique per component. But log dispatching must be stateful
+ * and single to all the components. To allow ov::util::LogHelper use actual callback only definition of exported
+ * function is provided, but no declaration in Core headers.
+ */
+OPENVINO_DEPRECATED("For ov::util::LogHelper usage only, till its dependency is resolved.")
+OPENVINO_API LogDispatch::Callback get_log_callback();
+
+#ifdef ENABLE_OPENVINO_DEBUG
 
 class OPENVINO_API LevelString {
 private:
@@ -556,10 +579,7 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   (status ? "  ALL ARGUMENTS MATCHED" : "  ARGUMENTS DIDN'T MATCH")); \
         } while (0);
 
-}  // namespace util
-}  // namespace ov
-
-#else
+#else  // ENABLE_OPENVINO_DEBUG
 
 #    define OPENVINO_LOG_GENPATTERN1(...) \
         do {                              \
@@ -699,4 +719,7 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
         do {                            \
         } while (0)
 
-#endif
+#endif  // ENABLE_OPENVINO_DEBUG
+
+}  // namespace util
+}  // namespace ov
