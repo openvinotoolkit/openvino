@@ -540,15 +540,15 @@ struct ScoreAggregationInfo {
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
-    size_t H;
-    size_t S;
-    size_t SV;
-    size_t Hk;
-    size_t _h_each_group_len;
-    size_t _block_size;
-    size_t _nthr;
-    size_t _sliding_window;
-    float _d_scale;
+    size_t H = 0UL;
+    size_t S = 0UL;
+    size_t SV = 0UL;
+    size_t Hk = 0UL;
+    size_t _h_each_group_len = 0UL;
+    size_t _block_size = 0UL;
+    size_t _nthr = 0UL;
+    size_t _sliding_window = 0UL;
+    float _d_scale = 0.0F;
     ov::Extensions::Cpu::PagedAttnQuantParams _params;
     size_t _new_score_stride = 0;
     bool AarchF16 = false;

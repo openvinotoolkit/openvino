@@ -44,11 +44,11 @@ struct PagedAttentionExecutor {
 };
 
 struct PagedAttnQuantParams {
-    size_t key_group_size;
-    size_t value_group_size;
-    bool quant_key_bychannel;
-    bool quant_value_bychannel;
-    bool is_sage_attn;
+    size_t key_group_size = 0UL;
+    size_t value_group_size = 0UL;
+    bool quant_key_bychannel = false;
+    bool quant_value_bychannel = false;
+    bool is_sage_attn = false;
 };
 
 struct AttnWorkItem {
@@ -68,9 +68,9 @@ struct WorkItems {
 private:
     std::vector<AttnWorkItem> attn_items;
     std::vector<ReorderWorkItem> reorder_items;
-    int32_t max_kv_len_in_reorder;  // max kv len between first tokens
-    int32_t max_batch_in_reorder;
-    int32_t total_kv_len;
+    int32_t max_kv_len_in_reorder = 0;  // max kv len between first tokens
+    int32_t max_batch_in_reorder = 0;
+    int32_t total_kv_len = 0;
 
 public:
     void reset([[maybe_unused]] const ov::intel_cpu::PlainTensor& query,
