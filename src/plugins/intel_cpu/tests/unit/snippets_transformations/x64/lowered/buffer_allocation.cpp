@@ -16,7 +16,7 @@
 #include "snippets/lowered/pass/insert_buffers.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
 
-#include "transformations/snippets/x64/shape_inference.hpp"
+#include "transformations/snippets/common/shape_inference.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
