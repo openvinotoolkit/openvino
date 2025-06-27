@@ -4,11 +4,10 @@
 
 #pragma once
 
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface ShapeInferOp
@@ -22,6 +21,4 @@ public:
     ShapeInferOp(const OutputVector& args) : ov::op::Op(args) {}
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

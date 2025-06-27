@@ -4,12 +4,16 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
-#include "snippets/shape_inference/shape_infer_instances.hpp"
+#include <cstddef>
+#include <memory>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
+
+namespace ov::snippets::op {
 
 /**
  * @interface ReduceBase
@@ -51,6 +55,4 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op
