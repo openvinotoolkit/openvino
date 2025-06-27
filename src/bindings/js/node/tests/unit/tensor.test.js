@@ -189,6 +189,30 @@ describe('ov.Tensor tests', () => {
         message: /Third argument of a tensor must be TypedArray./,
       });
     });
+    
+    
+    it('tensor.copyTo copies data to a destination buffer', () => {
+      const tensor = new ov.Tensor(ov.element.f32, [2], Float32Array.from([1.5, 2.5]));
+      const dest = new Float32Array(2);
+      tensor.copyTo(dest);
+      assert.deepStrictEqual(dest, Float32Array.from([1.5, 2.5]));
+    });
+
+    it('tensor.copyTo throws if destination size is mismatched', () => {
+      const tensor = new ov.Tensor(ov.element.f32, [2], Float32Array.from([1.5, 2.5]));
+      const dest = new Float32Array(3); // incorrect size
+      assert.throws(() => {
+        tensor.copyTo(dest);
+      }, /Destination buffer must have the same length as tensor size/);
+    });
+
+    it('tensor.copyTo throws if destination is not a TypedArray', () => {
+      const tensor = new ov.Tensor(ov.element.f32, [2], Float32Array.from([1.5, 2.5]));
+      assert.throws(() => {
+        tensor.copyTo([1.5, 2.5]); // not a TypedArray
+      }, /Destination must be a TypedArray./);
+    });
+
   });
 
   describe('Tensor shape', () => {

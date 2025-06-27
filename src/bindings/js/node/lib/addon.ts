@@ -409,6 +409,8 @@ interface CompiledModel {
  * in {@link TensorConstructor} section.
  */
 interface Tensor {
+  copyTo(destination: ArrayBufferView): void;
+
   /**
    * This property provides access to the tensor's data.
    *
@@ -422,6 +424,7 @@ interface Tensor {
    * size or type of array does not match the tensor.
    */
   data: SupportedTypedArray;
+  
   /**
    * It gets the tensor element type.
    */
