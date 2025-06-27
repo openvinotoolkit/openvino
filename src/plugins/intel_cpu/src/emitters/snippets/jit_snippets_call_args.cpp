@@ -48,17 +48,13 @@ jit_snippets_call_args::loop_args_t::loop_args_t(int64_t work_amount,
     OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == finalization_offsets.size(),
                               "Inconsistent sizes of ptr_increments and finalization_offsets");
     m_num_data_ptrs = static_cast<int64_t>(ptr_increments.size());
-    init_pointers_and_copy_data(m_num_data_ptrs,
-                                ptr_increments.data(),
-                                finalization_offsets.data());
+    init_pointers_and_copy_data(m_num_data_ptrs, ptr_increments.data(), finalization_offsets.data());
 }
 
 jit_snippets_call_args::loop_args_t::loop_args_t(const loop_args_t& other)
     : m_work_amount(other.m_work_amount),
       m_num_data_ptrs(other.m_num_data_ptrs) {
-    init_pointers_and_copy_data(m_num_data_ptrs,
-                                other.m_ptr_increments,
-                                other.m_finalization_offsets);
+    init_pointers_and_copy_data(m_num_data_ptrs, other.m_ptr_increments, other.m_finalization_offsets);
 }
 
 jit_snippets_call_args::loop_args_t::~loop_args_t() {
