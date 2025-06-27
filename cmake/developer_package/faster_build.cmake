@@ -4,6 +4,9 @@
 
 include(CMakeParseArguments)
 
+# disable precompiled headers until it is fixed
+set(ENABLE_FASTER_BUILD OFF)
+
 function(ov_build_target_faster TARGET_NAME)
     # ENABLE_FASTER_BUILD option enables usage of precompiled headers
     # ENABLE_UNITY_BUILD option enalbles unity build
@@ -16,17 +19,15 @@ function(ov_build_target_faster TARGET_NAME)
         set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON)
     endif()
 
-    if((FASTER_BUILD_PCH OR FASTER_BUILD_PCH_HEADER) AND ENABLE_FASTER_BUILD)
+    if(ENABLE_FASTER_BUILD)
         if (FASTER_BUILD_PCH_HEADER)
             target_precompile_headers(${TARGET_NAME} PRIVATE ${FASTER_BUILD_PCH_HEADER})
-        else()
+        elseif(FASTER_BUILD_PCH)
             get_target_property(pch_core_header_path openvino::util PCH_CORE_HEADER_PATH)
             if(NOT pch_core_header_path STREQUAL "pch_core_header_path-NOTFOUND")
                 target_precompile_headers(${TARGET_NAME} PRIVATE ${pch_core_header_path})
             endif()
         endif()
-        foreach(exclude_src IN LISTS FASTER_BUILD_PCH_EXCLUDE)
-            set_source_files_properties(${exclude_src} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-        endforeach()
+        set_source_files_properties(${FASTER_BUILD_PCH_EXCLUDE} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     endif()
 endfunction()

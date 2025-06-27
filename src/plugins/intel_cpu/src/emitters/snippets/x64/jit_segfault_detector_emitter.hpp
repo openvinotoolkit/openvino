@@ -16,9 +16,9 @@
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "openvino/runtime/threading/thread_local.hpp"
 
-using namespace ov::threading;
-
 namespace ov::intel_cpu {
+
+using namespace ov::threading;
 
 class jit_uni_segfault_detector_emitter;
 extern std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler;
@@ -43,7 +43,7 @@ private:
     jit_emitter* m_target_emitter = nullptr;
     bool is_target_use_load_emitter = false;
     bool is_target_use_store_emitter = false;
-    std::string m_target_node_name = "";
+    std::string m_target_node_name;
 
     void save_target_emitter() const;
     static void set_local_handler(jit_uni_segfault_detector_emitter* emitter_address);

@@ -22,19 +22,22 @@ ov::snippets::pass::ExtractPairsAfterMatmul::ExtractPairsAfterMatmul() {
         return pattern::has_static_shape()(out) && pattern::consumers_count(1)(out);
     };
     auto matmul_m = pattern::wrap_type<opset1::MatMul>(static_shape_single_consumer);
-    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({matmul_m, pattern::wrap_type<opset1::Constant>()}, static_shape_single_consumer);
+    auto reshape_1_m = pattern::wrap_type<opset1::Reshape>({matmul_m, pattern::wrap_type<opset1::Constant>()},
+                                                           static_shape_single_consumer);
     auto sparse_input_1_m = pattern::any_input(pattern::has_static_shape());
     auto sparse_input_2_m = pattern::any_input(pattern::has_static_shape());
     auto add_1_m = pattern::wrap_type<opset1::Add>({reshape_1_m, sparse_input_1_m}, static_shape_single_consumer);
     auto add_2_m = pattern::wrap_type<opset1::Add>({add_1_m, sparse_input_2_m}, static_shape_single_consumer);
-    auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()}, pattern::has_static_shape());
+    auto reshape_2_m = pattern::wrap_type<opset1::Reshape>({add_2_m, pattern::wrap_type<opset1::Constant>()},
+                                                           pattern::has_static_shape());
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::ExtractPairsAfterMatmul")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& matmul = pattern_map.at(matmul_m);
         const auto matmul_node = ov::as_type_ptr<opset1::MatMul>(matmul.get_node_shared_ptr());
-        if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(matmul_node) || transformation_callback(matmul_node))
+        if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(matmul_node) ||
+            transformation_callback(matmul_node))
             return false;
 
         const auto& reshape_2 = pattern_map.at(reshape_2_m);
