@@ -39,7 +39,6 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install      
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
@@ -47,15 +46,8 @@ jobs:
       - name: Download OpenVINO artifacts (tarballs)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: openvino_[tests]*
+          pattern: openvino_@(wheels|tests)
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
-          
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: openvino_[wheels]*
-          path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
@@ -65,7 +57,6 @@ jobs:
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
-          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -97,7 +88,7 @@ jobs:
         uses: ./.github/actions/find_wheel
         id: ov_wheel
         with:
-          wheels_dir: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels_dir: '${{ env.INSTALL_DIR }}/wheels'
           package_name: 'openvino'
       
       - name: Configure poetry
@@ -108,12 +99,6 @@ jobs:
         
       - name: Install Test dependencies
         run: poetry install --with tests,torch,onnx,tensorflow
-
-      - name: Install OpenVINO Python wheels
-        uses: ./.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino'
 
       #
       # Tests
