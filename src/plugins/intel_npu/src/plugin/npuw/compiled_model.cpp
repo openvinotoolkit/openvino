@@ -803,7 +803,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
-            compiled->m_weights_bank = bank;
+            compiled->m_weights_bank = std::move(bank);
             compiled->reconstruct_closure();
         }
     };
