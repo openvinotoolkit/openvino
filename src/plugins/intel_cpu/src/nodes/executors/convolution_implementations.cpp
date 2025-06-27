@@ -49,7 +49,10 @@ static const TypeMapping dnnlConvTypeMapping {
     {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
-    {{_u8 | _i8, _i8, _quant | _hw_float | _i32 | _dynamic, _quant | _hw_float | _i32 | _dynamic}, pt(bypass(), bypass(), bypass(),  bypass())},
+    // int8 conv does not support f16 output and bias
+    {{_u8 | _i8, _i8,  _quant |_bf16 | _f32 | _i32 | _dynamic,  _quant | _bf16 | _f32 | _i32 | _dynamic}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), just<f32>(), bypass())},
+    {{_u8 | _i8, _i8, _any, _any}, pt(bypass(), bypass(), just<f32>(), just<f32>())},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
