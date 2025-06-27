@@ -102,10 +102,11 @@ class Maker:
     def __init__(self):
         self.calls_count = 0
 
-    def __call__(self, tensor: ov.Tensor) -> None:
+    def __call__(self) -> ov.Tensor:
         self.calls_count += 1
-        tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
-        ov.Tensor(tensor_data).copy_to(tensor)
+        # Should maker change shape of PostponedConstant?
+        tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 2, 1, 2)
+        return ov.Tensor(tensor_data)
 
     def called_times(self):
         return self.calls_count
@@ -188,3 +189,30 @@ def test_infer_postponned_constant():
 
     expected_output = np.array([4, 5, 6, 7], dtype=np.float32).reshape(1, 2, 1, 2)
     assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
+
+tensor = ov.Tensor(np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2))
+def evaluate_assign_tensor(outputs: list[ov.Tensor]) -> bool:
+    outputs[0] = ov.Tensor(np.array([5, 5, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)) 
+    return True
+
+print(tensor.data[:])
+evaluate_assign_tensor([tensor])
+print(tensor.data[:]) # no change
+    
+def evaluate_copy_tensor_data(outputs: list[ov.Tensor]) -> bool:
+    new_tensor_from_maker = ov.Tensor(np.array([5, 5, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)) 
+    outputs[0].data[:] = new_tensor_from_maker.data[:]
+    return True
+
+print(tensor.data[:])
+evaluate_copy_tensor_data([tensor])
+print(tensor.data[:]) # data changed
+
+def evaluate_copy_tensor_data2(outputs: list[ov.Tensor]) -> bool:
+    new_tensor_from_maker = ov.Tensor(np.array([6, 5, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)) 
+    new_tensor_from_maker.copy_to(outputs[0])
+    return True
+
+print(tensor.data[:])
+evaluate_copy_tensor_data2([tensor])
+print(tensor.data[:]) # data changed
