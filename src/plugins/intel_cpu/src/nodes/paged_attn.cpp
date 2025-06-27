@@ -195,13 +195,12 @@ void PagedAttention::createPrimitive() {
         bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
         bool quantValuebyChannel =
             isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
-        return make_pa_executor(rtPrecision,
-                                kCachePrecision,
-                                vCachePrecision,
-                                cpuConfig.keyCacheGroupSize,
-                                cpuConfig.valueCacheGroupSize,
-                                quantKeybyChannel,
-                                quantValuebyChannel);
+        PagedAttnQuantParams params{cpuConfig.keyCacheGroupSize,
+                                    cpuConfig.valueCacheGroupSize,
+                                    quantKeybyChannel,
+                                    quantValuebyChannel,
+                                    cpuConfig.enableSageAttn};
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params);
 #else
         return nullptr;
 #endif
@@ -274,6 +273,7 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
                    ov::element::bf16)) {
             if (!one_of(kCachePrecision,
                         ov::element::u4,
+                        ov::element::i8,
                         ov::element::u8,
                         ov::element::f16,
                         ov::element::f32,
