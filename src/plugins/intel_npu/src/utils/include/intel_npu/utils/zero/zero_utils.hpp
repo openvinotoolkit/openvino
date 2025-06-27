@@ -103,6 +103,8 @@ static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precis
         return ov::element::Type_t::i32;
     case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
         return ov::element::Type_t::i64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT2:
+        return ov::element::Type_t::u2;
     case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
         return ov::element::Type_t::u1;
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
@@ -213,8 +215,8 @@ static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle
     auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
     if (res == ZE_RESULT_SUCCESS) {
         if (desc.id) {
-            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
-                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
+            if ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type == ZE_MEMORY_TYPE_SHARED)) {
                 return true;
             }
         }
