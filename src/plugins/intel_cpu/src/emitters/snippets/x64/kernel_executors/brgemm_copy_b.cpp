@@ -4,10 +4,10 @@
 
 #include "brgemm_copy_b.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <common/utils.hpp>
@@ -203,10 +203,10 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
 #    undef PRINT
 #endif
 
-BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator(jit_name()), ker_(nullptr) {}
+BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator_t(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
-    : jit_generator(jit_name()),
+    : jit_generator_t(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
       K(conf.get_K()),
@@ -229,7 +229,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
 }
 
 status_t BrgemmCopyBKernel::create_kernel() {
-    const auto code = jit_generator::create_kernel();
+    const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
     ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;

@@ -4,7 +4,7 @@
 
 #include "utils.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <common/utils.hpp>
@@ -89,7 +89,7 @@ Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_
     return aux_reg;
 }
 
-void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,
                                            size_t stack_offset,
                                            Xbyak::Reg64 ptr_reg,
                                            Xbyak::Reg64 aux_reg,
@@ -100,7 +100,7 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* 
     h->mov(stack_frame, aux_reg);
 }
 
-void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,
                                           size_t stack_offset,
                                           Xbyak::Reg64 ptr_reg,
                                           size_t ptr_offset) {
