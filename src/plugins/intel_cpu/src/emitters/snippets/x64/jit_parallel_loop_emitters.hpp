@@ -71,7 +71,7 @@ protected:
     std::shared_ptr<Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
-    std::shared_ptr<ParallelLoopExecutor> m_parallel_loop_executor = nullptr;
+    std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
     std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
 };
 
