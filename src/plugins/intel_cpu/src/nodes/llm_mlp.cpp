@@ -35,8 +35,6 @@
 #    include <utility>
 
 #    include "cpu_memory.h"
-#    include "kernels/x64/mlp_kernel.hpp"
-#    include "kernels/x64/mlp_utils.hpp"
 #    include "memory_desc/blocked_memory_desc.h"
 #    include "memory_desc/cpu_blocked_memory_desc.h"
 #    include "openvino/core/parallel.hpp"
@@ -44,6 +42,11 @@
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
 #    include "utils/plain_tensor.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "kernels/x64/mlp_kernel.hpp"
+#    include "kernels/x64/mlp_utils.hpp"
 #endif
 
 namespace ov::intel_cpu::node {

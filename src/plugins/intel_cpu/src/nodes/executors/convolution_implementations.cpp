@@ -22,7 +22,7 @@
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
 
-#if not defined(OPENVINO_ARCH_RISCV)
+#if not defined(OPENVINO_ARCH_RISCV64)
 #    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #endif
 
