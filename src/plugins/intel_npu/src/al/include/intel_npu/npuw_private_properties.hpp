@@ -453,10 +453,22 @@ static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"}
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of prefill model.
+ * Configuration for compilation/execution of prefill model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
+ * 
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Additional configuration for compilation/execution of prefill model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map. 
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_prefill_config {"++NPUW_LLM_PREFILL_CONFIG"};
 
 /**
  * @brief
@@ -471,10 +483,40 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of generate model.
+ * Configuration for compilation/execution of generate model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of generate model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map. 
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of tail matmul model. If specified, it will override
+ * default config, prepared by NPUW specifically for this model.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> tail_mm_config{"NPUW_LLM_TAIL_MM_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of tail matmul model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_tail_mm_config{"++NPUW_LLM_TAIL_MM_CONFIG"};
 }  // namespace llm
 
 }  // namespace npuw
