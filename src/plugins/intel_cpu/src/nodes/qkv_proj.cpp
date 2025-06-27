@@ -34,11 +34,14 @@
 #    include "kernels/x64/mlp_utils.hpp"
 #    include "memory_desc/blocked_memory_desc.h"
 #    include "memory_desc/cpu_blocked_memory_desc.h"
-#    include "nodes/kernels/x64/mlp_kernel.hpp"
 #    include "openvino/core/shape.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
 #    include "utils/plain_tensor.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86)
+#    include "nodes/kernels/x64/mlp_kernel.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
