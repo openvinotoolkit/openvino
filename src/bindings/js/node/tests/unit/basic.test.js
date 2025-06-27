@@ -200,9 +200,15 @@ describe('ov basic tests.', () => {
       });
     });
 
-    it.skip('compileModel() returns a Promise of CompiledModel', async () => {
-      // CVS-167943
+    it('compileModel(model:Model) returns Promise<CompiledModel>', async () => {
       const promise = core.compileModel(model, 'CPU');
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
+    });
+
+    it('compileModel(model_path) returns Promise<CompiledModel>', async () => {
+      const promise = core.compileModel(testModelFP32.xml, 'CPU');
       assert.ok(promise instanceof Promise);
       const cm = await promise;
       assert.ok(cm instanceof ov.CompiledModel);
