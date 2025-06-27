@@ -747,7 +747,7 @@ TEST(prepare_buffer_fusing, in_place_crop_static_padding_and_gemm) {
         auto outputs = network.execute();
 
         auto crop_prim = network.get_primitive("crop");
-        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+        ASSERT_EQ(crop_prim->can_be_optimized(), false);    // Not opt out because the user, gemm node, has paddings at spatial dimensions
 
         auto output = outputs.at("output").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());

@@ -498,6 +498,16 @@ bool crop_in_place_optimization::match(const program_node& node,
                 crop_params.input_offsets[0].spatial[1] != 0) {
                 return false;
             }
+            auto output_layout = node.get_output_layout();
+            if (output_layout.is_static()) {
+                const auto offsets = crop_params.input_offsets[0];
+                const auto& crop_size = output_layout.get_tensor();
+                if ((input_layout.feature() - offsets.feature[0] - crop_size.feature[0]) != 0 ||
+                    (input_layout.spatial(0) - offsets.spatial[0] - crop_size.spatial[0]) != 0 ||
+                    (input_layout.spatial(1) - offsets.spatial[1] - crop_size.spatial[1]) != 0) {
+                    return false;
+                }
+            }
         }
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
