@@ -139,7 +139,9 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
         auto pvm = m.get_pattern_value_map();
         auto slice = pvm.at(p_slice).get_node_shared_ptr();
 
-        auto gather = std::make_shared<v8::Gather>(slice->input_value(0), position_ids, v0::Constant::create(element::i64, Shape{}, {1}));
+        auto gather = std::make_shared<v8::Gather>(slice->input_value(0),
+                                                   position_ids,
+                                                   v0::Constant::create(element::i64, Shape{}, {1}));
         auto transpose =
             std::make_shared<v1::Transpose>(gather, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
 
