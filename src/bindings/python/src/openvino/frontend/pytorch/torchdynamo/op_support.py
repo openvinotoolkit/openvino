@@ -79,6 +79,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.avg_pool2d.default": None,
             "torch.ops.aten.avg_pool3d.default": None,
             "torch.ops.aten.baddbmm.default": None,
+            "torch.ops.aten.bernoulli.p": None,
             "torch.ops.aten.bitwise_and.Scalar": None,
             "torch.ops.aten.bitwise_and.Tensor": None,
             "torch.ops.aten.bitwise_not.default": None,
