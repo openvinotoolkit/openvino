@@ -212,12 +212,10 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
     std::tie(rtPrec, M, N, K, postScale) = this->GetParam();
     if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
-    if (rtPrec == ov::element::f32 && !ov::with_cpu_x86_avx512_core())
-        GTEST_SKIP();
     if (rtPrec == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())
         GTEST_SKIP();
-    // TODO enable vnni2 if vnni2 flag available
-    if (rtPrec == ov::element::i8 && !(ov::with_cpu_x86_avx512_core_amx_int8()))
+    if (rtPrec == ov::element::i8 && !(ov::with_cpu_x86_avx512_core_amx_int8() ||
+                                       dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2)))
         GTEST_SKIP();
 
     if (rtPrec == ov::element::bf16) {
