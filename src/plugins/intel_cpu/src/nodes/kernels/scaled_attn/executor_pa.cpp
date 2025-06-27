@@ -2184,10 +2184,15 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          ov::element::Type value_cache_type,
                                                          const PagedAttnQuantParams& params) {
     std::shared_ptr<PagedAttentionExecutor> executor;
+    if (params.is_sage_attn) {
+        bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() ||
+                               dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2));
+        OPENVINO_ASSERT(s8s8_available, "make_pa_executor: sage_attn needs amx_int8/vnni2 to support");
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     if (data_type == ov::element::bf16) {
 #    if defined(HAVE_AVX512F)
-        if (key_cache_type == ov::element::i8) {
+        if (key_cache_type == ov::element::i8 && params.is_sage_attn) {
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::element::i8, ov::element::u8>>(params);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
@@ -2223,7 +2228,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
 #    endif
     } else if (data_type == ov::element::f16) {
 #    if defined(HAVE_AVX512F)
-        if (key_cache_type == ov::element::i8) {
+        if (key_cache_type == ov::element::i8 && params.is_sage_attn) {
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::i8, ov::element::u8>>(params);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
@@ -2257,7 +2262,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         OPENVINO_THROW("make_pa_executor: f16 needs avx512+ hardware.");
 #    endif
     } else if (data_type == ov::element::f32) {
-        if (key_cache_type == ov::element::i8) {
+        if (key_cache_type == ov::element::i8 && params.is_sage_attn) {
             executor = std::make_shared<AttentionExecutor<float, ov::element::i8, ov::element::u8>>(params);
         } else if (key_cache_type == ov::element::u8) {
             if (value_cache_type == ov::element::u4) {
