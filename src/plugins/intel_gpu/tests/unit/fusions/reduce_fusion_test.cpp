@@ -164,8 +164,8 @@ TEST_P(reduce_eltwise_activation_quantize, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p, true)),
         reorder("input_reorder", input_info("input"), p.input_format, p.data_type),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -128)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_output_layout(p))),
