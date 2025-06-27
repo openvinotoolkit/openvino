@@ -78,9 +78,7 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
     // If the loop is static, we can initialize loop_args with the known values already at compilation stage.
     // In case of dynamic loop, loop_args from jit_snippets_call_args will be used
     if (!is_dynamic) {
-        loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(),
-                                                        ptr_increments,
-                                                        fin_offsets);
+        loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(), ptr_increments, fin_offsets);
         // Note: behavior is aligned with runtime configurator:
         // data_sizes and increment are already taken into account in the offsets
         const auto& data_sizes = loop_end->get_element_type_sizes();
@@ -88,10 +86,12 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
             loop_args.m_ptr_increments[i] *= (wa_increment * data_sizes[i]);
             loop_args.m_finalization_offsets[i] *= data_sizes[i];
         }
+    } else {
+        OPENVINO_THROW("Dynamic parallel loop begin is not supported yet");
     }
 
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
-    work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
+    internal_work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
     loop_end_input_regs.pop_back();
     mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
     for (const auto& r : loop_end_input_regs) {
@@ -111,8 +111,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
       loop_end_label(nullptr),
       m_loop_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
-    ParallelLoopConfig kernel_config(loop_args, wa_increment);
-    m_parallel_loop_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, kernel_config);
+    m_parallel_loop_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(wa_increment));
     // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory
     // pointers if they do, we need to spill them before the call and restore in the multithread section
 }
@@ -120,11 +119,10 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
 void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
                                                          const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got ", in.size());
-    // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs: expected 1 got ", out.size());
-    OV_CPU_JIT_EMITTER_ASSERT(out.back() == work_amount_reg_idx,
+    OV_CPU_JIT_EMITTER_ASSERT(out.back() == internal_work_amount_reg_idx,
                               "Invalid out reg: expected ",
-                              work_amount_reg_idx,
+                              internal_work_amount_reg_idx,
                               " got ",
                               out.size());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
@@ -157,18 +155,33 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     // and restored after it with applied finalization offsets.
     spill.preamble(get_regs_to_spill_except_mem_ptr_regs());
 
-    const auto reserved_stack_size = mem_ptr_regs_idxs.size() * sizeof(uintptr_t*);
+    const auto call_args_size = sizeof(typename ParallelLoopExecutor::call_args);
+    const auto mem_ptrs_size = mem_ptr_regs_idxs.size() * sizeof(uintptr_t*);
+    const auto reserved_stack_size = call_args_size + mem_ptrs_size;
     // Spill before parallel for => we'll need them to update data ptrs afterwards
     h->sub(h->rsp, reserved_stack_size);
+
     for (auto i : mem_ptr_regs_idxs) {
-        h->mov(h->ptr[h->rsp + i * sizeof(uintptr_t*)], Xbyak::Reg64(i));
+        h->mov(h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)], Xbyak::Reg64(i));
     }
 
     const auto& aux_reg = get_call_address_reg();
+    if (is_dynamic) {
+        OPENVINO_THROW("dynamic parallel loop begin is not supported yet");
+    } else {
+        h->mov(aux_reg, reinterpret_cast<uintptr_t>(&loop_args));
+        // TODO: use helper push_ptr_with_static_offset_on_stack and push_ptr_with_runtime_offset_on_stack
+        // here and below
+        h->mov(h->qword[h->rsp + GET_OFF_PARALLEL_LOOP_ARGS(loop_args)], aux_reg);
+    }
+    h->mov(aux_reg, *loop_preamble_label);
+    h->mov(h->qword[h->rsp + GET_OFF_PARALLEL_LOOP_ARGS(preamble_ptr)], aux_reg);
+    h->lea(aux_reg, h->qword[h->rsp + call_args_size]);
+    h->mov(h->qword[h->rsp + GET_OFF_PARALLEL_LOOP_ARGS(mem_ptrs)], aux_reg);
+
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_parallel_loop_executor.get()));
     h->mov(abi_param2, h->rsp);
-    h->mov(abi_param3, *loop_preamble_label);
 
     spill.rsp_align(get_callee_saved_reg().getIdx());
     // Note: we will return from this call only when the parallel region is finished (return from
@@ -178,7 +191,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
 
     // Restore data ptrs with applied finalization offsets
     for (auto i : mem_ptr_regs_idxs) {
-        h->mov(Xbyak::Reg64(i), h->ptr[h->rsp + i * sizeof(uintptr_t*)]);
+        h->mov(Xbyak::Reg64(i), h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)]);
     }
     h->add(h->rsp, reserved_stack_size);
     spill.postamble();
@@ -197,7 +210,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() cons
     m_loop_reg_spiller->preamble(loop_premble_spill);
     // Note: work_amount reg is guaranteed to differ from any mem_ptr_regs_idxs.
     // However some of mem_ptr_regs_idxs might coincide with abi_param_1 or abi_param_2.
-    h->mov(Xbyak::Reg64(work_amount_reg_idx), abi_param1);
+    h->mov(Xbyak::Reg64(internal_work_amount_reg_idx), abi_param1);
     bool abi_param2_collision = false;
     for (int i : mem_ptr_regs_idxs) {
         if (i == abi_param2.getIdx()) {
@@ -276,6 +289,7 @@ void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in
 void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                               [[maybe_unused]] const std::vector<size_t>& out) const {
     for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
+        OPENVINO_ASSERT(!is_dynamic, "dynamic parallel loop end is not supported yet");
         const auto& ptr_increment = loop_args.m_ptr_increments[idx];
         if (is_incremented[idx] && ptr_increment != 0) {
             // TODO: take increment from call_args in case of dynamic loop
