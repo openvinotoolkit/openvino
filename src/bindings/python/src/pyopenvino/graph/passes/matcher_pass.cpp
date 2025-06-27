@@ -86,7 +86,7 @@ void regclass_passes_Matcher(py::module m) {
                 Get NodeVector of matched nodes. Should be used after match() method is called.
 
                 :return: matched nodes vector.
-                :rtype: List[openvino.Node]
+                :rtype: list[openvino.Node]
     )");
 
     matcher.def("get_match_values",
@@ -96,7 +96,7 @@ void regclass_passes_Matcher(py::module m) {
                 Get OutputVector of matched outputs. Should be used after match() method is called.
 
                 :return: matched outputs vector.
-                :rtype: List[openvino.Output]
+                :rtype: list[openvino.Output]
     )");
 
     matcher.def("get_pattern_value_map",

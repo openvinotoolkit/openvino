@@ -135,7 +135,7 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Sets properties for current compiled model.
 
-            :param properties: Dict of pairs: (property name, property value)
+            :param properties: dict of pairs: (property name, property value)
             :type properties: dict
             :rtype: None
         )");
@@ -151,7 +151,7 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Sets properties for current compiled model.
 
-            :param property: Tuple of (property name, matching property value).
+            :param property: tuple of (property name, matching property value).
             :type property: tuple
         )");
 
@@ -200,7 +200,7 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all inputs of a compiled model.
 
                                 :return: Inputs of a compiled model.
-                                :rtype: List[openvino.ConstOutput]
+                                :rtype: list[openvino.ConstOutput]
                               )");
 
     cls.def("input",
@@ -246,7 +246,7 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all outputs of a compiled model.
 
                                 :return: Outputs of a compiled model.
-                                :rtype: List[openvino.ConstOutput]
+                                :rtype: list[openvino.ConstOutput]
                               )");
 
     cls.def("output",
