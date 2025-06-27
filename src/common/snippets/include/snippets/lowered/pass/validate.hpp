@@ -4,12 +4,16 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include <functional>
+#include <unordered_map>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
+#include "pass.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface Validate
@@ -27,7 +31,4 @@ private:
     std::unordered_map<ov::DiscreteTypeInfo, Validator> m_validation_map;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

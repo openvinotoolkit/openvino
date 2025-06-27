@@ -4,6 +4,13 @@
 
 #include "snippets/op/convert_truncation.hpp"
 
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/convert.hpp"
 #include "snippets/itt.hpp"
 
 ov::snippets::op::ConvertTruncation::ConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type)

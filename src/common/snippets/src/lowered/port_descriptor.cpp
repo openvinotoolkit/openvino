@@ -5,11 +5,22 @@
 #include "snippets/lowered/port_descriptor.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <memory>
 #include <snippets/utils/utils.hpp>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/node_output.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/shape_types.hpp"
+
+namespace ov::snippets::lowered {
 
 PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtensor_shape, std::vector<size_t> layout)
     : PortDescriptor(ov::Input<const Node>(in.get_node(), in.get_index()),
@@ -35,13 +46,13 @@ PortDescriptor::PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std
     : PortDescriptor(std::make_shared<VectorDims>(std::move(shape)),
                      std::move(subtensor_shape),
                      std::move(layout),
-                     std::move(reg)) {}
+                     reg) {}
 
 PortDescriptor::PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout, Reg reg)
     : m_tensor_shape(std::move(shape)),
       m_layout(std::move(layout)),
       m_subtensor_shape(std::move(subtensor_shape)),
-      m_reg(std::move(reg)) {
+      m_reg(reg) {
     validate_arguments();
 }
 
@@ -83,7 +94,7 @@ void PortDescriptor::set_subtensor(const VectorDims& subtensor) {
 
 void PortDescriptor::set_reg(Reg reg) {
     OPENVINO_ASSERT(m_reg.type != RegType::address, "Failed to set reg: reg with 'address' type mustn't be changed");
-    m_reg = std::move(reg);
+    m_reg = reg;
 }
 
 void PortDescriptor::set_reg_type(RegType type) {
@@ -106,14 +117,17 @@ std::string PortDescriptor::serialize() const {
     std::stringstream ss;
     OPENVINO_ASSERT(m_tensor_shape, "TensorShape is nullptr!");
     ss << m_tensor_shape->size() << " ";
-    for (auto val : *m_tensor_shape)
+    for (auto val : *m_tensor_shape) {
         ss << val << " ";
+    }
     ss << m_subtensor_shape.size() << " ";
-    for (auto val : m_subtensor_shape)
+    for (auto val : m_subtensor_shape) {
         ss << val << " ";
+    }
     ss << m_layout.size() << " ";
-    for (auto val : m_layout)
+    for (auto val : m_layout) {
         ss << val << " ";
+    }
     ss << m_reg;
     return ss.str();
 }
@@ -147,8 +161,9 @@ void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Input<ov::Node>& in,
         rt_info[key] = PortDescriptorVectorAttribute(in_descs, out_descs);
     } else {
         auto& in_descs = found->second.as<PortDescriptorVectorAttribute>().inputs;
-        if (in_descs.size() != node->get_input_size())
+        if (in_descs.size() != node->get_input_size()) {
             OPENVINO_THROW("Set input port descriptor is failed: incorrect count");
+        }
         in_descs[in.get_index()] = desc;
     }
 }
@@ -165,8 +180,9 @@ void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Output<ov::Node>& ou
         rt_info[key] = PortDescriptorVectorAttribute(in_descs, out_descs);
     } else {
         auto& out_descs = found->second.as<PortDescriptorVectorAttribute>().outputs;
-        if (out_descs.size() != node->get_output_size())
+        if (out_descs.size() != node->get_output_size()) {
             OPENVINO_THROW("Set output port descriptor is failed: incorrect count");
+        }
         out_descs[out.get_index()] = desc;
     }
 }
@@ -177,8 +193,9 @@ void set_port_desc(const T& port, std::vector<size_t> subtensor, std::vector<siz
     const auto& shape = utils::pshape_to_vdims(port.get_partial_shape());
     for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
         auto& dim = subtensor[subtensor.size() - i];
-        if (!utils::is_full_dim_value(dim))
+        if (!utils::is_full_dim_value(dim)) {
             dim = std::min(dim, shape[shape.size() - i]);
+        }
     }
     PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor, layout));
 }
@@ -200,15 +217,16 @@ PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<o
 }
 PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<const ov::Node>& in) {
     const auto& node = in.get_node();
-    auto& rt_info = node->get_rt_info();
+    const auto& rt_info = node->get_rt_info();
     const auto& key = PortDescriptorVectorAttribute::get_type_info_static();
     const auto& found = rt_info.find(key);
     if (found == rt_info.end()) {
         return std::make_shared<PortDescriptor>(in);
     }
     const auto& in_descs = found->second.as<PortDescriptorVectorAttribute>().inputs;
-    if (in_descs.size() != node->get_input_size())
+    if (in_descs.size() != node->get_input_size()) {
         OPENVINO_THROW("Get input port descriptor is failed: incorrect count");
+    }
     return in_descs[in.get_index()];
 }
 
@@ -224,8 +242,9 @@ PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const Output<cons
         return std::make_shared<PortDescriptor>(out);
     }
     const auto& out_descs = found->second.as<PortDescriptorVectorAttribute>().outputs;
-    if (out_descs.size() != node->get_output_size())
+    if (out_descs.size() != node->get_output_size()) {
         OPENVINO_THROW("Get output port descriptor is failed: incorrect count");
+    }
     return out_descs[out.get_index()];
 }
 
@@ -245,6 +264,4 @@ void PortDescriptorUtils::clean(const std::shared_ptr<ov::Node>& node) {
     auto& rt_info = node->get_rt_info();
     rt_info.erase(PortDescriptorVectorAttribute::get_type_info_static());
 }
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

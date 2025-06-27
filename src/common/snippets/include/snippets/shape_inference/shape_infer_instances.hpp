@@ -4,10 +4,17 @@
 
 #pragma once
 
-#include "shape_inference.hpp"
+#include <cstddef>
+#include <memory>
+#include <vector>
 
-namespace ov {
-namespace snippets {
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_inference.hpp"
+#include "snippets/shape_types.hpp"
+
+namespace ov::snippets {
 
 bool broadcast_merge_into(VectorDims& dst,
                           const VectorDims& src,
@@ -31,7 +38,7 @@ public:
 
 class PassThroughShapeInfer : public IShapeInferSnippets {
 public:
-    inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
+    Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
         OPENVINO_ASSERT(!input_shapes.empty(), "Empty Input shapes are not allowed for PassThroughShapeInfer");
         return {{input_shapes[0].get()}, ShapeInferStatus::success};
     }
@@ -39,14 +46,14 @@ public:
 
 class EmptyShapeInfer : public IShapeInferSnippets {
 public:
-    inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
+    Result infer([[maybe_unused]] const std::vector<VectorDimsRef>& input_shapes) override {
         return {{}, ShapeInferStatus::success};
     }
 };
 
 class SingleElementShapeInfer : public IShapeInferSnippets {
 public:
-    inline Result infer(const std::vector<VectorDimsRef>& input_shapes) override {
+    Result infer([[maybe_unused]] const std::vector<VectorDimsRef>& input_shapes) override {
         return {{{1}}, ShapeInferStatus::success};
     }
 };
@@ -80,5 +87,4 @@ public:
     Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 };
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

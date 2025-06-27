@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Kernel
@@ -26,7 +29,7 @@ public:
     static std::shared_ptr<Kernel> make_kernel(bool is_dynamic, ArgTypes&&... args);
     virtual size_t get_num_call_args() const = 0;
 
-    std::shared_ptr<lowered::LinearIR> region;
+    std::shared_ptr<lowered::LinearIR> region = nullptr;
     const void* compile_params = nullptr;
 };
 
@@ -56,11 +59,8 @@ template <typename... ArgTypes>
 std::shared_ptr<Kernel> Kernel::make_kernel(bool is_dynamic, ArgTypes&&... args) {
     if (is_dynamic) {
         return std::make_shared<KernelDynamic>(std::forward<ArgTypes>(args)...);
-    } else {
-        return std::make_shared<KernelStatic>(std::forward<ArgTypes>(args)...);
     }
+    return std::make_shared<KernelStatic>(std::forward<ArgTypes>(args)...);
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

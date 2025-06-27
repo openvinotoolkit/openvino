@@ -4,17 +4,23 @@
 
 #include "snippets/lowered/pass/cleanup_loop_offsets.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <unordered_map>
+#include <vector>
+
+#include "openvino/core/type.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
-bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir,
+bool CleanupLoopOffsets::run(lowered::LinearIR& /*linear_ir*/,
                              lowered::LinearIR::constExprIt begin,
                              lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanupLoopOffsets")
@@ -38,8 +44,9 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir,
                 auto fin_offsets = loop_end->get_finalization_offsets();
                 std::unordered_map<PortConnectorPtr, size_t> per_port_connector_offset;
                 const auto& loop_inputs = expr_it->get()->get_input_port_connectors();
-                for (size_t i = 0; i < fin_offsets.size(); i++)
+                for (size_t i = 0; i < fin_offsets.size(); i++) {
                     per_port_connector_offset[loop_inputs[i]] = i;
+                }
 
                 const auto& outer_is_incremented = outer_loop_end->get_is_incremented();
                 const auto& outer_data_sizes = outer_loop_end->get_element_type_sizes();
@@ -47,16 +54,19 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir,
                 auto outer_ptr_increments = outer_loop_end->get_ptr_increments();
                 const auto& outer_loop_inputs = next_expr_it->get()->get_input_port_connectors();
                 for (size_t i = 0; i < outer_ptr_increments.size(); i++) {
-                    if (!outer_is_incremented[i])
+                    if (!outer_is_incremented[i]) {
                         continue;
+                    }
                     const auto& managed_connector = outer_loop_inputs[i];
                     const auto& found = per_port_connector_offset.find(managed_connector);
                     if (found != per_port_connector_offset.end()) {
-                        if (!is_incremented[found->second] || outer_data_sizes[i] != data_sizes[found->second])
+                        if (!is_incremented[found->second] || outer_data_sizes[i] != data_sizes[found->second]) {
                             continue;
+                        }
                         if (utils::is_dynamic_value(outer_ptr_increments[i]) ||
-                            utils::is_dynamic_value(fin_offsets[found->second]))
+                            utils::is_dynamic_value(fin_offsets[found->second])) {
                             continue;
+                        }
                         // Since data ptr is incremented on [ptr_increment x increment],
                         // we should guarantee proportionality of ptr shifts.
                         // If the data ptr can't be proportionally shifted, the optimization is not applied
@@ -86,7 +96,4 @@ bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir,
     return is_modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

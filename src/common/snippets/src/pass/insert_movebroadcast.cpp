@@ -4,13 +4,29 @@
 
 #include "snippets/pass/insert_movebroadcast.hpp"
 
-#include <numeric>
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace {
@@ -19,8 +35,9 @@ std::pair<ov::PartialShape, std::vector<ov::PartialShape>> get_numpy_broadcast_p
     const std::vector<ov::PartialShape>& input_shapes) {
     ov::PartialShape target_shape = input_shapes.front();
     for (size_t i = 1; i < input_shapes.size(); i++) {
-        if (!ov::PartialShape::broadcast_merge_into(target_shape, input_shapes[i], ov::op::AutoBroadcastType::NUMPY))
+        if (!ov::PartialShape::broadcast_merge_into(target_shape, input_shapes[i], ov::op::AutoBroadcastType::NUMPY)) {
             OPENVINO_THROW("InsertMoveBroadcast: Failed broadcast-merge input shapes");
+        }
     }
     std::vector<ov::PartialShape> normalized_shapes;
     for (const auto& input : input_shapes) {
@@ -45,7 +62,6 @@ ov::Output<ov::Node> ov::snippets::pass::InsertMoveBroadcast::BroadcastNodeLastD
     // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
     // will be handled by pointer arithmetics inside outer LoopEmitter
     if (*target_shape.rbegin() != *normalized_shape.rbegin()) {
-        ov::PartialShape broadcasted_shape = normalized_shape;
         const auto broadcast_node = std::make_shared<ov::snippets::op::BroadcastMove>(value, *target_shape.rbegin());
         copy_runtime_info(value.get_node_shared_ptr(), broadcast_node);
 
@@ -80,8 +96,9 @@ ov::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
             // Do not insert MoveBroadcast if any of the last dims is dynamic,
             // since we don't know if we really need it. In these cases, broadcasting will be performed
             // by outer Loop based on runtime shapes.
-            if (!is_ignored.back() && !input_shapes.back().rbegin()->is_static())
+            if (!is_ignored.back() && !input_shapes.back().rbegin()->is_static()) {
                 return false;
+            }
         }
 
         // find the output tensor's shape, then broadcast all inputs so that they are compatible with respect to the

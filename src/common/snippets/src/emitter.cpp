@@ -4,8 +4,12 @@
 
 #include "snippets/emitter.hpp"
 
-namespace ov {
-namespace snippets {
+#include <ostream>
+#include <string>
+
+#include "openvino/core/except.hpp"
+
+namespace ov::snippets {
 
 bool operator==(const Reg& lhs, const Reg& rhs) {
     return lhs.type == rhs.type && lhs.idx == rhs.idx;
@@ -41,5 +45,4 @@ std::ostream& operator<<(std::ostream& s, const Reg& r) {
     return s;
 }
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

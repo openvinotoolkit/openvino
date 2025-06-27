@@ -4,11 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
+#include <iterator>
+#include <vector>
+
 #include "snippets/emitter.hpp"
 
-namespace ov {
-namespace snippets {
-namespace utils {
+namespace ov::snippets::utils {
 inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vector<snippets::Reg>& regs,
                                                                   snippets::RegType expected_type) {
     std::vector<size_t> idxs;
@@ -29,6 +31,4 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
     return idxs;
 }
 
-}  // namespace utils
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::utils

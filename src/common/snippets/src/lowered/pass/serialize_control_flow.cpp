@@ -4,23 +4,33 @@
 
 #include "snippets/lowered/pass/serialize_control_flow.hpp"
 
+#include <cstddef>
+#include <map>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/op/serialization_node.hpp"
-#include "snippets/snippets_isa.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SerializeControlFlow")
-    if (original_linear_ir.empty())
+    if (original_linear_ir.empty()) {
         return false;
+    }
     const auto& linear_ir = m_update_dynamic_ops ? LinearIRBuilder().clone(original_linear_ir) : original_linear_ir;
 
     const auto& loop_manager = linear_ir.get_loop_manager();
@@ -47,12 +57,15 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
                 loop_end->set_work_amount(loop_info->get_work_amount());
                 loop_end->set_increment(loop_info->get_increment());
                 loop_end->set_is_incremented(loop_info->get_is_incremented());
+                auto set_loop_end_data = [&loop_end](const auto& info) {
+                    loop_end->set_ptr_increments(info->get_ptr_increments());
+                    loop_end->set_finalization_offsets(info->get_finalization_offsets());
+                };
+
                 if (auto unified = ov::as_type_ptr<UnifiedLoopInfo>(loop_info)) {
-                    loop_end->set_ptr_increments(unified->get_ptr_increments());
-                    loop_end->set_finalization_offsets(unified->get_finalization_offsets());
+                    set_loop_end_data(unified);
                 } else if (auto expanded = ov::as_type_ptr<ExpandedLoopInfo>(loop_info)) {
-                    loop_end->set_ptr_increments(expanded->get_ptr_increments());
-                    loop_end->set_finalization_offsets(expanded->get_finalization_offsets());
+                    set_loop_end_data(expanded);
                 } else {
                     OPENVINO_THROW("Unknown LoopInfo type");
                 }
@@ -74,7 +87,4 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
     return ov::pass::Serialize(m_xml_path, m_bin_path).run_on_model(model);
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

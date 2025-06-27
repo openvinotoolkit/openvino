@@ -4,26 +4,27 @@
 
 #include "snippets/op/kernel.hpp"
 
-#include "snippets/op/loop.hpp"
+#include <memory>
+#include <utility>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
-Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::make_shared<lowered::LinearIR>(std::move(nested))) {}
+namespace ov::snippets::op {
 
-KernelStatic::KernelStatic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
+Kernel::Kernel(lowered::LinearIR region) : region(std::make_shared<lowered::LinearIR>(std::move(region))) {}
 
-KernelDynamic::KernelDynamic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
+KernelStatic::KernelStatic(lowered::LinearIR region) : Kernel(std::move(region)) {}
 
-std::shared_ptr<Node> KernelStatic::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<KernelStatic>(*region.get());
+KernelDynamic::KernelDynamic(lowered::LinearIR region) : Kernel(std::move(region)) {}
+
+std::shared_ptr<Node> KernelStatic::clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const {
+    return std::make_shared<KernelStatic>(*region);
 }
 
-std::shared_ptr<Node> KernelDynamic::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<KernelDynamic>(*region.get());
+std::shared_ptr<Node> KernelDynamic::clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const {
+    return std::make_shared<KernelDynamic>(*region);
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

@@ -4,12 +4,27 @@
 
 #pragma once
 
-#include "snippets/lowered/loop_port.hpp"
-#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+
+namespace ov::snippets::lowered {
 
 class LoopInfo;
 using LoopInfoMap = std::unordered_map<const LoopInfo*, std::shared_ptr<LoopInfo>>;
@@ -135,7 +150,7 @@ public:
      * @brief Iterates through all loop ports and call `caller` for each of them
      * @param caller - function that called for each loop port
      */
-    inline void iterate_through_ports(const std::function<void(const LoopPort&)>& caller) const {
+    void iterate_through_ports(const std::function<void(const LoopPort&)>& caller) const {
         std::for_each(m_input_ports.cbegin(), m_input_ports.cend(), caller);
         std::for_each(m_output_ports.cbegin(), m_output_ports.cend(), caller);
     }
@@ -194,8 +209,8 @@ protected:
     //     - The position before first input expr is Loop Begin position
     //     - The position after last output expr is Loop End position
     // Note: Scalars aren't input expressions but can be before first input expr in Linear IR
-    std::vector<LoopPort> m_input_ports = {};
-    std::vector<LoopPort> m_output_ports = {};
+    std::vector<LoopPort> m_input_ports;
+    std::vector<LoopPort> m_output_ports;
 };
 
 /**
@@ -219,8 +234,8 @@ public:
         int64_t finalization_offset = 0;
         int64_t data_size = 0;
 
-        bool is_dynamic() const;
-        bool is_static() const;
+        [[nodiscard]] bool is_dynamic() const;
+        [[nodiscard]] bool is_static() const;
 
         friend bool operator==(const LoopPortDesc& lhs, const LoopPortDesc& rhs);
         friend bool operator!=(const LoopPortDesc& lhs, const LoopPortDesc& rhs);
@@ -230,10 +245,10 @@ public:
     //                   instead of the separate vectors with descriptors.
     struct LoopPortInfo {
         LoopPortInfo() = default;
-        LoopPortInfo(LoopPort port_, LoopPortDesc desc_) : port(std::move(port_)), desc(std::move(desc_)) {}
+        LoopPortInfo(LoopPort port_, LoopPortDesc desc_) : port(std::move(port_)), desc(desc_) {}
 
-        LoopPort port = {};
-        LoopPortDesc desc = {};
+        LoopPort port;
+        LoopPortDesc desc;
     };
 
     UnifiedLoopInfo() = default;
@@ -243,17 +258,18 @@ public:
                     const std::vector<LoopPort>& exits,
                     const std::vector<LoopPortDesc>& in_descs,
                     const std::vector<LoopPortDesc>& out_descs,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,
                     const std::vector<LoopPort>& entries,
                     const std::vector<LoopPort>& exits,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,
                     const std::vector<ExpressionPort>& entries,
                     const std::vector<ExpressionPort>& exits,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
+
+                    SpecificIterationHandlers handlers = SpecificIterationHandlers());
 
     /**
      * @brief Clone LoopInfo with new Expressions
@@ -331,7 +347,7 @@ public:
      */
     template <SpecificLoopIterType Type, typename T, class... Args>
     void register_pass_to_handler(Args&&... args) {
-        m_handlers.register_pass<Type, T>(args...);
+        m_handlers.register_pass<Type, T>(std::forward<Args>(args)...);
     }
 
     /**
@@ -358,7 +374,7 @@ public:
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
      */
-    inline void iterate_through_descs(const std::function<void(LoopPortDesc&)>& caller) {
+    void iterate_through_descs(const std::function<void(LoopPortDesc&)>& caller) {
         std::for_each(m_input_port_descs.begin(), m_input_port_descs.end(), caller);
         std::for_each(m_output_port_descs.begin(), m_output_port_descs.end(), caller);
     }
@@ -366,7 +382,7 @@ public:
      * @brief Iterates through all loop ports and call `caller` for each of them
      * @param caller - function that called for each loop port
      */
-    inline void iterate_through_descs(const std::function<void(const LoopPortDesc&)>& caller) const {
+    void iterate_through_descs(const std::function<void(const LoopPortDesc&)>& caller) const {
         std::for_each(m_input_port_descs.cbegin(), m_input_port_descs.cend(), caller);
         std::for_each(m_output_port_descs.cbegin(), m_output_port_descs.cend(), caller);
     }
@@ -374,21 +390,25 @@ public:
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
      * @param caller - function that called for each pair
      */
-    inline void iterate_through_infos(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
-        for (size_t i = 0; i < get_input_count(); ++i)
+    void iterate_through_infos(const std::function<void(LoopPort&, LoopPortDesc&)>& caller) {
+        for (size_t i = 0; i < get_input_count(); ++i) {
             caller(m_input_ports[i], m_input_port_descs[i]);
-        for (size_t i = 0; i < get_output_count(); ++i)
+        }
+        for (size_t i = 0; i < get_output_count(); ++i) {
             caller(m_output_ports[i], m_output_port_descs[i]);
+        }
     }
     /**
      * @brief Iterates through all pairs <LoopPort, LoopPortDesc> and call `caller` for each of them
      * @param caller - function that called for each pair
      */
-    inline void iterate_through_infos(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
-        for (size_t i = 0; i < get_input_count(); ++i)
+    void iterate_through_infos(const std::function<void(const LoopPort&, const LoopPortDesc&)>& caller) const {
+        for (size_t i = 0; i < get_input_count(); ++i) {
             caller(m_input_ports[i], m_input_port_descs[i]);
-        for (size_t i = 0; i < get_output_count(); ++i)
+        }
+        for (size_t i = 0; i < get_output_count(); ++i) {
             caller(m_output_ports[i], m_output_port_descs[i]);
+        }
     }
 
     /**
@@ -406,9 +426,9 @@ protected:
      */
     void replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input);
 
-    SpecificIterationHandlers m_handlers = {};
-    std::vector<LoopPortDesc> m_input_port_descs = {};
-    std::vector<LoopPortDesc> m_output_port_descs = {};
+    SpecificIterationHandlers m_handlers;
+    std::vector<LoopPortDesc> m_input_port_descs;
+    std::vector<LoopPortDesc> m_output_port_descs;
 };
 using UnifiedLoopInfoPtr = std::shared_ptr<UnifiedLoopInfo>;
 
@@ -597,17 +617,15 @@ public:
     void sort_ports() override;
 
 private:
-    std::vector<int64_t> m_ptr_increments = {};
-    std::vector<int64_t> m_finalization_offsets = {};
-    std::vector<int64_t> m_data_sizes = {};
+    std::vector<int64_t> m_ptr_increments;
+    std::vector<int64_t> m_finalization_offsets;
+    std::vector<int64_t> m_data_sizes;
 
     const SpecificLoopIterType m_type = {};
-    std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
+    std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info;
 
     bool m_evaluate_once = false;
 };
 using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

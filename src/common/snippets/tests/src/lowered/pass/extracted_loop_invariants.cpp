@@ -3,12 +3,19 @@
 //
 
 #include "lir_test_utils.hpp"
-
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/vector_buffer.hpp"
 
 namespace ov {
 namespace test {

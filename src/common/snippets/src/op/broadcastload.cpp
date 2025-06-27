@@ -4,12 +4,21 @@
 
 #include "snippets/op/broadcastload.hpp"
 
-#include "openvino/reference/broadcast.hpp"
-#include "snippets/itt.hpp"
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <utility>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/memory_access.hpp"
+
+namespace ov::snippets::op {
 
 BroadcastLoad::BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset)
     : MemoryAccess(std::set<size_t>{0}, std::set<size_t>{}),
@@ -36,14 +45,13 @@ void BroadcastLoad::validate_and_infer_types() {
     const auto output_ma_ports = get_memory_access_output_ports();
     OPENVINO_ASSERT(input_ma_ports.size() == 1 && is_memory_access_input_port(0),
                     "BroadcastLoad node must have memory access input port");
-    OPENVINO_ASSERT(output_ma_ports.size() == 0, "BroadcastLoad node mustn't have memory access output port");
+    OPENVINO_ASSERT(output_ma_ports.empty(), "BroadcastLoad node mustn't have memory access output port");
     auto broadcasted_shape = get_input_partial_shape(0);
-    if (broadcasted_shape.size() == 0)
+    if (broadcasted_shape.size() == 0) {
         broadcasted_shape.resize(1);
+    }
     *broadcasted_shape.rbegin() = bcast_dimension;
     set_output_type(0, get_input_element_type(0), broadcasted_shape);
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

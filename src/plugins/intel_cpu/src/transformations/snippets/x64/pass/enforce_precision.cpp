@@ -41,12 +41,12 @@ EnforcePrecision::EnforcePrecision(
     OPENVINO_ASSERT(source != target, "source and target precisions have to be different");
 }
 
-bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(EnforcePrecision);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EnforcePrecision")
 
     bool was_updated = false;
-    for (const auto& op : f->get_ordered_ops()) {
+    for (const auto& op : m->get_ordered_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
         const auto& precisions = get_supported_precisions(op);

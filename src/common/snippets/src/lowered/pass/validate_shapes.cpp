@@ -4,17 +4,17 @@
 
 #include "snippets/lowered/pass/validate_shapes.hpp"
 
+#include <cstddef>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
-bool ValidateShapes::run(lowered::LinearIR& linear_ir,
+bool ValidateShapes::run([[maybe_unused]] LinearIR& linear_ir,
                          lowered::LinearIR::constExprIt begin,
                          lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateShapes")
@@ -27,8 +27,9 @@ bool ValidateShapes::run(lowered::LinearIR& linear_ir,
         OPENVINO_ASSERT(port_connectors.size() == num_inputs, "Invalid number of port connectors detected");
         OPENVINO_ASSERT(port_descriptors.size() == num_inputs, "Invalid number of port descriptors detected");
         for (size_t i = 0; i < num_inputs; i++) {
-            if (ov::is_type<ov::snippets::op::LoopBase>(expr->get_node()))
+            if (ov::is_type<ov::snippets::op::LoopBase>(expr->get_node())) {
                 continue;
+            }
             const auto& descr = port_descriptors[i];
             const auto& layout = descr->get_layout();
             const auto& shape = descr->get_shape();
@@ -48,7 +49,4 @@ bool ValidateShapes::run(lowered::LinearIR& linear_ir,
     return false;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

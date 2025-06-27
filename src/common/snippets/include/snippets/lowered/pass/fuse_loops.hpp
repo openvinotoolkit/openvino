@@ -4,13 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface FuseLoops
@@ -58,7 +62,7 @@ private:
                                         LinearIR::constExprIt& current_loop_end_pos);
     static bool fuse_lower_into_current(LinearIR& linear_ir,
                                         const LoopManagerPtr& loop_manager,
-                                        const std::shared_ptr<ExpressionPort>& current_input_port,
+                                        const std::shared_ptr<ExpressionPort>& current_output_port,
                                         size_t current_loop_id,
                                         size_t target_loop_id,
                                         LinearIR::constExprIt& current_loop_begin_pos,
@@ -71,7 +75,4 @@ private:
                      LinearIR::constExprIt pos);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -4,14 +4,20 @@
 
 #pragma once
 
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <openvino/core/core.hpp>
+#include <unordered_map>
+#include <vector>
 
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
-enum class ShapeInferStatus {
+enum class ShapeInferStatus : uint8_t {
     success,  ///< shapes were successfully calculated
     skip      ///< shape inference was skipped.
 };
@@ -23,7 +29,7 @@ class IShapeInferSnippets {
 public:
     struct Result {
         std::vector<VectorDims> dims;
-        ShapeInferStatus status;
+        ShapeInferStatus status{};
     };
 
     virtual ~IShapeInferSnippets() = default;
@@ -80,10 +86,10 @@ protected:
      * @brief get shape infer instances for operations from backend-specific opset
      * @return Pointer to shape inference object or nullptr if failed to construct the object.
      */
-    virtual ShapeInferPtr get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
-                                                      const std::shared_ptr<ov::Node>& op) const;
+    [[nodiscard]] virtual ShapeInferPtr get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
+                                                                    const std::shared_ptr<ov::Node>& op) const;
 };
 std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<ov::Node>& op,
                                                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
-}  // namespace snippets
-}  // namespace ov
+
+}  // namespace ov::snippets

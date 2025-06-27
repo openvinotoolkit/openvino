@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 /**
  * @interface UpdateMemoryAccessCounts
  * @brief The pass changes counts of all MemoryAccess ops
@@ -64,7 +65,4 @@ public:
         const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

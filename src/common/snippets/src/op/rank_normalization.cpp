@@ -4,11 +4,22 @@
 
 #include "snippets/op/rank_normalization.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/op/shape_infer_op.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 RankNormalization::RankNormalization(const Output<Node>& data, size_t num_prepend, size_t num_append)
     : ShapeInferOp({data}),
@@ -55,6 +66,4 @@ IShapeInferSnippets::Result RankNormalization::ShapeInfer::infer(const std::vect
     return {{out_shape}, ShapeInferStatus::success};
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op
