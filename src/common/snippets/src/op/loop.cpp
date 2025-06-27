@@ -229,8 +229,6 @@ void LoopEnd::set_id(size_t id) {
     m_id = id;
 }
 
-ParallelLoopBegin::ParallelLoopBegin() : LoopBegin() {}
-
 std::shared_ptr<Node> ParallelLoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
     OPENVINO_ASSERT(inputs.empty(), "ParallelLoopBegin should not contain inputs");
     return std::make_shared<ParallelLoopBegin>();
@@ -249,10 +247,10 @@ ParallelLoopEnd::ParallelLoopEnd(const Output<Node>& loop_begin,
     : LoopEnd(loop_begin,
               work_amount,
               work_amount_increment,
-              is_incremented,
-              ptr_increments,
-              finalization_offsets,
-              element_type_sizes,
+              std::move(is_incremented),
+              std::move(ptr_increments),
+              std::move(finalization_offsets),
+              std::move(element_type_sizes),
               input_num,
               output_num,
               id) {}

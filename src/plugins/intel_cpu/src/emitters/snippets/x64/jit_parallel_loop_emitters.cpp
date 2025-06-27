@@ -6,6 +6,7 @@
 
 #include <cpu/x64/xbyak/xbyak.h>
 
+#include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
@@ -21,6 +22,7 @@
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
