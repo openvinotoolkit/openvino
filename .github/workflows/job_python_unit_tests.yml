@@ -37,7 +37,6 @@ jobs:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install      
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
@@ -53,7 +52,6 @@ jobs:
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
-          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
@@ -63,7 +61,7 @@ jobs:
         run: brew install pigz
           
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch custom actions
@@ -88,7 +86,7 @@ jobs:
         uses: ./.github/actions/find_wheel
         id: ov_wheel
         with:
-          wheels_dir: '${{ env.INSTALL_DIR }}/wheels'
+          wheels_dir: '${{ env.INSTALL_DIR }}'
           package_name: 'openvino'
       
       - name: Configure poetry
