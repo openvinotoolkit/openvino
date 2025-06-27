@@ -63,11 +63,32 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
     evaluate_once = loop_end->get_evaluate_once();
     loop_id = loop_end->get_id();
 
-    // todo: data_sizes are already applied in runtime_configurator. can we do the same?
-    loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(),
-                                                    loop_end->get_ptr_increments(),
-                                                    loop_end->get_finalization_offsets(),
-                                                    loop_end->get_element_type_sizes());
+    const auto& ptr_increments = loop_end->get_ptr_increments();
+    const auto& fin_offsets = loop_end->get_finalization_offsets();
+    is_dynamic = snippets::utils::is_dynamic_value(loop_end->get_work_amount()) ||
+                 std::any_of(ptr_increments.begin(),
+                             ptr_increments.end(),
+                             [](const auto& x) {
+                                 return snippets::utils::is_dynamic_value(x);
+                             }) ||
+                 std::any_of(fin_offsets.begin(), fin_offsets.end(), [](const auto& x) {
+                     return snippets::utils::is_dynamic_value(x);
+                 });
+
+    // If the loop is static, we can initialize loop_args with the known values already at compilation stage.
+    // In case of dynamic loop, loop_args from jit_snippets_call_args will be used
+    if (!is_dynamic) {
+        loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(),
+                                                        ptr_increments,
+                                                        fin_offsets);
+        // Note: behavior is aligned with runtime configurator:
+        // data_sizes and increment are already taken into account in the offsets
+        const auto& data_sizes = loop_end->get_element_type_sizes();
+        for (int64_t i = 0; i < loop_args.m_num_data_ptrs; ++i) {
+            loop_args.m_ptr_increments[i] *= (wa_increment * data_sizes[i]);
+            loop_args.m_finalization_offsets[i] *= data_sizes[i];
+        }
+    }
 
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
     work_amount_reg_idx = loop_end_input_regs.rbegin()->idx;
@@ -257,8 +278,8 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
         const auto& ptr_increment = loop_args.m_ptr_increments[idx];
         if (is_incremented[idx] && ptr_increment != 0) {
-            h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])),
-                   ptr_increment * wa_increment * loop_args.m_dtype_sizes[idx]);
+            // TODO: take increment from call_args in case of dynamic loop
+            h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), ptr_increment);
         }
     }
 
