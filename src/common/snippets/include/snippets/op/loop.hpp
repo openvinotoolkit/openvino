@@ -127,7 +127,7 @@ protected:
 class ParallelLoopBegin : public LoopBegin {
 public:
     OPENVINO_OP("ParallelLoopBegin", "SnippetsOpset", LoopBegin);
-    ParallelLoopBegin();
+    ParallelLoopBegin() = default;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
