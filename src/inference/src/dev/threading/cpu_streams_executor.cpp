@@ -49,6 +49,23 @@ struct CPUStreamsExecutor::Impl {
             }
             ~Observer() override = default;
         };
+        struct ProcObserver : public custom::task_scheduler_observer {
+            CpuSet _set_mask;
+            int _ncpus = 0;
+            CpuSet _mask = 0;
+            ProcObserver(custom::task_arena& arena, CpuSet set_mask, CpuSet mask, int ncpus)
+                : custom::task_scheduler_observer(arena),
+                  _set_mask{std::move(set_mask)},
+                  _mask{std::move(mask)},
+                  _ncpus(ncpus) {}
+            void on_scheduler_entry(bool) override {
+                pin_current_thread_by_mask(_ncpus, _set_mask);
+            }
+            void on_scheduler_exit(bool) override {
+                pin_current_thread_by_mask(_ncpus, _mask);
+            }
+            ~ProcObserver() override = default;
+        };
 #endif
         explicit Stream(Impl* impl) : _impl(impl) {
             {
@@ -95,6 +112,9 @@ struct CPUStreamsExecutor::Impl {
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
+            if (nullptr != _proc_observer) {
+                _proc_observer->observe(false);
+            }
 #endif
         }
 
@@ -105,7 +125,8 @@ struct CPUStreamsExecutor::Impl {
                                    const int core_type,
                                    const int numa_node_id,
                                    const int socket_id,
-                                   const int max_threads_per_core) {
+                                   const int max_threads_per_core,
+                                   const bool pin_processors) {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
@@ -113,6 +134,16 @@ struct CPUStreamsExecutor::Impl {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
+                if (pin_processors) {
+                    CpuSet setMask{CPU_ALLOC((1UZ << concurrency) - 1)};
+                    CpuSet mask;
+                    int ncpus = 0;
+                    std::tie(mask, ncpus) = get_process_mask();
+                    if (nullptr != mask) {
+                        _proc_observer.reset(new ProcObserver{*_taskArena, std::move(setMask), std::move(mask), ncpus});
+                        _proc_observer->observe(true);
+                    }
+                }
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 // Numa node id has used different mapping methods in TBBBind since oneTBB 2021.4.0
 #    if USE_TBBBIND_2_5
@@ -162,6 +193,7 @@ struct CPUStreamsExecutor::Impl {
             int numa_node_id;
             int socket_id;
             int max_threads_per_core;
+            bool pin_processors = false;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
             int streams_num = _impl->_config.get_streams();
@@ -176,7 +208,8 @@ struct CPUStreamsExecutor::Impl {
                                 cpu_core_type,
                                 numa_node_id,
                                 socket_id,
-                                max_threads_per_core);
+                                max_threads_per_core,
+                                pin_processors);
             if (concurrency <= 0) {
                 return;
             }
@@ -186,7 +219,8 @@ struct CPUStreamsExecutor::Impl {
                                   cpu_core_type,
                                   numa_node_id,
                                   socket_id,
-                                  max_threads_per_core);
+                                  max_threads_per_core,
+                                  pin_processors);
         }
 #endif
 
@@ -200,6 +234,7 @@ struct CPUStreamsExecutor::Impl {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
+        std::unique_ptr<ProcObserver> _proc_observer;
         std::vector<int> _cpu_ids;
 #elif OV_THREAD == OV_THREAD_SEQ
         CpuSet _mask = nullptr;

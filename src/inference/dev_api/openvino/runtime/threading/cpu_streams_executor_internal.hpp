@@ -43,7 +43,8 @@ void get_cur_stream_info(const int stream_id,
                          int& core_type,
                          int& numa_node_id,
                          int& socket_id,
-                         int& max_threads_per_core);
+                         int& max_threads_per_core,
+                         bool& pin_processors);
 
 /**
  * @brief      Reserve cpu resource by streams info
