@@ -736,10 +736,10 @@ size_t jit_logical_or_emitter::get_inputs_num() const {
     return 2;
 }
 size_t jit_logical_or_emitter::aux_vecs_count() const {
-    return 2;  
+    return 2;
 }
 size_t jit_logical_or_emitter::aux_gprs_count() const {
-    return 2;  
+    return 2;
 }
 
 void jit_logical_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -758,20 +758,20 @@ void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const VReg src0 = VReg(in_vec_idxs[0]);
     const VReg src1 = VReg(in_vec_idxs[1]);
     const VReg aux0 = VReg(aux_vec_idxs[0]);
-    const VReg aux1 = VReg(aux_vec_idxs[1]);  
+    const VReg aux1 = VReg(aux_vec_idxs[1]);
     const VReg dst = VReg(out_vec_idxs[0]);
-    Reg one_reg = Reg(aux_gpr_idxs[0]);   
-    
+    Reg one_reg = Reg(aux_gpr_idxs[0]);
+
     load_table_val("one", one_reg);
 
-    h->vmv_v_x(aux0, x0);  
-    h->vmsne_vx(mask_vreg(), src0, x0);  
+    h->vmv_v_x(aux0, x0);
+    h->vmsne_vx(mask_vreg(), src0, x0);
     h->vmerge_vxm(aux0, aux0, one_reg);
 
-    h->vmv_v_x(aux1, x0); 
-    h->vmsne_vx(mask_vreg(), src1, x0);  
-    h->vmerge_vxm(aux1, aux1, one_reg);  
-    
+    h->vmv_v_x(aux1, x0);
+    h->vmsne_vx(mask_vreg(), src1, x0);
+    h->vmerge_vxm(aux1, aux1, one_reg);
+
     h->vor_vv(dst, aux0, aux1);
 }
 
@@ -781,7 +781,7 @@ std::set<std::vector<element::Type>> jit_logical_or_emitter::get_supported_preci
 }
 
 void jit_logical_or_emitter::register_table_entries() {
-    push_arg_entry_of("one", CONST_1_F);  
+    push_arg_entry_of("one", CONST_1_F);
 }
 /// MAXIMUM ///
 jit_maximum_emitter::jit_maximum_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc)
