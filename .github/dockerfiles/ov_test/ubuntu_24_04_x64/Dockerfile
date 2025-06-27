@@ -3,6 +3,15 @@ FROM ${REGISTRY}/library/ubuntu:24.04
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+# Ubuntu 24 image already has a user with UID 1000
+RUN usermod -l ${USER_NAME} ubuntu
+
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
@@ -20,6 +29,8 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # to build samples
+        clang \
         # parallel gzip
         pigz \
         # Samples
@@ -47,3 +58,11 @@ RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages
+
+# Change ownership of the venv directory to the non-root user
+RUN chown -R ${USER_NAME}:${GROUP_ID} /venv
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

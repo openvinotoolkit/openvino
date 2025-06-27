@@ -162,7 +162,7 @@ endmacro()
 ov_rpm_specific_settings()
 
 # needed to add triggers for packages with libraries
-set(def_triggers "${OpenVINO_BINARY_DIR}/_CPack_Packages/triggers")
+set(def_triggers "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/triggers")
 set(triggers_content "# /bin/sh -p\n/sbin/ldconfig\n")
 file(WRITE "${def_triggers}" "${triggers_content}")
 
@@ -229,7 +229,7 @@ function(ov_rpm_add_rpmlint_suppression comp)
     endif()
 
     set(package_file_name "${package_name}-${CPACK_PACKAGE_VERSION}-1.${arch}.rpm")
-    set(rpmlint_override_file "${OpenVINO_BINARY_DIR}/_CPack_Packages/rpmlint/${package_file_name}.rpmlintrc")
+    set(rpmlint_override_file "${CMAKE_CURRENT_BINARY_DIR}/_CPack_Packages/rpmlint/${package_file_name}.rpmlintrc")
     file(REMOVE ${rpmlint_override_file})
     file(WRITE ${rpmlint_override_file} ${content})
 endfunction()
