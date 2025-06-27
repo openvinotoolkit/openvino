@@ -517,6 +517,11 @@ def test_runtime_info():
     runtime_info_after = relu_node.get_rt_info()
     assert runtime_info_after["affinity"] == "test_affinity"
 
+    relu_node.set_rt_info("test_value", "test_key")
+    assert relu_node.get_rt_info()["test_key"] == "test_value"
+    relu_node.rt_info["new_key"] = "new_value"
+    assert relu_node.rt_info["new_key"] == "new_value"
+
 
 def test_multiple_outputs():
     input_shape = [4, 4]
