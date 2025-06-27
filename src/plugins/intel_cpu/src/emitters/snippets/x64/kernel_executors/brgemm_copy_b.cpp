@@ -217,11 +217,12 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
       ker_(nullptr) {
     const auto orig_wei_data_size = dnnl_data_type_size(conf.get_original_wei_dt());
     const auto wei_data_size = dnnl_data_type_size(conf.get_wei_dt());
-    const auto vnni_factor = data_type_vnni_granularity(conf.get_wei_dt());
-    const auto buffer_repacked_k_dim = brgemm_utils::repacking::compute_blocked_dim(K, conf.get_wei_K_blk());
+    const auto prc = DnnlExtensionUtils::DataTypeToElementType(static_cast<dnnl::memory::data_type>(conf.get_wei_dt()));
+    const auto n_stride =
+        brgemm_utils::repacking::compute_N_blocked_stride(K, conf.get_wei_K_blk(), prc, conf.are_wei_blocked());
 
     stride_in = conf.is_transposed_B() ? conf.get_K() * wei_N_blk * orig_wei_data_size : wei_N_blk * orig_wei_data_size;
-    stride_out = wei_N_blk * wei_data_size * (conf.are_wei_blocked() ? buffer_repacked_k_dim : vnni_factor);
+    stride_out = wei_N_blk * n_stride * wei_data_size;
 
     init_brgemm_copy_b_kernel(dnnl_brgemm_copy_b_kernel, conf);
     OV_CPU_JIT_EMITTER_ASSERT(dnnl_brgemm_copy_b_kernel, "Kernel is missed!");
@@ -455,7 +456,8 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     //  Dimension N
     init(N_dim, N_blk, 0);
 
-    const auto LDB = brgemm_utils::repacking::compute_LDB(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
+    const auto LDB =
+        brgemm_utils::repacking::compute_K_blocked_stride(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
     OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
