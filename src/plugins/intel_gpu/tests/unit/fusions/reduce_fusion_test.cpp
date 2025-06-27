@@ -102,9 +102,11 @@ public:
         if (p.out_shape.size() == 5) {
             // 5D case
             return layout{ {1, p.in_shape[1], 1, 1, 1}, p.default_type, (p.default_format.dimension() == 5) ? p.default_format : cldnn::format(format::bfzyx)};
-        } else {
+        } else if (p.out_shape.size() == 4){
             // 4D or other cases
             return layout{ {1, p.in_shape[1], 1, 1}, p.default_type, p.default_format };
+        } else {
+            OPENVINO_ASSERT(false, "NOT_IMPLEMENTED");
         }
     }
 
@@ -112,9 +114,11 @@ public:
         if (p.out_shape.size() == 5) {
             // 5D case
             return layout{ p.default_type, (p.default_format.dimension() == 5) ? p.default_format : cldnn::format(format::bfzyx) , tensor{1, 1, 1, 1, 1} };
-        } else {
+        } else if (p.out_shape.size() == 4) {
             // 4D or other cases
             return layout{ p.default_type, p.default_format, tensor{1, 1, 1, 1} };
+        } else {
+            OPENVINO_ASSERT(false, "NOT_IMPLEMENTED");
         }
     }
 };
