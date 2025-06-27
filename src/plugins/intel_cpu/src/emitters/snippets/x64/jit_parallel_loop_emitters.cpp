@@ -29,13 +29,12 @@
 #include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;
-using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                                               dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
+                                                               cpu_isa_t isa,
                                                                const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
@@ -101,13 +100,13 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(dnnl::impl::cpu::
     }
 }
 
-jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                                                 dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator* h,
+                                                                 cpu_isa_t isa,
                                                                  const ov::snippets::lowered::ExpressionPtr& expr,
                                                                  const snippets::KernelExecutorTablePtr& kernel_table)
     : jit_parallel_loop_base_emitter(h, isa, expr),
-      loop_begin_label{new Xbyak::Label()},
-      loop_preamble_label{new Xbyak::Label()},
+      loop_begin_label{new Label()},
+      loop_preamble_label{new Label()},
       loop_end_label(nullptr),
       m_loop_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
@@ -162,7 +161,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     h->sub(h->rsp, reserved_stack_size);
 
     for (auto i : mem_ptr_regs_idxs) {
-        h->mov(h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)], Xbyak::Reg64(i));
+        h->mov(h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)], Reg64(i));
     }
 
     const auto& aux_reg = get_call_address_reg();
@@ -191,12 +190,12 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
 
     // Restore data ptrs with applied finalization offsets
     for (auto i : mem_ptr_regs_idxs) {
-        h->mov(Xbyak::Reg64(i), h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)]);
+        h->mov(Reg64(i), h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)]);
     }
     h->add(h->rsp, reserved_stack_size);
     spill.postamble();
 
-    h->jmp(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
+    h->jmp(*loop_end_label, CodeGenerator::T_NEAR);
 }
 
 void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() const {
@@ -210,13 +209,13 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() cons
     m_loop_reg_spiller->preamble(loop_premble_spill);
     // Note: work_amount reg is guaranteed to differ from any mem_ptr_regs_idxs.
     // However some of mem_ptr_regs_idxs might coincide with abi_param_1 or abi_param_2.
-    h->mov(Xbyak::Reg64(internal_work_amount_reg_idx), abi_param1);
+    h->mov(Reg64(internal_work_amount_reg_idx), abi_param1);
     bool abi_param2_collision = false;
     for (int i : mem_ptr_regs_idxs) {
         if (i == abi_param2.getIdx()) {
             abi_param2_collision = true;
         } else {
-            h->mov(Xbyak::Reg64(i), h->ptr[abi_param2 + i * sizeof(uintptr_t*)]);
+            h->mov(Reg64(i), h->ptr[abi_param2 + i * sizeof(uintptr_t*)]);
         }
     }
     if (abi_param2_collision) {
@@ -233,12 +232,12 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
     emit_parallel_region_initialization();
 }
 
-jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
-                                                             dnnl::impl::cpu::x64::cpu_isa_t isa,
+jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator* h,
+                                                             cpu_isa_t isa,
                                                              const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_parallel_loop_base_emitter(h, isa, expr),
       loop_begin_label{nullptr},
-      loop_end_label{new Xbyak::Label()} {
+      loop_end_label{new Label()} {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto loop_end = ov::as_type_ptr<snippets::op::ParallelLoopEnd>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end != nullptr, "expected LoopEnd expr");
@@ -300,7 +299,7 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     auto reg_work_amount = Reg64(in.back());
     h->sub(reg_work_amount, wa_increment);
     h->cmp(reg_work_amount, wa_increment);
-    h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);
+    h->jge(*loop_begin_label, CodeGenerator::T_NEAR);
     m_loop_reg_spiller->postamble();
     // todo: we can return at the end of the tail processing loop instead
     // Note: parallel region ends here:
