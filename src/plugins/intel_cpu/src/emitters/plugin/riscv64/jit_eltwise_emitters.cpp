@@ -43,7 +43,7 @@ jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator* host,
 
 jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc)
+                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_abs_emitter::get_inputs_num() const {
@@ -79,7 +79,7 @@ jit_add_emitter::jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host,
 
 jit_add_emitter::jit_add_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc)
+                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_add_emitter::get_inputs_num() const {
@@ -121,7 +121,7 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(
 jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& node,
-                                     const ov::element::Type exec_prc)
+                                     ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     if (const auto clamp = ov::as_type_ptr<ov::op::v0::Clamp>(node)) {
         min = static_cast<float>(clamp->get_min());
@@ -136,7 +136,7 @@ jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator* host
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      float min,
                                      float max,
-                                     const ov::element::Type exec_prc)
+                                     ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc),
       min(min),
       max(max) {
@@ -192,7 +192,7 @@ jit_divide_emitter::jit_divide_emitter(ov::intel_cpu::riscv64::jit_generator* ho
 
 jit_divide_emitter::jit_divide_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                        ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                       const ov::element::Type exec_prc)
+                                       ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_divide_emitter::get_inputs_num() const {
@@ -242,7 +242,7 @@ jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host
 
 jit_equal_emitter::jit_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                     const ov::element::Type exec_prc)
+                                     ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -290,14 +290,14 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 jit_exp_emitter::jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& /*node*/,
-                                 const ov::element::Type exec_prc)
+                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 jit_exp_emitter::jit_exp_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc)
+                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -445,7 +445,7 @@ jit_mod_emitter::jit_mod_emitter(ov::intel_cpu::riscv64::jit_generator* host,
 
 jit_mod_emitter::jit_mod_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const ov::element::Type exec_prc)
+                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -643,7 +643,7 @@ size_t jit_maximum_emitter::get_inputs_num() const {
 /// LESS EQUAL ///
 jit_less_equal_emitter::jit_less_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                                ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                               const ov::element::Type exec_prc)
+                                               ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -763,7 +763,7 @@ jit_logical_and_emitter::jit_logical_and_emitter(ov::intel_cpu::riscv64::jit_gen
 
 jit_logical_and_emitter::jit_logical_and_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                                 const ov::element::Type exec_prc)
+                                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -827,7 +827,7 @@ jit_logical_not_emitter::jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_gen
 
 jit_logical_not_emitter::jit_logical_not_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                                 const ov::element::Type exec_prc)
+                                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -882,7 +882,7 @@ jit_logical_xor_emitter::jit_logical_xor_emitter(ov::intel_cpu::riscv64::jit_gen
 
 jit_logical_xor_emitter::jit_logical_xor_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                                 const ov::element::Type exec_prc)
+                                                 ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -950,7 +950,7 @@ jit_mul_add_emitter::jit_mul_add_emitter(ov::intel_cpu::riscv64::jit_generator* 
 
 jit_mul_add_emitter::jit_mul_add_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                          ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                         const ov::element::Type exec_prc)
+                                         ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_mul_add_emitter::get_inputs_num() const {
@@ -1003,7 +1003,7 @@ jit_multiply_emitter::jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator
 
 jit_multiply_emitter::jit_multiply_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                            ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                           const ov::element::Type exec_prc)
+                                           ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_multiply_emitter::get_inputs_num() const {
@@ -1072,14 +1072,14 @@ std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisi
 jit_not_equal_emitter::jit_not_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                              ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                              const std::shared_ptr<ov::Node>& /*node*/,
-                                             const ov::element::Type exec_prc)
+                                             ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
 jit_not_equal_emitter::jit_not_equal_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                              ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                             const ov::element::Type exec_prc)
+                                             ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -1129,12 +1129,12 @@ void jit_not_equal_emitter::register_table_entries() {
 jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                      const std::shared_ptr<ov::Node>& /*node*/,
-                                     const ov::element::Type exec_prc)
+                                     ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 jit_prelu_emitter::jit_prelu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                     const ov::element::Type exec_prc)
+                                     ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_prelu_emitter::get_inputs_num() const {
@@ -1181,7 +1181,7 @@ std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions
 jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                    ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                    const std::shared_ptr<ov::Node>& node,
-                                   const ov::element::Type exec_prc)
+                                   ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     if (const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
         alpha = leaky_relu->get_slope();
@@ -1196,7 +1196,7 @@ jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
 jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                    ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                    float alpha,
-                                   const ov::element::Type exec_prc)
+                                   ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc),
       alpha(alpha) {
     prepare_table();
@@ -1419,17 +1419,17 @@ void jit_power_static_emitter::register_table_entries() {
 jit_sigmoid_emitter::jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                          ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& /*node*/,
-                                         const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
-    jit_exp_emitter_ = std::make_unique<jit_exp_emitter>(host, host_isa, exec_prc);
+                                         ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      jit_exp_emitter_(std::make_unique<jit_exp_emitter>(host, host_isa, exec_prc)) {
     prepare_table();
 }
 
 jit_sigmoid_emitter::jit_sigmoid_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                          ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                         const ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
-    jit_exp_emitter_ = std::make_unique<jit_exp_emitter>(host, host_isa, exec_prc);
+                                         ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      jit_exp_emitter_(std::make_unique<jit_exp_emitter>(host, host_isa, exec_prc)) {
     prepare_table();
 }
 
@@ -1523,7 +1523,7 @@ jit_sqrt_emitter::jit_sqrt_emitter(ov::intel_cpu::riscv64::jit_generator* host,
 
 jit_sqrt_emitter::jit_sqrt_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                    ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                   const ov::element::Type exec_prc)
+                                   ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_sqrt_emitter::get_inputs_num() const {
@@ -1560,7 +1560,7 @@ jit_subtract_emitter::jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator
 
 jit_subtract_emitter::jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                            ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                           const ov::element::Type exec_prc)
+                                           ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_subtract_emitter::get_inputs_num() const {
