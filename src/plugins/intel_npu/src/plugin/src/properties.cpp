@@ -196,7 +196,6 @@ namespace intel_npu {
  * Same as TRY_REGISTER_CUSTOM_PROPERTY but without any checks. It will force register the property.
  *
  * @param OPT_NAME Class/type of the option (will fetch .name() from it)
- * @param OPT_TYPE Type (template) of the option
  * @param PROP_VISIBILITY Visibility (true=public, false=private) of the resulting property
  * @param PROP_MUTABILITY Mutability (RO/RW) of the resulting property
  * @param PROP_RETFUNC Custom lambda callback function for the resulting property
@@ -348,7 +347,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::performance_mode, PERFORMANCE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::model, MODEL_PTR);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
@@ -576,7 +574,6 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::model, MODEL_PTR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::enable_profiling, PERF_COUNT);

@@ -96,8 +96,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
-
-    return std::make_shared<ov::Model>(results, parameters);
+    auto model = std::make_shared<ov::Model>(results, parameters);
+    auto& rtInfo = model->get_rt_info();
+    rtInfo["dummy_NPU_model"] = true;
+    return model;
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
@@ -274,7 +276,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(STEPPING);
     REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
-    REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(WEIGHTLESS_BLOB);
@@ -806,10 +807,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                                                   std::unique_ptr<MetadataBase> metadata,
                                                   const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
+
+    auto npu_plugin_properties = properties;
+
+    // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+    if (auto modelPtrIt = npu_plugin_properties.find(ov::hint::model.name());
+        modelPtrIt != npu_plugin_properties.end()) {
+        modelPtr = modelPtrIt->second.as<std::shared_ptr<const ov::Model>>();
+        npu_plugin_properties.erase(modelPtrIt);
+    }
+
     CompilerAdapterFactory compilerAdapterFactory;
-    const auto propertiesMap = any_copy(properties);
+    const auto propertiesMap = any_copy(npu_plugin_properties);
     update_log_level(propertiesMap);
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
@@ -858,18 +871,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
 
         // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
-        if (properties.count(ov::hint::model.name())) {
-            try {
-                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
-            } catch (const ov::AssertFailure&) {
-                try {
-                    originalModel = std::const_pointer_cast<const ov::Model>(
-                        properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
-                } catch (const ov::Exception&) {
-                    OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
-                                   "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
-                }
-            }
+        if (modelPtr) {
+            originalModel = modelPtr;
         } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
             const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
             const size_t weightsPathLength = weightsPath.length();
