@@ -24,6 +24,7 @@ using gpu_handle_param = void*;
 enum class ContextType {
     OCL = 0,        //!< Pure OpenCL context
     VA_SHARED = 1,  //!< Context shared with a video decoding device
+    ZE = 2,         //!< Pure Level0 context
 };
 
 /** @cond INTERNAL */
@@ -33,6 +34,8 @@ inline std::ostream& operator<<(std::ostream& os, const ContextType& context_typ
         return os << "OCL";
     case ContextType::VA_SHARED:
         return os << "VA_SHARED";
+    case ContextType::ZE:
+        return os << "ZE";
     default:
         OPENVINO_THROW("Unsupported context type");
     }
@@ -43,6 +46,8 @@ inline std::istream& operator>>(std::istream& is, ContextType& context_type) {
     is >> str;
     if (str == "OCL") {
         context_type = ContextType::OCL;
+    } else if (str == "ZE") {
+        context_type = ContextType::ZE;
     } else if (str == "VA_SHARED") {
         context_type = ContextType::VA_SHARED;
     } else {
