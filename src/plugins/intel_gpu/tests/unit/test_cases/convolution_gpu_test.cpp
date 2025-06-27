@@ -9909,10 +9909,16 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     topology t(input, weights, conv, output_reorder);
 
     ExecutionConfig config_test = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::bfyx, "", impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
     config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test } }));
     config_test.set_property(ov::intel_gpu::optimize_data(true));
     config_test.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    ExecutionConfig config_test_planar = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_test_planar = { format::bfyx, "", impl_types::onednn };
+    config_test_planar.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test_planar } }));
+    config_test_planar.set_property(ov::intel_gpu::optimize_data(true));
+    config_test_planar.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     ExecutionConfig config_ref = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "", impl_types::ocl };
@@ -9921,16 +9927,21 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     config_ref.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network_test(engine, t, config_test);
+    network network_test_planar(engine, t, config_test_planar);
     network network_ref(engine, t, config_ref);
 
     network_test.set_input_data("input", input_mem);
+    network_test_planar.set_input_data("input", input_mem);
     network_ref.set_input_data("input", input_mem);
 
     auto outputs_test = network_test.execute();
+    auto outputs_test_planar = network_test_planar.execute();
     auto outputs_ref = network_ref.execute();
 
     ASSERT_EQ(outputs_test.size(), size_t(1));
     ASSERT_EQ(outputs_test.begin()->first, "reorder");
+    ASSERT_EQ(outputs_test_planar.size(), size_t(1));
+    ASSERT_EQ(outputs_test_planar.begin()->first, "reorder");
     ASSERT_EQ(outputs_ref.size(), size_t(1));
     ASSERT_EQ(outputs_ref.begin()->first, "reorder");
 
@@ -9938,16 +9949,22 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     auto output_layout_test = output_memory_test->get_layout();
     cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
 
+    auto output_memory_test_planar = outputs_test_planar.at("reorder").get_memory();
+    auto output_layout_test_planar = output_memory_test_planar->get_layout();
+    cldnn::mem_lock<float> output_ptr_test_planar(output_memory_test_planar, get_test_stream());
+
     auto output_memory_ref = outputs_ref.at("reorder").get_memory();
     auto output_layout_ref = output_memory_ref->get_layout();
     cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
 
     ov::PartialShape expected_shape = {1, 16, 4};
     ASSERT_EQ(output_layout_test.get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_layout_test_planar.get_partial_shape(), expected_shape);
     ASSERT_EQ(output_layout_ref.get_partial_shape(), expected_shape);
 
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test.data()[i]);
+        ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_planar.data()[i]);
     }
 }
 
