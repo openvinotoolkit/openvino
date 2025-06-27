@@ -41,6 +41,8 @@ public:
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
 
+    ~ZeroDevice() = default;
+
 private:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 

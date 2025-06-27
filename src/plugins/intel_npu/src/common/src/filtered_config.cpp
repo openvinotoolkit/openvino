@@ -80,7 +80,7 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
     auto log = Logger::global().clone("Config");
     if (_internal_compiler_configs.count(key) != 0) {
         log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
-        _internal_compiler_configs.at(key) = value;
+        _internal_compiler_configs.at(key) = std::move(value);
     } else {
         // manual insert
         _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new

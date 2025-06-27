@@ -76,6 +76,8 @@ public:
     void operator=(const ZeroApi&) = delete;
     void operator=(ZeroApi&&) = delete;
 
+    ~ZeroApi() = default;
+
     static const std::shared_ptr<ZeroApi>& getInstance();
 
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
