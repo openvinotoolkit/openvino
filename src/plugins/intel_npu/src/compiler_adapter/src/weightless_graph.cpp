@@ -137,6 +137,7 @@ public:
         task2SyncPoint.notify_one();
 
         task2Thread.join();
+        _modelConstants = {};
     }
 };
 
@@ -411,6 +412,9 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
         offset += currentInputSize;
     }
 
+    // We don't need this anymore, potentially save some memory
+    _model = nullptr;
+
     return {initInputsViewTensors, initInputsAllocatedTensor};
 }
 
@@ -450,10 +454,11 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 }
 
 void WeightlessGraph::run_init_single_threaded() {
-    const auto constants = get_all_constants_in_topological_order(_model);
+    auto constants = get_all_constants_in_topological_order(_model);
 
     for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
+        constants = {};
         auto [initOutputsViewTensors, initOutputsAllocatedTensor, initOutputsViewTensorsMap] =
             allocate_outputs(initIndex);
 
