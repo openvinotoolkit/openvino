@@ -139,13 +139,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
-    set_source_files_properties(
-        src/runtime/tensor.cpp
-        PROPERTIES
-        COMPILE_OPTIONS "/guard:cf-;/sdl-"
-    )
-endif()
+ov_disable_sdl_flags_for_sources(SOURCES "src/runtime/tensor.cpp")
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
