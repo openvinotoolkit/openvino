@@ -4,11 +4,28 @@
 
 #include "snippets/op/reg_spill.hpp"
 
-#include "snippets/utils/utils.hpp"
+#include <cassert>
+#include <iterator>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
+
+namespace ov::snippets::op {
 
 RegSpillBase::RegSpillBase(const std::vector<Output<Node>>& args) : Op(args) {}
 
@@ -17,8 +34,9 @@ bool RegSpillBase::visit_attributes(AttributeVisitor& visitor) {
     const auto& regs_to_spill = get_regs_to_spill();
     for (auto reg_it = regs_to_spill.begin(); reg_it != regs_to_spill.end(); reg_it++) {
         ss << *reg_it;
-        if (std::next(reg_it) != regs_to_spill.end())
+        if (std::next(reg_it) != regs_to_spill.end()) {
             ss << ", ";
+        }
     }
     std::string spilled = ss.str();
     visitor.on_attribute("regs_to_spill", spilled);
@@ -63,7 +81,8 @@ RegSpillBegin::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
     num_out_shapes = reg_spill_begin->get_regs_to_spill().size();
 }
 
-RegSpillBegin::ShapeInfer::Result RegSpillBegin::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+RegSpillBegin::ShapeInfer::Result RegSpillBegin::ShapeInfer::infer(
+    [[maybe_unused]] const std::vector<VectorDimsRef>& input_shapes) {
     return {std::vector<VectorDims>(num_out_shapes, VectorDims{1}), ShapeInferStatus::success};
 }
 
@@ -83,6 +102,4 @@ std::shared_ptr<Node> RegSpillEnd::clone_with_new_inputs(const OutputVector& inp
     return std::make_shared<RegSpillEnd>(inputs.at(0));
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

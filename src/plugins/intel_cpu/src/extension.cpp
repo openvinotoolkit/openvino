@@ -31,6 +31,7 @@
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/matrix_nms.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"

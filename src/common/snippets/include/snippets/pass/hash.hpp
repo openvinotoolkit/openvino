@@ -4,14 +4,13 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <openvino/pass/pass.hpp>
-#include <string>
 
 #include "openvino/core/model.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @brief Hash transformation calculates hash value for snippets. Don't care about names as no difference from execution
@@ -21,7 +20,7 @@ class Hash : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::Hash");
 
-    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     /**
      * @brief Hash pass constructor
@@ -35,6 +34,4 @@ private:
     uint64_t& m_hash;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

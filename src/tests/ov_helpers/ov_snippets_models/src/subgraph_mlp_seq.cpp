@@ -11,6 +11,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/op/convert_saturation.hpp"
 
 namespace ov {
 namespace test {

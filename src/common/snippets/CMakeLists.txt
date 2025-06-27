@@ -22,6 +22,15 @@ add_library(${TARGET_NAME} STATIC
 
 add_library(openvino::snippets ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME snippets)
+if (ENABLE_CLANG_TIDY)
+    set(clang_tidy_options "--extra-arg=-Wno-unused-command-line-argument")
+    if(ENABLE_CLANG_TIDY_FIX)
+        list(APPEND clang_tidy_options "--fix-errors")
+    endif()
+    set_target_properties(${TARGET_NAME} PROPERTIES
+        CXX_CLANG_TIDY "${CLANG_TIDY};${clang_tidy_options}")
+endif()
+
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY

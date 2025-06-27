@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "transformations_visibility.hpp"
+#include <memory>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace pass {
+#include "openvino/core/model.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/pass.hpp"
+
+namespace ov::snippets::pass {
 
 /**
  * @interface AlignElementTypes
@@ -29,6 +30,4 @@ private:
     std::vector<ov::element::Type> m_output_precisions;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

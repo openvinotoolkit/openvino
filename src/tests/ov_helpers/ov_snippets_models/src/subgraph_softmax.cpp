@@ -3,9 +3,12 @@
 //
 
 #include "subgraph_softmax.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include <snippets/op/subgraph.hpp>
+#include <snippets/op/reduce.hpp>
+#include <snippets/op/powerstatic.hpp>
 #include "openvino/core/validation_util.hpp"
 
 namespace ov {
