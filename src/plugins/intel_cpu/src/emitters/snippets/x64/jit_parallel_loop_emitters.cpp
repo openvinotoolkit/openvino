@@ -111,7 +111,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(dnnl::impl::cpu
       loop_end_label(nullptr),
       m_loop_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
-    m_parallel_loop_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(wa_increment));
+    m_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(wa_increment));
     // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory
     // pointers if they do, we need to spill them before the call and restore in the multithread section
 }
@@ -180,7 +180,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     h->mov(h->qword[h->rsp + GET_OFF_PARALLEL_LOOP_ARGS(mem_ptrs)], aux_reg);
 
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
-    h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_parallel_loop_executor.get()));
+    h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_executor.get()));
     h->mov(abi_param2, h->rsp);
 
     spill.rsp_align(get_callee_saved_reg().getIdx());
