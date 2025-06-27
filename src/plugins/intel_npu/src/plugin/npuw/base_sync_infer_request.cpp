@@ -4,6 +4,8 @@
 
 #include "base_sync_infer_request.hpp"
 
+#include <algorithm>
+
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
@@ -16,7 +18,8 @@ ov::npuw::IBaseInferRequest::IBaseInferRequest(const std::shared_ptr<ov::npuw::C
       m_num_submodels(m_npuw_model->m_compiled_submodels.size()) {
     m_subrequests.resize(m_num_submodels, {});
     m_subrequest_devices.resize(m_num_submodels, {});
-    m_completion_cbs.resize(m_num_submodels, {});
+    // TODO: not used yet
+    // m_completion_cbs.resize(m_num_submodels, {});
     if (m_npuw_model->m_acc_check) {
         m_ref_subrequests.resize(m_num_submodels);
     }
@@ -170,8 +173,7 @@ void ov::npuw::IBaseInferRequest::set_tensors(const ov::Output<const ov::Node>&,
 }
 
 void ov::npuw::IBaseInferRequest::check_tensors() const {
-    // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
-    // `m_tensors` are not allocated
+    // Ignore
     return;
 }
 
@@ -211,11 +213,10 @@ void ov::npuw::IBaseInferRequest::infer() {
         if (!valid_subrequest(idx)) {
             continue;
         }
-        subscribe_subrequest(idx, [](std::exception_ptr) {});
         bool failover = false;
         run_subrequest_for_success(idx, failover);
         failover_happened |= failover;
-        complete_subrequest(idx);
+
         if (m_npuw_model->m_acc_check) {
             ensure_subrequest_is_accurate(idx, failover);
             failover_happened |= failover;
@@ -240,6 +241,7 @@ std::size_t ov::npuw::IBaseInferRequest::total_subrequests() const {
 ov::npuw::TensorPtr ov::npuw::IBaseInferRequest::allocMem(const ov::element::Type type,
                                                           const ov::Shape& shape,
                                                           const std::string& device) {
+    LOG_DEBUG("alloc mem: " << type << ", shape: " << shape << " device: " << device);
     if (device == "CPU" || ov::shape_size(shape) == 0) {
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
@@ -698,4 +700,31 @@ std::size_t ov::npuw::IBaseInferRequest::real(std::size_t idx) const {
 
 ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const {
     return m_now_idx;
+}
+
+void ov::npuw::IBaseInferRequest::notify_subrequest_prepare(std::size_t idx) {
+    if (!m_on_submit_cb) {
+        LOG_DEBUG("IBaseInferRequest::notify_subrequest_prepare " << idx << " ... SKIP");
+        return;
+    }
+    m_on_submit_cb(idx);
+}
+
+void ov::npuw::IBaseInferRequest::notify_subrequest_complete(std::size_t idx) {
+    if (!m_on_output_ready_cb) {
+        LOG_DEBUG("IBaseInferRequest::notify_subrequest_complete " << idx << " ... SKIP");
+        return;
+    }
+    LOG_DEBUG("IBaseInferRequest::notify_subrequest_complete " << idx);
+
+    const auto& iodesc = m_subrequests_gio.at(idx);
+    for (auto&& it : iodesc.global_results) {
+        std::size_t result_idx{}, sub_out_idx{};
+        std::tie(result_idx, sub_out_idx) = it;
+
+        const auto& produced = m_npuw_model->outputs()[result_idx];
+        auto tensor = m_port_to_tensor.at(produced).tensor;
+
+        m_on_output_ready_cb(idx, produced.get_any_name(), tensor);
+    }
 }
