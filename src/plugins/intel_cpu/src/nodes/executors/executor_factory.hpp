@@ -91,10 +91,22 @@ public:
      */
     ExecutorPtr make(const MemoryArgs& memory) {
         // only single executor is available
-        if (m_suitableImplementations.size() == 1) {
+        std::vector<ExecutorImplementationRef> implementations;
+
+        for (const auto& impl : m_suitableImplementations) {
+            auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
+            if (!impl.get().requiresFallback(config)) {
+                implementations.push_back(impl);
+            }
+        }
+
+        OPENVINO_ASSERT(!implementations.empty(),
+                        "No suitable implementations found for the provided memory arguments");
+
+        if (implementations.size() == 1) {
             auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
 
-            const auto& theOnlyImplementation = m_suitableImplementations.front().get();
+            const auto& theOnlyImplementation = implementations.front().get();
 
             if (const auto fallbackConfig = theOnlyImplementation.requiresFallback(config)) {
                 return GraphEmitter<Attrs>::fallback(config,
@@ -107,7 +119,7 @@ public:
             return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
-        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, m_suitableImplementations);
+        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, implementations);
     }
 
 private:
@@ -149,12 +161,12 @@ private:
 
             // implementation is supported and it is shape agnostic, there is no way
             // an implementation with a lower priority will be chosen
-            if (implementation.shapeAgnostic()) {
-                DEBUG_LOG("Implementation is shape agnostic: ",
-                          implementation.name(),
-                          ". Stop processing implementations");
-                break;
-            }
+            // if (implementation.shapeAgnostic()) {
+            //     DEBUG_LOG("Implementation is shape agnostic: ",
+            //               implementation.name(),
+            //               ". Stop processing implementations");
+            //     break;
+            // }
         }
 
         return suitableImplementations;

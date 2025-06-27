@@ -50,7 +50,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const dnnl::memory::data_type outDataType,
                                          const std::vector<float>& legacyDqScales,
                                          bool useLegacyPostOps,
-                                         bool useLegacyZeroPoints)
+                                         bool useLegacyZeroPoints,
+                                         bool forceLegacyPostOps,
+                                         dnnl::post_ops ops)
     : engine(engine),
       postOps(postOps),
       outputDims(outputDims),
@@ -59,7 +61,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       weightScaleMaskPerChannel(weiScaleMaskPerChannel),
       outDataType(outDataType),
       useLegacyPostOps(useLegacyPostOps),
-      useLegacyZeroPoints(useLegacyZeroPoints) {
+      useLegacyZeroPoints(useLegacyZeroPoints),
+      forceLegacyPostOps(forceLegacyPostOps),
+      ops(std::move(ops)) {
     OPENVINO_ASSERT(idxOC < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
@@ -134,6 +138,8 @@ static dnnl::algorithm convertToOneDnn(const ActivationPostOp::Type type) {
     case ActivationPostOp::Type::linear:
     case ActivationPostOp::Type::powerstatic:  // actually eltwise_pow + eltwise_linear
         return dnnl::algorithm::eltwise_linear;
+    default:
+        return dnnl::algorithm::undef;
     }
 
     return dnnl::algorithm::undef;
@@ -1036,7 +1042,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             if (useLegacyPostOps) {
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
-                if (appendAttrPostOps(*activation, isLastPostOp, false)) {
+                if (!forceLegacyPostOps && appendAttrPostOps(*activation, isLastPostOp, false)) {
                     DEBUG_LOG("Append as original post op without binary");
                     continue;
                 }
@@ -1053,7 +1059,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             if (useLegacyPostOps) {
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
-                if (appendAttrPostOps(*ss, isLastPostOp, false)) {
+                if (!forceLegacyPostOps && appendAttrPostOps(*ss, isLastPostOp, false)) {
                     DEBUG_LOG("Append as original post op without binary");
                     continue;
                 }
@@ -1090,7 +1096,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             if (useLegacyPostOps) {
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
-                if (appendAttrPostOps(*fq, isLastPostOp, round, false)) {
+                if (!forceLegacyPostOps && appendAttrPostOps(*fq, isLastPostOp, round, false)) {
                     DEBUG_LOG("Append as original post op without binary");
                     continue;
                 }

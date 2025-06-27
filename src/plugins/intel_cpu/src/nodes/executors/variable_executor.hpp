@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -50,6 +51,9 @@ public:
              implId = select(memory, ++implId)) {
             if (!m_executors[implId]) {
                 m_executors[implId] = create(implId, memory);
+                if (!m_executors[implId]) {
+                    continue;  // skip if creation failed
+                }
             }
 
             if (m_executors[implId]->update(memory)) {
@@ -115,16 +119,19 @@ private:
         assert(implId < m_executors.size() && implId < m_suitableImplementations.size());
 
         auto createWithFallback = [this](const size_t implId, const MemoryArgs& memory) {
+            // const auto& impl = m_suitableImplementations[implId].get();
             const auto& impl = m_suitableImplementations[implId].get();
-
-            if (m_implementationRequiresFallback[implId]) {
-                auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
-                if (auto fallbackConfig = impl.requiresFallback(config)) {
-                    return GraphEmitter<Attrs>::fallback(config, *fallbackConfig, memory, m_context, impl.name());
-                }
-            }
-
             return impl.create(m_attrs, memory, m_context);
+            // if (m_implementationRequiresFallback[implId]) {
+            //     auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
+            //     if (auto fallbackConfig = impl.requiresFallback(config)) {
+            //         return GraphEmitter<Attrs>::fallback(config, *fallbackConfig, memory, m_context, impl.name());
+            //     }
+
+            //     return std::make_shared<Executor>();
+            // }
+
+            // return impl.create(m_attrs, memory, m_context);
         };
 
         return createWithFallback(implId, memory);
