@@ -26,7 +26,7 @@ set(RISCV64_XUANTIE ON)
 set(RISCV64_RVV1p0 ON)
 
 set(RISCV_TOOLCHAIN_ROOT $ENV{RISCV_TOOLCHAIN_ROOT} CACHE PATH "Path to GCC for RISC-V cross compiler build directory")
-set(CMAKE_SYSROOT "${RISCV_TOOLCHAIN_ROOT}/sysroot" CACHE PATH "RISC-V sysroot")
+# set(CMAKE_SYSROOT "${RISCV_TOOLCHAIN_ROOT}/sysroot" CACHE PATH "RISC-V sysroot")
 
 set(CMAKE_C_COMPILER ${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-gcc)
 set(CMAKE_CXX_COMPILER ${RISCV_TOOLCHAIN_ROOT}/bin/riscv64-unknown-linux-gnu-g++)
@@ -41,3 +41,13 @@ set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -march=rv64gcv1p0_zfh -mabi=lp
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-pthread")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "-pthread")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "-pthread")
+
+# Set target triple for cross-compilation
+set(CMAKE_C_COMPILER_TARGET "riscv64-unknown-linux-gnu")
+set(CMAKE_CXX_COMPILER_TARGET "riscv64-unknown-linux-gnu")
+
+set(OV_CLANG_TIDY_TOOLCHAIN_FLAGS
+    "--extra-arg=-isystem${RISCV_TOOLCHAIN_ROOT}/riscv64-unknown-linux-gnu/include"
+    "--extra-arg=-isystem${RISCV_TOOLCHAIN_ROOT}/riscv64-unknown-linux-gnu/include/c++/10.4.0"
+    "--extra-arg=-isystem${RISCV_TOOLCHAIN_ROOT}/riscv64-unknown-linux-gnu/include/c++/10.4.0/riscv64-unknown-linux-gnu"
+)

@@ -13,7 +13,7 @@ namespace ov::intel_cpu {
 
 class ShlEltwiseExecutor : public EltwiseExecutor {
 public:
-    explicit ShlEltwiseExecutor(const ExecutorContext::CPtr context);
+    explicit ShlEltwiseExecutor(const ExecutorContext::CPtr& context);
     static bool isEltwiseAlgorithmSupported(Algorithm algorithm);
 
     bool init(const EltwiseAttrs& eltwiseAttrs,

@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+// NOLINTBEGIN(misc-include-cleaner)
+
 #include "executor_pa_common.hpp"
 
 #include <cpu/x64/xbyak/xbyak.h>
@@ -15,6 +18,8 @@
 #include <vector>
 
 #include "openvino/core/type/element_type.hpp"
+
+// NOLINTEND(misc-include-cleaner)
 
 namespace ov::Extensions::Cpu {
 

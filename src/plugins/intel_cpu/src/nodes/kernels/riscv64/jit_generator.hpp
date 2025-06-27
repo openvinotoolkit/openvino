@@ -127,7 +127,7 @@ public:
                   Xbyak_riscv::VM vm = Xbyak_riscv::VM::unmasked);
 
     static Xbyak_riscv::LMUL float2lmul(const float lmul);
-    static Xbyak_riscv::SEW bytes2sew(const size_t bytes);
+    static Xbyak_riscv::SEW bytes2sew(const size_t sew);
     static float lmul2float(const Xbyak_riscv::LMUL lmul);
     static size_t sew2bytes(const Xbyak_riscv::SEW sew);
 
