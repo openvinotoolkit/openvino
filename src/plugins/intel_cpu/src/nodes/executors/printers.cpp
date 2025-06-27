@@ -23,6 +23,11 @@ std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const ConvAttrs& att
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, [[maybe_unused]] const MVNAttrs& attrs) {
+    // @todo print Attrs
+    return os;
+}
+
 }  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

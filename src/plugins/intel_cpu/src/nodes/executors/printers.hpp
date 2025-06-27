@@ -18,9 +18,11 @@ struct Config;
 
 struct FCAttrs;
 struct ConvAttrs;
+struct MVNAttrs;
 
 std::ostream& operator<<(std::ostream& os, const FCAttrs& attrs);
 std::ostream& operator<<(std::ostream& os, const ConvAttrs& attrs);
+std::ostream& operator<<(std::ostream& os, const MVNAttrs& attrs);
 
 template <typename Attrs>
 std::ostream& operator<<(std::ostream& os, const executor::Config<Attrs>& config) {
