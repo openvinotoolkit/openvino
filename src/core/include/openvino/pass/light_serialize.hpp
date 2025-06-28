@@ -9,8 +9,6 @@
 #include <string>
 #include <variant>
 
-#include "openvino/runtime/aligned_buffer.hpp"
-#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
@@ -18,7 +16,24 @@
 namespace ov {
 namespace pass {
 
-typedef std::variant<std::shared_ptr<ov::StringAlignedBuffer>, std::shared_ptr<ov::SharedStringAlignedBuffer>, std::shared_ptr<ov::AlignedBuffer>> WeightsVariant;
+class OPENVINO_API WeightsWrapper {
+public:
+    WeightsWrapper() = default;
+    ~WeightsWrapper();
+
+    void set(void* map) {
+        m_offsetConstMap = map;
+    }
+
+    void* get() const {
+        return m_offsetConstMap;
+    }
+
+    size_t size();
+
+private:
+    void* m_offsetConstMap = nullptr;
+};
 
 /**
  * @brief Serialize transformation converts ov::Model into IR files
@@ -37,13 +52,11 @@ public:
     };
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
-    LightSerialize(std::ostream& xmlFile,
-                   std::map<int64_t, WeightsVariant>& offsetConstMap,
-                   Version version = Version::UNSPECIFIED);
+    LightSerialize(std::ostream& xmlFile, WeightsWrapper& offsetConstMap, Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream* m_xmlFile;
-    std::map<int64_t, WeightsVariant>& m_offsetConstMap;
+    WeightsWrapper& m_offsetConstMap;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
