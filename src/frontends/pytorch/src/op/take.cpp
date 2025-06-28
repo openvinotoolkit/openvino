@@ -44,6 +44,9 @@ OutputVector translate_take_op(const NodeContext& context) {
     }
     auto axis_constant = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
     auto gather = context.mark_node(std::make_shared<v8::Gather>(input, indices, axis_constant));
+    if (!context.input_is_none(2)) {
+        context.mutate_input(2, gather);
+    }
 
     return {gather};
 }
