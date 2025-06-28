@@ -135,10 +135,10 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
                 if (pin_processors) {
-                    CpuSet setMask{CPU_ALLOC((1UZ << concurrency) - 1)};
                     CpuSet mask;
                     int ncpus = 0;
                     std::tie(mask, ncpus) = get_process_mask();
+                    CpuSet setMask = get_pecore_mask(ncpus);
                     if (nullptr != mask) {
                         _proc_observer.reset(new ProcObserver{*_taskArena, std::move(setMask), std::move(mask), ncpus});
                         _proc_observer->observe(true);
