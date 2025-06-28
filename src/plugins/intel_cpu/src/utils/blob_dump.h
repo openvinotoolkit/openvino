@@ -17,8 +17,7 @@
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * Utility class to dump blob contant in plain format.
@@ -53,10 +52,9 @@ public:
     void dumpAsTxt(const std::string& dump_path) const;
     void dumpAsTxt(std::ostream& stream) const;
 
-    void* getDataPtr() const {
+    [[nodiscard]] void* getDataPtr() const {
         return memory->getData();
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
