@@ -101,5 +101,7 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& processMask);
  * @return     `True` in case of success, `false` otherwise
  */
 bool pin_current_thread_to_socket(int socket);
+
+CpuSet get_pecore_mask(int ncpus);
 }  // namespace threading
 }  // namespace ov
