@@ -33,6 +33,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/weights_map.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/compute_hash.hpp"
@@ -45,6 +46,21 @@
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov {
+
+namespace pass {
+WeightsWrapper::~WeightsWrapper() {
+    if (m_offsetConstMap) {
+        delete reinterpret_cast<WeightsMap*>(m_offsetConstMap);
+        m_offsetConstMap = nullptr;
+    }
+}
+
+size_t WeightsWrapper::size() {
+    ov::pass::WeightsMap* weights_map = reinterpret_cast<ov::pass::WeightsMap*>(m_offsetConstMap);
+    return weights_map->size();
+}
+}  // namespace pass
+
 class OstreamHashWrapperBin final : public std::streambuf {
     uint64_t m_res = 0lu;
 
@@ -101,8 +117,7 @@ public:
     using HashValue = size_t;
     using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, const void*>>;
 
-    ConstantWriter(std::map<int64_t, ov::pass::WeightsVariant>& offset_const_map,
-                   bool enable_compression = true)
+    ConstantWriter(ov::pass::WeightsMap* offset_const_map, bool enable_compression = true)
         : m_offset_const_map(offset_const_map),
           m_enable_compression(enable_compression),
           m_blob_offset(0) {
@@ -110,16 +125,18 @@ public:
     }
 
     FilePosition write(ov::pass::WeightsVariant object, size_t& new_size) {
-        const auto offset = m_blob_offset + 1;
+        std::cout << "ConstantWriter::write: " << object.index() << std::endl;
+        const auto offset = m_blob_offset;
+        m_blob_offset += 1;
         new_size = 1;
 
-        m_offset_const_map[offset] = object;
+        m_offset_const_map->add_weights(offset, object);
         return offset;
     }
 
 private:
     ConstWritePositions m_hash_to_file_positions;
-    std::map<int64_t, ov::pass::WeightsVariant>& m_offset_const_map;
+    ov::pass::WeightsMap* m_offset_const_map;
     bool m_enable_compression;
     bool m_write_hash_value = false;
     FilePosition m_blob_offset;  // blob offset inside output stream
@@ -484,22 +501,28 @@ public:
                 //    the data can be correctly serialized and deserialized.
 
                 int64_t offset = 0;
+                int64_t type = 0;
                 if (a1) {
+                    std::cout << "Save one StringAlignedBuffer" << std::endl;
                     offset = m_constant_write_handler.write(a1->get(), new_size);
                 } else {
+                    std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
                     offset = m_constant_write_handler.write(a2->get(), new_size);
+                    type = 1;
                 }
 
                 m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                m_xml_node.append_attribute("type").set_value(static_cast<unsigned long long>(type));
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 size_t new_size;
                 int64_t offset = m_constant_write_handler.write(a->get(), new_size);
-
+                std::cout << "Save one AlignedBuffer" << std::endl;
                 m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                m_xml_node.append_attribute("type").set_value(static_cast<unsigned long long>(2));
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto& attrs = a->get();
@@ -1140,7 +1163,7 @@ std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, co
 }
 
 void serializeFunc(std::ostream& xml_file,
-                   std::map<int64_t, ov::pass::WeightsVariant>& offset_const_map,
+                   ov::pass::WeightsMap* offset_const_map,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::LightSerialize::Version ver,
                    bool deterministic = false) {
@@ -1188,7 +1211,8 @@ bool pass::LightSerialize::run_on_model(const std::shared_ptr<ov::Model>& model)
             disable_fp16_compression(node);
 
     if (m_xmlFile) {
-        serializeFunc(*m_xmlFile, m_offsetConstMap, model, m_version);
+        ov::pass::WeightsMap* map = reinterpret_cast<ov::pass::WeightsMap*>(m_offsetConstMap.get());
+        serializeFunc(*m_xmlFile, map, model, m_version);
     }
 
     // Return false because we didn't change ov Model
@@ -1196,11 +1220,14 @@ bool pass::LightSerialize::run_on_model(const std::shared_ptr<ov::Model>& model)
 }
 
 pass::LightSerialize::LightSerialize(std::ostream& xmlFile,
-                                     std::map<int64_t, ov::pass::WeightsVariant>& offsetConstMap,
+                                     WeightsWrapper& offsetConstMap,
                                      pass::LightSerialize::Version version)
     : m_xmlFile{&xmlFile},
       m_offsetConstMap(offsetConstMap),
-      m_version{version} {}
+      m_version{version} {
+    WeightsMap* weightsMap = new ov::pass::WeightsMap();
+    m_offsetConstMap.set(reinterpret_cast<void*>(weightsMap));
+}
 
 // /// -------- Hash calculation pass -------------
 
