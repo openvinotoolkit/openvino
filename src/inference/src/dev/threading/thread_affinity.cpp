@@ -113,7 +113,7 @@ bool pin_current_thread_to_socket(int socket) {
 
 CpuSet get_pecore_mask(int ncpus) {
     auto proc_type_table = get_org_proc_type_table();
-    int pecores = 20proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+    int pecores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
     CpuSet targetMask{CPU_ALLOC(ncpus)};
     const size_t size = CPU_ALLOC_SIZE(ncpus);
     CPU_ZERO_S(size, targetMask.get());
