@@ -984,7 +984,7 @@ bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const 
         for (const auto& it : any_map)
             appended = append_custom_rt_info(custom_node, it.first, it.second) || appended;
 
-    } else if (!data.empty() && !data.is<std::shared_ptr<ov::RuntimeAttribute>>()) {
+    } else if (!data.empty() && !data.is<ov::RuntimeAttribute>() && !data.is<std::shared_ptr<ov::RuntimeAttribute>>()) {
         const auto& value = data.as<std::string>();
         custom_node.append_attribute("value").set_value(value.c_str());
         appended = true;
@@ -1087,9 +1087,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                 }
             }
 
-            for (const auto& item : attributes)
-                if (!item.second.is<ov::RuntimeAttribute>())
-                    has_attrs = append_custom_rt_info(rt_node, item.first, item.second) || has_attrs;
+            if (!deterministic)
+                for (const auto& item : attributes)
+                    if (!item.second.is<ov::RuntimeAttribute>())
+                        has_attrs = append_custom_rt_info(rt_node, item.first, item.second) || has_attrs;
 
             if (!has_attrs) {
                 node.remove_child(rt_node);
