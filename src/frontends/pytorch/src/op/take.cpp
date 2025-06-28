@@ -28,20 +28,6 @@ OutputVector translate_take_op(const NodeContext& context) {
     auto new_shape = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
     input = context.mark_node(std::make_shared<v1::Reshape>(input, new_shape, false));
     indices = context.mark_node(std::make_shared<v0::Convert>(indices, element::i64));
-    auto indices_const = ov::util::get_constant_from_source(indices);
-    // check for out of bounds indices
-    if (indices_const && input_shape.is_static()) {
-        int64_t flat_size = input_shape[0].get_length();
-        auto indices_vals = indices_const->cast_vector<int64_t>();
-        for (const auto& idx : indices_vals) {
-            FRONT_END_OP_CONVERSION_CHECK(idx >= 0 && idx < flat_size,
-                                          "Index out of bounds: ",
-                                          idx,
-                                          ". Valid range: [0, ",
-                                          flat_size,
-                                          ").");
-        }
-    }
     auto axis_constant = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
     auto gather = context.mark_node(std::make_shared<v8::Gather>(input, indices, axis_constant));
     if (!context.input_is_none(2)) {
