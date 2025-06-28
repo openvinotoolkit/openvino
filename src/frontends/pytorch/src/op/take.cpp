@@ -18,7 +18,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_take_op(const NodeContext& context) {
-    num_inputs_check(context, 2, 2, true);
+    num_inputs_check(context, 2, 3);
     auto input = context.get_input(0);
     auto indices = context.get_input(1);
     auto input_shape = input.get_partial_shape();
