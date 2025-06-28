@@ -984,7 +984,7 @@ bool append_custom_rt_info(pugi::xml_node& node, const std::string& name, const 
         for (const auto& it : any_map)
             appended = append_custom_rt_info(custom_node, it.first, it.second) || appended;
 
-    } else {
+    } else if (!data.empty() && !data.is<std::shared_ptr<ov::RuntimeAttribute>>()) {
         const auto& value = data.as<std::string>();
         custom_node.append_attribute("value").set_value(value.c_str());
         appended = true;
