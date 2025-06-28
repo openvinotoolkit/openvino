@@ -28,8 +28,6 @@ OutputVector translate_take_op(const NodeContext& context) {
     auto new_shape = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
     input = context.mark_node(std::make_shared<v1::Reshape>(input, new_shape, false));
     indices = context.mark_node(std::make_shared<v0::Convert>(indices, element::i64));
-    auto input_size = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i64));
-    indices = normalize_axis(context, indices, input_size);
     auto indices_const = ov::util::get_constant_from_source(indices);
     // check for out of bounds indices
     if (indices_const && input_shape.is_static()) {
