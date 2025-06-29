@@ -25,7 +25,7 @@ public:
                      const std::function<std::set<std::vector<element::Type>>(const std::shared_ptr<ov::Node>& op)>&
                          get_supported_precisions = nullptr);
 
-    bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     static std::set<std::vector<element::Type>> get_supported_precisions_default(

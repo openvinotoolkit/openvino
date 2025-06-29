@@ -51,6 +51,10 @@ public:
         return m_rtParamsCache;
     }
 
+    [[nodiscard]] MultiCachePtr getSnippetsParamsCache() const {
+        return m_snippetsParamsCache;
+    }
+
     [[nodiscard]] DnnlScratchPadPtr getScratchPad() const {
         return m_rtScratchPads[m_numaNodeId];
     }
@@ -116,6 +120,7 @@ private:
     WeightsSharing::Ptr m_weightsCache;
     // primitive cache
     MultiCachePtr m_rtParamsCache;
+    MultiCachePtr m_snippetsParamsCache;
     // global scratch pad
     DnnlScratchPadPtr m_rtScratchPad;
 
