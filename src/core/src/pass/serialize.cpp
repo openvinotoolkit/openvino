@@ -740,8 +740,8 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
 std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
 
-    // TODO: remove it one day: try to find opset name from RT info
-    // It's a dirty hack to TypeRelaxed and similar template internal operations
+    // CVS-169882: Try to find opset name from RT info. Below (not recommended) solution affects TypeRelaxed and similar
+    // template internal operations.
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
         if (opset_it->second.is<std::string>()) {
