@@ -17,12 +17,13 @@
 #include <cstddef>
 #include <type_traits>
 
-#define OV_THREAD_TBB      0
-#define OV_THREAD_OMP      1
-#define OV_THREAD_SEQ      2
-#define OV_THREAD_TBB_AUTO 3
+#define OV_THREAD_TBB                  0
+#define OV_THREAD_OMP                  1
+#define OV_THREAD_SEQ                  2
+#define OV_THREAD_TBB_AUTO             3
+#define OV_THREAD_TBB_PARTITIONER_AUTO 4
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
@@ -63,7 +64,7 @@ inline void parallel_set_num_threads(int) {
 inline int parallel_get_env_threads() {
     return 0;
 }
-#    if OV_THREAD == OV_THREAD_TBB
+#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
 #        define PARTITIONING , tbb::static_partitioner()
 
 // The TBB version less than 2018u1 has no static_partitioner argument for
@@ -151,7 +152,7 @@ namespace ov {
 
 template <typename F>
 void parallel_nt(int nthr, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     if (nthr == 0)
         nthr = parallel_get_max_threads();
     if (nthr == 1) {
@@ -197,7 +198,7 @@ void parallel_nt_static(int nthr, const F& func) {
 
     if (nthr == 0)
         nthr = parallel_get_max_threads();
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     tbb::parallel_for(
         0,
         nthr,
@@ -223,7 +224,7 @@ void parallel_nt_static(int nthr, const F& func) {
 
 template <typename I, typename F>
 void parallel_sort(I begin, I end, const F& comparator) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     tbb::parallel_sort(begin, end, comparator);
 #elif OV_THREAD == OV_THREAD_OMP
     // TODO: propose OpenMP version
@@ -235,7 +236,7 @@ void parallel_sort(I begin, I end, const F& comparator) {
 
 template <typename T0, typename R, typename F>
 R parallel_sum(const T0& D0, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range<T0>(0, D0),
         input,
@@ -269,7 +270,7 @@ R parallel_sum(const T0& D0, const R& input, const F& func) {
 
 template <typename T0, typename T1, typename R, typename F>
 R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range2d<T0, T1>(0, D0, 0, D1),
         input,
@@ -309,7 +310,7 @@ R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 }
 template <typename T0, typename T1, typename T2, typename R, typename F>
 R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     return _TBB_REDUCE_FUNC(
         tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
         input,
@@ -439,7 +440,7 @@ void for_1d(const int& ithr, const int& nthr, const T0& D0, const F& func) {
 
 template <typename T0, typename F>
 void parallel_for(const T0& D0, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -489,7 +490,7 @@ void for_2d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename F>
 void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -522,7 +523,7 @@ void parallel_for2d(const T0& D0, const T1& D1, const F& func) {
 
 template <typename T0, typename T1, typename F>
 void parallel_for2d_dynamic(const T0& D0, const T1& D1, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     tbb::parallel_for(tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), [=](const tbb::blocked_range2d<T0, T1>& r) {
         for (T0 d0 = r.rows().begin(); d0 < r.rows().end(); d0++) {
             for (T1 d1 = r.cols().begin(); d1 < r.cols().end(); d1++) {
@@ -557,7 +558,7 @@ void for_3d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -590,7 +591,7 @@ void parallel_for3d(const T0& D0, const T1& D1, const T2& D2, const F& func) {
 
 template <typename T0, typename T1, typename T2, typename F>
 void parallel_for3d_dynamic(const T0& D0, const T1& D1, const T2& D2, const F& func) {
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     tbb::parallel_for(tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2),
                       [=](const tbb::blocked_range3d<T0, T1, T2>& r) {
                           for (T0 d0 = r.pages().begin(); d0 < r.pages().end(); d0++) {
@@ -629,7 +630,7 @@ void for_4d(const int& ithr, const int& nthr, const T0& D0, const T1& D1, const 
 
 template <typename T0, typename T1, typename T2, typename T3, typename F>
 void parallel_for4d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -689,7 +690,7 @@ void for_5d(const int& ithr,
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename F>
 void parallel_for5d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
@@ -751,7 +752,7 @@ void for_6d(const int& ithr,
 
 template <typename T0, typename T1, typename T2, typename T3, typename T4, typename T5, typename F>
 void parallel_for6d(const T0& D0, const T1& D1, const T2& D2, const T3& D3, const T4& D4, const T5& D5, const F& func) {
-#if OV_THREAD == OV_THREAD_TBB
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
     auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
     int nthr = parallel_get_max_threads();
     if (static_cast<size_t>(nthr) > work_amount)
