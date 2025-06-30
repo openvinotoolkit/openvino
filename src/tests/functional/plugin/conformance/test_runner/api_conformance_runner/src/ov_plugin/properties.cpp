@@ -3,7 +3,7 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "ov_api_conformance_helpers.hpp"
 

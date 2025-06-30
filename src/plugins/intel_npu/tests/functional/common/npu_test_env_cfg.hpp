@@ -9,7 +9,7 @@
 #include <openvino/runtime/device_id_parser.hpp>
 #include <string>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
 using namespace ov::test::behavior;

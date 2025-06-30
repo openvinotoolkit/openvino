@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <base/ov_behavior_test_utils.hpp>
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #include "common/npu_test_env_cfg.hpp"
 #include "openvino/core/except.hpp"

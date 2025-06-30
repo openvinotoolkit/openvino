@@ -7,7 +7,6 @@
 #include "openvino/op/util/op_types.hpp"
 #include "common_test_utils/type_ranges.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 #include "openvino/op/concat.hpp"
 #include "openvino/op/relu.hpp"
