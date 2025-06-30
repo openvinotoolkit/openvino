@@ -472,6 +472,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     // Run host-side quantized gather, if required
     if (comp_model_desc.quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(comp_model_desc.quant_unpack_gather.idx_idx != -1 && comp_model_desc.quant_unpack_gather.src_w_idx != -1);
+
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
         const auto lookup = request->get_tensor(lport);
 
@@ -489,8 +491,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         // Gather weight
         ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(gatherw));
 
-        if (comp_model_desc.quant_unpack_gather.src_w_idx != -1 &&
-            comp_model_desc.quant_unpack_gather.src_z_idx != -1 &&
+        if (comp_model_desc.quant_unpack_gather.src_z_idx != -1 &&
             comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
             const auto& zport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_z_idx];
             const auto& vocabz = request->get_tensor(zport);
@@ -514,8 +515,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
                                    ov::get_tensor_impl(gatherz),
                                    ov::get_tensor_impl(gathers),
                                    gather);
-        } else if (comp_model_desc.quant_unpack_gather.src_w_idx != -1 &&
-                   comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
+        } else if (comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
             const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_s_idx];
             const auto& vocabs = request->get_tensor(sport);
 

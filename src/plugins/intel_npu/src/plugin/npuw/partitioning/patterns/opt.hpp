@@ -61,7 +61,7 @@ struct Context {
     PPtr host_gather(PPtr w, PPtr ids);
 
     struct QuantizedGather {
-        // New param -> pair <orig params, tmp params to gather into>
+        // New param -> orig params
         std::map<PPtr, DQUnpack> params_to_runtime_unpack_gather;
         PPtr pids;
     };
