@@ -647,8 +647,10 @@ int get_model_prefer_threads(const int num_streams,
         std::cout << "total_gemms = " << networkToleranceForLowCache.total_gemms << std::endl;
         std::cout << "total_convs = " << networkToleranceForLowCache.total_convs << std::endl;
         std::cout << "total_adds = " << networkToleranceForLowCache.total_adds << std::endl;
-        std::cout << "total_light_convs = " << networkToleranceForLowCache.total_light_convs << std::endl;
+        std::cout << "total_light_convs_1 = " << networkToleranceForLowCache.total_light_convs_1 << std::endl;
+        std::cout << "total_light_convs_2 = " << networkToleranceForLowCache.total_light_convs_2 << std::endl;
         std::cout << "total_light_gemms = " << networkToleranceForLowCache.total_light_gemms << std::endl;
+        std::cout << "total_loops = " << networkToleranceForLowCache.total_loops << std::endl;
         std::cout << "total_nodes = " << networkToleranceForLowCache.total_nodes << std::endl;
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
@@ -705,7 +707,11 @@ int get_model_prefer_threads(const int num_streams,
                             proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
                         if (config.tbbPartitioner == ov::intel_cpu::TbbPartitioner::DEFAULT) {
                             config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::AUTO;
-                            if (networkToleranceForLowCache.total_nodes == 0) {
+                            if (networkToleranceForLowCache.ratio_mem_limited_convs == 0 &&
+                                networkToleranceForLowCache.total_loops > 0) {
+                                config.modelPreferThreads = proc_type_table[0][MAIN_CORE_PROC];
+                                config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+                            } else if (networkToleranceForLowCache.total_nodes == 0) {
                                 config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
                             } else if (networkToleranceForLowCache.total_convs == 0) {
                                 if (static_cast<float>(networkToleranceForLowCache.total_light_gemms) /
@@ -713,7 +719,15 @@ int get_model_prefer_threads(const int num_streams,
                                     0.7) {
                                     config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
                                 }
-                            } else if (static_cast<float>(networkToleranceForLowCache.total_light_convs) /
+                            } else if (networkToleranceForLowCache.ratio_mem_limited_convs == 0 &&
+                                       (networkToleranceForLowCache.ratio_compute_convs < 0.03 ||
+                                        networkToleranceForLowCache.ratio_mem_limited_adds == 0) &&
+                                       (static_cast<float>(networkToleranceForLowCache.total_light_convs_2) /
+                                            networkToleranceForLowCache.total_convs >
+                                        0.4)) {
+                                config.modelPreferThreads = proc_type_table[0][MAIN_CORE_PROC];
+                                config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;
+                            } else if (static_cast<float>(networkToleranceForLowCache.total_light_convs_1) /
                                            networkToleranceForLowCache.total_convs >
                                        0.6) {
                                 config.tbbPartitioner = ov::intel_cpu::TbbPartitioner::STATIC;

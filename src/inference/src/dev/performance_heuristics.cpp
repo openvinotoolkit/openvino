@@ -13,9 +13,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                                                       const ov::element::Type& target_type) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0, total_adds = 0, mem_limited_adds = 0,
-        total_nodes = 0, total_light_convs = 0, total_light_gemms = 0;
+        total_loops = 0, total_nodes = 0, total_light_convs_1 = 0, total_light_convs_2 = 0, total_light_gemms = 0;
 
-    constexpr int light_convs_threshold = 16777216;
+    constexpr int light_convs_threshold_1 = 16777216;
+    constexpr int light_convs_threshold_2 = 8388608;
     constexpr int light_gemms_threshold = 131072;
 
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
@@ -36,7 +37,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
         total_nodes++;
 
         if (std::strcmp("MatMul", node_name) && std::strcmp("Convolution", node_name) &&
-            std::strcmp("Add", node_name) && std::strcmp("ConvolutionBackpropData", node_name)) {
+            std::strcmp("Add", node_name) && std::strcmp("Loop", node_name) &&
+            std::strcmp("ConvolutionBackpropData", node_name)) {
             if (!std::strcmp("GRUSequence", node_name) || !std::strcmp("TensorIterator", node_name)) {
                 MemBandwidthPressure res;
                 res.max_mem_tolerance = MemBandwidthPressure::UNKNOWN;
@@ -96,8 +98,11 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 for (size_t n = 1; n < shapeInput1.size(); n++) {
                     conv_indicator = conv_indicator * shapeInput1[n];
                 }
-                if (conv_indicator < light_convs_threshold) {
-                    total_light_convs++;
+                if (conv_indicator < light_convs_threshold_1) {
+                    total_light_convs_1++;
+                }
+                if (conv_indicator < light_convs_threshold_2) {
+                    total_light_convs_2++;
                 }
             }
 
@@ -162,6 +167,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_adds += factor < mem_threshold_assume_limited;
             }
+        } else if (!std::strcmp("Loop", node_name)) {
+            total_loops++;
         }
     }
     MemBandwidthPressure res;
@@ -175,8 +182,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
     res.total_gemms = total_gemms;
     res.total_convs = total_convs;
     res.total_adds = total_adds;
-    res.total_light_convs = total_light_convs;
+    res.total_light_convs_1 = total_light_convs_1;
+    res.total_light_convs_2 = total_light_convs_2;
     res.total_light_gemms = total_light_gemms;
+    res.total_loops = total_loops;
     res.total_nodes = total_nodes;
     return res;
 }
