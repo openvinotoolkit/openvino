@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "intel_npu/common/filtered_config.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -51,6 +52,8 @@ public:
      * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
      */
     virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
+
+    virtual FilteredConfig get_config() const = 0;
 
     virtual ~MetadataBase() = default;
 
@@ -174,7 +177,9 @@ struct Metadata : public MetadataBase {};
 template <>
 class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
-    Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
+    Metadata(uint64_t blobSize,
+             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
+             FilteredConfig config = FilteredConfig(std::make_shared<const OptionsDesc>()));
 
     void read(std::istream& tensor) override;
 
@@ -204,6 +209,7 @@ public:
      */
     bool is_compatible() override;
 
+<<<<<<< HEAD
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
 protected:
@@ -236,6 +242,11 @@ public:
 
 private:
     std::optional<std::vector<uint64_t>> _initSizes;
+=======
+    uint64_t get_blob_size() const override;
+
+    FilteredConfig get_config() const override;
+>>>>>>> 480327a830 (Add `Plugin::parse(tensor, metadata)` function for both `import_model(istream&, ...)` and `import_model(ov::Tensor, ...)`)
 };
 
 /**
@@ -244,7 +255,7 @@ private:
  * @return Unique pointer to the created MetadataBase object if the major version is supported; otherwise, returns
  * 'nullptr'.
  */
-std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize);
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize, FilteredConfig config);
 
 /**
  * @brief Reads metadata from a blob (istream).
@@ -252,7 +263,9 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
-std::unique_ptr<MetadataBase> read_metadata_from(std::istream& tensor);
+std::unique_ptr<MetadataBase> read_metadata_from(
+    std::istream& tensor,
+    FilteredConfig config = FilteredConfig(std::make_shared<const OptionsDesc>()));
 
 /**
  * @brief Reads metadata from a blob (ov::Tensor).
@@ -260,6 +273,8 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& tensor);
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
-std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
+std::unique_ptr<MetadataBase> read_metadata_from(
+    const ov::Tensor& tensor,
+    FilteredConfig config = FilteredConfig(std::make_shared<const OptionsDesc>()));
 
 }  // namespace intel_npu
