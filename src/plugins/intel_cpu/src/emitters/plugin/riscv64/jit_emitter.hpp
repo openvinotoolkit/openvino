@@ -11,7 +11,6 @@
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "snippets/generator.hpp"
-#include "snippets/snippets_isa.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 

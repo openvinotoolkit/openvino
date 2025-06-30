@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include <string>
+
+#include "openvino/core/rtti.hpp"
 #include "serialize_base.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface SerializeControlFlow
@@ -29,7 +29,4 @@ private:
     const bool m_update_dynamic_ops = false;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
