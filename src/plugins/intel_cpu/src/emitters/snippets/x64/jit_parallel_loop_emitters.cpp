@@ -23,7 +23,6 @@
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "emitters/snippets/x64/utils.hpp"
 #include "emitters/utils.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
@@ -35,6 +34,46 @@ using namespace Xbyak;
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
+
+// TODO: unify with jit_loop_emitters
+namespace {
+class jit_aux_gpr_holder {
+public:
+    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator* host,
+                       std::vector<size_t>& pool_gpr_idxs,
+                       const std::vector<size_t>& used_gpr_idxs)
+        : m_h(host),
+          m_pool_gpr_idxs(pool_gpr_idxs) {
+        // If the pool is empty, let's manualy allocate the gpr and push original vlaue on stack
+        if (m_pool_gpr_idxs.empty()) {
+            m_aux_gpr_idx = ov::intel_cpu::utils::get_aux_gpr(used_gpr_idxs);
+            m_is_preserved = true;
+            m_h->push(m_aux_gpr_idx);
+        } else {
+            m_aux_gpr_idx = Reg64(static_cast<int>(m_pool_gpr_idxs.back()));
+            m_pool_gpr_idxs.pop_back();
+        }
+    }
+
+    ~jit_aux_gpr_holder() {
+        if (m_is_preserved) {
+            m_h->pop(m_aux_gpr_idx);
+        } else {
+            m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
+        }
+    }
+
+    [[nodiscard]] const Reg64& get_reg() const {
+        return m_aux_gpr_idx;
+    }
+
+private:
+    dnnl::impl::cpu::x64::jit_generator* m_h;
+    std::vector<size_t>& m_pool_gpr_idxs;
+    Reg64 m_aux_gpr_idx;
+    bool m_is_preserved = false;
+};
+}  // namespace
 
 jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
                                                                cpu_isa_t isa,
@@ -63,7 +102,7 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
     wa_increment = loop_end->get_increment();
     is_incremented = loop_end->get_is_incremented();
     evaluate_once = loop_end->get_evaluate_once();
-    loop_id = loop_end->get_id();
+    loop_id_offset = loop_end->get_id() * sizeof(jit_snippets_call_args::loop_args_t);
 
     const auto& ptr_increments = loop_end->get_ptr_increments();
     const auto& fin_offsets = loop_end->get_finalization_offsets();
@@ -77,19 +116,20 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
                      return snippets::utils::is_dynamic_value(x);
                  });
 
-    // If the loop is static, we can initialize loop_args with the known values already at compilation stage.
-    // In case of dynamic loop, loop_args from jit_snippets_call_args will be used
-    if (!is_dynamic) {
-        loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(), ptr_increments, fin_offsets);
+    // We initialize loop_args with the known values already at compilation stage.
+    // In case of static loop, only these loop_args will be used.
+    // In case of dynamic loop, loop_args from jit_snippets_call_args will be used for dynamic values.
+    loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(), ptr_increments, fin_offsets);
+    const auto& data_sizes = loop_end->get_element_type_sizes();
+    for (int64_t i = 0; i < loop_args.m_num_data_ptrs; ++i) {
         // Note: behavior is aligned with runtime configurator:
         // data_sizes and increment are already taken into account in the offsets
-        const auto& data_sizes = loop_end->get_element_type_sizes();
-        for (int64_t i = 0; i < loop_args.m_num_data_ptrs; ++i) {
+        if (!ov::snippets::utils::is_dynamic_value(loop_args.m_ptr_increments[i])) {
             loop_args.m_ptr_increments[i] *= (wa_increment * data_sizes[i]);
+        }
+        if (!ov::snippets::utils::is_dynamic_value(loop_args.m_finalization_offsets[i])) {
             loop_args.m_finalization_offsets[i] *= data_sizes[i];
         }
-    } else {
-        OPENVINO_THROW("Dynamic parallel loop begin is not supported yet");
     }
 
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
@@ -116,6 +156,7 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator* 
     m_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(wa_increment));
     // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory
     // pointers if they do, we need to spill them before the call and restore in the multithread section
+    // Update: we must anyway do that, since some emitters use abi_param1 to get runtime information from call_args
 }
 
 void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in,
@@ -172,7 +213,9 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
 
     const auto& aux_reg = get_call_address_reg();
     if (is_dynamic) {
-        OPENVINO_THROW("dynamic parallel loop begin is not supported yet");
+        h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(loop_args)]);
+        h->lea(aux_reg, h->ptr[aux_reg + loop_id_offset]);
+        push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
     } else {
         h->mov(aux_reg, reinterpret_cast<uintptr_t>(&loop_args));
         push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
@@ -291,13 +334,30 @@ void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in
 
 void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                               [[maybe_unused]] const std::vector<size_t>& out) const {
-    for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
-        OPENVINO_ASSERT(!is_dynamic, "dynamic parallel loop end is not supported yet");
-        const auto& ptr_increment = loop_args.m_ptr_increments[idx];
-        if (is_incremented[idx] && ptr_increment != 0) {
-            // TODO: take increment from call_args in case of dynamic loop
-            h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), ptr_increment);
+    Reg64 reg_increments;
+    auto add_increments = [&]() {
+        for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
+            const auto& increment = loop_args.m_ptr_increments[idx];
+            if (is_incremented[idx] && increment != 0) {
+                if (ov::snippets::utils::is_dynamic_value(increment)) {
+                    OV_CPU_JIT_EMITTER_ASSERT(is_dynamic, "Loop argument structure cannot be pushed to aux GPR");
+                    h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])),
+                            h->ptr[reg_increments + idx * sizeof(int64_t)]);
+                } else {
+                    h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment);
+                }
+            }
         }
+    };
+
+    if (is_dynamic) {
+        jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);
+        reg_increments = gpr_holder.get_reg();
+        h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
+        h->mov(reg_increments, h->ptr[reg_increments + loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments)]);
+        add_increments();
+    } else {
+        add_increments();
     }
 
     auto reg_work_amount = Reg64(in.back());
