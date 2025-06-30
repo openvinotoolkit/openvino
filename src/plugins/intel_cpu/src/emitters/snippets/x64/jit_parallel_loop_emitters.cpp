@@ -21,6 +21,7 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
+#include "emitters/snippets/x64/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
@@ -162,8 +163,11 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     // Spill before parallel for => we'll need them to update data ptrs afterwards
     h->sub(h->rsp, reserved_stack_size);
 
+    auto push_reg_on_stack = [&](Reg64 reg, size_t offset) {
+        utils::push_ptr_with_static_offset_on_stack(h, offset, reg);
+    };
     for (auto i : mem_ptr_regs_idxs) {
-        h->mov(h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)], Reg64(i));
+        push_reg_on_stack(Reg64(i), call_args_size + i * sizeof(uintptr_t*));
     }
 
     const auto& aux_reg = get_call_address_reg();
@@ -171,14 +175,12 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
         OPENVINO_THROW("dynamic parallel loop begin is not supported yet");
     } else {
         h->mov(aux_reg, reinterpret_cast<uintptr_t>(&loop_args));
-        // TODO: use helper push_ptr_with_static_offset_on_stack and push_ptr_with_runtime_offset_on_stack
-        // here and below
-        h->mov(h->qword[h->rsp + GET_OFF_PARALLEL_LOOP_ARGS(loop_args)], aux_reg);
+        push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
     }
     h->mov(aux_reg, *loop_preamble_label);
-    h->mov(h->qword[h->rsp + GET_OFF_PARALLEL_LOOP_ARGS(preamble_ptr)], aux_reg);
+    push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(preamble_ptr));
     h->lea(aux_reg, h->qword[h->rsp + call_args_size]);
-    h->mov(h->qword[h->rsp + GET_OFF_PARALLEL_LOOP_ARGS(mem_ptrs)], aux_reg);
+    push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(mem_ptrs));
 
     h->mov(aux_reg, reinterpret_cast<uintptr_t>(ParallelLoopExecutor::execute));
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_executor.get()));
