@@ -68,9 +68,10 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
             inputDescriptor.precision,
             inputDescriptor.shapeFromIRModel.has_value() ? *inputDescriptor.shapeFromIRModel
                                                          : inputDescriptor.shapeFromCompiler);
+
         parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
         parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
-        parameters.push_back(parameter);
+        parameters.push_back(std::move(parameter));
     }
 
     // The "result" nodes require a parent node in order to satisfy the API conventions. Additionally, a dummy shape for
@@ -86,14 +87,14 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         std::shared_ptr<ov::Node> constantDummy =
             std::make_shared<ov::op::v0::Constant>(outputDescriptor.precision, CONSTANT_NODE_DUMMY_SHAPE);
 
-        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
-            std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
-                                                     outputDescriptor.shapeFromCompiler,
-                                                     outputDescriptor.outputTensorNames);
+        const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy = std::make_shared<ov::descriptor::Tensor>(
+            outputDescriptor.precision,
+            outputDescriptor.shapeFromIRModel.has_value() ? *outputDescriptor.shapeFromIRModel
+                                                          : outputDescriptor.shapeFromCompiler,
+            outputDescriptor.outputTensorNames);
 
         auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
-
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
 
