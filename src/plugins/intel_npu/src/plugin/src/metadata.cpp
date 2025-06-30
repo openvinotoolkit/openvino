@@ -32,6 +32,12 @@ OpenvinoVersion::OpenvinoVersion(const OpenvinoVersion& version)
       _minor(version.get_minor()),
       _patch(version.get_patch()) {}
 
+void OpenvinoVersion::read(std::istream& stream) {
+    stream.read(reinterpret_cast<char*>(&_major), sizeof(_major));
+    stream.read(reinterpret_cast<char*>(&_minor), sizeof(_minor));
+    stream.read(reinterpret_cast<char*>(&_patch), sizeof(_patch));
+}
+
 void OpenvinoVersion::read(const ov::Tensor& tensor) {
     _major = *reinterpret_cast<const decltype(_major)*>(tensor.data<const char>());
     _minor = *reinterpret_cast<const decltype(_minor)*>(tensor.data<const char>() + sizeof(_major));
@@ -56,6 +62,10 @@ Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
     : Metadata<METADATA_VERSION_2_0>{blobSize, ovVersion},
       _initSizes{initSizes} {
     _version = METADATA_VERSION_2_1;
+}
+
+void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
+    _ovVersion.read(stream);
 }
 
 void Metadata<METADATA_VERSION_2_0>::read(const ov::Tensor& tensor) {
@@ -153,6 +163,48 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
     }
 
     return streamEnd - streamStart;
+}
+
+std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
+    size_t magicBytesSize = MAGIC_BYTES.size();
+    std::string blobMagicBytes;
+    blobMagicBytes.resize(magicBytesSize);
+
+    std::streampos currentStreamPos = stream.tellg(), streamSize = MetadataBase::getFileSize(stream);
+    stream.seekg(streamSize - std::streampos(magicBytesSize), std::ios::cur);
+    stream.read(blobMagicBytes.data(), magicBytesSize);
+    if (MAGIC_BYTES != blobMagicBytes) {
+        OPENVINO_THROW("Blob is missing NPU metadata!");
+    }
+
+    uint64_t blobDataSize;
+    stream.seekg(-std::streampos(magicBytesSize) - sizeof(blobDataSize), std::ios::cur);
+    stream.read(reinterpret_cast<char*>(&blobDataSize), sizeof(blobDataSize));
+    stream.seekg(-stream.tellg() + currentStreamPos + blobDataSize, std::ios::cur);
+
+    uint32_t metaVersion;
+    stream.read(reinterpret_cast<char*>(&metaVersion), sizeof(metaVersion));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    try {
+        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta->read(stream);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what(),
+                       "Imported blob metadata version: ",
+                       MetadataBase::get_major(metaVersion),
+                       ".",
+                       MetadataBase::get_minor(metaVersion),
+                       " but the current version is: ",
+                       CURRENT_METADATA_MAJOR_VERSION,
+                       ".",
+                       CURRENT_METADATA_MINOR_VERSION);
+    } catch (...) {
+        OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
+    }
+    stream.seekg(-stream.tellg() + currentStreamPos, std::ios::cur);
+
+    return storedMeta;
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
