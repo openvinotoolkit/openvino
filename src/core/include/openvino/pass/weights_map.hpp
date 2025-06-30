@@ -38,12 +38,18 @@ public:
         m_offsetConstMapVector.push_back(pair);
     }
 
-    void get_weights(int64_t offset, WeightsVariant& weights) const {
+    bool get_weights(int64_t offset, WeightsVariant& weights) const {
         auto it = m_offsetConstMap.find(offset);
         if (it != m_offsetConstMap.end()) {
             weights = it->second;
+            return true;
         } else {
-            throw std::runtime_error("Weights not found for the given offset");
+            std::cout << "Weights not found for the given offset" << std::endl;
+            for (const auto& pair : m_offsetConstMap) {
+                std::cout << "key: " << pair.first << " ";  // pair.first 是键
+            }
+            std::cout << std::endl << "all key dumped!" << std::endl;
+            return false;
         }
     }
 
