@@ -67,6 +67,7 @@ struct ReduceImplementationManager : public ImplementationManager {
         static const std::vector<format::type> supported_formats = {
             format::any,
             format::bfyx,
+            format::byxf,
             format::bfzyx,
             format::bfwzyx,
             format::b_fs_yx_fsv16,
@@ -110,10 +111,6 @@ struct ReduceImplementationManager : public ImplementationManager {
         if (out_layout == in_layout) {
             return false;
         }
-
-        // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
-        if (format::is_simple_data_format(in_layout.format))
-            return false;
 
         // Onednn reduction does NOT support reordering of unreduced-axes.
         // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
