@@ -305,14 +305,14 @@ jobs:
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
+          name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Install python dependencies - 2
