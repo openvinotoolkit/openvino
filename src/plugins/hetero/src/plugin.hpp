@@ -65,7 +65,7 @@ private:
     void get_device_memory_map(const std::vector<std::string>& device_names,
                                std::map<std::string, size_t>& device_mem_map) const;
 
-    std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> query_model_update(
+    std::tuple<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo, std::shared_ptr<ov::Model>> query_model_update(
         std::shared_ptr<ov::Model>& model,
         const ov::AnyMap& properties,
         bool allow_exception = false) const;

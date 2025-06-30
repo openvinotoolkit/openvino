@@ -185,7 +185,7 @@ void ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& d
     }
 }
 
-std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plugin::query_model_update(
+std::tuple<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo, std::shared_ptr<ov::Model>> ov::hetero::Plugin::query_model_update(
     std::shared_ptr<ov::Model>& model,
     const ov::AnyMap& properties,
     bool allow_exception) const {
@@ -242,25 +242,25 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 // Estimate the memory size required for the model is 1.2 * total_ops_size
                 // 1. Check if current device that can take the entire model
                 // 2. Check if all left devices can take the entire model
-                if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
-                    device_config[ov::internal::query_model_ratio.name()] = 1.0f;
-                } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
-                           available_device_mem_map.count("CPU")) {
-                    float model_ratio =
-                        total_ops_size > 0
-                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
-                            : 1.0f;
-                    if (total_ops_size < available_device_mem_map[device_name]) {
-                        model_ratio = 1.0f;
-                    }
-                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
-                } else {
-                    float model_ratio = available_discrete_device_memory > 0
-                                            ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
-                                                                 available_discrete_device_memory)
-                                            : 1.0f;
-                    device_config[ov::internal::query_model_ratio.name()] = model_ratio;
-                }
+                // if (available_device_mem_map[device_name] >= 1.2 * total_ops_size || device_name.find("CPU") == 0) {
+                //     device_config[ov::internal::query_model_ratio.name()] = 1.0f;
+                // } else if (available_discrete_device_memory >= 1.2 * total_ops_size ||
+                //            available_device_mem_map.count("CPU")) {
+                //     float model_ratio =
+                //         total_ops_size > 0
+                //             ? static_cast<float>(available_device_mem_map[device_name] * 1.0 / (1.2 * total_ops_size))
+                //             : 1.0f;
+                //     if (total_ops_size < available_device_mem_map[device_name]) {
+                //         model_ratio = 1.0f;
+                //     }
+                //     device_config[ov::internal::query_model_ratio.name()] = model_ratio;
+                // } else {
+                //     float model_ratio = available_discrete_device_memory > 0
+                //                             ? static_cast<float>(available_device_mem_map[device_name] * 1.0 /
+                //                                                  available_discrete_device_memory)
+                //                             : 1.0f;
+                    device_config[ov::internal::query_model_ratio.name()] = 0.5f;
+                // }
                 // Remove the current device
                 available_device_mem_map.erase(device_name);
             }
@@ -282,26 +282,62 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         }
     }
     model->add_results(new_outputs);
+    auto are_all_same_gpu_type = [&](const std::vector<std::string>& device_names) -> bool {
+        if (device_names.empty()) return true;
+        try {
+            const auto& ref = device_names[0];
+            if (ref.find("GPU") != 0) return false;
+
+            const auto ref_arch = get_core()->get_property(ref, ov::device::architecture);
+            const auto ref_name = get_core()->get_property(ref, ov::device::full_name);
+
+            for (size_t i = 1; i < device_names.size(); ++i) {
+                const auto& dev = device_names[i];
+                if (dev.find("GPU") != 0) return false;
+
+                if (get_core()->get_property(dev, ov::device::architecture) != ref_arch ||
+                    get_core()->get_property(dev, ov::device::full_name) != ref_name) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (...) {
+            return false;
+        }
+    };
+    auto tranfored_model = model;
+    bool transformed = false;
+    if (are_all_same_gpu_type(device_names)) {
+        auto& device_config1 = properties_per_device.at("GPU.0");
+        std::cout << "start get_transformed_model\n";
+        tranfored_model = get_core()->get_transformed_model(model, "GPU.0", device_config1);
+        std::cout << "get_transformed_model\n";
+        transformed = true;
+    }
+
     for (const auto& device_name : device_names) {
         // If there are some unsupported operations and it is a last device
         // exception should be raised when allowed
         bool fallback_device = (device_name == device_names.back());
         const auto& default_device = (!allow_exception || !fallback_device) ? get_device_name() : "";
         auto& device_config = properties_per_device.at(device_name);
-        if (!has_subgraph_ops(model)) {
+        if (transformed) {
+            device_config[ov::internal::disable_transformation.name()] = true;
+        }
+        if (!has_subgraph_ops(tranfored_model)) {
             if (hetero_query_model_by_device)
-                update_config(device_config, model, device_name, fallback_device);
-            query_results[device_name] = get_core()->query_model(model, device_name, device_config);
+                update_config(device_config, tranfored_model, device_name, fallback_device);
+            query_results[device_name] = get_core()->query_model(tranfored_model, device_name, device_config);
             update_supported_ops(supported_ops_temp, query_results[device_name]);
             update_supported_ops(supported_ops_final, query_results[device_name]);
-            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
+            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(tranfored_model,
                                                                    supported_ops_temp,
                                                                    m_cfg.dump_dot_files(),
                                                                    default_device);
         } else {
             // Mask supported nodes and left nodes to Subgraph in graph, and query model use subgraph, keep the
             // model in query_model same as compile
-            auto temp_model = model->clone();
+            auto temp_model = tranfored_model->clone();
             update_supported_ops(supported_ops_temp_1, supported_ops_temp);
             for (auto&& node : temp_model->get_ops()) {
                 supported_ops_temp_1.emplace(node->get_friendly_name(), "HETERO-TEMP");
@@ -320,13 +356,13 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                     }
                 }
             }
-            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
+            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(tranfored_model,
                                                                    supported_ops_temp,
                                                                    m_cfg.dump_dot_files(),
                                                                    default_device);
         }
     }
-    return {supported_ops_final, mapping_info};
+    return {supported_ops_final, mapping_info, tranfored_model};
 }
 
 ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
@@ -337,7 +373,7 @@ ov::SupportedOpsMap ov::hetero::Plugin::query_model(const std::shared_ptr<const 
 
     std::shared_ptr<ov::Model> query_model = model->clone();
 
-    return query_model_update(query_model, properties).first;
+    return std::get<0>(query_model_update(query_model, properties));
 }
 
 void ov::hetero::Plugin::set_property(const ov::AnyMap& properties) {
