@@ -117,6 +117,8 @@ function(ov_add_plugin)
                 if(RISCV64)
                     list(APPEND clang_tidy_options "--extra-arg-before=-march=rv64gcv1p0_zfh")
                     list(APPEND clang_tidy_options "--extra-arg-before=-mabi=lp64d")
+                    list(APPEND clang_tidy_options "--extra-arg-before=-Xclang")
+                    list(APPEND clang_tidy_options "--extra-arg-before=-fnative-half-type")
                 endif()
                 set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
                     CXX_CLANG_TIDY "${CLANG_TIDY};${clang_tidy_options}")
