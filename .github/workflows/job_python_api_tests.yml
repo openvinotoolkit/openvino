@@ -99,7 +99,7 @@ jobs:
         uses: ./.github/actions/install_poetry
              
       - name: Install OpenVINO wheel
-        run: poetry poetry run pip install --no-deps ${{ steps.ov_wheel.outputs.wheel_path }}
+        run: poetry run pip install --no-deps ${{ steps.ov_wheel.outputs.wheel_path }}
         
       - name: Install Test dependencies
         run: poetry install --with tests

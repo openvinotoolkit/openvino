@@ -51,8 +51,8 @@ sympy = { version = ">=1.8.0,<=1.14.0", markers = "platform_machine == 'arm64'" 
 optional = true
 
 [tool.poetry.group.torch.dependencies]
-torch = { version = ">=1.8.0,<=2.7.0", source = "pytorch-cpu" }
-torchvision = "<=0.22.1"
+torch = { version = "<3.0.0", source = "pytorch-cpu" }
+torchvision = { version = "<=0.22.1", source = "pytorch-cpu" }
 
 [tool.poetry.group.tensorflow]
 optional = true
