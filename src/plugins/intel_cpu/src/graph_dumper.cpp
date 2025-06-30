@@ -422,8 +422,7 @@ void average_counters(const Graph& graph) {
         const auto realTime = cpuTime;
 
         file << node->getName() << ";" << status << ";" << node->getTypeStr() << ";"
-             << node->getPrimitiveDescriptorType() << ";" << realTime << ";" << cpuTime << ";"
-             << "\n";
+             << node->getPrimitiveDescriptorType() << ";" << realTime << ";" << cpuTime << ";" << "\n";
 
         return avg;
     };
@@ -438,8 +437,7 @@ void average_counters(const Graph& graph) {
 
     const auto totalMs = toMs(total);
 
-    file << "Total;;;;" << totalMs << ";" << totalMs << ";"
-         << "\n";
+    file << "Total;;;;" << totalMs << ";" << totalMs << ";\n";
 
     file.close();
 }

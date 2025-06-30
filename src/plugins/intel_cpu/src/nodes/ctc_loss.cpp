@@ -171,7 +171,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 logProbabilities[ll].resize(decodedTargetLen);
             }
         }  // for batch
-    };     // threadBody_1
+    };  // threadBody_1
 
     parallel_nt(threads_num, threadBody_1);
     if (returnCode != 0) {
@@ -235,7 +235,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             }
             sT = 0LU;
         }  // for batch
-    };     // threadBody_2
+    };  // threadBody_2
 
     parallel_nt(0, threadBody_2);
 
@@ -300,7 +300,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
 
             dstData[b] = -sumLogs(logBwd[0][0], logBwd[1][0]);
         }  // for batch
-    };     // threadBody_3
+    };  // threadBody_3
 
     parallel_nt(0, threadBody_3);
 }

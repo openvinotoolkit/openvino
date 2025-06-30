@@ -563,8 +563,7 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
                 stream << "layerType: ";
                 if (it.node_type.length() >= maxPrintLength) {
                     stream << std::setw(maxPrintLength) << std::left
-                           << it.node_type.substr(0, maxPrintLength - 3) + "..."
-                           << " ";
+                           << it.node_type.substr(0, maxPrintLength - 3) + "..." << " ";
                 } else {
                     stream << std::setw(maxPrintLength) << std::left << it.node_type << " ";
                 }

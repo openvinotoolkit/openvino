@@ -40,8 +40,7 @@ const size_t CPURuntimeConfigurator::rank6D = 6;
 std::string CPURuntimeConfig::to_string() const {
     std::stringstream out;
     out << RuntimeConfig::to_string();
-    out << "Loop Parameters:"
-        << "\n";
+    out << "Loop Parameters:\n";
     for (size_t i = 0; i < loop_args.size(); ++i) {
         const auto& loop = loop_args[i];
         out << "\t[" << i << "] WA: " << loop.m_work_amount << "\n";

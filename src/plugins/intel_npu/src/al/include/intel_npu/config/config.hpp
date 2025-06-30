@@ -33,11 +33,15 @@ struct TypePrinter {
     static constexpr const char* name();
 };
 
-#define TYPE_PRINTER(type)                                    \
-    template <>                                               \
-    struct TypePrinter<type> {                                \
-        static constexpr bool hasName() { return true; }      \
-        static constexpr const char* name() { return #type; } \
+#define TYPE_PRINTER(type)                    \
+    template <>                               \
+    struct TypePrinter<type> {                \
+        static constexpr bool hasName() {     \
+            return true;                      \
+        }                                     \
+        static constexpr const char* name() { \
+            return #type;                     \
+        }                                     \
     };
 
 TYPE_PRINTER(bool)

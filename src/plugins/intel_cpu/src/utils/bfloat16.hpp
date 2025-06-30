@@ -22,19 +22,20 @@ namespace ov::intel_cpu {
 class bfloat16_t {
 public:
     bfloat16_t() = default;
-    bfloat16_t(float value) noexcept : m_value {
+    bfloat16_t(float value) noexcept
+        : m_value{
 #if defined BFLOAT16_ROUND_MODE_TO_NEAREST
-        round_to_nearest(value)
+              round_to_nearest(value)
 #elif defined BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN
-        round_to_nearest_even(value)
+              round_to_nearest_even(value)
 #elif defined BFLOAT16_ROUND_MODE_TRUNCATE
-        truncate(value)
+              truncate(value)
 #else
 #    error \
         "ROUNDING_MODE must be one of BFLOAT16_ROUND_MODE_TO_NEAREST, BFLOAT16_ROUND_MODE_TO_NEAREST_EVEN, or BFLOAT16_ROUND_MODE_TRUNCATE"
 #endif
+          } {
     }
-    {}
 
     operator float() const {
         auto bits = static_cast<uint32_t>(m_value) << 16;

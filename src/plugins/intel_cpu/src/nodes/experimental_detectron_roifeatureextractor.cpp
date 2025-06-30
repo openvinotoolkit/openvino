@@ -223,8 +223,8 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
 
                     top_data[index] = output_val;
                 }  // for pw
-            }      // for ph
-        }          // for c
+            }  // for ph
+        }  // for c
     });
 }
 

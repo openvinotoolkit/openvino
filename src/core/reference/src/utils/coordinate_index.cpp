@@ -14,7 +14,7 @@ std::size_t coordinate_index(const Coordinate& c, const Shape& s) {
     }
     std::size_t index = 0;
     std::size_t stride = 1;
-    std::size_t const padding = c.size() - s.size();
+    const std::size_t padding = c.size() - s.size();
 
     for (std::size_t axis = s.size(); axis-- > 0;) {
         if (s[axis] > 1) {

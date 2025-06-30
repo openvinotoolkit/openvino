@@ -459,8 +459,7 @@ public:
             }
 
             if constexpr (max_num_to_print > 1) {
-                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed"
-                          << "\n";
+                std::cout << i << " of " << incorrect_values_abs.size() << " incorrect elements printed" << "\n";
             }
 
             throw std::runtime_error(msg);

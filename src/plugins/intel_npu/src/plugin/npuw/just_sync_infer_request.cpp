@@ -373,8 +373,8 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
         const auto& subm_idx_from = kvp.second.first;
         const auto& port_idx_from = kvp.second.second;
 
-        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> "
-                              << "Subgraph[" << subm_idx_to << "]/" << port_idx_to);
+        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> " << "Subgraph[" << subm_idx_to << "]/"
+                              << port_idx_to);
         LOG_BLOCK();
 
         if (subm[subm_idx_from].replaced_by && subm[subm_idx_to].replaced_by) {
