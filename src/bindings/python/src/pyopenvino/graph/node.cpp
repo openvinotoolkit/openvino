@@ -512,14 +512,14 @@ void regclass_graph_Node(py::module m) {
             self.get_rt_info()[key.cast<std::string>()] = Common::utils::py_object_to_any(obj);
         },
         py::arg("obj"),
-        py::arg("key"),
+        py::arg("path"),
         R"(
                 Add value inside runtime info
 
                 :param obj: value for the runtime info
                 :type obj: Any
-                :param key: String which defines a key to runtime info dictionary.
-                :type key: str
+                :param path: String which defines a path to runtime info dictionary.
+                :type path: str
              )");
 
     node.def("set_argument", &ov::Node::set_argument);
