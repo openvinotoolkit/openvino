@@ -35,12 +35,12 @@ jobs:
     name: Python API tests
     if: ${{ fromJSON(inputs.affected-components).Python_API.test || fromJSON(inputs.affected-components).docs_snippets.test }}
     timeout-minutes: 30
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ inputs.runner }} 
     container:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
-        - ${{ github.workspace }}:${{ github.workspace }}
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
         shell: bash
@@ -55,12 +55,6 @@ jobs:
           pattern: openvino_@(wheels|tests)
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/openvino_tests" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
