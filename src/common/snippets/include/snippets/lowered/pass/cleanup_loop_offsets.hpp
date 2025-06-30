@@ -4,12 +4,11 @@
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface CleanupLoopOffsets
@@ -26,7 +25,4 @@ public:
              lowered::LinearIR::constExprIt end) override;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

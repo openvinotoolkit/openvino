@@ -5,14 +5,22 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface RegSpillBase
@@ -55,7 +63,7 @@ public:
 
 protected:
     void validate_and_infer_types_except_RegSpillEnd();
-    std::set<Reg> m_regs_to_spill = {};
+    std::set<Reg> m_regs_to_spill;
 };
 /**
  * @interface RegSpillEnd
@@ -81,6 +89,4 @@ public:
     }
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op
