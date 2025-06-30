@@ -11,23 +11,23 @@
 namespace ov {
 namespace util {
 
-const LogDispatch::Callback LogDispatch::default_callback{[](std::string_view s) {
+LogDispatch::Callback LogDispatch::default_callback{[](std::string_view s) {
     std::cout << s << std::endl;
 }};
-LogDispatch::Callback LogDispatch::current_callback = default_callback;
+LogDispatch::Callback* LogDispatch::current_callback = &default_callback;
 
-LogDispatch::Callback LogDispatch::get_callback() {
+LogDispatch::Callback* LogDispatch::get_callback() {
     return current_callback;
 }
 
-void LogDispatch::set_callback(Callback f) {
-    current_callback = std::move(f);
+void LogDispatch::set_callback(Callback* f) {
+    current_callback = f;
 }
 void LogDispatch::reset_callback() {
-    current_callback = default_callback;
+    current_callback = &default_callback;
 }
 
-OPENVINO_API LogDispatch::Callback get_log_callback() {
+OPENVINO_API LogDispatch::Callback* get_log_callback() {
     return LogDispatch::get_callback();
 }
 

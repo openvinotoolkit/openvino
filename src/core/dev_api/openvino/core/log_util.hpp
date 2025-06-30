@@ -19,13 +19,13 @@ class OPENVINO_API LogDispatch {
 public:
     using Callback = std::function<void(std::string_view)>;
 
-    static Callback get_callback();
-    static void set_callback(Callback);
+    static Callback* get_callback();
+    static void set_callback(Callback*);
     static void reset_callback();
 
 private:
-    static const Callback default_callback;
-    static Callback current_callback;
+    static Callback default_callback;
+    static Callback* current_callback;
 };
 
 /** @brief To be used by ov::util::LogHelper only.
@@ -34,7 +34,7 @@ private:
  * function is provided, but no declaration in Core headers.
  */
 OPENVINO_DEPRECATED("For ov::util::LogHelper usage only, till its dependency is resolved.")
-OPENVINO_API LogDispatch::Callback get_log_callback();
+OPENVINO_API LogDispatch::Callback* get_log_callback();
 
 #ifdef ENABLE_OPENVINO_DEBUG
 
