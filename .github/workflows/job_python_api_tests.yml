@@ -47,7 +47,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/openvino_tests
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     steps:
       
       # checkout action cleans up the workspace and have to be the first step
