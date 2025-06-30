@@ -24,8 +24,8 @@ public:
      * later be used for importing the model.
      *
      * @param stream Where the content is placed
-     * @return A pair made of the size of the main binary object and the an optional variable. The optional variable
-     * constitues the size of each init binary object if weights separation is in use.
+     * @return A pair made of the size of the main binary object and an optional variable. The optional variable
+     * constitues the size of each init binary object if weights separation is enabled.
      */
     virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const = 0;
 

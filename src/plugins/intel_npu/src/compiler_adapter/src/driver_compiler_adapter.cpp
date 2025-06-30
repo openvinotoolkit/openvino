@@ -153,9 +153,17 @@ bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
 }
 
 /**
- * @brief TODO
+ * @brief Stores the information within the "WeightlessCacheAttribute" as runtime fields that persist upon
+ * serialization.
+ * @details Constant nodes (weights) may contain as medatadata the "WeightlessCacheAttribute", that is information
+ * regarding the offset of the weights within the binary file, as well as the original size and precision. This
+ * information is required within the "weights separation" flow, therefore this function is here to store it.
+ * @note Not calling this function in the weights separation flow would lead to this information being lost upon
+ * serialization. The "WeightlessCacheAttribute" information that is populated upon de-serialization would represent
+ * metadata corresponding to the serialized stream, not the original weights file. Therefore the compiler would be
+ * misinformed and lookups of weights offsets could fail.
  *
- * @param model
+ * @param model Both source and target.
  */
 void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
     size_t constantId = 0;
@@ -279,6 +287,20 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
 
+    const std::string serializedIOInfo = serializeIOInfo(model, useIndices);
+    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (plgConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *plgConfig;
+
+    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
+    const auto set_cache_dir = config.get<CACHE_DIR>();
+    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
+        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+    }
+
     // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
     // the current call iteration.
     std::vector<NetworkMetadata> initNetworkMetadata;
@@ -287,30 +309,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     ze_graph_handle_t mainGraphHandle;
     size_t callNumber = 0;
 
+    // Convention: run until the main schedule has been returned.
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
-
-        const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
-        if (plgConfig == nullptr) {
-            OPENVINO_THROW("config is not FilteredConfig");
-        }
-
-        FilteredConfig updatedConfig = *plgConfig;
         updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
 
         _logger.debug("build flags");
-        buildFlags = serializeIOInfo(model, useIndices);
+        buildFlags = serializedIOInfo;
         buildFlags += " ";
         buildFlags += serializeConfig(updatedConfig, compilerVersion);
-
-        _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
-
-        // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-        uint32_t flags = ZE_GRAPH_FLAG_NONE;
-        const auto set_cache_dir = config.get<CACHE_DIR>();
-        if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
-            flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
-        }
 
         _logger.debug("compile start");
         ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(serializedIR, buildFlags, flags);

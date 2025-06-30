@@ -14,11 +14,18 @@ public:
                                             const Config& config) const = 0;
 
     /**
-     * @brief TODO
+     * @brief Compiles the model, weights separation enabled.
+     * @details The result of compilation will be a binary object that does not contain a significant portion of
+     * weights. The binary object will include two types of schedules: weights initialization and the operations of the
+     * main graph. In order to run inference on this weightless blob, the original weights will need to be provided as
+     * inputs to the weights initialization schedule. Running this will output the processed weights, that can then be
+     * fed to the main schedule and therefore enable it to run predictions.
      *
-     * @param model
-     * @param config
-     * @return std::shared_ptr<IGraph>
+     * @param model The model that will be compiled.
+     * @param config Will be passed to the compiler. Additionally, the "SEPARATE_WEIGHTS_VERSION" option will determine
+     * which weights separation implementation will be used. See the weights separation specific methods within
+     * "icompiler.hpp".
+     * @return A "WeightlessGraph" type of object.
      */
     virtual std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model, const Config& config) const = 0;
 
