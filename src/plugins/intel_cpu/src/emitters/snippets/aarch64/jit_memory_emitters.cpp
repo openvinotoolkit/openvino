@@ -57,7 +57,6 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h,
         compiled_byte_offset = memory_access->get_output_offset();
         buffer_cluster_id = get_consumer_buffer_cluster_id(expr);
     } else {
-        std::cout << "in_out_type: " << in_out_type_ << std::endl;
         OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
     }
 
@@ -71,7 +70,7 @@ jit_memory_emitter::jit_memory_emitter(jit_generator* h,
 }
 
 size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_input_port_connectors().size() == 1, "MemoryAccess must have one parent");
+    OV_CPU_JIT_EMITTER_ASSERT(expr->get_input_count() == 1, "MemoryAccess must have one parent");
     const auto& parent_expr = expr->get_input_port_connector(0)->get_source().get_expr();
     if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(parent_expr)) {
         return buffer->get_cluster_id();
@@ -80,7 +79,7 @@ size_t jit_memory_emitter::get_parent_buffer_cluster_id(const ov::snippets::lowe
 }
 
 size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr) {
-    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_port_connectors().size() == 1, "MemoryAccess must have one consumer");
+    OV_CPU_JIT_EMITTER_ASSERT(expr->get_output_count() == 1, "MemoryAccess must have one output");
     const auto& consumers = expr->get_output_port_connector(0)->get_consumers();
     for (const auto& consumer : consumers) {
         if (const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(consumer.get_expr())) {

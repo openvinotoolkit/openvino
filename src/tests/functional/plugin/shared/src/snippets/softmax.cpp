@@ -114,9 +114,7 @@ void SoftmaxAdd::SetUp() {
     auto f = ov::test::snippets::AddSoftmaxFunction(inputDynamicShapes, axis);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Softmax, CompareWithRefImpl) {
