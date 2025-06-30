@@ -56,7 +56,7 @@
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
-#else
+#elif !defined(OPENVINO_ARCH_RISCV64)
 #    include "cache/cache_entry.h"
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "emitters/snippets/x64/cpu_generator.hpp"
