@@ -37,7 +37,7 @@ jobs:
     timeout-minutes: 30
     runs-on: ${{ inputs.runner }}
     container:
-      image: ${{ fromJSON(inputs.image) }}
+      image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
         - ${{ github.workspace }}:${{ github.workspace }}
