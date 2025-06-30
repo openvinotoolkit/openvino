@@ -23,10 +23,10 @@ struct PoolingAttrs {
     bool exclude_pad = false;
     bool auto_pad = false;
 
-    op::PadType pad_type;
-    Algorithm algorithm;
+    op::PadType pad_type = op::PadType::EXPLICIT;
+    Algorithm algorithm = Algorithm::PoolingMax;
 
-    op::RoundingType rounding;
+    op::RoundingType rounding = op::RoundingType::FLOOR;
 
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> kernel;

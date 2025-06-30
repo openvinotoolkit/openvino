@@ -1272,5 +1272,114 @@ std::string RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName(const testing::Te
     return result.str();
 }
 
+std::shared_ptr<ov::Model> RoPETestChatGLMHF::buildROPE_ChatGLMHF(int seq_length, int num_heads, int rotary_ndims, ov::element::Type element_type) {
+    auto input = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{seq_length, 1, 4096});
+    auto cos = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{seq_length, 1, 1, (rotary_ndims / 2)});
+    auto sin = std::make_shared<ov::opset1::Parameter>(element_type, PartialShape{seq_length, 1, 1, (rotary_ndims / 2)});
+
+    auto transpose = makeOP<ov::opset1::Reshape>({input, {-1, num_heads, 1, 128}}, {{"special_zero", false}});
+    auto slice_1 = makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, 0}, {0, 0, 0, rotary_ndims}, {1, 1, 1, 1}},
+                                                    {{"begin_mask", {1, 1, 1, 0}},
+                                                     {"end_mask", {1, 1, 1, 0}},
+                                                     {"new_axis_mask", {}},
+                                                     {"shrink_axis_mask", {}},
+                                                     {"ellipsis_mask", {}}});
+
+    std::vector<int32_t> rpi_idx(rotary_ndims, 1);
+    int32_t v = 0;
+    for (size_t i = 0; i < rpi_idx.size(); i += 2, v++) {
+        rpi_idx[i] = v;
+        rpi_idx[i + 1] = v;
+    }
+    auto repeat_interleave_index = makeConst(ov::element::i32, ov::Shape({static_cast<size_t>(rotary_ndims)}), rpi_idx);
+    auto repeat_interleave_cos = makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
+    auto repeat_interleave_sin = makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
+
+    auto multiply = makeOP<ov::opset1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
+    auto slice_2 = makeOP<ov::opset1::StridedSlice>({slice_1, {0, 0, 0, 1}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
+                                                    {{"begin_mask", {1, 1, 1, 0}},
+                                                     {"end_mask", {1, 1, 1, 0}},
+                                                     {"new_axis_mask", {}},
+                                                     {"shrink_axis_mask", {}},
+                                                     {"ellipsis_mask", {}}});
+    auto minus_one = makeConst(element_type, ov::Shape({}), {-1.0f});
+    auto neg = makeOP<ov::opset1::Multiply>({slice_2, minus_one}, {{"auto_broadcast", "numpy"}});
+    auto unsqueeze_1 = makeOP<ov::opset1::Reshape>({neg, {-1, num_heads, 1, (rotary_ndims / 2), 1}}, {{"special_zero", false}});
+    auto slice_3 = makeOP<ov::opset1::StridedSlice>({slice_1, {0, 0, 0, 0}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
+                                                    {{"begin_mask", {1, 1, 1, 0}},
+                                                     {"end_mask", {1, 1, 1, 0}},
+                                                     {"new_axis_mask", {}},
+                                                     {"shrink_axis_mask", {}},
+                                                     {"ellipsis_mask", {}}});
+    auto unsqueeze_2 = makeOP<ov::opset1::Reshape>({slice_3, {-1, num_heads, 1, (rotary_ndims / 2), 1}}, {{"special_zero", false}});
+    auto stack = makeOP<ov::opset1::Concat>({unsqueeze_1, unsqueeze_2}, {{"axis", -1}});
+    auto flatten = makeOP<ov::opset1::Reshape>({stack, {0, num_heads, 0, rotary_ndims}}, {{"special_zero", true}});
+    auto multiply_1 = makeOP<ov::opset1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
+    auto add = makeOP<ov::opset1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
+
+    auto slice_5 = makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, rotary_ndims}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
+                                                    {{"begin_mask", {1, 1, 1, 0}},
+                                                     {"end_mask", {1, 1, 1, 0}},
+                                                     {"new_axis_mask", {}},
+                                                     {"shrink_axis_mask", {}},
+                                                     {"ellipsis_mask", {}}});
+    auto concat = makeOP<ov::opset1::Concat>({add, slice_5}, {{"axis", -1}});
+    return std::make_shared<ov::Model>(ov::OutputVector{concat},
+                                       ov::ParameterVector{input, cos, sin});
+}
+
+void RoPETestChatGLMHF::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    const auto& funcInputs = function->inputs();
+
+    auto& input_shape = targetInputStaticShapes[0];
+    auto seq_length = input_shape[0];
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = -1;
+    in_data.range = 2;
+    in_data.resolution = 32768;
+
+    auto cos_data = in_data;
+    cos_data.seed = 10;
+
+    auto sin_data = in_data;
+    sin_data.seed = 20;
+
+    ov::Tensor t_input = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], in_data);
+    ov::Tensor t_cos = utils::create_and_fill_tensor(funcInputs[1].get_element_type(), targetInputStaticShapes[1], cos_data);
+    ov::Tensor t_sin = utils::create_and_fill_tensor(funcInputs[2].get_element_type(), targetInputStaticShapes[2], sin_data);
+
+    inputs.clear();
+    inputs.insert({funcInputs[0].get_node_shared_ptr(), t_input});
+    inputs.insert({funcInputs[1].get_node_shared_ptr(), t_cos});
+    inputs.insert({funcInputs[2].get_node_shared_ptr(), t_sin});
+}
+
+void RoPETestChatGLMHF::SetUp() {
+    ov::element::Type element_type;
+    std::tie(element_type, targetDevice) = this->GetParam();
+
+    const int seq_length = 7;
+    const int num_heads = 32;
+    const int rotary_ndims = 64;
+
+    std::vector<InputShape> input_shapes = {
+        {{-1, 1, 4096}, {{seq_length, 1, 4096}}},
+        {{-1, 1, 1, (rotary_ndims / 2)}, {{seq_length, 1, 1, (rotary_ndims / 2)}}},
+        {{-1, 1, 1, (rotary_ndims / 2)}, {{seq_length, 1, 1, (rotary_ndims / 2)}}}
+    };
+    init_input_shapes(input_shapes);
+    function = buildROPE_ChatGLMHF(-1, num_heads, rotary_ndims, element_type);
+}
+
+std::string RoPETestChatGLMHF::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
+    ov::element::Type element_type;
+    std::string targetDevice;
+    std::tie(element_type, targetDevice) = obj.param;
+    std::ostringstream result;
+    result << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string();
+    return result.str();
+}
+
 }  // namespace test
 }  // namespace ov

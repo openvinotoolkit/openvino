@@ -4,16 +4,23 @@
 
 #include "snippets/lowered/pass/insert_loops.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "openvino/core/type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/loop.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
@@ -61,10 +68,11 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
 
     std::set<size_t> inserted_loops;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto expr = *expr_it;
+        const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type_any_of<op::LoopBase, ov::op::v0::Parameter, ov::op::v0::Result>(node))
+        if (ov::is_type_any_of<op::LoopBase, ov::op::v0::Parameter, ov::op::v0::Result>(node)) {
             continue;
+        }
 
         // Outer Loop ----> Inner Loop
         const auto& expr_loops = expr->get_loop_ids();
@@ -81,7 +89,4 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
     return true;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
