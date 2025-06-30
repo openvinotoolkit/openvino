@@ -25,11 +25,6 @@ dependencies = [
 [tool.poetry]
 package-mode = false
 
-[[tool.poetry.source]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "supplemental"
-
 [tool.poetry.group.tests]
 optional = true
 
@@ -47,28 +42,21 @@ pillow = ">=6.2.0,<=11.2.1"
 defusedxml = ">=0.5.0,<=0.7.1"
 sympy = { version = ">=1.8.0,<=1.14.0", markers = "platform_machine == 'arm64'" }
 
-[tool.poetry.group.torch]
-optional = true
-
-[tool.poetry.group.torch.dependencies]
-torch = { version = ">=1.8.0,<=2.7.0", source = "pytorch-cpu" }
-torchvision = "<=0.22.1"
-
 [tool.poetry.group.tensorflow]
 optional = true
 
 [tool.poetry.group.tensorflow.dependencies]
 h5py = ">=2.10.0,<=3.13.0"
-tensorflow = ">=2.4.0,<=2.16.0"
+tensorflow = ">=2.4.0,<=2.19.0"
 tensorflow-addons = { version = "<=0.23.0", markers = "python_version <= '3.10'" }
 
 [tool.poetry.group.onnx]
 optional = true
 
 [tool.poetry.group.onnx.dependencies]
-protobuf = ">=3.20.0,<=4.25.0"
+protobuf = ">=3.20.0,<=6.31.1"
 docopt = "<=0.6.2"
-onnx = ">=1.8.0,<=1.15.0"
+onnx = ">=1.8.0,<=1.18.0"
 onnxruntime = [
     { version = ">=1.8.0,<=1.19.2", markers = "python_version <= '3.9'" },
     { version = ">=1.8.0", markers = "python_version >= '3.10'" }
@@ -80,6 +68,13 @@ optional = true
 [tool.poetry.group.paddle.dependencies]
 protobuf = ">=3.20.0,<=4.25.0"
 paddlepaddle = ">=2.4.0,<=2.6.0"
+
+[tool.poetry.group.torch]
+optional = true
+
+[tool.poetry.group.torch.dependencies]
+torch = { version = "<=2.7.1" }
+torchvision = { version = "<=0.22.1" }
 
 [tool.poetry.group.build]
 optional = true
@@ -133,6 +128,11 @@ pyright = "<=1.1.401"
 mypy = "<=1.12.0"
 pylint = "<=3.3.7"
 pyenchant = "<=3.2.2"
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
 
 [build-system]
 requires = [
