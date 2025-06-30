@@ -74,17 +74,19 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
                         supported_precision_intersection.end(),
                         [&prc, &src_prc](const std::vector<element::Type>& precisions) {
                             return (std::find(precisions.begin(), precisions.end(), prc) != precisions.end()) &&
-                                   (src_prc[0] == prc);
+                                   (std::find(src_prc, src_prc + sizeof(src_prc), prc) != src_prc + sizeof(src_prc));
                         })) {
             exec_prc = prc;
             break;
         }
     }
 
-    for (size_t i = 0; i < inputs_number; i++) {
-        if (src_prc[i] != exec_prc) {
-            exec_prc = ov::element::f32;
-            break;
+    if (Algorithm::EltwiseSelect != eltwise_data.front().algo || exec_prc == ov::element::dynamic) {
+        for (size_t i = 0; i < inputs_number; i++) {
+            if (src_prc[i] != exec_prc) {
+                exec_prc = ov::element::f32;
+                break;
+            }
         }
     }
 
