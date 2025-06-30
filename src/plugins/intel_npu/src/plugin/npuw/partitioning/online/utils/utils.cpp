@@ -251,8 +251,7 @@ std::vector<std::string> ov::npuw::online::util::getNoFolds(const std::string& n
         LOG_INFO("Online partitioning will mark specified tags as non-foldable.");
     } else {
         LOG_WARN("Incorect pattern in NPUW_ONLINE_NO_FOLD!"
-                 << " Please, follow the example: "
-                 << "compute,compute2. "
+                 << " Please, follow the example: " << "compute,compute2. "
                  << "No non-fold rules will be taken into account during partitioning!");
     }
 
