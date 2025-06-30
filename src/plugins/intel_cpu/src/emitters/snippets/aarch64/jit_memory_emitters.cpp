@@ -102,6 +102,11 @@ jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa
     load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset);
 }
 
+size_t jit_memory_emitter::get_aux_gprs_count() const {
+    // for runtime arguments
+    return is_offset_runtime ? 1 : 0;
+}
+
 void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         if (is_offset_runtime) {

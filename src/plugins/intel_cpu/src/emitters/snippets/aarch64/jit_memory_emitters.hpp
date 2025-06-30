@@ -24,6 +24,8 @@ public:
                        const ov::snippets::lowered::ExpressionPtr& expr,
                        emitter_in_out_map in_out_type);
 
+    size_t get_aux_gprs_count() const override;
+
 protected:
     static size_t get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
     static size_t get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
