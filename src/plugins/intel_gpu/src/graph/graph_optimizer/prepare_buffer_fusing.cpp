@@ -493,20 +493,15 @@ bool crop_in_place_optimization::match(const program_node& node,
         // TODO: Modify gemm_tiled_opt kernel to support padding even in static shape.
         if ((!node.is_dynamic() || is_runtime) && user->is_type<gemm>() &&
             (user->get_dependency_index(node) == 0 || user->get_dependency_index(node) == 1)) {
-            if (crop_params.input_offsets[0].feature[0] != 0 ||
-                crop_params.input_offsets[0].spatial[0] != 0 ||
-                crop_params.input_offsets[0].spatial[1] != 0) {
-                return false;
-            }
             auto output_layout = node.get_output_layout();
-            if (output_layout.is_static()) {
-                const auto offsets = crop_params.input_offsets[0];
-                const auto& crop_size = output_layout.get_tensor();
-                if ((input_layout.feature() - offsets.feature[0] - crop_size.feature[0]) != 0 ||
-                    (input_layout.spatial(0) - offsets.spatial[0] - crop_size.spatial[0]) != 0 ||
-                    (input_layout.spatial(1) - offsets.spatial[1] - crop_size.spatial[1]) != 0) {
-                    return false;
-                }
+            const auto offsets = crop_params.input_offsets[0];
+            const auto& crop_size = output_layout.get_tensor();
+            if ((offsets.feature[0] != 0 || offsets.spatial[0] != 0 || offsets.spatial[1] != 0) ||
+                (output_layout.is_static() &&
+                ((input_layout.feature() - offsets.feature[0] - crop_size.feature[0]) != 0 ||
+                (input_layout.spatial(0) - offsets.spatial[0] - crop_size.spatial[0]) != 0 ||
+                (input_layout.spatial(1) - offsets.spatial[1] - crop_size.spatial[1]) != 0))) {
+                return false;
             }
         }
         if (user->is_type<reshape>()) {

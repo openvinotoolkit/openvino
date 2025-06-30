@@ -709,7 +709,7 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
         ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
-TEST(prepare_buffer_fusing, in_place_crop_static_padding_and_gemm) {
+TEST(prepare_buffer_fusing, disable_crop_buffer_fusing_with_shift_right_padding) {
     auto& engine = get_test_engine();
 
     auto gemm_input_mem = engine.allocate_memory({ {1, 4, 4, 2}, data_types::f32, format::bfyx });
