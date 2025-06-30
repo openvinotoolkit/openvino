@@ -342,7 +342,7 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                 if (ov::snippets::utils::is_dynamic_value(increment)) {
                     OV_CPU_JIT_EMITTER_ASSERT(is_dynamic, "Loop argument structure cannot be pushed to aux GPR");
                     h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])),
-                            h->ptr[reg_increments + idx * sizeof(int64_t)]);
+                           h->ptr[reg_increments + idx * sizeof(int64_t)]);
                 } else {
                     h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment);
                 }
