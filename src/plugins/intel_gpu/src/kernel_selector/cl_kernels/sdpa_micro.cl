@@ -466,7 +466,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_hbroadcast_min(&S_tile, k_mask);
 #endif
 
-#if WITH_CAUSAL_MASK
+#if IS_CAUSAL
 #define greater_than(offset_k, offset_q) (offset_k > offset_q)
         /* Apply causal mask */
         tile_predicated_assignment_t(S_tile, k0 + sg_i0_kq, wg_j0 + sg_j0_kq,

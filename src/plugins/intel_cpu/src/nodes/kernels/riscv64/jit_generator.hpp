@@ -12,9 +12,13 @@ namespace ov {
 namespace intel_cpu {
 namespace riscv64 {
 
-#define DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_name)             \
-    const char* name() const override { return #jit_name; } \
-    const char* source_file() const override { return __FILE__; }
+#define DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_name) \
+    const char* name() const override {         \
+        return #jit_name;                       \
+    }                                           \
+    const char* source_file() const override {  \
+        return __FILE__;                        \
+    }
 
 // RISCV-64 specific registers mapping
 // reg    | ABI Name | descripion             | saved by

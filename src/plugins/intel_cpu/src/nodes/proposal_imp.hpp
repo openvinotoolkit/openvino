@@ -9,28 +9,28 @@
 namespace ov::Extensions::Cpu {
 
 struct proposal_conf {
-    size_t feat_stride_;
-    size_t base_size_;
-    size_t min_size_;
-    int pre_nms_topn_;
-    int post_nms_topn_;
-    float nms_thresh_;
-    float box_coordinate_scale_;
-    float box_size_scale_;
+    size_t feat_stride_ = 0UL;
+    size_t base_size_ = 0UL;
+    size_t min_size_ = 0UL;
+    int pre_nms_topn_ = 0;
+    int post_nms_topn_ = 0;
+    float nms_thresh_ = 0.0F;
+    float box_coordinate_scale_ = 0.0F;
+    float box_size_scale_ = 0.0F;
     std::vector<float> scales;
     std::vector<float> ratios;
-    bool normalize_;
+    bool normalize_ = false;
 
-    size_t anchors_shape_0;
+    size_t anchors_shape_0 = 0UL;
 
     // Framework specific parameters
-    float coordinates_offset;
-    bool swap_xy;
-    bool initial_clip;     // clip initial bounding boxes
-    bool clip_before_nms;  // clip bounding boxes before nms step
-    bool clip_after_nms;   // clip bounding boxes after nms step
-    bool round_ratios;     // round ratios during anchors generation stage
-    bool shift_anchors;    // shift anchors by half size of the box
+    float coordinates_offset = 0.0F;
+    bool swap_xy = false;
+    bool initial_clip = false;     // clip initial bounding boxes
+    bool clip_before_nms = false;  // clip bounding boxes before nms step
+    bool clip_after_nms = false;   // clip bounding boxes after nms step
+    bool round_ratios = false;     // round ratios during anchors generation stage
+    bool shift_anchors = false;    // shift anchors by half size of the box
 };
 
 namespace XARCH {

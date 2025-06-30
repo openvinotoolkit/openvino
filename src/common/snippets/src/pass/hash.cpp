@@ -4,23 +4,38 @@
 
 #include "snippets/pass/hash.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <functional>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
+#include "openvino/core/any.hpp"
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/runtime_attribute.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/framework_node.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 // helper
 namespace {
@@ -42,7 +57,7 @@ struct Edge {
     int to_port = 0;
 };
 
-enum class AttrType {
+enum class AttrType : uint8_t {
     layers,
     layer,
     id,
@@ -68,22 +83,22 @@ enum class AttrType {
     size
 };
 
-template <typename T, typename std::enable_if<!std::is_enum<T>::value, int>::type = 0>
-static uint64_t hash_combine(uint64_t seed, const T& v) {
+template <typename T, std::enable_if_t<!std::is_enum_v<T>, int> = 0>
+uint64_t hash_combine(uint64_t seed, const T& v) {
     // Hash combine formula from boost
     return seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-template <typename T, typename std::enable_if<std::is_enum<T>::value, int>::type = 0>
-static uint64_t hash_combine(uint64_t seed, const T& v) {
-    using underlying_t = typename std::underlying_type<T>::type;
+template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+uint64_t hash_combine(uint64_t seed, const T& v) {
+    using underlying_t = std::underlying_type_t<T>;
     return hash_combine(seed, static_cast<underlying_t>(v));
 }
 
 namespace rt_info {
 
 // some node attr is not type of ov::RuntimeAttribute, need dedicate visitor.
-static const std::vector<std::string> list_of_names{
+const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
     "alt_width",
 };
@@ -115,7 +130,7 @@ public:
     RTInfoHasher(uint64_t& rt_hash) : m_rt_hash(rt_hash) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        if (auto a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
+        if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
             const auto& value = join(a->get());
             m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
         } else {
@@ -164,7 +179,8 @@ public:
         m_rt_hash = hash_combine(hash_combine(m_rt_hash, name), value);
     }
 
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter([[maybe_unused]] const std::string& name,
+                    [[maybe_unused]] ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         OPENVINO_THROW("Model type is unsupported for snippets rt info hash generation");
     }
 };
@@ -195,7 +211,7 @@ public:
                 m_hash = hash_combine(m_hash, AttrType::constant);
                 const int64_t size = a->get()->size();
                 m_hash = hash_combine(hash_combine(m_hash, AttrType::size), size);
-                auto data = static_cast<const char*>(a->get()->get_ptr());
+                const auto* data = static_cast<const char*>(a->get()->get_ptr());
                 for (int64_t i = 0; i < size; i++) {
                     m_hash = hash_combine(m_hash, data[i]);
                 }
@@ -231,7 +247,7 @@ public:
         m_hash = hash_combine(hash_combine(m_hash, name), adapter.get());
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
-        m_hash = hash_combine(hash_combine(m_hash, name), static_cast<long long>(adapter.get()));
+        m_hash = hash_combine(hash_combine(m_hash, name), static_cast<int64_t>(adapter.get()));
     }
     void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         m_hash = hash_combine(hash_combine(m_hash, name), adapter.get());
@@ -251,7 +267,8 @@ public:
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         m_hash = hash_combine(hash_combine(m_hash, name), create_attribute_list(adapter));
     }
-    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter([[maybe_unused]] const std::string& name,
+                    ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         ovfunction_2_hash(m_hash, *adapter.get());
     }
 };
@@ -274,8 +291,8 @@ std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& 
 
         for (const auto& i : node->inputs()) {
             auto source_output = i.get_source_output();
-            auto source_node = source_output.get_node();
-            auto current_node = i.get_node();
+            auto* source_node = source_output.get_node();
+            auto* current_node = i.get_node();
 
             if (layer_ids.find(source_node) == layer_ids.end() || layer_ids.find(current_node) == layer_ids.end()) {
                 OPENVINO_THROW("Failed creat edge map in snippets hash generation");
@@ -295,20 +312,20 @@ std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& 
     return edges;
 }
 
-void hash_rt_info(uint64_t& hash, const std::string& name, const ov::Any& data) {
+void hash_rt_info(uint64_t& hash, const ov::Any& data) {
     if (data.is<std::shared_ptr<ov::Meta>>()) {
-        std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
+        const auto& meta = data.as<std::shared_ptr<ov::Meta>>();
         ov::AnyMap& map = *meta;
         for (const auto& it : map) {
-            hash_rt_info(hash, it.first, it.second);
+            hash_rt_info(hash, it.second);
         }
     } else if (data.is<ov::AnyMap>()) {
-        const ov::AnyMap& any_map = data.as<ov::AnyMap>();
+        const auto& any_map = data.as<ov::AnyMap>();
         for (const auto& it : any_map) {
-            hash_rt_info(hash, it.first, it.second);
+            hash_rt_info(hash, it.second);
         }
     } else {
-        std::string value = data.as<std::string>();
+        const auto& value = data.as<std::string>();
         hash = hash_combine(hash_combine(hash, AttrType::value), value);
     }
 }
@@ -325,8 +342,9 @@ void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
         ov::Node* node = n.get();
         const std::string& node_type_name{node->get_type_name()};
 
-        if (layer_ids.find(node) == layer_ids.end())
+        if (layer_ids.find(node) == layer_ids.end()) {
             OPENVINO_THROW("Failed to find layer's id in snippets hash generation.");
+        }
         // <layers>
         hash = hash_combine(hash, AttrType::layer);
         hash = hash_combine(hash_combine(hash, AttrType::id), layer_ids.find(node)->second);
@@ -390,7 +408,7 @@ void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
     // <edges>
     const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, model);
     hash = hash_combine(hash, AttrType::edges);
-    for (auto& e : edge_mapping) {
+    for (const auto& e : edge_mapping) {
         hash = hash_combine(hash, AttrType::edge);
         hash = hash_combine(hash_combine(hash, AttrType::from_layer), e.from_layer);
         hash = hash_combine(hash_combine(hash, AttrType::from_port), e.from_port);
@@ -401,18 +419,18 @@ void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
     // Serialize rt info
     hash = hash_combine(hash, AttrType::rt_info);
     for (const auto& it : model.get_rt_info()) {
-        hash_rt_info(hash, it.first, it.second);
+        hash_rt_info(hash, it.second);
     }
 }
 
 }  // namespace
 
-bool Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool Hash::run_on_model(const std::shared_ptr<ov::Model>& m) {
     uint64_t seed = 0;
     std::string name = "net";
     SnippetsHasher visitor(seed, name);
-    std::shared_ptr<ov::Model> m(f);  // for complilation error, on_attribute don't accept f
-    visitor.on_attribute(name, m);
+    std::shared_ptr<ov::Model> model(m);  // for complilation error, on_attribute don't accept f
+    visitor.on_attribute(name, model);
     m_hash = seed;
     // Return false because we didn't change OpenVINO Model
     return false;
@@ -420,6 +438,4 @@ bool Hash::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
 Hash::Hash(uint64_t& output_hash_value) : m_hash(output_hash_value) {}
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

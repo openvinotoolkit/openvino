@@ -25,7 +25,7 @@ public:
     ~ShuffleChannels() override = default;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
@@ -33,7 +33,7 @@ public:
 
     void prepareParams() override;
     struct ShuffleChannelsAttributes {
-        LayoutType layoutType;
+        LayoutType layoutType = LayoutType::nspc;
         int dataRank = 0;
         int axis = 0;
         int spatialRank = 0;

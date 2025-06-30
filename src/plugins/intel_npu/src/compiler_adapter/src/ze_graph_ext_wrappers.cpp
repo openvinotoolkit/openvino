@@ -278,7 +278,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
 ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                      const std::string& buildFlags,
                                                      const uint32_t& flags) const {
-    ze_graph_handle_t graphHandle;
+    ze_graph_handle_t graphHandle = nullptr;
     if (NotSupportGraph2(_graphExtVersion)) {
         // For ext version <1.5, calling pfnCreate api in _zeroInitStruct->getGraphDdiTable()
         ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
@@ -317,7 +317,7 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
 }
 
 ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, size_t blobSize) const {
-    ze_graph_handle_t graphHandle;
+    ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
@@ -423,7 +423,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      std::vector<IODescriptor>& inputs,
                                      std::vector<IODescriptor>& outputs) const {
     if (NotSupportArgumentMetadata(_graphExtVersion)) {
-        ze_graph_argument_properties_3_t arg;
+        ze_graph_argument_properties_3_t arg = {};
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
@@ -441,7 +441,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         }
         }
     } else {
-        ze_graph_argument_properties_3_t arg;
+        ze_graph_argument_properties_3_t arg = {};
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, index, &arg);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
@@ -452,7 +452,7 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
             !isInitInputWeightsName(arg.name) && !isInitOutputWeightsName(arg.name) &&
             !isMainInputWeightsName(arg.name)) {
             _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
-            ze_graph_argument_metadata_t metadata;
+            ze_graph_argument_metadata_t metadata = {};
             result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
             THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGraphGetArgumentMetadata", result, _zeroInitStruct->getGraphDdiTable());
 
@@ -475,7 +475,8 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 }
 
 NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle) const {
-    ze_graph_properties_t graphProperties{};
+    ze_graph_properties_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
 
     _logger.debug("getNetworkMeta - perform pfnGetProperties");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(graphHandle, &graphProperties);

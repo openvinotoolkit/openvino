@@ -195,7 +195,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                                         nullptr,
                                                         ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,
                                                         static_cast<int>(reinterpret_cast<intptr_t>(_mem))};
-        ze_host_mem_alloc_desc_t desc = {.pNext = &memory_import};
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, 0};
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeMemAllocHost",
             zeMemAllocHost(_init_structs->getContext(), &desc, bytes, STANDARD_PAGE_SIZE, &_data));
