@@ -36,6 +36,8 @@
 namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
+BrgemmCPU::BrgemmCPU() : m_config(BrgemmConfig{}) {}
+
 BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      BrgemmConfig config,
                      const std::vector<PortDescriptor>& input_descs,

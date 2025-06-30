@@ -116,7 +116,7 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
-static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base_conf, const ov::AnyMap& local_conf) {
+static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
     if (it != local_conf.end()) {
@@ -175,7 +175,7 @@ void Plugin::init_options() {
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
         _options->add<OPT_TYPE>();                            \
-        _globalConfig.enable(o_name, false);                  \
+        _globalConfig.enable(std::move(o_name), false);       \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -228,6 +228,48 @@ void Plugin::init_options() {
 
     // filter out unsupported options
     filter_config_by_compiler_support(_globalConfig);
+
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need to enable those for OV Core to query.
+    // Note: do this last to not filter them out.
+    // register npuw caching properties
+    REGISTER_OPTION(NPU_USE_NPUW);
+    REGISTER_OPTION(NPUW_DEVICES);
+    REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
+    REGISTER_OPTION(NPUW_WEIGHTS_BANK);
+    REGISTER_OPTION(NPUW_WEIGHTS_BANK_ALLOC);
+    REGISTER_OPTION(NPUW_ONLINE_PIPELINE);
+    REGISTER_OPTION(NPUW_ONLINE_AVOID);
+    REGISTER_OPTION(NPUW_ONLINE_ISOLATE);
+    REGISTER_OPTION(NPUW_ONLINE_NO_FOLD);
+    REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
+    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
+    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_FOLD);
+    REGISTER_OPTION(NPUW_CWAI);
+    REGISTER_OPTION(NPUW_DQ);
+    REGISTER_OPTION(NPUW_DQ_FULL);
+    REGISTER_OPTION(NPUW_PMM);
+    REGISTER_OPTION(NPUW_SLICE_OUT);
+    REGISTER_OPTION(NPUW_SPATIAL);
+    REGISTER_OPTION(NPUW_SPATIAL_NWAY);
+    REGISTER_OPTION(NPUW_SPATIAL_DYN);
+    REGISTER_OPTION(NPUW_F16IC);
+    REGISTER_OPTION(NPUW_HOST_GATHER);
+    REGISTER_OPTION(NPUW_DCOFF_TYPE);
+    REGISTER_OPTION(NPUW_DCOFF_SCALE);
+    REGISTER_OPTION(NPUW_FUNCALL_FOR_ALL);
+    REGISTER_OPTION(NPUW_FUNCALL_ASYNC);
+    REGISTER_OPTION(NPUW_UNFOLD_IREQS);
+    REGISTER_OPTION(NPUW_LLM);
+    REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
+    REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
+    REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
+    REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
+    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {

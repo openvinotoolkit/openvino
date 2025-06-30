@@ -1,20 +1,19 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "functional_test_utils/test_model/test_model.hpp"
 
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/wstring_convert_util.hpp"
 
 namespace ov {
 namespace test {
 namespace utils {
-
-void generate_test_model(const std::string& model_path,
-                         const std::string& weights_path,
+void generate_test_model(const std::filesystem::path& model_path,
+                         const std::filesystem::path& weights_path,
                          const ov::element::Type& input_type,
                          const ov::PartialShape& input_shape) {
     ov::pass::Manager manager;

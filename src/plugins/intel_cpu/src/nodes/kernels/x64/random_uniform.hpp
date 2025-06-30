@@ -30,20 +30,20 @@ struct MersenneTwisterGeneratorCompileParams {
 };
 
 struct PhiloxGeneratorCallArgs {
-    void* dst_ptr;
-    const void* key_ptr;
-    const void* counter_ptr;
-    const void* n_ptr;
-    const void* min_ptr;
-    const void* range_ptr;
+    void* dst_ptr = nullptr;
+    const void* key_ptr = nullptr;
+    const void* counter_ptr = nullptr;
+    const void* n_ptr = nullptr;
+    const void* min_ptr = nullptr;
+    const void* range_ptr = nullptr;
     uint64_t work_amount = 0lu;
 };
 
 struct MersenneTwisterGeneratorCallArgs {
-    void* dst_ptr;
-    void* state_ptr;
-    const void* min_ptr;
-    const void* range_ptr;
+    void* dst_ptr = nullptr;
+    void* state_ptr = nullptr;
+    const void* min_ptr = nullptr;
+    const void* range_ptr = nullptr;
     uint64_t output_idx = 0;
     uint64_t max_output_idx = 0;
     uint64_t state_accesses_count = 0lu;
