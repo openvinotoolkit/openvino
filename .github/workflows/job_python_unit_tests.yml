@@ -40,7 +40,7 @@ jobs:
       image: ${{ inputs.image }}
       volumes:
         - /mount:/mount
-        - ${{ github.workspace }}:${{ github.workspace }}
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
         shell: bash
@@ -57,14 +57,6 @@ jobs:
           pattern: openvino_@(wheels|tests)
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          ls -la ${{ env.INSTALL_DIR }}
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
