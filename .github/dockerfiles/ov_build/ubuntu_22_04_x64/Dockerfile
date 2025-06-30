@@ -82,11 +82,10 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Use Python 3.10 as default
-RUN ln -sfv $(which python3.10) /usr/local/bin/python && \
-    ln -sfv $(which python3.10) /usr/local/bin/python3
-RUN ln -sfv $(which pip3.10) /usr/local/bin/pip && \
-    ln -sfv $(which pip3.10) /usr/local/bin/pip3
+# Use Python 3.11 as default
+# Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
