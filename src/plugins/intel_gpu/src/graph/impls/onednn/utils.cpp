@@ -273,7 +273,16 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     }
 }
 
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten, bool use_strides) {
+std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc>
+get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, cldnn::layout output_layout, dnnl::memory::format_tag target_fmt) {
+    bool need_blocked = input_layout.format.is_blocked() || output_layout.format.is_blocked();
+    dnnl::memory::desc input_desc   = layout_to_memory_desc(input_layout, target_fmt, false, false, need_blocked);
+    dnnl::memory::desc weights_desc = layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any, false, false, need_blocked);
+    dnnl::memory::desc output_desc  = layout_to_memory_desc(output_layout, target_fmt, false, false, need_blocked);
+    return {input_desc, weights_desc, output_desc};
+}
+
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten, bool use_strides, bool need_blocked) {
     dnnl::memory::dims dims;
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
@@ -313,8 +322,21 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     } else if (flatten) {
         dims = flatten_tensor(l.get_tensor());
     } else {
-        auto rank = cldnn::format::dimension(l.format);
-        dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
+        // clDNN expresses 3d tensor with 4d format. This code is to use 3d format on oneDNN for such case.
+        // However, if the memory::desc to be converted is related to another blocked format, it should be expanded to a 4d tensor.
+        auto shape_rank = l.is_dynamic() ?
+            static_cast<size_t>(l.get_partial_shape().rank().get_length()) : l.get_shape().size();
+        if (shape_rank == 3 && !need_blocked) {
+            dims.push_back(l.batch());
+            dims.push_back(l.feature());
+            // In cldnn::layer, when it is a 3D shape, the values ​​of the XY axes can sometimes be flipped,
+            // so the larger value of the two is used.
+            dims.push_back(std::max(l.spatial(0), l.spatial(1)));
+            target_fmt = dnnl::memory::format_tag::abc;
+        } else {
+            auto rank = cldnn::format::dimension(l.format);
+            dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
+        }
     }
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
@@ -440,6 +462,20 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
             }
             if (is_match)
                 return static_cast<format::type>(fmt_idx);
+        }
+    }
+
+    if (desc.get_ndims() == 3 && desc.get_inner_nblks() == 0) {
+        // Special case for 3D tensors without blocking
+        // This is a common case for 2D tensors with batch dimension
+        if (compare_orders(order, { {0, 1, 2} })) {
+            return static_cast<format::type>(format::bfyx);
+        } else if (compare_orders(order, { {0, 2, 1} })) {
+            return static_cast<format::type>(format::byxf);
+        } else if (compare_orders(order, { {1, 0, 2} })) {
+            return static_cast<format::type>(format::fbyx);
+        } else if (compare_orders(order, { {1, 2, 0} })) {
+            return static_cast<format::type>(format::fybx);
         }
     }
 

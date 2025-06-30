@@ -37,7 +37,11 @@ dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,
                         dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef,
-                        bool flatten = false, bool use_strides = false);
+                        bool flatten = false, bool use_strides = false, bool need_blocked = false);
+std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
+                                                                 cldnn::layout weights_layout,
+                                                                 cldnn::layout output_layout,
+                                                                 dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);
