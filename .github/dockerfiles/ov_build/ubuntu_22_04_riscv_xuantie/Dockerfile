@@ -88,6 +88,18 @@ RUN dpkg --add-architecture riscv64 && \
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list && \
     apt-get install -y --no-install-recommends libpython3-dev:riscv64
 
+# Install sscache
+ARG SCCACHE_VERSION="v0.7.5"
+ENV SCCACHE_HOME="/opt/sccache" \
+    SCCACHE_PATH="/opt/sccache/sccache"
+
+RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
+    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
+    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
+    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
+
+ENV PATH="$SCCACHE_HOME:$PATH"
+
 # build xuintie toolchain
 ARG XUANTIE_VERSION="V2.8.1"
 ARG XUANTIE_REPO="https://github.com/XUANTIE-RV/xuantie-gnu-toolchain"
