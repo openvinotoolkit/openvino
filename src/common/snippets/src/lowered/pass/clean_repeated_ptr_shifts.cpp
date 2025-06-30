@@ -4,21 +4,28 @@
 
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include <cstddef>
+#include <set>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/op/loop.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop_manager,
                                                       const ExpressionPtr& loop_end_expr) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
-    if (!loop_end)
+    if (!loop_end) {
         return false;
+    }
 
     const auto& loop_connectors = loop_end_expr->get_input_port_connectors();
     const auto input_count = loop_end->get_input_num();
@@ -79,8 +86,9 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
         }
     }
 
-    if (resetting_data_indexes.empty())
+    if (resetting_data_indexes.empty()) {
         return false;
+    }
 
     // TODO [133463]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
     //                To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
@@ -129,7 +137,4 @@ bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
