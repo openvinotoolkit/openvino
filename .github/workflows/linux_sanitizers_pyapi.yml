@@ -35,6 +35,8 @@ env:
   OPENVINO_REPO: /__w/openvino/openvino/openvino
   INSTALL_TEST_DIR: /__w/openvino/openvino/openvino_install/tests/
   INSTALL_DIR: /__w/openvino/openvino/openvino_install
+  PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
+  PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
   TBB_ENABLE_SANITIZERS: 1
   ASAN_OPTIONS: halt_on_error=0:suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
   LSAN_OPTIONS: suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1
@@ -150,6 +152,9 @@ jobs:
                  
       - name: Install python dependencies
         run: |
+          # For tests runner
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
@@ -164,7 +169,14 @@ jobs:
 
           # For running Paddle frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
-  
+
+      - name: Restore tests execution time # ?
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ env.PARALLEL_TEST_CACHE }}
+          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp
       #
       # Build
       #
@@ -251,6 +263,7 @@ jobs:
           name: openvino_tests_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
+
   CXX_Func_Tests:
     # todo: move another plugin's func tests here
     name: C++ func tests
@@ -285,6 +298,12 @@ jobs:
         env:
           SANITIZER_MODE: ${{ inputs.sanitizerMode }}
 
+      # ?? Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
+          echo "PARALLEL_TEST_CACHE=$GITHUB_WORKSPACE/install/tests/test_cache.lst" >> "$GITHUB_ENV"
+  
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -325,15 +344,29 @@ jobs:
       # Tests
       #
 
-      - name: CPU plugin func tests
+      # - name: CPU plugin func tests
+      #   if: ${{ steps.check_matrix.conclusion != 'skipped' }}
+      #   env:
+      #     GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
+      #   run: |
+      #     source ${INSTALL_DIR}/setupvars.sh
+      #     ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
+      #           --gtest_filter=${{ env.GTEST_FILTER }} \
+      #           --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
+      - name: Intel CPU plugin func tests (parallel)
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         env:
           GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
         run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
-                --gtest_filter=${{ env.GTEST_FILTER }} \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
+          # Needed as the Linux CC does not require setupvars to work
+          if [[ -f "${INSTALL_DIR}/setupvars.sh" ]]; then
+            source ${INSTALL_DIR}/setupvars.sh
+          fi
+          # Needed as ze_loader.so is under INSTALL_TEST_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
+
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }}
+        timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 40 }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
