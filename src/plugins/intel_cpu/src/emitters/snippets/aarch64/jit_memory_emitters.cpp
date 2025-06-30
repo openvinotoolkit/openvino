@@ -117,7 +117,7 @@ void jit_load_memory_emitter::emit_isa(const std::vector<size_t>& in, const std:
     if (is_offset_runtime) {
         XReg aux_reg(aux_gpr_idxs.back());
         XReg base_reg(in[0]);
-        XReg reg_runtime_params = XReg(Operand::X0);
+        XReg reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
         // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
         h->ldr(aux_reg,
                ptr(reg_runtime_params,
@@ -167,7 +167,26 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     auto src = XReg(in[0]);
     auto dst = TReg(out[0]);
 
+    if (is_offset_runtime) {
+        XReg aux_reg(aux_gpr_idxs.back());
+        XReg base_reg(src);
+        XReg reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
+        // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
+        h->ldr(aux_reg,
+               ptr(reg_runtime_params,
+                   static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
+        // bump the pointer
+        h->add(base_reg, base_reg, aux_reg);
+    }
+
     h->uni_ld1rw(dst.s, src, compiled_byte_offset);
+
+    if (is_offset_runtime) {
+        XReg aux_reg(aux_gpr_idxs.back());
+        XReg base_reg(src);
+        // subtract back so we leave the pointer unchanged for the caller
+        h->sub(base_reg, base_reg, aux_reg);
+    }
 }
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
@@ -199,7 +218,7 @@ void jit_store_memory_emitter::emit_isa(const std::vector<size_t>& in, const std
         XReg aux_reg(aux_gpr_idxs.back());
         XReg base_reg(out[0]);
         // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
-        XReg reg_runtime_params = XReg(Operand::X0);
+        XReg reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
         h->ldr(aux_reg,
                ptr(reg_runtime_params,
                    static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
