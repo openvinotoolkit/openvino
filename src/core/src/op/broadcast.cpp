@@ -95,12 +95,18 @@ ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
         const auto& arg_shape_dim = arg_shape[i].get_length();
         const auto& target_shape_dim = target_shape[i].get_length();
         NODE_VALIDATION_CHECK(this_ptr,
-                              arg_shape_dim == 1 || target_shape[i] == 1 || arg_shape_dim == target_shape_dim,
+                              arg_shape_dim == 1 || target_shape_dim == 1 || arg_shape_dim == target_shape_dim,
                               "Broadcast incorrect target shape. Expecting either 1 or ",
                               arg_shape_dim,
                               ". Got ",
                               target_shape[i]);
-        result_shape[i] = std::max(arg_shape_dim, target_shape_dim);
+        if (arg_shape_dim == 1) {
+            result_shape[i] = target_shape_dim;
+        } else if (target_shape_dim == 1) {
+            result_shape[i] = arg_shape_dim;
+        } else {
+            result_shape[i] = arg_shape_dim;  // arg_shape_dim == target_shape_dim
+        }
     }
     return result_shape;
 }
