@@ -26,6 +26,45 @@ enum class QueueTypes : int16_t {
     out_of_order
 };
 
+/**
+ * @brief Enum to define possible cache quant schema hints.
+ */
+enum class CacheQuantMode : uint8_t {
+    AUTO,
+    BY_CHANNEL,
+    BY_HIDDEN,
+};
+
+inline std::ostream& operator<<(
+    std::ostream& os, const CacheQuantMode& mode) {
+    switch (mode) {
+        case CacheQuantMode::AUTO: 
+            return os << "AUTO";
+        case CacheQuantMode::BY_CHANNEL:
+            return os << "BY_CHANNEL";
+        case CacheQuantMode::BY_HIDDEN:
+            return os << "BY_HIDDEN";
+        default: OPENVINO_THROW("Unsupported cache quant mode");
+    }
+}
+
+inline std::istream& operator>>(
+    std::istream& is, CacheQuantMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        mode = CacheQuantMode::AUTO;
+    } else if (str == "BY_CHANNEL") {
+        mode = CacheQuantMode::BY_CHANNEL;
+    } else if (str == "BY_HIDDEN") {
+        std::cout << "Its by channel!" << std::endl;
+        mode = CacheQuantMode::BY_HIDDEN;
+    } else {
+        OPENVINO_THROW("Unsupported cache quant mode: ", str);
+    }
+    return is;
+}
+
 inline std::ostream& operator<<(std::ostream& os, const QueueTypes& val) {
     switch (val) {
         case QueueTypes::in_order: os << "in-order"; break;
@@ -168,6 +207,7 @@ static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> 
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"GPU_KEY_CACHE_QUANT_MODE"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
