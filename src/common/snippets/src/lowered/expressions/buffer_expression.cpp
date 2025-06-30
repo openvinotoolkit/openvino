@@ -4,12 +4,26 @@
 
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/op/buffer.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/utils/utils.hpp"
+
+namespace ov::snippets::lowered {
 
 BufferExpression::BufferExpression(const std::shared_ptr<Node>& n,
                                    const std::shared_ptr<IShapeInferSnippetsFactory>& factory)
@@ -20,7 +34,7 @@ BufferExpression::BufferExpression(const std::shared_ptr<Node>& n,
 }
 
 ExpressionPtr BufferExpression::clone() const {
-    return std::shared_ptr<BufferExpression>(new BufferExpression(*this));
+    return std::make_shared<BufferExpression>(*this);
 }
 
 bool BufferExpression::visit_attributes(AttributeVisitor& visitor) {
@@ -45,8 +59,9 @@ ov::element::Type BufferExpression::get_data_type() const {
 }
 
 size_t BufferExpression::get_byte_size() const {
-    if (is_defined())
+    if (is_defined()) {
         return m_allocation_size * get_data_type().size();
+    }
     return utils::get_dynamic_value<size_t>();
 }
 
@@ -55,9 +70,10 @@ std::vector<size_t> get_parent_inner_loops(const std::vector<size_t>& parent_loo
                                            const std::vector<size_t>& current_loops) {
     const auto common_rank = std::min(parent_loops.size(), current_loops.size());
     size_t i = 0;
-    while (i < common_rank && parent_loops[i] == current_loops[i])
+    while (i < common_rank && parent_loops[i] == current_loops[i]) {
         ++i;
-    return std::vector<size_t>(parent_loops.cbegin() + i, parent_loops.cend());
+    }
+    return {parent_loops.cbegin() + i, parent_loops.cend()};
 }
 }  // namespace
 
@@ -72,7 +88,7 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
     const auto planar_shape = utils::get_preordered_vdims(parent_port);
 
     OPENVINO_ASSERT(allocation_rank > 0, "Allocation size must be positive");
-    const size_t rank = std::min(static_cast<size_t>(allocation_rank), planar_shape.size());
+    const size_t rank = std::min(allocation_rank, planar_shape.size());
 
     const auto& subtensor = ov::snippets::utils::get_projected_subtensor(parent_port);
 
@@ -83,17 +99,16 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
         const auto& port = *loop_port.get_expr_port();
         // Check semantic of LoopPort
         if (parent_port.get_index() != port.get_index() ||
-            port.get_expr()->get_node()->get_type_info() != parent_port.get_expr()->get_node()->get_type_info())
+            port.get_expr()->get_node()->get_type_info() != parent_port.get_expr()->get_node()->get_type_info()) {
             return false;
+        }
         // Check that this LoopPort is connected to the same by semantic Buffer
         const auto consumers = port.get_connected_ports();
-        for (const auto& consumer : consumers) {
-            if (const auto buffer_consumer = ov::as_type_ptr<BufferExpression>(consumer.get_expr())) {
-                if (buffer_consumer->get_cluster_id() == m_cluster_id && consumer.get_index() == buffer_in_idx)
-                    return true;
-            }
-        }
-        return false;
+        return std::any_of(consumers.begin(), consumers.end(), [&](const auto& consumer) {
+            const auto buffer_consumer = ov::as_type_ptr<BufferExpression>(consumer.get_expr());
+            return buffer_consumer && buffer_consumer->get_cluster_id() == m_cluster_id &&
+                   consumer.get_index() == buffer_in_idx;
+        });
     };
 
     m_allocation_size = 1;
@@ -110,18 +125,20 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
                             "compute_allocation_shape: output port of parent loop can not be found");
         }
         const auto& loop_port = *it;
-        if (!loop_port.is_processed())
+        if (!loop_port.is_processed()) {
             continue;
+        }
         const auto& dim_idx = loop_port.get_dim_idx();
         if (dim_idx < rank) {
-            if (const auto& unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info))
+            if (const auto& unified_loop_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info)) {
                 m_allocation_size = utils::dynamic_safe_mul(m_allocation_size, unified_loop_info->get_work_amount());
-            else if (const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info))
+            } else if (const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(loop_info)) {
                 m_allocation_size =
                     utils::dynamic_safe_mul(m_allocation_size,
                                             expanded_loop_info->get_unified_loop_info()->get_work_amount());
-            else
+            } else {
                 OPENVINO_THROW("Unknown LoopInfo type");
+            }
             processed_dim_idxs.insert(dim_idx);
         }
     }
@@ -142,6 +159,4 @@ void BufferExpression::init_allocation_size(const std::shared_ptr<LoopManager>& 
     }
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered
