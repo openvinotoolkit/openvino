@@ -229,9 +229,8 @@ void Plugin::init_options() {
     // filter out unsupported options
     filter_config_by_compiler_support(_globalConfig);
 
-    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need to enable those for OV Core to query.
-    // Note: do this last to not filter them out.
-    // register npuw caching properties
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
+    // to enable those for OV Core to query. Note: do this last to not filter them out. register npuw caching properties
     REGISTER_OPTION(NPU_USE_NPUW);
     REGISTER_OPTION(NPUW_DEVICES);
     REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
@@ -655,7 +654,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
         size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
-            auto storedMeta = read_metadata_from(tensor);
+            auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
