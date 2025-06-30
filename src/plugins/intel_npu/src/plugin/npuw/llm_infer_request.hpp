@@ -21,7 +21,7 @@ public:
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
-    void check_tensors() const override{};
+    void check_tensors() const override {};
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};

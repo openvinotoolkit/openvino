@@ -18,7 +18,8 @@ ov_add_target(
         LINK_LIBRARIES
             PUBLIC
                 gflags
-                funcSharedTests
+                base_func_tests
+                func_test_utils
 )
 
 if(ENABLE_CONFORMANCE_PGQL)
