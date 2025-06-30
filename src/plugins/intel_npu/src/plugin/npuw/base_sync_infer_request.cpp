@@ -87,8 +87,7 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
         } else {
             LOG_INFO("Skip creation of reference subrequest for submodule["
                      << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
-                     << id << "] has been already created on "
-                     << "it .");
+                     << id << "] has been already created on " << "it .");
         }
     }
 

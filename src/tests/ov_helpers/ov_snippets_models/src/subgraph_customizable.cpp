@@ -3,6 +3,7 @@
 //
 
 #include "subgraph_customizable.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "common_test_utils/data_utils.hpp"

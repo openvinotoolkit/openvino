@@ -4,13 +4,29 @@
 
 #include "snippets/pass/analyze_broadcastable_inputs.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <stack>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/pass/insert_broadcastmove.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 AnalyzeBroadcastableInputs::AnalyzeBroadcastableInputs(BroadcastableInputsMap& map) : m_broadcastable_inputs(map) {}
 
@@ -31,14 +47,16 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
     //   Also MatMul has `transposed_b` which changes `processing_dim_idx`
     m_broadcastable_inputs.clear();
     // Currently Broadcasting can be changed only if there are several Parameters in body
-    if (body->get_parameters().size() < 2)
+    if (body->get_parameters().size() < 2) {
         return false;
+    }
 
     const auto& ops = body->get_ordered_ops();
     std::set<std::shared_ptr<ov::Node>> visited_ops = {};
     for (const auto& op : ops) {
-        if (!ov::snippets::lowered::pass::InsertBroadcastMove::is_broadcasting_supported(op))
+        if (!ov::snippets::lowered::pass::InsertBroadcastMove::is_broadcasting_supported(op)) {
             continue;
+        }
 
         size_t processing_dim_idx = 0;
 
@@ -56,7 +74,7 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
                         return ov::is_type<ov::op::v1::Transpose>(in.get_node());
                     })) {
                     OPENVINO_ASSERT(consumers.size() == 1, "Incorrect count of outputs of Parameter!");
-                    const auto transpose = consumers.begin()->get_node();
+                    auto* const transpose = consumers.begin()->get_node();
                     std::vector<size_t> order;
                     const auto& constant =
                         ov::as_type_ptr<const opset1::Constant>(transpose->get_input_node_shared_ptr(1));
@@ -78,7 +96,8 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
                 }
                 processing_dim_idx = 0;
                 continue;
-            } else if (ov::is_type<ov::op::v0::Constant>(current_node)) {
+            }
+            if (ov::is_type<ov::op::v0::Constant>(current_node)) {
                 visited_ops.insert(op);
                 continue;
             }
@@ -104,6 +123,4 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
     return true;
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

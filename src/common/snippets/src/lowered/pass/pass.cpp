@@ -4,13 +4,18 @@
 
 #include "snippets/lowered/pass/pass.hpp"
 
-#include "snippets/utils/linear_ir_pass_dumper.hpp"
-#include "snippets/utils/utils.hpp"
+#include <memory>
+#include <unordered_map>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/pass_config.hpp"
+#include "snippets/pass/positioned_pass.hpp"
+#include "snippets/utils/linear_ir_pass_dumper.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 PassPipeline::PassPipeline() : m_pass_config(std::make_shared<PassConfig>()) {}
 PassPipeline::PassPipeline(const std::shared_ptr<PassConfig>& pass_config) : m_pass_config(pass_config) {
@@ -69,8 +74,9 @@ void PassPipeline::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearI
 }
 
 void PassPipeline::register_positioned_passes(const std::vector<PositionedPassLowered>& pos_passes) {
-    for (const auto& pp : pos_passes)
+    for (const auto& pp : pos_passes) {
         register_pass(pp.position, pp.pass);
+    }
 }
 
 PassPipeline PassPipeline::merge_pipelines(const PassPipeline& lhs, const PassPipeline& rhs) {
@@ -98,7 +104,4 @@ PassPipeline PassPipeline::merge_pipelines(const PassPipeline& lhs, const PassPi
     return merged_pipeline;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
