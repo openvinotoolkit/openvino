@@ -259,6 +259,10 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_optimize_data = true;
     }
 
+    if (!is_set_by_user(ov::intel_gpu::key_cache_quant_mode)) {
+        m_key_cache_quant_mode = ov::intel_gpu::CacheQuantMode::BY_HIDDEN;
+    }
+
     // Replace UINT8 KV-cache compression data type with INT8, as plugin is supposed to work with INT8 internally
     if (get_kv_cache_precision() == ov::element::u8) {
         m_kv_cache_precision = ov::element::i8;
