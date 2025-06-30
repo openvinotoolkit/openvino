@@ -62,10 +62,6 @@ struct Subgraph {
     struct QuantUnpackGather {
         int64_t dst_idx = -1;
 
-        int64_t dst_w_idx = -1;
-        int64_t dst_z_idx = -1;
-        int64_t dst_s_idx = -1;
-
         int64_t src_w_idx = -1;
         int64_t src_z_idx = -1;
         int64_t src_s_idx = -1;

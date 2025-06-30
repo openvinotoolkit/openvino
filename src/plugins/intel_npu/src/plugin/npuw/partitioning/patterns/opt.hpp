@@ -62,15 +62,11 @@ struct Context {
 
     struct QuantizedGather {
         // New param -> pair <orig params, tmp params to gather into>
-        std::map<PPtr, std::pair<DQUnpack, DQUnpack>> params_to_runtime_unpack_gather;
+        std::map<PPtr, DQUnpack> params_to_runtime_unpack_gather;
         PPtr pids;
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
     PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
-    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr s, ov::element::Type type);
-    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, ov::element::Type type);
-
-    std::map<PPtr, CPtr> params_to_consts;
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -216,16 +212,24 @@ public:
 };
 
 // Tail vocab transformations
-class DQParamToConstDictMatMulCWu : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulCWu : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParamToConstDictMatMulCWu");
-    DQParamToConstDictMatMulCWu(Context::Ref ctx);
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWu");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    PreserveConstDictMatMulCWu(Results to_keep);
 };
 
-class DQParamToConstDictMatMulCWf8 : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulCWf8 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQParamToConstDictMatMulCWf8");
-    DQParamToConstDictMatMulCWf8(Context::Ref ctx);
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWf8");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    PreserveConstDictMatMulCWf8(Results to_keep);
 };
 
 // Slice last Matmul

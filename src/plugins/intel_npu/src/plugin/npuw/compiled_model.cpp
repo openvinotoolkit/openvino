@@ -274,8 +274,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                         // Regardless of the order, if the reader is a function,
                         // remember that to avoid confusion in function prologue
                     }  // if(param == orig_param)
-                }  // for(orig_params)
-            }  // for(subgraph_params)
+                }      // for(orig_params)
+            }          // for(subgraph_params)
         };
         auto process_results = [&](const ov::ResultVector& _results) {
             for (size_t i = 0; i < _results.size(); i++) {
@@ -394,8 +394,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
-                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id
-                                                   << "]");
+                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]"
+                                                   << " as it is a function body for Subgraph[" << id << "]");
             }
             const auto model_to_dump = m_compiled_submodels[real_id].model;
             std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
@@ -404,7 +404,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_INFO("Wrote " << model_dump_path);
             // Note: keep here naming as it would be the subgraph
         }  // if(dump)
-    }  // for(orderedSubgraphs)
+    }      // for(orderedSubgraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
@@ -452,8 +452,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
                 LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
-                                                       << ", but was not found in the device list: " << "["
-                                                       << dev_list_str << "] -- ignoring");
+                                                       << ", but was not found in the device list: "
+                                                       << "[" << dev_list_str << "] -- ignoring");
             } else {
                 // FIXME: This is not really a device enforcement as the fallback
                 // procedure will be in place still
@@ -543,9 +543,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, host_gather.idx_idx);
 
     write(stream, quant_unpack_gather.dst_idx);
-    write(stream, quant_unpack_gather.dst_w_idx);
-    write(stream, quant_unpack_gather.dst_z_idx);
-    write(stream, quant_unpack_gather.dst_s_idx);
     write(stream, quant_unpack_gather.src_w_idx);
     write(stream, quant_unpack_gather.src_z_idx);
     write(stream, quant_unpack_gather.src_s_idx);
@@ -620,9 +617,6 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, host_gather.idx_idx);
 
     read(stream, quant_unpack_gather.dst_idx);
-    read(stream, quant_unpack_gather.dst_w_idx);
-    read(stream, quant_unpack_gather.dst_z_idx);
-    read(stream, quant_unpack_gather.dst_s_idx);
     read(stream, quant_unpack_gather.src_w_idx);
     read(stream, quant_unpack_gather.src_z_idx);
     read(stream, quant_unpack_gather.src_s_idx);
@@ -1720,7 +1714,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
-                          BIND(npuw::partitioning::gather_quant, NPUW_GATHER_QUANT),
+                          BIND(npuw::partitioning::gather_quant, NPUW_HOST_GATHER_QUANT),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

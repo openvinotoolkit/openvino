@@ -217,10 +217,6 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
         PPtr psrcz;  // Parameter @ function body - vocab tensor zeropoint
         PPtr psrcs;  // Parameter @ function body - vocab tensor scale
 
-        PPtr pdstw;  // Parameter @ function body - gathered w ids
-        PPtr pdstz;  // Parameter @ function body - gathered w ids
-        PPtr pdsts;  // Parameter @ function body - gathered w ids
-
         PPtr pdst;  // Parameter @ function body - gathered and unpacked ids
     };
     QuantUnpackGatherParams quant_unpack_gather_params;
@@ -230,9 +226,6 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
                                                              params[fsg._quant_unpack_gather.src_w_idx],
                                                              params[fsg._quant_unpack_gather.src_z_idx],
                                                              params[fsg._quant_unpack_gather.src_s_idx],
-                                                             params[fsg._quant_unpack_gather.dst_w_idx],
-                                                             params[fsg._quant_unpack_gather.dst_z_idx],
-                                                             params[fsg._quant_unpack_gather.dst_s_idx],
                                                              params[fsg._quant_unpack_gather.dst_idx]};
     }
 
@@ -243,10 +236,6 @@ void finalize_remap(Function& fbody, Subgraph& fsg, const ClosureRemap& m) {
         fsg._quant_unpack_gather.src_w_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcw);
         fsg._quant_unpack_gather.src_z_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcz);
         fsg._quant_unpack_gather.src_s_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.psrcs);
-
-        fsg._quant_unpack_gather.dst_w_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdstw);
-        fsg._quant_unpack_gather.dst_z_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdstz);
-        fsg._quant_unpack_gather.dst_s_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdsts);
 
         fsg._quant_unpack_gather.dst_idx = fbody._model->get_parameter_index(quant_unpack_gather_params.pdst);
     }

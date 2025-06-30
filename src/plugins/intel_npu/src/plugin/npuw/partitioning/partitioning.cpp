@@ -322,6 +322,7 @@ public:
     void saveTinyConstants(const std::string& func_name);
     void saveScaleFactors(const std::string& func_name);
     void saveRepeatedConstants(const std::string& func_name);
+    void saveTailDictConstants(const std::string& func_name);
     void matchParameters(const std::string& func_name);
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
@@ -573,8 +574,8 @@ void Partitioner::identifySubgraphs() {
                         input_desc.replace_source_output(new_src);
                     }
                 }  // if (is..)
-            }  // for (inputs)
-        }  // for (input_layers)
+            }      // for (inputs)
+        }          // for (input_layers)
         // Transform the accumulated parameters to the subgraph model's input parameter vector
         // Also track the connectivity
         LOG_VERB("Populating _parameters...");
@@ -932,9 +933,9 @@ void Partitioner::propagate(const std::string& func_name,
                     suitable_bank_iter->insert(this_layer_name);
                     layer_to_prototype[this_layer_name] = this_writer_proto;
                 }  // if(iter==end)
-            }  // test(node_ptr)
-        }  // for(ordered_ops)
-    }  // for(each)
+            }      // test(node_ptr)
+        }          // for(ordered_ops)
+    }              // for(each)
 }  // propagate
 
 void Partitioner::propagateSlices(const std::string& func_name) {
@@ -1430,6 +1431,44 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
     }
 }
 
+void Partitioner::saveTailDictConstants(const std::string& func_name) {
+    // Depending on the config we might want to save vocab in the tail subgraph as a Constant.
+    auto& func_group = all_functions.at(func_name);
+    auto& subgr_group = func_group.refs;
+
+    if (subgr_group.size() > 1) {
+        // Skip the repeated block
+        return;
+    }
+
+    const bool keep_tail_vocab_const = cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>();
+
+    if (!keep_tail_vocab_const) {
+        // No need to preserve as constants
+        return;
+    }
+
+    LOG_VERB("Trying to preserve some (tail) constants for " << func_name << " in model " << model->get_friendly_name()
+                                                             << "...");
+    LOG_BLOCK();
+
+    auto& model_group = func_group.mdls;
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    std::vector<CPtr> to_keep;
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulCWu>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulCWf8>(std::ref(to_keep));
+    rewr.run_on_model(model_group.front());
+
+    for (auto&& const_to_keep : to_keep) {
+        LOG_DEBUG("[KEEP] " << const_to_keep);
+        func_group.consts_to_keep.insert(const_to_keep);
+    }
+    LOG_VERB("Done");
+}
+
 void Partitioner::matchParameters(const std::string& func_name) {
     LOG_VERB("Matching parameters for function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -1630,8 +1669,8 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                                                 << iport.second);
                 function._param_mapping[iport] = existing_param_idx;
             }  // if(Const|Parameter)
-        }  // for(inputs)
-    }  // for(nodes)
+        }      // for(inputs)
+    }          // for(nodes)
     funcall._closure.resize(funcall._lazy_closure.size());
     funcall._is_lazy_unpack.resize(funcall._lazy_closure.size(), false);
     function._num_params_total = new_param_idx;
@@ -1786,7 +1825,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
-        }  // for(nodes)
+        }      // for(nodes)
 
         // Write down the funcall to the list of subgraphs
         std::swap(funcall, this_sg);
@@ -1874,25 +1913,18 @@ void Partitioner::optimize(const std::string& func_name) {
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
-        if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>() && cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
-            NPUW_ASSERT(
-                false &&
-                "Conflicting configuration: NPUW_HOST_GATHER and NPUW_GATHER_QUANT should not be enabled together!");
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>() && cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
+            NPUW_ASSERT(false && "Conflicting configuration: NPUW_HOST_GATHER and NPUW_HOST_GATHER_QUANT should not be "
+                                 "enabled together!");
         }
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
-        if (!cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
+        if (!cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWf8>(std::ref(ctx));
-        }
-
-        if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
-            // FIXME: perhaphs should be simplified and handled somewhere else
-            rewr.add_matcher<ov::npuw::patterns::opt::DQParamToConstDictMatMulCWu>(std::ref(ctx));
-            rewr.add_matcher<ov::npuw::patterns::opt::DQParamToConstDictMatMulCWf8>(std::ref(ctx));
         }
 
         // NB: This pass is disabled for reason! It doesn't make things better
@@ -1904,7 +1936,7 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.run_on_model(f._model);
 
         // Quantized Gather + Unpack on host in the runtime
-        if (cfg.get<::intel_npu::NPUW_GATHER_QUANT>()) {
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
             // FIXME: since we are running it after lifted Gather,
             // we need to first try to match Asymm or Symm patterns.
             // Otherwise smaller HostGatherQuant might be matched first and break
@@ -2007,29 +2039,6 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
 
-        // Tail processing where we replace Vocab scale and zerop back to Constants
-        for (auto&& p : ctx.params_to_consts) {
-            auto p_to_remove_idx = f._model->get_parameter_index(p.first);
-            to_remove.push_back(p.first);
-            to_remove_idx.insert(p_to_remove_idx);
-
-            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
-                auto& funcall = func_group.refs[f_idx].get();
-                // Sanity check that LazyTensor only has Contant
-                auto& temp_lt = funcall._lazy_closure[p_to_remove_idx - f._param_offset];
-                auto transforms = temp_lt.get_transformations();
-                NPUW_ASSERT(transforms.size() == 1 &&
-                            std::holds_alternative<ov::npuw::weights::op::Const>(transforms[0]));
-                // Evaluate LazyTensor here, it only contains a single Constant underneath
-                auto temp_t = funcall._lazy_closure[p_to_remove_idx - f._param_offset].eval();
-                // Then copy tensor data to the new Constant
-                NPUW_ASSERT(p.second->get_shape() == temp_t.get_shape() &&
-                            p.second->get_element_type() == temp_t.get_element_type() &&
-                            p.second->get_byte_size() == temp_t.get_byte_size());
-                std::memcpy(const_cast<void*>(p.second->get_data_ptr()), temp_t.data(), temp_t.get_byte_size());
-            });
-        }
-
         // Convert parameters to f16 where required
         do_cvtf16(ctx);
 
@@ -2073,39 +2082,6 @@ void Partitioner::optimize(const std::string& func_name) {
                     funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
                     funcall.get()._lazy_closure.push_back(LazyTensor());
                     funcall.get()._is_lazy_unpack.push_back(false);
-                }
-
-                // Temporary inputs to gather into
-                new_params.push_back(param_new_and_unpack.second.second.w);
-                for (auto&& funcall : func_group.refs) {
-                    auto new_elem_type = param_new_and_unpack.second.second.w->get_element_type();
-                    const auto& new_shape = param_new_and_unpack.second.second.w->get_shape();
-                    // Same thing for any new parameters
-                    funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
-                    funcall.get()._lazy_closure.push_back(LazyTensor());
-                    funcall.get()._is_lazy_unpack.push_back(false);
-                }
-                if (param_new_and_unpack.second.second.z) {
-                    new_params.push_back(param_new_and_unpack.second.second.z);
-                    for (auto&& funcall : func_group.refs) {
-                        auto new_elem_type = param_new_and_unpack.second.second.z->get_element_type();
-                        const auto& new_shape = param_new_and_unpack.second.second.z->get_shape();
-                        // Same thing for any new parameters
-                        funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
-                        funcall.get()._lazy_closure.push_back(LazyTensor());
-                        funcall.get()._is_lazy_unpack.push_back(false);
-                    }
-                }
-                if (param_new_and_unpack.second.second.s) {
-                    new_params.push_back(param_new_and_unpack.second.second.s);
-                    for (auto&& funcall : func_group.refs) {
-                        auto new_elem_type = param_new_and_unpack.second.second.s->get_element_type();
-                        const auto& new_shape = param_new_and_unpack.second.second.s->get_shape();
-                        // Same thing for any new parameters
-                        funcall.get()._closure.push_back(ov::Tensor(new_elem_type, new_shape));
-                        funcall.get()._lazy_closure.push_back(LazyTensor());
-                        funcall.get()._is_lazy_unpack.push_back(false);
-                    }
                 }
             }
         }
@@ -2156,21 +2132,14 @@ void Partitioner::optimize(const std::string& func_name) {
                  params_to_quant_gather_unpack.params_to_runtime_unpack_gather) {
                 // New param in the graph
                 auto gather_dst_id = f._model->get_parameter_index(param_new_and_unpack_gather.first);
-                // Tmp params to gather into in runtime
-                auto gather_dst_w_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.w);
-                auto gather_dst_z_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.z);
-                auto gather_dst_s_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.second.s);
                 // Orig params to gather from
-                auto gather_w_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.w);
-                auto gather_z_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.z);
-                auto gather_s_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.first.s);
+                auto gather_w_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.w);
+                auto gather_z_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.z);
+                auto gather_s_id = f._model->get_parameter_index(param_new_and_unpack_gather.second.s);
                 // Original pids
                 auto gather_idx_id = f._model->get_parameter_index(params_to_quant_gather_unpack.pids);
                 for (auto&& funcall : func_group.refs) {
                     funcall.get()._quant_unpack_gather = ov::npuw::Subgraph::QuantUnpackGather{gather_dst_id,
-                                                                                               gather_dst_w_id,
-                                                                                               gather_dst_z_id,
-                                                                                               gather_dst_s_id,
                                                                                                gather_w_id,
                                                                                                gather_z_id,
                                                                                                gather_s_id,
@@ -2470,7 +2439,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             }
             gid++;
         }  // for(ens.groups)
-    }  // if(fcew.enabled)
+    }      // if(fcew.enabled)
 
     Partitioning P;
     P.total_gflops = ens.gflops;
@@ -2492,6 +2461,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.propagateConvertsOut(func_group);
                 p.sanityCheck(func_group);
                 p.saveRepeatedConstants(func_group);
+                p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);

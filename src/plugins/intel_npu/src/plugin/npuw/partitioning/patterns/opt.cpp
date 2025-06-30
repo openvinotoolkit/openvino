@@ -126,105 +126,40 @@ Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
                                                 Context::PPtr s,
                                                 ov::element::Type type) {
     const auto& w_shape = w->get_shape();
-    const auto& s_shape = s->get_shape();
-    const auto& z_shape = z->get_shape();
     const auto& ids_shape = ids->get_shape();
 
     NPUW_ASSERT(ids_shape.size() == 2);
     NPUW_ASSERT(ids_shape[0] == 1);
 
     Context::PPtr new_param;
-    if (w_shape.size() == 3 && s_shape.size() == 3) {
-        ov::Shape new_shape = {1, ids_shape[1], w_shape[1] * w_shape[2]};
-        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
-    } else if (w_shape.size() == 2 && s_shape.size() == 2) {
-        ov::Shape new_shape = {1, ids_shape[1], w_shape[1]};
-        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+
+    if (s) {
+        const auto& s_shape = s->get_shape();
+        if (w_shape.size() == 3 && s_shape.size() == 3) {
+            ov::Shape new_shape = {1, ids_shape[1], w_shape[1] * w_shape[2]};
+            new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+        } else if (w_shape.size() == 2 && s_shape.size() == 2) {
+            ov::Shape new_shape = {1, ids_shape[1], w_shape[1]};
+            new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+        } else {
+            NPUW_ASSERT(false && "Yet unsupported combination");
+        }
     } else {
-        NPUW_ASSERT(false && "Yet unsupported combination");
+        // No scale, no zerop
+        if (w_shape.size() == 3) {
+            ov::Shape new_shape = {1, ids_shape[1], w_shape[1] * w_shape[2]};
+            new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+        } else if (w_shape.size() == 2) {
+            ov::Shape new_shape = {1, ids_shape[1], w_shape[1]};
+            new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
+        } else {
+            NPUW_ASSERT(false && "Yet unsupported combination");
+        }
     }
 
     NPUW_ASSERT(new_param);
     params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {
-        {w, z, s},
-        {std::make_shared<ov::op::v0::Parameter>(
-             w->get_element_type(),
-             ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]}),
-         std::make_shared<ov::op::v0::Parameter>(
-             z->get_element_type(),
-             ov::Shape{1, ids_shape[1], z_shape.size() == 3 ? z_shape[1] * z_shape[2] : z_shape[1]}),
-         std::make_shared<ov::op::v0::Parameter>(
-             s->get_element_type(),
-             ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]})}};
-    params_to_quant_gather_unpack->pids = ids;
-    return new_param;
-}
-
-Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
-                                                Context::PPtr w,
-                                                Context::PPtr s,
-                                                ov::element::Type type) {
-    const auto& w_shape = w->get_shape();
-    const auto& s_shape = s->get_shape();
-    const auto& ids_shape = ids->get_shape();
-
-    NPUW_ASSERT(ids_shape.size() == 2);
-    NPUW_ASSERT(ids_shape[0] == 1);
-
-    Context::PPtr new_param;
-    if (w_shape.size() == 3 && s_shape.size() == 3) {
-        ov::Shape new_shape = {1, ids_shape[1], w_shape[1] * w_shape[2]};
-        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
-    } else if (w_shape.size() == 2 && s_shape.size() == 2) {
-        ov::Shape new_shape = {1, ids_shape[1], w_shape[1]};
-        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
-    } else {
-        NPUW_ASSERT(false && "Yet unsupported combination");
-    }
-
-    NPUW_ASSERT(new_param);
-    params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {
-        {w, {}, s},
-        {std::make_shared<ov::op::v0::Parameter>(
-             w->get_element_type(),
-             ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]}),
-         {},
-         std::make_shared<ov::op::v0::Parameter>(
-             s->get_element_type(),
-             ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]})}};
-    params_to_quant_gather_unpack->pids = ids;
-    return new_param;
-}
-
-Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids, Context::PPtr w, ov::element::Type type) {
-    const auto& w_shape = w->get_shape();
-    const auto& ids_shape = ids->get_shape();
-
-    NPUW_ASSERT(ids_shape.size() == 2);
-    NPUW_ASSERT(ids_shape[0] == 1);
-
-    Context::PPtr new_param;
-    if (w_shape.size() == 3) {
-        ov::Shape new_shape = {1, ids_shape[1], w_shape[1] * w_shape[2]};
-        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
-    } else if (w_shape.size() == 2) {
-        ov::Shape new_shape = {1, ids_shape[1], w_shape[1]};
-        new_param = std::make_shared<ov::op::v0::Parameter>(type, new_shape);
-    } else {
-        NPUW_ASSERT(false && "Yet unsupported combination");
-    }
-
-    NPUW_ASSERT(new_param);
-    params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {
-        {w, {}, {}},
-        {std::make_shared<ov::op::v0::Parameter>(
-             w->get_element_type(),
-             ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]}),
-         {},
-         {}}};
+    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {w, z, s};
     params_to_quant_gather_unpack->pids = ids;
     return new_param;
 }
@@ -1518,8 +1453,11 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with unpacked fp16
-            auto new_wi =
-                ctx.get().host_gather_unpack_quant(matched_ids, matched_qweight, matched_qcoeff, ov::element::f16);
+            auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,
+                                                             matched_qweight,
+                                                             matched_qcoeff,
+                                                             nullptr,
+                                                             ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);
 
             matched_node_cvt->validate_and_infer_types();
@@ -1566,7 +1504,8 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
                 ctx.get().to_f16(matched_qweight);
             }
 
-            auto new_param = ctx.get().host_gather_unpack_quant(matched_ids, matched_qweight, ov::element::f16);
+            auto new_param =
+                ctx.get().host_gather_unpack_quant(matched_ids, matched_qweight, nullptr, nullptr, ov::element::f16);
             std::shared_ptr<ov::Node> new_cvt;
             if (qweight_type == ov::element::f16) {
                 new_cvt = new_param;
@@ -1918,22 +1857,15 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(res, "OptCompressDictMatMulf32"), std::move(callback));
 }
 
-// FROM:
-//     Param(W) -> to(f16) ->
-//     Param(Z) -> to(f16) -> Subtract
-//     Param(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
-//     ???(Act) -------------------------------------------->
-//
-// TO:
 //     Const(W) -> to(f16) ->
 //     Const(Z) -> to(f16) -> Subtract
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-DQParamToConstDictMatMulCWu::DQParamToConstDictMatMulCWu(Context::Ref ctx) {
-    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
+PreserveConstDictMatMulCWu::PreserveConstDictMatMulCWu(PreserveConstDictMatMulCWu::Results to_keep) {
+    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
     auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
@@ -1955,52 +1887,33 @@ DQParamToConstDictMatMulCWu::DQParamToConstDictMatMulCWu(Context::Ref ctx) {
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
 
-        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
-        auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
-        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
+        auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qzerop);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
         if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            auto const_weight =
-                std::make_shared<ov::op::v0::Constant>(matched_qweight->get_element_type(), matched_qweight->get_shape());
-            auto const_coeff =
-                std::make_shared<ov::op::v0::Constant>(matched_qcoeff->get_element_type(), matched_qcoeff->get_shape());
-            auto const_zerop =
-                std::make_shared<ov::op::v0::Constant>(matched_qzerop->get_element_type(), matched_qzerop->get_shape());
-
-            ctx.get().params_to_consts[matched_qweight] = const_weight;
-            ctx.get().params_to_consts[matched_qcoeff] = const_coeff;
-            ctx.get().params_to_consts[matched_qzerop] = const_zerop;
-
-            matched_node_cvtw->input(0).replace_source_output(const_weight);
-            matched_node_qmuls->input(1).replace_source_output(const_coeff);
-            matched_node_cvtz->input(0).replace_source_output(const_zerop);
-
-            matched_matmul->validate_and_infer_types();
+            to_keep.get().push_back(matched_qweight);
+            to_keep.get().push_back(matched_qzerop);
+            to_keep.get().push_back(matched_qcoeff);
 
             return false;  // root hasn't changed
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQParamToConstDictMatMulCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulCWu"), std::move(callback));
 }
 
-// FROM:
-//     Param(W) ---> to(f16) --->
-//     Param(S) ----------------> Multiply -> MatMul -> Result
-//     ???(Act) ---------------------------->
-//
-// TO:
-//     Param(W) ---> to(f16) --->
+//     Const(W) ---> to(f16) --->
 //     Const(S) ----------------> Multiply -> MatMul -> Result
 //     ???(Act) ---------------------------->
 
-DQParamToConstDictMatMulCWf8::DQParamToConstDictMatMulCWf8(Context::Ref ctx) {
-    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+PreserveConstDictMatMulCWf8::PreserveConstDictMatMulCWf8(PreserveConstDictMatMulCWf8::Results to_keep) {
+    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
     auto qmmi = opp::any_input();
@@ -2017,8 +1930,8 @@ DQParamToConstDictMatMulCWf8::DQParamToConstDictMatMulCWf8(Context::Ref ctx) {
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
         auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
 
-        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
-        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
@@ -2027,24 +1940,14 @@ DQParamToConstDictMatMulCWf8::DQParamToConstDictMatMulCWf8(Context::Ref ctx) {
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            auto const_weight =
-                std::make_shared<ov::op::v0::Constant>(matched_qweight->get_element_type(), matched_qweight->get_shape());
-            auto const_coeff =
-                std::make_shared<ov::op::v0::Constant>(matched_qcoeff->get_element_type(), matched_qcoeff->get_shape());
-            
-            ctx.get().params_to_consts[matched_qweight] = const_weight;
-            ctx.get().params_to_consts[matched_qcoeff] = const_coeff;
-
-            matched_node_cvtw->input(0).replace_source_output(const_weight);
-            matched_node_qmuls->input(1).replace_source_output(const_coeff);
-
-            matched_matmul->validate_and_infer_types();
+            to_keep.get().push_back(matched_qweight);
+            to_keep.get().push_back(matched_qcoeff);
 
             return false;  // root hasn't changed
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptDQParamToConstDictMatMulCWf8"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulCWf8"), std::move(callback));
 }
 
 SliceLastMatmul::SliceLastMatmul() {

@@ -256,7 +256,7 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
  * When applicable, do embedding gather on host but leave it quantized.
  * Default value: false.
  */
-static constexpr ov::Property<bool> gather_quant{"NPUW_GATHER_QUANT"};
+static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
 
 /**
  * @brief
