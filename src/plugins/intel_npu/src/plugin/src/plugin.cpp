@@ -574,7 +574,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
     ov::AnyMap npu_plugin_properties = properties;
     ov::Tensor tensor;
-    bool tensorFromProperty = false;
 
     std::istream stream{origStream.rdbuf()};
     ov::SharedStreamBuffer buffer{nullptr, 0};  // used only if blob is given by tensor, but it is not OV cached blob
@@ -584,17 +583,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
         tensor = blob_it->second.as<ov::Tensor>();
-        tensorFromProperty = true;
-        if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
-            loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
-            tensor = ov::Tensor(
-                tensor,
-                ov::Coordinate{static_cast<size_t>(origStream.tellg())},
-                ov::Coordinate{tensor.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
-        } else {
-            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
-            stream.rdbuf(&buffer);
-        }
+        buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+        stream.rdbuf(&buffer);
         npu_plugin_properties.erase(blob_it);
     }
 
@@ -609,10 +599,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
         if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
             // Properties are required for ov::weights_path
-            return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), properties);
+            return ov::npuw::LLMCompiledModel::import_model(stream, shared_from_this(), npu_plugin_properties);
         } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
             // Properties are required for ov::weights_path
-            return ov::npuw::CompiledModel::import_model(stream, shared_from_this(), properties);
+            return ov::npuw::CompiledModel::import_model(stream, shared_from_this(), npu_plugin_properties);
         } else {
             OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
         }
@@ -620,14 +610,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     stream.seekg(-stream.tellg() + stream_start_pos, std::ios::cur);
 
     // Drop NPUW properties if there are any
-    for (auto it = properties.begin(); it != properties.end(); ++it) {
+    for (auto it = npu_plugin_properties.begin(); it != npu_plugin_properties.end(); ++it) {
         if (it->first.find("NPUW") != it->first.npos) {
             npu_plugin_properties.erase(it->first);
         }
     }
 
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
+    auto compiler =
+        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
     const auto propertiesMap = any_copy(npu_plugin_properties);
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
@@ -638,13 +629,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
                                       localConfig.get<DEVICE_ID>(),
                                       _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
-    auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
-
-    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
-    if (!loadedFromCache) {
-        _logger.warning(
-            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
-    }
 
     OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
 
@@ -652,15 +636,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
     try {
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
+        std::unique_ptr<MetadataBase> metadata;
         size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
-            auto storedMeta = read_metadata_from(stream);
-            if (!storedMeta->is_compatible()) {
+            metadata = read_metadata_from(stream, std::move(localConfig));
+            if (!metadata->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
-            blobSize = storedMeta->get_blob_size();
+            blobSize = metadata->get_blob_size();
+        } else {
+            metadata = create_metadata(
+                MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION),
+                blobSize,
+                std::move(localConfig));
         }
-        if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
+        if (!tensor) {  // tensor was not received from ov::compiled_blob property, copy from stream
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
@@ -671,13 +661,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
                                 ov::Coordinate{0},
                                 ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
         }
-        auto graph = compiler->parse(std::move(tensor), !tensorFromProperty, localConfig);
-        graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-
-        const std::shared_ptr<ov::Model> modelDummy =
-            create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
-
-        compiledModel = std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
+        compiledModel = parse(std::move(tensor), std::move(metadata));
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -724,6 +708,28 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     }
 
     return supportedOpsMap;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::parse(ov::Tensor tensor, std::unique_ptr<MetadataBase> metadata) const {
+    const auto& localConfig = metadata->get_config();
+
+    CompilerAdapterFactory compilerAdapterFactory;
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, localConfig.get<COMPILER_TYPE>());
+    auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
+
+    const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
+    if (!loadedFromCache) {
+        _logger.warning(
+            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
+    }
+
+    auto graph = compiler->parse(std::move(tensor), localConfig);
+    graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
+
+    const std::shared_ptr<ov::Model> modelDummy =
+        create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+
+    return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};

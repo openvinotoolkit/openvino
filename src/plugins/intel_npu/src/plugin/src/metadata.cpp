@@ -50,10 +50,13 @@ void OpenvinoVersion::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_patch), sizeof(_patch));
 }
 
-Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
+Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize,
+                                         std::optional<OpenvinoVersion> ovVersion,
+                                         FilteredConfig config)
     : MetadataBase{METADATA_VERSION_2_0},
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)},
-      _blobDataSize{blobSize} {}
+      _blobDataSize{blobSize},
+      _config{std::move(config)} {}
 
 void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
     _ovVersion.read(stream);
@@ -70,15 +73,15 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
 
-std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize, FilteredConfig config) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
         MetadataBase::get_minor(version) > CURRENT_METADATA_MINOR_VERSION) {
-        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize, std::nullopt);
+        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize, std::nullopt, config);
     }
 
     switch (version) {
     case METADATA_VERSION_2_0:
-        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
+        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt, config);
 
     default:
         OPENVINO_THROW("Metadata version is not supported!");
@@ -125,7 +128,7 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
     return streamEnd - streamStart;
 }
 
-std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
+std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream, FilteredConfig config) {
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
@@ -147,7 +150,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta = create_metadata(metaVersion, blobDataSize, std::move(config));
         storedMeta->read(stream);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what(),
@@ -167,7 +170,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     return storedMeta;
 }
 
-std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
+std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor, FilteredConfig config) {
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
                                     magicBytesSize);
@@ -188,7 +191,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
         auto roiTensor = ov::Tensor(tensor,
                                     ov::Coordinate{blobDataSize + sizeof(metaVersion)},
                                     ov::Coordinate{tensor.get_byte_size()});
-        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta = create_metadata(metaVersion, blobDataSize, std::move(config));
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what(),
@@ -209,6 +212,10 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
 
 uint64_t Metadata<METADATA_VERSION_2_0>::get_blob_size() const {
     return _blobDataSize;
+}
+
+FilteredConfig Metadata<METADATA_VERSION_2_0>::get_config() const {
+    return _config;
 }
 
 }  // namespace intel_npu
