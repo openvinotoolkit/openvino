@@ -315,7 +315,7 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}  
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
@@ -325,7 +325,7 @@ jobs:
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
 
