@@ -110,8 +110,8 @@ void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std
             XReg reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
             // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
             h->ldr(aux_reg,
-               ptr(reg_runtime_params,
-                   static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
+                   ptr(reg_runtime_params,
+                       static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
             // bump the pointer
             h->add(base_reg, base_reg, aux_reg);
         }
