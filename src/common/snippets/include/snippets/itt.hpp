@@ -11,15 +11,9 @@
 
 #include <openvino/cc/pass/itt.hpp>
 
-namespace ov {
-namespace pass {
-namespace itt {
-namespace domains {
+namespace ov::pass::itt::domains {
 OV_ITT_DOMAIN(SnippetsTransform);
-}  // namespace domains
-}  // namespace itt
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass::itt::domains
 
 OV_CC_DOMAINS(internal_op);
 
