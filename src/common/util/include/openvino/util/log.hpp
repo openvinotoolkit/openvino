@@ -32,7 +32,7 @@ using LogCallback = std::function<void(std::string_view)>;
 
 class LogHelper {
 public:
-    LogHelper(LOG_TYPE, const char* file, int line, LogCallback handler);
+    LogHelper(LOG_TYPE, const char* file, int line, LogCallback* handler);
     ~LogHelper();
 
     std::ostream& stream() {
@@ -40,7 +40,7 @@ public:
     }
 
 private:
-    const LogCallback m_handler;
+    LogCallback* m_handler = nullptr;
     std::stringstream m_stream;
 };
 
@@ -75,7 +75,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
     return ov::util::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
-LogCallback get_log_callback();
+LogCallback* get_log_callback();
 
 #    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE)                     \
         ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, \
