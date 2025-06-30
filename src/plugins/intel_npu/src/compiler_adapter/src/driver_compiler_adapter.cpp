@@ -247,7 +247,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   /* blobAllocatedByPlugin = */ false,
                                    config);
 }
 
