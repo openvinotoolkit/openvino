@@ -1837,7 +1837,7 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto Gather0 = makeOP<opset8::Gather>({Convert0, Convert1, 0}, {{"batch_dims", 0}});
         auto MVN0 = makeOP<opset6::MVN>({Gather0, {-1}},
                                         {{"eps", 0.000010}, {"normalize_variance", true}, {"eps_mode", "INSIDE_SQRT"}});
-        auto Constant2 = makeConst(element::f16, ov::Shape({1, 1, 4096, }), MOCK_VALUE);
+        auto Constant2 = makeConst(element::f16, ov::Shape({1, 1, 4096}), MOCK_VALUE);
         auto Convert2 = makeOP<opset1::Convert>({Constant2}, {{"destination_type", "f32"}});
         auto Multiply0 = makeOP<opset1::Multiply>({MVN0, Convert2}, {{"auto_broadcast", "numpy"}});
         auto Constant3 = makeConst(element::f16, ov::Shape({1, 1, 4096}), MOCK_VALUE);
