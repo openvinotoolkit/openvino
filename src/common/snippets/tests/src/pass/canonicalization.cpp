@@ -8,6 +8,7 @@
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include <subgraph_simple.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace test {

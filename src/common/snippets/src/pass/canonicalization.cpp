@@ -4,13 +4,19 @@
 
 #include "snippets/pass/canonicalization.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <set>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/parameter.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 pass::Canonicalization::Canonicalization(const BlockedShapeVector& blocked_input_shapes) {
     m_in_shapes.reserve(blocked_input_shapes.size());
@@ -69,15 +75,16 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
             params[i]->set_partial_shape(snippets::utils::vdims_to_pshape(i_shape));
             is_modified = true;
         } else if (i_rank < max_rank) {
-            size_t num_append = base_is_blocked;
+            auto num_append = static_cast<size_t>(base_is_blocked);
             OPENVINO_ASSERT(max_rank >= i_rank + num_append,
                             "Unsupported blocked shapes combination in canonicalization");
             size_t num_prepend = max_rank - i_rank - num_append;
             const auto& out = params[i]->output(0);
             const auto& target_inputs = out.get_target_inputs();
             auto rank_norm = std::make_shared<op::RankNormalization>(out, num_prepend, num_append);
-            for (auto& in : target_inputs)
+            for (const auto& in : target_inputs) {
                 in.replace_source_output(rank_norm);
+            }
             is_modified = true;
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
@@ -89,5 +96,4 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return is_modified;
 }
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets
