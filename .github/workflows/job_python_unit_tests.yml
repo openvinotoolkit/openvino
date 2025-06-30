@@ -92,6 +92,9 @@ jobs:
           should-setup-pip-paths: ${{ runner.os == 'Linux' }}`
           self-hosted-runner: ${{ runner.os == 'Linux' }}
           
+      - name: Print Variables
+        run: ls -la ${{ env.INSTALL_DIR }}
+          
       - name: Find OpenVINO wheel
         uses: ./.github/actions/find_wheel
         id: ov_wheel
