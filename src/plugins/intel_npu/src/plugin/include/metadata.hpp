@@ -20,6 +20,11 @@ public:
     MetadataBase(uint32_t version, uint64_t blobDataSize);
 
     /**
+     * @brief Reads metadata from a stream.
+     */
+    virtual void read(std::istream& tensor) = 0;
+
+    /**
      * @brief Reads metadata from a ov::Tensor.
      */
     virtual void read(const ov::Tensor& tensor) = 0;
@@ -125,6 +130,11 @@ public:
     ~OpenvinoVersion() = default;
 
     /**
+     * @brief Reads version data from a stream.
+     */
+    void read(std::istream& istream);
+
+    /**
      * @brief Reads version data from a ov::Tensor.
      */
     void read(const ov::Tensor& tensor);
@@ -165,6 +175,8 @@ template <>
 class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
     Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
+
+    void read(std::istream& tensor) override;
 
     void read(const ov::Tensor& tensor) override;
 
@@ -235,7 +247,15 @@ private:
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize);
 
 /**
- * @brief Reads metadata from a blob.
+ * @brief Reads metadata from a blob (istream).
+ *
+ * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
+ * MetadataBase object; otherwise, returns 'nullptr'.
+ */
+std::unique_ptr<MetadataBase> read_metadata_from(std::istream& tensor);
+
+/**
+ * @brief Reads metadata from a blob (ov::Tensor).
  *
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
