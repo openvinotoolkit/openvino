@@ -22,6 +22,7 @@
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "emitters/snippets/x64/utils.hpp"
+#include "emitters/plugin/x64/debug_capabilities.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
@@ -151,7 +152,8 @@ jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator* 
       loop_begin_label{new Label()},
       loop_preamble_label{new Label()},
       loop_end_label(nullptr),
-      m_loop_reg_spiller(std::make_shared<EmitABIRegSpills>(h)) {
+      m_seq_part_spiller(std::make_shared<EmitABIRegSpills>(h)),
+      m_par_to_seq_part_spiller(std::make_shared<EmitABIRegSpills>(h)) {
     OV_CPU_JIT_EMITTER_ASSERT(ov::is_type<snippets::op::LoopBegin>(expr->get_node()), "expects LoopBegin expression");
     m_executor = kernel_table->register_kernel<ParallelLoopExecutor>(expr, ParallelLoopConfig(wa_increment));
     // todo: we need to validate that the body expressions don't rely on any other registers except for loop port memory
@@ -192,11 +194,10 @@ std::set<snippets::Reg> jit_parallel_loop_begin_emitter::get_regs_to_spill_excep
 
 void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     init_binary_call_regs(3, mem_ptr_regs_idxs);
-    EmitABIRegSpills spill(h);
     // Note: mem_ptr_regs_idxs regs are not spilled, since they are handled manually:
     // before the parallel region call, they are passed via stack as ParallelLoopExecutor::execute parameter,
     // and restored after it with applied finalization offsets.
-    spill.preamble(get_regs_to_spill_except_mem_ptr_regs());
+    m_par_to_seq_part_spiller->preamble(get_regs_to_spill_except_mem_ptr_regs());
 
     const auto call_args_size = sizeof(typename ParallelLoopExecutor::call_args);
     const auto mem_ptrs_size = mem_ptr_regs_idxs.size() * sizeof(uintptr_t*);
@@ -213,6 +214,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
 
     const auto& aux_reg = get_call_address_reg();
     if (is_dynamic) {
+        RegPrinter::print<int>(*h, abi_param1, "outside_parallel_part");
         h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(loop_args)]);
         h->lea(aux_reg, h->ptr[aux_reg + loop_id_offset]);
         push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
@@ -229,18 +231,18 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(m_executor.get()));
     h->mov(abi_param2, h->rsp);
 
-    spill.rsp_align(get_callee_saved_reg().getIdx());
+    m_par_to_seq_part_spiller->rsp_align(get_callee_saved_reg().getIdx());
     // Note: we will return from this call only when the parallel region is finished (return from
     // jit_parallel_loop_end_emitter)
     h->call(aux_reg);
-    spill.rsp_restore();
+    m_par_to_seq_part_spiller->rsp_restore();
 
     // Restore data ptrs with applied finalization offsets
     for (auto i : mem_ptr_regs_idxs) {
         h->mov(Reg64(i), h->qword[h->rsp + call_args_size + i * sizeof(uintptr_t*)]);
     }
     h->add(h->rsp, reserved_stack_size);
-    spill.postamble();
+    m_par_to_seq_part_spiller->postamble();
 
     h->jmp(*loop_end_label, CodeGenerator::T_NEAR);
 }
@@ -253,7 +255,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() cons
     for (auto i : get_callee_saved_reg_idxs()) {
         loop_premble_spill.insert({snippets::RegType::gpr, i});
     }
-    m_loop_reg_spiller->preamble(loop_premble_spill);
+    m_seq_part_spiller->preamble(loop_premble_spill);
     // Note: work_amount reg is guaranteed to differ from any mem_ptr_regs_idxs.
     // However some of mem_ptr_regs_idxs might coincide with abi_param_1 or abi_param_2.
     h->mov(Reg64(internal_work_amount_reg_idx), abi_param1);
@@ -294,7 +296,8 @@ jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_emitter");
     loop_begin_emitter->set_loop_end_label(loop_end_label);
     loop_begin_label = loop_begin_emitter->get_begin_label();
-    m_loop_reg_spiller = loop_begin_emitter->get_loop_reg_spiller();
+    m_seq_part_spiller = loop_begin_emitter->get_seq_part_spiller();
+    m_par_to_seq_part_spiller = loop_begin_emitter->get_par_to_seq_part_spiller();
 }
 
 ov::snippets::lowered::ExpressionPtr jit_parallel_loop_end_emitter::get_loop_begin_expr(
@@ -353,8 +356,11 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     if (is_dynamic) {
         jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);
         reg_increments = gpr_holder.get_reg();
+        RegPrinter::print<int>(*h, abi_param1, "inside_seq_part: loop_end");
         h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
+        RegPrinter::print<int>(*h, reg_increments, "jit_parallel_loop_end_emitter::reg_increments");
         h->mov(reg_increments, h->ptr[reg_increments + loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments)]);
+        RegPrinter::print<int>(*h, reg_increments, "jit_parallel_loop_end_emitter::reg_increments2");
         add_increments();
     } else {
         add_increments();
@@ -364,7 +370,7 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     h->sub(reg_work_amount, wa_increment);
     h->cmp(reg_work_amount, wa_increment);
     h->jge(*loop_begin_label, CodeGenerator::T_NEAR);
-    m_loop_reg_spiller->postamble();
+    m_seq_part_spiller->postamble();
     // todo: we can return at the end of the tail processing loop instead
     // Note: parallel region ends here:
     h->ret();

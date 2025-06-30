@@ -51,8 +51,12 @@ public:
         return loop_begin_label;
     }
 
-    std::shared_ptr<EmitABIRegSpills> get_loop_reg_spiller() {
-        return m_loop_reg_spiller;
+    std::shared_ptr<EmitABIRegSpills> get_seq_part_spiller() {
+        return m_seq_part_spiller;
+    }
+
+    std::shared_ptr<EmitABIRegSpills> get_par_to_seq_part_spiller() {
+        return m_par_to_seq_part_spiller;
     }
 
 protected:
@@ -72,7 +76,8 @@ protected:
     std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
     std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
-    std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
+    std::shared_ptr<EmitABIRegSpills> m_seq_part_spiller = nullptr;
+    std::shared_ptr<EmitABIRegSpills> m_par_to_seq_part_spiller = nullptr;
 };
 
 class jit_parallel_loop_end_emitter : public jit_parallel_loop_base_emitter {
@@ -98,7 +103,8 @@ protected:
 
     std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
-    std::shared_ptr<EmitABIRegSpills> m_loop_reg_spiller = nullptr;
+    std::shared_ptr<EmitABIRegSpills> m_seq_part_spiller = nullptr;
+    std::shared_ptr<EmitABIRegSpills> m_par_to_seq_part_spiller = nullptr;
 };
 
 }  // namespace ov::intel_cpu
