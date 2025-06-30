@@ -124,11 +124,10 @@ public:
         m_write_hash_value = false;
     }
 
-    FilePosition write(ov::pass::WeightsVariant object, size_t& new_size) {
-        std::cout << "ConstantWriter::write: " << object.index() << std::endl;
+    FilePosition write(ov::pass::WeightsVariant object) {
+        std::cout << "ConstantWriter::write: " << object.index() << "key:" << m_blob_offset << std::endl;
         const auto offset = m_blob_offset;
         m_blob_offset += 1;
-        new_size = 1;
 
         m_offset_const_map->add_weights(offset, object);
         return offset;
@@ -504,11 +503,13 @@ public:
                 int64_t type = 0;
                 if (a1) {
                     std::cout << "Save one StringAlignedBuffer" << std::endl;
-                    offset = m_constant_write_handler.write(a1->get(), new_size);
+                    offset = m_constant_write_handler.write(a1->get());
+                    new_size = a1->get()->size();
                 } else {
                     std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
-                    offset = m_constant_write_handler.write(a2->get(), new_size);
+                    offset = m_constant_write_handler.write(a2->get());
                     type = 1;
+                    new_size = a2->get()->size();
                 }
 
                 m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
@@ -518,7 +519,8 @@ public:
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
                 size_t new_size;
-                int64_t offset = m_constant_write_handler.write(a->get(), new_size);
+                int64_t offset = m_constant_write_handler.write(a->get());
+                new_size = a->get()->size();
                 std::cout << "Save one AlignedBuffer" << std::endl;
                 m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
@@ -1200,6 +1202,7 @@ void serializeFunc(std::ostream& xml_file,
 namespace ov {
 bool pass::LightSerialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(LightSerialize);
+    model->set_rt_info(true, "light_serialize");
 
     model->validate_nodes_and_infer_types();
 

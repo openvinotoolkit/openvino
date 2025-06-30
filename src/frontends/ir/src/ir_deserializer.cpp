@@ -382,33 +382,94 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
         } else if (name == "value" && type == "Const") {
             std::vector<int64_t> shape;
             std::string el_type_str;
+            if (dn.attribute("offset") && dn.attribute("size")) {
+                size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+                size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+                if (!getStrAttribute(dn, "element_type", el_type_str))
+                    return;
+                if (!getParameters<int64_t>(dn, "shape", shape))
+                    return;
 
-            size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
-            if (!getStrAttribute(dn, "element_type", el_type_str))
-                return;
-            if (!getParameters<int64_t>(dn, "shape", shape))
-                return;
+                ov::element::Type el_type = ov::element::Type(el_type_str);
 
-            ov::element::Type el_type = ov::element::Type(el_type_str);
+                if (!m_weights)
+                    OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
+                if (m_weights->size() < offset + size)
+                    OPENVINO_THROW("Incorrect weights in bin file!");
+                char* data = m_weights->get_ptr<char>() + offset;
 
-            if (!m_weights)
-                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (m_weights->size() < offset + size)
-                OPENVINO_THROW("Incorrect weights in bin file!");
-            char* data = m_weights->get_ptr<char>() + offset;
+                if (el_type == element::string) {
+                    auto buffer =
+                        ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data,
+                                                                                                             size);
+                    a->set(buffer);
+                } else {
+                    if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
+                        OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
 
-            if (el_type == element::string) {
-                auto buffer =
-                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
-                a->set(buffer);
+                    auto buffer =
+                        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
+                    a->set(buffer);
+                }
             } else {
-                if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
-                    OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
+                size_t key = static_cast<size_t>(pugixml::get_uint64_attr(dn, "key"));
+                size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+                size_t type = static_cast<size_t>(pugixml::get_uint64_attr(dn, "type"));
 
-                auto buffer =
-                    std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size, m_weights);
-                a->set(buffer);
+                if (!getStrAttribute(dn, "element_type", el_type_str))
+                    return;
+                if (!getParameters<int64_t>(dn, "shape", shape))
+                    return;
+                ov::element::Type el_type = ov::element::Type(el_type_str);
+                std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
+                if (!m_weights_map)
+                    OPENVINO_THROW("Empty weights data in map!");
+                ov::pass::WeightsVariant weightsVariant;
+                if (!m_weights_map->get_weights(key, weightsVariant))
+                    OPENVINO_THROW("Incorrect weights in map!");
+                std::shared_ptr<ov::AlignedBuffer> buffer;
+                if (type == 0) {
+                    if (weightsVariant.index() != 0)
+                        OPENVINO_THROW("Incorrect weights type in map!");
+                    buffer = std::get<std::shared_ptr<ov::StringAlignedBuffer>>(weightsVariant);
+                    if (!buffer)
+                        OPENVINO_THROW("Incorrect weights in map!");
+                    std::cout << "using StringAlignedBuffer" << std::endl;
+                } else if (type == 1) {
+                    if (weightsVariant.index() != 1)
+                        OPENVINO_THROW("Incorrect weights type in map!");
+                    buffer = std::get<std::shared_ptr<ov::SharedStringAlignedBuffer>>(weightsVariant);
+                    if (!buffer)
+                        OPENVINO_THROW("Incorrect weights in map!");
+                    std::cout << "using SharedStringAlignedBuffer" << std::endl;
+                } else if (type == 2) {
+                    if (weightsVariant.index() != 2)
+                        OPENVINO_THROW("Incorrect weights type in map!");
+                    buffer = std::get<std::shared_ptr<ov::AlignedBuffer>>(weightsVariant);
+                    if (!buffer)
+                        OPENVINO_THROW("Incorrect weights in map!");
+                    std::cout << "using AlignedBuffer" << std::endl;
+                } else {
+                    OPENVINO_THROW("Unknown weights type in map!");
+                }
+                // char* data = m_weights->get_ptr<char>() + offset;
+
+                if (el_type == element::string) {
+                    // auto buffer =
+                    //     ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data,
+                    //     size);
+                    std::cout << "Warning: For StringAlignedBuffer!" << std::endl;
+                    a->set(buffer);
+                } else {
+                    if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
+                        OPENVINO_THROW("Attribute and shape size are inconsistent for ", type, " op!");
+
+                    // auto buffer =
+                    //     std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size,
+                    //     m_weights);
+                    std::cout << "Warning: for AlignedBuffer" << std::endl;
+                    a->set(buffer);
+                }
             }
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter)) {
@@ -417,22 +478,59 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
         if (name == "value" && type == "Const") {
             std::vector<int64_t> shape;
             std::string el_type_str;
+            if (dn.attribute("offset") && dn.attribute("size")) {
+                size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+                size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+                if (!getStrAttribute(dn, "element_type", el_type_str))
+                    return;
+                if (!getParameters<int64_t>(dn, "shape", shape))
+                    return;
 
-            size_t offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
-            size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
-            if (!getStrAttribute(dn, "element_type", el_type_str))
-                return;
-            if (!getParameters<int64_t>(dn, "shape", shape))
-                return;
+                if (!m_weights)
+                    OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
+                if (m_weights->size() < offset + size)
+                    OPENVINO_THROW("Incorrect weights in bin file!");
+                char* data = m_weights->get_ptr<char>() + offset;
+                auto buffer =
+                    ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
 
-            if (!m_weights)
-                OPENVINO_THROW("Empty weights data in bin file or bin file cannot be found!");
-            if (m_weights->size() < offset + size)
-                OPENVINO_THROW("Incorrect weights in bin file!");
-            char* data = m_weights->get_ptr<char>() + offset;
-            auto buffer =
-                ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data, size);
-            a->set(buffer);
+                a->set(buffer);
+            } else {
+                size_t key = static_cast<size_t>(pugixml::get_uint64_attr(dn, "key"));
+                size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+                size_t type = static_cast<size_t>(pugixml::get_uint64_attr(dn, "type"));
+                if (!getStrAttribute(dn, "element_type", el_type_str))
+                    return;
+                if (!getParameters<int64_t>(dn, "shape", shape))
+                    return;
+
+                if (!m_weights_map)
+                    OPENVINO_THROW("Empty weights data in map!");
+                ov::pass::WeightsVariant weightsVariant;
+                if (!m_weights_map->get_weights(key, weightsVariant))
+                    OPENVINO_THROW("Incorrect weights in map!");
+                std::shared_ptr<ov::StringAlignedBuffer> buffer;
+                if (type == 0) {
+                    if (weightsVariant.index() != 0)
+                        OPENVINO_THROW("Incorrect weights type in map!");
+                    buffer = std::get<std::shared_ptr<ov::StringAlignedBuffer>>(weightsVariant);
+                    if (!buffer)
+                        OPENVINO_THROW("Incorrect weights in map!");
+                    std::cout << "using StringAlignedBuffer" << std::endl;
+                } else if (type == 1) {
+                    if (weightsVariant.index() != 1)
+                        OPENVINO_THROW("Incorrect weights type in map!");
+                    buffer = std::get<std::shared_ptr<ov::SharedStringAlignedBuffer>>(weightsVariant);
+                    if (!buffer)
+                        OPENVINO_THROW("Incorrect weights in map!");
+                    std::cout << "using SharedStringAlignedBuffer" << std::endl;
+                } else {
+                    OPENVINO_THROW("Unknown weights type in map!");
+                }
+
+                std::cout << "Warning: For StringAlignedBuffer!" << std::endl;
+                a->set(buffer);
+            }
         }
     } else if (auto a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         const auto& type = pugixml::get_str_attr(m_node, "type");
