@@ -40,7 +40,7 @@
 #    include "utils/plain_tensor.hpp"
 #endif
 
-#if defined(OPENVINO_ARCH_X86)
+#if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/mlp_kernel.hpp"
 #endif
 
