@@ -105,7 +105,7 @@ macro(ov_find_package_tbb)
             if(APPLE)
                 find_program(BREW_EXECUTABLE brew)
                 if(BREW_EXECUTABLE)
-                    execute_process(COMMAND ${BREW_EXECUTABLE} --prefix
+                    execute_process(COMMAND "${BREW_EXECUTABLE}" --prefix
                                     OUTPUT_VARIABLE BREW_PREFIX
                                     OUTPUT_STRIP_TRAILING_WHITESPACE
                                     RESULT_VARIABLE BREW_RESULT)
