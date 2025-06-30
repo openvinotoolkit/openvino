@@ -132,10 +132,10 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         }
     }
 
-    void init_by_cached_kernels(const cldnn::kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
+    void init_by_cached_kernels(const cldnn::kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids, const engine& e) override {
         OPENVINO_ASSERT(cached_kernel_ids.size() == _order.size());
         for (size_t i = 0; i < cached_kernel_ids.size(); ++i) {
-            _stages[_order[i]]->kernel = kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[i]);
+            _stages[_order[i]]->kernel = kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[i], e);
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
