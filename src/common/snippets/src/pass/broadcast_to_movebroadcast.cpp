@@ -4,8 +4,17 @@
 
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/op/broadcastmove.hpp"
@@ -19,11 +28,13 @@ ov::snippets::pass::BroadcastToMoveBroadcast::BroadcastToMoveBroadcast() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::BroadcastToMoveBroadcast")
         auto root = m.get_match_root();
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(root)) {
-            if (broadcast_v1->get_broadcast_spec().m_type != ov::op::AutoBroadcastType::NUMPY)
+            if (broadcast_v1->get_broadcast_spec().m_type != ov::op::AutoBroadcastType::NUMPY) {
                 return false;
+            }
         } else if (auto broadcast_v3 = ov::as_type_ptr<const ov::op::v3::Broadcast>(root)) {
-            if (broadcast_v3->get_broadcast_spec().m_type != ov::op::BroadcastType::NUMPY)
+            if (broadcast_v3->get_broadcast_spec().m_type != ov::op::BroadcastType::NUMPY) {
                 return false;
+            }
         }
 
         const auto target_shape = root->get_output_partial_shape(0);
