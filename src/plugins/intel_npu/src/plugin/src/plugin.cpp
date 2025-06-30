@@ -96,10 +96,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
-    auto model = std::make_shared<ov::Model>(results, parameters);
-    auto& rtInfo = model->get_rt_info();
-    rtInfo["dummy_NPU_model"] = true;
-    return model;
+    return std::make_shared<ov::Model>(results, parameters);
 }
 
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
