@@ -24,7 +24,7 @@ protected:
     std::vector<bool> is_incremented;
     size_t num_inputs = 0;
     size_t num_outputs = 0;
-    size_t loop_id = 0;
+    size_t loop_id_offset = 0;
     bool evaluate_once = false;
     bool is_dynamic = false;
     size_t internal_work_amount_reg_idx = 0;
