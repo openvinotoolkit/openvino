@@ -202,7 +202,8 @@ jobs:
           --build ${BUILD_DIR} \
           --parallel $(($(nproc) - 1)) \
           --config ${{ env.CMAKE_BUILD_TYPE }} \
-          --target openvino_intel_cpu_plugin
+          --target openvino_intel_cpu_plugin \
+          -- --quiet
 
   Overall_Status:
     name: ci/gha_overall_status_clang_tidy
