@@ -481,4 +481,19 @@ TEST(RTInfoSerialization, AnyMap_info) {
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
     EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
 }
+
+TEST(RTInfoSerialization, nullptr_doesnt_throw) {
+    const auto data = std::make_shared<op::v0::Parameter>(element::Type_t::f64, Shape{111});
+    const auto abs = std::make_shared<op::v0::Abs>(data);
+    const auto result = std::make_shared<op::v0::Result>(abs);
+
+    abs->get_rt_info()["bare"] = ov::Any{nullptr};
+    abs->get_rt_info()["void*"] = ov::Any{static_cast<void*>(nullptr)};
+    abs->get_rt_info()["shared_ptr"] = ov::Any{std::shared_ptr<void>{}};
+    abs->get_rt_info()["RuntimeAttribute"] = ov::Any{std::shared_ptr<ov::RuntimeAttribute>{}};
+
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    std::stringstream model_ss, weights_ss;
+    EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
+}
 }  // namespace ov::test
