@@ -1815,10 +1815,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding) {
     };
     std::vector<int64_t> position_ids = {0, 1};
     std::vector<float> cos_cache = {
-        0.8437f, -0.7849f, -0.7829f, 0.4581f, -0.9870f, 0.6273f, -0.9483f, -0.9962f,
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
     };
     std::vector<float> sin_cache = {
-        0.5368f, 0.6196f, -0.6222f, 0.8889f, 0.1605f, -0.7788f, 0.3174f, -0.0872f,
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
     };
 
     std::vector<float> expected_output = {-1.4054f, 0.4758f, -0.0004f, 1.6814f,  0.1117f,  -1.2572f, 0.4033f,  -1.3547f,
