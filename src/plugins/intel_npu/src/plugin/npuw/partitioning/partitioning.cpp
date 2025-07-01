@@ -439,7 +439,7 @@ void Partitioner::identifySubgraphs() {
         // plan was done. E.g., new slices or converts may be added on inputs/
         // outputs. Add a special handling for this case.
         std::unordered_set<NodeSPtr> extra_params;
-        auto parameter_as_is = [&input_mapping](NodeSPtr orig_node) {
+        auto parameter_as_is = [&input_mapping](const NodeSPtr& orig_node) {
             auto it = input_mapping.find(orig_node);
             if (it != input_mapping.end()) {
                 return it->second;
@@ -749,7 +749,7 @@ void Partitioner::identifySubgraphs() {
                         result_cache[output_desc] = LinkPtrFrom{this_group_idx, new_result};
 
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
-                        group.sg._results.push_back(new_result);
+                        group.sg._results.push_back(std::move(new_result));
                     }
                 }
             }  // for (outputs)
@@ -1274,7 +1274,7 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
     for (auto&& op_node : model_group.front()->get_ordered_ops()) {
         for (auto&& iport : op_node->inputs()) {
             auto node = iport.get_source_output().get_node_shared_ptr();
-            auto shape = node->output(0).get_shape();
+            const auto& shape = node->output(0).get_shape();
             if (ov::npuw::partitioning::traits::is_tiny_scalar(node)) {
                 LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
                                     << ": It is safe to keep this bank in function");
