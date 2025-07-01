@@ -8,8 +8,7 @@
 #include "openvino/util/env_util.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 LogDispatch::Callback LogDispatch::default_callback{[](std::string_view s) {
     std::cout << s << std::endl;
@@ -125,5 +124,4 @@ std::string node_with_arguments(const ov::Node& node) {
 }
 
 #endif  // ENABLE_OPENVINO_DEBUG
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

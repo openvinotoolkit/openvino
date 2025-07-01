@@ -40,7 +40,7 @@ public:
     }
 
 private:
-    LogCallback* m_handler = nullptr;
+    LogCallback* m_handler{nullptr};
     std::stringstream m_stream;
 };
 

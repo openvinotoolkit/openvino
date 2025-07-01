@@ -10,8 +10,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 /** @brief Allows toggling log message output between std::cout and user provided callback.
  */
@@ -721,5 +720,4 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
 
 #endif  // ENABLE_OPENVINO_DEBUG
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util
