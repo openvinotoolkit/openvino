@@ -920,8 +920,8 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
         auto head_cnt = symbols["head_cnt"];
         auto head_size = symbols["head_size"];
         auto half_ndims = symbols["ndims/2"];
-        if (!ndims.is_integer() || !head_cnt.is_integer() || !head_size.is_integer() ||
-            !half_ndims.is_integer() || half_ndims.i() * 2 != ndims.i()) {
+        if (!ndims.is_integer() || !head_cnt.is_integer() || !head_size.is_integer() || !half_ndims.is_integer() ||
+            half_ndims.i() * 2 != ndims.i()) {
             return false;
         }
 
