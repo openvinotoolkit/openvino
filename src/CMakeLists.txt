@@ -12,7 +12,7 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     ov_disable_deprecated_warnings()
 endif()
 
-if(APPLE AND AARCH64)
+if(APPLE AND AARCH64 AND NOT OV_FORCE_ADHOC_SIGN)
     # Disable automatic adhoc sign
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_adhoc_codesign")
 endif()
