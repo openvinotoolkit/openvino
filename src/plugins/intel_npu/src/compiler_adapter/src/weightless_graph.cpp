@@ -143,8 +143,9 @@ public:
 
 // c++17 deduction guide
 template <typename Task1Callable, typename Task2Callable>
-Parallelizer(const std::shared_ptr<const ov::Model>&, Task1Callable&&, Task2Callable&&)
-    -> Parallelizer<Task1Callable, Task2Callable>;
+Parallelizer(const std::shared_ptr<const ov::Model>&,
+             Task1Callable&&,
+             Task2Callable&&) -> Parallelizer<Task1Callable, Task2Callable>;
 
 void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& dst,
                     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& src) {
