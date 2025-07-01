@@ -23,13 +23,16 @@ LogCallback& get_log_callback() {
 }
 
 OPENVINO_API
-void set_log_callback(std::function<void(std::string_view)>* callback) {
+void reset_log_callback() {
+    current_callback = &default_callback;
+}
+
+OPENVINO_API
+void set_log_callback(std::function<void(std::string_view)>& callback) {
     if (!callback) {
-        current_callback = &default_callback;
-    } else if (!(*callback)) {
         current_callback = &silent_callback;
     } else {
-        current_callback = callback;
+        current_callback = &callback;
     }
 }
 }  // namespace ov::util

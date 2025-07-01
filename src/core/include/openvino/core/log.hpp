@@ -12,10 +12,16 @@
 namespace ov::util {
 
 /**
- * @brief Sets and resets log messages handling callback.
- * @param [in] callback     A pointer to callable object which is called on single message logging. Empty object is fine
- * (no messages output). `nullptr' resets internal callback to its default (messages are streamed to `std::cout').
+ * @brief Resets log messages handling callback to its default (`std::cout').
  */
 OPENVINO_API
-void set_log_callback(std::function<void(std::string_view)>* callback);
+void reset_log_callback();
+
+/**
+ * @brief Sets user log messages handling callback.
+ * @param [in] callback     A reference to callable object which is called on single message logging.
+ *                          Empty object is fine - nothing is logged.
+ */
+OPENVINO_API
+void set_log_callback(std::function<void(std::string_view)>& callback);
 }  // namespace ov::util
