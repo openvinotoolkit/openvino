@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
 
@@ -109,22 +110,18 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     }
 }
 
-std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize, FilteredConfig config) {
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
         MetadataBase::get_minor(version) > CURRENT_METADATA_MINOR_VERSION) {
-        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize, std::nullopt, config);
+        return std::make_unique<Metadata<CURRENT_METADATA_VERSION>>(blobSize, std::nullopt);
     }
 
     switch (version) {
     case METADATA_VERSION_2_0:
-<<<<<<< HEAD
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
     case METADATA_VERSION_2_1:
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
-=======
-        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt, config);
 
->>>>>>> 480327a830 (Add `Plugin::parse(tensor, metadata)` function for both `import_model(istream&, ...)` and `import_model(ov::Tensor, ...)`)
     default:
         OPENVINO_THROW("Metadata version is not supported!");
     }
@@ -152,6 +149,9 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
         OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
     }
 
+    if (dynamic_cast<ov::SharedStreamBuffer*>(stream.rdbuf()) != nullptr) {
+        return stream.rdbuf()->in_avail();
+    }
     const std::streampos streamStart = stream.tellg();
     stream.seekg(0, std::ios_base::end);
     const std::streampos streamEnd = stream.tellg();
@@ -170,7 +170,7 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
     return streamEnd - streamStart;
 }
 
-std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream, FilteredConfig config) {
+std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
     blobMagicBytes.resize(magicBytesSize);
@@ -192,7 +192,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream, FilteredC
 
     std::unique_ptr<MetadataBase> storedMeta;
     try {
-        storedMeta = create_metadata(metaVersion, blobDataSize, std::move(config));
+        storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(stream);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what(),
@@ -212,7 +212,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream, FilteredC
     return storedMeta;
 }
 
-std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor, FilteredConfig config) {
+std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
                                     magicBytesSize);
@@ -233,7 +233,7 @@ std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor, Filte
         auto roiTensor = ov::Tensor(tensor,
                                     ov::Coordinate{blobDataSize + sizeof(metaVersion)},
                                     ov::Coordinate{tensor.get_byte_size()});
-        storedMeta = create_metadata(metaVersion, blobDataSize, std::move(config));
+        storedMeta = create_metadata(metaVersion, blobDataSize);
         storedMeta->read(roiTensor);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what(),
@@ -256,16 +256,13 @@ uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
 
-<<<<<<< HEAD
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
     return std::nullopt;
 }
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
-=======
 FilteredConfig Metadata<METADATA_VERSION_2_0>::get_config() const {
     return _config;
->>>>>>> 480327a830 (Add `Plugin::parse(tensor, metadata)` function for both `import_model(istream&, ...)` and `import_model(ov::Tensor, ...)`)
 }
 
 }  // namespace intel_npu

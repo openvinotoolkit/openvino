@@ -49,6 +49,8 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
 
+    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor&, const ov::AnyMap& properties) const;
+
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
@@ -69,7 +71,10 @@ private:
     FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
-    std::shared_ptr<ov::ICompiledModel> parse(ov::Tensor tensor, std::unique_ptr<MetadataBase>) const;
+    std::shared_ptr<ov::ICompiledModel> parse(ov::Tensor& tensor,
+                                              std::unique_ptr<MetadataBase> metadata,
+                                              bool blobAllocatedByPlugin,
+                                              ov::AnyMap& npu_plugin_properties) const;
 
     /**
      * @brief Parses the compiled model found within the stream and tensor and returns a wrapper over the L0 handle that
