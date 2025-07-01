@@ -88,13 +88,13 @@ public:
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
     void update_by_expression(const lowered::ExpressionPtr& expr,
-                              const lowered::LinearIRCPtr& linear_ir) override final {  // NOLINT
+                              const lowered::LinearIRCPtr& linear_ir) override final {
         update_config(expr, linear_ir, m_config);
         OPENVINO_ASSERT(m_config.is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
-    void update_by_config(const GenericConfig& new_config) override final {  // NOLINT
+    void update_by_config(const GenericConfig& new_config) override final {
         if (m_config.hash() == new_config.hash()) {
             return;
         }
