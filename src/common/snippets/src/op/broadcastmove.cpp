@@ -2,16 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/op/broadcastmove.hpp"
 
+#include <memory>
+#include <utility>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/itt.hpp"
 
-BroadcastMove::BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension) : Op({x}), bcast_dimension(std::move(bcast_dimension)) {
+namespace ov::snippets::op {
+
+BroadcastMove::BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension)
+    : Op({x}),
+      bcast_dimension(std::move(bcast_dimension)) {
     constructor_validate_and_infer_types();
 }
 
@@ -28,12 +35,11 @@ std::shared_ptr<Node> BroadcastMove::clone_with_new_inputs(const OutputVector& n
 
 void BroadcastMove::validate_and_infer_types() {
     auto broadcasted_shape = get_input_partial_shape(0);
-    if (broadcasted_shape.size() == 0)
+    if (broadcasted_shape.size() == 0) {
         broadcasted_shape.resize(1);
+    }
     *broadcasted_shape.rbegin() = bcast_dimension;
     set_output_type(0, get_input_element_type(0), broadcasted_shape);
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

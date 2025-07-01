@@ -10,7 +10,6 @@
 #include <set>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -25,6 +24,7 @@
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/propagate_precision.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::intel_cpu::pass;
@@ -41,12 +41,12 @@ EnforcePrecision::EnforcePrecision(
     OPENVINO_ASSERT(source != target, "source and target precisions have to be different");
 }
 
-bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(EnforcePrecision);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EnforcePrecision")
 
     bool was_updated = false;
-    for (const auto& op : f->get_ordered_ops()) {
+    for (const auto& op : m->get_ordered_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
         const auto& precisions = get_supported_precisions(op);
@@ -137,10 +137,10 @@ std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisi
     const std::shared_ptr<ov::Node>& op) noexcept {
     std::set<std::vector<ov::element::Type>> types;
     if (ov::is_type<snippets::op::Brgemm>(op)) {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+        if (brgemm_utils::is_fp16_supported()) {
             types.insert({element::f16, element::f16});
         }
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+        if (brgemm_utils::is_bf16_supported()) {
             types.insert({element::bf16, element::bf16});
         }
     }

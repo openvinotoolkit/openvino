@@ -465,8 +465,8 @@ struct EltwiseKey {
 
         if (result) {
             if (implType == EltwiseImplType::optimizedShapeAgnostic) {
-                bool broadcast;
-                bool rhsBroadcast;
+                bool broadcast = false;
+                bool rhsBroadcast = false;
                 for (size_t i = 0; i < inpDims.size(); ++i) {
                     broadcast = (inpDims[i].back() == 1);
                     rhsBroadcast = (rhs.inpDims[i].back() == 1);
@@ -849,8 +849,6 @@ public:
 
 #elif defined(OPENVINO_ARCH_ARM64)
         if (one_of(algorithm,
-                   Algorithm::EltwiseHsigmoid,
-                   Algorithm::EltwiseErf,
                    Algorithm::EltwiseBitwiseAnd,
                    Algorithm::EltwiseBitwiseNot,
                    Algorithm::EltwiseBitwiseOr,
@@ -887,6 +885,11 @@ public:
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
                     Algorithm::EltwiseFloor,
+                    Algorithm::EltwiseGreaterEqual,
+                    Algorithm::EltwiseLessEqual,
+                    Algorithm::EltwiseLogicalAnd,
+                    Algorithm::EltwiseLogicalNot,
+                    Algorithm::EltwiseLogicalXor,
                     Algorithm::EltwiseMaximum,
                     Algorithm::EltwiseMinimum,
                     Algorithm::EltwiseMod,
@@ -1127,7 +1130,7 @@ public:
 
             for (size_t iwork = start; iwork < end; ++iwork) {
                 std::vector<T> src_f(this->_inputNum);
-                T* dst_ptr_f;
+                T* dst_ptr_f = nullptr;
                 this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
 
                 switch (this->_opData.algo) {
@@ -1282,7 +1285,7 @@ public:
 
             for (size_t iwork = start; iwork < end; ++iwork) {
                 std::vector<T> src_f(this->_inputNum);
-                T* dst_ptr_f;
+                T* dst_ptr_f = nullptr;
                 this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
 
                 switch (this->_opData.algo) {
@@ -1404,8 +1407,7 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
 }
 
 Eltwise::Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, EltwiseShapeInferFactory()),
-      broadcastingPolicy(Undefined) {
+    : Node(op, context, EltwiseShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -1592,9 +1594,13 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-    implType = canUseOptimizedShapeAgnosticImpl ? EltwiseImplType::optimizedShapeAgnostic
-               : canUseOptimizedImpl            ? EltwiseImplType::optimized
-                                                : EltwiseImplType::reference;
+    if (canUseOptimizedShapeAgnosticImpl) {
+        implType = EltwiseImplType::optimizedShapeAgnostic;
+    } else if (canUseOptimizedImpl) {
+        implType = EltwiseImplType::optimized;
+    } else {
+        implType = EltwiseImplType::reference;
+    }
 
     const auto useJitExecutor = one_of(implType, EltwiseImplType::optimizedShapeAgnostic, EltwiseImplType::optimized);
 
@@ -2453,17 +2459,14 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
                 ov::element::f32)) {
         return false;
     }
-// Convert can be fused into Eltwise only if jit implementation is supported
-#if defined(OPENVINO_ARCH_ARM64)
+    // Convert can be fused into Eltwise only if jit implementation is supported
     return EltwiseJitExecutor::isSupportedOp(this,
                                              getAlpha(),
                                              getBeta(),
                                              getGamma(),
                                              {},
                                              {convertNode->getOriginalOutputPrecisionAtPort(0)});
-#else
     return false;
-#endif
 }
 
 bool Eltwise::canFuse(const NodePtr& node) const {
@@ -2478,10 +2481,8 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        for (const auto& originalInputPrecision : node->getOriginalInputPrecisions()) {
-            if (originalInputPrecision != ov::element::i32) {
-                return false;
-            }
+        if (!all_of_values(node->getOriginalInputPrecisions(), ov::element::i32)) {
+            return false;
         }
 
         return true;

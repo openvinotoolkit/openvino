@@ -405,12 +405,10 @@ void Graph::Activate() {
 void Graph::Configure([[maybe_unused]] bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
-    GraphOptimizer optimizer;
-
     SortTopologically();
     InitNodes();
 
-    optimizer.ApplyCommonGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyCommonGraphOptimizations(*this);
 
     SortTopologically();
 
@@ -429,7 +427,7 @@ void Graph::Configure([[maybe_unused]] bool optimize) {
 
     ResolveComplexInplaceConflicts();
 
-    optimizer.ApplyImplSpecificGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyImplSpecificGraphOptimizations(*this);
 
     SortTopologically();
 
@@ -1421,7 +1419,7 @@ public:
         m_completion.store(true, std::memory_order_release);
     }
 
-    void updateDynParams(size_t node_indx, size_t /*unused*/) {
+    void updateDynParams(size_t node_indx, [[maybe_unused]] size_t stop_indx) {
         size_t local_counter = node_indx;
         while (true) {
             const bool completion = m_completion.load(std::memory_order_acquire);
@@ -1455,12 +1453,12 @@ public:
           m_wait(wait),
           m_node_indx(node_indx),
           m_stop_indx(stop_indx) {}
-    task* execute(tbb::detail::d1::execution_data& /*unused*/) override {
+    task* execute([[maybe_unused]] tbb::detail::d1::execution_data& data) override {
         m_body(m_node_indx, m_stop_indx);
         m_wait.release();
         return nullptr;
     }
-    task* cancel(tbb::detail::d1::execution_data& /*unused*/) override {
+    task* cancel([[maybe_unused]] tbb::detail::d1::execution_data& data) override {
         m_wait.release();
         return nullptr;
     }
@@ -1955,8 +1953,8 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
     // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't
     // do these checks.
     if (!isOptimized) {
-        reorder->getParentEdgeAt(0)->getOriginalDesc();
-        reorder->getChildEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getParentEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getChildEdgeAt(0)->getOriginalDesc();
     }
 
     return reorder;

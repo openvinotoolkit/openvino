@@ -234,11 +234,9 @@ void Node::remove() {
 }
 
 bool Node::isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) {
-    for (const auto& edge : edges) {
-        if (edge.lock()) {
-            return false;
-        }
-    }
+    return std::all_of(edges.begin(), edges.end(), [](const EdgeWeakPtr& edge) {
+        return !edge.lock();
+    });
     return true;
 }
 
@@ -371,7 +369,8 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
                                                     bool ignoreConstInputs) {
     // Filter out dynamic shape.
     if (isDynamic) {
-        return selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
+        selectPreferPrimitiveDescriptor(priority, ignoreConstInputs);
+        return;
     }
 
     auto estimateReorderOverhead = [&](const ov::intel_cpu::NodeDesc& supportedPrimitiveDesc,
@@ -835,9 +834,10 @@ void Node::updateDynamicParams() {
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
     if (isDynamicNode()) {
-        return executeDynamic(strm, numaId);
+        executeDynamic(strm, numaId);
+    } else {
+        executeStatic(strm, numaId);
     }
-    return executeStatic(strm, numaId);
 }
 
 void Node::executeStatic(const dnnl::stream& strm, int numaId) {
@@ -1218,7 +1218,7 @@ void Node::toNumaNode(int numaNodeID) {
         return;
     }
 
-    return toNumaNodeImpl(numaNodeID);
+    toNumaNodeImpl(numaNodeID);
 }
 
 void Node::toNumaNodeImpl(int numaNodeID) {
@@ -1323,30 +1323,53 @@ void Node::cleanup() {
 }
 
 const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
-    static const std::vector<impl_desc_type> priorities {
+    static const std::vector<impl_desc_type> priorities{
         impl_desc_type::unknown,
-            // Undef impl type is used to express use-cases there real type is unkown during compilation
-            // Undef has higher priority than defined types in order to force primitive selection logic to make decision
-            // based on other properties
-            impl_desc_type::undef, impl_desc_type::brgconv_avx512_amx_1x1, impl_desc_type::brgconv_avx512_amx,
-            impl_desc_type::jit_avx512_amx_dw, impl_desc_type::jit_avx512_amx_1x1, impl_desc_type::jit_avx512_amx,
-            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
-            // impl_desc_type::brgconv_avx512_1x1,
-            // impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_uni_dw, impl_desc_type::jit_uni_1x1, impl_desc_type::jit_uni,
-            impl_desc_type::jit_avx512_dw, impl_desc_type::jit_avx512_1x1, impl_desc_type::jit_avx512,
-            impl_desc_type::jit_avx2_dw, impl_desc_type::jit_avx2_1x1, impl_desc_type::jit_avx2,
-            impl_desc_type::jit_avx_dw, impl_desc_type::jit_avx_1x1, impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw, impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
+        // Undef impl type is used to express use-cases there real type is unkown during compilation
+        // Undef has higher priority than defined types in order to force primitive selection logic to make decision
+        // based on other properties
+        impl_desc_type::undef,
+        impl_desc_type::brgconv_avx512_amx_1x1,
+        impl_desc_type::brgconv_avx512_amx,
+        impl_desc_type::jit_avx512_amx_dw,
+        impl_desc_type::jit_avx512_amx_1x1,
+        impl_desc_type::jit_avx512_amx,
+        // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+        // impl_desc_type::brgconv_avx512_1x1,
+        // impl_desc_type::brgconv_avx512,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
-            impl_desc_type::jit_asimd,
+        impl_desc_type::jit_asimd,
 #elif defined(OPENVINO_ARCH_RISCV64)
-            impl_desc_type::jit_gv,
+        impl_desc_type::jit_gv,
 #endif
-            impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
-            impl_desc_type::gemm_kleidiai, impl_desc_type::kleidiai, impl_desc_type::jit_gemm, impl_desc_type::ref_any,
-            impl_desc_type::ref,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
+        impl_desc_type::gemm_kleidiai,
+        impl_desc_type::kleidiai,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
     };
 
     return priorities;
@@ -1521,13 +1544,9 @@ void Node::appendPostOpArgs([[maybe_unused]] const dnnl::primitive_attr& attr,
 }
 
 bool Node::isFusedWith(Type fusedNodeType) const {
-    for (const auto& fusedNode : fusedWith) {
-        if (fusedNode->type == fusedNodeType) {
-            return true;
-        }
-    }
-
-    return false;
+    return std::any_of(fusedWith.begin(), fusedWith.end(), [fusedNodeType](const NodePtr& fusedNode) {
+        return fusedNode->type == fusedNodeType;
+    });
 }
 
 dnnl::memory::format_tag Node::getWeightsFormatTagByDims(const VectorDims& dims) {
@@ -2153,19 +2172,18 @@ void Node::resolveInPlaceDirection() {
                 config.inConfs[inpPort].inPlace(-1);
                 initDescriptor(config);
             } else if (parentInPlaceDirection == InplaceDirectionType::DOWN) {
-                // search if siblings already have downstream direction
                 auto downstreamPeers = [&] {
-                    for (auto& peerEdge : pParent->getChildEdgesAtPort(pEdge->getInputNum())) {
-                        auto* peerNode = peerEdge->getChild().get();
-                        if (peerNode == this) {
-                            continue;
-                        }
-                        if (inPlaceDirection(peerNode, PortType::INPUT, peerEdge->getOutputNum()) ==
-                            InplaceDirectionType::DOWN) {
-                            return true;
-                        }
-                    }
-                    return false;
+                    const auto& childEdges = pParent->getChildEdgesAtPort(pEdge->getInputNum());
+                    return std::any_of(childEdges.begin(),
+                                       childEdges.end(),
+                                       [this, &inPlaceDirection](const EdgePtr& edge) {
+                                           auto* peerNode = edge->getChild().get();
+                                           if (peerNode == this) {
+                                               return false;
+                                           }
+                                           return inPlaceDirection(peerNode, PortType::INPUT, edge->getOutputNum()) ==
+                                                  InplaceDirectionType::DOWN;
+                                       });
                 }();
                 if (downstreamPeers) {
                     // when there is an downstream peer we have to resolve upstream inplace for the node
@@ -2234,8 +2252,8 @@ void Node::resolveInPlaceDirection() {
                                 } else {
                                     auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
                                     if (InplaceDirectionType::CYCLIC == result) {
-                                        return searchReferencingOutput(pChild,
-                                                                       pChild->inPlaceInputPort(edge->getOutputNum()));
+                                        searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                                        return;
                                     }
                                 }
                             }

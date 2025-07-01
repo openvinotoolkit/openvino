@@ -97,10 +97,30 @@ public:
         return layout{ p.out_shape, p.data_type, p.input_format  };
     }
 
+    // Helper function to get per channel layout for both 4D and 5D
     layout get_per_channel_layout(reduce_test_params& p) {
-        return layout{ {1, p.in_shape[1], 1, 1}, p.default_type, p.default_format };
+        if (p.out_shape.size() == 5) {
+            // 5D case
+            return layout{ {1, p.in_shape[1], 1, 1, 1}, p.default_type, (p.default_format.dimension() == 5) ? p.default_format : cldnn::format(format::bfzyx)};
+        } else if (p.out_shape.size() <= 4){
+            // 4D or other cases
+            return layout{ {1, p.in_shape[1], 1, 1}, p.default_type, p.default_format };
+        } else {
+            OPENVINO_ASSERT(false, "NOT_IMPLEMENTED");
+        }
     }
 
+    layout get_single_element_layout(reduce_test_params& p) {
+        if (p.out_shape.size() == 5) {
+            // 5D case
+            return layout{ p.default_type, (p.default_format.dimension() == 5) ? p.default_format : cldnn::format(format::bfzyx) , tensor{1, 1, 1, 1, 1} };
+        } else if (p.out_shape.size() <= 4) {
+            // 4D or other cases
+            return layout{ p.default_type, p.default_format, tensor{1, 1, 1, 1} };
+        } else {
+            OPENVINO_ASSERT(false, "NOT_IMPLEMENTED");
+        }
+    }
 };
 }  // namespace
 

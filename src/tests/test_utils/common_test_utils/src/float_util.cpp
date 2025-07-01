@@ -4,8 +4,10 @@
 
 #include "common_test_utils/float_util.hpp"
 
+#include <algorithm>
+#include <bitset>
+
 #include "openvino/runtime/exception.hpp"
-#include "precomp.hpp"
 
 namespace ov {
 namespace test {

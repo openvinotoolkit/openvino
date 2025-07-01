@@ -131,8 +131,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
 void DebugLogEnabled::break_at(const std::string& log) {
     static const char* p_brk = std::getenv("OV_CPU_DEBUG_LOG_BRK");
     if (p_brk && log.find(p_brk) != std::string::npos) {
-        std::cout << "[ DEBUG ] "
-                  << " Debug log breakpoint hit" << '\n';
+        std::cout << "[ DEBUG ] Debug log breakpoint hit\n";
 #    if defined(_MSC_VER)
         __debugbreak();
 #    elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64) || \
@@ -196,16 +195,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return id;
     };
     auto is_single_output_port = [](Node& node) {
-        for (const auto& e : node.getChildEdges()) {
+        return std::all_of(node.getChildEdges().begin(), node.getChildEdges().end(), [](const auto& e) {
             auto edge = e.lock();
-            if (!edge) {
-                continue;
-            }
-            if (edge->getInputNum() != 0) {
-                return false;
-            }
-        }
-        return true;
+            return edge && edge->getInputNum() == 0;
+        });
     };
 
     auto* nodeDesc = node.getSelectedPrimitiveDescriptor();

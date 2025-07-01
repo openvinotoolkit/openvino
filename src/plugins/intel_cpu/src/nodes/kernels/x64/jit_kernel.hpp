@@ -90,7 +90,15 @@ struct reg_traits : public reg_traits_by_size<sizeof(T)> {};
 
 template <size_t N>
 struct vec_min_size {
-    constexpr static size_t size = N <= 16 ? 16 : N <= 32 ? 32 : 64;
+    constexpr static size_t size = []() constexpr -> size_t {
+        if (N <= 16) {
+            return 16;
+        }
+        if (N <= 32) {
+            return 32;
+        }
+        return 64;
+    }();
 };
 
 template <typename T, size_t N>
@@ -149,7 +157,7 @@ class boolean_expression {
 public:
     using reg_type = const typename reg_traits<T>::type;
 
-    enum class type {
+    enum class type : uint8_t {
         eq,   // ==
         neq,  // !=
         ls,   // <
@@ -202,7 +210,7 @@ public:
         using namespace Xbyak;
 
         _expr.cmp(_else);
-        fn();
+        std::forward<F>(fn)();
         _expr._kernel.jmp(_exit, Xbyak::CodeGenerator::T_NEAR);
         _expr._kernel.L(_else);
 
@@ -231,8 +239,8 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base(const variable_base&);
-    variable_base(variable_base&&) noexcept;
+    variable_base(const variable_base& rhs);
+    variable_base(variable_base&& rhs) noexcept;
 
     [[nodiscard]] reg_type& reg() const {
         return *_reg;
@@ -265,8 +273,8 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base(const variable_base&);
-    variable_base(variable_base&&) noexcept;
+    variable_base(const variable_base& rhs);
+    variable_base(variable_base&& rhs) noexcept;
 
     reg_type& reg() const {
         return *_addr;
@@ -300,6 +308,7 @@ public:
         return variable<std::remove_pointer_t<T>, memory_tag>(base::_kernel, base::shreg());
     }
 
+    // NOLINTBEGIN(cppcoreguidelines-c-copy-assignment-signature, misc-unconventional-assign-operator)
     const variable& operator=(reg_type& rhs) const {
         base::_kernel.mov(base::reg(), rhs);
         return *this;
@@ -524,12 +533,12 @@ public:
         return *this;
     }
 
-    const variable& blend(reg_type& rhs, uint16_t mask) const {
+    [[nodiscard]] const variable& blend(reg_type& rhs, uint16_t mask) const {
         base::_kernel.uni_vblendps(base::reg(), rhs, mask);
         return *this;
     }
 
-    const variable& permute(const std::array<uint8_t, N>& order) const {
+    [[nodiscard]] const variable& permute(const std::array<uint8_t, N>& order) const {
         base::_kernel.uni_vpermps(base::reg(), order.data(), base::reg());
         return *this;
     }
@@ -937,7 +946,7 @@ then_expression<T>::then_expression(if_expression<T>& expr) : _if_expr(expr) {}
 template <typename T>
 template <typename F>
 void then_expression<T>::_else(F&& fn) {
-    fn();
+    std::forward<F>(fn)();
     _if_expr._expr._kernel.L(_if_expr._exit);
     _if_expr._is_exit_valid = true;
 }
@@ -996,6 +1005,8 @@ variable<T[N], register_tag>::variable(jit_kernel& krnl)
 
 template <typename T, size_t N>
 variable<T[N], register_tag>::variable(jit_kernel& krnl, const shared_reg<reg_type>& reg) : base(krnl, reg) {}
+
+// NOLINTEND(cppcoreguidelines-c-copy-assignment-signature, misc-unconventional-assign-operator)
 
 }  // namespace internal
 
