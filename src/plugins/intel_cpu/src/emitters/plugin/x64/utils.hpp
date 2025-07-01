@@ -40,6 +40,11 @@ public:
     [[nodiscard]] size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();
     }
+
+    [[nodiscard]] const std::vector<Xbyak::Reg>& get_spilled_regs() const {
+        return m_regs_to_spill;
+    }
+
     /**
      * @brief Spills registers to stack
      * @arg live_regs - set of registers to spill (optional). All registers will be spilled if live_regs is not
@@ -57,6 +62,17 @@ public:
 private:
     EmitABIRegSpills() = default;
     static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
+    [[nodiscard]] static size_t compute_memory_buffer_size(const std::vector<Xbyak::Reg>& regs);
+    
+    static void store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator* h,
+                                     const std::vector<Xbyak::Reg>& regs_to_store,
+                                     Xbyak::Reg memory_ptr_reg);
+
+    static void load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator* h,
+                                      const std::vector<Xbyak::Reg>& regs_to_load,
+                                      Xbyak::Reg memory_ptr_reg,
+                                      uint32_t memory_byte_size);
+
     dnnl::impl::cpu::x64::jit_generator_t* h{nullptr};
     const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
     std::vector<Xbyak::Reg> m_regs_to_spill;
