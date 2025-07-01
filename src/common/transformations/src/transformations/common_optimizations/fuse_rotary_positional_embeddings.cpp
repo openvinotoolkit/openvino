@@ -874,69 +874,71 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
 }
 
 ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
+    using namespace ov::op;
     MATCHER_SCOPE(RoPEFusionChatGLMHF);
 
-    auto qk_linear = makePattern("[?,?,?]");
-    auto cos = makePattern("[?,?,?,?]");
-    auto sin = makePattern("[?,?,?,?]");
+    auto qk_linear = pattern::any_input(pattern::shape_matches("[?, 1, ?]"));
+    auto cos = pattern::any_input(pattern::shape_matches("[?, 1, 1, ?]"));
+    auto sin = pattern::any_input(pattern::shape_matches("[?, 1, 1, ?]"));
 
-    auto ndims = ov::gen_pattern::Symbol("ndims");
-    auto head_cnt = ov::gen_pattern::Symbol("head_cnt");
-    auto head_size = ov::gen_pattern::Symbol("head_size");
-
-    auto A = ov::gen_pattern::Symbol("A");
-    auto B = ov::gen_pattern::Symbol("B");
-    auto C = ov::gen_pattern::Symbol("C");
-
-    auto reshape = makePattern<opset1::Reshape>({qk_linear, {-1, head_cnt, 1, head_size}}, {{"special_zero", false}});
-    auto slice_1 = GenSlice(reshape, 0, ndims, 1, 3);
+    auto reshape = pattern::wrap_type<v1::Reshape>({qk_linear, pattern::any_input()},
+                                                   pattern::shape_matches("[?, head_cnt, 1, head_size]"),
+                                                   {{"special_zero", false}});
+    auto slice_1 = NewGenSlice(reshape, 0, "ndims", 1, 3);
 
     auto const_idx =
         pattern::wrap_type<ov::opset1::Constant>(pattern::type_matches(ov::element::i32) && const_idx_predicate);
-    auto repeat_interleave_cos = makePattern<opset8::Gather>({cos, const_idx, -1}, {{"batch_dims", 0}});
-    auto repeat_interleave_sin = makePattern<opset8::Gather>({sin, const_idx, -1}, {{"batch_dims", 0}});
+    auto repeat_interleave_cos = pattern::wrap_type<v8::Gather>({cos, const_idx, -1}, {{"batch_dims", 0}});
+    auto repeat_interleave_sin = pattern::wrap_type<v8::Gather>({sin, const_idx, -1}, {{"batch_dims", 0}});
 
-    auto multiply = makePattern<opset1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
-    auto slice_2 = GenSlice(slice_1, 1, INT_MAX, 2, 3);
-    auto neg = makePattern<opset1::Multiply>({slice_2, -1.000000f}, {{"auto_broadcast", "numpy"}});
-    auto unsqueeze_1 = makePattern<opset1::Reshape>({neg, {A, B, C, ndims / 2, 1}}, {{"special_zero", false}});
-    auto slice_3 = GenSlice(slice_1, 0, INT_MAX, 2, 3);
-    auto unsqueeze_2 = makePattern<opset1::Reshape>({slice_3, {A, B, C, ndims / 2, 1}}, {{"special_zero", false}});
-    auto stack = makePattern<opset1::Concat>({unsqueeze_1, unsqueeze_2}, {{"axis", -1}});
-    auto flatten = makePattern<opset1::Reshape>({stack, {0, head_cnt, 0, ndims}}, {{"special_zero", true}});
-    auto multiply_1 = makePattern<opset1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
-    auto add = makePattern<opset1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
+    auto multiply = pattern::wrap_type<v1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
+    auto slice_2 = NewGenSlice(slice_1, 1, INT_MAX, 2, 3);
+    auto neg = pattern::wrap_type<v1::Multiply>({slice_2, -1}, {{"auto_broadcast", "numpy"}});
+    auto unsqueeze_1 = pattern::wrap_type<v1::Reshape>({neg, pattern::any_input()},
+                                                       pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
+                                                       {{"special_zero", false}});
+    auto slice_3 = NewGenSlice(slice_1, 0, INT_MAX, 2, 3);
+    auto unsqueeze_2 = pattern::wrap_type<v1::Reshape>({slice_3, pattern::any_input()},
+                                                       pattern::shape_matches("[?, head_cnt, 1, ndims/2, 1]"),
+                                                       {{"special_zero", false}});
+    auto stack = pattern::wrap_type<v0::Concat>({unsqueeze_1, unsqueeze_2}, {{"axis", -1}});
+    auto flatten = pattern::wrap_type<v1::Reshape>({stack, pattern::any_input()},
+                                                   pattern::shape_matches("[?, head_cnt, 1, ndims]"),
+                                                   {{"special_zero", true}});
+    auto multiply_1 = pattern::wrap_type<v1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
+    auto add = pattern::wrap_type<v1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
 
-    auto slice_5 = GenSlice(reshape, ndims, INT_MAX, 1, 3);
-    auto concat = makePattern<opset1::Concat>({add, slice_5}, {{"axis", -1}});
-    auto result = concat;
+    auto slice_5 = NewGenSlice(reshape, "ndims", INT_MAX, 1, 3);
+    auto result = pattern::wrap_type<v0::Concat>({add, slice_5}, {{"axis", -1}});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        PatternValidator validator(m);
-        if (!validator) {
+
+        auto symbols = m.get_symbols();
+        auto ndims = symbols["ndims"];
+        auto head_cnt = symbols["head_cnt"];
+        auto head_size = symbols["head_size"];
+        auto half_ndims = symbols["ndims/2"];
+        if (!ndims.is_integer() || !head_cnt.is_integer() || !head_size.is_integer() ||
+            !half_ndims.is_integer() || half_ndims.i() * 2 != ndims.i()) {
             return false;
         }
 
-        if (!chatglm_validate_reshape_symbols(validator))
-            return false;
-
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = static_cast<size_t>(validator["ndims"]);
+        config.rotary_ndims = static_cast<size_t>(ndims.i());
         config.is_chatglm = true;
         config.support_2d_rope = true;
-        config.head_cnt = static_cast<size_t>(validator["head_cnt"]);
-        config.head_size = static_cast<size_t>(validator["head_size"]);
+        config.head_cnt = static_cast<size_t>(head_cnt.i());
+        config.head_size = static_cast<size_t>(head_size.i());
 
         new_args.push_back(pattern_map.at(qk_linear));
         new_args.push_back(pattern_map.at(cos));
         new_args.push_back(pattern_map.at(sin));
 
         auto old_node = root;
-
-        auto new_node = std::make_shared<ov::op::internal::RoPE>(new_args, config);
+        auto new_node = std::make_shared<internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({root->get_input_node_shared_ptr(0), root}, new_node);
         ov::replace_node(old_node, new_node);
