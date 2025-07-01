@@ -1670,74 +1670,26 @@ TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     if (!engine.get_device_info().supports_immad)
         return;
 
+    tests::random_generator rg(GET_SUITE_NAME);
     const int32_t input_b = 1, input_f = 88, input_y = 52, input_x = 52;
     const int32_t input_fsv16 = 16;
     const int32_t input_fs = input_f / input_fsv16 + 1;
-
-    auto test_impl = impl_types::onednn;
     auto test_dt = data_types::f16;
     auto test_format = format::b_fs_yx_fsv16;
 
     layout input0_layout = { test_dt, test_format, { input_b, input_f, input_y, input_x } };
     layout input1_layout = { test_dt, test_format, { input_b, input_f, input_y, input_x } };
-
     auto input0 = engine.allocate_memory(input0_layout);
     auto input1 = engine.allocate_memory(input1_layout);
 
-    using data_type = ov::float16;
-    size_t count = input_b * input_fs * input_y * input_x * input_fsv16;
+    using test_data_type = ov::float16;
+    auto data_input0 = rg.generate_random_5d<test_data_type>(input_b, input_fs, input_y, input_x, input_fsv16, -1, 1);
+    auto data_input1 = rg.generate_random_5d<test_data_type>(input_b, input_fs, input_y, input_x, input_fsv16, -1, 1);
+    auto data_input0_flat = flatten_5d(format::bfzyx, data_input0);
+    auto data_input1_flat = flatten_5d(format::bfzyx, data_input1);
 
-    auto data_input0 = std::vector<data_type>(count, data_type(0));
-    auto data_input1 = std::vector<data_type>(count, data_type(0));
-    auto output_vec = std::vector<data_type>(count * 2, data_type(-2.0f));
-
-    size_t offset = 0;
-    size_t number_input = 0;
-    for (size_t b = 0; b < input_b; ++b) {
-        for (size_t fs = 0; fs < input_fs; ++fs) {
-            for (size_t y = 0; y < input_y; ++y) {
-                for (size_t x = 0; x < input_x; ++x) {
-                    for (size_t fsv = 0; fsv < input_fsv16; ++fsv) {
-                        offset = b * input_fs * input_y * input_x * input_fsv16 +
-                                         fs * input_y * input_x * input_fsv16 +
-                                         y * input_x * input_fsv16 +
-                                         x * input_fsv16 +
-                                         fsv;
-                        data_input0[offset] = static_cast<data_type>(number_input % 10000);
-                        data_input1[offset] = static_cast<data_type>((number_input + count) % 10000);
-                        number_input += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    offset = 0;
-    size_t number_output = 0;
-    size_t n_inputs = 2; // input0 and input1
-    for (size_t b = 0; b < input_b; ++b) {
-        for (size_t input_id = 0; input_id < n_inputs; ++input_id) {
-            for (size_t fs = 0; fs < input_fs; ++fs) {
-                for (size_t fsv = 0; fsv < input_fsv16; ++fsv) {
-                    for (size_t y = 0; y < input_y; ++y) {
-                        for (size_t x = 0; x < input_x; ++x) {
-                            offset = b * input_fs * input_y * input_x * input_fsv16 +
-                                         fs * input_y * input_x * input_fsv16 +
-                                         y * input_x * input_fsv16 +
-                                         x * input_fsv16 +
-                                         fsv;
-
-                            output_vec[number_output] = static_cast<data_type>((offset + count * input_id) % 10000);
-                            number_output += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    set_values<data_type>(input0, data_input0);
-    set_values<data_type>(input1, data_input1);
+    set_values<test_data_type>(input0, data_input0_flat);
+    set_values<test_data_type>(input1, data_input1_flat);
 
     auto output_name = "reorder";
     layout reorder_layout = { test_dt, format::bfyx, { input_b, input_f * 2, input_y, input_x } };
@@ -1752,44 +1704,64 @@ TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
             reorder("reorder", input_info("concat"), reorder_layout)
     );
 
-    ov::intel_gpu::ImplementationDesc impl = { test_format, std::string(""), test_impl };
+    ov::intel_gpu::ImplementationDesc impl_test = { test_format, std::string(""), impl_types::onednn };
+    ov::intel_gpu::ImplementationDesc impl_ref = { test_format, std::string(""), impl_types::ocl };
 
-    ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ output_name }));
-    cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", impl} }));
-    network network(engine, topology, cfg);
-    network.set_input_data("input0", input0);
-    network.set_input_data("input1", input1);
+    ExecutionConfig cfg_test = get_test_default_config(engine);
+    cfg_test.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ output_name }));
+    cfg_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", impl_test} }));
 
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, output_name);
+    ExecutionConfig cfg_ref = get_test_default_config(engine);
+    cfg_ref.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ output_name }));
+    cfg_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", impl_ref} }));
 
-    auto output_memory = outputs.at(output_name).get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<data_type> output_ptr(output_memory, get_test_stream());
+    network network_test(engine, topology, cfg_test);
+    network network_ref(engine, topology, cfg_ref);
 
-    int y_size = output_layout.spatial(1);
-    int x_size = output_layout.spatial(0);
-    int f_size = output_layout.feature();
-    int b_size = output_layout.batch();
+    network_test.set_input_data("input0", input0);
+    network_test.set_input_data("input1", input1);
+    network_ref.set_input_data("input0", input0);
+    network_ref.set_input_data("input1", input1);
 
-    ASSERT_EQ(output_layout.format, format::bfyx);
-    ASSERT_EQ(y_size, input_y);
-    ASSERT_EQ(x_size, input_x);
-    ASSERT_EQ(f_size, input_f * 2);
-    ASSERT_EQ(b_size, input_b);
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
 
-    const int32_t padded_f = input_fs * input_fsv16;
-    const int32_t pad = padded_f - input_f;
-    size_t offset_pad = pad * input_x * input_y;
-    size_t count_bfyx = input_b * input_f * input_y * input_x;
-    for (size_t x = 0; x < output_layout.count(); ++x) {
-        if (x < count_bfyx) {
-            ASSERT_EQ(output_vec[x], output_ptr[x]);
-        } else {
-            ASSERT_EQ(output_vec[x + offset_pad], output_ptr[x]);
-        }
+    ASSERT_EQ(outputs_test.size(), size_t(1));
+    ASSERT_EQ(outputs_test.begin()->first, output_name);
+    ASSERT_EQ(outputs_ref.size(), size_t(1));
+    ASSERT_EQ(outputs_ref.begin()->first, output_name);
+
+    auto output_memory_test = outputs_test.at(output_name).get_memory();
+    auto output_layout_test = output_memory_test->get_layout();
+    int y_size_test = output_layout_test.spatial(1);
+    int x_size_test = output_layout_test.spatial(0);
+    int f_size_test = output_layout_test.feature();
+    int b_size_test = output_layout_test.batch();
+
+    ASSERT_EQ(output_layout_test.format, format::bfyx);
+    ASSERT_EQ(y_size_test, input_y);
+    ASSERT_EQ(x_size_test, input_x);
+    ASSERT_EQ(f_size_test, input_f * 2);
+    ASSERT_EQ(b_size_test, input_b);
+
+    auto output_memory_ref = outputs_ref.at(output_name).get_memory();
+    auto output_layout_ref = output_memory_ref->get_layout();
+    int y_size_ref = output_layout_ref.spatial(1);
+    int x_size_ref = output_layout_ref.spatial(0);
+    int f_size_ref = output_layout_ref.feature();
+    int b_size_ref = output_layout_ref.batch();
+
+    ASSERT_EQ(output_layout_ref.format, format::bfyx);
+    ASSERT_EQ(y_size_ref, input_y);
+    ASSERT_EQ(x_size_ref, input_x);
+    ASSERT_EQ(f_size_ref, input_f * 2);
+    ASSERT_EQ(b_size_ref, input_b);
+
+    cldnn::mem_lock<test_data_type> output_ptr_test(output_memory_test, get_test_stream());
+    cldnn::mem_lock<test_data_type> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    for (size_t x = 0; x < output_layout_test.count(); ++x) {
+        ASSERT_EQ(output_ptr_test[x], output_ptr_ref[x]);
     }
 }
 
