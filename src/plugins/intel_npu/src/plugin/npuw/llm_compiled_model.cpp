@@ -75,15 +75,10 @@ public:
 protected:
     // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
     void transpose_matmul_b(Context::Ref ctx,
-                            std::shared_ptr<ov::Node> node_param,
-                            std::shared_ptr<ov::Node> node_concat,
-                            std::shared_ptr<ov::Node> node_transpose,
-                            std::shared_ptr<ov::Node> node_matmul) {
-        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
-        auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
-        auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
-        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
-
+                            const std::shared_ptr<ov::op::v0::Parameter>& matched_param,
+                            const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
+                            const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
+                            const std::shared_ptr<ov::op::v0::MatMul>& matched_matmul) {
         auto param_shape = matched_param->get_partial_shape();
         NPUW_ASSERT(param_shape.size() == 4u);
         // NB: Transpose Parameter that correspond to V-tensor it will
@@ -98,6 +93,19 @@ protected:
         matched_concat->set_axis(3u);
         matched_matmul->set_transpose_b(true);
         ctx.get().bTransposed = true;
+    }
+
+    void transpose_matmul_b(Context::Ref ctx,
+                            const std::shared_ptr<ov::Node>& node_param,
+                            const std::shared_ptr<ov::Node>& node_concat,
+                            const std::shared_ptr<ov::Node>& node_transpose,
+                            const std::shared_ptr<ov::Node>& node_matmul) {
+        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
+        auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
+        auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
+
+        transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
     }
 };
 
@@ -206,11 +214,7 @@ private:
             reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
-            transpose_matmul_b(ctx,
-                               matched_node_param,
-                               matched_node_concat,
-                               matched_node_transpose,
-                               matched_node_matmul);
+            transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
             LOG_DEBUG("vtensors transposed: LLama3 pattern");
             return true;
         };
@@ -475,7 +479,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         supported_properties.end()) {
         compiler_dq = true;
     }
-    return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
+    return std::make_optional(NPUDesc{std::move(arch), max_tiles, compiler_dq});
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {

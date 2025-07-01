@@ -93,7 +93,7 @@ void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& input, const std::strin
     }
 }
 
-static void dump_file_list(const std::string list_path, const std::vector<std::string>& base_names) {
+static void dump_file_list(const std::string& list_path, const std::vector<std::string>& base_names) {
     std::ofstream list_file(list_path);
 
     if (base_names.empty()) {
@@ -107,7 +107,7 @@ static void dump_file_list(const std::string list_path, const std::vector<std::s
     }
 }
 
-void ov::npuw::dump_input_list(const std::string base_name, const std::vector<std::string>& base_input_names) {
+void ov::npuw::dump_input_list(const std::string& base_name, const std::vector<std::string>& base_input_names) {
     // dump a list of input/output files for sit.py's --inputs argument
     // note the file has no newline to allow use like
     //
@@ -117,7 +117,7 @@ void ov::npuw::dump_input_list(const std::string base_name, const std::vector<st
     LOG_INFO("Wrote input list " << ilist_path << "...");
 }
 
-void ov::npuw::dump_output_list(const std::string base_name, const std::vector<std::string>& base_output_names) {
+void ov::npuw::dump_output_list(const std::string& base_name, const std::vector<std::string>& base_output_names) {
     const auto olist_path = base_name + "_olist.txt";
     dump_file_list(olist_path, base_output_names);
     LOG_INFO("Wrote output list " << olist_path << "...");

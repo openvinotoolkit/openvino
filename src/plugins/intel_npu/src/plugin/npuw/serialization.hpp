@@ -93,8 +93,8 @@ using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemor
 
 struct CompiledContext {
     CompiledContext(bool _encrypted,
-                    std::function<std::string(const std::string&)> _encrypt,
-                    std::function<std::string(const std::string&)> _decrypt,
+                    const std::function<std::string(const std::string&)>& _encrypt,
+                    const std::function<std::string(const std::string&)>& _decrypt,
                     const BF16Cache& _bf16_consts = {})
         : encrypted(_encrypted),
           encrypt(_encrypt),
