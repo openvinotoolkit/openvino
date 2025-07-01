@@ -2205,10 +2205,10 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             }
         }
 
-        if (auto reused_eltwmem_id = onednn_add_fusing_helpers::get_reused_eltwmem_id(node); reused_eltwmem_id != -1) {
+        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
             // sum post-op can use the input buffer as the output buffer
-            auto& eltw_in = node.get_dependency(reused_eltwmem_id);
-            const auto& eltw_inst = _network.get_primitive(eltw_in.id());
+            auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
+            const auto& eltw_inst = _network.get_primitive(eltw_node.id());
             auto& eltw_mem = eltw_inst->output_memory();
             auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
             _outputs.push_back(new_mem);
