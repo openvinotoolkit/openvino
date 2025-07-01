@@ -34,6 +34,9 @@ private:
     ze_graph_dditable_ext_decorator(const ze_graph_dditable_ext_decorator&) = delete;
     ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_decorator&&) = delete;
 
+    ze_graph_dditable_ext_decorator& operator=(const ze_graph_dditable_ext_decorator&) = delete;
+    ze_graph_dditable_ext_decorator& operator=(ze_graph_dditable_ext_decorator&&) = delete;
+
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_driverExtVersion < since) {
             OPENVINO_THROW("Driver Graph extension function ",
@@ -200,6 +203,9 @@ private:
     ze_command_queue_npu_dditable_ext_decorator(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
     ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
 
+    ze_command_queue_npu_dditable_ext_decorator& operator=(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
+    ze_command_queue_npu_dditable_ext_decorator& operator=(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
+
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_commandQueueExtVersion < since) {
             OPENVINO_THROW("Driver Command Queue extension function ",
@@ -241,6 +247,9 @@ private:
 
     ze_graph_profiling_ddi_table_ext_decorator(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
     ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
+
+    ze_graph_profiling_ddi_table_ext_decorator& operator=(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
+    ze_graph_profiling_ddi_table_ext_decorator& operator=(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
 
 public:
     ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_dditable_ext_last_t* impl)
