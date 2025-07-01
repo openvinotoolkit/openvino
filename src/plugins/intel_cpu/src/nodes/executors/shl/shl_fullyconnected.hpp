@@ -25,11 +25,11 @@ public:
     static bool supports(const FCConfig& config);
 
 private:
-    ShlTensor src = {};
-    ShlTensor wei = {};
-    ShlTensor dst = {};
-    ShlTensor bias = {};
-    ShlSession sess = {};
+    ShlTensor src;
+    ShlTensor wei;
+    ShlTensor dst;
+    ShlTensor bias;
+    ShlSession sess;
     ShlFCParams params = {};
 
     const MemoryCPtr packedWeights;

@@ -30,8 +30,8 @@ public:
     }
 
 private:
-    EltwiseAttrs shlEltwiseAttrs{};
-    ShlSession sess = {};
+    EltwiseAttrs shlEltwiseAttrs;
+    ShlSession sess;
     std::vector<ShlTensor> srcTensors, dstTensors;
     std::unique_ptr<IShlParams> params;
     std::function<int()> shlExecFunc;
