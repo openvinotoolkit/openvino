@@ -628,7 +628,10 @@ int get_model_prefer_threads(const int num_streams,
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::mem_bandwidth_pressure_tolerance(model,
+                                                 L2_cache_size,
+                                                 memThresholdAssumeLimitedForISA,
+                                                 config.inferencePrecision);
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         config.modelPreferThreads = 4;
