@@ -13,6 +13,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
@@ -128,38 +129,44 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
 
-        auto q_node = pm.at(q).get_node_shared_ptr();
-        auto k_node = pm.at(k).get_node_shared_ptr();
-        auto v_node = pm.at(v).get_node_shared_ptr();
+        auto q_node = pm.at(q);
+        auto k_node = pm.at(k);
+        auto v_node = pm.at(v);
         auto sdpa_node = pm.at(sdpa).get_node_shared_ptr();
         auto post_sdpa_node = pm.at(post_sdpa).get_node_shared_ptr();
 
+        const auto& sm = m.get_symbols();
+
+        auto symbols_to_find = sm.at("Batches").g();
+        auto d_sym = sm.at("D");
+        auto s_kv_sym = sm.at("S_kv");
+        symbols_to_find.push_back(s_kv_sym);
+        symbols_to_find.push_back(d_sym);
+
+        auto any_layout_sym = sm.at("AnyLayout");
+
+        // checks that AnyLayout contains everything from Batches, S_kv and D and returns order
+        auto order = get_order(any_layout_sym, symbols_to_find);
+        size_t idx = 0;
+        auto is_identity_order = std::all_of(order.begin(), order.end(), [&idx](size_t x) {
+            return x == idx++;
+        });
         if (pm.count(opt_transpose_k)) {
             auto transpose = pm.at(opt_transpose_k).get_node_shared_ptr();
-            const auto& sm = m.get_symbols();
-
-            auto symbols_to_find = sm.at("Batches").g();
-            auto d_sym = sm.at("D");
-            auto s_kv_sym = sm.at("S_kv");
-            symbols_to_find.push_back(s_kv_sym);
-            symbols_to_find.push_back(d_sym);
-
-            auto any_layout_sym = sm.at("AnyLayout");
-
-            // checks that AnyLayout contains everything from Batches, S_kv and D and returns order
-            auto order = get_order(any_layout_sym, symbols_to_find);
             if (order.empty()) {
                 k_node = transpose;
             } else {
-                size_t idx = 0;
-                auto is_identity_order = std::all_of(order.begin(), order.end(), [&idx](size_t x) {
-                    return x == idx++;
-                });
                 if (!is_identity_order) {
                     auto transpose_order = v0::Constant::create(ov::element::i64, {order.size()}, order);
                     k_node = std::make_shared<ov::op::v1::Transpose>(k_node, transpose_order);
-                    ov::copy_runtime_info(m.get_matched_nodes(), {transpose_order, k_node});
+                    ov::copy_runtime_info(m.get_matched_nodes(), {transpose_order, k_node.get_node_shared_ptr()});
                 }
+            }
+        } else {
+            if (!is_identity_order) {
+                auto shape_of_q = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(q_node);
+                k_node = std::make_shared<ov::op::v1::Reshape>(k_node, shape_of_q, false);
+                ov::copy_runtime_info(m.get_matched_nodes(), {shape_of_q, k_node.get_node_shared_ptr()});
             }
         }
         auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
@@ -260,15 +267,15 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         bool mask_present = pm.count(mask);
         bool matmul_trasposes_k = pm.count(qk_transpose_b);
 
-        auto q_node = pm.at(q).get_node_shared_ptr();
-        auto k_node = pm.count(k) ? pm.at(k).get_node_shared_ptr() : pm.at(kT).get_node_shared_ptr();
-        auto v_node = pm.at(v).get_node_shared_ptr();
+        auto q_node = pm.at(q);
+        auto k_node = pm.count(k) ? pm.at(k) : pm.at(kT);
+        auto v_node = pm.at(v);
 
         if (mask_present && pm.at(mask).get_partial_shape().size() > 4) {
             return false;
         }
 
-        auto T = q_node->output(0).get_element_type();
+        auto T = q_node.get_element_type();
         ov::Output<ov::Node> scale_node;
         if (pm.count(attn_scale)) {
             scale_node = pm.at(attn_scale);
