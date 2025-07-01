@@ -89,18 +89,18 @@ void regclass_graph_Input(py::module m) {
              )");
     input.def(
         "set_rt_info",
-        [](ov::Input<ov::Node>& self, const py::object& obj, const py::str& path) -> void {
-            self.get_rt_info()[path.cast<std::string>()] = Common::utils::py_object_to_any(obj);
+        [](ov::Input<ov::Node>& self, const py::object& value, const py::str& key) -> void {
+            self.get_rt_info()[key.cast<std::string>()] = Common::utils::py_object_to_any(value);
         },
-        py::arg("obj"),
-        py::arg("path"),
+        py::arg("value"),
+        py::arg("key"),
         R"(
-                Add value inside runtime info
+                Add a value to the runtime info.
 
-                :param obj: value for the runtime info
-                :type obj: Any
-                :param path: string which defines a path to runtime info dictionary.
-                :type path: str
+                :param value: Value for the runtime info.
+                :type value: Any
+                :param key: String that defines a key in the runtime info dictionary.
+                :type key: str
              )");
     input.def("replace_source_output",
               &ov::Input<ov::Node>::replace_source_output,
