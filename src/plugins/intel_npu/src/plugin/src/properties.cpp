@@ -196,6 +196,7 @@ namespace intel_npu {
  * Same as TRY_REGISTER_CUSTOM_PROPERTY but without any checks. It will force register the property.
  *
  * @param OPT_NAME Class/type of the option (will fetch .name() from it)
+ * @param OPT_TYPE Type (template) of the option
  * @param PROP_VISIBILITY Visibility (true=public, false=private) of the resulting property
  * @param PROP_MUTABILITY Mutability (RO/RW) of the resulting property
  * @param PROP_RETFUNC Custom lambda callback function for the resulting property

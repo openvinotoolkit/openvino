@@ -96,6 +96,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
+
     return std::make_shared<ov::Model>(results, parameters);
 }
 
@@ -809,10 +810,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
 
     // ov::hint::model has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
-    std::shared_ptr<const ov::Model> modelPtr = nullptr;
+    std::shared_ptr<const ov::Model> originalModel = nullptr;
     if (auto modelPtrIt = npu_plugin_properties.find(ov::hint::model.name());
         modelPtrIt != npu_plugin_properties.end()) {
-        modelPtr = modelPtrIt->second.as<std::shared_ptr<const ov::Model>>();
+        originalModel = modelPtrIt->second.as<std::shared_ptr<const ov::Model>>();
         npu_plugin_properties.erase(modelPtrIt);
     }
 
@@ -854,7 +855,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
                           ov::Coordinate{0},
                           ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
 
-    std::shared_ptr<const ov::Model> originalModel;
     std::vector<ov::Tensor> tensorsInits;
     const bool weightsSeparationEnabled = initSizes.has_value();
 
@@ -868,32 +868,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         }
 
         // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
-        if (modelPtr) {
-            originalModel = modelPtr;
-        } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
-            const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
-            const size_t weightsPathLength = weightsPath.length();
-            std::string xmlPath = weightsPath;
+        if (!originalModel) {
+            if (!localConfig.get<WEIGHTS_PATH>().empty()) {
+                const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
+                const size_t weightsPathLength = weightsPath.length();
+                std::string xmlPath = weightsPath;
 
-            if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
-                weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
+                    weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION.length(),
+                                        WEIGHTS_EXTENSION) == 0) {
+                    xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
                                     WEIGHTS_EXTENSION.length(),
-                                    WEIGHTS_EXTENSION) == 0) {
-                xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
-                                WEIGHTS_EXTENSION.length(),
-                                XML_EXTENSION);
-            } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
-                       weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
-                                           ONNX_EXTENSION.length(),
-                                           ONNX_EXTENSION)) {
-                OPENVINO_THROW("Invalid path to the weights: ",
-                               weightsPath,
-                               ". A \".bin\" or \".onnx\" extension was expected.");
-            }
+                                    XML_EXTENSION);
+                } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
+                        weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                            ONNX_EXTENSION.length(),
+                                            ONNX_EXTENSION)) {
+                    OPENVINO_THROW("Invalid path to the weights: ",
+                                weightsPath,
+                                ". A \".bin\" or \".onnx\" extension was expected.");
+                }
 
-            originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
-        } else {
-            OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+                originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+            } else {
+                OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+            }
         }
 
         check_weightless_cache_attribute_occurrence(originalModel);

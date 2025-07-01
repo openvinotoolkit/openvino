@@ -98,12 +98,16 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     ov::ParameterVector parameters;
     ov::ResultVector results;
 
-    for (const auto& input : inputs()) {
-        std::shared_ptr<ov::op::v0::Parameter> parameter =
-            std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_shape());
+    for (const IODescriptor& inputDescriptor : _graph->get_metadata().inputs) {
+        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor) {
+            continue;
+        }
 
-        parameter->set_friendly_name(input.get_node()->get_friendly_name());
-        parameter->output(0).get_tensor().set_names(input.get_names());
+        std::shared_ptr<ov::op::v0::Parameter> parameter =
+            std::make_shared<ov::op::v0::Parameter>(inputDescriptor.precision, inputDescriptor.shapeFromCompiler);
+
+        parameter->set_friendly_name(inputDescriptor.nodeFriendlyName);
+        parameter->output(0).get_tensor().set_names(inputDescriptor.outputTensorNames);
         parameters.push_back(std::move(parameter));
     }
 
@@ -111,17 +115,24 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     // the "Constant" node was required since the specific constructor does not accept "ov::PartialShape" values (a
     // constant can't have dynamic shape). The dummy tensor was also brought in order to register the correct,
     // potentially dynamic, output shape.
-    for (const auto& output : outputs()) {
+    for (const IODescriptor& outputDescriptor : _graph->get_metadata().outputs) {
+        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor) {
+            continue;
+        }
+
         std::shared_ptr<ov::Node> constantDummy = std::make_shared<ov::op::v0::Constant>(
-            output.get_element_type(),
-            output.get_partial_shape().is_dynamic() ? CONSTANT_NODE_DUMMY_SHAPE : output.get_shape());
+            outputDescriptor.precision,
+            outputDescriptor.shapeFromCompiler.to_shape().empty() ? CONSTANT_NODE_DUMMY_SHAPE
+                                                                  : outputDescriptor.shapeFromCompiler.to_shape());
 
         const std::shared_ptr<ov::descriptor::Tensor>& tensorDummy =
-            std::make_shared<ov::descriptor::Tensor>(output.get_element_type(), output.get_shape(), output.get_names());
+            std::make_shared<ov::descriptor::Tensor>(outputDescriptor.precision,
+                                                     outputDescriptor.shapeFromCompiler,
+                                                     outputDescriptor.outputTensorNames);
 
         auto& result = results.emplace_back(std::make_shared<ov::op::v0::Result>(constantDummy));
         result->output(0).set_tensor_ptr(tensorDummy);
-        result->set_friendly_name(output.get_node()->get_friendly_name());
+        result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
 
     _logger.warning("Returning a dummy ov::Model object that contains only the given parameter and result nodes");
@@ -147,8 +158,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::model_name.name()) {
         OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
         return _graph->get_metadata().name;
-    } else if (name == ov::hint::model.name()) {
-        return get_runtime_model();
     } else {
         // default behaviour
         return _properties->get_property(name);
