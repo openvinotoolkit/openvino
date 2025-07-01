@@ -17,8 +17,7 @@
 
 #include "openvino/util/env_util.hpp"
 
-namespace ov {
-namespace util {
+namespace ov::util {
 
 enum class LOG_TYPE {
     _LOG_TYPE_ERROR,
@@ -147,5 +146,4 @@ static inline bool is_terminal_output() {
         } while (0)
 #endif
 
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util

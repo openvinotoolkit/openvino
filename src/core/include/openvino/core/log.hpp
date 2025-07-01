@@ -9,7 +9,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 
-namespace ov {
+namespace ov::util {
 
 /**
  * @brief Sets and resets log messages handling callback.
@@ -18,4 +18,4 @@ namespace ov {
  */
 OPENVINO_API
 void set_log_callback(std::function<void(std::string_view)>* callback);
-}  // namespace ov
+}  // namespace ov::util

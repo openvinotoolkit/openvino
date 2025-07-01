@@ -6,7 +6,7 @@
 
 #include "openvino/core/log_util.hpp"
 
-namespace ov {
+namespace ov::util {
 namespace {
 LogCallback default_callback{[](std::string_view s) {
     std::cout << s << std::endl;
@@ -32,4 +32,4 @@ void set_log_callback(std::function<void(std::string_view)>* callback) {
         current_callback = callback;
     }
 }
-}  // namespace ov
+}  // namespace ov::util

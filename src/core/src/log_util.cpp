@@ -8,10 +8,10 @@
 #include "openvino/util/env_util.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 
-namespace ov::util {
+namespace ov {
+namespace util {
 
 #ifdef ENABLE_OPENVINO_DEBUG
-
 // Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
 static const bool verbose = ov::util::getenv_bool("OV_VERBOSE_LOGGING");
 
@@ -103,5 +103,6 @@ std::string node_with_arguments(const ov::Node& node) {
     return res;
 }
 
-#endif  // ENABLE_OPENVINO_DEBUG
-}  // namespace ov::util
+#endif
+}  // namespace util
+}  // namespace ov

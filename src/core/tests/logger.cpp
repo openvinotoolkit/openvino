@@ -35,7 +35,7 @@ class TestLogHelper : public testing::TestWithParam<LogEntries> {
 
 protected:
     void SetUp() override {
-        ov::set_log_callback(nullptr);
+        set_log_callback(nullptr);
 #if ENABLE_LOGGING_TO_STD_COUT_TESTS
         actual_out_stream->flush();
         actual_out_stream->rdbuf(m_mock_out_stream.rdbuf());
@@ -48,7 +48,7 @@ protected:
 #if ENABLE_LOGGING_TO_STD_COUT_TESTS
         actual_out_stream->rdbuf(actual_out_buf);
 #endif
-        ov::set_log_callback(nullptr);
+        set_log_callback(nullptr);
     }
 
     auto log_test_params() {
@@ -90,14 +90,14 @@ TEST_P(TestLogHelper, std_cout) {
 #endif
 
 TEST_P(TestLogHelper, callback) {
-    ov::set_log_callback(&m_log_callback);
+    set_log_callback(&m_log_callback);
     log_test_params();
     EXPECT_TRUE(m_mock_out_stream.str().empty()) << "Expected no cout. Got: '" << m_mock_out_stream.str() << "'\n";
     EXPECT_TRUE(are_params_logged_to(m_callback_message)) << "Callback got: '" << m_callback_message << "'\n";
 }
 
 TEST_P(TestLogHelper, toggle) {
-    ov::set_log_callback(&m_log_callback);
+    set_log_callback(&m_log_callback);
     log_test_params();
     EXPECT_TRUE(are_params_logged_to(m_callback_message)) << "1st callback got: '" << m_callback_message << "'\n";
     m_callback_message.clear();
@@ -105,7 +105,7 @@ TEST_P(TestLogHelper, toggle) {
     LogCallback aux_callback = [&aux_callback_msg](std::string_view msg) {
         aux_callback_msg = msg;
     };
-    ov::set_log_callback(&aux_callback);
+    set_log_callback(&aux_callback);
     log_test_params();
     EXPECT_TRUE(are_params_logged_to(aux_callback_msg)) << "2st callback got: '" << aux_callback_msg << "'\n";
     EXPECT_TRUE(m_callback_message.empty()) << "Expected no 1st callback. Got: '" << m_callback_message << "'\n";
@@ -113,8 +113,8 @@ TEST_P(TestLogHelper, toggle) {
 
 #if ENABLE_LOGGING_TO_STD_COUT_TESTS
 TEST_P(TestLogHelper, reset) {
-    ov::set_log_callback(&m_log_callback);
-    ov::set_log_callback(nullptr);
+    set_log_callback(&m_log_callback);
+    set_log_callback(nullptr);
     log_test_params();
     EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()))
         << "Mock cout got: '" << m_mock_out_stream.str() << "'\n";
@@ -123,9 +123,9 @@ TEST_P(TestLogHelper, reset) {
 #endif
 
 TEST_P(TestLogHelper, no_log) {
-    ov::set_log_callback(&m_log_callback);
+    set_log_callback(&m_log_callback);
     auto empty_callback = LogCallback{};
-    ov::set_log_callback(&empty_callback);
+    set_log_callback(&empty_callback);
     ASSERT_NO_THROW(log_test_params());
     EXPECT_TRUE(m_callback_message.empty()) << "Expected no callback. Got: '" << m_callback_message << "'\n";
 }

@@ -10,7 +10,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ov {
+namespace ov::util {
 
 using LogCallback = std::function<void(std::string_view)>;
 
@@ -18,7 +18,6 @@ using LogCallback = std::function<void(std::string_view)>;
  */
 OPENVINO_API LogCallback& get_log_callback();
 
-namespace util {
 #ifdef ENABLE_OPENVINO_DEBUG
 
 class OPENVINO_API LevelString {
@@ -703,5 +702,4 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
         } while (0)
 
 #endif  // ENABLE_OPENVINO_DEBUG
-}  // namespace util
-}  // namespace ov
+}  // namespace ov::util
