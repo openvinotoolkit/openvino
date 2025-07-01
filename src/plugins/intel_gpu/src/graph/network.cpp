@@ -992,8 +992,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         bool transpose_required = false;
         if (is_lora_state) {
             const auto& lora_prim = node.get_users().front()->as<lora>().get_primitive();
-            for (size_t state_idx : {2, 4}) {
-                if (lora_prim->input[state_idx].pid == node.id()) {
+            for (size_t state_idx : {2, 4, 5, 7, 8, 10}) {
+                if (state_idx < lora_prim->input.size() &&
+                    lora_prim->input[state_idx].pid == node.id()) {
                     transpose_required = lora_prim->transposed_states;
                 }
             }

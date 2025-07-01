@@ -1166,8 +1166,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
-            // Disabled until an optimized kernel for horizontal LoRA fusing appears
-            // manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+            if (config.get_enable_lora_operation()) {
+                manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+            }
 
             // Temporary disabling for BMG due to regression
             if (device_info.arch != cldnn::gpu_arch::xe2 && !config.get_enable_lora_operation()) {

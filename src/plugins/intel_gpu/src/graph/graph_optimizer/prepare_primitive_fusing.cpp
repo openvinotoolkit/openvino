@@ -715,7 +715,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto lora_supports_fusings = [&](lora_node& node) -> bool {
             const auto& lora_dep = node.get_dependency(0);
-            return lora_dep.get_users().size() == 1;
+            bool lora_is_single_user = lora_dep.get_users().size() == 1;
+
+            size_t lora_count = (node.get_kernel_impl_params()->desc->input_size() - 2) / 3;
+            bool is_simple_lora = lora_count == 1;
+
+            return lora_is_single_user && is_simple_lora;
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {

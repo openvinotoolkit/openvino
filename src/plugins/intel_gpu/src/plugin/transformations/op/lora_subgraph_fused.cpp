@@ -8,7 +8,9 @@ namespace ov::intel_gpu::op {
 
 LoraSubgraphFused::LoraSubgraphFused(const ov::Output<Node>& main_input,
                                      const ov::Output<Node>& lora_input,
-                                     const OutputVector& states) {
+                                     const OutputVector& states,
+                                     bool transposed_states)
+    : transposed_states(transposed_states) {
     set_argument(0, main_input);
     set_argument(1, lora_input);
 
@@ -26,7 +28,8 @@ std::shared_ptr<ov::Node> LoraSubgraphFused::clone_with_new_inputs(const ov::Out
 
     return std::make_shared<LoraSubgraphFused>(new_args.at(0),
                                                new_args.at(1),
-                                               states);
+                                               states,
+                                               transposed_states);
 }
 
 void LoraSubgraphFused::validate_and_infer_types() {
