@@ -90,6 +90,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
         result->output(0).set_tensor_ptr(tensorDummy);
         result->set_friendly_name(outputDescriptor.nodeFriendlyName);
     }
+
     return std::make_shared<ov::Model>(results, parameters);
 }
 
