@@ -169,15 +169,14 @@ public:
 
         ASSERT_EQ(ref_output_buffers.size(), output_buffers.size());
 
-        std::cout << "Outputs number: " << ref_output_buffers.size() << "\n";
 
         for (size_t i = 0; i < ref_output_buffers.size(); i++) {
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_buffers[i], get_test_stream());
             cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr_ref(ref_output_buffers[i], get_test_stream());
 
             for (size_t i = 0; i < output_ptr_ref.size(); ++i) {
-                auto abs_diff = std::abs(output_ptr_ref[i] - output_ptr[i]);
-                ASSERT_LE(abs_diff, 2);
+                const int abs_error_threshold = has_precompute_sum == PrecomputeSum::Enabled ? 15 : 2;  // precompute_sum may have larger error
+                ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], abs_error_threshold);
             }
         }
     }
