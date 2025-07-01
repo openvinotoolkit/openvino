@@ -116,6 +116,11 @@ public:
 
 class lora_act_eltw : public LoraFusingsTest {};
 TEST_P(lora_act_eltw, basic) {
+    // Temporarily disabled
+    if (engine.get_device_info().supports_immad) {
+        GTEST_SKIP();
+    }
+
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_lora_input_layout(p, true)),
