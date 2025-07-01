@@ -107,7 +107,7 @@ public:
 
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
-             snippets::lowered::LinearIR::constExprIt end) override final {  // NOLINT
+             snippets::lowered::LinearIR::constExprIt end) override final {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmBlocking")
         const auto& loop_manager = linear_ir.get_loop_manager();
         bool modified = false;
