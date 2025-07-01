@@ -22,6 +22,7 @@ add_library(cpuUtils STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp
     ${CPU_ISA_TRAITS_RV64})
 set(CPU_UTILS_LINK_LIBRARIES openvino::runtime::dev)
+set(CPU_UTILS_INCLUDE_PATHS)
 if(OV_CPU_WITH_ACL)
     list(APPEND CPU_UTILS_LINK_LIBRARIES arm_compute::arm_compute)
     list(APPEND CPU_UTILS_INCLUDE_PATHS $<TARGET_PROPERTY:arm_compute::arm_compute,SOURCE_DIR>)
