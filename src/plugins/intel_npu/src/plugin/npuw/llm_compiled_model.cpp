@@ -613,6 +613,12 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
     // NB: if old_params is not empty - pass has been applied
     return !ctx.old_params.empty();
 }
+
+void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<GroupQueryAttentionDecomposition>(is_prefill_model);
+    rewr.run_on_model(model);
+}
 }  // namespace
 
 namespace ov::npuw::util {
@@ -630,12 +636,6 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     return ctx.bTransposed;
 }
 }  // namespace ov::npuw::util
-
-void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<GroupQueryAttentionDecomposition>(is_prefill_model);
-    rewr.run_on_model(model);
-}
 
 namespace {
 struct KVAxesPosition {
@@ -869,7 +869,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
