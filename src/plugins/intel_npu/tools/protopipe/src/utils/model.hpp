@@ -1,15 +1,44 @@
 #pragma once
 
 #include <string>
-#include <openvino/openvino.hpp>
+#include <vector>
 
+#include <openvino/openvino.hpp>
 #include "scenario/inference.hpp"
 
 namespace utils {
 
-// Loads a model, ensures all IO tensors are named, and saves to a temp file if needed.
-OpenVINOParams::ModelPath ensureNamedModel(const OpenVINOParams::ModelPath& modelPath);
-
 std::string make_default_tensor_name(const ov::Output<const ov::Node>& output);
+
+void cleanupTempFiles();
+
+class ModelHelper {
+public:
+    ModelHelper(const OpenVINOParams& params);
+    ~ModelHelper() = default;
+
+    static void cleanupAllTempFiles();
+
+    void prepareModel();
+
+    const std::string getXmlPath() const;
+    const std::string getBinPath() const;
+
+private:
+    bool ensureNamedTensors();
+    bool saveTempModel();
+    bool deleteTempModel();
+
+private:
+    std::shared_ptr<ov::Model> m_model;
+    const OpenVINOParams& m_params;
+
+    std::filesystem::path m_xmlPath;
+    std::filesystem::path m_binPath;
+
+    static std::vector<std::filesystem::path> s_tempFiles;
+
+    bool m_tempModelSaved = false;
+};
 
 } // namespace utils
