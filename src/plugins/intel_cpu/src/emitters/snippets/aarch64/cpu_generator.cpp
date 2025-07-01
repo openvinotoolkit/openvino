@@ -11,6 +11,7 @@
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_gemm_copy_b_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
+#include "emitters/snippets/aarch64/jit_horizon_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
@@ -19,12 +20,26 @@
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/prelu.hpp"
-#include "openvino/op/round.hpp"
-#include "openvino/op/sqrt.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
@@ -121,6 +136,16 @@ namespace ov {
             }                                                                                        \
     }
 
+#define CREATE_UNDEFINED_EMITTER(supported_precisions)                                                            \
+    {                                                                                                             \
+        []([[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+            return nullptr;                                                                                       \
+        },                                                                                                        \
+            []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {     \
+                return supported_precisions;                                                                      \
+            }                                                                                                     \
+    }
+
 class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
@@ -161,6 +186,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
+    jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_broadcast_move_emitter);
     jitters[snippets::op::ConvertTruncation::get_type_info_static()] =
@@ -232,6 +258,11 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
         CREATE_SNIPPETS_EMITTER(jit_brgemm_emitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
 #endif
 
+    // reductions
+    jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
+    jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
+    jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = CREATE_CPU_EMITTER(jit_horizon_max_emitter);
+    jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = CREATE_CPU_EMITTER(jit_horizon_sum_emitter);
     // control flow
     jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);
     jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_dynamic_emitter);

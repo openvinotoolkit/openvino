@@ -226,6 +226,20 @@ protected:
         return is_generate;
     }
 
+    static bool requires_shape_canonicalization(const kernel_impl_params& impl_params) {
+        auto extend_output = impl_params.output_layouts[0].get_partial_shape().size() < 4;
+        auto extend_attn_mask = false;
+
+        // According to SDPA specification, attention mask should have 2-dimensions or more or empty
+        const auto attn_mask_idx = 3;
+        if (impl_params.input_layouts.size() > attn_mask_idx) {
+            const auto& attn_mask_shape = impl_params.get_input_layout(attn_mask_idx).get_partial_shape();
+            extend_attn_mask = attn_mask_shape.size() != 0 && attn_mask_shape.size() < 4;
+        }
+
+        return extend_output || extend_attn_mask;
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& events, scaled_dot_product_attention_inst& instance) override {
         if (need_indirect_load(instance)) {
             return execute_stage(events, instance, indirect_sdpa);
@@ -431,6 +445,12 @@ public:
             return pshape;
         };
 
+        const auto attn_mask_idx = 3;
+        if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
+            const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
+            updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
+        }
+
         // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
         for (auto& input_layout : updated_impl_params.input_layouts) {
             input_layout.set_partial_shape(input_layout.get_partial_shape().size() <= 1 ?
@@ -452,7 +472,7 @@ public:
         std::vector<kernel_selector::kernel_data> kernels_data;
         auto& kernel_selector = kernel_selector_t::Instance();
         const bool is_output_rank_4d = impl_param.output_layouts[0].get_partial_shape().size() == 4;
-        auto params = is_output_rank_4d ? impl_param : static_canonicalize_shapes(impl_param);
+        auto params = requires_shape_canonicalization(impl_param) ? static_canonicalize_shapes(impl_param) : impl_param;
 
         auto sdpa_kernel_params = get_kernel_params(params, params.is_dynamic());
         // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
@@ -495,7 +515,7 @@ public:
     }
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
-        auto new_impl_params = impl_params.output_layouts[0].get_partial_shape().size() == 4 ? impl_params : canonicalize_shapes(impl_params);
+        auto new_impl_params = requires_shape_canonicalization(impl_params) ? canonicalize_shapes(impl_params) : impl_params;
         update_dispatch_data(new_impl_params);
         inst.update_shape_info_tensor(new_impl_params);
     }

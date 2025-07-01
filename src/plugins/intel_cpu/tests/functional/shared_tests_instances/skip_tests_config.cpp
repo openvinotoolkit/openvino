@@ -333,7 +333,7 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_ConversionLayerTest/ConversionLayerTest.Inference/conversionOpType=Convert_.*_inputPRC=f16_targetPRC=(u8|i8).*)");
         retVector.emplace_back(R"(.*smoke_Decomposition_4D/Mvn6LayerTest.Inference/.*TS=\{\((1.16.5.8|2.19.5.10)\)\}_ModelType=f32_.*_Ax=\(0.1.2.3\)_NormVariance=FALSE.*)");
         retVector.emplace_back(R"(.*smoke_Decomposition_4D/Mvn6LayerTest.Inference/.*TS=\{\(2.19.5.10\)\}_ModelType=f32_.*_Ax=\(1\).*)");
-        retVector.emplace_back(R"(.*smoke_LogSoftmax4D/LogSoftmaxLayerTest.Inference/.*TS=\{\(2.3.4.5\)\}_modelType=f32_axis=(-4|0).*)");
+        retVector.emplace_back(R"(.*smoke_LogSoftmax4D/LogSoftmaxLayerTest.Inference/.*TS=\{\(2.3.4.5\)\}_modelType=f32_axis=(-4|-3|-2|0|1|2).*)");
         retVector.emplace_back(R"(.*smoke_Interpolate_Basic/InterpolateLayerTest.Inference/.*InterpolateMode=cubic_ShapeCalcMode=sizes_CoordinateTransformMode=tf_half_pixel.*PB=\(0.0.0.0\)_PE=\(0.0.1.1\)_.*netType=f32.*)");
         retVector.emplace_back(R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)");
         // Ticket: 144845
@@ -500,9 +500,8 @@ std::vector<std::string> disabledTestPatterns() {
 #if !defined(OPENVINO_ARCH_ARM64)
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
-    // smoke_Snippets test cases are not supported on arm64 platforms, except for smoke_Snippets_Eltwise,
-    // smoke_Snippets_Convert, smoke_Snippets_FQDecomposition and static smoke_Snippets_MatMul
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/).*)");
+    // smoke_Snippets test cases are not supported on arm64 platforms, except for listed below
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/|_Reduce|_Softmax|_AddSoftmax).*)");
     retVector.emplace_back(R"(smoke_Snippets_MatMul.*\[.*\?.*\].*)");
 #endif
 #if defined(_WIN32)

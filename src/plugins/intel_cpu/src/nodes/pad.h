@@ -111,7 +111,7 @@ private:
             size_t innerCopySize = 0lu;
             size_t innerBeginPadCount = 0lu;
             size_t innerEndPadCount = 0lu;
-            PadMode padMode;
+            PadMode padMode = PadMode::CONSTANT;
         } params;
     };
 

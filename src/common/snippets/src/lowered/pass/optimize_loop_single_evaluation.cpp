@@ -4,16 +4,19 @@
 
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
                                        lowered::LinearIR::constExprIt begin,
@@ -50,7 +53,4 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
     return is_modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

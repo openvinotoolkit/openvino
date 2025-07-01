@@ -41,6 +41,7 @@
 #include "permute_inst.h"
 #include "dft_inst.h"
 #include "lstm_seq_inst.h"
+#include "group_normalization_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -354,8 +355,14 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
     }
 
-    if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
-        return false;
+    bool is_dynamic = false;
+    if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic())) {
+        if (!prev.is_type<permute>() &&
+            !prev.is_type<group_normalization>()) {
+            return false;
+        }
+        is_dynamic = true;
+    }
 
     // Ref kernels are the main for depth_to_space, region_yolo and detection_output. It can do anything. Should not see next.
     if (prev.is_type<depth_to_space>() || prev.is_type<region_yolo>()
@@ -371,6 +378,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     auto use_onednn_impls = contains_onednn_impls_optimization_attribute(&node) && contains_onednn_impls_optimization_attribute(&prev);
 
     if (prev.is_type<reorder>())
+        return true;
+
+    if (prev.is_type<group_normalization>() && is_dynamic && !prev.has_fused_primitives() &&
+        fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16 &&
+        !prev.get_output_layout().data_padding && !next->get_output_layout().data_padding)
         return true;
 
     // resample_opt kernel can work cross-layout between fsv16 and fsv32
@@ -395,25 +407,33 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         return true;
 
     if (prev.is_type<permute>()) {
-        if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf)
+        if (is_dynamic) {
+            if (!prev.has_fused_primitives() &&
+                fmt_prev == format::bfyx && fmt_next == format::b_fs_yx_fsv16)
+                return true;
+
+            return false;
+        } else {
+            if (fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::byxf)
+                return true;
+
+            auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
+            if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
+            fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
+            && permute_order.back() != 1
+            && (!prev.as<permute>().is_rotating_except_batch())) {
+                return false;
+            }
+            // permute kernel doesn't support reorder fusion for ranks > 6
+            if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
+                return false;
+
+            // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
+            if (allow_new_shape_infer && (fmt_prev.dimension() != fmt_next.dimension()))
+                return false;
+
             return true;
-
-        auto& permute_order = prev.as<permute>().get_primitive()->permute_order;
-        if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
-         fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
-         && permute_order.back() != 1
-         && (!prev.as<permute>().is_rotating_except_batch())) {
-            return false;
         }
-        // permute kernel doesn't support reorder fusion for ranks > 6
-        if (fmt_prev.dimension() > 6 || fmt_next.dimension() > 6)
-            return false;
-
-        // Skip reorder fusing to permute when allow_new_shape_infer is True and input and output rank is different
-        if (allow_new_shape_infer && (fmt_prev.dimension() != fmt_next.dimension()))
-            return false;
-
-        return true;
     }
 
 
@@ -1196,15 +1216,15 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Check if selected format can be adjusted to the required input rank
-                // If no, use default fotmat instead
+                // Check if selected format can be adjusted to the required input and output rank.
+                // If no, use default format instead.
+                // There are many primitives such as reshape, gather, eltwise, etc., which have different input and output ranks.
+                // Input fmt should be selected by considering the ranks of both input and output.
+                // For example, when input fmt is 4-rank block format and output rank is 6 or higher,
+                // input fmt should be selected as a default format. (blocked format, ranks higher than 6 are not supported.)
                 try {
-                    // 7-dimention and 8-dimention only support plain format
-                    if (in_lay_rank >= 7 || out_lay_rank >= 7) {
-                        fmt = format::get_default_format(in_lay_rank);
-                    } else {
-                        format::adjust_to_rank(fmt, in_lay_rank);
-                    }
+                    format::adjust_to_rank(fmt, in_lay_rank);
+                    format::adjust_to_rank(fmt, out_lay_rank);
                 } catch (ov::Exception&) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
