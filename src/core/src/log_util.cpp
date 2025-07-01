@@ -26,8 +26,8 @@ void LogDispatch::reset_callback() {
     current_callback = &default_callback;
 }
 
-OPENVINO_API LogDispatch::Callback* get_log_callback() {
-    return LogDispatch::get_callback();
+OPENVINO_API LogDispatch::Callback& get_log_callback() {
+    return *LogDispatch::get_callback();
 }
 
 #ifdef ENABLE_OPENVINO_DEBUG

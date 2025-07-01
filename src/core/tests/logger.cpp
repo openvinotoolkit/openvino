@@ -52,7 +52,7 @@ protected:
     }
 
     auto log_test_params() {
-        LogHelper{m_log_type, m_log_path, m_log_line, LogDispatch::get_callback()}.stream() << m_log_message;
+        LogHelper{m_log_type, m_log_path, m_log_line}.stream() << m_log_message;
     }
 
     auto get_log_regex() const {
@@ -123,11 +123,6 @@ TEST_P(TestLogHelper, reset) {
 #endif
 
 TEST_P(TestLogHelper, no_log) {
-    LogDispatch::set_callback(&m_log_callback);
-    LogDispatch::set_callback(nullptr);
-    log_test_params();
-    EXPECT_TRUE(m_callback_message.empty()) << "Expected no callback. Got: '" << m_callback_message << "'\n";
-
     LogDispatch::set_callback(&m_log_callback);
     auto empty_callback = LogDispatch::Callback{};
     LogDispatch::set_callback(&empty_callback);

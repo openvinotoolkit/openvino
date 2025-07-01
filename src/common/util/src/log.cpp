@@ -14,11 +14,7 @@
 
 namespace ov::util {
 
-LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, LogCallback* handler) {
-    if (!handler || !(*handler))
-        return;
-    m_handler = handler;
-
+LogHelper::LogHelper(LOG_TYPE type, const char* file, int line) {
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:
         m_stream << "[ERROR] ";
@@ -55,8 +51,9 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line, LogCallback* han
     }
 }
 
+std::function<void(std::string_view)>& get_log_callback();
+
 LogHelper::~LogHelper() {
-    if (m_handler)
-        (*m_handler)(m_stream.str());
+    get_log_callback()(m_stream.str());
 }
 }  // namespace ov::util

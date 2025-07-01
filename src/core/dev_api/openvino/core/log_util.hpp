@@ -33,7 +33,7 @@ private:
  * function is provided, but no declaration in Core headers.
  */
 OPENVINO_DEPRECATED("For ov::util::LogHelper usage only, till its dependency is resolved.")
-OPENVINO_API LogDispatch::Callback* get_log_callback();
+OPENVINO_API LogDispatch::Callback& get_log_callback();
 
 #ifdef ENABLE_OPENVINO_DEBUG
 

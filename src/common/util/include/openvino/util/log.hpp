@@ -28,11 +28,9 @@ enum class LOG_TYPE {
     _LOG_TYPE_DEBUG_EMPTY,
 };
 
-using LogCallback = std::function<void(std::string_view)>;
-
 class LogHelper {
 public:
-    LogHelper(LOG_TYPE, const char* file, int line, LogCallback* handler);
+    LogHelper(LOG_TYPE, const char* file, int line);
     ~LogHelper();
 
     std::ostream& stream() {
@@ -40,7 +38,6 @@ public:
     }
 
 private:
-    LogCallback* m_handler{nullptr};
     std::stringstream m_stream;
 };
 
@@ -75,14 +72,8 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
     return ov::util::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
 }
 
-LogCallback* get_log_callback();
-
-#    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE)                     \
-        ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, \
-                              __FILE__,                                       \
-                              __LINE__,                                       \
-                              ::ov::util::get_log_callback())                 \
-            .stream()
+#    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE) \
+        ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, __FILE__, __LINE__).stream()
 
 #    define OPENVINO_ERR(...)                                                                  \
         do {                                                                                   \
