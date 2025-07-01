@@ -62,6 +62,9 @@ namespace {
 ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
                                                 ov::PartialShape arg_shape,
                                                 ov::PartialShape target_shape) {
+    // in numpy the next broadcasting rules:
+    // - Right-align the shapes.
+    // - For each paired axis, the sizes must either be equal or one of them must be 1.
     if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
         return ov::PartialShape::dynamic();
     }
@@ -105,7 +108,7 @@ ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
         } else if (target_shape_dim == 1) {
             result_shape[i] = arg_shape_dim;
         } else {
-            result_shape[i] = arg_shape_dim;  // arg_shape_dim == target_shape_dim
+            result_shape[i] = arg_shape_dim;
         }
     }
     return result_shape;

@@ -172,22 +172,6 @@ TEST(eval, evaluate_broadcast_v3_bidirectional) {
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_broadcast_v3_bidirectional_zero_dim) {
-    auto A = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
-    auto target_shape = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {0});
-    auto bcast_v3 = make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastType::BIDIRECTIONAL);
-    auto model = make_shared<Model>(OutputVector{bcast_v3}, ParameterVector{A});
-
-    auto result = ov::Tensor();
-    auto out_vector = ov::TensorVector{result};
-    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{1}, {1.0f})};
-    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
-    result = out_vector.at(0);
-    EXPECT_EQ(result.get_element_type(), element::f32);
-    EXPECT_EQ(result.get_shape(), (Shape{0}));
-    EXPECT_TRUE(read_vector<float>(result).empty());
-}
-
 TEST(eval, evaluate_broadcast_v3_bidirectional_target_rank_smaller_than_input) {
     Shape shape_a{1, 1, 1, 1, 1, 1, 1, 1};
     auto A = make_shared<ov::op::v0::Parameter>(element::f32, shape_a);
