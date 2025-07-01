@@ -8,8 +8,8 @@
 #include <regex>
 #include <sstream>
 
+#include "openvino/core/log.hpp"
 #include "openvino/core/log_util.hpp"
-#include "openvino/core/logging.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov::util::test {

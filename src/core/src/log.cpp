@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/logging.hpp"
+#include "openvino/core/log.hpp"
 
 #include "openvino/core/log_util.hpp"
 
