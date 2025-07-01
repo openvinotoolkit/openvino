@@ -10,26 +10,6 @@
 
 namespace ov::util {
 
-LogDispatch::Callback LogDispatch::default_callback{[](std::string_view s) {
-    std::cout << s << std::endl;
-}};
-LogDispatch::Callback* LogDispatch::current_callback = &default_callback;
-
-LogDispatch::Callback* LogDispatch::get_callback() {
-    return current_callback;
-}
-
-void LogDispatch::set_callback(Callback* f) {
-    current_callback = f;
-}
-void LogDispatch::reset_callback() {
-    current_callback = &default_callback;
-}
-
-OPENVINO_API LogDispatch::Callback& get_log_callback() {
-    return *LogDispatch::get_callback();
-}
-
 #ifdef ENABLE_OPENVINO_DEBUG
 
 // Switch on verbose matching logging using OV_VERBOSE_LOGGING=true
