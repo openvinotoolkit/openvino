@@ -18,4 +18,4 @@ namespace ov {
  */
 OPENVINO_API
 void set_log_callback(std::function<void(std::string_view)>* callback);
-}
+}  // namespace ov
