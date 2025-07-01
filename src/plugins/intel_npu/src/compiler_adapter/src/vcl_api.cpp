@@ -29,7 +29,7 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     size_t size = 0;
     // Null graph handle to get error log
     ret = vclLogHandleGetString(logHandle, &size, nullptr);
-    if (ZE_RESULT_SUCCESS != ret) {
+    if (VCL_RESULT_SUCCESS != ret) {
         return "Failed to get size of latest VCL log";
     }
 
@@ -41,7 +41,7 @@ static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     std::string logContent{};
     logContent.resize(size);
     ret = vclLogHandleGetString(logHandle, &size, const_cast<char*>(logContent.data()));
-    if (ZE_RESULT_SUCCESS != ret) {
+    if (VCL_RESULT_SUCCESS != ret) {
         return "Size of latest error log > 0, failed to get content";
     }
     _logger.debug("getLatestBuildError end");
@@ -200,48 +200,77 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                      serializedIR.first,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
-    vcl_executable_handle_t exeHandle = nullptr;
+    if (_compilerProperties.version.major >= 7 || _compilerProperties.version.minor >= 4) {
+        // For VCL 7.1 and later, we can use vclAllocatedExecutableCreate2
+        _logger.debug("Using vclAllocatedExecutableCreate2 for VCL 7.1+");
+        vcl_allocator_vector allocator;
+        uint8_t* blob = nullptr;
+        size_t size = 0;
 
-    vcl_allocator_vector allocator;
-    uint8_t* blob = nullptr;
-    size_t size = 0;
+        THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate2",
+                              vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size),
+                              _logHandle);
+        if (size == 0 || blob == nullptr) {
+            OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+        }
 
-    THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate2",
-                          vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size),
-                          _logHandle);
-    if (size == 0 || blob == nullptr) {
-        OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+        // Use empty metadata as VCL does not support metadata extraction
+        NetworkMetadata metadata;
+
+        _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+        return NetworkDescription(std::move(allocator.m_vec), std::move(metadata));
+    } else if (_compilerProperties.version.major >= 6 || _compilerProperties.version.minor >= 1) {
+        // For older versions, we use vclAllocatedExecutableCreate
+        _logger.debug("Using vclAllocatedExecutableCreate for 6.1 < VCL < 7.1");
+        std::vector<uint8_t> compiledNetwork;
+        auto allocate = [&](uint64_t size) -> uint8_t* {
+            compiledNetwork.resize(size);
+            return compiledNetwork.data();
+        };
+        auto deallocate = [&](uint8_t* ptr) {
+            compiledNetwork.clear();
+            compiledNetwork.shrink_to_fit();
+        };
+        vcl_allocator_t allocator = {
+            .allocate = allocate,
+            .deallocate = deallocate,
+        };
+        uint8_t* blob = nullptr;
+        size_t size = 0;
+        THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate",
+                              vclAllocatedExecutableCreate(_compilerHandle, exeDesc, &allocator, &blob, &size),
+                              _logHandle);
+        if (size == 0 || blob == nullptr) {
+            OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+        }
+    } else {
+        // For versions before 6.1, we use vclExecutableCreate
+        _logger.debug("Using vclExecutableCreate for VCL < 6.1");
+        vcl_executable_handle_t exeHandle = nullptr;
+        THROW_ON_FAIL_FOR_VCL("vclExecutableCreate",
+                              vclExecutableCreate(_compilerHandle, exeDesc, &exeHandle),
+                              _logHandle);
+
+        size_t size = 0;
+        THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
+                              vclExecutableGetSerializableBlob(exeHandle, nullptr, &size),
+                              _logHandle);
+        if (size == 0) {
+            OPENVINO_THROW("Failed to get VCL executable blob size, size is zero");
+        }
+        std::vector<uint8_t> compiledNetwork(size);
+        THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
+                              vclExecutableGetSerializableBlob(exeHandle, compiledNetwork.data(), &size),
+                              _logHandle);
+
+        THROW_ON_FAIL_FOR_VCL("vclExecutableDestroy", vclExecutableDestroy(exeHandle), _logHandle);
+
+        // Use empty metadata as VCL does not support metadata extraction
+        NetworkMetadata metadata;
+
+        _logger.debug("compile end, blob size:%d", compiledNetwork.size());
+        return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
     }
-
-    // Use empty metadata as VCL does not support metadata extraction
-    NetworkMetadata metadata;
-
-    _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
-    return NetworkDescription(std::move(allocator.m_vec), std::move(metadata));
-
-    // THROW_ON_FAIL_FOR_VCL("vclExecutableCreate", vclExecutableCreate(_compilerHandle, exeDesc, &exeHandle), _logHandle);
-
-    // size_t size = 0;
-    // THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
-    //                       vclExecutableGetSerializableBlob(exeHandle, nullptr, &size),
-    //                       _logHandle);
-    // if (size == 0) {
-    //     OPENVINO_THROW("Failed to get VCL executable blob size, size is zero");
-    // }
-    // std::vector<uint8_t> compiledNetwork(size);
-    // THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
-    //                       vclExecutableGetSerializableBlob(exeHandle, compiledNetwork.data(), &size),
-    //                       _logHandle);
-
-    // THROW_ON_FAIL_FOR_VCL("vclExecutableDestroy", vclExecutableDestroy(exeHandle), _logHandle);
-
-    // Use empty metadata as VCL does not support metadata extraction
-    // NetworkMetadata metadata;
-
-    // _logger.debug("compile end, blob size:%d", compiledNetwork.size());
-    // return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
-
-
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
@@ -254,7 +283,6 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
                                                                          const std::vector<uint8_t>& network,
                                                                          const intel_npu::Config& config) const {
     _logger.debug("process_profiling_output start");
-    vcl_result_t ret = VCL_RESULT_SUCCESS;
 
     vcl_profiling_handle_t profilingHandle;
     vcl_profiling_input_t profilingInput = {network.data(), network.size(), profData.data(), profData.size()};
