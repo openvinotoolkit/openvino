@@ -896,13 +896,23 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
     }
 }
 
+void avx2_memcpy(uint8_t* dst, const uint8_t* src, size_t len) {
+    size_t i = 0;
+    for (; i + 31 < len; i += 32) {
+        __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + i));
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + i), v);
+    }
+    if (i < len) {
+        std::memcpy(dst + i, src + i, len - i);
+    }
+}
+
 ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t axis) {
     NPUW_ASSERT(axis == 0 || axis == 2);
 
     const auto type = tt.front().get_element_type();
     auto shape = tt.front().get_shape();
     std::size_t new_dim = 0;
-
     std::vector<std::size_t> offsets;
     std::vector<std::size_t> lens;
     for (auto&& t : tt) {
@@ -927,24 +937,23 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
         uint8_t* pDst = static_cast<uint8_t*>(tnew.data());
 
         const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
-        for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
+        ov::parallel_for(tt.size(), [&](size_t t_idx) {
             const uint8_t* pSrc = static_cast<const uint8_t*>(tt[t_idx].data());
 
             const auto copy_size = lens[t_idx] * shape[1] * shape[2];
             const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
 
-            std::copy_n(pSrc, copy_len, pDst);
+            avx2_memcpy(pDst, pSrc, copy_len);
             pDst += copy_len;
-        }
+        });
         return tnew;
     } else if (axis == 2) {
         ov::Tensor tnew(tt.front().get_element_type(), shape);
         uint8_t* pDst = static_cast<uint8_t*>(tnew.data());
 
         const bool is_4bit = (type == ov::element::i4 || type == ov::element::u4);
-        for (std::size_t t_idx = 0; t_idx < tt.size(); t_idx++) {
+        ov::parallel_for(tt.size(), [&](size_t t_idx) {
             const auto& t_src = tt[t_idx];
-
             for (std::size_t r = 0; r < shape[0] * shape[1]; r++) {
                 const auto r_offset = is_4bit ? new_dim * r / 2 : new_dim * r * type.size();
                 const auto c_offset = is_4bit ? offsets[t_idx] / 2 : offsets[t_idx] * type.size();
@@ -955,14 +964,15 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
                 const uint8_t* pSrc = static_cast<const uint8_t*>(t_src.data());
                 const uint8_t* pSrcRow = pSrc + r_offset_src;
 
-                std::copy_n(pSrcRow, copy_len, pDstRow);
+                avx2_memcpy(pDstRow, pSrcRow, copy_len);
             }
-        }
+        });
         return tnew;
     } else {
         NPUW_ASSERT(false && "Not supported yet");
     }
 }
+
 
 namespace {
 template <typename T>
