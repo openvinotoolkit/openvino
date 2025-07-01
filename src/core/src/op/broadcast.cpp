@@ -103,13 +103,7 @@ ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
                               arg_shape_dim,
                               ". Got ",
                               target_shape[i]);
-        if (arg_shape_dim == 1) {
-            result_shape[i] = target_shape_dim;
-        } else if (target_shape_dim == 1) {
-            result_shape[i] = arg_shape_dim;
-        } else {
-            result_shape[i] = arg_shape_dim;
-        }
+        result_shape[i] = arg_shape_dim == 1 ? target_shape_dim : arg_shape_dim;
     }
     return result_shape;
 }
