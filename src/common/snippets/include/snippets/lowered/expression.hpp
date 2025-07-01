@@ -4,17 +4,23 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
 #include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include <set>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/port_connector.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class ExpressionFactory;
 class LinearIR;
@@ -138,13 +144,13 @@ protected:
 
     std::shared_ptr<Node> m_source_node{nullptr};
     std::shared_ptr<Emitter> m_emitter{nullptr};
-    std::vector<PortConnectorPtr> m_input_port_connectors{};
-    std::vector<PortConnectorPtr> m_output_port_connectors{};
-    std::vector<PortDescriptorPtr> m_input_port_descriptors{};
-    std::vector<PortDescriptorPtr> m_output_port_descriptors{};
+    std::vector<PortConnectorPtr> m_input_port_connectors;
+    std::vector<PortConnectorPtr> m_output_port_connectors;
+    std::vector<PortDescriptorPtr> m_input_port_descriptors;
+    std::vector<PortDescriptorPtr> m_output_port_descriptors;
     // The order Loops identifies: Outer ---> Inner
     // Note: The loops with the same dimension index (splitted dimension) should be successively nested
-    std::vector<size_t> m_loop_ids{};
+    std::vector<size_t> m_loop_ids;
     std::shared_ptr<IShapeInferSnippets> m_shapeInference{nullptr};
     const bool m_need_shape_infer = true;
 
@@ -154,9 +160,7 @@ protected:
     //   2. This number can be changed and updated during whole pipeline, so its absolute values are meaningless.
     //   3. This number can be negative, positive and zero.
     double m_exec_num = 0;
-    std::set<Reg> m_live_regs{};
+    std::set<Reg> m_live_regs;
 };
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

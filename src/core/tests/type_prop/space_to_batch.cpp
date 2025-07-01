@@ -15,7 +15,7 @@ using namespace std;
 using namespace ov;
 using namespace testing;
 
-#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
+#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 TEST(type_prop, space_to_batch_output_shape_2D) {
     auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 128});

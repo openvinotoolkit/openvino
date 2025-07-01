@@ -4,13 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <set>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface DefineBufferClusters
@@ -145,7 +152,4 @@ private:
     BufferClusters m_clusters;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

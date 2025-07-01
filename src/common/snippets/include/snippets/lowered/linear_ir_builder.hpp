@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include <memory>
+
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 /* The helper class that can make a copy of LinearIR or range of it by specific rules.
  * The rules are described in config.
@@ -23,7 +24,7 @@ public:
         const bool deep_copy_of_shapes = true;
     };
 
-    LinearIRBuilder(Config config = {}) : m_config(std::move(config)) {}
+    LinearIRBuilder(Config config = {}) : m_config(config) {}
 
     /**
      * @brief Make a full copy of LinearIR by rules described in `m_config`
@@ -31,17 +32,16 @@ public:
      * @param expression_map expression map
      * @return clone of `linear_ir`
      */
-    inline std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir,
-                                           ExpressionMap& expression_map) const {
+    std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir, ExpressionMap& expression_map) const {
         auto result = std::make_shared<LinearIR>();
         clone(linear_ir.get(), result.get(), expression_map);
         return result;
     }
-    inline std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir) const {
+    [[nodiscard]] std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir) const {
         ExpressionMap expression_map;
         return clone(linear_ir, expression_map);
     }
-    inline LinearIR clone(const LinearIR& linear_ir) const {
+    [[nodiscard]] LinearIR clone(const LinearIR& linear_ir) const {
         LinearIR result;
         ExpressionMap expression_map;
         clone(&linear_ir, &result, expression_map);
@@ -60,9 +60,7 @@ public:
 
 private:
     void clone(const LinearIR* src, LinearIR* dst, ExpressionMap& expression_map) const;
-    Config m_config = {};
+    Config m_config;
 };
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

@@ -7,6 +7,7 @@
 #include "expressions/gemm_copy_b_buffer_expressions.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/buffer.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_utils.hpp"
