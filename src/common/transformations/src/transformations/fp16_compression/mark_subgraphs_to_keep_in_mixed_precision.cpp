@@ -285,6 +285,8 @@ public:
             for (const auto& output : node->outputs()) {
                 for (const auto& out_input : output.get_target_inputs()) {
                     auto target_node = out_input.get_node()->shared_from_this();
+                    if (target_node == node)
+                        continue;
                     if (!fp16_compression_is_disabled(target_node)) {
                         all_inputs_disabled = false;
                         break;
