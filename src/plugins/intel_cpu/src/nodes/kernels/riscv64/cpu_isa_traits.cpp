@@ -28,13 +28,12 @@ struct RVVGenerator : public CodeGenerator {
     }
 };
 
-// NOLINTNEXTLINE(misc-include-cleaner) bug in clang-tidy
+// NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
 thread_local sigjmp_buf jmpbuf;
 
 bool can_compile_rvv100() {
 #if defined(__linux__)
-    // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
-    __sighandler_t signal_handler = [](int /*signal*/) {
+    __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
         siglongjmp(jmpbuf, 1);
     };
 

@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "executor_pa_common.hpp"
 
 #include <cfloat>
 #include <cmath>
 #include <cstring>
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-
 #    include <cpu/x64/xbyak/xbyak.h>
 
 #    include <cpu/x64/jit_generator.hpp>
@@ -16,7 +16,6 @@
 #    include <utility>
 #    include <vector>
 
-#    include "executor_pa_common.hpp"
 #    include "openvino/core/type/element_type.hpp"
 #endif
 
