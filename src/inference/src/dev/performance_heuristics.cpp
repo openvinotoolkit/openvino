@@ -8,7 +8,8 @@ namespace ov {
 
 MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::Model> model,
                                                       const float cache_size,
-                                                      const float memThresholdAssumeLimited) {
+                                                      const float mem_threshold_assume_limited,
+                                                      const ov::element::Type& target_type) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
     auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
@@ -34,7 +35,9 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
             }
             continue;
         }
-        auto type1 = node->input_value(1).get_element_type();  // weights
+        const auto& in1_type = node->get_input_element_type(1);  // weights
+        const auto& type1 =
+            ((in1_type == ov::element::f32) && (target_type != ov::element::f32)) ? target_type : in1_type;
         const bool isINT8 = isLowPrecision(type1);
         const bool isBF16orFP16 = isHalfPrecision(type1);
         const int data_type_size = isINT8 ? 1 : isBF16orFP16 ? 2 : 4;
@@ -60,7 +63,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto total_data = dataSizeInput0 + non_const * dataSizeInput1 + dataSizeOutput;
                 total_gemms++;
                 const auto factor = memLimitedFactor(total_data, data_type_size);
-                mem_limited_gemms += factor < memThresholdAssumeLimited;
+                mem_limited_gemms += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
             }
         } else if (!std::strcmp("Convolution", node_name)) {
@@ -89,7 +92,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 dataSizeOutput =
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
-                mem_limited_convs += factor < memThresholdAssumeLimited;
+                mem_limited_convs += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
             }
         } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
@@ -110,7 +113,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 dataSizeOutput =
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
-                mem_limited_deconvs += factor < memThresholdAssumeLimited;
+                mem_limited_deconvs += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
             }
         }

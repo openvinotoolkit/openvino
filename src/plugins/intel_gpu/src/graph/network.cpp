@@ -993,10 +993,11 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (is_lora_state) {
             const auto& lora_prim = node.get_users().front()->as<lora>().get_primitive();
             bool is_cm_user_platfom = get_engine().get_device_info().supports_immad;
-            for (size_t state_idx : {2, 4}) {
+            for (size_t state_idx : {2, 4, 5, 7, 8, 10}) {
                 if (is_cm_user_platfom && state_idx == 2) {
                     transpose_required = !lora_prim->transposed_states;
-                } else if (lora_prim->input[state_idx].pid == node.id()) {
+                } else if (state_idx < lora_prim->input.size() &&
+                    lora_prim->input[state_idx].pid == node.id()) {
                     transpose_required = lora_prim->transposed_states;
                 }
             }
