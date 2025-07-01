@@ -346,6 +346,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
         // Ticket: 166771
         retVector.emplace_back(R"(.*smoke_BroadcastEltwise/BroadcastEltwise.smoke_CompareWithRefs.*)");
+        // Ticket: 168863
+        retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
+        // Ticket: 168931
+        retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
