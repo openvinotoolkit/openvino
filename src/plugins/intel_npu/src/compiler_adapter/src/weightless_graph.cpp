@@ -262,7 +262,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 void WeightlessGraph::initialize(const Config& config) {
     // Simplified version for init schedules
     const size_t numberOfInits = _initsHandles.size();
-    _initsInputDescriptors.resize(numberOfInits);  // Can be removed after initialization?
+    _initsInputDescriptors.resize(numberOfInits);
     _initsOutputDescriptors.resize(numberOfInits);
     _initsCommandQueueOrdinals.resize(numberOfInits);
     _initsCommandLists.resize(numberOfInits);
@@ -331,9 +331,8 @@ void WeightlessGraph::initialize(const Config& config) {
     _initsCommandLists.clear();
     _initsFences.clear();
     _initsMetadata.clear();
-    _initsInputDescriptors.clear();
-    _initsOutputDescriptors.clear();
 
+    // The main schedule is initialized after the weights initialization ones in order to save some memory
     Graph::initialize(config);
 
     set_weights_inputs();
@@ -350,6 +349,8 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
+    // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
+    // tensors" are used for separating them.
     const ov::SoPtr<ZeroHostTensor> initInputsAllocatedTensor = {
         std::make_shared<ZeroHostTensor>(nullptr,
                                          _zeroInitStruct,
@@ -371,7 +372,6 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
         std::shared_ptr<ov::op::v0::Constant> constant;
-
         const size_t id = std::stoi(descriptor.nameFromCompiler);
         OPENVINO_ASSERT(constants.count(id) > 0,
                         "Weights ID ",
@@ -579,10 +579,7 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
-    if (!_blobAllocatedByPlugin) {
-        return;
-    }
-    if (_initBlobs == std::nullopt || config.get<PERF_COUNT>()) {
+    if (!_blobAllocatedByPlugin || _initBlobs == std::nullopt || config.get<PERF_COUNT>()) {
         return;
     }
 

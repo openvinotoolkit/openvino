@@ -28,12 +28,22 @@ public:
      */
     virtual void write(std::ostream& stream) = 0;
 
+    /**
+     * @brief Adds the size of the binary object and the magic string to the end of the stream.
+     * @details This should be called after the "write" method in order to conclude writing the metadata into the given
+     * stream.
+     * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
+     * method writes at the end. This change allows better extension of class hierarchy.
+     */
     void append_blob_size_and_magic(std::ostream& stream);
 
     virtual bool is_compatible() = 0;
 
     virtual uint64_t get_blob_size() const;
 
+    /**
+     * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
+     */
     virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
 
     virtual ~MetadataBase() = default;
@@ -196,13 +206,13 @@ public:
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
-     * previous information.
+     * information provided by the previous metadata versions.
      */
     void read(std::istream& stream) override;
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
-     * the previous information.
+     * the information registered by the previous metadata versions.
      */
     void write(std::ostream& stream) override;
 

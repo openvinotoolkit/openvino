@@ -34,6 +34,9 @@ public:
                     const Config& config,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
+    /**
+     * @brief The main schedule along with the weights initialization ones are exported.
+     */
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     /**
@@ -57,21 +60,44 @@ public:
     ~WeightlessGraph();
 
 private:
+    /**
+     * @brief Allocates the inputs of the init schedule using a single L0 buffer and copies the original weights there.
+     *
+     * @param initIndex Identifies the init schedule.
+     * @param constants The original weights extracted from the ov::Model object.
+     * @return The allocated L0 tensor along with view tensors corresponding to the init inputs.
+     */
     InputData allocate_inputs(const size_t initIndex,
                               const std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& constants);
 
+    /**
+     * @brief Allocates the outputs of the init schedule using a single L0 buffer.
+     *
+     * @param initIndex Identifies the init schedule.
+     * @return The allocated L0 tensor along with view tensors corresponding to the init outputs.
+     */
     OutputData allocate_outputs(const size_t initIndex);
 
+    /**
+     * @brief Creates a pipeline for a single init schedule. This pipeline can be used for running inferences.
+     */
     void create_pipeline(const size_t initIndex,
                          const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
                          const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
+    /**
+     * @brief Runs the pipeline corresponding to a single init schedule.
+     * @details This should produce the processed weights that can be used as inputs of the main schedule.
+     */
     void run_pipeline(const size_t initIndex);
 
     void run_init_single_threaded();
 
     void run_init_multi_threaded();
 
+    /**
+     * @brief Sets the processed weights as inputs of the main schedule.
+     */
     void set_weights_inputs();
 
     void release_init_blob(const size_t initIndex, const Config& config);

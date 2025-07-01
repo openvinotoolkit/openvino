@@ -4,7 +4,6 @@
 
 #include "compiled_model.hpp"
 
-#include <chrono>
 #include <fstream>
 #include <string_view>
 

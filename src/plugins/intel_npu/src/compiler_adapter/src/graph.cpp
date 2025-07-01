@@ -61,7 +61,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return std::make_pair(0, std::vector<uint64_t>());
+        return std::make_pair(0, std::nullopt);
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -127,8 +127,8 @@ void Graph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
-    // This condition is met only if the current object is not of type "WeightlessGraph". If it was, the command queue
-    // would have been created within WeightlessGraph::initialize().
+    // This condition is met only if the current object is not of type "WeightlessGraph". If it is, then the command
+    // queue has already been created within WeightlessGraph::initialize().
     if (_command_queue == nullptr) {
         create_command_queue(config);
     }
@@ -193,7 +193,6 @@ void Graph::create_command_queue(const Config& config) {
         command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
-    // Reused to run all init schedules. The queue won't be reinitialized within Graph::initialize().
     _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                     zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
                                                     _command_queue_group_ordinal,
