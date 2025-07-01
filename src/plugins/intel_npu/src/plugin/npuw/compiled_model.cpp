@@ -797,13 +797,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         read(model_stream, bank_name);
 
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            compiled->m_weights_bank = bank;
+            compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             compiled->finalize_weights_bank();
         } else {
-            auto bank =
+            compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
-            compiled->m_weights_bank = std::move(bank);
             compiled->reconstruct_closure();
         }
     };
