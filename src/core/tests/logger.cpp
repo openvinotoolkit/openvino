@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "openvino/core/log_util.hpp"
+#include "openvino/core/logging.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov::util::test {
@@ -134,7 +135,7 @@ TEST_P(TestLogHelper, no_log) {
     EXPECT_TRUE(m_callback_message.empty()) << "Expected no callback. Got: '" << m_callback_message << "'\n";
 }
 
-INSTANTIATE_TEST_SUITE_P(Logging,
+INSTANTIATE_TEST_SUITE_P(Log_callback,
                          TestLogHelper,
                          ::testing::ValuesIn(std::vector<LogEntries>{
                              {LOG_TYPE::_LOG_TYPE_ERROR, "path_1", 1, "text 1"},
@@ -143,4 +144,26 @@ INSTANTIATE_TEST_SUITE_P(Logging,
                              {LOG_TYPE::_LOG_TYPE_DEBUG, "path_4", 4, "text 4"},
                              {LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, "path_5", 5, "text 5"},
                          }));
+
+TEST(Log_callback_API, set) {
+    auto f = std::function<void(std::string_view)>{};
+    auto l = std::function<void(std::string_view)>{[](std::string_view msg) {}};
+
+    ov::set_log_callback(&f);
+    EXPECT_EQ(LogDispatch::get_callback(), &f);
+
+    ov::set_log_callback(&l);
+    EXPECT_EQ(LogDispatch::get_callback(), &l);
+}
+
+TEST(Log_callback_API, reset) {
+    LogDispatch::reset_callback();
+    const auto default_callback = LogDispatch::get_callback();
+
+    auto f = std::function<void(std::string_view)>{};
+    ov::set_log_callback(&f);
+
+    ov::set_log_callback(nullptr);
+    EXPECT_EQ(LogDispatch::get_callback(), default_callback);
+}
 }  // namespace ov::util::test
