@@ -94,7 +94,7 @@ std::string FilteredConfig::toStringForCompilerInternal() const {
     std::stringstream resultStream;
 
     for (auto it = _internal_compiler_configs.cbegin(); it != _internal_compiler_configs.cend(); ++it) {
-        resultStream << it->first << "=\"" << it->second << "\"";
+        resultStream << " " << it->first << "=\"" << it->second << "\"";
     }
 
     return resultStream.str();
