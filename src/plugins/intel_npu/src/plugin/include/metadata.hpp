@@ -9,7 +9,6 @@
 #include <optional>
 #include <string>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -40,8 +39,6 @@ public:
     virtual bool is_compatible() = 0;
 
     virtual uint64_t get_blob_size() const = 0;
-
-    virtual FilteredConfig get_config() const = 0;
 
     virtual ~MetadataBase() = default;
 
@@ -160,12 +157,9 @@ struct Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 protected:
     OpenvinoVersion _ovVersion;
     uint64_t _blobDataSize;
-    FilteredConfig _config;
 
 public:
-    Metadata(uint64_t blobSize,
-             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
-             FilteredConfig config = FilteredConfig(std::make_shared<const OptionsDesc>()));
+    Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
 
     void read(std::istream& tensor) override;
 
@@ -196,8 +190,6 @@ public:
     bool is_compatible() override;
 
     uint64_t get_blob_size() const override;
-
-    FilteredConfig get_config() const override;
 };
 
 /**
@@ -206,7 +198,7 @@ public:
  * @return Unique pointer to the created MetadataBase object if the major version is supported; otherwise, returns
  * 'nullptr'.
  */
-std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize, FilteredConfig config);
+std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize);
 
 /**
  * @brief Reads metadata from a blob (istream).
@@ -214,9 +206,7 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
-std::unique_ptr<MetadataBase> read_metadata_from(
-    std::istream& tensor,
-    FilteredConfig config = FilteredConfig(std::make_shared<const OptionsDesc>()));
+std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
 
 /**
  * @brief Reads metadata from a blob (ov::Tensor).
@@ -224,8 +214,6 @@ std::unique_ptr<MetadataBase> read_metadata_from(
  * @return If the blob is versioned and its major version is supported, returns an unique pointer to the read
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
-std::unique_ptr<MetadataBase> read_metadata_from(
-    const ov::Tensor& tensor,
-    FilteredConfig config = FilteredConfig(std::make_shared<const OptionsDesc>()));
+std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
 
 }  // namespace intel_npu
