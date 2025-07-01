@@ -1311,6 +1311,10 @@ struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     static OptionMode mode() {
         return OptionMode::CompileTime;
     }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 21);
+    }
 };
 
 struct SEPARATE_WEIGHTS_VERSION final : OptionBase<SEPARATE_WEIGHTS_VERSION, ov::intel_npu::WSVersion> {
