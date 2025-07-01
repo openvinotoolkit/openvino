@@ -281,10 +281,24 @@ public:
             if (!node)
                 return false;
 
-            disable_fp16_compression(node);
+            bool all_inputs_disabled = true;
             for (const auto& output : node->outputs()) {
-                for (const auto& out_inputs : output.get_target_inputs()) {
-                    mark_as_precision_sensitive(out_inputs);
+                for (const auto& out_input : output.get_target_inputs()) {
+                    auto target_node = out_input.get_node()->shared_from_this();
+                    if (!fp16_compression_is_disabled(target_node)) {
+                        all_inputs_disabled = false;
+                        break;
+                    }
+                }
+                if (!all_inputs_disabled)
+                    break;
+            }
+            if (all_inputs_disabled) {
+                disable_fp16_compression(node);
+                for (const auto& output : node->outputs()) {
+                    for (const auto& out_inputs : output.get_target_inputs()) {
+                        mark_as_precision_sensitive(out_inputs);
+                    }
                 }
             }
             return false;
