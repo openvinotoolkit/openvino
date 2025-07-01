@@ -31,15 +31,13 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
                         const auto& K = in_0_shape.back();  // K dimension(K is not blocked)
                         // NK repacked and padded to to N(K+1)
                         // ptr_increment is 1, inc is 64. inc*ptr_increment adjusted from 64*1 to 64*(K+1)
-                        if (snippets::utils::is_dynamic_value(K)) {
-                            loop_desc.ptr_increment = snippets::utils::get_dynamic_value<int64_t>();
-                            loop_desc.finalization_offset = snippets::utils::get_dynamic_value<int64_t>();
-                        } else {
-                            const int64_t k_pad = K + 1;
-                            loop_desc.ptr_increment = snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_pad);
-                            loop_desc.finalization_offset =
-                                snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_pad);
-                        }
+                        const int64_t& K_signed = snippets::utils::is_dynamic_value(K)
+                                                      ? snippets::utils::get_dynamic_value<int64_t>()
+                                                      : static_cast<int64_t>(K);
+                        const int64_t& k_pad = snippets::utils::dynamic_safe_add(K_signed, static_cast<int64_t>(1));
+                        loop_desc.ptr_increment = snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_pad);
+                        loop_desc.finalization_offset =
+                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_pad);
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustGemmCopyBLoopPorts");
                     }
