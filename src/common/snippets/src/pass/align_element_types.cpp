@@ -4,12 +4,26 @@
 
 #include "snippets/pass/align_element_types.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/transpose.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 pass::AlignElementTypes::AlignElementTypes(std::vector<ov::element::Type> input_precisions,
                                            std::vector<ov::element::Type> output_precisions)
@@ -67,8 +81,9 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
 
             consumer->set_argument(0, convert);
             consumer->validate_and_infer_types();
-            if (transpose)
+            if (transpose) {
                 results[i]->validate_and_infer_types();
+            }
             is_modified = true;
         }
     }
@@ -140,5 +155,4 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
     return is_modified;
 }
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

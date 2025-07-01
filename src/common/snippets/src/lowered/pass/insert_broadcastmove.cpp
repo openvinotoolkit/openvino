@@ -4,16 +4,29 @@
 
 #include "snippets/lowered/pass/insert_broadcastmove.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool InsertBroadcastMove::is_broadcasting_supported(const std::shared_ptr<ov::Node>& n) {
     return !std::dynamic_pointer_cast<modifier::MemoryAccess>(n) &&
@@ -37,7 +50,7 @@ std::vector<size_t> InsertBroadcastMove::get_last_dims(const ExpressionPtr& expr
                    descriptors.end(),
                    last_dims.begin(),
                    [](const std::shared_ptr<PortDescriptor>& d) {
-                       return d->get_shape().size() > 0 ? d->get_shape().back() : 1;
+                       return !d->get_shape().empty() ? d->get_shape().back() : 1;
                    });
     return last_dims;
 }
@@ -46,8 +59,9 @@ size_t InsertBroadcastMove::get_max_dim(const std::vector<size_t>& last_dims) {
     // Specially set 0 to distinguish it from scalar or dynamic value (it's max value)
     size_t broadcast_dim = 0;
     for (const auto& last_dim : last_dims) {
-        if (!utils::is_dynamic_value(last_dim) && last_dim > broadcast_dim)
+        if (!utils::is_dynamic_value(last_dim) && last_dim > broadcast_dim) {
             broadcast_dim = last_dim;
+        }
     }
     return broadcast_dim;
 }
@@ -61,13 +75,15 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir,
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (!is_broadcasting_supported(node) || expr->get_input_count() < 2)
+        if (!is_broadcasting_supported(node) || expr->get_input_count() < 2) {
             continue;
+        }
 
         const auto last_dims = get_last_dims(expr);
         const auto broadcasted_dim = get_max_dim(last_dims);
-        if (broadcasted_dim == 0)
+        if (broadcasted_dim == 0) {
             continue;
+        }
 
         for (size_t i = 0; i < last_dims.size(); i++) {
             const auto& input = expr->get_input_port_connector(i);
@@ -104,7 +120,4 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -4,9 +4,15 @@
 
 #include "snippets/op/scalar.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/constant.hpp"
+
+namespace ov::snippets::op {
 
 std::shared_ptr<ov::Node> Scalar::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
@@ -35,6 +41,4 @@ bool Scalar::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op
