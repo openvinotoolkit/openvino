@@ -40,7 +40,7 @@ public:
         element::Type partial_sum_dt = element::dynamic;
 
         std::vector<uint64_t> group_sizes = {};
-        std::vector<uint64_t> group_sizes_partial_sum = {}; // empty when partial_sum is not required
+        std::vector<uint64_t> group_sizes_partial_sum = {}; // empty when partial_sum is not required // XXX it should be same as group_sizes
         std::vector<uint64_t> scales_zp_output_order = {};
         OutputStorageType output_storage_type = OutputStorageType::Planar;
     };

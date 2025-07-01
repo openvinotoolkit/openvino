@@ -68,11 +68,15 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
     half quan_scale = 128.0h / max_value;
+#if GENERATE_PARTIAL_SUM
     int partial_sum = 0;
+#endif
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
         quantized_value[i] = convert_char4(input_0[i] * (half4)quan_scale);
+#if GENERATE_PARTIAL_SUM
         partial_sum += quantized_value[i][0] + quantized_value[i][1] + quantized_value[i][2] + quantized_value[i][3];
+#endif
         vstore4(quantized_value[i], 0, &output[output_offset + i * 4]);
     }
 

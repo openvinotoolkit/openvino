@@ -56,6 +56,7 @@ JitConstants DynamicQuantizeKernelRef::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("GENERATE_PARTIAL_SUM", params.generate_partial_sum));
     jit.AddConstant(MakeJitConstant("GROUP_SCALES_WITH_ZP", params.combine_scales_and_zp));
     jit.AddConstant(MakeJitConstant("UNSIGNED_OUTPUT", params.outputs[0].GetDType() == Datatype::UINT8 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("GENERATE_PARTIAL_SUM", params.generate_partial_sum));
 
     // Use FP32 accumulator type for scale/zp calculation
     jit.Merge(MakeTypeJitConstants(Datatype::F32, "ACCUMULATOR"));
