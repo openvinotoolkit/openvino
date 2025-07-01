@@ -85,8 +85,6 @@ int AsyncInferQueue::check_idle_request_id() {
         return -1;
     }
     auto idle_handle = static_cast<int>(m_idle_handles.front());
-    // wait for request to make sure it returned from callback
-    m_requests[idle_handle].wait();
     m_idle_handles.pop();
     return idle_handle;
 }
@@ -116,19 +114,16 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         } catch (Napi::Error& e) {
                             promise.Reject(Napi::Error::New(env, e.Message()).Value());
                         }
-                        {
-                            // Start async inference on the next request or add idle handle to queue
-                            std::lock_guard<std::mutex> lock(m_mutex);
-                            if (m_awaiting_requests.size() > 0) {
-                                auto& request = m_awaiting_requests.front();
-                                start_async_impl(static_cast<int>(handle),
-                                                 std::get<0>(request).Value(),
-                                                 std::get<1>(request).Value(),
-                                                 std::get<2>(request));
-                                m_awaiting_requests.pop();
-                            } else {
-                                m_idle_handles.push(handle);
-                            }
+                        // Start async inference on the next request or add idle handle to queue
+                        if (std::lock_guard<std::mutex> lock(m_mutex); m_awaiting_requests.size() > 0) {
+                            auto& request = m_awaiting_requests.front();
+                            start_async_impl(static_cast<int>(handle),
+                                             std::get<0>(request).Value(),
+                                             std::get<1>(request).Value(),
+                                             std::get<2>(request));
+                            m_awaiting_requests.pop();
+                        } else {
+                            m_idle_handles.push(handle);
                         }
                     };
                     // The ov_callback will execute when the main event loop will be free
@@ -176,6 +171,7 @@ Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
         const auto handle = check_idle_request_id();
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
         if (handle == -1) {
+            std::lock_guard<std::mutex> lock(m_mutex);
             m_awaiting_requests.push(
                 std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject()), deferred));
         } else {
