@@ -78,6 +78,7 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
         _internal_compiler_configs.at(key) = value;
     } else {
         // manual insert
+        log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
         _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
     }
 }
