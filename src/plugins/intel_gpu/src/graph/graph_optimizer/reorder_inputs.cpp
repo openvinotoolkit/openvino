@@ -440,6 +440,13 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
+        if (in_layout.get_rank() != out_layout.get_rank()) {
+            // Don't add reorder if the ranks of prev and node are different.
+            // issue case 1)  scatter_nd_update(bfyx:2x100x4) -> reorder(bfzyx:2x100x4) -> loop(bfzyx:2x100x1x1x360)
+            //                                                   >> added reorder has abnormal format.
+            continue;
+        }
+
         if (in_layout.format == format::any || out_layout.format == format::any ||
             in_layout.format == format::custom || out_layout.format == format::custom)
             continue;
