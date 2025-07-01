@@ -157,6 +157,25 @@ VCLCompilerImpl::~VCLCompilerImpl() {
     _logger.info("VCL Compiler destroyed successfully");
 }
 
+struct vcl_allocator_vector : vcl_allocator2_t {
+    vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {
+    }
+
+    static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
+        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
+        vecAllocator->m_vec.resize(size);
+        return vecAllocator->m_vec.data();
+    }
+
+    static void vector_deallocate(vcl_allocator2_t* allocator, uint8_t* ptr) {
+        vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
+        vecAllocator->m_vec.clear();
+        vecAllocator->m_vec.shrink_to_fit();
+    }
+
+    std::vector<uint8_t> m_vec;
+};
+
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("compile start");
 
@@ -182,27 +201,47 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     vcl_executable_handle_t exeHandle = nullptr;
-    THROW_ON_FAIL_FOR_VCL("vclExecutableCreate", vclExecutableCreate(_compilerHandle, exeDesc, &exeHandle), _logHandle);
 
+    vcl_allocator_vector allocator;
+    uint8_t* blob = nullptr;
     size_t size = 0;
-    THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
-                          vclExecutableGetSerializableBlob(exeHandle, nullptr, &size),
-                          _logHandle);
-    if (size == 0) {
-        OPENVINO_THROW("Failed to get VCL executable blob size, size is zero");
-    }
-    std::vector<uint8_t> compiledNetwork(size);
-    THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
-                          vclExecutableGetSerializableBlob(exeHandle, compiledNetwork.data(), &size),
-                          _logHandle);
 
-    THROW_ON_FAIL_FOR_VCL("vclExecutableDestroy", vclExecutableDestroy(exeHandle), _logHandle);
+    THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate2",
+                          vclAllocatedExecutableCreate2(_compilerHandle, exeDesc, &allocator, &blob, &size),
+                          _logHandle);
+    if (size == 0 || blob == nullptr) {
+        OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+    }
 
     // Use empty metadata as VCL does not support metadata extraction
     NetworkMetadata metadata;
 
-    _logger.debug("compile end, blob size:%d", compiledNetwork.size());
-    return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
+    _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+    return NetworkDescription(std::move(allocator.m_vec), std::move(metadata));
+
+    // THROW_ON_FAIL_FOR_VCL("vclExecutableCreate", vclExecutableCreate(_compilerHandle, exeDesc, &exeHandle), _logHandle);
+
+    // size_t size = 0;
+    // THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
+    //                       vclExecutableGetSerializableBlob(exeHandle, nullptr, &size),
+    //                       _logHandle);
+    // if (size == 0) {
+    //     OPENVINO_THROW("Failed to get VCL executable blob size, size is zero");
+    // }
+    // std::vector<uint8_t> compiledNetwork(size);
+    // THROW_ON_FAIL_FOR_VCL("vclExecutableGetSerializableBlob",
+    //                       vclExecutableGetSerializableBlob(exeHandle, compiledNetwork.data(), &size),
+    //                       _logHandle);
+
+    // THROW_ON_FAIL_FOR_VCL("vclExecutableDestroy", vclExecutableDestroy(exeHandle), _logHandle);
+
+    // Use empty metadata as VCL does not support metadata extraction
+    // NetworkMetadata metadata;
+
+    // _logger.debug("compile end, blob size:%d", compiledNetwork.size());
+    // return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
+
+
 }
 
 intel_npu::NetworkMetadata VCLCompilerImpl::parse(const std::vector<uint8_t>& network, const Config& config) const {
