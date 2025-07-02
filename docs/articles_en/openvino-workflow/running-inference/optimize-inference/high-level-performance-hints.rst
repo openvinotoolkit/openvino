@@ -128,7 +128,7 @@ The API of the inference requests offers Sync and Async execution. The ``ov::Inf
 
 If a single application thread manages multiple inference requests, the asynchronous (callbacks-based) API is recommended for production. It is the most scalable way to handle any number of requests. ``THROUGHPUT`` and ``LATENCY`` hints automatically configure the asynchronous pipeline for the optimal number of streams and requests.
 
-If one application thread only manage one infer request, the synchronous API can be used with `LATENCY` hint in single-thread use case and with `THROUGHPUT` hint in multi-threads use case. 
+If a single application thread manages only one inference request, the synchronous API can be used with the `LATENCY` hint for single-thread use cases and the `THROUGHPUT` hint for multi-thread use cases. 
 
 Combining the Hints and Individual Low-Level Settings
 #####################################################
