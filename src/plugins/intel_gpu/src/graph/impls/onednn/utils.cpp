@@ -275,15 +275,38 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
 
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc>
 get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, cldnn::layout output_layout, dnnl::memory::format_tag target_fmt) {
-    bool need_blocked = input_layout.format.is_blocked() || output_layout.format.is_blocked();
-    dnnl::memory::desc input_desc   = layout_to_memory_desc(input_layout, target_fmt, false, false, need_blocked);
-    dnnl::memory::desc weights_desc = layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any, false, false, need_blocked);
-    dnnl::memory::desc output_desc  = layout_to_memory_desc(output_layout, target_fmt, false, false, need_blocked);
+    mem_flags flags = (input_layout.format.is_blocked() || output_layout.format.is_blocked()) ?
+        mem_flags::need_blocked : mem_flags::None;
+    dnnl::memory::desc input_desc   = layout_to_memory_desc(input_layout, target_fmt, flags);
+    dnnl::memory::desc weights_desc = layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any, flags);
+    dnnl::memory::desc output_desc  = layout_to_memory_desc(output_layout, target_fmt, flags);
     return {input_desc, weights_desc, output_desc};
 }
 
-dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten, bool use_strides, bool need_blocked) {
+inline mem_flags operator|(mem_flags lhs, mem_flags rhs) {
+    using T = std::underlying_type_t<mem_flags>;
+    return static_cast<mem_flags>(static_cast<T>(lhs) | static_cast<T>(rhs));
+}
+
+inline mem_flags& operator|=(mem_flags& lhs, mem_flags rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+inline mem_flags operator&(mem_flags lhs, mem_flags rhs) {
+    using T = std::underlying_type_t<mem_flags>;
+    return static_cast<mem_flags>(static_cast<T>(lhs) & static_cast<T>(rhs));
+}
+
+inline bool has_mem_flag(mem_flags flags, mem_flags flag_to_check) {
+    return (flags & flag_to_check) != mem_flags::None;
+}
+
+dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, mem_flags flags) {
     dnnl::memory::dims dims;
+    bool flatten = has_mem_flag(flags, mem_flags::flatten);
+    bool use_strides = has_mem_flag(flags, mem_flags::use_strides);
+    bool need_blocked = has_mem_flag(flags, mem_flags::need_blocked);
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
         dims.insert(dims.begin(), 1);
