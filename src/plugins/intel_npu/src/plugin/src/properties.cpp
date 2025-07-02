@@ -231,12 +231,13 @@ namespace intel_npu {
  *
  * @note This macro does not offer any compiled-model specific checks
  */
-#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                              \
-    do {                                                                                                             \
-        _properties.emplace(PROP_NAME.name(),                                                                        \
-                            std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, [&](const Config& config) { \
-                                return PROP_RETVAL;                                                                  \
-                            }));                                                                                     \
+#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                      \
+    do {                                                                                                     \
+        _properties.emplace(                                                                                 \
+            PROP_NAME.name(),                                                                                \
+            std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, [&](const Config& config) -> auto { \
+                return PROP_RETVAL;                                                                          \
+            }));                                                                                             \
     } while (0)
 
 /**
