@@ -1200,9 +1200,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.add(unit_parameters("MSK"));
     }
 
-    for (auto it : jit) {
-        std::cout << "jit[" << it.name << "] = " << it.value << std::endl;
-    }
+    // for (auto it : jit) {
+    //     std::cout << "jit[" << it.name << "] = " << it.value << std::endl;
+    // }
 
     return jit;
 }
