@@ -346,6 +346,10 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)");
         // Ticket: 166771
         retVector.emplace_back(R"(.*smoke_BroadcastEltwise/BroadcastEltwise.smoke_CompareWithRefs.*)");
+        // Ticket: 168863
+        retVector.emplace_back(R"(.*smoke_AvgPoolV14_CPU_4D/AvgPoolingV14LayerCPUTest.CompareWithRefs.*)");
+        // Ticket: 168931
+        retVector.emplace_back(R"(.*smoke_Reduce_OneAxis_dynamic_CPU/ReduceCPULayerTest.CompareWithRefs.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -502,7 +506,6 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
     // smoke_Snippets test cases are not supported on arm64 platforms, except for listed below
     retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/|_Reduce|_Softmax|_AddSoftmax).*)");
-    retVector.emplace_back(R"(smoke_Snippets_MatMul.*\[.*\?.*\].*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
