@@ -57,15 +57,15 @@ public:
 };
 
 namespace pass {
-WeightsWrapper::~WeightsWrapper() {
-    if (m_offsetConstMap) {
-        delete reinterpret_cast<WeightsMap*>(m_offsetConstMap);
-        m_offsetConstMap = nullptr;
+WeightsMapWrapper::~WeightsMapWrapper() {
+    if (m_weightsMap) {
+        delete reinterpret_cast<WeightsMap*>(m_weightsMap);
+        m_weightsMap = nullptr;
     }
 }
 
-size_t WeightsWrapper::size() {
-    ov::pass::WeightsMap* weights_map = reinterpret_cast<ov::pass::WeightsMap*>(m_offsetConstMap);
+size_t WeightsMapWrapper::size() {
+    ov::pass::WeightsMap* weights_map = reinterpret_cast<ov::pass::WeightsMap*>(m_weightsMap);
     return weights_map->size();
 }
 }  // namespace pass
@@ -124,12 +124,12 @@ public:
         m_write_hash_value = (dynamic_cast<ov::OstreamHashWrapperBin*>(bin_data.rdbuf())) ? true : false;
     }
 
-    ConstantWriter(std::ostream& bin_data, ov::pass::WeightsMap* weights_map, bool enable_compression = true)
+    ConstantWriter(std::ostream& bin_data, ov::pass::WeightsMap* weights_map, bool enable_compression = false)
         : m_binary_output(bin_data),
           m_weights_map(weights_map),
           m_enable_compression(enable_compression),
-          m_blob_offset(0),
-          m_write_hash_value(false) {}
+          m_write_hash_value(false),
+          m_blob_offset(0) {}
 
     bool write_to_weights_map() const {
         return m_weights_map != nullptr;
@@ -1342,7 +1342,8 @@ void serializeFunc(std::ostream& xml_file,
     } else {
         // If weights map is provided, we need to write constants to the map
         // and serialize it to the xml file
-        ConstantWriter constant_write_handler(weights_map);
+        std::ofstream fake_bin_file;
+        ConstantWriter constant_write_handler(fake_bin_file, weights_map);
         XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
         visitor.on_attribute(name, model);
     }
@@ -1371,8 +1372,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else if (m_xmlFile && !m_weightsMapWrapper) {
         ov::pass::WeightsMap* map = reinterpret_cast<ov::pass::WeightsMap*>(m_weightsMapWrapper->get());
-        std::ofstream xml_file;
-        serializeFunc(*m_xmlFile, xml_file, model, m_version, false, map);
+        std::ofstream fake_bin_file;
+        serializeFunc(*m_xmlFile, fake_bin_file, model, m_version, false, map);
     } else {
         ov::util::create_directory_recursive(m_xmlPath);
 
