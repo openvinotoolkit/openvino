@@ -270,12 +270,17 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
-        if (params.inputs[0].GetDims().size() == 4 && !params.inputs[1].is_dynamic() &&
+        if (params.inputs[0].GetDims().size() == 4 && GetGatherIndexDim(params).v == 0 && !params.inputs[1].is_dynamic() &&
             params.inputs[1].LogicalSize() == 1) {
             idx_order = {"(f)", "(y)", "(x)", "(1)"};
+        } else if (params.inputs[0].GetDims().size() == 4 && GetGatherChannelIndex(params) == 1 && !params.inputs[1].is_dynamic() &&
+                   params.inputs[1].LogicalSize() == 1) {
+            idx_order = {"(b)", "(y)", "(x)", "(1)"};
         } else {
             idx_order = GetOrder(params.inputs[0].GetDims().size());
         }
+
+        std::cout << "idx_order=" << idx_order[0] << std::endl;
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
