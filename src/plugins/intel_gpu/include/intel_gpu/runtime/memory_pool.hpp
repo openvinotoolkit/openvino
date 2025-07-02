@@ -111,11 +111,10 @@ struct memory_user_comparer {
 };
 
 struct memory_record {
-    memory_set _users;          // list of primitives that already use this memory object
+    memory_set _users;  // list of primitives that already use this memory object
     memory_ptr _memory;
     uint32_t _network_id;
     allocation_type _type;
-    layout _recent_layout;      // last executed layout for this memory record
 
     memory_record(memory_set users, memory_ptr& memory, uint32_t net_id, allocation_type type);
 };
@@ -194,24 +193,6 @@ public:
 
     size_t get_non_padded_pool_size() {
         return _non_padded_pool.size();
-    }
-
-    bool update_recent_layout_from_padded_pool(const layout& l, size_t unique_id, uint32_t network_id) {
-        for (auto& it : _padded_pool) {
-            for (auto& rec : it.second) {
-                for (auto& usr : rec._users) {
-                    if (usr._unique_id == unique_id && usr._network_id == network_id) {
-                        if (rec._recent_layout != l) {
-                            rec._recent_layout = l;
-                            return true;    // need reset memory
-                        } else {
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
     }
 
     void dump(uint32_t id, uint32_t iter, std::string dump_dir_path = "");

@@ -28,7 +28,7 @@ memory_record::memory_record(memory_set users,
                              std::shared_ptr<memory>& memory,
                              uint32_t net_id,
                              allocation_type type)
-    : _users(users), _memory(memory), _network_id(net_id), _type(type), _recent_layout(memory->get_layout()) {}
+    : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
 memory::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, bool reset) {
     return _engine->allocate_memory(layout, type, reset);
