@@ -107,8 +107,8 @@ protected:
         std::cout << "--> DynamicGatherEltwiseStaticFusions::init_subgraph" << std::endl;
         auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
 
-        auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
-        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
+        auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{0});
+        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
         auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis);
 
         auto bias = std::make_shared<ov::op::v0::Constant>(input_precision, ov::Shape{1, 3}, std::vector<float>{0.01, 0.02, 0.03});
