@@ -57,8 +57,8 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions
-            pyproject.toml
-            poetry.lock
+            **/*.toml
+            **/*.lock
             src/bindings/python/scripts/generate_pyapi_stubs.py
             src/bindings/python/**/*.pyi
           sparse-checkout-cone-mode: false
