@@ -4,12 +4,23 @@
 
 #include "snippets/op/reshape.hpp"
 
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/shape_infer_op.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 Reshape::Reshape(const Output<Node>& arg, ov::PartialShape target_shape)
     : ShapeInferOp({arg}),
@@ -58,6 +69,4 @@ IShapeInferSnippets::Result Reshape::ShapeInfer::infer(const std::vector<VectorD
     return {{target_shape}, ShapeInferStatus::success};
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

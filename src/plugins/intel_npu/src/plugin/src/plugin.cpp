@@ -116,7 +116,7 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
-static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base_conf, const ov::AnyMap& local_conf) {
+static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
     if (it != local_conf.end()) {
@@ -175,7 +175,7 @@ void Plugin::init_options() {
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
         _options->add<OPT_TYPE>();                            \
-        _globalConfig.enable(o_name, false);                  \
+        _globalConfig.enable(std::move(o_name), false);       \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -390,17 +390,22 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
         });
     }
     // secondly, in the new config provided by user
+    std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
         if (!localConfig.hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            } else {
+                localConfig.addOrUpdateInternal(key, value);
             }
+        } else {
+            cfgs_to_set.emplace(key, value);
         }
     }
 
     // 3. If all good so far, update values
-    localConfig.update(rawConfig, mode);
+    localConfig.update(cfgs_to_set, mode);
     return localConfig;
 }
 

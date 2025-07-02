@@ -30,7 +30,7 @@ public:
         return getType() == Type::LoRA;
     }
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void selectOptimalPrimitiveDescriptor() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;

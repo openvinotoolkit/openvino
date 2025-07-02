@@ -4,6 +4,7 @@
 
 #include "subgraph_matmul.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "common_test_utils/node_builders/constant.hpp"
 #include "ov_ops/type_relaxed.hpp"
