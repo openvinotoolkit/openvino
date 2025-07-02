@@ -29,9 +29,7 @@ struct MemBandwidthPressure {
     int total_convs = 0;
     int total_adds = 0;
     int total_light_gemms = 0;
-    int total_light_convs_1 = 0;
-    int total_light_convs_2 = 0;
-    int total_loops = 0;
+    int total_light_convs = 0;
     int total_nodes = 0;
 
     static constexpr float UNKNOWN = FLT_MAX;
