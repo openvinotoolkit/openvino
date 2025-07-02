@@ -117,10 +117,13 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
                      return snippets::utils::is_dynamic_value(x);
                  });
 
+    const auto int_work_amount = ov::snippets::utils::is_dynamic_value(loop_end->get_work_amount())
+                                     ? ov::snippets::utils::get_dynamic_value<int64_t>()
+                                     : static_cast<int64_t>(loop_end->get_work_amount());
     // We initialize loop_args with the known values already at compilation stage.
     // In case of static loop, only these loop_args will be used.
     // In case of dynamic loop, loop_args from jit_snippets_call_args will be used for dynamic values.
-    loop_args = jit_snippets_call_args::loop_args_t(loop_end->get_work_amount(), ptr_increments, fin_offsets);
+    loop_args = jit_snippets_call_args::loop_args_t(int_work_amount, ptr_increments, fin_offsets);
     const auto& data_sizes = loop_end->get_element_type_sizes();
     for (int64_t i = 0; i < loop_args.m_num_data_ptrs; ++i) {
         // Note: behavior is aligned with runtime configurator:
@@ -134,7 +137,7 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
     }
 
     OV_CPU_JIT_EMITTER_ASSERT(!loop_end_input_regs.empty(), "Invalid LoopEnd reg info");
-    internal_work_amount_reg_idx = loop_end_input_regs.back().idx;
+    work_amount_reg_idx = loop_end_input_regs.back().idx;
     loop_end_input_regs.pop_back();
     mem_ptr_regs_idxs.reserve(loop_end_input_regs.size());
     for (const auto& r : loop_end_input_regs) {
@@ -165,9 +168,9 @@ void jit_parallel_loop_begin_emitter::validate_arguments(const std::vector<size_
                                                          const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got ", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs: expected 1 got ", out.size());
-    OV_CPU_JIT_EMITTER_ASSERT(out.back() == internal_work_amount_reg_idx,
+    OV_CPU_JIT_EMITTER_ASSERT(out.back() == work_amount_reg_idx,
                               "Invalid out reg: expected ",
-                              internal_work_amount_reg_idx,
+                              work_amount_reg_idx,
                               " got ",
                               out.size());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
@@ -192,7 +195,7 @@ std::set<snippets::Reg> jit_parallel_loop_begin_emitter::get_regs_to_spill_excep
     return regs_to_spill;
 }
 
-void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
+void jit_parallel_loop_begin_emitter::emit_parallel_executor_call(std::vector<Xbyak::Reg>& used_regs) const {
     init_binary_call_regs(3, mem_ptr_regs_idxs);
     // Note: mem_ptr_regs_idxs regs are not spilled, since they are handled manually:
     // before the parallel region call, they are passed via stack as ParallelLoopExecutor::execute parameter,
@@ -213,8 +216,13 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     }
 
     const auto& aux_reg = get_call_address_reg();
+    used_regs = m_par_to_seq_part_spiller->get_spilled_regs();
+    const auto memory_buf_size = EmitABIRegSpills::compute_memory_buffer_size(used_regs);
+    m_common_registers_buffer.resize(memory_buf_size);
+    h->mov(aux_reg, reinterpret_cast<uintptr_t>(m_common_registers_buffer.data()));
+    EmitABIRegSpills::store_regs_to_memory(h, used_regs, aux_reg);
+
     if (is_dynamic) {
-        RegPrinter::print<int>(*h, abi_param1, "outside_parallel_part");
         h->mov(aux_reg, h->ptr[abi_param1 + GET_OFF(loop_args)]);
         h->lea(aux_reg, h->ptr[aux_reg + loop_id_offset]);
         push_reg_on_stack(aux_reg, GET_OFF_PARALLEL_LOOP_ARGS(loop_args));
@@ -247,7 +255,8 @@ void jit_parallel_loop_begin_emitter::emit_parallel_executor_call() const {
     h->jmp(*loop_end_label, CodeGenerator::T_NEAR);
 }
 
-void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() const {
+void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization(
+    const std::vector<Xbyak::Reg>& regs_to_restore) const {
     h->L(*loop_preamble_label);
 
     std::set<snippets::Reg> loop_premble_spill;
@@ -258,7 +267,7 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() cons
     m_seq_part_spiller->preamble(loop_premble_spill);
     // Note: work_amount reg is guaranteed to differ from any mem_ptr_regs_idxs.
     // However some of mem_ptr_regs_idxs might coincide with abi_param_1 or abi_param_2.
-    h->mov(Reg64(internal_work_amount_reg_idx), abi_param1);
+    h->mov(Reg64(work_amount_reg_idx), abi_param1);
     bool abi_param2_collision = false;
     for (int i : mem_ptr_regs_idxs) {
         if (i == abi_param2.getIdx()) {
@@ -271,14 +280,38 @@ void jit_parallel_loop_begin_emitter::emit_parallel_region_initialization() cons
         h->mov(abi_param2, h->ptr[abi_param2 + abi_param2.getIdx() * sizeof(uintptr_t*)]);
     }
 
+    const auto& aux_reg = get_call_address_reg();
+    h->mov(aux_reg, reinterpret_cast<uintptr_t>(m_common_registers_buffer.data()));
+    EmitABIRegSpills::load_regs_from_memory(h, regs_to_restore, aux_reg, m_common_registers_buffer.size());
+
     h->L(*loop_begin_label);
 }
 
 void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
                                                 [[maybe_unused]] const std::vector<size_t>& out) const {
-    emit_parallel_executor_call();
+    // TODO: reuse loop_begin_emitter code
+    auto reg_work_amount = Reg64(static_cast<int>(out.back()));
+    if (ov::snippets::utils::is_dynamic_value(loop_args.m_work_amount)) {
+        jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);
+        Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
+        h->mov(reg_loop_args_ptr, h->ptr[abi_param1 + GET_OFF(loop_args)]);
+        h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + loop_id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
+    } else {
+        h->mov(reg_work_amount, loop_args.m_work_amount);
+    }
+    // if wa < increment, skip the loop
+    // Note : If the loop should be evaluated once and increment is dynamic,
+    //        we should manually set `increment = 1` to compare the dynamic work amount
+    //        with `1` at least before loop execution
+    //        (work amount can be zero and we should skip this loop even `evaluate_once = 1`)
+    auto increment = evaluate_once && snippets::utils::is_dynamic_value(wa_increment) ? 1 : wa_increment;
+    h->cmp(reg_work_amount, increment);
+    h->jl(*loop_end_label, Xbyak::CodeGenerator::T_NEAR);
+
+    std::vector<Xbyak::Reg> regs_to_restore;
+    emit_parallel_executor_call(regs_to_restore);
     // Note: parallel region starts here. The only legal entry point is from ParallelLoopExecutor::execute(...)
-    emit_parallel_region_initialization();
+    emit_parallel_region_initialization(regs_to_restore);
 }
 
 jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator* h,
@@ -356,11 +389,8 @@ void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     if (is_dynamic) {
         jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);
         reg_increments = gpr_holder.get_reg();
-        RegPrinter::print<int>(*h, abi_param1, "inside_seq_part: loop_end");
         h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-        RegPrinter::print<int>(*h, reg_increments, "jit_parallel_loop_end_emitter::reg_increments");
         h->mov(reg_increments, h->ptr[reg_increments + loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments)]);
-        RegPrinter::print<int>(*h, reg_increments, "jit_parallel_loop_end_emitter::reg_increments2");
         add_increments();
     } else {
         add_increments();

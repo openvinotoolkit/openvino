@@ -43,6 +43,10 @@ class ParallelLoopKernel {};
 
 class ParallelLoopExecutor : public snippets::KernelExecutor<ParallelLoopConfig, ParallelLoopKernel> {
 public:
+    // This function is used to initialize per-thread loop begin
+    // Parameters:
+    // - work_amount: work amount that should be handled in the current thread
+    // - mem_ptrs: memory pointers with applied ptr_increments for the current thread
     using loop_preamble_t = void (*)(int64_t, void*);
     struct call_args {
         jit_snippets_call_args::loop_args_t* loop_args = nullptr;

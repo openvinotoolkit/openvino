@@ -32,6 +32,7 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
                                 const std::vector<size_t>& used_gprs,
                                 bool& spill_required);
 
+class jit_parallel_loop_begin_emitter;
 // The class emit register spills for the possible call of external binary code
 class EmitABIRegSpills {
 public:
@@ -60,10 +61,15 @@ public:
     void rsp_restore();
 
 private:
+    // Note: parallel loop emitter needs to spill registers to common buffer
+    // to propagate register states in each thread (stack of the main thread can't be used for such purpose).
+    // So it uses private EmitABIRegSpills API directly.
+    friend class jit_parallel_loop_begin_emitter;
+
     EmitABIRegSpills() = default;
     static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
     [[nodiscard]] static size_t compute_memory_buffer_size(const std::vector<Xbyak::Reg>& regs);
-    
+
     static void store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator* h,
                                      const std::vector<Xbyak::Reg>& regs_to_store,
                                      Xbyak::Reg memory_ptr_reg);
