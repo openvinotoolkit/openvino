@@ -19,6 +19,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -173,18 +174,20 @@ TEST_P(SerializationTest, SaveModelByPath) {
 }
 
 TEST_P(SerializationTest, SerializeWithMap) {
-    CompareSerialized([&out_xml_path](const auto& m) {
+    CompareSerialized([this](const auto& m) {
         // Serialize model with weights map
-        const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-        ov::pass::Manager manager(passConfig);
+        // const auto passConfig = std::make_shared<ov::pass::PassConfig>();
         std::stringstream xmlStringStream;
-        ov::pass::WeightsWrapper offsetConstMap;
-        manager.register_pass<ov::pass::LightSerialize>(xmlStringStream, offsetConstMap);
-        manager.run_passes(m);
+        ov::pass::WeightsMapWrapper weightsMapWrapper;
+        // manager.register_pass<ov::pass::Serialize>(xmlStringStream, offsetConstMap);
+        // manager.run_passes(m);
+        ov::pass::Serialize(xmlStringStream, &weightsMapWrapper).run_on_model(m);
 
         // Read model with the xml and weights map
-        ov::Tensor weightsTensor =
-            ov::Tensor(ov::element::u8, {offsetConstMap.size()}, reinterpret_cast<uint8_t*>(offsetConstMap.get()));
+        ov::Tensor weightsTensor = ov::Tensor(ov::element::u8,
+                                              {weightsMapWrapper.size()},
+                                              reinterpret_cast<uint8_t*>(weightsMapWrapper.get()));
+        ov::Core core;
         auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);
 
         ov::serialize(modelNew, m_out_xml_path, m_out_bin_path);
