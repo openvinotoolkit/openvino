@@ -12,7 +12,9 @@
 #include "openvino/core/log_util.hpp"
 #include "openvino/util/log.hpp"
 
-namespace ov::util::test {
+namespace ov::tests {
+
+using namespace ov::util;
 
 // Capturing std::cout streambuffer doesn't work in a CI job on Windows, so disabled. Tested locally on Ubuntu.
 static constexpr bool enable_logging_to_std_cout_test = false;
@@ -130,11 +132,9 @@ TEST_P(TestLogHelper, no_log) {
 
 INSTANTIATE_TEST_SUITE_P(Log_callback,
                          TestLogHelper,
-                         ::testing::ValuesIn(std::vector<LogEntries>{
-                             {LOG_TYPE::_LOG_TYPE_ERROR, "path_1", 1, "text 1"},
-                             {LOG_TYPE::_LOG_TYPE_WARNING, "path_2", 2, "text 2"},
-                             {LOG_TYPE::_LOG_TYPE_INFO, "path_3", 3, "text 3"},
-                             {LOG_TYPE::_LOG_TYPE_DEBUG, "path_4", 4, "text 4"},
-                             {LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, "path_5", 5, "text 5"},
-                         }));
-}  // namespace ov::util::test
+                         ::testing::Values(LogEntries{LOG_TYPE::_LOG_TYPE_ERROR, "path_1", 1, "text 1"},
+                                           LogEntries{LOG_TYPE::_LOG_TYPE_WARNING, "path_2", 2, "text 2"},
+                                           LogEntries{LOG_TYPE::_LOG_TYPE_INFO, "path_3", 3, "text 3"},
+                                           LogEntries{LOG_TYPE::_LOG_TYPE_DEBUG, "path_4", 4, "text 4"},
+                                           LogEntries{LOG_TYPE::_LOG_TYPE_DEBUG_EMPTY, "path_5", 5, "text 5"}));
+}  // namespace ov::tests
