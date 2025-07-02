@@ -67,7 +67,6 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_PREFILL_HINT>();
     desc.add<NPUW_LLM_GENERATE_HINT>();
-    desc.add<NPUW_WHISPER_LHS_SEQ_SIZE>();
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

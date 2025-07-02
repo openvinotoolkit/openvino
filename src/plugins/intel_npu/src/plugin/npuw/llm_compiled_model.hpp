@@ -12,6 +12,7 @@ namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
+class WhisperInferRequest;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -45,8 +46,10 @@ public:
 
 private:
     friend class LLMInferRequest;
+    friend class WhisperInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -70,6 +73,8 @@ private:
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
 
     uint64_t m_prefill_chunk_size;
+
+    bool m_is_whisper = false;
 };
 
 }  // namespace npuw
