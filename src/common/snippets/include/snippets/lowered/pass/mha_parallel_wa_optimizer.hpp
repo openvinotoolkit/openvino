@@ -37,7 +37,7 @@ public:
 
     bool run(const lowered::LinearIR& linear_ir) override;
     bool applicable() const override {
-        return !std::getenv("USE_INTERNAL_PARALLEL_LOOPS") && !m_loops_to_split.empty();
+        return (std::getenv("USE_INTERNAL_PARALLEL_LOOPS") == nullptr) && !m_loops_to_split.empty();
     }
 
 private:

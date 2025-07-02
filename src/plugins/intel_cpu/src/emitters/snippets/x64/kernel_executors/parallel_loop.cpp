@@ -13,6 +13,7 @@
 #include "common/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/parallel.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::intel_cpu {
 static inline uintptr_t* apply_byte_offset(uintptr_t* ptr, size_t offset) {
