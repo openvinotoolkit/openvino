@@ -439,6 +439,10 @@ public:
         return compile_model(ov_model, properties);
     }
 
+    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& model, const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
@@ -469,6 +473,12 @@ public:
         ov::Core core;
         auto ov_model = core.read_model(xmlString, weights);
         return compile_model(ov_model, properties, context);
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
     }
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,

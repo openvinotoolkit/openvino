@@ -242,12 +242,22 @@ void MockPluginBase<DeviceType>::create_implementation() {
         .WillByDefault([](const ov::AnyMap& remote_properties) -> ov::SoPtr<ov::IRemoteContext> {
             return std::make_shared<MockRemoteContext>(device_name);
         });
-    ON_CALL(*this, import_model(testing::_, testing::_))
+    ON_CALL(*this, import_model(testing::An<std::istream&>(), testing::_))
         .WillByDefault([](std::istream& model, const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
             OPENVINO_NOT_IMPLEMENTED;
         });
-    ON_CALL(*this, import_model(testing::_, testing::_, testing::_))
+    ON_CALL(*this, import_model(testing::An<ov::Tensor&>(), testing::_))
+        .WillByDefault([](ov::Tensor& model, const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
+            OPENVINO_NOT_IMPLEMENTED;
+        });
+    ON_CALL(*this, import_model(testing::An<std::istream&>(), testing::_, testing::_))
         .WillByDefault([](std::istream& model,
+                          const ov::SoPtr<ov::IRemoteContext>& context,
+                          const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
+            OPENVINO_NOT_IMPLEMENTED;
+        });
+    ON_CALL(*this, import_model(testing::An<ov::Tensor&>(), testing::_, testing::_))
+        .WillByDefault([](ov::Tensor& model,
                           const ov::SoPtr<ov::IRemoteContext>& context,
                           const ov::AnyMap& properties) -> std::shared_ptr<ov::ICompiledModel> {
             OPENVINO_NOT_IMPLEMENTED;
@@ -279,7 +289,7 @@ void MockPluginBase<DeviceType>::set_expectations_to_infer_reqs(int model_idx,
 
 template <typename DeviceType>
 MockPluginBase<DeviceType>::~MockPluginBase() {
-    for (auto const& idx_to_expectation_and_status : m_models_to_expectations) {
+    for (const auto& idx_to_expectation_and_status : m_models_to_expectations) {
         auto idx = idx_to_expectation_and_status.first;
         auto expectation_and_status = idx_to_expectation_and_status.second;
         if (!expectation_and_status.second) {
@@ -287,16 +297,15 @@ MockPluginBase<DeviceType>::~MockPluginBase() {
                           << "] was set, but that model was not compiled";
         }
     }
-    for (auto const& idx_to_reqs_to_expectation_and_status : m_models_to_reqs_to_expectations) {
+    for (const auto& idx_to_reqs_to_expectation_and_status : m_models_to_reqs_to_expectations) {
         OPENVINO_ASSERT(idx_to_reqs_to_expectation_and_status.second);
-        for (auto const& req_to_expectation_and_status : *idx_to_reqs_to_expectation_and_status.second) {
+        for (const auto& req_to_expectation_and_status : *idx_to_reqs_to_expectation_and_status.second) {
             auto req_idx = req_to_expectation_and_status.first;
             auto expectation_and_status = req_to_expectation_and_status.second;
             if (!expectation_and_status.second) {
                 auto model_idx = idx_to_reqs_to_expectation_and_status.first;
                 ADD_FAILURE() << DeviceType::name << ": Expectation for request[" << req_idx << "] of model["
-                              << model_idx << "] was set, but that request was "
-                              << "not created";
+                              << model_idx << "] was set, but that request was " << "not created";
             }
         }
     }

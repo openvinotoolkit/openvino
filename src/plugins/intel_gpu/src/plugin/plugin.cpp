@@ -313,6 +313,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, co
     return import_model(model, { context, nullptr }, config);
 }
 
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model, const ov::AnyMap& config) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& orig_config) const {
@@ -370,6 +374,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& orig_config) const {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {

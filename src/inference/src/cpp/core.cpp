@@ -192,11 +192,28 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
     });
 }
 
+CompiledModel Core::import_model(ov::Tensor& modelTensor, const std::string& device_name, const AnyMap& config) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->import_model(modelTensor, device_name, config);
+        return {exec._ptr, exec._so};
+    });
+}
+
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
 
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->import_model(modelStream, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
+        return {exec._ptr, exec._so};
+    });
+}
+
+CompiledModel Core::import_model(ov::Tensor& modelTensor, const RemoteContext& context, const AnyMap& config) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
+
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->import_model(modelTensor, ov::SoPtr<ov::IRemoteContext>{context._impl, context._so}, config);
         return {exec._ptr, exec._so};
     });
 }

@@ -206,16 +206,16 @@ inline std::string getline_from_buffer(const char* buffer, size_t size, size_t& 
     const char* start = buffer + pos;
     const char* end = buffer + size;
     const char* newline = std::find(start, end, delim);
-    
+
     size_t line_length = (newline == end) ? (end - start) : (newline - start);
     std::string line(start, line_length);
-    
+
     // Update position (skip the delimiter if found)
     pos += line_length + (newline != end ? 1 : 0);
-    
+
     return line;
 }
-}
+}  // namespace
 
 void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size, size_t& pos) {
     std::string xmlStr = ov::getline_from_buffer(buffer, buffer_size, pos);
