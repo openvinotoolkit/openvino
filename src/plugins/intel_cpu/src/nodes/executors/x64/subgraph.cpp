@@ -35,7 +35,7 @@
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
-std::mutex err_print_lock;
+std::mutex err_print_lock;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 #endif
 
 namespace ov::intel_cpu {

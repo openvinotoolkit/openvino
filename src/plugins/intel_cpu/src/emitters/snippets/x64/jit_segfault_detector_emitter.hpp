@@ -21,7 +21,8 @@ namespace ov::intel_cpu {
 using namespace ov::threading;
 
 class jit_uni_segfault_detector_emitter;
-extern std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>> g_custom_segfault_handler;
+extern std::shared_ptr<ThreadLocal<jit_uni_segfault_detector_emitter*>>
+    g_custom_segfault_handler;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 class jit_uni_segfault_detector_emitter : public jit_emitter {
 public:

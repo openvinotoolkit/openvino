@@ -37,7 +37,6 @@
 # -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
 # -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
 # -cppcoreguidelines-avoid-const-or-ref-data-members
-# -cppcoreguidelines-avoid-non-const-global-variables
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
 # -google-explicit-constructor,
@@ -75,7 +74,6 @@ Checks: >
   -cppcoreguidelines-avoid-const-or-ref-data-members,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-explicit-virtual-functions,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-misleading-capture-default-by-value,
