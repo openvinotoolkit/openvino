@@ -38,8 +38,6 @@ private:
     std::filesystem::path m_binPath;
 
     static std::vector<std::filesystem::path> s_tempFiles;
-
-    bool m_tempModelSaved = false;
 };
 
 } // namespace utils
