@@ -433,15 +433,17 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     }
 
     if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type{
+        return decltype(ov::internal::supported_properties)::value_type {
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+                ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
-                             ov::PropertyMutability::RO}};
+                ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+                ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+                ov::PropertyName {
+                ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
+            }
+        };
     }
     if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
@@ -554,7 +556,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_tensor, const ov::AnyMap& config) const {
+    return nullptr;
+}
+
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tensor, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
@@ -566,17 +573,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     }
 
     auto _config = config;
-    std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (auto blob_it = _config.find(ov::hint::compiled_blob.name()); blob_it != _config.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                      compiled_blob.get_byte_size(),
-                                                                      compiled_blob);
-        _config.erase(blob_it);
-    }
+    std::shared_ptr<ov::AlignedBuffer> model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
+                                                                       model_tensor.get_byte_size(),
+                                                                       model_tensor);
+
 
     ModelDeserializer deserializer(
-        model_stream,
         model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
