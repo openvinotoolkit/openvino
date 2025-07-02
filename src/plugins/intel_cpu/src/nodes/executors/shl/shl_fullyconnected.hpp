@@ -11,7 +11,7 @@ namespace ov::intel_cpu {
 
 class ShlFCExecutor : public Executor {
 public:
-    ShlFCExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr context);
+    ShlFCExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     void execute(const MemoryArgs& memory) override;
 
@@ -25,11 +25,11 @@ public:
     static bool supports(const FCConfig& config);
 
 private:
-    ShlTensor src = {};
-    ShlTensor wei = {};
-    ShlTensor dst = {};
-    ShlTensor bias = {};
-    ShlSession sess = {};
+    ShlTensor src;
+    ShlTensor wei;
+    ShlTensor dst;
+    ShlTensor bias;
+    ShlSession sess;
     ShlFCParams params = {};
 
     const MemoryCPtr packedWeights;

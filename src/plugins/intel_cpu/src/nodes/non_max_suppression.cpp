@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -28,7 +27,6 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "nodes/kernels/x64/non_max_suppression.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -41,6 +39,12 @@
 #include "ov_ops/nms_ie_internal.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#endif
 
 namespace ov::intel_cpu::node {
 

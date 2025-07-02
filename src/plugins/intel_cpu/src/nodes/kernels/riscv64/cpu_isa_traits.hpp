@@ -6,9 +6,7 @@
 
 #include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
 // Maximum number of features + hints that can be specified via bits
 static constexpr int cpu_isa_total_bits = sizeof(unsigned) * 8;
@@ -34,8 +32,6 @@ enum cpu_isa_t : unsigned {
 
 std::string isa2str(cpu_isa_t isa);
 
-bool mayiuse(const cpu_isa_t cpu_isa);
+bool mayiuse(cpu_isa_t cpu_isa);
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::riscv64

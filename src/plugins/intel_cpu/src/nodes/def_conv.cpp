@@ -4,7 +4,6 @@
 
 #include "def_conv.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>
@@ -23,7 +22,6 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -42,6 +40,11 @@
 #include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;

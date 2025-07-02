@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "kernels/x64/rope_kernel.hpp"
@@ -29,6 +28,10 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 
 using namespace ov::intel_cpu::kernel;
 

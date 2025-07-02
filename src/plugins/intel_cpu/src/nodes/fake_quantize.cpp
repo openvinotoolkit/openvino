@@ -4,7 +4,6 @@
 
 #include "fake_quantize.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
@@ -29,7 +28,6 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -53,6 +51,12 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -2448,7 +2452,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
     return true;
 }
 
-FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params& _jqp) {
+FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor([[maybe_unused]] const jit_quantize_params& _jqp) {
 #if defined(OPENVINO_ARCH_X86_64)
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_core)) {

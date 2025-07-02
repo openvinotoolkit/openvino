@@ -4,39 +4,43 @@
 
 #include "qkv_proj.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu_memory.h"
-#include "dnnl_scratch_pad.h"
 #include "graph_context.h"
-#include "memory_desc/blocked_memory_desc.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "utils/debug_capabilities.h"
-#include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <algorithm>
+#    include <type_traits>
+#    include <utility>
+
+#    include "cpu_memory.h"
+#    include "dnnl_scratch_pad.h"
+#    include "kernels/x64/mlp_utils.hpp"
+#    include "memory_desc/blocked_memory_desc.h"
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#    include "utils/plain_tensor.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "kernels/x64/mlp_utils.hpp"
 #    include "nodes/kernels/x64/mlp_kernel.hpp"
 #endif
 
@@ -435,10 +439,10 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                         std::string& errorMessage,
-                                         int concurrency,
-                                         uint64_t fcDynamicQuantizationGroupSize) noexcept {
+bool QKVProjection::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                         [[maybe_unused]] std::string& errorMessage,
+                                         [[maybe_unused]] int concurrency,
+                                         [[maybe_unused]] uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_qkv = ov::as_type_ptr<const QKVProjectionNode>(op);

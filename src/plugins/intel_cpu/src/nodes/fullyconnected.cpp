@@ -60,7 +60,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool apply_fp8) {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -134,11 +134,11 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
 // @todo replace 'inferencePrecision' check with 'fc->get_input_element_type(0) == ov::element::bf16'
 // after bf16 pipeline is moved to ConvertPrecision
-bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
-                                                    size_t IC,
-                                                    size_t OC,
-                                                    size_t G,
-                                                    const Config& config) noexcept {
+bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
+                                                    [[maybe_unused]] size_t IC,
+                                                    [[maybe_unused]] size_t OC,
+                                                    [[maybe_unused]] size_t G,
+                                                    [[maybe_unused]] const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         std::string errorMessage;
@@ -197,8 +197,9 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #else
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    if (useMatmulPrim)
+    if (useMatmulPrim) {
         return true;
+    }
 #endif
     return false;
 }

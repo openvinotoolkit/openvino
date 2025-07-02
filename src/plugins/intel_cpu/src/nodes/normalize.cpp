@@ -4,8 +4,6 @@
 
 #include "normalize.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -16,7 +14,6 @@
 #include <cpu/primitive_attr_postops.hpp>
 #include <cpu/ref_depthwise_injector.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -31,13 +28,9 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -60,6 +53,17 @@
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <cpu/x64/jit_generator.hpp>
+
+#    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#endif
 
 using namespace dnnl;
 
@@ -1628,11 +1632,11 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
     if (mayiuse(cpu::x64::sse41)) {
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
 #endif
-    } else if (attrs.layout == LayoutType::ncsp) {
-        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
-    } else {
-        OPENVINO_THROW("'NormalizeL2' cannot create Executor");
     }
+    if (attrs.layout == LayoutType::ncsp) {
+        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
+    }
+    OPENVINO_THROW("'NormalizeL2' cannot create Executor");
 }
 
 bool NormalizeL2::created() const {

@@ -4,10 +4,24 @@
 
 #include "shl_eltwise.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "csinn/csi_nn.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "csinn_data_structure.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/shl/shl.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shl_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -93,7 +107,7 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
     return true;
 }
 
-ShlEltwiseExecutor::ShlEltwiseExecutor(const ExecutorContext::CPtr context) : EltwiseExecutor(context) {}
+ShlEltwiseExecutor::ShlEltwiseExecutor(const ExecutorContext::CPtr& context) : EltwiseExecutor(context) {}
 
 bool ShlEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
                               const std::vector<MemoryDescPtr>& srcDescs,

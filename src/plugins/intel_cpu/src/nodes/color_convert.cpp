@@ -4,14 +4,9 @@
 
 #include "color_convert.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -28,7 +23,6 @@
 
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/x64/jit_kernel.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
@@ -37,6 +31,16 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/color_convert.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <array>
+#    include <common/c_types_map.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+
+#    include "kernels/x64/jit_kernel.hpp"
+#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;

@@ -49,7 +49,9 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "utils/cpu_utils.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "utils/cpu_utils.hpp"
+#endif
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -1672,7 +1674,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
     return newNode;
 }
 
-bool Node::canBePerformedAsScaleShift(const Node* parentNode) const {
+bool Node::canBePerformedAsScaleShift([[maybe_unused]] const Node* parentNode) const {
 #if defined(OPENVINO_ARCH_X86_64)
     OPENVINO_ASSERT(parentNode);
 
@@ -1729,6 +1731,7 @@ bool Node::canBePerformedAsScaleShift(const Node* parentNode) const {
             isBroadcastableToDataInput()) ||
            isConvertablePowerStatic();
 #else
+    (void)this;
     // TODO: provide correct list of operations for other backends
     return false;
 #endif

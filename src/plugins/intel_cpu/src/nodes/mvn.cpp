@@ -4,32 +4,23 @@
 
 #include "mvn.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <common/c_types_map.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -51,6 +42,19 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <common/c_types_map.hpp>
+#    include <functional>
+
+#    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace dnnl;
 
@@ -2133,7 +2137,7 @@ MVN::MVNExecutorBase::MVNExecutorBase(const MVNAttrs& mvnAttrs)
       src_data_size(mvnAttrs.src_prc.size()),
       dst_data_size(mvnAttrs.dst_prc.size()) {}
 
-MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, const dnnl::primitive_attr& attr)
+MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, [[maybe_unused]] const dnnl::primitive_attr& attr)
     : MVNExecutorBase(mvnAttrs) {
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;

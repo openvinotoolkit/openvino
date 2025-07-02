@@ -6,6 +6,15 @@
 
 #include <vector>
 
+#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
+#    include <memory>
+
+#    include "nodes/executors/executor.hpp"
+#endif
+
+#if defined(OV_CPU_WITH_SHL)
+#    include "nodes/executors/shl/shl_eltwise.hpp"
+#endif
 #include "utils/arch_macros.h"
 
 namespace ov::intel_cpu {
