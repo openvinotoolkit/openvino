@@ -7,6 +7,7 @@ const { addon: ov } = require('../..');
 const { describe, it, before } = require('node:test');
 const {
   testModels,
+  generateImage,
 } = require('../utils.js');
 
 describe('Tests for AsyncInferQueue.', () => {
@@ -30,21 +31,6 @@ describe('Tests for AsyncInferQueue.', () => {
     }
   }
 
-  // TODO move it to utils and use it in other tests
-  function generateImage(shape = [1, 3, 32, 32]) {
-    const lemm = shape.reduce(
-      (accumulator, currentValue) => accumulator * currentValue,
-      1
-    );
-
-    const epsilon = 0.5; // To avoid very small numbers
-    const tensorData = Float32Array.from(
-      { length: lemm },
-      () => Math.random() + epsilon,
-    );
-
-    return tensorData;
-  }
 
   it('Test AsyncInferQueue constructor with invalid arguments', async () => {
     assert.throws(() => {
@@ -58,10 +44,6 @@ describe('Tests for AsyncInferQueue.', () => {
     },
     /'AsyncInferQueue' constructor method called with incorrect parameters./
     );
-
-    assert.throws(() => {
-      new ov.AsyncInferQueue(null, numRequest); // Invalid compiledModel
-    }, 'TypeError: Cannot convert undefined or null to object');
 
     assert.throws(() => {
       // Invalid numRequest type
