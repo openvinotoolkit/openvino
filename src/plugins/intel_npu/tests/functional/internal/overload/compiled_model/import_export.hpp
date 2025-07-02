@@ -66,6 +66,12 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
             ov::Exception,
             testing::HasSubstr("metadata"));  // OVNPU suffix can be parsed from metadata, but not correct version
         configuration.erase(ov::hint::compiled_blob.name());  // cleanup
+
+        // same for the import_model(tensor, ...) API
+        /* OV_EXPECT_THROW(
+            auto compiledModel = core.import_model(tensor, target_device, configuration),
+            ov::Exception,
+            testing::HasSubstr("metadata"));  // OVNPU suffix can be parsed from metadata, but not correct version */
     }
 
     // header tests, stream won't impact import_model if application manages ov::Tensor offset
@@ -81,6 +87,9 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         // header is no longer skipped by stream
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
         configuration.erase(ov::hint::compiled_blob.name());  // cleanup
+
+        // same for the import_model(tensor, ...) API
+        // OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(tensor, target_device, configuration));
     }
 
     // suffix tests, stream won't impact import_model if application manages ov::Tensor size
@@ -96,6 +105,9 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         configuration.emplace(ov::hint::compiled_blob(tensor));
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
         configuration.erase(ov::hint::compiled_blob.name());  // cleanup
+
+        // same for the import_model(tensor, ...) API
+        // OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(tensor, target_device, configuration));
     }
 }
 
