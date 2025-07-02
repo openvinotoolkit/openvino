@@ -3606,15 +3606,16 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
 
     // pillowScale: e.g. 2.0 means down sample 2 times
     auto generateArgs = [&](float pillowScale) -> filterArgs {
-        filterArgs args;
         float scaleClip = pillowScale < 1.0F ? 1.0F : pillowScale;
-        args.ScaleClipReciprocal = 1.0F / scaleClip;
-        args.filterRadius = (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
-                                                                       : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip;
-        args.filterLen = static_cast<int>(std::ceil(args.filterRadius) * 2 + 1);
-        args.weightGen = (mode == InterpolateMode::bilinear_pillow)
-                             ? ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs
-                             : ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs;
+        filterArgs args{
+            (mode == InterpolateMode::bilinear_pillow)
+                ? ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs
+                : ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs,
+            1.0F / scaleClip,
+            (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
+                                                       : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip,
+            static_cast<float>(static_cast<int>((std::ceil(args.filterRadius) * 2) + 1)),
+        };
         return args;
     };
 

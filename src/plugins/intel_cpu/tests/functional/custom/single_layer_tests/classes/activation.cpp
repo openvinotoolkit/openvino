@@ -183,12 +183,14 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     if ((element_type == ov::element::f32) &&
         ((activation_type == utils::ActivationTypes::Clamp) ||
         (activation_type == utils::ActivationTypes::Elu) ||
+        (activation_type == utils::ActivationTypes::Erf) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Floor) ||
         (activation_type == utils::ActivationTypes::Ceiling) ||
         (activation_type == utils::ActivationTypes::Negative) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
+        (activation_type == utils::ActivationTypes::HSigmoid) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
         (activation_type == utils::ActivationTypes::IsFinite) ||
         (activation_type == utils::ActivationTypes::IsNaN) ||
@@ -215,7 +217,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
-    if ((activation_type == utils::ActivationTypes::Floor) ||
+    if ((activation_type == utils::ActivationTypes::Erf) ||
+       (activation_type == utils::ActivationTypes::Floor) ||
        (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
@@ -269,6 +272,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Sigmoid,     {{}}},
         {Tanh,        {{}}},
         {Relu,        {{}}},
+        {Erf,         {{}}},
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
@@ -276,6 +280,10 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
+// On other platforms HSigmoid is decomposed
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+        {HSigmoid,    {{}}},
+#endif
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
         {LeakyRelu,   {{-0.01f}}},

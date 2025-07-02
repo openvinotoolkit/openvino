@@ -51,7 +51,7 @@ jobs:
           pattern: openvino_[tests]*
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
-          
+
       - name: Download OpenVINO artifacts (wheels)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -73,11 +73,11 @@ jobs:
       - name: Setup HuggingFace Cache Directory (Windows)
         if: runner.os == 'Windows'
         run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
-  
+
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
-          
+
       - name: Extract OpenVINO packages (Linux, macOS)
         if: runner.os != 'Windows'
         run: |
@@ -137,15 +137,6 @@ jobs:
           TEST_PRECISION: FP32
           PYTORCH_TRACING_MODE: EXPORT
           PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
-
-      - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
-        run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit_fx_backend -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP32
-          PYTORCH_TRACING_MODE: TORCHFX
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

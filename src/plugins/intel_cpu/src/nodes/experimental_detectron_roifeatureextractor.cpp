@@ -73,15 +73,7 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     // deal with: inverse elements are out of feature map boundary
                     if (y < -1.0 || y > height || x < -1.0 || x > width) {
                         // empty
-                        PreCalc<T> pc;
-                        pc.pos1 = 0;
-                        pc.pos2 = 0;
-                        pc.pos3 = 0;
-                        pc.pos4 = 0;
-                        pc.w1 = 0;
-                        pc.w2 = 0;
-                        pc.w3 = 0;
-                        pc.w4 = 0;
+                        PreCalc<T> pc{0, 0, 0, 0, 0, 0, 0, 0};
                         pre_calc.at(pre_calc_index) = pc;
                         pre_calc_index += 1;
                         continue;
@@ -123,15 +115,14 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     T w4 = ly * lx;
 
                     // save weights and indices
-                    PreCalc<T> pc;
-                    pc.pos1 = y_low * width + x_low;
-                    pc.pos2 = y_low * width + x_high;
-                    pc.pos3 = y_high * width + x_low;
-                    pc.pos4 = y_high * width + x_high;
-                    pc.w1 = w1;
-                    pc.w2 = w2;
-                    pc.w3 = w3;
-                    pc.w4 = w4;
+                    PreCalc<T> pc{(y_low * width) + x_low,
+                                  (y_low * width) + x_high,
+                                  (y_high * width) + x_low,
+                                  (y_high * width) + x_high,
+                                  w1,
+                                  w2,
+                                  w3,
+                                  w4};
                     pre_calc[pre_calc_index] = pc;
 
                     pre_calc_index += 1;
@@ -232,8 +223,8 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
 
                     top_data[index] = output_val;
                 }  // for pw
-            }      // for ph
-        }          // for c
+            }  // for ph
+        }  // for c
     });
 }
 

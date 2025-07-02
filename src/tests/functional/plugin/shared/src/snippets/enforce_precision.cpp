@@ -33,9 +33,7 @@ void EnforcePrecisionTest::SetUp() {
 
     function = SubgraphRollMatMulRollFunction(input_shapes, ov::element::f32).getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     setInferenceType(element::bf16);
 }

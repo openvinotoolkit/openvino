@@ -809,6 +809,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertSliceScatter);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SDPAFusion);
     CPU_DISABLE_PASS_X64(manager, ov::pass::HSigmoidDecomposition);
+    CPU_DISABLE_PASS_ARM64(manager, ov::pass::HSigmoidDecomposition);
 
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL1Decomposition);
     CPU_DISABLE_PASS_X64(manager, ov::pass::ReduceL2Decomposition);
@@ -1030,6 +1031,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
+    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionChatGLMHF);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1150,7 +1152,7 @@ void Transformations::MainSnippets() {
     // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of
     // ShapeInference and CodeGeneration If runtime cache capacity is zero, it means that rtCache won't be used and we
     // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
-    bool is_dynamic_mha_token_enabled = config.rtCacheCapacity != 0;
+    bool is_dynamic_mha_token_enabled = config.snippetsCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform
     // register, 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
@@ -1167,13 +1169,14 @@ void Transformations::MainSnippets() {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
             return false;
         }
-        // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
-        // Need to support precision conversion in BrgemmCopyB kernel.
-        if (matmul->get_input_element_type(1) == element::f32 &&
-            one_of(config.inferencePrecision, element::f16, element::bf16)) {
-            return false;
+        auto input_precision = matmul->get_input_element_type(0);
+        // In case of half float precision enforcement,
+        // we need to pass the precision that will be forced during lowering
+        if (input_precision == ov::element::f32 &&
+            one_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
+            input_precision = config.inferencePrecision;
         }
-        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(matmul->get_input_element_type(0));
+        return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
 #else
     size_t data_ptr_gpr_count = 0;
@@ -1435,12 +1438,6 @@ void Transformations::MainSnippets() {
                     return true;
                 if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
                     return true;
-                // Ticket 168474: BF16/FP16 FC with CopyB is not efficient enough to be tokenized
-                // Need to support precision conversion in BrgemmCopyB kernel.
-                if (n->get_input_element_type(1) == element::f32 &&
-                    one_of(config.inferencePrecision, element::f16, element::bf16)) {
-                    return true;
-                }
                 return false;
             },
             snippets::pass::TokenizeMLPSeqSnippets);
