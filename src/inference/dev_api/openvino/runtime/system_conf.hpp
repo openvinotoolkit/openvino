@@ -84,6 +84,13 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_sse42();
 OPENVINO_RUNTIME_API bool with_cpu_neon_fp16();
 
 /**
+ * @brief      Checks whether CPU supports ARM Dot Product capability
+ * @ingroup    ov_dev_api_system_conf
+ * @return     `True` is ARM Dot Product instructions are available, `false` otherwise
+ */
+OPENVINO_RUNTIME_API bool with_cpu_arm_dotprod();
+
+/**
  * @brief      Checks whether CPU supports ARM SVE capability
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` if ARM SVE instructions are available, `false` otherwise
