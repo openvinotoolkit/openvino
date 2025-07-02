@@ -26,16 +26,14 @@ class TestBernoulli(PytorchLayerTest):
                     self.forward = self.bernoulli
                 else:
                     self.forward = self.bernoulli_out
-
-            def __call__(self, *args, **kwargs):
-                super().__call__(*args, **kwargs)
-                self.gen.manual_seed(self.seed)
-
+                    
             def bernoulli(self, input):
+                self.gen.manual_seed(self.seed)
                 bernoulli_res = torch.bernoulli(input, generator=self.gen)
                 return bernoulli_res
 
             def bernoulli_out(self, input, out):
+                self.gen.manual_seed(self.seed)
                 bernoulli_res = torch.bernoulli(input, generator=self.gen, out=out)
                 return bernoulli_res
 
@@ -77,11 +75,9 @@ class TestBernoulliWithP(PytorchLayerTest):
                 self.p = p
                 self.seed = seed
                 self.forward = self.bernoulli_with_p
-            def __call__(self, *args, **kwargs):
-                super().__call__(*args, **kwargs)
-                self.gen.manual_seed(self.seed)
 
             def bernoulli_with_p(self, input):
+                self.gen.manual_seed(self.seed)
                 bernoulli_res = torch.bernoulli(input, self.p, generator=self.gen)
                 return bernoulli_res
 
