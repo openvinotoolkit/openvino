@@ -145,9 +145,9 @@ JitConstants SDPAOptGeneratorSingleToken::get_jit_constants(const kernel_impl_pa
 }
 
 DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
-
+        auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         if (!params.is_dynamic()) {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
 
@@ -179,9 +179,10 @@ JitConstants SDPAOptGeneratorMultiToken::get_jit_constants(const kernel_impl_par
 }
 
 DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
 
+        auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         if (!params.is_dynamic()) {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
 
@@ -213,14 +214,14 @@ JitConstants SDPAOptGeneratorFinalization::get_jit_constants(const kernel_impl_p
 }
 
 DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
 
         ScalarDescriptor num_of_partitions_scalar;
         num_of_partitions_scalar.t = ScalarDescriptor::Types::UINT32;
-
+        auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         if (!params.is_dynamic()) {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
 

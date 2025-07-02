@@ -40,7 +40,9 @@ public:
     Stage::Ptr regular_micro = make_stage<SDPAMicroGenerator>(prefill);
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
-    explicit SDPAOptImpl(const RuntimeParams& params) : SDPAOptImpl() {
+    explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
+        auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
+
         if (params.is_dynamic()) {
             add_stage(regular_single_token, params);
             add_stage(indirect_single_token, params);
@@ -165,6 +167,12 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     if (q_layout.get_partial_shape()[3].get_length() > 256) {
         return false;
     }
+
+    // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
+    // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
+    const bool is_output_rank_4d = params.output_layouts[0].get_partial_shape().size() == 4;
+    if (!is_output_rank_4d)
+        return false;
 
     auto data_inputs_num = get_data_inputs_num(*desc);
 

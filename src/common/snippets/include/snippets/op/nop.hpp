@@ -4,11 +4,13 @@
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Nop
@@ -22,11 +24,9 @@ public:
     Nop(const OutputVector& arguments, const OutputVector& results);
     Nop() = default;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
+    std::shared_ptr<Node> clone_with_new_inputs([[maybe_unused]] const OutputVector& inputs) const override {
         return std::make_shared<Nop>();
     }
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

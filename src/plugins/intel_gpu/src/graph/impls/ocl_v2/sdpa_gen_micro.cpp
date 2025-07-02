@@ -985,6 +985,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
+    jit.make("IS_CAUSAL", config.is_causal);
     if (!config.is_paged_attention) {
         if (config.has_const_attn_mask_val) {
             jit.make("WITH_ATTN_MASK", 0);
@@ -994,7 +995,6 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.make("WITH_ATTN_MASK", data_inputs_num > attn_input_idx);
         }
     } else {
-        jit.make("WITH_CAUSAL_MASK", config.is_causal);
         jit.make("WITH_ATTN_MASK", 0);
     }
 
@@ -1255,11 +1255,16 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 }
 
 DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[this](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[this](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
         scalars.reserve(3);
+
+        auto params = impl_param;
+        if (impl_param.is_type<paged_attention>()) {
+            auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
+        }
         if (!params.is_dynamic()) {
             const auto& device_info = params.get_device_info();
             const auto& gemms = kd.micro_kernels;
