@@ -54,6 +54,7 @@ module.exports = {
   isModelAvailable,
   testModels,
   lengthFromShape,
+  generateImage,
 };
 
 function compareModels(model1, model2) {
@@ -132,4 +133,15 @@ async function isModelAvailable(model) {
     '\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n',
   );
   process.exit(1);
+}
+
+function generateImage(shape = [1, 3, 32, 32]) {
+  const lemm = lengthFromShape(shape);
+  const epsilon = 0.5; // To avoid very small numbers
+  const tensorData = Float32Array.from(
+    { length: lemm },
+    () => Math.random() + epsilon,
+  );
+
+  return tensorData;
 }
