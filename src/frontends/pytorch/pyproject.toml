@@ -20,3 +20,31 @@ optional = true
 torchaudio = { version = "<=2.6.0", source = "pytorch-cpu" }
 transformers = "<=4.47.1"
 huggingface-hub = "<=0.25.2"
+autoawq = { version = "<=0.2.7", markers = "platform_system == 'Linux' and platform_machine == 'x86_64'" }
+# triton is a dependency of autoawq, newer versions lead to TorchFX test failures
+triton = { version = "<=3.1.0", markers = "platform_system == 'Linux' and platform_machine == 'x86_64'" }
+auto-gptq = { version = "<=0.7.1", markers = "platform_system == 'Linux' and platform_machine == 'x86_64' and python_version < '3.12'" }
+av = "<=13.0.0"
+basicsr = { version = "==1.4.2", markers = "python_version < '3.12'" }
+datasets = "<=3.0.1"
+easyocr = "<=1.7.2"
+facexlib = { version = "<=0.3.0", markers = "python_version < '3.12'" }
+librosa = { version = "<=0.10.2", markers = "python_version < '3.12'" }
+packaging = "<=24.1"
+pandas = "<=2.2.3"
+protobuf = "<=5.28.2"
+pyctcdecode = { version = "<=0.5.0", markers = "python_version < '3.12'" }
+sacremoses = "<=0.1.1"
+sentencepiece = "<=0.2.0"
+soundfile = "<=0.12.1"
+timm = "<=1.0.11"
+kornia = "<=0.7.3"
+super-image = "<=0.1.7"
+
+# requirements for specific models
+# - hf-tiny-model-private/tiny-random-RoFormerForCausalLM
+rjieba = "<=0.1.11"
+# - katuni4ka/tiny-random-qwen
+# - katuni4ka/tiny-random-internlm2
+transformers_stream_generator = "<=0.0.5"
+einops = "<=0.8.0"

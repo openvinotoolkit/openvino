@@ -1,0 +1,23 @@
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+# tensorflow 2.16.2 depends on ml-dtypes~=0.3.1 and jax 0.4.35 depends on ml-dtypes>=0.4.0
+jax = [
+    { version = "<=0.6.0", markers = 'sys_platform != "darwin" and python_version > "3.9"' },
+    { version = "<=0.4.33", markers = 'sys_platform == "darwin" and python_version > "3.9"' },
+    { version = "<=0.4.30", markers = 'python_version <= "3.9"' }
+]
+
+[tool.poetry.group.tests]
+optional = true
+
+[tool.poetry.group.tests.dependencies]
+numpy = [
+	{ version = "<=1.26.4", markers = 'python_version < "3.12" or (platform_system == "Darwin" and platform_machine == "x86_64")' },
+	{ version = "<=2.2.1", markers = 'python_version >= "3.12" and (platform_system != "Darwin" or platform_machine != "x86_64")' }
+]
+flax = "<=0.10.4"
