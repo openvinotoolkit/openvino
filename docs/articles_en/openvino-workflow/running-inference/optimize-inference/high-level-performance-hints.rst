@@ -126,7 +126,7 @@ Working with Sync/Async API
 
 The API of the inference requests offers Sync and Async execution. The ``ov::InferRequest::infer()`` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` (or callbacks). For more information on synchronous and asynchronous modes, refer to the :doc:`OpenVINO Inference Request <../inference-request>`.
 
-If one application thread manage multiple infer requests, it is recommended to use the asynchronous (callbacks-based) API in production code. It is the most general and scalable way to implement the flow control for any possible number of requests. The ``THROUGHPUT`` and ``LATENCY`` performance hints automatically configure the Asynchronous pipeline to use the optimal number of processing streams and inference requests.
+If a single application thread manages multiple inference requests, the asynchronous (callbacks-based) API is recommended for production. It is the most scalable way to handle any number of requests. ``THROUGHPUT`` and ``LATENCY`` hints automatically configure the asynchronous pipeline for the optimal number of streams and requests.
 
 If one application thread only manage one infer request, the synchronous API can be used with `LATENCY` hint in single-thread use case and with `THROUGHPUT` hint in multi-threads use case. 
 
