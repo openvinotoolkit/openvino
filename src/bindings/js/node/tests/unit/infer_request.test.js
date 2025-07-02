@@ -10,9 +10,8 @@ const {
   testModels,
   isModelAvailable,
   lengthFromShape,
+  generateImage,
 } = require('../utils.js');
-
-const epsilon = 0.5; // To avoid very small numbers
 
 describe('ov.InferRequest tests', () => {
   const { testModelFP32 } = testModels;
@@ -29,10 +28,7 @@ describe('ov.InferRequest tests', () => {
     const model = core.readModelSync(testModelFP32.xml);
     compiledModel = core.compileModelSync(model, 'CPU');
 
-    tensorData = Float32Array.from(
-      { length: lengthFromShape(testModelFP32.inputShape) },
-      () => Math.random() + epsilon,
-    );
+    tensorData = generateImage(testModelFP32.inputShape);
     tensor = new ov.Tensor(
       ov.element.f32,
       testModelFP32.inputShape,
@@ -349,10 +345,7 @@ describe('ov.InferRequest tests with missing outputs names', () => {
     compiledModel = await core.compileModel(model, 'CPU');
     inferRequest = compiledModel.createInferRequest();
 
-    tensorData = Float32Array.from(
-      { length: lengthFromShape(modelV3Small.inputShape) },
-      () => Math.random() + epsilon,
-    );
+    tensorData = generateImage(modelV3Small.inputShape);
     tensor = new ov.Tensor(ov.element.f32, modelV3Small.inputShape, tensorData);
   });
 
@@ -363,7 +356,7 @@ describe('ov.InferRequest tests with missing outputs names', () => {
 
   it('Test inferAsync(inputData: Tensor[])', () => {
     inferRequest.inferAsync([tensor]).then((result) => {
-    assert.deepStrictEqual(Object.keys(result).length, 1);
+      assert.deepStrictEqual(Object.keys(result).length, 1);
     });
   });
 });

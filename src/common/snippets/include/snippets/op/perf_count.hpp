@@ -59,8 +59,8 @@ public:
     void update(const op::PerfCountEnd* node) override;
 
 private:
-    ov::threading::ThreadLocal<uint64_t> m_accumulation = 0;
-    ov::threading::ThreadLocal<uint32_t> m_iteration = 0;
+    ov::threading::ThreadLocal<uint64_t> m_accumulation;
+    ov::threading::ThreadLocal<uint32_t> m_iteration;
 };
 
 /**

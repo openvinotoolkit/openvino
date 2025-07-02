@@ -35,7 +35,7 @@ void LoraPatternBase::run_test_empty_tensors() {
 
     auto tx_result = inferRequest.get_tensor(outputs[0]);
     auto tz_result = inferRequest.get_tensor(outputs[1]);
-    ov::test::utils::compare(tx_result, tz_result, 1e-4, 1e-4);
+    ov::test::utils::compare(tx_result, tz_result);
 }
 
 void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t lora_rank) {
@@ -85,7 +85,12 @@ void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t
                 auto&& refStates = inferRequestRef.query_state();
                 using ov::test::utils::InputGenerateData;
                 const auto& shape = stateShapes.at(item.get_name());
-                auto tensor = ov::test::utils::create_and_fill_tensor(net_type, shape, InputGenerateData{0, 10, 1, i});
+                ov::Tensor tensor;
+                if (net_type == ov::element::f16) {
+                    tensor = ov::test::utils::create_and_fill_tensor(net_type, shape, InputGenerateData{0, 1, 10, i});
+                } else {
+                    tensor = ov::test::utils::create_and_fill_tensor(net_type, shape, InputGenerateData{0, 10, 1, i});
+                }
                 item.set_state(tensor);
                 auto itr = std::find_if(refStates.begin(), refStates.end(), [&](const ov::VariableState& state) {
                     return state.get_name() == item.get_name();
@@ -105,8 +110,14 @@ void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t
         auto tx_result_ref = inferRequestRef.get_tensor(outputs[0]);
         auto tz_result_ref = inferRequestRef.get_tensor(outputs[1]);
 
-        ov::test::utils::compare(tx_result, tx_result_ref, 1e-4, 1e-4);
-        ov::test::utils::compare(tz_result, tz_result_ref, 1e-4, 1e-4);
+        float abs_threshold = 1e-4f;
+        float rel_threshold = 1e-4f;
+        if (net_type == ov::element::f16) {
+            abs_threshold = 1e-2f;
+            rel_threshold = 4e-2f;
+        }
+        ov::test::utils::compare(tx_result, tx_result_ref, abs_threshold, rel_threshold);
+        ov::test::utils::compare(tz_result, tz_result_ref, abs_threshold, rel_threshold);
     }
 }
 

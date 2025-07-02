@@ -501,10 +501,25 @@ void regclass_graph_Node(py::module m) {
              (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,
              py::return_value_policy::reference_internal,
              R"(
-                Returns PyRTMap which is a dictionary of user defined runtime info.
+                Returns RTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
                 :rtype: openvino.RTMap
+             )");
+    node.def(
+        "set_rt_info",
+        [](ov::Node& self, const py::object& value, const py::str& key) -> void {
+            self.get_rt_info()[key.cast<std::string>()] = Common::utils::py_object_to_any(value);
+        },
+        py::arg("value"),
+        py::arg("key"),
+        R"(
+                Add a value to the runtime info.
+
+                :param value: Value for the runtime info.
+                :type value: Any
+                :param key: String that defines a key in the runtime info dictionary.
+                :type key: str
              )");
 
     node.def("set_argument", &ov::Node::set_argument);

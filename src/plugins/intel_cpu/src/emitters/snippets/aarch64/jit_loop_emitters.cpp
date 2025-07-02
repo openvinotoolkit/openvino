@@ -207,9 +207,9 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
             } else {
                 int64_t offset = increments_vec[idx] * increment_multiplier * data_sizes[idx];
                 if (offset > 0) {
-                    h->add_imm(data_reg, data_reg, offset, h->X_TMP_0);
+                    h->add_imm(data_reg, data_reg, offset, reg_aux);
                 } else if (offset < 0) {
-                    h->sub_imm(data_reg, data_reg, -offset, h->X_TMP_0);
+                    h->sub_imm(data_reg, data_reg, -offset, reg_aux);
                 }
             }
         }
@@ -217,7 +217,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
 
     if (!evaluate_once) {
         apply_increments(ptr_increments, wa_increment, GET_OFF_LOOP_ARGS(m_ptr_increments));
-        h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
+        h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, reg_aux);
         h->cmp(reg_work_amount, wa_increment);
         h->b(GE, *loop_begin_label);
     }

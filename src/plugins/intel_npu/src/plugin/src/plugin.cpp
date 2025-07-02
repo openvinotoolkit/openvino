@@ -390,17 +390,22 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
         });
     }
     // secondly, in the new config provided by user
+    std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
         if (!localConfig.hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            } else {
+                localConfig.addOrUpdateInternal(key, value);
             }
+        } else {
+            cfgs_to_set.emplace(key, value);
         }
     }
 
     // 3. If all good so far, update values
-    localConfig.update(rawConfig, mode);
+    localConfig.update(cfgs_to_set, mode);
     return localConfig;
 }
 

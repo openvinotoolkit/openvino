@@ -13,9 +13,8 @@ const {
   compareModels,
   isModelAvailable,
   sleep,
-  lengthFromShape,
+  generateImage,
 } = require('../utils.js');
-const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
   const { testModelFP32 } = testModels;
@@ -307,10 +306,7 @@ describe('ov basic tests.', () => {
     let res1 = null;
 
     before(() => {
-      tensor = Float32Array.from(
-        { length: lengthFromShape(testModelFP32.inputShape) },
-        () => Math.random() + epsilon,
-      );
+      tensor = generateImage(testModelFP32.inputShape);
       const core = new ov.Core();
       const model = core.readModelSync(testModelFP32.xml);
       const compiledModel = core.compileModelSync(model, 'CPU');
@@ -340,7 +336,7 @@ describe('ov basic tests.', () => {
 
     it('Test importModelSync(stream, device) throws', () => {
       assert.throws(
-        () => core.importModelSync(epsilon, 'CPU'),
+        () => core.importModelSync(model, 'CPU'),
         /The first argument must be of type Buffer./,
       );
     });
@@ -406,7 +402,7 @@ describe('ov basic tests.', () => {
 
     it('Test importModel(stream, device) throws', () => {
       assert.throws(
-        () => core.importModel(epsilon, 'CPU').then(),
+        () => core.importModel(model, 'CPU').then(),
         /'importModel' method called with incorrect parameters./,
       );
     });
