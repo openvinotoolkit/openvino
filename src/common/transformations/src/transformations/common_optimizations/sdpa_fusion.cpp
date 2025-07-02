@@ -32,6 +32,12 @@ std::vector<size_t> get_order(const ov::pass::pattern::PatternSymbolValue& any_l
                               const std::vector<ov::pass::pattern::PatternSymbolValue>& to_find) {
     std::vector<size_t> order;
     const auto& layout = any_layout_sym.g();
+
+    // the ranks have to be equal
+    if (layout.size() != to_find.size()) {
+        return {};
+    }
+
     std::set<size_t> already_matched;
 
     for (const auto& target_sym : to_find) {
@@ -148,7 +154,7 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         // checks that AnyLayout contains everything from Batches, S_kv and D and returns order
         auto order = get_order(any_layout_sym, symbols_to_find);
         size_t idx = 0;
-        auto is_identity_order = std::all_of(order.begin(), order.end(), [&idx](size_t x) {
+        auto is_ascending_order = std::all_of(order.begin(), order.end(), [&idx](size_t x) {
             return x == idx++;
         });
         if (pm.count(opt_transpose_k)) {
@@ -156,17 +162,17 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
             if (order.empty()) {
                 k_node = transpose;
             } else {
-                if (!is_identity_order) {
+                if (!is_ascending_order) {
                     auto transpose_order = v0::Constant::create(ov::element::i64, {order.size()}, order);
                     k_node = std::make_shared<ov::op::v1::Transpose>(k_node, transpose_order);
                     ov::copy_runtime_info(m.get_matched_nodes(), {transpose_order, k_node.get_node_shared_ptr()});
                 }
             }
         } else {
-            if (!is_identity_order) {
-                auto shape_of_q = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(q_node);
-                k_node = std::make_shared<ov::op::v1::Reshape>(k_node, shape_of_q, false);
-                ov::copy_runtime_info(m.get_matched_nodes(), {shape_of_q, k_node.get_node_shared_ptr()});
+            if (!is_ascending_order) {
+                auto shape_of_v = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(v_node);
+                k_node = std::make_shared<ov::op::v1::Reshape>(k_node, shape_of_v, false);
+                ov::copy_runtime_info(m.get_matched_nodes(), {shape_of_v, k_node.get_node_shared_ptr()});
             }
         }
         auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
