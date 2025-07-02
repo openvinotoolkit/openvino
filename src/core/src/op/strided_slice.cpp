@@ -229,7 +229,7 @@ bool evaluate_strided_slice(const Tensor& data,
 
 bool StridedSlice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_StridedSlice_evaluate);
-    // FIXME: 4th input is optional, but it is required by the following code
+    // CVS-169883: 4th input is optional, but it is required by the following code
     OPENVINO_ASSERT(inputs.size() == 4);
     OPENVINO_ASSERT(outputs.size() == 1);
     return strided_slice::evaluate_strided_slice(inputs[0],
@@ -246,6 +246,7 @@ bool StridedSlice::evaluate(TensorVector& outputs, const TensorVector& inputs) c
 
 bool StridedSlice::has_evaluate() const {
     OV_OP_SCOPE(v1_StridedSlice_has_evaluate);
+    // CVS-169883: 4th input is optional
     return get_input_size() == 4;
 }
 

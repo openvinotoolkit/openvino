@@ -8,6 +8,7 @@
 
 #include "dict_attribute_visitor.hpp"
 #include "pyopenvino/graph/node_output.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -60,4 +61,19 @@ void def_type_dependent_functions<ov::Node>(
                 :param replacement: The node that is a replacement.
                 :type replacement: openvino.Output
                )");
+    output.def(
+        "set_rt_info",
+        [](ov::Output<ov::Node>& self, const py::object& value, const py::str& key) -> void {
+            self.get_rt_info()[key.cast<std::string>()] = Common::utils::py_object_to_any(value);
+        },
+        py::arg("value"),
+        py::arg("key"),
+        R"(
+                Add a value to the runtime info.
+
+                :param value: Value for the runtime info.
+                :type value: Any
+                :param key: String that defines a key in the runtime info dictionary.
+                :type key: str
+             )");
 }
