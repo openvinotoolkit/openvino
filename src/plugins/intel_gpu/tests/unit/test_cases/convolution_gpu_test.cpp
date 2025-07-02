@@ -9951,20 +9951,20 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     }
 }
 
-struct convolution_gpu_onednn1 : public ::testing::TestWithParam<bool> {
+struct convolution_gpu_onednn_both_shapes : public ::testing::TestWithParam<bool> {
 };
 
 INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_tensor,
-                        convolution_gpu_onednn1,
+                        convolution_gpu_onednn_both_shapes,
                         ::testing::Values(true, false)
 );
 
-TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_tensor) {
+TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_tensor) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
-    bool is_dyn = GetParam();
+    bool is_dyn_shape = GetParam();
     ov::PartialShape dyn_input_pshape = {ov::Dimension(), 1, ov::Dimension(), ov::Dimension()};
     auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfyx};
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
@@ -10003,7 +10003,7 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_
         convolution("conv", input_info("input"), "weights", "biases", "", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
-    if (is_dyn)
+    if (is_dyn_shape)
         topology.add(input_layout("input", in_layout));
     else
         topology.add(input_layout("input", input->get_layout()));
@@ -10011,7 +10011,7 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_
     ExecutionConfig config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
-    if (is_dyn)
+    if (is_dyn_shape)
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
@@ -10044,16 +10044,16 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_
 }
 
 INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_channel,
-                        convolution_gpu_onednn1,
+                        convolution_gpu_onednn_both_shapes,
                         ::testing::Values(true, false)
 );
 
-TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_channel) {
+TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_channel) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
-    bool is_dyn = GetParam();
+    bool is_dyn_shape = GetParam();
     ov::PartialShape dyn_input_pshape = {ov::Dimension(), 2, ov::Dimension(), ov::Dimension()};
     auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfyx};
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 5, 4 } });
@@ -10118,7 +10118,7 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_
         convolution("conv", input_info("input"), "weights", "biases", "", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
-    if (is_dyn)
+    if (is_dyn_shape)
         topology.add(input_layout("input", in_layout));
     else
         topology.add(input_layout("input", input->get_layout()));
@@ -10127,7 +10127,7 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    if (is_dyn)
+    if (is_dyn_shape)
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
@@ -10159,16 +10159,16 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_asymmetric_
 }
 
 INSTANTIATE_TEST_SUITE_P(quantized_onednn_convolution_u8s8f32_weights_zp,
-                        convolution_gpu_onednn1,
+                        convolution_gpu_onednn_both_shapes,
                         ::testing::Values(true, false)
 );
 
-TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_weights_zp) {
+TEST_P(convolution_gpu_onednn_both_shapes, quantized_onednn_convolution_u8s8f32_weights_zp) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
-    bool is_dyn = GetParam();
+    bool is_dyn_shape = GetParam();
     ov::PartialShape dyn_input_pshape = {ov::Dimension(), 2, ov::Dimension(), ov::Dimension()};
     auto in_layout = layout{dyn_input_pshape, data_types::u8, format::bfyx};
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 5, 4 } });
@@ -10236,7 +10236,7 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_weights_zp)
         convolution("conv", input_info("input"), "weights", "biases", "w_zp", "a_zp", "", 1,
                     { 2, 2 }, { 1, 1 }, { 0, 0 }, { 1, 2 }, false, data_types::f32),
         reorder("out", input_info("conv"), format::bfyx, data_types::f32));
-    if (is_dyn)
+    if (is_dyn_shape)
         topology.add(input_layout("input", in_layout));
     else
         topology.add(input_layout("input", input->get_layout()));
@@ -10245,7 +10245,7 @@ TEST_P(convolution_gpu_onednn1, quantized_onednn_convolution_u8s8f32_weights_zp)
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    if (is_dyn)
+    if (is_dyn_shape)
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
