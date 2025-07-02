@@ -4,7 +4,38 @@ python = ">=3.9,<4.0"
 [tool.poetry]
 package-mode = false
 
-[tool.poetry.group.tensorflow.dependencies]
+[tool.poetry.group.dev.dependencies]
 h5py = ">=2.10.0,<=3.13.0"
 tensorflow = ">=2.4.0,<=2.16.0"
 tensorflow-addons = { version = "<=0.23.0", markers = "python_version <= '3.10'" }
+
+[tool.poetry.group.tests]
+optional = true
+
+[tool.poetry.group.tests.dependencies]
+# test ovc with NumPy 2.x on Ubuntu 24 with default Python 3.12
+# test against NumPy 1.x with older Python versions
+# tensorflow-intel 2.18.0 depends on numpy<2.1.0 and >=1.26.0
+# tensorflow 2.16.2 depends on numpy<2.0.0 and >=1.26.0; python_version >= "3.12"
+"numpy" = [
+	{ version = "<=1.26.4", markers = 'python_version < "3.12" or (platform_system == "Darwin" and platform_machine == "x86_64")' },
+	{ version = "<=2.0.2", markers = 'python_version >= "3.12" and (platform_system != "Darwin" or platform_machine != "x86_64")' }
+]
+"transformers" = "<=4.45.1"
+# install exact keras version since tensorflow depends and has no upper bound for it
+"keras" = "<=3.8.0"
+"tensorflow" = [
+	{ version = "<=2.18.0", markers = 'platform_system != "Darwin" or platform_machine != "x86_64"' },
+	{ version = "<=2.16.2", markers = 'platform_system == "Darwin" and platform_machine == "x86_64"' }
+]
+# install explicit version of wrapt to avoid "this __dict__ descriptor does not support '_DictWrapper' objects" error from TensorFlow 2.18
+"wrapt" = { version = "<=1.15.0", markers = 'python_version >= "3.12"' }
+# tensorflow-text is not available for both Windows and ARM platforms
+"tensorflow-text" = { version = "<=2.18.0", markers = 'python_version < "3.12" and platform_system == "Linux" and platform_machine == "x86_64"' }
+"tensorflow-hub" = "<=0.16.1"
+"jax" = [
+	{ version = "<=0.5.0", markers = '(platform_system != "Darwin" or platform_machine != "x86_64") and python_version > "3.9"' },
+	{ version = "<=0.4.33", markers = '(platform_system == "Darwin" and platform_machine == "x86_64") and python_version > "3.9"' },
+	{ version = "<=0.4.30", markers = 'python_version <= "3.9"' }
+]
+"defusedxml" = "<=0.7.1"
