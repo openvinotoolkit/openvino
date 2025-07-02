@@ -8,11 +8,12 @@
  */
 #pragma once
 
+#include <cstddef>
+
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/loop_info.hpp"
 
-namespace ov {
-namespace snippets {
-namespace utils {
+namespace ov::snippets::utils {
 /**
  * @brief Updates ptr_increments and finalization offsets of the provided "loop_info" based on current work amount
  */
@@ -28,6 +29,4 @@ void update_runtime_parameters(const ov::snippets::lowered::UnifiedLoopInfoPtr& 
  */
 bool should_be_loop_port(const ov::snippets::lowered::ExpressionPort& port, size_t loop_id);
 
-}  // namespace utils
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::utils
