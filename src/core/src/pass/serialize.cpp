@@ -33,6 +33,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/weights_map.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/compute_hash.hpp"
@@ -54,6 +55,21 @@ public:
     }
     std::streamsize xsputn(const char* s, std::streamsize n) override;
 };
+
+namespace pass {
+WeightsWrapper::~WeightsWrapper() {
+    if (m_offsetConstMap) {
+        delete reinterpret_cast<WeightsMap*>(m_offsetConstMap);
+        m_offsetConstMap = nullptr;
+    }
+}
+
+size_t WeightsWrapper::size() {
+    ov::pass::WeightsMap* weights_map = reinterpret_cast<ov::pass::WeightsMap*>(m_offsetConstMap);
+    return weights_map->size();
+}
+}  // namespace pass
+
 }  // namespace ov
 
 namespace {  // helpers
@@ -106,6 +122,26 @@ public:
           m_enable_compression(enable_compression),
           m_blob_offset(bin_data.tellp()) {
         m_write_hash_value = (dynamic_cast<ov::OstreamHashWrapperBin*>(bin_data.rdbuf())) ? true : false;
+    }
+
+    ConstantWriter(std::ostream& bin_data, ov::pass::WeightsMap* weights_map, bool enable_compression = true)
+        : m_binary_output(bin_data),
+          m_weights_map(weights_map),
+          m_enable_compression(enable_compression),
+          m_blob_offset(0),
+          m_write_hash_value(false) {}
+
+    bool write_to_weights_map() const {
+        return m_weights_map != nullptr;
+    }
+
+    FilePosition write(ov::pass::WeightsVariant object) {
+        std::cout << "ConstantWriter::write: " << object.index() << "key:" << m_blob_offset << std::endl;
+        const auto offset = m_blob_offset;
+        m_blob_offset += 1;
+
+        m_weights_map->add_weights(offset, object);
+        return offset;
     }
 
     FilePosition write(const char* ptr,
@@ -207,6 +243,7 @@ private:
 
     ConstWritePositions m_hash_to_file_positions;
     std::ostream& m_binary_output;
+    ov::pass::WeightsMap* m_weights_map;
     bool m_enable_compression;
     bool m_write_hash_value = false;
     FilePosition m_blob_offset;  // blob offset inside output stream
@@ -543,66 +580,96 @@ public:
                 auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
                 auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
                 size_t new_size = 0;
-                size_t inter_size = 0;
-                // write a header of packed string tensor
-                std::shared_ptr<uint8_t> header_ptr = nullptr;
-                size_t header_size = 0;
-                if (a1) {
-                    a1->get_header(header_ptr, header_size);
-                } else {
-                    a2->get_header(header_ptr, header_size);
-                }
 
-                int64_t offset = m_constant_write_handler.write(
-                    reinterpret_cast<const char*>(header_ptr.get()),
-                    header_size,
-                    inter_size,
-                    m_compress_to_fp16,
-                    m_output_element_type,
-                    true);  // header_ptr is allocated in AttributeAdapter that has limited life time
-                new_size += inter_size;
-
-                // write raw strings part
-                size_t num_elements = 0;
-                if (a1) {
-                    num_elements = a1->get()->get_num_elements();
-                } else {
-                    num_elements = a2->get()->get_num_elements();
-                }
-                for (size_t ind = 0; ind < num_elements; ++ind) {
-                    const char* raw_string_ptr;
-                    size_t raw_string_size;
+                if (!m_constant_write_handler.write_to_weights_map()) {
+                    size_t inter_size = 0;
+                    // write a header of packed string tensor
+                    std::shared_ptr<uint8_t> header_ptr = nullptr;
+                    size_t header_size = 0;
                     if (a1) {
-                        a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        a1->get_header(header_ptr, header_size);
                     } else {
-                        a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        a2->get_header(header_ptr, header_size);
                     }
 
-                    m_constant_write_handler.write(raw_string_ptr,
-                                                   raw_string_size,
-                                                   inter_size,
-                                                   m_compress_to_fp16,
-                                                   m_output_element_type,
-                                                   m_data_is_temporary);
-
+                    int64_t offset = m_constant_write_handler.write(
+                        reinterpret_cast<const char*>(header_ptr.get()),
+                        header_size,
+                        inter_size,
+                        m_compress_to_fp16,
+                        m_output_element_type,
+                        true);  // header_ptr is allocated in AttributeAdapter that has limited life time
                     new_size += inter_size;
+
+                    // write raw strings part
+                    size_t num_elements = 0;
+                    if (a1) {
+                        num_elements = a1->get()->get_num_elements();
+                    } else {
+                        num_elements = a2->get()->get_num_elements();
+                    }
+                    for (size_t ind = 0; ind < num_elements; ++ind) {
+                        const char* raw_string_ptr;
+                        size_t raw_string_size;
+                        if (a1) {
+                            a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        } else {
+                            a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                        }
+
+                        m_constant_write_handler.write(raw_string_ptr,
+                                                       raw_string_size,
+                                                       inter_size,
+                                                       m_compress_to_fp16,
+                                                       m_output_element_type,
+                                                       m_data_is_temporary);
+
+                        new_size += inter_size;
+                    }
+                    m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                } else {
+                    int64_t offset = 0;
+                    int64_t type = 0;
+                    if (a1) {
+                        std::cout << "Save one StringAlignedBuffer" << std::endl;
+                        offset = m_constant_write_handler.write(a1->get());
+                        new_size = a1->get()->size();
+                    } else {
+                        std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
+                        offset = m_constant_write_handler.write(a2->get());
+                        type = 1;
+                        new_size = a2->get()->size();
+                    }
+
+                    m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                    m_xml_node.append_attribute("type").set_value(static_cast<unsigned long long>(type));
                 }
-                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const int64_t size = a->get()->size();
-                size_t new_size;
-                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                new_size,
-                                                                m_compress_to_fp16,
-                                                                m_output_element_type,
-                                                                m_data_is_temporary);
+                if (!m_constant_write_handler.write_to_weights_map()) {
+                    const int64_t size = a->get()->size();
+                    size_t new_size;
+                    int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
+                                                                    size,
+                                                                    new_size,
+                                                                    m_compress_to_fp16,
+                                                                    m_output_element_type,
+                                                                    m_data_is_temporary);
 
-                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
-                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                    m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                } else {
+                    size_t new_size;
+                    int64_t offset = m_constant_write_handler.write(a->get());
+                    new_size = a->get()->size();
+                    std::cout << "Save one AlignedBuffer" << std::endl;
+                    m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                    m_xml_node.append_attribute("type").set_value(static_cast<unsigned long long>(2));
+                }
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             const auto& attrs = a->get();
@@ -1246,7 +1313,8 @@ void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
-                   bool deterministic = false) {
+                   bool deterministic = false,
+                   ov::pass::WeightsMap* weights_map = nullptr) {
     auto version = static_cast<int64_t>(ver);
 
     auto& rt_info = model->get_rt_info();
@@ -1267,9 +1335,17 @@ void serializeFunc(std::ostream& xml_file,
     std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-    ConstantWriter constant_write_handler(bin_file);
-    XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
-    visitor.on_attribute(name, model);
+    if (!weights_map) {
+        ConstantWriter constant_write_handler(bin_file);
+        XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
+        visitor.on_attribute(name, model);
+    } else {
+        // If weights map is provided, we need to write constants to the map
+        // and serialize it to the xml file
+        ConstantWriter constant_write_handler(weights_map);
+        XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
+        visitor.on_attribute(name, model);
+    }
 
     xml_doc.save(xml_file);
     xml_file.flush();
@@ -1293,6 +1369,10 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
+    } else if (m_xmlFile && !m_weightsMapWrapper) {
+        ov::pass::WeightsMap* map = reinterpret_cast<ov::pass::WeightsMap*>(m_weightsMapWrapper->get());
+        std::ofstream xml_file;
+        serializeFunc(*m_xmlFile, xml_file, model, m_version, false, map);
     } else {
         ov::util::create_directory_recursive(m_xmlPath);
 
@@ -1334,6 +1414,16 @@ pass::Serialize::Serialize(const std::filesystem::path& xmlPath, const std::file
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
       m_version{version} {}
+
+pass::Serialize::Serialize(std::ostream& xmlFile,
+                           WeightsMapWrapper* weightsMapWrapper,
+                           pass::Serialize::Version version)
+    : m_xmlFile{&xmlFile},
+      m_weightsMapWrapper(weightsMapWrapper),
+      m_version{version} {
+    WeightsMap* weightsMap = new ov::pass::WeightsMap();
+    m_weightsMapWrapper->set(reinterpret_cast<void*>(weightsMap));
+}
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
