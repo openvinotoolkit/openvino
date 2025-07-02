@@ -76,5 +76,10 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
 std::string serializeConfig(const Config& config,
                             ze_graph_compiler_version_info_t compilerVersion,
                             bool turboSupported = false);
+void checkedMemcpy(void* destination, size_t destinationSize, const void* source, size_t numberOfBytes);
+
+std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precision);
+
+std::string rankToLegacyLayoutString(const size_t rank);
 
 }  // namespace intel_npu::driver_compiler_utils
