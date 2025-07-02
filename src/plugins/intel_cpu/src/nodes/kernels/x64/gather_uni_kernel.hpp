@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/utils.hpp>
@@ -125,7 +125,7 @@ protected:
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::x64::jit_generator {
+struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jitUniGatherKernel)
 
     explicit jitUniGatherKernel(const jGatherConfParams& jcp);
@@ -140,7 +140,7 @@ protected:
         typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using Vmask =
         typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Opmask>::type;
-    static const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen;
+    static const uint32_t vlenXmm = dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::vlen;
     static const uint32_t indicesTypeSize = sizeof(uint32_t);
     static const uint8_t idxTypeShift = 2;
     uint8_t dataTypeShift = 0;
