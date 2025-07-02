@@ -8,6 +8,8 @@
 
 #include <fstream>
 #include <iterator>
+#include <ov_ops/rms.hpp>
+#include <ov_ops/rotary_positional_embeddings.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
@@ -167,6 +169,25 @@ TEST_P(SerializationTest, SaveModelByPath) {
     const auto out_xml_path = std::filesystem::path(m_out_xml_path);
     CompareSerialized([&out_xml_path](const auto& m) {
         ov::save_model(m, out_xml_path, false);
+    });
+}
+
+TEST_P(SerializationTest, SerializeWithMap) {
+    CompareSerialized([&out_xml_path](const auto& m) {
+        // Serialize model with weights map
+        const auto passConfig = std::make_shared<ov::pass::PassConfig>();
+        ov::pass::Manager manager(passConfig);
+        std::stringstream xmlStringStream;
+        ov::pass::WeightsWrapper offsetConstMap;
+        manager.register_pass<ov::pass::LightSerialize>(xmlStringStream, offsetConstMap);
+        manager.run_passes(m);
+
+        // Read model with the xml and weights map
+        ov::Tensor weightsTensor =
+            ov::Tensor(ov::element::u8, {offsetConstMap.size()}, reinterpret_cast<uint8_t*>(offsetConstMap.get()));
+        auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);
+
+        ov::serialize(modelNew, m_out_xml_path, m_out_bin_path);
     });
 }
 
