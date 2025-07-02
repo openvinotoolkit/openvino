@@ -740,8 +740,8 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
 std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
 
-    // TODO: remove it one day: try to find opset name from RT info
-    // It's a dirty hack to TypeRelaxed and similar template internal operations
+    // CVS-169882: Try to find opset name from RT info. Below (not recommended) solution affects TypeRelaxed and similar
+    // template internal operations.
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
         if (opset_it->second.is<std::string>()) {
@@ -1075,7 +1075,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
-                // WA for LSTMCellv0, peephole input shall not be serialized
+                // v0::LSTMCell peephole input shall not be serialized
                 if (i.get_index() == 6 && ov::as_type<ov::op::v0::LSTMCell>(node)) {
                     port_id++;
                     continue;
@@ -1200,7 +1200,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node edges = netXml.append_child("edges");
     auto ordered_ops = model.get_ordered_ops();
     for (auto e : edge_mapping) {
-        // WA for LSTMCellv0, peephole input shall not be serialized
+        // v0::LSTMCell peephole input shall not be serialized
         if (e.to_port == 6) {
             const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
             if (!strcmp(type_info.name, "LSTMCell")) {
