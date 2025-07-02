@@ -25,7 +25,7 @@ Therefore, in order to ease the configuration of the device, OpenVINO offers two
 
 For more information on conducting performance measurements with the ``benchmark_app``, refer to the last section in this document.
 
-Keep in mind that a typical model may take significantly more time to load with the ``ov::hint::PerformanceMode::THROUGHPUT`` and consume much more memory, compared to the ``ov::hint::PerformanceMode::LATENCY``. Also, the `THROUGHPUT` and `LATENCY` hints can improve performance in an asynchronous inference pipeline and are used for different use cases in a synchronous inference pipeline. For information on asynchronous inference, see the :ref:`Working with Sync/Async API <working-with-sync-async-api>` section of this document.
+Models may load slower and consume more memory when using ``ov::hint::PerformanceMode::THROUGHPUT`` compared to ``ov::hint::PerformanceMode::LATENCY``. ``THROUGHPUT`` and ``LATENCY`` hints can improve performance in asynchronous inference and support different use cases in synchronous inference. For more details on asynchronous inference, see the :ref:`Working with Sync/Async API <working-with-sync-async-api>` section of this document.
 
 Performance Hints: How It Works
 ###############################
