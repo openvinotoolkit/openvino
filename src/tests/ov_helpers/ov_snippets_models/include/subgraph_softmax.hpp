@@ -20,7 +20,7 @@ public:
         : SnippetsFunctionBase(inputShapes),
           axis(axis),
           softmax_version(softmax_version) {
-        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(1 <= input_shapes.size() && input_shapes.size() <= 2, "Got invalid number of input shapes");
     }
 
 protected:

@@ -118,6 +118,8 @@ void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std
                    ptr(reg_runtime_params,
                        static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
             // bump the pointer
+            // TODO: Consider ISA limitations on offset size - large offsets may need to be split into
+            // multiple operations for both h->add and h->sub instructions.
             h->add(base_reg, base_reg, aux_reg);
         }
 
