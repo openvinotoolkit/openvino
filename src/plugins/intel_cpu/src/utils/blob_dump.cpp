@@ -179,13 +179,12 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
     size_t data_size = desc.getShape().getElementsCount();
 
     // Header like "U8 4D shape: 2 3 224 224 ()
-    stream << memory->getDesc().getPrecision().get_type_name() << " " << dims.size() << "D "
-           << "shape: ";
+    stream << memory->getDesc().getPrecision().get_type_name() << " " << dims.size() << "D " << "shape: ";
     for (size_t d : dims) {
         stream << d << " ";
     }
-    stream << "(" << data_size << ")"
-           << " by address" << std::hex << memory->getDataAs<const int64_t>() << std::dec << '\n';
+    stream << "(" << data_size << ")" << " by address" << std::hex << memory->getDataAs<const int64_t>() << std::dec
+           << '\n';
 
     const void* ptr = memory->getData();
 
@@ -282,7 +281,7 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
 }
 
 BlobDumper BlobDumper::read(std::istream& stream) {
-    IEB_HEADER header;
+    IEB_HEADER header{};
     stream.read(reinterpret_cast<char*>(&header), sizeof(header));
 
     const auto desc = parse_header(header);

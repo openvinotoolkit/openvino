@@ -5,18 +5,27 @@
 #include "snippets/op/memory_access.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace modifier {
+namespace ov::snippets::modifier {
 
 MemoryAccess::MemoryAccess(size_t input_count, size_t output_count) {
     auto init_iota_set = [](size_t num) {
-        if (num == 0)
+        if (num == 0) {
             return std::set<size_t>{};
+        }
         std::vector<size_t> vec(num);
         std::iota(vec.begin(), vec.end(), 0);
         return std::set<size_t>(vec.begin(), vec.end());
@@ -28,9 +37,9 @@ MemoryAccess::MemoryAccess(const std::set<size_t>& input_ports, const std::set<s
     ctor_initialize(input_ports, output_ports);
 }
 
-MemoryAccess::MemoryAccess(const PortMap& input_ports, const PortMap& output_ports)
-    : m_input_ports(input_ports),
-      m_output_ports(output_ports) {}
+MemoryAccess::MemoryAccess(PortMap input_ports, PortMap output_ports)
+    : m_input_ports(std::move(input_ports)),
+      m_output_ports(std::move(output_ports)) {}
 
 void MemoryAccess::ctor_initialize(const std::set<size_t>& input_ports, const std::set<size_t>& output_ports) {
     for (auto port : input_ports) {
@@ -43,12 +52,14 @@ void MemoryAccess::ctor_initialize(const std::set<size_t>& input_ports, const st
 
 bool MemoryAccess::is_full_memory_access_op(const std::shared_ptr<ov::Node>& op) const {
     for (size_t i = 0; i < op->get_input_size(); ++i) {
-        if (!is_memory_access_input_port(i))
+        if (!is_memory_access_input_port(i)) {
             return false;
+        }
     }
     for (size_t i = 0; i < op->get_output_size(); ++i) {
-        if (!is_memory_access_output_port(i))
+        if (!is_memory_access_output_port(i)) {
             return false;
+        }
     }
     return true;
 }
@@ -170,6 +181,4 @@ size_t MemoryAccess::get_output_stride(size_t idx) const {
     return get_output_port_descriptor(idx).stride;
 }
 
-}  // namespace modifier
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::modifier

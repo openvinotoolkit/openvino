@@ -60,7 +60,7 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
         std::vector<std::int64_t> pads_vector =
             ov::as_type_ptr<v0::Constant>(pads.get_node_shared_ptr())->get_vector<std::int64_t>();
 
-        std::size_t const half_size = pads_vector.size() / 2;
+        const std::size_t half_size = pads_vector.size() / 2;
         std::vector<std::int64_t> padding_begin_values(pads_vector.begin(), pads_vector.begin() + half_size);
         std::vector<std::int64_t> padding_end_values(pads_vector.begin() + half_size, pads_vector.end());
 

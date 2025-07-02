@@ -52,7 +52,7 @@ struct InterpolateAttrs {
     std::vector<int> padEnd;
     ov::element::Type inPrc;
     ov::element::Type outPrc;
-    InterpolateLayoutType layout;
+    InterpolateLayoutType layout = InterpolateLayoutType::planar;
     std::vector<float> dataScales;
     bool hasPad = false;
     // Some FEs or preprocessing step resize spatial dimension for tensors with NHWC layout memory,
@@ -183,9 +183,9 @@ private:
 protected:
     InterpolateAttrs interpAttrs;
     VectorDims srcDimPad5d, dstDim5d;
-    size_t srcDataSize, dstDataSize;
-    int spatialDimSize;
-    size_t dataRank;
+    size_t srcDataSize = 0UL, dstDataSize = 0UL;
+    int spatialDimSize = 0;
+    size_t dataRank = 0UL;
     std::vector<int> indexTable;
     const ExecutorContext::CPtr _context;
 };

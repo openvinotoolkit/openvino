@@ -281,6 +281,7 @@ void add_required_reorders::run(program& p) {
                     p.add_intermediate(new_reorder_node, *usr, dep);
                     // Need to invalidate users because the output format of mvn follows input format.
                     new_reorder_node.recalc_output_layout(true);
+                    usr->recalc_output_layout(false);
                 }
             }
         }

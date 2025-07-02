@@ -4,16 +4,22 @@
 
 #include "snippets/lowered/pass/iter_handler.hpp"
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 UpdateMemoryAccessCounts::UpdateMemoryAccessCounts(size_t count) : RangedPass(), m_count(count) {}
 
 bool UpdateMemoryAccessCounts::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
@@ -23,8 +29,9 @@ bool UpdateMemoryAccessCounts::run(LinearIR& linear_ir, LinearIR::constExprIt be
         const auto loop_begin = ov::as_type_ptr<op::LoopBegin>(expr_it->get()->get_node());
         if (loop_begin) {
             expr_it = linear_ir.find(expr_it, end, linear_ir.get_expr_by_node(loop_begin->get_loop_end()));
-            if (expr_it == end)
+            if (expr_it == end) {
                 return status;
+            }
             continue;
         }
 
@@ -49,18 +56,20 @@ bool UpdateMemoryAccessCounts::run(LinearIR& linear_ir, LinearIR::constExprIt be
 }
 
 std::shared_ptr<pass::PassBase> UpdateMemoryAccessCounts::merge(const std::shared_ptr<pass::PassBase>& other) {
-    if (!other)
+    if (!other) {
         return shared_from_this();
+    }
     const auto casted_pass = ov::as_type_ptr<UpdateMemoryAccessCounts>(other);
-    size_t merged_count;
-    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_count, m_count, casted_pass->m_count))
+    size_t merged_count = 0;
+    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_count, m_count, casted_pass->m_count)) {
         return nullptr;
+    }
     return std::make_shared<UpdateMemoryAccessCounts>(merged_count);
 }
 
 SetFillOffset::SetFillOffset(size_t offset) : RangedPass(), m_offset(offset) {}
 
-bool SetFillOffset::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+bool SetFillOffset::run([[maybe_unused]] LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& node = expr_it->get()->get_node();
         if (const auto fill = ov::as_type_ptr<ov::snippets::op::Fill>(node)) {
@@ -71,16 +80,20 @@ bool SetFillOffset::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linear
 }
 
 std::shared_ptr<pass::PassBase> SetFillOffset::merge(const std::shared_ptr<pass::PassBase>& other) {
-    if (!other)
+    if (!other) {
         return shared_from_this();
+    }
     const auto casted_pass = ov::as_type_ptr<SetFillOffset>(other);
-    size_t merged_offset;
-    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_offset, m_offset, casted_pass->m_offset))
+    size_t merged_offset = 0;
+    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_offset, m_offset, casted_pass->m_offset)) {
         return nullptr;
+    }
     return std::make_shared<SetFillOffset>(merged_offset);
 }
 
-bool SetLoopIncrementOne::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+bool SetLoopIncrementOne::run(LinearIR& linear_ir,
+                              [[maybe_unused]] LinearIR::constExprIt begin,
+                              LinearIR::constExprIt end) {
     const auto& loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(end->get()->get_node());
     OPENVINO_ASSERT(loop_end, "SetLoopIncrementOne expected LoopEnd node in iterator `end`.");
     const auto& loop_info =
@@ -95,7 +108,4 @@ std::shared_ptr<snippets::lowered::pass::PassBase> SetLoopIncrementOne::merge(
     return !other || ov::is_type<SetLoopIncrementOne>(other) ? std::make_shared<SetLoopIncrementOne>() : nullptr;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

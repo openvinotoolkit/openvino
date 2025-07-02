@@ -842,11 +842,10 @@ Example:
 
     <!-- E#116761 -->
     <skip_config>
-        <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER</message>
+        <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER and PV driver</message>
         <filters>
-            <filter>.*OVClassQueryModelTest.QueryModelHETEROWithDeviceIDNoThrow.*</filter>
-            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*</filter>
-            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*_driverVersion=1688.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*_driverVersion=1688.*</filter>
         </filters>
     </skip_config>
 
@@ -912,6 +911,14 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*TestCompiledModelNPU.samePlatformProduceTheSameBlobCacheEnabled.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#170977 -->
+    <skip_config>
+        <message>Tests currently skipped until u2 precision fully supported (need NPU compiler alignment/driver update)</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
         </filters>
     </skip_config>
 

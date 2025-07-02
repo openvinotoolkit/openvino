@@ -4,11 +4,16 @@
 
 #include "snippets/lowered/loop_port.hpp"
 
-#include "snippets/utils/utils.hpp"
+#include <cstddef>
+#include <memory>
+#include <ostream>
+#include <utility>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+#include "openvino/core/except.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+
+namespace ov::snippets::lowered {
 
 LoopPort::LoopPort(const ExpressionPort& port, size_t dim_idx, Type type)
     : m_expr_port(std::make_shared<ExpressionPort>(port)),
@@ -66,8 +71,9 @@ void LoopPort::set_dim_idx(size_t idx) {
 }
 
 bool operator==(const LoopPort& lhs, const LoopPort& rhs) {
-    if (&lhs == &rhs)
+    if (&lhs == &rhs) {
         return true;
+    }
     return *lhs.m_expr_port == *rhs.m_expr_port && lhs.m_type == rhs.m_type && lhs.m_dim_idx == rhs.m_dim_idx;
 }
 
@@ -98,6 +104,4 @@ std::ostream& operator<<(std::ostream& out, const LoopPort::Type& type) {
     return out;
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered
