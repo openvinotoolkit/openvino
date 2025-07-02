@@ -107,33 +107,56 @@ size_t jit_memory_emitter::get_aux_gprs_count() const {
     return is_offset_runtime ? 1 : 0;
 }
 
-void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
-        if (is_offset_runtime) {
-            XReg aux_reg(aux_gpr_idxs.back());
-            XReg base_reg(in[0]);
-            XReg reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
-            // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
-            h->ldr(aux_reg,
-                   ptr(reg_runtime_params,
-                       static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
-            // bump the pointer
-            // TODO: Consider ISA limitations on offset size - large offsets may need to be split into
-            // multiple operations for both h->add and h->sub instructions.
-            h->add(base_reg, base_reg, aux_reg);
-        }
-
-        load_emitter->emit_code(in, out, aux_vec_idxs, aux_gpr_idxs);
-
-        if (is_offset_runtime) {
-            XReg aux_reg(aux_gpr_idxs.back());
-            XReg base_reg(in[0]);
-            // subtract back so we leave the pointer unchanged for the caller
-            h->sub(base_reg, base_reg, aux_reg);
-        }
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Doesn't support isa ", host_isa_);
+std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
+    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()),
+                              "If offset is dynamic, memory emitter need to have one aux gpr at least!");
+    auto available_aux_gprs = aux_gpr_idxs;
+    if (is_offset_runtime) {
+        available_aux_gprs.pop_back();
     }
+    return available_aux_gprs;
+}
+
+void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                        const std::vector<size_t>& out_idxs,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs) const {
+    emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+
+    auto reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
+    XReg aux_gpr = is_offset_runtime ? XReg(static_cast<int>(aux_gpr_idxs.back())) : XReg(0);
+
+    XReg data_reg(0);
+    if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
+        data_reg = XReg(in_idxs[0]);
+    } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
+        data_reg = XReg(out_idxs[0]);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
+    }
+
+    if (is_offset_runtime) {
+        // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
+        h->ldr(aux_gpr,
+               ptr(reg_runtime_params,
+                   static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
+        // bump the pointer
+        h->add(data_reg, data_reg, aux_gpr);
+    }
+
+    emit_impl(in_idxs, out_idxs);
+
+    if (is_offset_runtime) {
+        // subtract back so we leave the pointer unchanged for the caller
+        h->sub(data_reg, data_reg, aux_gpr);
+    }
+
+    emitter_postamble();
+}
+
+void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    OV_CPU_JIT_EMITTER_ASSERT(load_emitter != nullptr, "Load CPU emitter isn't initialized!");
+    load_emitter->emit_code(in, out, aux_vec_idxs, get_available_aux_gprs());
 }
 
 template <cpu_isa_t isa>
@@ -191,11 +214,8 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
-        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in, out);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Doesn't support isa ", host_isa_);
-    }
+    OV_CPU_JIT_EMITTER_ASSERT(store_emitter != nullptr, "Store CPU emitter isn't initialized!");
+    store_emitter->emit_code(in, out, aux_vec_idxs, get_available_aux_gprs());
 }
 
 template <cpu_isa_t isa>

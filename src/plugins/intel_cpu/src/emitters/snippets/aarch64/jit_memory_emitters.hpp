@@ -26,6 +26,13 @@ public:
 
     size_t get_aux_gprs_count() const override;
 
+    void emit_code_impl(const std::vector<size_t>& in_idxs,
+                        const std::vector<size_t>& out_idxs,
+                        const std::vector<size_t>& pool_vec_idxs = {},
+                        const std::vector<size_t>& pool_gpr_idxs = {}) const override;
+
+    std::vector<size_t> get_available_aux_gprs() const;
+
 protected:
     static size_t get_parent_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
     static size_t get_consumer_buffer_cluster_id(const ov::snippets::lowered::ExpressionPtr& expr);
