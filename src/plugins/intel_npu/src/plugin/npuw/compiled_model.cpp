@@ -111,6 +111,13 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.run_on_model(model);
     }
 
+    if (cfg_get<::intel_npu::NPUW_FOLD>(props)) {
+        // Having folding enabled assumes Scalar bank matching,
+        // make this procedure a little bit more reliable by untangling
+        // the excess tiny Const connections
+        ov::npuw::patterns::opt::untangleConst(model);
+    }
+
     if (cfg_get<::intel_npu::NPUW_SLICE_OUT>(props)) {
         // Add Slice before last MatMul for the prefill model
         ov::pass::GraphRewrite rewr;
@@ -147,7 +154,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         // and not the underlying models and submodels
         auto config = properties;
         config.erase(ov::cache_dir.name());
-        pre_load_transform(model, properties);
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, config);
     }
     LOG_INFO("Done");
@@ -166,6 +172,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
+    pre_load_transform(model, properties);
+
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
@@ -265,8 +276,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                         // Regardless of the order, if the reader is a function,
                         // remember that to avoid confusion in function prologue
                     }  // if(param == orig_param)
-                }      // for(orig_params)
-            }          // for(subgraph_params)
+                }  // for(orig_params)
+            }  // for(subgraph_params)
         };
         auto process_results = [&](const ov::ResultVector& _results) {
             for (size_t i = 0; i < _results.size(); i++) {
@@ -384,8 +395,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
-                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]"
-                                                   << " as it is a function body for Subgraph[" << id << "]");
+                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id
+                                                   << "]");
             }
             const auto model_to_dump = m_compiled_submodels[real_id].model;
             std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
@@ -394,7 +405,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_INFO("Wrote " << model_dump_path);
             // Note: keep here naming as it would be the subgraph
         }  // if(dump)
-    }      // for(orderedSubgraphs)
+    }  // for(orderedSubgraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
@@ -441,8 +452,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
                 LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
-                                                       << ", but was not found in the device list: "
-                                                       << "[" << dev_list_str << "] -- ignoring");
+                                                       << ", but was not found in the device list: " << "["
+                                                       << dev_list_str << "] -- ignoring");
             } else {
                 // FIXME: This is not really a device enforcement as the fallback
                 // procedure will be in place still
@@ -696,7 +707,7 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     write(stream, is_weightless);
 
     if (!encryption_required) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
         serialize(stream, ctx);
 
         write(stream, m_weights_bank->get_name());
@@ -712,13 +723,13 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     std::stringstream non_encrypted_stream;
     if (is_weightless) {
         non_encrypted_stream.copyfmt(stream);
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
         serialize(non_encrypted_stream, ctx);
         std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
         write(stream, encrypted);
     } else {
         // In case of blob with weights only encrypt XML part of the model
-        EncryptContext ctx(true, enc_callbacks.encrypt, nullptr);
+        CompiledContext ctx(true, enc_callbacks.encrypt, nullptr, m_bf16_consts);
         serialize(stream, ctx);
     }
 
@@ -790,19 +801,17 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         read(model_stream, bank_name);
 
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            compiled->m_weights_bank = bank;
+            compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             compiled->finalize_weights_bank();
         } else {
-            auto bank =
+            compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
-            compiled->m_weights_bank = bank;
             compiled->reconstruct_closure();
         }
     };
 
     if (!encrypted) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         auto compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_bank(stream, compiled_model);
@@ -825,10 +834,10 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         compiled_model = ov::npuw::CompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
-        EncryptContext ctx(true, nullptr, enc_callbacks.decrypt);
+        CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
         compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
@@ -839,7 +848,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
     return compiled_model;
 }
 
-void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& enc_ctx) const {
+void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {
     LOG_INFO("Serializing CompiledModel...");
     LOG_BLOCK();
 
@@ -886,6 +895,9 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
         }
         write(model_stream, is_weightless);
 
+        // Write bf16 consts cache
+        write(model_stream, enc_ctx.bf16_consts);
+
         // Create weightless context
         WeightsContext ctx(is_weightless, m_const_to_offset);
 
@@ -928,7 +940,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
-    const ov::npuw::s11n::EncryptContext& enc_ctx) {
+    const ov::npuw::s11n::CompiledContext& enc_ctx) {
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 
@@ -987,6 +999,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         bool is_weightless = false;
         read(stream, is_weightless);
 
+        // Read bf16 consts cache
+        read(stream, compiled->m_bf16_consts);
+
         // Initialize weights stream if weightless flow
         std::string weights_path;
         std::shared_ptr<ov::Model> model_ptr;
@@ -1039,7 +1054,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             }
         }
 
-        WeightsContext ctx(weights, consts_cache);
+        WeightsContext ctx(weights, consts_cache, compiled->m_bf16_consts);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;

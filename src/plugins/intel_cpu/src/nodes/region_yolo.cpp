@@ -4,13 +4,9 @@
 
 #include "region_yolo.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <common/c_types_map.hpp>
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -20,10 +16,7 @@
 #include <vector>
 
 #include "common/cpu_convert.h"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
@@ -37,7 +30,19 @@
 #include "openvino/op/region_yolo.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <common/c_types_map.hpp>
+#    include <common/utils.hpp>
+
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
@@ -321,16 +326,18 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&] {
+        if (mayiuse(x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     addSupportedPrimDesc({{LayoutType::ncsp, input_prec}}, {{LayoutType::ncsp, output_prec}}, impl_type);
 }
@@ -365,9 +372,7 @@ void RegionYolo::createPrimitive() {
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
-    U aux2;
-    aux2.as_float_value = src;
-    int sign = aux2.as_int_value >> 31;
+    int sign = ov::intel_cpu::bit_cast<int>(src) >> 31;
     if (sign == 0) {
         src *= -1;
     }

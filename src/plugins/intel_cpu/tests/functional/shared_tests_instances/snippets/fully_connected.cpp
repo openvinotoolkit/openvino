@@ -43,7 +43,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected, MatMul,
                              ::testing::Values(MatMulType::FullyConnected),
                              ::testing::Values(1), // MatMul
                              ::testing::Values(1), // Tokenized MatMul
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MatMul::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnected_EnforceBF16, MatMul,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(fc_input_shapes),
+                             ::testing::ValuesIn(precisions(true)),
+                             ::testing::Values(MatMulType::FullyConnected),
+                             ::testing::Values(1), // MatMul
+                             ::testing::Values(1), // Tokenized MatMul
+                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                             ::testing::Values(CPUTestUtils::cpu_bf16_plugin_config)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedFQ, MatMulFQ,
@@ -53,7 +65,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedFQ, MatMulFQ,
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // MatMul;
                                  ::testing::Values(1), // Tokenized MatMul
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedEltwiseChain, MatMulEltwiseChain,
@@ -63,7 +76,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedEltwiseChain, MatMulEltwis
                              ::testing::Values(MatMulType::FullyConnected),
                              ::testing::Values(1), // MatMul
                              ::testing::Values(1), // Tokenized MatMul
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 std::vector<std::vector<ov::test::InputShape>> fc_cascade_shapes{
@@ -81,7 +95,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedEltwiseChainCascade, MatMu
                              ::testing::Values(MatMulType::FullyConnected),
                              ::testing::Values(1),
                              ::testing::Values(1),
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 std::vector<std::vector<ov::test::InputShape>> fc_transpose_b_shapes{
@@ -98,7 +113,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedTransposeB, MatMulTranspos
                              ::testing::Values(MatMulType::FullyConnected),
                              ::testing::Values(1), // MatMul
                              ::testing::Values(1), // Tokenized MatMul
-                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                             ::testing::Values(ov::test::utils::DEVICE_CPU),
+                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 
@@ -113,11 +129,13 @@ std::vector<std::vector<ov::test::InputShape>> fc_bias_shapes{
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedBias, MatMulBias,
                          ::testing::Combine(
                                  ::testing::ValuesIn(fc_bias_shapes),
-                                 ::testing::ValuesIn(precisions(false)),
+                                 ::testing::ValuesIn(precisions(true)),
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // Subgraph;
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::ValuesIn({CPUTestUtils::empty_plugin_config,
+                                                      CPUTestUtils::cpu_bf16_plugin_config})),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedBiasQuantized, MatMulBiasQuantized,
@@ -127,7 +145,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedBiasQuantized, MatMulBiasQ
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // Subgraph
                                  ::testing::Values(1), // Tokenized MatMul+Bias
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 std::vector<std::vector<ov::test::InputShape>> fc_quantized_shapes{
@@ -145,7 +164,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedsQuantized, MatMulsQuantiz
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // Reshape on weights is folded => only 1 Subgraph remains
                                  ::testing::Values(1), // Tokenized [MatMul+FQ+Matmul]
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedsQuantizedSoftmax, MatMulsQuantizedSoftmax,
@@ -155,7 +175,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FullyConnectedsQuantizedSoftmax, MatMuls
                                  ::testing::Values(MatMulType::FullyConnected),
                                  ::testing::Values(1), // Reshape on weights is folded => only 1 Subgraph remains
                                  ::testing::Values(1), // Tokenized [MatMul+FQ+Matmul]
-                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                 ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MatMul::getTestCaseName);
 }  // namespace
 } // namespace snippets

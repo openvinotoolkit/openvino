@@ -5,15 +5,22 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
 
-#include "snippets/emitter.hpp"
-
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/op.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface RegSpillBase
@@ -42,17 +49,21 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
     std::shared_ptr<RegSpillEnd> get_reg_spill_end() const;
-    const std::set<Reg>& get_regs_to_spill() const override { return m_regs_to_spill; }
+    const std::set<Reg>& get_regs_to_spill() const override {
+        return m_regs_to_spill;
+    }
 
     class ShapeInfer : public IShapeInferSnippets {
         size_t num_out_shapes = 0;
+
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
     };
+
 protected:
     void validate_and_infer_types_except_RegSpillEnd();
-    std::set<Reg> m_regs_to_spill = {};
+    std::set<Reg> m_regs_to_spill;
 };
 /**
  * @interface RegSpillEnd
@@ -78,6 +89,4 @@ public:
     }
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

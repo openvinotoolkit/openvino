@@ -4,7 +4,6 @@
 
 #include "def_conv.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>
@@ -23,7 +22,6 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -42,6 +40,11 @@
 #include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -993,7 +996,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                 const float offset_w = data_offset_ptr[data_offset_w_index];
                 float map_h = h_in + kh * (KDH + 1) + offset_h;
                 float map_w = w_in + kw * (KDW + 1) + offset_w;
-                bool skip_compute;
+                bool skip_compute = false;
                 if (with_bi_pad) {
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;

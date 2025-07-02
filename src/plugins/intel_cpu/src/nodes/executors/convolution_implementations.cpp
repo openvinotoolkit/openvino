@@ -11,9 +11,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
-#include "nodes/executors/debug_messages.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
@@ -22,9 +19,19 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "post_ops.hpp"
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
+
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "nodes/executors/debug_messages.hpp"
+#    include "nodes/executors/executor.hpp"
+#    include "post_ops.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -153,6 +160,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_ncsp_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;
@@ -192,6 +201,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nCsp16c_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;

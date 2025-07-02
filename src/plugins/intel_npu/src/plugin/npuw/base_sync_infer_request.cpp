@@ -85,10 +85,9 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
             m_ref_subrequests.at(id) = std::move(ref_infer_request);
             LOG_INFO("Done");
         } else {
-            LOG_INFO("Skip creation of reference subrequest for Subgraph["
-                    << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
-                    << id << "] has been already created on "
-                    << "it .");
+            LOG_INFO("Skip creation of reference subrequest for submodule["
+                     << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
+                     << id << "] has been already created on " << "it .");
         }
     }
 

@@ -46,9 +46,7 @@ void GroupNormalization::SetUp() {
     auto f = ov::test::snippets::GroupNormalizationFunction(inputDynamicShapes, numGroup, eps);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     abs_threshold = 1e-5;
 }

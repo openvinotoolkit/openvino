@@ -14,6 +14,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <queue>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -220,9 +221,12 @@ void MultiClassNms::prepareParams() {
     m_numClasses = shared ? scores_dims[1] : scores_dims[0];
 
     int max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
-                              : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
-                                                                                      : m_numClasses;
+    size_t real_num_classes = [&]() {
+        if (m_backgroundClass == -1 || static_cast<size_t>(m_backgroundClass) >= m_numClasses) {
+            return m_numClasses;
+        }
+        return m_numClasses - 1;
+    }();
     if (m_nmsTopK) {
         max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes : std::min(m_nmsTopK, static_cast<int>(m_numBoxes));
         m_filtBoxes.resize(max_output_boxes_per_class * m_numBatches * m_numClasses);
@@ -467,25 +471,11 @@ bool MultiClassNms::created() const {
 }
 
 float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized) {
-    float yminI;
-    float xminI;
-    float ymaxI;
-    float xmaxI;
-    float yminJ;
-    float xminJ;
-    float ymaxJ;
-    float xmaxJ;
+    auto [yminI, xminI, ymaxI, xmaxI] =
+        std::tuple<float, float, float, float>{boxesI[0], boxesI[1], boxesI[2], boxesI[3]};
+    auto [yminJ, xminJ, ymaxJ, xmaxJ] =
+        std::tuple<float, float, float, float>{boxesJ[0], boxesJ[1], boxesJ[2], boxesJ[3]};
     const auto norm = static_cast<float>(!normalized);
-
-    // to align with reference
-    yminI = boxesI[0];
-    xminI = boxesI[1];
-    ymaxI = boxesI[2];
-    xmaxI = boxesI[3];
-    yminJ = boxesJ[0];
-    xminJ = boxesJ[1];
-    ymaxJ = boxesJ[2];
-    xmaxJ = boxesJ[3];
 
     float areaI = (ymaxI - yminI + norm) * (xmaxI - xminI + norm);
     float areaJ = (ymaxJ - yminJ + norm) * (xmaxJ - xminJ + norm);

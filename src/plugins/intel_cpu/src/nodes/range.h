@@ -13,28 +13,26 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Range : public Node {
 public:
     Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
-    bool needPrepareParams() const override {
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool needPrepareParams() const override {
         return false;
     };
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     };
     void executeDynamicImpl(const dnnl::stream& strm) override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum StatusCode : int {
+    enum StatusCode : int8_t {
         OK = 0,
         PARAMETER_MISMATCH = -1,
     };
@@ -50,6 +48,4 @@ private:
     static const size_t RANGE_DELTA = 2;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

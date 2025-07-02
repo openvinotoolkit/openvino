@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -26,7 +25,6 @@
 #include "cpu_types.h"
 #include "edge.h"
 #include "graph_context.h"
-#include "kernels/x64/gather_uni_kernel.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
@@ -45,6 +43,12 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "kernels/x64/gather_uni_kernel.hpp"
+#endif
 
 using namespace dnnl::impl::cpu;
 
@@ -288,9 +292,13 @@ void Gather::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
-        idxElPerVec = x64::mayiuse(x64::avx512_core) ? x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize
-                      : x64::mayiuse(x64::avx2)      ? x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize
-                                                     : 1;
+        if (x64::mayiuse(x64::avx512_core)) {
+            idxElPerVec = x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize;
+        } else if (x64::mayiuse(x64::avx2)) {
+            idxElPerVec = x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize;
+        } else {
+            idxElPerVec = 1;
+        }
     }
     // Gather instruction is not supported by SSE.
     if ((x64::mayiuse(x64::avx512_core) || x64::mayiuse(x64::avx2)) &&

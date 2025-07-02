@@ -4,7 +4,6 @@
 
 #include "fake_quantize.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
@@ -26,9 +25,9 @@
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
@@ -52,6 +51,12 @@
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -104,8 +109,15 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
         L(unrolled_loop_label);
         {
-            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : 2 * nbits;
-            const int ur_ch = isa == cpu::x64::sse41 ? nbits : isa == cpu::x64::avx2 ? nbits / 2 : nbits / 4;
+            auto [step, ur_ch] = [&]() {
+                if (isa == cpu::x64::sse41) {
+                    return std::make_pair(nbits / 2, nbits);
+                }
+                if (isa == cpu::x64::avx2) {
+                    return std::make_pair(nbits, nbits / 2);
+                }
+                return std::make_pair(2 * nbits, nbits / 4);
+            }();
             const int unrolled_loop_step = ur_ch * step;
 
             cmp(reg_work_amount, unrolled_loop_step);
@@ -142,8 +154,15 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
         L(main_loop_label);
         {
-            int repeats = isa == cpu::x64::sse41 ? 2 : 1;
-            int step = isa == cpu::x64::sse41 ? nbits / 2 : isa == cpu::x64::avx2 ? nbits : nbits * 2;
+            auto [repeats, step] = [&]() {
+                if (isa == cpu::x64::sse41) {
+                    return std::make_pair(2, nbits / 2);
+                }
+                if (isa == cpu::x64::avx2) {
+                    return std::make_pair(1, nbits);
+                }
+                return std::make_pair(1, nbits * 2);
+            }();
             const int main_loop_step = step * repeats;
 
             cmp(reg_work_amount, main_loop_step);
@@ -1503,16 +1522,18 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = []() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
     if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
@@ -1662,9 +1683,12 @@ void FakeQuantize::createPrimitive() {
             key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
         } else {
             // in case of blocked layout we need to extend vectors to prevent read from unallocated memory
-            size_t paddedSize = srcDesc.hasLayoutType(LayoutType::nCsp16c)  ? 16
-                                : srcDesc.hasLayoutType(LayoutType::nCsp8c) ? 8
-                                                                            : 1;
+            size_t paddedSize = 1;
+            if (srcDesc.hasLayoutType(LayoutType::nCsp16c)) {
+                paddedSize = 16;
+            } else if (srcDesc.hasLayoutType(LayoutType::nCsp8c)) {
+                paddedSize = 8;
+            }
             if (paddedSize != 1) {
                 if (!broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)]) {
                     cropLow.resize(rnd_up(cropLow.size(), paddedSize));
@@ -1713,8 +1737,15 @@ void FakeQuantize::executeReference() {
     const int N = srcDims[0];
     const int C = srcDims.size() > 1 ? srcDims[1] : 1;
     const int D = srcDims.size() == 5 ? srcDims[2] : 1;
-    const int H = srcDims.size() == 3 ? srcDims[2] : srcDims.size() > 3 ? srcDims[srcDims.size() - 2] : 1;
-    const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
+    int H = 1, W = 1;
+    if (srcDims.size() == 3) {
+        H = srcDims[2];
+    } else if (srcDims.size() > 3) {
+        H = srcDims[srcDims.size() - 2];
+    }
+    if (srcDims.size() > 3) {
+        W = srcDims[srcDims.size() - 1];
+    }
 
     if (isBinarization()) {
         size_t tmp = s_str[s_str.size() - 1];
@@ -1740,10 +1771,12 @@ void FakeQuantize::executeReference() {
         parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
             for (int c = cb * nbits, shift = 0; c < std::min(static_cast<dim_t>(C), (cb + 1) * nbits); c++, shift++) {
-                size_t src_off = srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
-                                 : srcDims.size() == 5
-                                     ? n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4]
-                                     : n * s_str[0] + c * s_str[1];
+                size_t src_off = n * s_str[0] + c * s_str[1];
+                if (srcDims.size() == 4) {
+                    src_off += h * s_str[2] + w * s_str[3];
+                } else if (srcDims.size() == 5) {
+                    src_off += d * s_str[2] + h * s_str[3] + w * s_str[4];
+                }
 
                 float val = src[src_off];
                 float thr = thresholds[c];
@@ -1754,11 +1787,12 @@ void FakeQuantize::executeReference() {
                 auto bit = static_cast<uint8_t>(res == out_mask);
                 bin_val |= (bit << shift);
             }
-
-            size_t dst_off = dstDims.size() == 4 ? n * d_str[0] + (cb * nbits) * d_str[1] + h * d_str[2] + w * d_str[3]
-                             : dstDims.size() == 5
-                                 ? n * d_str[0] + (cb * nbits) * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4]
-                                 : n * d_str[0] + (cb * nbits) * d_str[1];
+            size_t dst_off = n * d_str[0] + (cb * nbits) * d_str[1];
+            if (dstDims.size() == 4) {
+                dst_off += h * d_str[2] + w * d_str[3];
+            } else if (dstDims.size() == 5) {
+                dst_off += d * d_str[2] + h * d_str[3] + w * d_str[4];
+            }
 
             dst[dst_off / nbits] = bin_val;
         });
@@ -1766,12 +1800,16 @@ void FakeQuantize::executeReference() {
         auto* dst = dstMemory->getDataAs<float>();
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
-            size_t src_off = srcDims.size() == 5
-                                 ? n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4]
-                             : srcDims.size() == 4 ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w * s_str[3]
-                             : srcDims.size() == 3 ? n * s_str[0] + c * s_str[1] + h * s_str[2]
-                             : srcDims.size() == 2 ? n * s_str[0] + c * s_str[1]
-                                                   : n * s_str[0];
+            size_t src_off = n * s_str[0];
+            if (srcDims.size() == 5) {
+                src_off += d * s_str[2] + h * s_str[3] + w * s_str[4];
+            } else if (srcDims.size() == 4) {
+                src_off += h * s_str[2] + w * s_str[3];
+            } else if (srcDims.size() == 3) {
+                src_off += h * s_str[2];
+            } else if (srcDims.size() == 2) {
+                src_off += c * s_str[1];
+            }
 
             float src_val = src[src_off];
 
@@ -1792,12 +1830,14 @@ void FakeQuantize::executeReference() {
             dst_val = roundf(dst_val);
             dst_val = dst_val * osc + osh;
 
-            size_t dst_off = dstDims.size() == 5
-                                 ? n * d_str[0] + c * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4]
-                             : dstDims.size() == 4 ? n * d_str[0] + c * d_str[1] + h * d_str[2] + w * d_str[3]
-                             : dstDims.size() == 3 ? n * d_str[0] + c * d_str[1] + h * d_str[2]
-                             : dstDims.size() == 2 ? n * d_str[0] + c * d_str[1]
-                                                   : n * d_str[0];
+            size_t dst_off = n * d_str[0] + c * d_str[1];
+            if (dstDims.size() == 5) {
+                dst_off += d * d_str[2] + h * d_str[3] + w * d_str[4];
+            } else if (dstDims.size() == 4) {
+                dst_off += h * d_str[2] + w * d_str[3];
+            } else if (dstDims.size() == 3) {
+                dst_off += h * d_str[2];
+            }
 
             dst[dst_off] = dst_val;
         });
@@ -1857,9 +1897,13 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcDims = srcDesc.getShape().getStaticDims();
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4U, 5U);
-    int blk_size = (srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) ? 1
-                   : mayiuse(cpu::x64::avx512_core)                                                              ? 16
-                                                                                                                 : 8;
+    int blk_size = 1;
+    if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
+        mayiuse(cpu::x64::avx512_core)) {
+        blk_size = 16;
+    } else if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3U, 4U, 5U))) {
+        blk_size = 8;
+    }
 
     const auto& jqp = pKernel->jqp_;
     auto src_type_size = jqp.src_prc.size();
@@ -1883,9 +1927,18 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     const int N = srcDims[0];
     const int C = srcDims[1];
     const int CB = div_up(C, blk_size);
-    const int D = srcDims.size() == 5 ? srcDims[2] : 1;
-    const int H = srcDims.size() == 3 ? srcDims[2] : srcDims.size() > 3 ? srcDims[srcDims.size() - 2] : 1;
-    const int W = srcDims.size() > 3 ? srcDims[srcDims.size() - 1] : 1;
+    int D = 1, H = 1, W = 1;
+    if (srcDims.size() == 5) {
+        D = srcDims[2];
+    }
+    if (srcDims.size() == 3) {
+        H = srcDims[2];
+    } else if (srcDims.size() > 3) {
+        H = srcDims[srcDims.size() - 2];
+    }
+    if (srcDims.size() > 3) {
+        W = srcDims[srcDims.size() - 1];
+    }
 
     if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
         parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, [[maybe_unused]] dim_t d) {
@@ -1959,10 +2012,14 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
             int c = cb * blk_size;
 
-            size_t data_off = srcDims.size() == 2 ? n * s_str[0] + c * s_str[1]
-                              : srcDims.size() == 3 || srcDims.size() == 4
-                                  ? n * s_str[0] + c * s_str[1] + h * s_str[2]
-                                  : n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3];
+            size_t data_off = 0;
+            if (srcDims.size() == 2) {
+                data_off = n * s_str[0] + c * s_str[1];
+            } else if (srcDims.size() == 3 || srcDims.size() == 4) {
+                data_off = n * s_str[0] + c * s_str[1] + h * s_str[2];
+            } else {
+                data_off = n * s_str[0] + c * s_str[1] + d * s_str[2] + h * s_str[3];
+            }
 
             arg.from = &src[data_off * src_type_size];
             arg.to = &dst[data_off * dst_type_size];
@@ -2395,7 +2452,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
     return true;
 }
 
-FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor(const jit_quantize_params& _jqp) {
+FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor([[maybe_unused]] const jit_quantize_params& _jqp) {
 #if defined(OPENVINO_ARCH_X86_64)
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
     if (mayiuse(cpu::x64::avx512_core)) {

@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface InsertMoveBroadcast
@@ -16,16 +17,14 @@ namespace pass {
  * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
-class InsertMoveBroadcast: public ov::pass::MatcherPass {
+class InsertMoveBroadcast : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::InsertMoveBroadcast");
     InsertMoveBroadcast();
 
     static Output<ov::Node> BroadcastNodeLastDim(const ov::Output<ov::Node>& value,
-                                                     const ov::PartialShape& target_shape,
-                                                     const ov::PartialShape& normalized_shape);
+                                                 const ov::PartialShape& target_shape,
+                                                 const ov::PartialShape& normalized_shape);
 };
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::pass

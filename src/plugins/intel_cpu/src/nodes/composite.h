@@ -17,9 +17,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Composite : public Node {
 public:
@@ -47,10 +45,10 @@ public:
         return true;
     }
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
-    void execute(const dnnl::stream&) override;
+    void execute([[maybe_unused]] const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
     int registerToAllocationContext(int offset, AllocationContext& context) override;
@@ -65,6 +63,4 @@ private:
     std::shared_ptr<Executor> m_executor;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

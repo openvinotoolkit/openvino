@@ -4,12 +4,9 @@
 
 #include "topk.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -24,11 +21,8 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -46,6 +40,16 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_emitter.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -161,7 +165,7 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
-    dnnl::memory::data_type data_type;
+    dnnl::memory::data_type data_type = {};
     ov::element::Type precision_in_reg;
 
     Xbyak::Address table_val(int index) {
@@ -251,8 +255,8 @@ private:
 
     int blk_stride =
         0;  // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
-    unsigned char cmp_flg;
-    unsigned char heap_cmp_flg;
+    unsigned char cmp_flg = 0U;
+    unsigned char heap_cmp_flg = 0U;
 
     Xbyak::Label l_table;
 
@@ -1979,16 +1983,18 @@ void TopK::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
 #if defined(OPENVINO_ARCH_X86_64)
     jit_mode = mayiuse(cpu::x64::sse41);
@@ -2014,12 +2020,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<std::pair<LayoutType, LayoutType>> dataFomats {
-        {LayoutType::ncsp, LayoutType::ncsp},
+    std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
 #if defined(OPENVINO_ARCH_X86_64)
-            {LayoutType::nspc, LayoutType::nspc}, {LayoutType::nCsp16c, LayoutType::nCsp16c}, {
-            LayoutType::nCsp8c, LayoutType::nCsp8c
-        }
+                                                              {LayoutType::nspc, LayoutType::nspc},
+                                                              {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                              {LayoutType::nCsp8c, LayoutType::nCsp8c}
 #endif
     };
 
@@ -2149,8 +2154,7 @@ void TopK::prepareParams() {
 
         prepare_original_idx();
     } else {  // reference mode
-        int j;
-        for (j = src_dims.size() - 1; j >= 0; j--) {
+        for (int j = src_dims.size() - 1; j >= 0; j--) {
             if (src_dims[j] != 1) {
                 break;
             }
@@ -2460,7 +2464,13 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
     A = src_dims[axis];
     int layout_axis = axis;
     if (layout == TopKLayoutType::topk_nspc) {
-        layout_axis = axis == 0 ? 0 : (axis == 1 ? static_cast<int>(layout_dims.size() - 1) : axis - 1);
+        if (axis == 0) {
+            layout_axis = 0;
+        } else if (axis == 1) {
+            layout_axis = static_cast<int>(layout_dims.size() - 1);
+        } else {
+            layout_axis = axis - 1;
+        }
     }
 
     for (int i = 0; i < layout_axis; i++) {
@@ -2496,16 +2506,14 @@ void TopK::topk_ref_process(const float* src_data,
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {
         std::vector<float> max_values(top_k + 1);
         std::vector<int> max_indexes(top_k + 1);
-        float tmp_value;
-        int tmp_index;
         int s_index = i0 * dim * after_num + i1;
 
         auto swap_func = [&](int index1, int index2) {
-            tmp_value = max_values[index1];
+            float tmp_value = max_values[index1];
             max_values[index1] = max_values[index2];
             max_values[index2] = tmp_value;
 
-            tmp_index = max_indexes[index1];
+            int tmp_index = max_indexes[index1];
             max_indexes[index1] = max_indexes[index2];
             max_indexes[index2] = tmp_index;
         };
