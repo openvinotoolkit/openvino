@@ -169,7 +169,7 @@ AtenCatToConcat::AtenCatToConcat() {
         bool is_stack = false;
         auto cat = cast_fw_node(root, {"aten::cat", "aten::concat", "aten::concatenate", "quantized::cat"});
         if (!cat) {
-            if (cat = cast_fw_node(root, "aten::stack")) {
+            if ((cat = cast_fw_node(root, "aten::stack"))) {
                 is_stack = true;
             } else {
                 return false;
