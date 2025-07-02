@@ -112,18 +112,16 @@ const std::shared_ptr<VCLApi>& VCLApi::getInstance() {
 VCLCompilerImpl::VCLCompilerImpl() : _logHandle(nullptr), _logger("VCLCompilerImpl", ov::log::Level::DEBUG) {
     _logger.debug("VCLCompilerImpl constructor start");
     // Initialize the VCL API
-    vcl_version_info_t compilerVersion;
-    vcl_version_info_t profilingVersion;
-    THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&compilerVersion, &profilingVersion), nullptr);
+    THROW_ON_FAIL_FOR_VCL("vclGetVersion", vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
 
     _logger.info("Plugin VCL API Version: %d.%d", VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR);
     _logger.info("Plugin VCL Profiling API Version: %d.%d", VCL_PROFILING_VERSION_MAJOR, VCL_PROFILING_VERSION_MINOR);
-    _logger.info("Lib VCL Compiler Version: %d.%d", compilerVersion.major, compilerVersion.minor);
-    _logger.info("Lib VCL Profiling Version: %d.%d", profilingVersion.major, profilingVersion.minor);
+    _logger.info("Lib VCL Compiler Version: %d.%d", _vclVersion.major, _vclVersion.minor);
+    _logger.info("Lib VCL Profiling Version: %d.%d", _vclProfilingVersion.major, _vclProfilingVersion.minor);
     _logger.info("Use Lib VCL version to create compiler");
 
     vcl_compiler_desc_t compilerDesc;
-    compilerDesc.version = compilerVersion;
+    compilerDesc.version = _vclVersion;
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) - 1);
     vcl_device_desc_t device_desc;
     device_desc.size = sizeof(vcl_device_desc_t);
@@ -176,6 +174,16 @@ struct vcl_allocator_vector : vcl_allocator2_t {
     std::vector<uint8_t> m_vec;
 };
 
+struct vcl_allocator_malloc {
+    static uint8_t* vcl_allocate(uint64_t size) {
+        return reinterpret_cast<uint8_t*>(malloc(size));
+    }
+
+    static void vcl_deallocate(uint8_t* ptr) {
+        free(ptr);
+    }
+};
+
 NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("compile start");
 
@@ -200,9 +208,10 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                      serializedIR.first,
                                      buildFlags.c_str(),
                                      buildFlags.size()};
-    if (_compilerProperties.version.major >= 7 || _compilerProperties.version.minor >= 4) {
-        // For VCL 7.1 and later, we can use vclAllocatedExecutableCreate2
-        _logger.debug("Using vclAllocatedExecutableCreate2 for VCL 7.1+");
+    _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
+    if (_vclVersion.major >= 7 && _vclVersion.minor >= 4) {
+        // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
+        _logger.debug("Using vclAllocatedExecutableCreate2 for VCL 7.4+");
         vcl_allocator_vector allocator;
         uint8_t* blob = nullptr;
         size_t size = 0;
@@ -219,21 +228,13 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
 
         _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
         return NetworkDescription(std::move(allocator.m_vec), std::move(metadata));
-    } else if (_compilerProperties.version.major >= 6 || _compilerProperties.version.minor >= 1) {
+    } else if (_vclVersion.major >= 6 && _vclVersion.minor >= 1) {
         // For older versions, we use vclAllocatedExecutableCreate
-        _logger.debug("Using vclAllocatedExecutableCreate for 6.1 < VCL < 7.1");
-        std::vector<uint8_t> compiledNetwork;
-        auto allocate = [&](uint64_t size) -> uint8_t* {
-            compiledNetwork.resize(size);
-            return compiledNetwork.data();
-        };
-        auto deallocate = [&](uint8_t* ptr) {
-            compiledNetwork.clear();
-            compiledNetwork.shrink_to_fit();
-        };
+        _logger.debug("Using vclAllocatedExecutableCreate for 6.1 < VCL < 7.4");
+
         vcl_allocator_t allocator = {
-            .allocate = allocate,
-            .deallocate = deallocate,
+            .allocate = vcl_allocator_malloc::vcl_allocate,
+            .deallocate = vcl_allocator_malloc::vcl_deallocate,
         };
         uint8_t* blob = nullptr;
         size_t size = 0;
@@ -243,6 +244,15 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         if (size == 0 || blob == nullptr) {
             OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
         }
+
+        std::vector<uint8_t> compiledNetwork(blob, blob + size);
+        allocator.deallocate(blob);
+
+        // Use empty metadata as VCL does not support metadata extraction
+        NetworkMetadata metadata;
+
+        _logger.debug("compile end, blob size:%d", compiledNetwork.size());
+        return NetworkDescription(std::move(compiledNetwork), std::move(metadata));
     } else {
         // For versions before 6.1, we use vclExecutableCreate
         _logger.debug("Using vclExecutableCreate for VCL < 6.1");

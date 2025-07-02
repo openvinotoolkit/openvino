@@ -110,6 +110,8 @@ private:
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;
     vcl_compiler_properties_t _compilerProperties;
+    vcl_version_info_t _vclVersion;
+    vcl_version_info_t _vclProfilingVersion;
     Logger _logger;
 };
 
