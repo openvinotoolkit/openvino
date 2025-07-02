@@ -135,8 +135,8 @@ size_t EmitABIRegSpills::compute_memory_buffer_size(const std::vector<Xbyak::Reg
 }
 
 void EmitABIRegSpills::store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator* h,
-                                           const std::vector<Xbyak::Reg>& regs_to_store,
-                                           Xbyak::Reg memory_ptr_reg) {
+                                            const std::vector<Xbyak::Reg>& regs_to_store,
+                                            Xbyak::Reg memory_ptr_reg) {
     uint32_t memory_ptr_offset = 0;
     for (const auto& reg : regs_to_store) {
         Xbyak::Address addr = h->ptr[memory_ptr_reg + memory_ptr_offset];

@@ -27,7 +27,7 @@ protected:
     size_t loop_id_offset = 0;
     bool evaluate_once = false;
     bool is_dynamic = false;
-    size_t internal_work_amount_reg_idx = 0;
+    size_t work_amount_reg_idx = 0;
     std::vector<size_t> mem_ptr_regs_idxs;
     jit_snippets_call_args::loop_args_t loop_args;
 };
@@ -63,8 +63,8 @@ protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    void emit_parallel_executor_call() const;
-    void emit_parallel_region_initialization() const;
+    void emit_parallel_executor_call(std::vector<Xbyak::Reg>& used_regs) const;
+    void emit_parallel_region_initialization(const std::vector<Xbyak::Reg>& regs_to_restore) const;
     std::set<snippets::Reg> get_regs_to_spill_except_mem_ptr_regs() const;
 
     void emit_code_impl(const std::vector<size_t>& in_idxs,
@@ -78,6 +78,9 @@ protected:
     std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
     std::shared_ptr<EmitABIRegSpills> m_seq_part_spiller = nullptr;
     std::shared_ptr<EmitABIRegSpills> m_par_to_seq_part_spiller = nullptr;
+
+    // This buffer is needed to communicate register states between main_thread and other threads.
+    mutable std::vector<uint8_t> m_common_registers_buffer;
 };
 
 class jit_parallel_loop_end_emitter : public jit_parallel_loop_base_emitter {
