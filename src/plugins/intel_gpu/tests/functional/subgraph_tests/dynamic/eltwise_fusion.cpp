@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/gather.hpp"
 
 namespace {
 
@@ -95,4 +96,55 @@ INSTANTIATE_TEST_SUITE_P(StaticEltwiseDynamicFusions_basic,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_dyn2),
                                             ::testing::ValuesIn(input_precisions2)),
                          StaticEltwiseDynamicFusions::getTestCaseName);
+
+// Gather+Add
+class DynamicGatherEltwiseStaticFusions : public StaticEltwiseDynamicFusions,
+                     virtual public ov::test::SubgraphBaseTest {
+public:
+protected:
+    std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
+                                             const ov::element::Type input_precision) {
+        std::cout << "--> DynamicGatherEltwiseStaticFusions::init_subgraph" << std::endl;
+        auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
+
+        auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, 0);
+        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, 1);
+        auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis);
+
+        auto bias = std::make_shared<ov::op::v0::Constant>(input_precision, ov::Shape{1, 3}, std::vector<float>{0.01, 0.02, 0.03});
+        auto add = std::make_shared<ov::op::v1::Add>(gather, bias);
+
+        gather->set_friendly_name("Gather1");
+        add->set_friendly_name("Add1");
+
+        return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "DynamicGatherEltwiseStaticFusions");
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+
+        std::vector<InputShape> input_shapes;
+        ov::element::Type input_precision;
+
+        std::tie(input_shapes, input_precision) = GetParam();
+
+        init_input_shapes(input_shapes);
+
+        inType = outType = input_precision;
+        function = init_subgraph(inputDynamicShapes, input_precision);
+    }
+};
+
+TEST_P(DynamicGatherEltwiseStaticFusions, Inference) {
+    run();
+}
+
+const std::vector<std::vector<InputShape>> input_shapes_dyn = {
+    {{{-1, 2, 3}, {{1, 2, 3}, {3, 2, 3}}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(DynamicGatherEltwiseStaticFusions_basic,
+                         DynamicGatherEltwiseStaticFusions,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_dyn), ::testing::ValuesIn(input_precisions2)),
+                         DynamicGatherEltwiseStaticFusions::getTestCaseName);
 } // namespace
