@@ -31,7 +31,6 @@ describe('Tests for AsyncInferQueue.', () => {
     }
   }
 
-
   it('Test AsyncInferQueue constructor with invalid arguments', async () => {
     assert.throws(() => {
       new ov.AsyncInferQueue(); // No arguments
@@ -139,7 +138,7 @@ describe('Tests for AsyncInferQueue.', () => {
     inferQueue.release();
     assert.throws(() => {
       inferQueue.release();
-    }, /Error: Failed to release AsyncInferQueue resources. AsyncInferQueue.release/);
+    }, /Failed to release AsyncInferQueue resources. AsyncInferQueue.release/);
 
   });
 
