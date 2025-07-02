@@ -673,27 +673,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
         tensor = blob_it->second.as<ov::Tensor>();
-<<<<<<< HEAD
-<<<<<<< HEAD
-        tensorFromProperty = true;
-        if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
-            loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
-            tensor = ov::Tensor(
-                tensor,
-                ov::Coordinate{static_cast<size_t>(origStream.tellg())},
-                ov::Coordinate{tensor.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
-        } else {
-            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
-            stream.rdbuf(&buffer);
-        }
-=======
-=======
         blobAllocatedByPlugin = false;
->>>>>>> f6289c8366 (Implement `intel_npu::Plugin::import_model(tensor, properties)` method)
         buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
         stream.rdbuf(&buffer);
         npu_plugin_properties.erase(blob_it);
->>>>>>> 480327a830 (Add `Plugin::parse(tensor, metadata)` function for both `import_model(istream&, ...)` and `import_model(ov::Tensor, ...)`)
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel =
@@ -715,7 +698,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             }
             blobSize = metadata->get_blob_size();
         }
-        if (!tensor) {  // tensor was not received from ov::compiled_blob property, copy from stream
+        if (blobAllocatedByPlugin) {  // tensor was not received from ov::compiled_blob property, copy from stream
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
@@ -733,9 +716,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
         OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
     }
 
-    OV_ITT_TASK_SKIP(PLUGIN_IMPORT_MODEL);
-
     return compiledModel;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    if (casted == nullptr) {
+        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+    }
+
+    return import_model(stream, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& tensor, const ov::AnyMap& properties) const {
@@ -749,8 +741,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& tensor, con
     if (compiledModel) {
         return compiledModel;
     }
-
-    OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
 
     try {
         const bool skipCompatibility =
@@ -773,8 +763,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& tensor, con
     } catch (...) {
         OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
     }
-
-    OV_ITT_TASK_SKIP(PLUGIN_IMPORT_MODEL);
 
     return compiledModel;
 }
@@ -886,27 +874,16 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
     return graph;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
-                                                         const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& properties) const {
-    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
-    if (casted == nullptr) {
-        OPENVINO_THROW("Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
-    }
-
-    return import_model(stream, properties);
-}
-
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model, const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob, const ov::AnyMap& properties) const {
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, context, properties);
 }
@@ -941,12 +918,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(ov::Tensor& tensor,
                                                   std::unique_ptr<MetadataBase> metadata,
                                                   bool blobAllocatedByPlugin,
                                                   ov::AnyMap& npu_plugin_properties) const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
     CompilerAdapterFactory compilerAdapterFactory;
     auto compiler =
         compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
 
     const auto propertiesMap = any_copy(npu_plugin_properties);
-    OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
+    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -962,11 +940,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(ov::Tensor& tensor,
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
+    OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
+
     auto graph = compiler->parse(tensor, blobAllocatedByPlugin, localConfig);
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
     const std::shared_ptr<ov::Model> modelDummy =
         create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
+
+    OV_ITT_TASK_SKIP(PLUGIN_PARSE_MODEL);
 
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
 }

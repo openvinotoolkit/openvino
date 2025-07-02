@@ -122,7 +122,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    _compiler);
 }
 
-<<<<<<< HEAD
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
                                                          const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
@@ -256,11 +255,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
-=======
-std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor& blob,
-                                                     bool blobAllocatedByPlugin,
-                                                     const Config& config) const {
->>>>>>> f6289c8366 (Implement `intel_npu::Plugin::import_model(tensor, properties)` method)
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
     _logger.debug("parse start");

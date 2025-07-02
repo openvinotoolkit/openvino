@@ -49,16 +49,14 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor&, const ov::AnyMap& properties) const;
-
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& stream,
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& stream,
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
