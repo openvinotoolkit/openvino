@@ -5,6 +5,8 @@
 #pragma once
 
 #include <future>
+#include <thread>
+#include <mutex>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/shape.hpp"
@@ -13,6 +15,8 @@
 namespace ov {
 namespace reference {
 namespace {
+
+std::mutex cout_mutex;
 
 constexpr size_t in_batch_axis = 0;
 constexpr size_t in_channel_axis = 1;
@@ -112,6 +116,8 @@ void convolve_2D_channels(const ConvolutionParams& p,
                 input_channel += input_size_yx;
             }
             *out = sum;
+            //std::lock_guard<std::mutex> lock(cout_mutex);
+            //std::cout << sum << std::endl;
             ++out;
         }
     }
