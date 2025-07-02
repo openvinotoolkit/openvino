@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <vector>
+#include <string>
 
 #include <openvino/openvino.hpp>
 #include "scenario/inference.hpp"
@@ -26,8 +26,9 @@ public:
 
 private:
     bool ensureNamedTensors();
+    void clampOutputs();
+
     bool saveTempModel();
-    bool deleteTempModel();
 
 private:
     std::shared_ptr<ov::Model> m_model;

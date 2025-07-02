@@ -1,13 +1,40 @@
 #include "utils/model.hpp"
 #include "utils/error.hpp"
+#include "utils/logger.hpp"
 
 #include <filesystem>
 #include <fstream>
 #include <string>
 
+#include <openvino/opsets/opset1.hpp>
+#include <opencv2/core.hpp> // CV_*
+
 namespace utils {
 
 std::vector<std::filesystem::path> ModelHelper::s_tempFiles;
+
+static int get_output_cv_type(const std::string& name, const LayerVariantAttr<int>& output_precision) {
+    if (std::holds_alternative<int>(output_precision)) {
+        return std::get<int>(output_precision);
+    } else if (std::holds_alternative<AttrMap<int>>(output_precision)) {
+        const auto& map = std::get<AttrMap<int>>(output_precision);
+        auto it = map.find(name);
+        if (it != map.end()) {
+            return it->second;
+        }
+    }
+    return -1;
+}
+
+static inline std::pair<double, double> get_cv_type_range(int cv_type) {
+    switch (cv_type) {
+        case CV_8U:  return {0.0, 255.0};
+        case CV_32S: return {static_cast<double>(INT32_MIN), static_cast<double>(INT32_MAX)};
+        case CV_32F: return {-FLT_MAX, FLT_MAX};
+        case CV_16F: return {-65504.0, 65504.0};
+        default:     return {0.0, 0.0};
+    }
+}
 
 ModelHelper::ModelHelper(const OpenVINOParams& params) : m_params(params) {
     ov::Core core;
@@ -22,6 +49,11 @@ ModelHelper::ModelHelper(const OpenVINOParams& params) : m_params(params) {
 }
 
 void ModelHelper::cleanupAllTempFiles() {
+    if (s_tempFiles.empty()) {
+        return ;
+    }
+
+    LOG_DEBUG() << "Deleting all temp files." << std::endl;
     for (const auto& path : s_tempFiles) {
         if (std::filesystem::exists(path)) {
             std::filesystem::remove(path);
@@ -31,11 +63,17 @@ void ModelHelper::cleanupAllTempFiles() {
 }
 
 void ModelHelper::prepareModel() {
-    bool need_save = false;
-    need_save = ensureNamedTensors() || need_save;
+    bool need_save = ensureNamedTensors();
+
+    if (m_params.clamp_outputs) {
+        clampOutputs();
+        need_save = true;
+    }
 
     if (need_save) {
-        saveTempModel();
+        if (!saveTempModel()) {
+            THROW_ERROR("Couldn't save the temporary model.");
+        }
     }
 }
 
@@ -57,10 +95,29 @@ bool ModelHelper::ensureNamedTensors() {
     return need_save;
 }
 
+void ModelHelper::clampOutputs() {
+    auto results = m_model->get_results();
+    for (const auto& result : results) {
+        auto output = result->input_value(0);
+        const auto& name = output.get_any_name();
+
+        auto output_precision_type = get_output_cv_type(name, m_params.output_precision);
+        auto [min_val, max_val] = get_cv_type_range(output_precision_type);
+
+        LOG_DEBUG() << "Clamping output '" << name << "' to [" << min_val << ", " << max_val << "]" << std::endl;
+
+        auto clamp = std::make_shared<ov::opset1::Clamp>(output, min_val, max_val);
+        clamp->set_friendly_name(result->get_friendly_name() + "_clamped");
+        result->input(0).replace_source_output(clamp->output(0));
+    }
+}
+
 bool ModelHelper::saveTempModel() {
     std::filesystem::path tmp_xml = std::filesystem::temp_directory_path() / ("tmp_" + m_xmlPath.filename().string());
     std::filesystem::path tmp_bin = tmp_xml;
     tmp_bin.replace_extension(".bin");
+
+    LOG_DEBUG() << "Saving temp model to path: " << tmp_xml.string() << std::endl;
 
     ov::pass::Serialize(tmp_xml.string(), "").run_on_model(m_model);
 
