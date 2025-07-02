@@ -13,7 +13,7 @@
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest : public ov::ISyncInferRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -30,14 +30,13 @@ public:
         return {};
     }
 
-private:
-    void prepare_for_new_conversation();
+protected:
+    virtual void prepare_for_new_conversation();
     void init_tensor(const ov::Output<const ov::Node>& port);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
-                       ov::SoPtr<ov::ITensor> position_ids,
-                       ov::SoPtr<ov::ITensor> enc_hidden_states);
+                       ov::SoPtr<ov::ITensor> position_ids);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
@@ -54,9 +53,8 @@ private:
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
 
-    // NB: It can be either input_ids(LLM, Whisper) or inputs_embeds(VLM)
+    // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
-    bool m_is_whisper = false;
 };
 
 }  // namespace npuw

@@ -6,6 +6,7 @@
 #include <regex>
 
 #include "llm_infer_request.hpp"
+#include "whisper_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
@@ -984,6 +985,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
+    for (const auto& input: model->inputs()) {
+        if (input.get_any_name().find("encoder_hidden_states") != std::string::npos) {
+            m_is_whisper = true;
+        }
+    }
+
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
@@ -999,14 +1006,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto generate_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_GENERATE_CONFIG"));
 
     m_cfg.update(any_copy(npuw_llm_props));
-
-    // FIXME: Check if provided model is whisper model
-    bool is_whisper = false;
-    for (const auto& input: model->inputs()) {
-        if (input.get_any_name().find("encoder_hidden_states") != std::string::npos) {
-            is_whisper = true;
-        }
-    }
 
     LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
@@ -1030,8 +1029,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
 
     uint32_t whisper_lhs_seq_size = 0; // Not applicable for LLMs/VLMs
-    if (is_whisper) {
-        // FIXME: remove hardcode
+    if (m_is_whisper) {
+        // FIXME: hardcode because LLMs use alignment, whisper doesn't need it
         axes = KVAxesPosition{0u, 2u};
         m_kvcache_desc = KVCacheDesc{4u, 448u, 0u, 2u};
         whisper_lhs_seq_size = static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
@@ -1046,9 +1045,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, whisper_lhs_seq_size);
 
     bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
-    if (is_whisper) {
-        optimize_v_tensors = false;
-    }
     if (optimize_v_tensors) {
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
@@ -1068,6 +1064,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
     LOG_DEBUG("9. Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
+
+    save_model(prefill_model, "decoder_model_npuw.xml");
+    save_model(kvcache_model, "decoder_with_past_model_npuw.xml");
 
     auto npudesc = extract_npu_descriptor(plugin);
 
@@ -1098,12 +1097,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
 
-    if (is_whisper) {
+    if (m_is_whisper) {
         prefill_config.erase("NPUW_SLICE_OUT");
-        prefill_config.erase("NPUW_LLM_OPTIMIZE_V_TENSORS");
-
-        generate_config.erase("NPUW_SLICE_OUT");
-        generate_config.erase("NPUW_LLM_OPTIMIZE_V_TENSORS");
     }
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
@@ -1455,12 +1450,18 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-    return non_const_this->create_llm_infer_request();
+    return m_is_whisper ? non_const_this->create_whisper_infer_request() 
+                        : non_const_this->create_llm_infer_request();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
