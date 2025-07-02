@@ -272,7 +272,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() == 4 && !params.inputs[1].is_dynamic() &&
             params.inputs[1].LogicalSize() == 1) {
-            idx_order = idx_order = {"(f)", "(y)", "(x)", "(1)"};
+            idx_order = {"(f)", "(y)", "(x)", "(1)"};
         } else {
             idx_order = GetOrder(params.inputs[0].GetDims().size());
         }
