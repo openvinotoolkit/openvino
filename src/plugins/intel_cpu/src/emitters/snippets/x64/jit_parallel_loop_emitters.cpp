@@ -22,7 +22,6 @@
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/parallel_loop.hpp"
 #include "emitters/snippets/x64/utils.hpp"
-#include "emitters/plugin/x64/debug_capabilities.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
@@ -370,38 +369,40 @@ void jit_parallel_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in
 
 void jit_parallel_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                               [[maybe_unused]] const std::vector<size_t>& out) const {
-    Reg64 reg_increments;
-    auto add_increments = [&]() {
-        for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
-            const auto& increment = loop_args.m_ptr_increments[idx];
-            if (is_incremented[idx] && increment != 0) {
-                if (ov::snippets::utils::is_dynamic_value(increment)) {
-                    OV_CPU_JIT_EMITTER_ASSERT(is_dynamic, "Loop argument structure cannot be pushed to aux GPR");
-                    h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])),
-                           h->ptr[reg_increments + idx * sizeof(int64_t)]);
-                } else {
-                    h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment);
+    if (!evaluate_once) {
+        Reg64 reg_increments;
+        auto add_increments = [&]() {
+            for (size_t idx = 0; idx < mem_ptr_regs_idxs.size(); idx++) {
+                const auto& increment = loop_args.m_ptr_increments[idx];
+                if (is_incremented[idx] && increment != 0) {
+                    if (ov::snippets::utils::is_dynamic_value(increment)) {
+                        OV_CPU_JIT_EMITTER_ASSERT(is_dynamic, "Loop argument structure cannot be pushed to aux GPR");
+                        h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])),
+                               h->ptr[reg_increments + idx * sizeof(int64_t)]);
+                    } else {
+                        h->add(Reg64(static_cast<int>(mem_ptr_regs_idxs[idx])), increment);
+                    }
                 }
             }
+        };
+
+        if (is_dynamic) {
+            jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);
+            reg_increments = gpr_holder.get_reg();
+            h->mov(reg_increments, wa_increment);
+            h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
+            h->mov(reg_increments, h->ptr[reg_increments + loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments)]);
+            add_increments();
+        } else {
+            add_increments();
         }
-    };
 
-    if (is_dynamic) {
-        jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);
-        reg_increments = gpr_holder.get_reg();
-        h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
-        h->mov(reg_increments, h->ptr[reg_increments + loop_id_offset + GET_OFF_LOOP_ARGS(m_ptr_increments)]);
-        add_increments();
-    } else {
-        add_increments();
+        auto reg_work_amount = Reg64(in.back());
+        h->sub(reg_work_amount, wa_increment);
+        h->cmp(reg_work_amount, wa_increment);
+        h->jge(*loop_begin_label, CodeGenerator::T_NEAR);
     }
-
-    auto reg_work_amount = Reg64(in.back());
-    h->sub(reg_work_amount, wa_increment);
-    h->cmp(reg_work_amount, wa_increment);
-    h->jge(*loop_begin_label, CodeGenerator::T_NEAR);
     m_seq_part_spiller->postamble();
-    // todo: we can return at the end of the tail processing loop instead
     // Note: parallel region ends here:
     h->ret();
     h->L(*loop_end_label);
