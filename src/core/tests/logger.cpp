@@ -14,18 +14,14 @@
 
 namespace ov::util::test {
 
-/* Capturing std::cout streambuffer doesn't work in CI job on Windows. It needs to be checked whether such test of
- * logging to std::cout is doable other way. Though it's disabled.
- */
-#define ENABLE_LOGGING_TO_STD_COUT_TESTS 0
+// Capturing std::cout streambuffer doesn't work in a CI job on Windows, so disabled. Tested locally on Ubuntu.
+static constexpr bool enable_logging_to_std_cout_test = false;
 
 using LogEntries = std::tuple<LOG_TYPE, const char*, int, const char*>;
 
 class TestLogHelper : public testing::TestWithParam<LogEntries> {
-#if ENABLE_LOGGING_TO_STD_COUT_TESTS
     std::ostream* const actual_out_stream = &std::cout;
     std::streambuf* const actual_out_buf = actual_out_stream->rdbuf();
-#endif
 
     // LogEntries
     LOG_TYPE m_log_type;
@@ -36,18 +32,18 @@ class TestLogHelper : public testing::TestWithParam<LogEntries> {
 protected:
     void SetUp() override {
         reset_log_callback();
-#if ENABLE_LOGGING_TO_STD_COUT_TESTS
-        actual_out_stream->flush();
-        actual_out_stream->rdbuf(m_mock_out_stream.rdbuf());
-#endif
+        if (enable_logging_to_std_cout_test) {
+            actual_out_stream->flush();
+            actual_out_stream->rdbuf(m_mock_out_stream.rdbuf());
+        }
 
         std::tie(m_log_type, m_log_path, m_log_line, m_log_message) = GetParam();
     }
 
     void TearDown() override {
-#if ENABLE_LOGGING_TO_STD_COUT_TESTS
-        actual_out_stream->rdbuf(actual_out_buf);
-#endif
+        if (enable_logging_to_std_cout_test) {
+            actual_out_stream->rdbuf(actual_out_buf);
+        }
         reset_log_callback();
     }
 
@@ -81,22 +77,23 @@ protected:
     }};
 };
 
-#if ENABLE_LOGGING_TO_STD_COUT_TESTS
-TEST_P(TestLogHelper, std_cout) {
-    log_test_params();
-    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()))
-        << "Mock cout got: '" << m_mock_out_stream.str() << "'\n";
-}
-#endif
-
-TEST_P(TestLogHelper, callback) {
+TEST_P(TestLogHelper, set_callback) {
+    if (enable_logging_to_std_cout_test) {
+        log_test_params();
+        EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()))
+            << "Mock cout got: '" << m_mock_out_stream.str() << "'\n";
+        m_mock_out_stream.str("");
+        m_mock_out_stream.clear();
+    }
     set_log_callback(m_log_callback);
     log_test_params();
-    EXPECT_TRUE(m_mock_out_stream.str().empty()) << "Expected no cout. Got: '" << m_mock_out_stream.str() << "'\n";
+    if (enable_logging_to_std_cout_test) {
+        EXPECT_TRUE(m_mock_out_stream.str().empty()) << "Expected no cout. Got: '" << m_mock_out_stream.str() << "'\n";
+    }
     EXPECT_TRUE(are_params_logged_to(m_callback_message)) << "Callback got: '" << m_callback_message << "'\n";
 }
 
-TEST_P(TestLogHelper, toggle) {
+TEST_P(TestLogHelper, toggle_callbacks) {
     set_log_callback(m_log_callback);
     log_test_params();
     EXPECT_TRUE(are_params_logged_to(m_callback_message)) << "1st callback got: '" << m_callback_message << "'\n";
@@ -111,16 +108,17 @@ TEST_P(TestLogHelper, toggle) {
     EXPECT_TRUE(m_callback_message.empty()) << "Expected no 1st callback. Got: '" << m_callback_message << "'\n";
 }
 
-#if ENABLE_LOGGING_TO_STD_COUT_TESTS
 TEST_P(TestLogHelper, reset) {
     set_log_callback(m_log_callback);
     reset_log_callback();
     log_test_params();
-    EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()))
-        << "Mock cout got: '" << m_mock_out_stream.str() << "'\n";
+
+    if (enable_logging_to_std_cout_test) {
+        EXPECT_TRUE(are_params_logged_to(m_mock_out_stream.str()))
+            << "Mock cout got: '" << m_mock_out_stream.str() << "'\n";
+    }
     EXPECT_TRUE(m_callback_message.empty()) << "Expected no callback. Got: '" << m_callback_message << "'\n";
 }
-#endif
 
 TEST_P(TestLogHelper, no_log) {
     set_log_callback(m_log_callback);
