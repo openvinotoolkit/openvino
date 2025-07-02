@@ -113,16 +113,16 @@ jobs:
 
   RPM_Packages:
     name: RPM packages
-    needs: [Docker, Build]
+    needs: Build
     timeout-minutes: 10
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: ubuntu-22.04
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_33 }}
+      image: fedora:33
     env:
-      RPM_PACKAGES_DIR: /__w/openvino/packages/
+      RPM_PACKAGES_DIR: ${{ github.workspace }}/packages
 
     steps:
       - name: Download OpenVINO RPM packages
@@ -174,7 +174,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'fedora_29'
   

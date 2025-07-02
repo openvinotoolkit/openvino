@@ -3,6 +3,15 @@ FROM ${REGISTRY}/nvidia/cuda:11.8.0-runtime-ubuntu20.04
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
+RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
@@ -76,7 +85,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
     python3.8 get-pip-3-8.py  --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
+    rm -f get-pip.py get-pip-3.8.py
 
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
@@ -84,3 +93,11 @@ RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+
+# Change ownership of the venv directory to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} /venv
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

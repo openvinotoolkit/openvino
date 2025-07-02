@@ -3,6 +3,15 @@ FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+RUN groupadd -g ${GROUP_ID} ${GROUP_NAME}
+RUN useradd ${USER_NAME} -u ${USER_ID} -g ${GROUP_ID} -ms /bin/bash
+
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
@@ -71,6 +80,10 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
+# ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
+RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
@@ -108,3 +121,16 @@ RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.n
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz
 ENV PATH="${DOXYGEN_HOME}/doxygen-$DOXYGEN_VERSION/bin:$PATH"
 
+# Change ownership of the venv directory to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} /venv
+
+# Change ownership of node to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} ${NVM_DIR}
+
+# Change ownership of doxygen to the non-root user
+RUN chown -R ${USER_NAME}:${USER_NAME} ${DOXYGEN_HOME}
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

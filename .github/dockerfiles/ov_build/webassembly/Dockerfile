@@ -3,6 +3,15 @@ FROM ${REGISTRY}/emscripten/emsdk:3.1.61
 
 USER root
 
+# Create a non-root user and group
+ENV USER_NAME=runner
+ENV USER_ID=1000
+ENV GROUP_NAME=${USER_NAME}
+ENV GROUP_ID=${USER_ID}
+
+# WASM image already has a user with UID 1000
+RUN usermod -l ${USER_NAME} emscripten
+
 # APT configuration
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf && \
@@ -32,3 +41,8 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
+# Switch to the non-root user
+USER ${USER_NAME}
+
+WORKDIR /home/${USER_NAME}

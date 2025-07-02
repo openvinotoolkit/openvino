@@ -120,7 +120,7 @@ jobs:
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}"}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'ubuntu_24_04'
 
@@ -129,8 +129,8 @@ jobs:
     needs: [ Docker, Build ]
     uses: ./.github/workflows/job_debian_packages.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04'
+      runner: 'ubuntu-22.04'
+      image: 'ubuntu:24.04'
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
