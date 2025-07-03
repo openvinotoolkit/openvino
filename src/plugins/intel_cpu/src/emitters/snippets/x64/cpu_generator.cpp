@@ -4,8 +4,19 @@
 
 #include "cpu_generator.hpp"
 
-#include <memory>
+#include <cpu/x64/xbyak/xbyak.h>
 
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "cache/multi_cache.h"
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_ext_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
@@ -19,8 +30,77 @@
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
 #include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
-#include "openvino/opsets/opset5_decl.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/xor.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/generator.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/perf_count.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reg_spill.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/vector_buffer.hpp"
+#include "snippets/runtime_configurator.hpp"
+#include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -28,7 +108,7 @@
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
-#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
+#include "utils/general_utils.h"
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include "emitters/snippets/x64/jit_debug_emitter.hpp"
@@ -36,7 +116,6 @@
 #    include "emitters/snippets/x64/jit_perf_count_rdtsc_emitters.hpp"
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
 #    include "emitters/snippets/x64/verbose.hpp"
-#    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -240,7 +319,7 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[ov::op::v0::Erf::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_erf_emitter);
     jitters[ov::op::v0::Exp::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_exp_emitter);
     jitters[ov::op::v0::Floor::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_floor_emitter);
-    jitters[ov::opset5::Round::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_round_emitter);
+    jitters[ov::op::v5::Round::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_round_emitter);
     jitters[ov::op::v1::LogicalNot::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_logical_not_emitter);
     jitters[ov::op::v0::Negative::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_negative_emitter);
     jitters[ov::op::v0::Relu::get_type_info_static()] = CREATE_CPU_EMITTER(intel_cpu::jit_relu_emitter);
@@ -418,8 +497,8 @@ bool intel_cpu::CompiledSnippetCPU::empty() const {
     return get_code_size() == 0;
 }
 
-intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa_, ov::intel_cpu::MultiCacheWeakPtr cache)
-    : Generator(std::make_shared<CPUTargetMachine>(isa_, std::move(cache))) {}
+intel_cpu::CPUGenerator::CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
+    : Generator(std::make_shared<CPUTargetMachine>(host_isa, std::move(cache))) {}
 intel_cpu::CPUGenerator::CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target) : Generator(target) {}
 
 std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
@@ -431,15 +510,15 @@ std::shared_ptr<snippets::Generator> intel_cpu::CPUGenerator::clone() const {
 
 ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (is_type<intel_cpu::BrgemmCPU>(op) ||
+    if (is_type_any_of<intel_cpu::BrgemmCPU, intel_cpu::BrgemmCopyB>(op)
 #ifdef SNIPPETS_LIBXSMM_TPP
-        std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op) ||
-        is_type<intel_cpu::tpp::op::Scalar>(op) ||
+        || is_type<intel_cpu::tpp::op::Scalar>(op) ||
+        std::dynamic_pointer_cast<intel_cpu::tpp::modifier::TensorProcessingPrimitive>(op)
 #endif
-        is_type<intel_cpu::BrgemmCopyB>(op)) {
+    ) {
         return ov::snippets::RegType::gpr;
     }
-    if (is_type<intel_cpu::FusedMulAdd>(op) || is_type<intel_cpu::SwishNode>(op)) {
+    if (is_type_any_of<intel_cpu::FusedMulAdd, intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
     }
     return ov::snippets::RegType::undefined;

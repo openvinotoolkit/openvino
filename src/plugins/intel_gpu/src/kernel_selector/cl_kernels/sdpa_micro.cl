@@ -327,8 +327,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Prefetch first K tile. */
     cooperative_prefetch_2d_k(
             /* ptr */ K,
-            /* r */ k,
-            /* c */ d,
+            /* r */ d,
+            /* c */ k,
             /* rmax */ ugemm_kq_wg_tile_m,
             /* cmax */ PREFETCH_D_MAX,
             /* ld */ ldk,
@@ -404,7 +404,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-        tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+        const uint mask_m = MSK_D2;
+        const uint mask_n = MSK_D3;
+        // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
+        // In the case of single query dimension, set ld and offset_r to zero
+        // to avoid exceeding bounds for single dimension.
+        const uint mask_ld = (mask_m == 1)? 0 : mask_n;
+        const uint mask_offset_r = (mask_m == 1)? 0 : sg_j0_kq + wg_j0;
+        tile_load_t(&mask_tile, msk, mask_m, mask_n, mask_ld, mask_offset_r, k0 + sg_i0_kq);
 #endif
 
 #if REMAINDER_K
@@ -459,7 +466,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_hbroadcast_min(&S_tile, k_mask);
 #endif
 
-#if WITH_CAUSAL_MASK
+#if IS_CAUSAL
 #define greater_than(offset_k, offset_q) (offset_k > offset_q)
         /* Apply causal mask */
         tile_predicated_assignment_t(S_tile, k0 + sg_i0_kq, wg_j0 + sg_j0_kq,

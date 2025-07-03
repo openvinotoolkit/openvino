@@ -5,13 +5,14 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
+#include <cstddef>
+#include <memory>
+#include <type_traits>
 #include <unordered_map>
 
 #include "cache_entry.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief Class that represent a preemptive cache for different key/value pair types.
@@ -27,7 +28,6 @@ public:
     template <typename KeyType, typename ValueType>
     using EntryPtr = std::shared_ptr<EntryTypeT<KeyType, ValueType>>;
 
-public:
     /**
      * @param capacity here means maximum records limit FOR EACH entry specified by a pair of Key/Value types.
      * @note zero capacity means empty cache so no records are stored and no entries are created
@@ -57,7 +57,6 @@ private:
     template <typename KeyType, typename ValueType>
     EntryPtr<KeyType, ValueType> getEntry();
 
-private:
     static std::atomic_size_t _typeIdCounter;
     size_t _capacity;
     std::unordered_map<size_t, EntryBasePtr> _storage;
@@ -86,5 +85,4 @@ using MultiCacheWeakCPtr = std::weak_ptr<const MultiCache>;
 using MultiCachePtr = std::shared_ptr<MultiCache>;
 using MultiCacheCPtr = std::shared_ptr<const MultiCache>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

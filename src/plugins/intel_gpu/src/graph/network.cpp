@@ -138,23 +138,6 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
     }
 }
 
-void wait_for_the_turn(const std::vector<std::string>& pids) {
-    bool need_to_wait;
-    do {
-        need_to_wait = false;
-        struct stat buffer;
-        for (auto pid : pids) {
-            auto path = "/proc/" + pid;
-            std::cout << "check " + path << std::endl;
-            if (stat(path.c_str(), &buffer) == 0) {
-                need_to_wait = true;
-                std::cout << "Being nice.. Wait for process " << pid << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            }
-        }
-    } while (need_to_wait);
-}
-
 #else
 void dump_perf_data_raw(std::string, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>&) {}
 #endif
@@ -183,10 +166,6 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
         net_id = get_unique_net_id();
     }
 
-    GPU_DEBUG_CODE(
-        if (get_config().get_start_after_processes().size() != 0) {
-            wait_for_the_turn(get_config().get_start_after_processes());
-    });
     calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
@@ -1013,8 +992,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         bool transpose_required = false;
         if (is_lora_state) {
             const auto& lora_prim = node.get_users().front()->as<lora>().get_primitive();
-            for (size_t state_idx : {2, 4}) {
-                if (lora_prim->input[state_idx].pid == node.id()) {
+            for (size_t state_idx : {2, 4, 5, 7, 8, 10}) {
+                if (state_idx < lora_prim->input.size() &&
+                    lora_prim->input[state_idx].pid == node.id()) {
                     transpose_required = lora_prim->transposed_states;
                 }
             }

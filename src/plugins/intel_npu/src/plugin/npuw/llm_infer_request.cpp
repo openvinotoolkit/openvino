@@ -77,7 +77,7 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
        [Xm0 Xm1 ... Xmn]]      [Xm0 Xm1 ... Xmn]]
     */
 
-    const auto src_shape = src->get_shape();
+    const auto& src_shape = src->get_shape();
 
     OPENVINO_ASSERT(src_shape.size() == 4u);
     OPENVINO_ASSERT(src_shape == dst->get_shape());
@@ -192,13 +192,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
 
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    if (input_ids->get_size() > kvcache_desc.max_prompt_size) {
-        OPENVINO_THROW("Input prompt is longer than configured \"NPUW_LLM_MAX_PROMPT_LEN\": ",
-                       kvcache_desc.max_prompt_size,
-                       ".\nPlease either setup longer \"NPUW_LLM_MAX_PROMPT_LEN\" or shorten the prompt.");
-    }
-
     prepare_for_new_conversation();
 
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
@@ -247,11 +240,17 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Copying kv-cache from prefill to generate model.");
         const std::size_t kStartOutputKVCacheLayers = 1u;
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
         for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
             const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
             auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
             const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+                continue;
+            }
+
             auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
             // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
@@ -310,9 +309,15 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
     const std::size_t kStartOutputKVCacheLayers = 1u;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+    // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
         const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+        if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+            continue;
+        }
+
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                  ? 3u

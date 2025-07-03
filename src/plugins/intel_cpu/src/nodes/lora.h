@@ -4,12 +4,21 @@
 
 #pragma once
 
-#include "graph.h"
-#include "node.h"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "allocation_context.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class LoRA : public Node {
 public:
@@ -21,12 +30,12 @@ public:
         return getType() == Type::LoRA;
     }
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void selectOptimalPrimitiveDescriptor() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
     void createPrimitive() override;
     void prepareParams() override;
-    void execute(const dnnl::stream&) override;
+    void execute([[maybe_unused]] const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
@@ -35,6 +44,4 @@ private:
     Graph m_graph;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -247,17 +247,18 @@ sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
 
 sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
     if (head_size <= 32) {
+        if (seq <= 0 && is_pa) return &xehpg_h32;
         if (quantized && seq >= 128) {
             if (thin_q) return &xehpg_q_h32_2nd;
             return &xehpg_q_h32;
         }
         if (thin_q) return &xehpg_h32_2nd;
-        if (seq <= 0 && is_pa) return &xehpg_h32;
         if (seq <= 32) return &xehpg_h32_s32;
         if (seq <= 64) return &xehpg_h32_s64;
         if (seq <= 256) return &xehpg_h32_s256;
         return &xehpg_h32;
     } else if (head_size <= 64) {
+        if (seq <= 0 && is_pa) return &xehpg_h64;
         if (quantized) {
             if (thin_q) {
                 if (seq <= 64) return &xehpg_q_h64_s64_2nd;
@@ -271,11 +272,11 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             }
         }
         if (thin_q) return &xehpg_h64_2nd;
-        if (seq <= 0 && is_pa) return &xehpg_h64;
         if (seq <= 64) return &xehpg_h64_s64;
         if (seq <= 128) return &xehpg_h64_s128;
         return &xehpg_h64;
     } else if (head_size <= 128) {
+        if (seq <= 0 && is_pa) return &xehpg_h128;
         if (quantized) {
             if (thin_q) {
                 if (seq <= 1) return &xehpg_q_h128_2nd;
@@ -290,10 +291,10 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 256) return &xehpg_q_h128_2nd;
             return &xehpg_h128_2nd;
         }
-        if (seq <= 0 && is_pa) return &xehpg_h128;
         if (seq <= 32) return &xehpg_h128_s32;
         return &xehpg_h128;
     } else if (head_size <= 256) {
+        if (seq <= 0 && is_pa) return &xehpg_h256;
         if (thin_q) {
             if (quantized) {
                 if (seq <= 96) return &xehpg_q_h256_s96_2nd;
@@ -308,11 +309,11 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 512) return &xehpg_q_h256_s512;
             return &xehpg_q_h256;
         }
-        if (seq <= 0 && is_pa) return &xehpg_h256;
         if (seq <= 32) return &xehpg_h256_s32;
         if (seq <= 128) return &xehpg_h256_s128;
         return &xehpg_h256;
     } else if (head_size <= 512) {
+        if (seq <= 0 && is_pa) return &xehpg_h512;
         if (quantized) {
             if (thin_q) {
                 if (seq <= 64) return &xehpg_q_h512_s64_2nd;
@@ -325,7 +326,6 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
             return &xehpg_q_h512;
         }
         if (thin_q) { return &xehpg_h512_2nd; }
-        if (seq <= 0 && is_pa) return &xehpg_h512;
         return &xehpg_h512;
     }
     return nullptr;
@@ -333,11 +333,12 @@ sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
 
 sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa) {
     if (head_size <= 32) {
-        if (thin_q) return &xehpc_h32_2nd;
         if (seq <= 0 && is_pa) return &xehpc_h32;
+        if (thin_q) return &xehpc_h32_2nd;
         if (seq <= 32) return &xehpc_h32_s32;
         return &xehpc_h32;
     } else if (head_size <= 64) {
+        if (seq <= 0 && is_pa) return &xehpc_h64;
         if (thin_q) {
             if (quantized) {
                 if (seq <= 96) return &xehpc_q_h64_s96_2nd;
@@ -355,11 +356,11 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 1024) return &xehpc_q_h64_s1024;
             return &xehpc_q_h64;
         }
-        if (seq <= 0 && is_pa) return &xehpc_h64;
         if (seq <= 32) return &xehpc_h64_s32;
         if (seq <= 64) return &xehpc_h64_s64;
         return &xehpc_h64;
     } else if (head_size <= 128) {
+        if (seq <= 0 && is_pa) return &xehpc_h128;
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) { return &xehpc_q_h128_2nd_integrated; }
@@ -376,16 +377,16 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         }
         if (is_integrated) return &xehpc_q_h128_2nd_integrated;
         if (thin_q) return &xehpc_h128_2nd;
-        if (seq <= 0 && is_pa) return &xehpc_h128;
         if (seq <= 32) return &xehpc_h128_s32;
         if (seq <= 64) return &xehpc_h128_s64;
         return &xehpc_h128;
     } else if (head_size <= 256) {
-        if (thin_q) return &xehpc_h256_2nd;
         if (seq <= 0 && is_pa) return &xehpc_h256;
+        if (thin_q) return &xehpc_h256_2nd;
         if (seq <= 64) return &xehpc_h256_s64;
         return &xehpc_h256;
     } else if (head_size <= 512) {
+        if (seq <= 0 && is_pa) return &xehpc_h512;
         if (thin_q) {
             if (quantized) {
                 if (is_integrated) {
@@ -421,7 +422,6 @@ sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             if (seq <= 128) return &xehpc_h512_s128_integrated;
             return &xehpc_h512_integrated;
         }
-        if (seq <= 0 && is_pa) return &xehpc_h512;
         if (seq <= 64) return &xehpc_h512_s64;
         return &xehpc_h512;
     }
@@ -801,6 +801,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
 
     size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
+    jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
     if (!params.conf.is_paged_attention) {
         if (params.conf.has_const_attn_mask_val) {
             jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
@@ -810,7 +811,6 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
             jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > attn_input_idx));
         }
     } else {
-        jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
         jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
     }
 

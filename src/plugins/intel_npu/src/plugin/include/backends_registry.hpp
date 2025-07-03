@@ -28,6 +28,8 @@ public:
     void operator=(const BackendsRegistry&) = delete;
     void operator=(BackendsRegistry&&) = delete;
 
+    ~BackendsRegistry() = default;
+
     ov::SoPtr<IEngineBackend> getEngineBackend();
 
 private:

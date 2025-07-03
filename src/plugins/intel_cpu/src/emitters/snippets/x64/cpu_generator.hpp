@@ -4,11 +4,18 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "cache/multi_cache.h"
 #include "cpu/x64/jit_generator.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/generator.hpp"
-#include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -29,7 +36,7 @@ public:
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
-    explicit CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr);
+    explicit CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache);
     [[nodiscard]] std::shared_ptr<snippets::TargetMachine> clone() const override;
     [[nodiscard]] bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
@@ -52,7 +59,7 @@ private:
 
 class CPUGenerator : public snippets::Generator {
 public:
-    CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa, ov::intel_cpu::MultiCacheWeakPtr);
+    CPUGenerator(dnnl::impl::cpu::x64::cpu_isa_t isa, ov::intel_cpu::MultiCacheWeakPtr cache);
     CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target);
     std::shared_ptr<Generator> clone() const override;
 
