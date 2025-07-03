@@ -41,9 +41,13 @@ std::string ov::pass::PassBase::get_name() const {
             std::free);
         pass_name = demangled_name.get();
 #endif
+        if (pass_name.find_last_of(":") != string::npos) {
+            pass_name = pass_name.substr(pass_name.find_last_of(":") + 1);
+        }
         return pass_name;
     } else {
-        return m_name;
+        return m_name.find_last_of(":") != string::npos
+            ? m_name.substr(m_name.find_last_of(":") + 1) : m_name;
     }
 }
 
