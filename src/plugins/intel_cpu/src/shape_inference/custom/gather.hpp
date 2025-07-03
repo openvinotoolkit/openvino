@@ -44,7 +44,7 @@ private:
 
 class GatherShapeInferFactory : public ShapeInferFactory {
 public:
-    GatherShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit GatherShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:

@@ -49,7 +49,7 @@ public:
     [[nodiscard]] const std::string& get_tag() const {
         return tag;
     }
-    operator bool() const {
+    explicit operator bool() const {
         return enabled;
     }
     static void break_at(const std::string& log);
@@ -64,7 +64,7 @@ class IMemory;
 
 class PrintableModel {
 public:
-    PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
+    explicit PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
         : model(model),
           tag(std::move(tag)),
           prefix(std::move(prefix)) {}
@@ -76,7 +76,7 @@ public:
 template <typename T>
 class PrintableVector {
 public:
-    PrintableVector(const std::vector<T>& values, int maxsize = 80) : values(values), maxsize(maxsize) {}
+    explicit PrintableVector(const std::vector<T>& values, int maxsize = 80) : values(values), maxsize(maxsize) {}
     const std::vector<T>& values;
     int maxsize;
 };

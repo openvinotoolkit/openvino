@@ -16,7 +16,7 @@ namespace ov::intel_cpu {
 
 class ArbitraryOrderDescCreator : public BlockedDescCreator {
 public:
-    ArbitraryOrderDescCreator(VectorDims order);
+    explicit ArbitraryOrderDescCreator(VectorDims order);
 
     [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
                                                   const Shape& srcShape) const override;
