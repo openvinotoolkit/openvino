@@ -47,6 +47,16 @@ public:
     explicit PositionIDsReplacerQwen(const Output<Node>& position_ids);
 };
 
+/**
+ * @brief Codegen2 model doesn't use the position_ids input explicitly.
+ * Instead, the model infers them from the max_context_len value by generating
+ * a range from 0 to max_context_len, applying RoPE and only then Slicing the
+ * last token.
+ *
+ * For some reason, on 0th iteration (prompt iteration), the Slice was slicing
+ * only the last token of the prompt, while the entire prompt sequence needs to
+ * be sliced in this case. Fix this by using Gather by position_ids.
+ */
 class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerCodeGen2");

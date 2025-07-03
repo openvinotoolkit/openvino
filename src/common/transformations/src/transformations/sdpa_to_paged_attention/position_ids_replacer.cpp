@@ -29,10 +29,6 @@
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
-static auto _const = []() {
-    return wrap_type<v0::Constant>();
-};
-
 // TODO: Instead of using the following transformation that matches quite a specific place in a model graph in case when
 // position_ids parameter is missing, consider replacing always existing attention_mask parameter with a sub-graph using
 // a new slot_mapping parameter.
@@ -77,7 +73,7 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     // Probably we can use the symbols to re-use one of these ways.
     // Currently, "any_input" is used to detect the both places.
     auto p_shape_of = wrap_type<v3::ShapeOf>({any_input()});
-    auto p_current_len = wrap_type<v8::Gather>({p_shape_of, _const(), _const()});
+    auto p_current_len = wrap_type<v8::Gather>({p_shape_of, constant(), constant()});
 
     auto p_neg_const = wrap_type<v0::Constant>();
     auto p_neg_const_convert = optional<v0::Convert>(p_neg_const);
@@ -92,8 +88,8 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     // dequantizing subgraph, so it's going to be any_input() here.
     auto p_rotary_emb_sincos = pattern::any_input();
     // the rotary_emb_cos/rotary_emb_sin are sliced by the total length [1,..4096,1,128]
-    auto p_slice_1 = wrap_type<v8::Slice>({p_rotary_emb_sincos, _const(), p_opt_reshape, _const(), _const()});
-    auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1, p_neg_mul, _const(), _const(), _const()});
+    auto p_slice_1 = wrap_type<v8::Slice>({p_rotary_emb_sincos, constant(), p_opt_reshape, constant(), constant()});
+    auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1, p_neg_mul, constant(), constant(), constant()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -133,24 +129,24 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
 }
 
 ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(
-    const std::shared_ptr<ov::op::v0::Parameter>& position_ids) {
+    const std::shared_ptr<v0::Parameter>& position_ids) {
     MATCHER_SCOPE(PositionIDsReplacerCodeGen2);
 
-    auto p_range = ov::pass::pattern::wrap_type<v4::Range>();
-    auto p_power = ov::pass::pattern::wrap_type<v1::Power>();
-    auto p_einsum = ov::pass::pattern::wrap_type<v7::Einsum>({p_range, p_power});
-    auto p_sin_cos = ov::pass::pattern::wrap_type<v0::Sin, v0::Cos>({p_einsum});
-    auto p_reshape = ov::pass::pattern::wrap_type<v1::Reshape>({p_sin_cos, pattern::any_input()});
-    auto p_tile = ov::pass::pattern::wrap_type<v0::Tile>({p_reshape, pattern::any_input()});
-    auto p_opt_reshape = ov::pass::pattern::optional<v1::Reshape>({p_tile, pattern::any_input()});
-    auto p_opt_unsq = ov::pass::pattern::optional<v0::Unsqueeze>({p_opt_reshape, pattern::any_input()});
+    auto p_range = wrap_type<v4::Range>();
+    auto p_power = wrap_type<v1::Power>();
+    auto p_einsum = wrap_type<v7::Einsum>({p_range, p_power});
+    auto p_sin_cos = wrap_type<v0::Sin, v0::Cos>({p_einsum});
+    auto p_reshape = wrap_type<v1::Reshape>({p_sin_cos, any_input()});
+    auto p_tile = wrap_type<v0::Tile>({p_reshape, any_input()});
+    auto p_opt_reshape = optional<v1::Reshape>({p_tile, any_input()});
+    auto p_opt_unsq = optional<v0::Unsqueeze>({p_opt_reshape, any_input()});
 
-    auto p_reshape_1in = ov::pass::pattern::wrap_type<v1::Reshape>({pattern::any_input(), pattern::any_input()});
-    auto p_add_2in = ov::pass::pattern::wrap_type<v1::Add>({pattern::any_input(), pattern::any_input()});
-    auto p_slice = ov::pass::pattern::wrap_type<v8::Slice>({p_opt_unsq, p_reshape_1in, p_add_2in, _const(), _const()});
+    auto p_reshape_1in = wrap_type<v1::Reshape>({any_input(), any_input()});
+    auto p_add_2in = wrap_type<v1::Add>({any_input(), any_input()});
+    auto p_slice = wrap_type<v8::Slice>({p_opt_unsq, p_reshape_1in, p_add_2in, constant(), constant()});
 
-    auto p_add = ov::pass::pattern::wrap_type<v1::Add>();
-    ov::matcher_pass_callback callback = [=, &position_ids](Matcher& m) {
+    auto p_add = wrap_type<v1::Add>();
+    matcher_pass_callback callback = [=, &position_ids](Matcher& m) {
         auto pvm = m.get_pattern_value_map();
         auto slice = pvm.at(p_slice).get_node_shared_ptr();
 

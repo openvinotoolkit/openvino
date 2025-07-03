@@ -162,7 +162,7 @@ ov::pass::TotalSequenceLengthPatternCodeGen2::TotalSequenceLengthPatternCodeGen2
     auto p_gather = wrap_type<v8::Gather>({p_kv_shape_current, any_input(), any_input()});
     auto p_total_seq = wrap_type<v1::Add>({p_gather, p_conv});
 
-    ov::matcher_pass_callback callback = [=, &max_context_len](Matcher& m) {
+    matcher_pass_callback callback = [=, &max_context_len](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto total_seq = pattern_map.at(p_total_seq).get_node_shared_ptr();
         std::shared_ptr<Node> replacement = max_context_len;
