@@ -29,7 +29,7 @@ struct RVVGenerator : public CodeGenerator {
 };
 
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
-thread_local sigjmp_buf jmpbuf;
+thread_local sigjmp_buf jmpbuf;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 
 bool can_compile_rvv100() {
 #if defined(__linux__)
