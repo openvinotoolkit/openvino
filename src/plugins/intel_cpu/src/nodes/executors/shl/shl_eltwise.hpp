@@ -13,7 +13,7 @@ namespace ov::intel_cpu {
 
 class ShlEltwiseExecutor : public EltwiseExecutor {
 public:
-    explicit ShlEltwiseExecutor(const ExecutorContext::CPtr context);
+    explicit ShlEltwiseExecutor(const ExecutorContext::CPtr& context);
     static bool isEltwiseAlgorithmSupported(Algorithm algorithm);
 
     bool init(const EltwiseAttrs& eltwiseAttrs,
@@ -30,8 +30,8 @@ public:
     }
 
 private:
-    EltwiseAttrs shlEltwiseAttrs{};
-    ShlSession sess = {};
+    EltwiseAttrs shlEltwiseAttrs;
+    ShlSession sess;
     std::vector<ShlTensor> srcTensors, dstTensors;
     std::unique_ptr<IShlParams> params;
     std::function<int()> shlExecFunc;

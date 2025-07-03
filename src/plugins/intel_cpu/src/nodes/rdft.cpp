@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -34,6 +33,10 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
