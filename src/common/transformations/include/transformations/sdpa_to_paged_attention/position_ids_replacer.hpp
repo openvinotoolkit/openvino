@@ -56,10 +56,10 @@ public:
  *
  * We change from this:
  *
- *  ┌─────┐                               
- *  │Range│                               
- *  └──┬──┘                               
- *     │                                  
+ *  ┌─────┐
+ *  │Range│
+ *  └──┬──┘
+ *     │
  *  ┌──┴──┐     ┌─────────┐    ┌─────────┐
  *  │RoPE │     │   End   │    │  Start  │
  *  │Block│     │(cur.seq │    │(prev    │
