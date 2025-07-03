@@ -62,6 +62,7 @@ jobs:
             src/bindings/python/scripts/generate_pyapi_stubs.py
             src/bindings/python/**/*.pyi
             docs/articles_en/assets/snippets
+          sparse-checkout-cone-mode: false
           submodules: 'false'
           
       - name: Download OpenVINO artifacts (tarballs and wheels)
