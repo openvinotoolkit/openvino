@@ -6,13 +6,21 @@
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/einsum.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -53,10 +61,6 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
 ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& position_ids) {
     MATCHER_SCOPE(PositionIDsReplacerQwen);
 
-    auto _const = []() {
-        return wrap_type<v0::Constant>();
-    };
-
     // total seq len:
     auto p_max_context_len = wrap_type<v0::Parameter>();
     auto p_opt_convert = optional<v0::Convert>(p_max_context_len);
@@ -69,7 +73,7 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     // Probably we can use the symbols to re-use one of these ways.
     // Currently, "any_input" is used to detect the both places.
     auto p_shape_of = wrap_type<v3::ShapeOf>({any_input()});
-    auto p_current_len = wrap_type<v8::Gather>({p_shape_of, _const(), _const()});
+    auto p_current_len = wrap_type<v8::Gather>({p_shape_of, wrap_const(), wrap_const()});
 
     auto p_neg_const = wrap_type<v0::Constant>();
     auto p_neg_const_convert = optional<v0::Convert>(p_neg_const);
@@ -84,8 +88,9 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     // dequantizing subgraph, so it's going to be any_input() here.
     auto p_rotary_emb_sincos = pattern::any_input();
     // the rotary_emb_cos/rotary_emb_sin are sliced by the total length [1,..4096,1,128]
-    auto p_slice_1 = wrap_type<v8::Slice>({p_rotary_emb_sincos, _const(), p_opt_reshape, _const(), _const()});
-    auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1, p_neg_mul, _const(), _const(), _const()});
+    auto p_slice_1 =
+        wrap_type<v8::Slice>({p_rotary_emb_sincos, wrap_const(), p_opt_reshape, wrap_const(), wrap_const()});
+    auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1, p_neg_mul, wrap_const(), wrap_const(), wrap_const()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -121,5 +126,44 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     };
 
     auto m = std::make_shared<Matcher>(p_slice_2, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::shared_ptr<v0::Parameter>& position_ids) {
+    MATCHER_SCOPE(PositionIDsReplacerCodeGen2);
+
+    auto p_range = wrap_type<v4::Range>();
+    auto p_power = wrap_type<v1::Power>();
+    auto p_einsum = wrap_type<v7::Einsum>({p_range, p_power});
+    auto p_sin_cos = wrap_type<v0::Sin, v0::Cos>({p_einsum});
+    auto p_reshape = wrap_type<v1::Reshape>({p_sin_cos, any_input()});
+    auto p_tile = wrap_type<v0::Tile>({p_reshape, any_input()});
+    auto p_opt_reshape = optional<v1::Reshape>({p_tile, any_input()});
+    auto p_opt_unsq = optional<v0::Unsqueeze>({p_opt_reshape, any_input()});
+
+    auto p_reshape_1in = wrap_type<v1::Reshape>({any_input(), any_input()});
+    auto p_add_2in = wrap_type<v1::Add>({any_input(), any_input()});
+    auto p_slice = wrap_type<v8::Slice>({p_opt_unsq, p_reshape_1in, p_add_2in, wrap_const(), wrap_const()});
+
+    auto p_add = wrap_type<v1::Add>();
+    matcher_pass_callback callback = [=, &position_ids](Matcher& m) {
+        auto pvm = m.get_pattern_value_map();
+        auto slice = pvm.at(p_slice).get_node_shared_ptr();
+
+        auto gather = std::make_shared<v8::Gather>(slice->input_value(0),
+                                                   position_ids,
+                                                   v0::Constant::create(element::i64, Shape{}, {1}));
+        if (gather->output(0).get_partial_shape().rank() != 3) {
+            return false;
+        }
+
+        auto transpose =
+            std::make_shared<v1::Transpose>(gather, v0::Constant::create(element::i64, Shape{3}, {1, 0, 2}));
+
+        replace_node(slice, transpose);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(p_slice, matcher_name);
     register_matcher(m, callback);
 }
