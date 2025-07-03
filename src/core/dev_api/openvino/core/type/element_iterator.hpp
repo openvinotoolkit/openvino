@@ -68,6 +68,16 @@ constexpr bool is_byte_type(Type_t et) {
 }
 
 /**
+ * @brief Checks if type is packet in byte from LSB -> MSB order.
+ *
+ * @param et  Element type to check.
+ * @return True if type is packet LSB first, false otherwise.
+ */
+constexpr bool is_lsb_packed(Type_t et) {
+    return et != u1;
+}
+
+/**
  * @brief Gets bit width of ov::element::Type_t.
  *
  * @return Number of bits representing the Type_t.
@@ -146,12 +156,10 @@ private:
 
     using Bits = std::conditional_t<std::is_const_v<T>, const uint8_t, uint8_t>;
 
-    static constexpr size_t m_bits = bit_width<ET>();   //!< Number of bit for single value.
-    static constexpr size_t m_num_values = 8 / m_bits;  //!< Number values in byte.
-    static constexpr size_t m_shift_init =
-        (is_nibble_type(ET) || ET == element::u2) ? 0 : 8 - m_bits;  //!< Initial value for bit shift.
-    static constexpr size_t m_shift_last =
-        (is_nibble_type(ET) || ET == element::u2) ? 8 - m_bits : 0;  //!< Last value for bit shift.
+    static constexpr size_t m_bits = bit_width<ET>();                           //!< Number of bit for single value.
+    static constexpr size_t m_num_values = 8 / m_bits;                          //!< Number values in byte.
+    static constexpr size_t m_shift_init = is_lsb_packed(ET) ? 0 : 8 - m_bits;  //!< Initial value for bit shift.
+    static constexpr size_t m_shift_last = is_lsb_packed(ET) ? 8 - m_bits : 0;  //!< Last value for bit shift.
 
     Bits* m_ptr;         //!< Pointer to T as Bits used to get value from bits.
     size_t m_bit_shift;  //!< Current bit shift to get value.
@@ -438,7 +446,7 @@ public:
             m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % m_et_ptr.m_num_values;
             m_et_ptr.m_ptr += (m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init) ? 3 : 0;
         } else {
-            if constexpr (ET == element::u2) {
+            if constexpr (is_lsb_packed(ET)) {
                 m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
             } else {
                 m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
@@ -465,7 +473,7 @@ public:
             const auto advance = n + m_et_ptr.m_shift_init - m_et_ptr.m_bit_shift;
             m_et_ptr.m_bit_shift = m_et_ptr.m_shift_init - (advance % m_et_ptr.m_num_values);
             m_et_ptr.m_ptr += 3 * (advance / m_et_ptr.m_num_values);
-        } else if constexpr (ET == element::u2) {
+        } else if constexpr (is_lsb_packed(ET)) {
             const auto advance = n + m_et_ptr.m_bit_shift / m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
             m_et_ptr.m_ptr += advance / m_et_ptr.m_num_values;
@@ -492,7 +500,7 @@ public:
             m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % m_et_ptr.m_num_values;
             m_et_ptr.m_ptr -= m_et_ptr.m_bit_shift == 0 ? 3 : 0;
         } else {
-            if constexpr (ET == element::u2) {
+            if constexpr (is_lsb_packed(ET)) {
                 m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
             } else {
                 m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
@@ -519,7 +527,7 @@ public:
             const auto advance = m_et_ptr.m_bit_shift + n;
             m_et_ptr.m_bit_shift = advance % m_et_ptr.m_num_values;
             m_et_ptr.m_ptr -= 3 * (advance / m_et_ptr.m_num_values);
-        } else if constexpr (ET == element::u2) {
+        } else if constexpr (is_lsb_packed(ET)) {
             const auto advance = n + (m_et_ptr.m_shift_last - m_et_ptr.m_bit_shift) / m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = m_et_ptr.m_shift_last - (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
             m_et_ptr.m_ptr -= advance / m_et_ptr.m_num_values;
