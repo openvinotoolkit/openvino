@@ -24,8 +24,6 @@ jobs:
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 18
-          sudo apt update
-          sudo apt --assume-yes install clang-format-18
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
