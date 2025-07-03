@@ -4,14 +4,8 @@
 
 #include "input.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
-#include <atomic>
 #include <cmath>
-#include <common/c_types_map.hpp>
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -24,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -37,7 +30,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -50,9 +42,22 @@
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "utils/general_utils.h"
 
-using namespace dnnl;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <atomic>
+#    include <common/c_types_map.hpp>
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "openvino/core/parallel.hpp"
+
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
+
+using namespace dnnl;
 
 namespace ov::intel_cpu::node {
 
@@ -548,7 +553,7 @@ void Input::cloneBlobIfRequired() {
         return ptr;
     };
 
-    auto isBlobAligned = [](const std::shared_ptr<ov::op::v0::Constant>& constant) {
+    auto isBlobAligned = []([[maybe_unused]] const std::shared_ptr<ov::op::v0::Constant>& constant) {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
