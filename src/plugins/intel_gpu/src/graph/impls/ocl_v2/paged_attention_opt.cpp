@@ -1,6 +1,8 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "sdpa_gen_micro.hpp"
 #include "paged_attention_opt.hpp"
 
 #include <array>
@@ -17,7 +19,6 @@
 #include "primitive_inst.h"
 #include "primitive_ocl_base.hpp"
 #include "sdpa_base.hpp"
-#include "sdpa_gen_micro.hpp"
 #include "sdpa_gen_opt.hpp"
 #include "utils/kernel_generator.hpp"
 
@@ -1108,7 +1109,6 @@ public:
             add_stage(pa_sdpa_micro, params);
         }
 #endif
-
 
         add_stage(kv_cache_update, params);
         add_stage(pa_multi_token, params);

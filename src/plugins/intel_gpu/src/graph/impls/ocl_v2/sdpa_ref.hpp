@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "registry/implementation_manager.hpp"
+#include <memory>
+
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
-
-#include <memory>
+#include "registry/implementation_manager.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are alignedusing namespace cldnn;  // TODO: Remove once namespaces are aligned
 

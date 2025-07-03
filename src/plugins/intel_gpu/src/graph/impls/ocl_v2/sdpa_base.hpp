@@ -59,11 +59,10 @@ struct SDPABase : public KernelGenerator {
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] std::pair<int64_t, int64_t> get_gqa_params(const kernel_impl_params& params) const;
 
-
     static sdpa_configuration get_sdpa_configuration(const kernel_impl_params& impl_param,
-                                                            const std::vector<int64_t>& input_q_transpose_order,
-                                                            const std::vector<int64_t>& input_k_transpose_order,
-                                                            const std::vector<int64_t>& input_v_transpose_order);
+                                                     const std::vector<int64_t>& input_q_transpose_order,
+                                                     const std::vector<int64_t>& input_k_transpose_order,
+                                                     const std::vector<int64_t>& input_v_transpose_order);
 
     static bool requires_shape_canonicalization(const kernel_impl_params& impl_params);
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
