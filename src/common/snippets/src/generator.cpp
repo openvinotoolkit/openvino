@@ -65,7 +65,7 @@ LoweringResult Generator::generate(const lowered::LinearIRPtr& linear_ir, const 
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     const auto kernel_op = op::Kernel::make_kernel(linear_ir->is_dynamic(), *linear_ir);
     kernel_op->compile_params = compile_params;
-    const lowered::RegManager& reg_manager(shared_from_this());
+    const lowered::RegManager reg_manager(shared_from_this());
     const auto kernel_expr = linear_ir->get_expr_factory()->build(kernel_op, std::vector<lowered::PortConnectorPtr>{});
     const auto kernel = target->get(kernel_expr->get_node()->get_type_info())(kernel_expr);
 
