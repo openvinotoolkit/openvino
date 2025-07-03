@@ -280,7 +280,6 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
             idx_order = GetOrder(params.inputs[0].GetDims().size());
         }
 
-        std::cout << "idx_order=" << idx_order[0] << std::endl;
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
