@@ -126,8 +126,7 @@ jobs:
       - name: Python API Tests -- numpy<2.0.0
         if: fromJSON(inputs.affected-components).Python_API.test
         run: |
-          poetry add numpy@1.26.0
-          poetry install --with tests
+          poetry run pip install numpy==1.26.0
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}/:$LD_LIBRARY_PATH
           poetry run pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
