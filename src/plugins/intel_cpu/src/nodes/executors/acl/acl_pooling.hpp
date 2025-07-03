@@ -12,7 +12,7 @@ namespace ov::intel_cpu {
 
 class AclPoolingExecutor : public PoolingExecutor {
 public:
-    AclPoolingExecutor(const ExecutorContext::CPtr context);
+    AclPoolingExecutor(ExecutorContext::CPtr context);
 
     bool init(const PoolingAttrs& poolingAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,

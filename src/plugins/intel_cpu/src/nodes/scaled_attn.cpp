@@ -49,6 +49,10 @@
 #endif
 
 #ifdef OV_CPU_WITH_ACL
+#    include <arm_compute/core/Strides.h>
+#    include <arm_compute/core/TensorInfo.h>
+#    include <arm_compute/runtime/Tensor.h>
+
 #    include "kernels/acl/gemm_kernel.hpp"
 #endif
 
@@ -559,8 +563,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     explicit MHAKernel(GraphContext::CPtr ctx)
         : context(std::move(ctx)),
           m_block_size(512),
-          precision(ov::element::from<T>()),
-          select_nfltmax_at_0(false) {}
+          precision(ov::element::from<T>()) {}
 
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
@@ -576,7 +579,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     // attention_mask [B, 1, q_len, kv_len]
     // alibi
     // output_emb    [B, L1, H*S]
-    void operator()(const dnnl::stream& strm,
+    void operator()(const dnnl::stream& /*strm*/,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,
@@ -595,8 +598,9 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
         auto h_group_num = present_key.size(1);
         size_t h_each_group_len = H / h_group_num;
 
-        if (d_scale == 0.0f)
+        if (d_scale == 0.0f) {
             d_scale = 1.0f / sqrt(head_size);
+        }
         auto k_stride_s = present_key.stride(3);
 
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
@@ -614,30 +618,34 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             auto alibi_stride = 0;
             if (alibi_mask) {
                 alibi_ptr = &alibi_mask.at<T>({b, h, 0, 0}, true);
-                if (alibi_mask.size(2) > 1)
+                if (alibi_mask.size(2) > 1) {
                     alibi_stride = alibi_mask.stride(2);
+                }
             }
             uint8_t* attn_mask_ptr = nullptr;
             auto attn_mask_stride = 0;
             if (attention_mask) {
                 attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
-                if (attention_mask.size(2) > 1)
+                if (attention_mask.size(2) > 1) {
                     attn_mask_stride = attention_mask.stride(2) * sizeof(T);
+                }
             }
             uint8_t* cmask_ptr = nullptr;
             auto cmask_stride = 0;
             if (causal_mask) {
                 cmask_ptr = &causal_mask.at<uint8_t>({b, h, 0, 0}, true);
-                if (causal_mask.size(2) > 1)
+                if (causal_mask.size(2) > 1) {
                     cmask_stride = causal_mask.stride(2);
+                }
             }
 
             arm_compute::Tensor qkTensor;
             arm_compute::TensorInfo qkInfo;
 
             bool b_transpose = false;
-            if (k_stride_s == 1)
+            if (k_stride_s == 1) {
                 b_transpose = true;
+            }
             GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose, precision);
 
             arm_compute::Strides qStrides({query.stride_bytes(3), query.stride_bytes(2)});
