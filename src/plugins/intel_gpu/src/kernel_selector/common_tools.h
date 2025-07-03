@@ -10,7 +10,7 @@
 
 #define DO_NOT_USE_THIS_KERNEL(id) do { \
     GPU_DEBUG_TRACE << "Do not use this kernel: " << (id) << std::endl; \
-    return false; } while(0);
+    return false; } while (0);
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
