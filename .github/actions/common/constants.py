@@ -26,6 +26,7 @@ ProductType = Enum('ProductType', {t.upper(): t for t in productTypes})
 
 
 platformKeys = (
+    'almalinux8_x86_64',
     'centos7_x86_64',
     'debian10_armhf',
     'rhel8_x86_64',
@@ -47,4 +48,6 @@ PlatformMapping = {
     PlatformKey.UBUNTU24_X86_64: ProductType.PUBLIC_LINUX_UBUNTU_24_04_X86_64_RELEASE,
     PlatformKey.WINDOWS_X86_64: ProductType.PUBLIC_WINDOWS_VS2022_RELEASE,
     PlatformKey.MACOS_12_6_X86_64: ProductType.PUBLIC_MACOS_X86_64_RELEASE,
+    PlatformKey.CENTOS7_X86_64: ProductType.PUBLIC_MANYLINUX2014_X86_64_RELEASE,
+    PlatformKey.ALMALINUX8_X86_64: ProductType.PUBLIC_MANYLINUX_2_28_X86_64_RELEASE,
 }
