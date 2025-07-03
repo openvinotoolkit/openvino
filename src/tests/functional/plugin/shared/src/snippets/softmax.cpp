@@ -17,7 +17,7 @@ std::string SoftmaxBase::getTestCaseName(testing::TestParamInfo<ov::test::snippe
     std::ostringstream result;
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         const auto& [staticShape, dynShapes] = inputShapes[i];
-        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({staticShape}) << "_";
+        result << "IS[" << i << "]=" << inputShapes[i] << "_";
         result << "TS[" << i << "]=";
         for (const auto& shape : dynShapes) {
             result << "(" << ov::test::utils::vec2str(shape) << ")_";
