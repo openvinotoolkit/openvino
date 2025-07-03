@@ -76,9 +76,10 @@ void Ngram::initSupportedPrimitiveDescriptors() {
         idcesPrecision = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, idcesPrecision}},
-                         {{LayoutType::ncsp, ov::element::f32}},
-                         ref_any);
+    addSupportedPrimDesc(
+        {{PortConfigurator(LayoutType::ncsp, ov::element::f32)}, {PortConfigurator(LayoutType::ncsp, idcesPrecision)}},
+        {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+        ref_any);
 }
 
 void Ngram::prepareParams() {

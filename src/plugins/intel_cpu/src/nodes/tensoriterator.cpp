@@ -205,7 +205,7 @@ public:
 
 class asBoolCheck : public PortChecker {
 public:
-    asBoolCheck(const MemoryPtr& mem) {
+    explicit asBoolCheck(const MemoryPtr& mem) {
         OPENVINO_ASSERT(mem->getDataType() == memory::data_type::u8);
         OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
@@ -220,7 +220,7 @@ public:
 
 class asIntCheck : public PortChecker {
 public:
-    asIntCheck(const MemoryPtr& mem) {
+    explicit asIntCheck(const MemoryPtr& mem) {
         OPENVINO_ASSERT(mem->getDataType() == memory::data_type::s32);
         OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
@@ -235,7 +235,7 @@ public:
 
 class staticValueCheck : public PortChecker {
 public:
-    staticValueCheck(const int& value) : value(value) {}
+    explicit staticValueCheck(const int& value) : value(value) {}
 
     int getStatus() override {
         return value;

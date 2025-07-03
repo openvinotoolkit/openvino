@@ -44,7 +44,7 @@ public:
 class PerfCountRdtscEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountRdtscEnd", "SnippetsOpset", PerfCountEndBase);
-    PerfCountRdtscEnd(const Output<Node>& pc_begin);
+    explicit PerfCountRdtscEnd(const Output<Node>& pc_begin);
     PerfCountRdtscEnd() = default;
     ~PerfCountRdtscEnd() override {
         double avg = 0;

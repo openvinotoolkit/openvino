@@ -102,12 +102,14 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
     }
 
     std::vector<PortConfigurator> inDataConfigurators(
-        {{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}});
+        {PortConfigurator(LayoutType::ncsp, inDataPrecision), PortConfigurator(LayoutType::ncsp, ov::element::i32)});
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX) {
         inDataConfigurators.emplace_back(LayoutType::ncsp, inDataPrecision);
     }
 
-    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, inDataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators,
+                         {PortConfigurator(LayoutType::ncsp, inDataPrecision)},
+                         impl_desc_type::ref_any);
 }
 
 void EmbeddingBagPacked::prepareParams() {

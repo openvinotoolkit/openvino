@@ -76,12 +76,12 @@ void STFT::initSupportedPrimitiveDescriptors() {
         dataPrecision = ov::element::f32;
     }
 
-    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, dataPrecision},
-                                                 {LayoutType::ncsp, dataPrecision},
-                                                 {LayoutType::ncsp, ov::element::i32},
-                                                 {LayoutType::ncsp, ov::element::i32}});
+    std::vector<PortConfigurator> configurators({PortConfigurator(LayoutType::ncsp, dataPrecision),
+                                                 PortConfigurator(LayoutType::ncsp, dataPrecision),
+                                                 PortConfigurator(LayoutType::ncsp, ov::element::i32),
+                                                 PortConfigurator(LayoutType::ncsp, ov::element::i32)});
 
-    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(configurators, {PortConfigurator(LayoutType::ncsp, dataPrecision)}, impl_desc_type::ref_any);
 }
 
 bool STFT::needPrepareParams() const {

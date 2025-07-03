@@ -108,11 +108,11 @@ void OneHot::initSupportedPrimitiveDescriptors() {
                     "has incorrect input precision for the input. Only I32 is supported!");
     output_precision = getOriginalOutputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, input_precision},
-                          {LayoutType::ncsp, input_precision},
-                          {LayoutType::ncsp, output_precision},
-                          {LayoutType::ncsp, output_precision}},
-                         {{LayoutType::ncsp, output_precision}},
+    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, input_precision)},
+                          {PortConfigurator(LayoutType::ncsp, input_precision)},
+                          {PortConfigurator(LayoutType::ncsp, output_precision)},
+                          {PortConfigurator(LayoutType::ncsp, output_precision)}},
+                         {PortConfigurator(LayoutType::ncsp, output_precision)},
                          impl_desc_type::ref_any);
 }
 

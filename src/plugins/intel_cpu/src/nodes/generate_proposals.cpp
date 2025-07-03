@@ -336,13 +336,13 @@ void GenerateProposals::initSupportedPrimitiveDescriptors() {
     }
 
     auto roiNumPrecision = getOriginalOutputPrecisionAtPort(OUTPUT_ROI_NUM);
-    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
-                          {LayoutType::ncsp, ov::element::f32},
-                          {LayoutType::ncsp, ov::element::f32},
-                          {LayoutType::ncsp, ov::element::f32}},
-                         {{LayoutType::ncsp, ov::element::f32},
-                          {LayoutType::ncsp, ov::element::f32},
-                          {LayoutType::ncsp, roiNumPrecision}},
+    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                          {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                          {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                          {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
+                         {{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                          {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                          {PortConfigurator(LayoutType::ncsp, roiNumPrecision)}},
                          impl_desc_type::ref_any);
 }
 

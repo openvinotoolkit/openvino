@@ -2021,9 +2021,10 @@ void TopK::initSupportedPrimitiveDescriptors() {
     };
 
     for (const auto& df : dataFomats) {
-        addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, ov::element::i32}},
-                             {{df.second, dataPrecision}, {df.second, ov::element::i32}},
-                             impl_type);
+        addSupportedPrimDesc(
+            {PortConfigurator(df.first, dataPrecision), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
+            {PortConfigurator(df.second, dataPrecision), PortConfigurator(df.second, ov::element::i32)},
+            impl_type);
     }
 }
 

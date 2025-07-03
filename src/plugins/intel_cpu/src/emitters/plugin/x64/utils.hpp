@@ -35,7 +35,7 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
 // The class emit register spills for the possible call of external binary code
 class EmitABIRegSpills {
 public:
-    EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator_t* h);
+    explicit EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator_t* h);
     ~EmitABIRegSpills();
     [[nodiscard]] size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();

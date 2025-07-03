@@ -69,8 +69,8 @@ void Inverse::initSupportedPrimitiveDescriptors() {
         m_input_precision = ov::element::f32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, m_input_precision, m_const_input}},
-                         {{LayoutType::ncsp, m_input_precision}},
+    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, m_input_precision, m_const_input)},
+                         {PortConfigurator(LayoutType::ncsp, m_input_precision)},
                          ref_any);
 }
 

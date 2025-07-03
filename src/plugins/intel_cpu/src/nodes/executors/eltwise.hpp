@@ -56,9 +56,11 @@ enum class EltwisePostOpType : uint8_t { Undefined, Eltwise, Dnnl };
 
 class EltwisePostOp {
 public:
-    EltwisePostOp(EltwiseAttrs eltwise) : eltwise(eltwise), type(EltwisePostOpType::Eltwise) {}
+    explicit EltwisePostOp(EltwiseAttrs eltwise) : eltwise(eltwise), type(EltwisePostOpType::Eltwise) {}
 
-    EltwisePostOp(dnnl::post_ops dnnlPostOps) : dnnlPostOps(std::move(dnnlPostOps)), type(EltwisePostOpType::Dnnl) {}
+    explicit EltwisePostOp(dnnl::post_ops dnnlPostOps)
+        : dnnlPostOps(std::move(dnnlPostOps)),
+          type(EltwisePostOpType::Dnnl) {}
 
     ~EltwisePostOp() = default;
 
@@ -88,7 +90,7 @@ public:
 
 class EltwiseExecutor {
 public:
-    EltwiseExecutor(ExecutorContext::CPtr context);
+    explicit EltwiseExecutor(ExecutorContext::CPtr context);
     virtual bool init(const EltwiseAttrs& eltwiseAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

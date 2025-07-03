@@ -56,10 +56,10 @@ void StringTensorUnpack::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::string}},
-                         {{LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::u8}},
+    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, ov::element::string)},
+                         {PortConfigurator(LayoutType::ncsp, ov::element::i32),
+                          PortConfigurator(LayoutType::ncsp, ov::element::i32),
+                          PortConfigurator(LayoutType::ncsp, ov::element::u8)},
                          impl_desc_type::ref);
 }
 

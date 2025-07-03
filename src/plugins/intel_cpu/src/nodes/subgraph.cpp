@@ -177,7 +177,7 @@ struct SubgraphShapeInferResultKey {
 };
 
 struct SubgraphShapeInferResult {
-    SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
+    explicit SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
 
     IShapeInfer::Result result;
 };

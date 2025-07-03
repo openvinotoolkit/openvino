@@ -111,7 +111,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
-    addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf, {PortConfigurator(LayoutType::ncsp, dataPrecision)}, impl_desc_type::ref_any);
 }
 
 void CumSum::execute([[maybe_unused]] const dnnl::stream& strm) {

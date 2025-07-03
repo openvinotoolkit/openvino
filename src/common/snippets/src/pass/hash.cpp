@@ -127,7 +127,7 @@ class RTInfoHasher : public ov::AttributeVisitor {
     uint64_t& m_rt_hash;
 
 public:
-    RTInfoHasher(uint64_t& rt_hash) : m_rt_hash(rt_hash) {}
+    explicit RTInfoHasher(uint64_t& rt_hash) : m_rt_hash(rt_hash) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {

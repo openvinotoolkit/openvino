@@ -281,7 +281,7 @@ class ShapeInferBase : public IStaticShapeInfer {
 public:
     using iface_type = IStaticShapeInfer;
 
-    ShapeInferBase(std::shared_ptr<ov::Node> node) : m_node{std::move(node)} {
+    explicit ShapeInferBase(std::shared_ptr<ov::Node> node) : m_node{std::move(node)} {
         static_assert(std::is_same_v<int64_t, Dimension::value_type>, "Rank type not match to input_ranks type.");
         for (size_t i = 0; i < m_node->get_input_size(); ++i) {
             const auto& shape = m_node->get_input_partial_shape(i);
@@ -451,7 +451,7 @@ public:
 /** @brief Base shape inference object implementing the IStaticShapeInfer with padding support. */
 class ShapeInferPaddingBase : public ShapeInferBase {
 public:
-    ShapeInferPaddingBase(std::shared_ptr<ov::Node> node) : ShapeInferBase(std::move(node)) {}
+    explicit ShapeInferPaddingBase(std::shared_ptr<ov::Node> node) : ShapeInferBase(std::move(node)) {}
 
     const ov::CoordinateDiff& get_pads_begin() override {
         return m_pads_begin;

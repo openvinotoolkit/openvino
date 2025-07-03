@@ -83,7 +83,7 @@ std::vector<TRShape> shape_infer(const util::FFTBase* op,
     if (input_shapes.size() == 3 && input_shape.rank().is_static()) {
         if (axes) {
             ov::op::fft::apply_dims_from_sizes(op, output_shape, *axes, ta);
-        } else {
+        } else if (input_shape.size() > 0) {
             for (size_t i = 0; i < input_shape.size() - 1; ++i) {
                 output_shape[i] = ov::Dimension::dynamic();
             }

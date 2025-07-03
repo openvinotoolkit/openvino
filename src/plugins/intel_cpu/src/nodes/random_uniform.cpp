@@ -144,10 +144,10 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
 
     m_output_prc = out_prc;
 
-    addSupportedPrimDesc({{LayoutType::ncsp, shape_prc, m_const_inputs[SHAPE]},
-                          {LayoutType::ncsp, out_prc, m_const_inputs[MIN_VAL]},
-                          {LayoutType::ncsp, out_prc, m_const_inputs[MAX_VAL]}},
-                         {{LayoutType::ncsp, out_prc}},
+    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, shape_prc, m_const_inputs[SHAPE]),
+                          PortConfigurator(LayoutType::ncsp, out_prc, m_const_inputs[MIN_VAL]),
+                          PortConfigurator(LayoutType::ncsp, out_prc, m_const_inputs[MAX_VAL])},
+                         {PortConfigurator(LayoutType::ncsp, out_prc)},
                          ref_any);
 }
 
