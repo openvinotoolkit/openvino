@@ -42,6 +42,8 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -83,6 +85,22 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
         id = config.at(ov::device::id.name()).as<std::string>();
     }
     return id;
+}
+
+void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) const {
+    uint32_t offset = 0;
+    const auto type_info = ov::WeightlessCacheAttribute::get_type_info_static();
+    
+    for (auto node : model->get_ordered_ops()) {
+        if (ov::op::util::is_constant(node)) {
+            auto& rtInfo = node->get_rt_info();
+            const auto element_type = node->get_element_type();
+
+            // offset and size are used as dummy. Offset behaves as a unique key for each constant.
+            rtInfo[type_info] = ov::WeightlessCacheAttribute(1, offset, element_type);
+            offset++;
+        }
+    }
 }
 
 void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const {
@@ -188,6 +206,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
+
+    ov::CacheMode cache_mode = config.get_cache_mode();
+    const std::string_view& weights_path = config.get_weights_path();
+
+    // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && weights_path.empty()) {
+        set_weightless_cache_attributes(model);
+    }
 
     auto transformed_model = clone_and_transform_model(model, config, context);
 
@@ -357,9 +383,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    std::string weights_path = config.get_weights_path();
     if (config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
-        if (!ov::util::validate_weights_path(weights_path) && config.get_model() == nullptr) {
+        const std::string& weights_path = config.get_weights_path();
+
+        if (!ov::util::validate_weights_path(weights_path)) {
+            auto orig_model = config.get_model();
+
+            // This is non IR case, e.g. onnxruntime
+            if (orig_model != nullptr) {
+                set_weightless_cache_attributes(orig_model);
+            }
+        } else {
             return nullptr;
         }
     }
