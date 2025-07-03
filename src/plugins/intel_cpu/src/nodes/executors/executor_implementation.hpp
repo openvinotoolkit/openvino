@@ -23,7 +23,7 @@ public:
     using SupportsExtendedPredicate = std::function<bool(const executor::Config<Attrs>&, const MemoryFormatFilter&)>;
     using SupportsSimplePredicate = std::function<bool(const executor::Config<Attrs>&)>;
 
-    using RequiresFallbackPredicate =
+    using CreateOptimalConfigPredicate =
         std::function<std::optional<executor::Config<Attrs>>(const executor::Config<Attrs>&)>;
     using AcceptsShapePredicate = std::function<bool(const Attrs& attrs, const MemoryArgs& memory)>;
     using CreateFunction =
@@ -34,7 +34,7 @@ public:
                            const OperationType operationType,
                            const ShapeTolerance shapeRelation,
                            SupportsExtendedPredicate supports,
-                           RequiresFallbackPredicate requiresFallback,
+                           CreateOptimalConfigPredicate createOptimalConfig,
                            AcceptsShapePredicate acceptsShape,
                            CreateFunction create)
         : m_name(name),
@@ -42,7 +42,7 @@ public:
           m_operationType(operationType),
           m_shapeRelation(shapeRelation),
           m_supports(std::move(supports)),
-          m_requiresFallback(std::move(requiresFallback)),
+          m_createOptimalConfig(std::move(createOptimalConfig)),
           m_acceptsShape(std::move(acceptsShape)),
           m_create(std::move(create)) {}
 
@@ -51,7 +51,7 @@ public:
                            const OperationType operationType,
                            const ShapeTolerance shapeRelation,
                            SupportsSimplePredicate supports,
-                           RequiresFallbackPredicate requiresFallback,
+                           CreateOptimalConfigPredicate createOptimalConfig,
                            AcceptsShapePredicate acceptsShape,
                            CreateFunction create)
         : m_name(name),
@@ -61,7 +61,7 @@ public:
           m_supports([supports](const executor::Config<Attrs>& config, const MemoryFormatFilter&) {
               return supports(config);
           }),
-          m_requiresFallback(std::move(requiresFallback)),
+          m_createOptimalConfig(std::move(createOptimalConfig)),
           m_acceptsShape(std::move(acceptsShape)),
           m_create(std::move(create)) {}
 
@@ -74,9 +74,10 @@ public:
         return false;
     }
 
-    [[nodiscard]] std::optional<executor::Config<Attrs>> requiresFallback(const executor::Config<Attrs>& config) const {
-        if (m_requiresFallback) {
-            return m_requiresFallback(config);
+    [[nodiscard]] std::optional<executor::Config<Attrs>> createOptimalConfig(
+        const executor::Config<Attrs>& config) const {
+        if (m_createOptimalConfig) {
+            return m_createOptimalConfig(config);
         }
 
         return {};
@@ -123,7 +124,7 @@ private:
     OperationType m_operationType;
     ShapeTolerance m_shapeRelation;
     SupportsExtendedPredicate m_supports;
-    RequiresFallbackPredicate m_requiresFallback;
+    CreateOptimalConfigPredicate m_createOptimalConfig;
     AcceptsShapePredicate m_acceptsShape;
     CreateFunction m_create;
 };
