@@ -4,12 +4,9 @@
 
 #include "interpolate.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
@@ -21,20 +18,13 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -59,6 +49,20 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 #include "utils/precision_support.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <common/c_types_map.hpp>
+#    include <unordered_map>
+
+#    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_emitter.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace dnnl;
 
@@ -3605,15 +3609,16 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
 
     // pillowScale: e.g. 2.0 means down sample 2 times
     auto generateArgs = [&](float pillowScale) -> filterArgs {
-        filterArgs args;
         float scaleClip = pillowScale < 1.0F ? 1.0F : pillowScale;
-        args.ScaleClipReciprocal = 1.0F / scaleClip;
-        args.filterRadius = (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
-                                                                       : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip;
-        args.filterLen = static_cast<int>(std::ceil(args.filterRadius) * 2 + 1);
-        args.weightGen = (mode == InterpolateMode::bilinear_pillow)
-                             ? ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs
-                             : ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs;
+        filterArgs args{
+            (mode == InterpolateMode::bilinear_pillow)
+                ? ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs
+                : ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs,
+            1.0F / scaleClip,
+            (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
+                                                       : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip,
+            static_cast<float>(static_cast<int>((std::ceil(args.filterRadius) * 2) + 1)),
+        };
         return args;
     };
 
@@ -4337,7 +4342,7 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
                                                             const VectorDims& srcDims,
                                                             const VectorDims& dstDims,
                                                             const std::vector<float>& dataScales,
-                                                            const dnnl::primitive_attr& attr)
+                                                            [[maybe_unused]] const dnnl::primitive_attr& attr)
     : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;

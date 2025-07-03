@@ -31,15 +31,18 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/custom/scaled_attn.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
+
+#ifdef OPENVINO_ARCH_X86_64
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#endif
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
@@ -247,13 +250,13 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     using dt = dnnl::memory::data_type;
     size_t m_threads_num = 0LU;
     struct brgemmKey {
-        size_t M;
-        size_t N;
-        size_t K;
-        size_t lda;
-        size_t ldb;
-        size_t ldc;
-        bool b_transposed;
+        size_t M = 0UL;
+        size_t N = 0UL;
+        size_t K = 0UL;
+        size_t lda = 0UL;
+        size_t ldb = 0UL;
+        size_t ldc = 0UL;
+        bool b_transposed = false;
         ov::element::Type in_type;
         [[nodiscard]] size_t hash() const {
             using namespace dnnl::impl;

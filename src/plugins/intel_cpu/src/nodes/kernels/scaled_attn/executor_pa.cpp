@@ -67,11 +67,12 @@ using namespace ov::intel_cpu;
 
 #    endif
 
-template <typename T,
-          ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> ||
-                            std::is_same_v<T, float>)&&(SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
-                           bool> = true>
+template <
+    typename T,
+    ov::element::Type_t SRC_PREC,
+    std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> || std::is_same_v<T, float>) &&
+                         (SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
+                     bool> = true>
 static void attn_acc_value_block(float* out,
                                  const float* weight,
                                  T* v,
@@ -2212,15 +2213,15 @@ struct ScoreAggregationInfo {
 template <typename DATA_TYPE, ov::element::Type_t KEY_PREC, ov::element::Type_t VALUE_PREC>
 struct MHAHelper {
     // initialize once
-    size_t H;
-    size_t S;
-    size_t SV;
-    size_t Hk;
-    size_t _h_each_group_len;
-    size_t _block_size;
-    size_t _nthr;
-    size_t _sliding_window;
-    float _d_scale;
+    size_t H = 0UL;
+    size_t S = 0UL;
+    size_t SV = 0UL;
+    size_t Hk = 0UL;
+    size_t _h_each_group_len = 0UL;
+    size_t _block_size = 0UL;
+    size_t _nthr = 0UL;
+    size_t _sliding_window = 0UL;
+    float _d_scale = 0.0F;
     size_t _key_group_size = 0;
     size_t _value_group_size = 0;
     bool _quant_key_bychannel = false;
@@ -3111,9 +3112,9 @@ struct MHA {
     private:
         std::vector<AttnWorkItem> attn_items;
         std::vector<ReorderWorkItem> reorder_items;
-        int32_t max_kv_len_in_reorder;  // max kv len between first tokens
-        int32_t max_batch_in_reorder;
-        int32_t total_kv_len;
+        int32_t max_kv_len_in_reorder = 0;  // max kv len between first tokens
+        int32_t max_batch_in_reorder = 0;
+        int32_t total_kv_len = 0;
 
     public:
         void reset([[maybe_unused]] const PlainTensor& query,

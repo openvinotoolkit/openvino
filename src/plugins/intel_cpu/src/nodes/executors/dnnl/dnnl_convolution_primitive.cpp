@@ -288,32 +288,38 @@ static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttribu
 
     struct PrimitiveDescWithPriority {
         dnnl::primitive_desc prim_desc;
-        size_t attrId;
-        size_t priority;
+        size_t attrId = 0UL;
+        size_t priority = 0UL;
     };
 
     PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), 0, implPriorities.size()};
+    const bool first_match = implPriorities.front() == impl_desc_type::unknown;
 
     // try all the provided attributes and select the one which results in a primitive desc with the highest priority
     for (size_t attrId = 0; attrId < attrs.size(); attrId++) {
         const auto& attr = attrs[attrId];
 
-        for (size_t priorityId = 0; priorityId < implPriorities.size(); priorityId++) {
-            const auto preferredImplType = implPriorities[priorityId];
-            // the only way to fully reset primitive_desc after iterating over the implementations is to re-create it
-            auto cur_desc = createPrimitiveDescriptor(attr);
-            const bool found = DnnlExtensionUtils::find_implementation(cur_desc, preferredImplType);
+        auto cur_desc = createPrimitiveDescriptor(attr);
 
-            const size_t highestPriority = prim_desc_w_priority.priority;
-            if (found && priorityId < highestPriority) {
-                prim_desc_w_priority = {cur_desc, attrId, priorityId};
-            }
-        }
+        DnnlExtensionUtils::for_each_implementation(
+            cur_desc,
+            first_match,
+            [&](impl_desc_type implType) {  // is acceptable implementation
+                return contains(implPriorities, implType);
+            },
+            [&](dnnl::primitive_desc& desc) {  // is implementation with highest priority
+                const impl_desc_type descImplType = parse_impl_name(desc.impl_info_str());
+                const auto it = std::find(implPriorities.begin(), implPriorities.end(), descImplType);
+                const size_t priorityId = std::distance(implPriorities.begin(), it);
+                const size_t highestPriority = prim_desc_w_priority.priority;
+                if (priorityId < highestPriority) {
+                    auto desc_copy = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get(true)));
+                    prim_desc_w_priority = {desc_copy, attrId, priorityId};
+                }
+            });
     }
 
-    auto prim_desc = prim_desc_w_priority.prim_desc;
-
-    return {prim_desc, prim_desc_w_priority.attrId};
+    return {prim_desc_w_priority.prim_desc, prim_desc_w_priority.attrId};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
@@ -893,7 +899,7 @@ bool DnnlConvolutionPrimitive::isJitPlanarAvailable(const ConvConfig& config) {
     const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
                             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !config.attrs.isGraphQuantized;
 
-    const auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
+    const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
     return (IC == 1 && groupOC * groupNum == 1) && isAvx2FP32;
 }
@@ -931,7 +937,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
     auto outDims = config.descs.at(ARG_DST)->getShape().getDims();
     auto ndims = inpDims.size();
 
-    auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
+    const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
     bool isDepthWise = config.attrs.isGrouped && 1 == groupOC && 1 == groupIC;
 

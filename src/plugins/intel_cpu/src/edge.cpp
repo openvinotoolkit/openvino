@@ -11,6 +11,7 @@
 #include <new>
 #include <ostream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -511,8 +512,8 @@ void Edge::validate() {
         return;
     }
 
-    getParent();
-    getChild();
+    std::ignore = getParent();
+    std::ignore = getChild();
 
     if (status != Status::Allocated || !memoryPtr) {
         OPENVINO_THROW("Error memory is not allocated for edge: ", *this);
@@ -528,7 +529,7 @@ EdgePtr Edge::getSharedEdge() const {
     return memoryFromEdgePtr;
 }
 
-EdgePtr Edge::getSharedEdge(std::nothrow_t /*unused*/) const {
+EdgePtr Edge::getSharedEdge([[maybe_unused]] std::nothrow_t nothrow_tag) const {
     return memoryFromEdge.lock();
 }
 
@@ -673,12 +674,9 @@ NodePtr Edge::modifiedInPlace() const {
 }
 
 std::ostream& operator<<(std::ostream& os, const Edge& edge) {
-    return os << "(" << edge.getParent()->getName() << ")"
-              << "[" << edge.getInputNum() << "] "
-              << "<->"
-              << "(" << edge.getChild()->getName() << ")"
-              << "[" << edge.getOutputNum() << "]"
-              << ":" << Edge::statusToString(edge.getStatus());
+    return os << "(" << edge.getParent()->getName() << ")" << "[" << edge.getInputNum() << "] " << "<->" << "("
+              << edge.getChild()->getName() << ")" << "[" << edge.getOutputNum() << "]" << ":"
+              << Edge::statusToString(edge.getStatus());
 }
 
 }  // namespace ov::intel_cpu

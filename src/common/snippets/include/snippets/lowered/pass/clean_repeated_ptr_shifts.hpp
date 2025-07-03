@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface CleanRepeatedDataPointerShifts
@@ -21,18 +21,17 @@ namespace pass {
  *              This condition should be removed when Buffers stop being inplace by default.
  * @ingroup snippets
  */
-class CleanRepeatedDataPointerShifts: public RangedPass {
+class CleanRepeatedDataPointerShifts : public RangedPass {
 public:
     OPENVINO_RTTI("CleanRepeatedDataPointerShifts", "", RangedPass)
     CleanRepeatedDataPointerShifts() = default;
 
-    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+    bool run(lowered::LinearIR& linear_ir,
+             lowered::LinearIR::constExprIt begin,
+             lowered::LinearIR::constExprIt end) override;
 
 private:
-    bool reuse_increments(const LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr);
+    static bool reuse_increments(const LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

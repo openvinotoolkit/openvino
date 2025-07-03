@@ -46,7 +46,7 @@ StaticShape::StaticShapeAdapter() = default;
 StaticShape::StaticShapeAdapter(const TDims& dims) : m_dims{dims} {}
 StaticShape::StaticShapeAdapter(TDims&& dims) noexcept : m_dims{std::move(dims)} {}
 StaticShape::StaticShapeAdapter(const StaticShape& other) : StaticShapeAdapter(*other) {}
-StaticShape::StaticShapeAdapter(const ov::PartialShape& /*unused*/) {
+StaticShape::StaticShapeAdapter([[maybe_unused]] const ov::PartialShape& shape) {
     partial_shape_convert_throw();
 }
 
@@ -143,7 +143,7 @@ bool StaticShape::broadcast_merge_into(StaticShape& dst,
 
 //-- Shape as reference
 StaticShapeRef::StaticShapeAdapter(const StaticShape& shape) : m_dims{&(*shape)} {}
-StaticShapeRef::StaticShapeAdapter(const ov::PartialShape& /*unused*/) {
+StaticShapeRef::StaticShapeAdapter([[maybe_unused]] const ov::PartialShape& shape) {
     partial_shape_convert_throw();
 }
 

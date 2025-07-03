@@ -105,6 +105,8 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "U64";
     case ov::element::Type_t::u1:
         return "BIN";
+    case ov::element::Type_t::u2:
+        return "U2";
     case ov::element::Type_t::boolean:
         return "BOOL";
     case ov::element::Type_t::dynamic:
@@ -551,7 +553,7 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
 }
 
 bool DriverCompilerAdapter::is_option_supported(std::string optname) const {
-    return _zeGraphExt->isOptionSupported(optname);
+    return _zeGraphExt->isOptionSupported(std::move(optname));
 }
 
 }  // namespace intel_npu

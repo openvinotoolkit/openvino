@@ -11,7 +11,6 @@
 #include <string>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
 #include "graph_context.h"
 #include "kernels/x64/rope_kernel.hpp"
@@ -29,6 +28,10 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
 
 using namespace ov::intel_cpu::kernel;
 
@@ -91,11 +94,7 @@ static void execJitKernel([[maybe_unused]] const std::shared_ptr<kernel::JitKern
                           [[maybe_unused]] const float* sin) {
 #if defined(OPENVINO_ARCH_X86_64)
 
-    jit_rotary_call_args call_args;
-    call_args.src = src;
-    call_args.cos = cos;
-    call_args.sin = sin;
-    call_args.dst = dst;
+    jit_rotary_call_args call_args{src, cos, sin, dst};
     (*ker)(&call_args);
 
 #endif  // OPENVINO_ARCH_X86_64

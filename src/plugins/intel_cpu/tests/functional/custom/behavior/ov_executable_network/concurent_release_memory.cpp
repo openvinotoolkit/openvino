@@ -17,7 +17,7 @@ namespace ov {
 namespace test {
 // Openvino extension operation that sleeps for X us in its evaluate method
 namespace {
-enum class TestSteps { INIT, ENTER_EVALUATE, RUN_EVALUATE };
+enum class TestSteps : uint8_t { INIT, ENTER_EVALUATE, RUN_EVALUATE };
 }  // namespace
 
 class SleepCustomOp : public ov::op::Op {

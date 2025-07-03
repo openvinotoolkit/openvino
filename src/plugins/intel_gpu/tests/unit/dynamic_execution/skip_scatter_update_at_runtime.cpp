@@ -87,15 +87,15 @@ TEST_P(skip_scatter_update_at_runtime_test, runtime_skip) {
         rank                    = input_layout_static.get_partial_shape().size();
         input_layout_dynamic    = layout {ov::PartialShape::dynamic(rank), data_types::f16, format::get_default_format(rank)};
 
-        idx1_nonzero_layout     = layout{ov::PartialShape{12,1}, data_types::f16, format::bfyx};
-        idx1_zero_layout        = layout{ov::PartialShape{0,1}, data_types::f16, format::bfyx};
+        idx1_nonzero_layout     = layout{ov::PartialShape{12,1}, data_types::i32, format::bfyx};
+        idx1_zero_layout        = layout{ov::PartialShape{0,1}, data_types::i32, format::bfyx};
         update1_nonzero_layout  = layout{ov::PartialShape{12}, data_types::f16, format::bfyx};
         update1_zero_layout     = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
         rank                    = idx1_nonzero_layout.get_partial_shape().size();
-        auto idx_layout_dynamic = layout {ov::PartialShape::dynamic(rank), data_types::f16, format::get_default_format(rank)};
+        auto idx_layout_dynamic = layout {ov::PartialShape::dynamic(rank), data_types::i32, format::get_default_format(rank)};
 
-        idx2_nonzero_layout     = layout{ov::PartialShape{12,1}, data_types::f16, format::bfyx};
-        idx2_zero_layout        = layout{ov::PartialShape{0,1}, data_types::f16, format::bfyx};
+        idx2_nonzero_layout     = layout{ov::PartialShape{12,1}, data_types::i32, format::bfyx};
+        idx2_zero_layout        = layout{ov::PartialShape{0,1}, data_types::i32, format::bfyx};
         update2_nonzero_layout  = layout{ov::PartialShape{12}, data_types::f16, format::bfyx};
         update2_zero_layout     = layout{ov::PartialShape{0}, data_types::f16, format::bfyx};
 
