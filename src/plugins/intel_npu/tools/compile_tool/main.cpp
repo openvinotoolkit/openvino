@@ -18,13 +18,6 @@
 
 #include "tools_helpers.hpp"
 
-#include "openvino/opsets/opset11.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset8.hpp"
-
-#include "openvino/pass/serialize.hpp"
-#include "openvino/pass/manager.hpp"
-
 static constexpr char help_message[] = "Optional. Print the usage message.";
 
 static constexpr char model_message[] = "Required. Path to the XML model.";
@@ -429,79 +422,6 @@ std::string getFileNameFromPath(const std::string& path,
 
 using TimeDiff = std::chrono::milliseconds;
 
-std::shared_ptr<ov::Model> getFunction() {
-    const std::vector<size_t> inputShape = {1, 1, 128};
-    const ov::element::Type_t ngPrc = ov::element::Type_t::f32;
-
-    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ngPrc, ov::Shape(inputShape))};
-    params.front()->set_friendly_name("Parameter_1");
-    params.front()->get_output_tensor(0).set_names({"Parameter_1"});
-
-    auto relu = std::make_shared<ov::op::v0::Relu>(params[0]);
-    relu->set_friendly_name("Relu_2");
-    relu->get_output_tensor(0).set_names({"relu_output"});
-
-    auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape::dynamic(), ov::element::dynamic, "my_var"});
-
-    auto read_value = std::make_shared<ov::op::v6::ReadValue>(relu->output(0), variable);
-    read_value->set_friendly_name("ReadValue_3");
-    read_value->get_output_tensor(0).set_names({"readvalue_output"});
-
-    auto assign = std::make_shared<ov::op::v6::Assign>(read_value->output(0), variable);
-    assign->set_friendly_name("Assign_4");
-    assign->get_output_tensor(0).set_names({"assign_output"});
-
-    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(assign);
-    squeeze->set_friendly_name("Squeeze_5");
-    squeeze->get_output_tensor(0).set_names({"Output_5"});
-
-    auto result = std::make_shared<ov::op::v0::Result>(squeeze);
-    result->set_friendly_name("Result_6");
-
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, params, "custom_model");
-}
-
-std::shared_ptr<ov::Model> getFunction2_addabc2() {
-    ov::ResultVector res;
-    ov::ParameterVector params;
-    ov::element::Type type = ov::element::f32;
-    auto shape = ov::Shape{1};
-    // const ov::Layout& layout = ov::Layout("N");;
-    auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
-    data1->set_friendly_name("inputA");
-    data1->get_output_tensor(0).set_names({"tensor_inputA"});
-    // data1->set_layout(layout);
-    std::cout << "------0-----" << std::endl;
-    auto constant = ov::opset8::Constant::create(type, {1}, {1});
-    auto op1 = std::make_shared<ov::op::v1::Add>(data1, constant);
-    op1->set_friendly_name("AddOP1");
-    std::cout << "------1-----" << std::endl;
-
-    auto data2 = std::make_shared<ov::op::v0::Parameter>(type, shape);
-    data2->set_friendly_name("inputC");
-    data2->get_output_tensor(0).set_names({"tensor_inputC"});
-    // data2->set_layout(layout);
-    std::cout << "------2-----" << std::endl;
-    auto op2 = std::make_shared<ov::op::v1::Add>(op1, data2);
-    op2->set_friendly_name("AddOP2");
-    std::cout << "------3-----" << std::endl;
-
-    auto res1 = std::make_shared<ov::op::v0::Result>(op2);
-    res1->set_friendly_name("Result1");
-    res1->get_output_tensor(0).set_names({"tensor_output1"});
-    params.push_back(data1);
-    res.push_back(res1);
-    std::cout << "------4-----" << std::endl;
-    auto res2 = std::make_shared<ov::op::v0::Result>(op2);
-    res2->set_friendly_name("Result2");
-    res2->get_output_tensor(0).set_names({"tensor_output2"});
-    params.push_back(data2);
-    res.push_back(res2);
-
-    return std::make_shared<ov::Model>(res, params);
-}
-
 int main(int argc, char* argv[]) {
     try {
         // Steps in compiling
@@ -567,53 +487,6 @@ int main(int argc, char* argv[]) {
 
         std::cout << "Compiling model" << std::endl;
         auto compiledModel = core.compile_model(model, FLAGS_d, {configs.begin(), configs.end()});
-        std::cout << "[ INFO ] serialize mode" << std::endl;
-        const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-        ov::pass::Manager manager(passConfig);
-        std::string modelName = model->get_friendly_name();
-        std::string xmlName = modelName + "_serialized.xml";
-        std::string binName = modelName + "_serialized.bin";
-        std::cout << "graph size:" << model->get_graph_size();
-        manager.register_pass<ov::pass::Serialize>(xmlName, binName);
-        manager.run_passes(model);
-        std::cout << "[ INFO ]read model file" << std::endl;
-        model = core.read_model(xmlName);
-        std::cout << "[ INFO ] end serialize mode" << std::endl;
-        std::cout << "[ INFO ]done" << std::endl;
-
-        std::cout << "Compiling model1" << std::endl;
-        auto model1 = getFunction();
-        auto compiledModel1 = core.compile_model(model1, FLAGS_d, {configs.begin(), configs.end()});
-        std::cout << "[ INFO ] serialize mode1" << std::endl;
-        const auto passConfig1 = std::make_shared<ov::pass::PassConfig>();
-        ov::pass::Manager manager1(passConfig1);
-        std::string modelName1 = model1->get_friendly_name();
-        std::string xmlName1 = modelName1 + "_serialized1.xml";
-        std::string binName1 = modelName1 + "_serialized1.bin";
-        std::cout << "graph size:" << model1->get_graph_size();
-        manager1.register_pass<ov::pass::Serialize>(xmlName1, binName1);
-        manager1.run_passes(model1);
-        std::cout << "[ INFO ]read model file1" << std::endl;
-        model1 = core.read_model(xmlName1);
-        std::cout << "[ INFO ]done1" << std::endl;
-
-
-        std::cout << "Compiling model2" << std::endl;
-        auto model2 = getFunction2_addabc2();
-        auto compiledMode2 = core.compile_model(model2, FLAGS_d, {configs.begin(), configs.end()});
-        std::cout << "[ INFO ] serialize mode2" << std::endl;
-        const auto passConfig2 = std::make_shared<ov::pass::PassConfig>();
-        ov::pass::Manager manager2(passConfig2);
-        std::string modelName2 = model2->get_friendly_name();
-        std::string xmlName2 = modelName2 + "_serialized2.xml";
-        std::string binName2 = modelName2 + "_serialized2.bin";
-        std::cout << "graph size:" << model2->get_graph_size();
-        manager2.register_pass<ov::pass::Serialize>(xmlName2, binName2);
-        manager2.run_passes(model2);
-        std::cout << "[ INFO ]read model file2" << std::endl;
-        model2 = core.read_model(xmlName2);
-        std::cout << "[ INFO ]done2" << std::endl;
-        std::cout << "Compiling model Done" << std::endl;
         loadNetworkTimeElapsed =
             std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
         std::string outputName = FLAGS_o;
