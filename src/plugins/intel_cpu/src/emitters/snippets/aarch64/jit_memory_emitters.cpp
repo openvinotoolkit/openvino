@@ -25,8 +25,6 @@
 
 using namespace Xbyak_aarch64;
 
-#define GET_OFF(field) offsetof(jit_snippets_call_args, field)
-
 namespace ov::intel_cpu::aarch64 {
 
 using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
@@ -159,13 +157,6 @@ void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std
     load_emitter->emit_code(in, out, aux_vec_idxs, get_available_aux_gprs());
 }
 
-template <cpu_isa_t isa>
-void jit_load_memory_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(load_emitter != nullptr, "Load CPU emitter isn't initialized!");
-
-    load_emitter->emit_code(in, out, aux_vec_idxs, aux_gpr_idxs);
-}
-
 void jit_load_memory_emitter::emit_data() const {
     load_emitter->emit_data();
 }
@@ -216,13 +207,6 @@ jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t i
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(store_emitter != nullptr, "Store CPU emitter isn't initialized!");
     store_emitter->emit_code(in, out, aux_vec_idxs, get_available_aux_gprs());
-}
-
-template <cpu_isa_t isa>
-void jit_store_memory_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(store_emitter != nullptr, "Store CPU emitter isn't initialized!");
-
-    store_emitter->emit_code(in, out, aux_vec_idxs, aux_gpr_idxs);
 }
 
 void jit_store_memory_emitter::emit_data() const {

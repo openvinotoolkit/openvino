@@ -13,11 +13,11 @@ namespace snippets {
 
 
 typedef std::tuple<
-        std::pair<InputShape, InputShape>,// Input Shapes
-        int,                              // Axis
-        size_t,                           // Expected num nodes
-        size_t,                           // Expected num subgraphs
-        std::string                       // Target Device
+        std::vector<InputShape>, // Input Shapes
+        int,                     // Axis
+        size_t,                  // Expected num nodes
+        size_t,                  // Expected num subgraphs
+        std::string              // Target Device
 > SoftmaxParams;
 
 class SoftmaxBase : public testing::WithParamInterface<ov::test::snippets::SoftmaxParams>,

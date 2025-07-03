@@ -15,15 +15,13 @@ std::string SoftmaxBase::getTestCaseName(testing::TestParamInfo<ov::test::snippe
     const auto& [inputShapes, axis, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
-    result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes.first.first}) << "_";
-    result << "TS[0]=";
-    for (const auto& shape : inputShapes.first.second) {
-        result << "(" << ov::test::utils::vec2str(shape) << ")_";
-    }
-    result << "IS[1]=" << ov::test::utils::partialShape2str({inputShapes.second.first}) << "_";
-    result << "TS[1]=";
-    for (const auto& shape : inputShapes.second.second) {
-        result << "(" << ov::test::utils::vec2str(shape) << ")_";
+    for (size_t i = 0; i < inputShapes.size(); ++i) {
+        const auto& [staticShape, dynShapes] = inputShapes[i];
+        result << "IS[" << i << "]=" << ov::test::utils::partialShape2str({staticShape}) << "_";
+        result << "TS[" << i << "]=";
+        for (const auto& shape : dynShapes) {
+            result << "(" << ov::test::utils::vec2str(shape) << ")_";
+        }
     }
     result << "Axis=" << axis << "_";
     result << "#N=" << num_nodes << "_";
@@ -37,11 +35,7 @@ void SoftmaxBase::SetUp() {
     ref_num_nodes = ref_num_nodes_tmp;
     ref_num_subgraphs = ref_num_subgraphs_tmp;
     targetDevice = targetDevice_tmp;
-    if (dynamic_cast<Softmax*>(this)) {
-        init_input_shapes({inputShapes.first});
-    } else {
-        init_input_shapes({inputShapes.first, inputShapes.second});
-    }
+    init_input_shapes(inputShapes);
 
     auto f = get_subgraph(inputDynamicShapes, axis);
     function = f->getOriginal();
