@@ -4,9 +4,23 @@
 
 #include "set_tpp_leading_dim.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/op/brgemm.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"

@@ -49,7 +49,7 @@ public:
     }
 
     layout get_indices_layout(scatter_nd_update_test_params& p) {
-        return layout{ p.data_type, get_default_format(p.indices_rank), p.indices_shape };
+        return layout{ data_types::i32, get_default_format(p.indices_rank), p.indices_shape };
     }
 
     layout get_updates_layout(scatter_nd_update_test_params& p) {
@@ -100,14 +100,11 @@ public:
     cldnn::memory::ptr get_indices_mem(scatter_nd_update_test_params& p) {
         auto indices_layout = get_indices_layout(p);
         auto prim = engine.allocate_memory(indices_layout);
-        if (indices_layout.data_type == data_types::f32) {
-            VF<float> rnd_vec = generate_unique_indices<float>(p);
+        if (indices_layout.data_type == data_types::i32) {
+            VF<int32_t> rnd_vec = generate_unique_indices<int32_t>(p);
             set_values(prim, rnd_vec);
-        } else if (indices_layout.data_type == data_types::f16) {
-            VF<ov::float16> rnd_vec = generate_unique_indices<ov::float16>(p);
-            set_values(prim, rnd_vec);
-        } else if (indices_layout.data_type == data_types::i8) {
-            VF<int8_t> rnd_vec = generate_unique_indices<int8_t>(p);
+        } else if (indices_layout.data_type == data_types::i64) {
+            VF<int64_t> rnd_vec = generate_unique_indices<int64_t>(p);
             set_values(prim, rnd_vec);
         } else {
             throw std::runtime_error("Unsupported data type for indicies of scatter_nd_update primitive");

@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -36,7 +46,7 @@ private:
     template <typename Vmm>
     void perform_op(const Vmm& vmm1, const Vmm& vmm2, const Vmm& vmm3) const;
 
-    enum class OpType { max, sum };
+    enum class OpType : uint8_t { max, sum };
     OpType m_op_type = OpType::max;
 };
 

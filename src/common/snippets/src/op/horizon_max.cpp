@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
 #include "snippets/op/horizon_max.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/itt.hpp"
+
+namespace ov::snippets::op {
 
 HorizonMax::HorizonMax(const Output<Node>& x) : Op({x}) {
     constructor_validate_and_infer_types();
@@ -28,6 +33,4 @@ void HorizonMax::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), new_shape);
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

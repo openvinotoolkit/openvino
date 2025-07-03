@@ -2,22 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
-#include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+#    include "snippets/itt.hpp"
+#    include "snippets/lowered/linear_ir.hpp"
+#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+#    include "snippets/utils/utils.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/pass.hpp"
-#include "snippets/lowered/pass/propagate_subtensors.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/utils/utils.hpp"
-
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
                                  snippets::lowered::LinearIR::constExprIt begin,
@@ -38,8 +43,9 @@ bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& brgemm_expr = *expr_it;
         const auto brgemm = ov::as_type_ptr<ov::snippets::op::Brgemm>(brgemm_expr->get_node());
-        if (!brgemm)
+        if (!brgemm) {
             continue;
+        }
         // Collect brgemm parameters
         auto params = collect_params(brgemm_expr, linear_ir);
 
@@ -48,7 +54,8 @@ bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
         const auto empty_inputs = std::vector<PortConnectorPtr>{};
         linear_ir.insert_node(perf_count_begin, empty_inputs, expr_it->get()->get_loop_ids(), false, expr_it);
 
-        const auto& perf_count_end = std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0), dumpers, params);
+        const auto& perf_count_end =
+            std::make_shared<snippets::op::PerfCountEnd>(perf_count_begin->output(0), dumpers, params);
         perf_count_end->set_friendly_name(std::string("PerfCountVerbose_End_") + std::to_string(seq_number));
 
         linear_ir.insert_node(perf_count_end, empty_inputs, expr_it->get()->get_loop_ids(), false, next(expr_it));
@@ -59,7 +66,7 @@ bool InsertPerfCountVerbose::run(snippets::lowered::LinearIR& linear_ir,
 }
 
 std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr,
-                                                   const snippets::lowered::LinearIR& linear_ir) {
+                                                   const snippets::lowered::LinearIR& /*linear_ir*/) {
     const auto brgemm = ov::as_type_ptr<ov::snippets::op::Brgemm>(brgemm_expr->get_node());
     OPENVINO_ASSERT(brgemm, "Brgemm is nullptr!");
     std::stringstream ss;
@@ -85,7 +92,7 @@ std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::
         ss << utils::tensor2str(shape, " ");
         ss << ';';
     }
-    ss.seekp(-1, ss.cur);
+    ss.seekp(-1, std::stringstream::cur);
     ss << ',';
     for (size_t i = 0; i < brgemm->outputs().size(); ++i) {
         const auto& port_desc = brgemm_expr->get_output_port_descriptor(i);
@@ -93,7 +100,7 @@ std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::
         ss << utils::tensor2str(shape, " ");
         ss << ';';
     }
-    ss.seekp(-1, ss.cur);
+    ss.seekp(-1, std::stringstream::cur);
     ss << ',';
     for (size_t i = 0; i < brgemm->inputs().size(); ++i) {
         const auto& port_desc = brgemm_expr->get_input_port_descriptor(i);
@@ -149,9 +156,6 @@ std::string InsertPerfCountVerbose::collect_params(const ov::snippets::lowered::
     return ss.str();
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass
 
-#endif // SNIPPETS_DEBUG_CAPS
+#endif  // SNIPPETS_DEBUG_CAPS

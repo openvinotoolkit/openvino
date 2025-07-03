@@ -17,34 +17,22 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizeTransformationParam testParams;
-    bool isConvertOnConstants;
-    std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = obj.param;
-
+    auto [netPrecision, inputShape, device, testParams, isConvertOnConstants] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" <<
            isConvertOnConstants << "_" << testParams.fakequantize;
     return result.str();
 }
 
 void FakeQuantizeTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizeTransformationParam testParams;
-    bool isConvertOnConstants;
-    std::tie(netPrecision, inputShape, targetDevice, params, testParams, isConvertOnConstants) = this->GetParam();
+    auto [netPrecision, inputShape, device, testParams, isConvertOnConstants] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
     testParams.fakequantize.addConverts = isConvertOnConstants;
 
     function = ov::builder::subgraph::FakeQuantizeFunction::getOriginal(
-        params,
         netPrecision,
         inputShape,
         testParams.fakequantize,
@@ -56,11 +44,11 @@ void FakeQuantizeTransformation::SetUp() {
 void FakeQuantizeTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
-        expectedPrecision = "FP16";
+    if (expectedPrecision == "f32" && std::get<0>(GetParam()) == ov::element::f16) {
+        expectedPrecision = "f16";
     }
 
     EXPECT_EQ(actualPrecision, expectedPrecision);

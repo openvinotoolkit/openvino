@@ -12,7 +12,6 @@
     #include "impls/ocl_v2/group_normalization_fsv16.hpp"
 #endif
 
-
 namespace ov::intel_gpu {
 
 using namespace cldnn;

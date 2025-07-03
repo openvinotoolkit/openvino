@@ -4,6 +4,12 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/utils.hpp>
+#include <cstddef>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
 
@@ -29,9 +35,9 @@ struct jit_args_fft {
 };
 
 struct jit_uni_dft_kernel {
-    void (*ker_)(const jit_args_dft*){nullptr};
+    void (*ker_)(const jit_args_dft*) = nullptr;
 
-    void operator()(const jit_args_dft* args) {
+    void operator()(const jit_args_dft* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -43,9 +49,9 @@ struct jit_uni_dft_kernel {
 };
 
 struct jit_uni_fft_kernel {
-    void (*ker_)(const jit_args_fft*){nullptr};
+    void (*ker_)(const jit_args_fft*) = nullptr;
 
-    void operator()(const jit_args_fft* args) {
+    void operator()(const jit_args_fft* args) const {
         assert(ker_);
         ker_(args);
     }

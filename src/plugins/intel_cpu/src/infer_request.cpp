@@ -4,19 +4,48 @@
 
 #include "infer_request.h"
 
+#include <cstddef>
+#include <exception>
+#include <functional>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <string_view>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 #include "async_infer_request.h"
+#include "compiled_model.h"
+#include "cpu_memory.h"
+#include "cpu_tensor.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "edge.h"
 #include "itt.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
-#include "nodes/memory_state_base.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "proxy_mem_blk.h"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 
 using OvString = ov::element_type_traits<ov::element::string>::value_type;
 
@@ -164,19 +193,19 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
     for (auto& it : m_input_external_ptr) {
         auto inputNodePtr = graph.getInputNodeByIndex(it.first);
         OPENVINO_ASSERT(inputNodePtr, "Cannot find input tensor with index: ", it.first);
-        if (inputNodePtr->getDstDataAtPort(0) == static_cast<void*>(it.second->data())) {
+        if (inputNodePtr->getDstDataAtPort(0) == it.second->data()) {
             continue;
         }
-        auto& childEdges = inputNodePtr->getChildEdges();
+        const auto& childEdges = inputNodePtr->getChildEdges();
         // Perform checks that the user's memory will not be modified
         bool canBeInPlace = true;
-        for (auto& childEdge : childEdges) {
+        for (const auto& childEdge : childEdges) {
             auto ce = childEdge.lock();
             if (!ce) {
                 OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
             }
 
-            auto& child = ce->getChild();
+            const auto& child = ce->getChild();
 
             if (child->isConstant()) {
                 canBeInPlace = false;
@@ -201,7 +230,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
             }
         }
         if (canBeInPlace) {
-            for (auto& edge : childEdges) {
+            for (const auto& edge : childEdges) {
                 auto e = edge.lock();
                 if (!e) {
                     OPENVINO_THROW("Node ", inputNodePtr->getName(), " contains empty child edge");
@@ -216,7 +245,7 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
         OPENVINO_ASSERT(output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->getParentEdgeAt(0);
         void* const outputRawPtr = parentEdge->getMemory().getData();
-        if (outputRawPtr == static_cast<void*>(it.second->data())) {
+        if (outputRawPtr == it.second->data()) {
             continue;
         }
 
@@ -236,8 +265,8 @@ void SyncInferRequest::change_default_ptr(Graph& graph) {
                 break;
             }
 
-            auto& parentEdges = parent->getParentEdges();
-            for (auto& edge : parentEdges) {
+            const auto& parentEdges = parent->getParentEdges();
+            for (const auto& edge : parentEdges) {
                 auto e = edge.lock();
                 if (!e) {
                     OPENVINO_THROW("Node ", parent->getName(), " contains empty parent edge");
@@ -515,9 +544,15 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
             // WA, due to the transformations and constant folding, shape inference of the resulting model may
             // have static shapes, while they are dynamic in the initial representation
-            const auto& shape = graph_shape.isDynamic()
-                                    ? port_shape
-                                    : (port_shape.is_dynamic() ? graph_shape.toPartialShape() : port_shape);
+            const auto shape = [&]() -> ov::PartialShape {
+                if (graph_shape.isDynamic()) {
+                    return port_shape;
+                }
+                if (port_shape.is_dynamic()) {
+                    return graph_shape.toPartialShape();
+                }
+                return port_shape;
+            }();
 
             const bool isDynamic = shape.is_dynamic();
             tensor = ov::ISyncInferRequest::get_tensor(port);
@@ -580,7 +615,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
     if (!tensor) {
         OPENVINO_THROW("Cannot find tensor with index: ", port_index);
     }
-    return;
 }
 
 void SyncInferRequest::push_input_data(Graph& graph) {
@@ -631,8 +665,7 @@ void SyncInferRequest::sub_streams_infer() {
             }
 
             requests[i]->set_callback([message]([[maybe_unused]] const std::exception_ptr& ptr) {
-                ov::threading::MessageInfo msg_info;
-                msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
+                ov::threading::MessageInfo msg_info{ov::threading::MsgType::CALL_BACK};
                 message->send_message(msg_info);
             });
         }

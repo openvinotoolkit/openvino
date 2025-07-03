@@ -4,14 +4,20 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cassert>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <vector>
 #ifndef OPENVINO_ARCH_ARM64
 #    include "cpu/x64/jit_generator.hpp"
-#    include "dnnl_types.h"
 #endif
 
 namespace ov::intel_cpu {
 
-enum dft_type {
+enum dft_type : uint8_t {
     real_to_complex,
     complex_to_complex,
     complex_to_real,
@@ -38,7 +44,7 @@ struct jit_dft_kernel {
 
     void (*ker_)(const jit_dft_args*) = nullptr;
 
-    void operator()(const jit_dft_args* args) {
+    void operator()(const jit_dft_args* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -48,8 +54,8 @@ struct jit_dft_kernel {
 
     virtual void create_ker() = 0;
 
-    bool is_inverse_;
-    enum dft_type kernel_type_;
+    bool is_inverse_ = false;
+    enum dft_type kernel_type_ = dft_type::real_to_complex;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>

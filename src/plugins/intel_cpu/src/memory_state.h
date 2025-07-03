@@ -4,14 +4,21 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
 #include "cpu_memory.h"
 #include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "utils/plain_tensor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class IVariableState : public ov::IVariableState {
 public:
@@ -88,7 +95,6 @@ private:
 
     MemoryPtr internal_state_mem() const override;
 
-private:
     MemoryDescPtr m_internal_desc;  // mem desc required by the graph internal tensor
     std::array<MemoryPtr, 2> m_internal_mem{};
     size_t buffer_num = 0;
@@ -108,7 +114,6 @@ private:
 
     MemoryPtr internal_state_mem() const override;
 
-private:
     MemoryPtr m_internal_mem;
     MemoryDescPtr m_internal_desc;  // mem desc required by the graph internal tensor
 };
@@ -118,8 +123,8 @@ public:
     VariableStateKVcache(const std::string& name,
                          MemoryDescPtr external_desc,
                          BlockedMemoryDescPtr dense_internal_desc,
-                         const bool quant_by_channel,
-                         const size_t group_size = 0);
+                         bool quant_by_channel,
+                         size_t group_size = 0);
 
     // ov::IVariableState
     ov::SoPtr<ov::ITensor> get_state() const override;
@@ -163,7 +168,6 @@ private:
     void reset_impl() override;
     void commit_impl() override;
 
-private:
     MemoryPtr m_internal_mem;  // kv cache
     MemoryPtr m_hidden_state;  // beam access table
     size_t m_internal_mem_max_size = 0;
@@ -180,5 +184,4 @@ private:
 
 using MemStatePtr = std::shared_ptr<IVariableState>;
 using MemStateCPtr = std::shared_ptr<const IVariableState>;
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

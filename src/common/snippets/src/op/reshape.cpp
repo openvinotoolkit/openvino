@@ -2,18 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-
 #include "snippets/op/reshape.hpp"
+
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/shape_infer_op.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 Reshape::Reshape(const Output<Node>& arg, ov::PartialShape target_shape)
-    : ShapeInferOp({arg}), m_target_shape(std::move(target_shape)) {
+    : ShapeInferOp({arg}),
+      m_target_shape(std::move(target_shape)) {
     constructor_validate_and_infer_types();
 }
 
@@ -52,11 +63,10 @@ Reshape::ShapeInfer::ShapeInfer(const std::shared_ptr<Node>& n) {
 IShapeInferSnippets::Result Reshape::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes is passed in ReshapeShapeInfer");
     const auto input_shape_volume = utils::get_shape_size(input_shapes[0].get());
-    OPENVINO_ASSERT(input_shape_volume == target_shape_volume, "Tensor volume should be the same after reshape in ReshapeShapeInfer");
+    OPENVINO_ASSERT(input_shape_volume == target_shape_volume,
+                    "Tensor volume should be the same after reshape in ReshapeShapeInfer");
 
     return {{target_shape}, ShapeInferStatus::success};
 }
 
-}// namespace op
-}// namespace snippets
-}// namespace ov
+}  // namespace ov::snippets::op

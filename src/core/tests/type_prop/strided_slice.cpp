@@ -670,6 +670,128 @@ INSTANTIATE_TEST_SUITE_P(type_prop,
                              }),
                          StridedSliceShapeInferTest::get_test_case_name);
 
+struct ConstStridedSliceTestParams {
+    std::string case_name;
+    PartialShape input_shape;
+    PartialShape begin_shape;
+    PartialShape end_shape;
+    std::vector<int64_t> strides;
+    std::vector<int64_t> begin_mask;
+    std::vector<int64_t> end_mask;
+    std::vector<int64_t> new_axis_mask;
+    std::vector<int64_t> shrink_axis_mask;
+    std::vector<int64_t> ellipsis_mask;
+
+    PartialShape ref_shape;
+    ov::element::Type ref_type;
+};
+
+struct ConstStridedSliceShapeInferTest : public TypePropOpTest<op::v1::StridedSlice>,
+                                         public WithParamInterface<ConstStridedSliceTestParams> {
+public:
+    static std::string get_test_case_name(const TestParamInfo<ConstStridedSliceTestParams>& obj) {
+        return obj.param.case_name;
+    }
+};
+
+TEST_P(ConstStridedSliceShapeInferTest, begin_end_are_not_constants) {
+    const auto& params = GetParam();
+
+    const auto input_data = std::make_shared<op::v0::Parameter>(params.ref_type, params.input_shape);
+    const auto begin = std::make_shared<op::v0::Parameter>(ov::element::i32, params.begin_shape);
+    const auto end = std::make_shared<op::v0::Parameter>(ov::element::i32, params.end_shape);
+    const auto strides = ov::op::v0::Constant::create(ov::element::i32, Shape{params.strides.size()}, params.strides);
+
+    const auto strided_slice = make_op(input_data,
+                                       begin,
+                                       end,
+                                       strides,
+                                       params.begin_mask,
+                                       params.end_mask,
+                                       params.new_axis_mask,
+                                       params.shrink_axis_mask,
+                                       params.ellipsis_mask);
+
+    EXPECT_EQ(strided_slice->get_element_type(), params.ref_type);
+    EXPECT_EQ(strided_slice->get_output_size(), 1);
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0), params.ref_shape);
+}
+
+INSTANTIATE_TEST_SUITE_P(type_prop,
+                         ConstStridedSliceShapeInferTest,
+                         Values(
+                             ConstStridedSliceTestParams{
+                                 "single_axis_end_default_strides",
+                                 {1, 500, 2},         // input_shape
+                                 {2},                 // begin shape
+                                 {2},                 // end shape
+                                 {1, 1},              // strides
+                                 {1, 1},              // begin mask
+                                 {1, 0},              // end mask
+                                 {0, 0},              // new axis mask
+                                 {0, 0},              // shrink axis mask
+                                 {0, 0},              // ellipsis mask
+                                 {1, {0, 500}, {2}},  // reference shape
+                                 element::f32         // reference type
+                             },
+                             ConstStridedSliceTestParams{
+                                 "single_axis_begin_const_strides",
+                                 {8, 16, 32},          // input_shape
+                                 {2},                  // begin shape
+                                 {2},                  // end shape
+                                 {-2, -4},             // strides
+                                 {0, 1},               // begin mask
+                                 {1, 1},               // end mask
+                                 {0, 0},               // new axis mask
+                                 {0, 0},               // shrink axis mask
+                                 {0, 0},               // ellipsis mask
+                                 {{0, 4}, {4}, {32}},  // reference shape
+                                 element::f32          // reference type
+                             },
+                             ConstStridedSliceTestParams{
+                                 "single_axis_begin_single_axis_end_default_strides",
+                                 {8, 16, 32},            // input_shape
+                                 {3},                    // begin shape
+                                 {3},                    // end shape
+                                 {1, 1, 1},              // strides
+                                 {1, 0, 1},              // begin mask
+                                 {1, 1, 0},              // end mask
+                                 {0, 0, 0},              // new axis mask
+                                 {0, 0, 0},              // shrink axis mask
+                                 {0, 0, 0},              // ellipsis mask
+                                 {8, {0, 16}, {0, 32}},  // reference shape
+                                 element::f32            // reference type
+                             },
+                             ConstStridedSliceTestParams{
+                                 "single_axis_begin_single_axis_end_const_strides",
+                                 {8, 16, 32},          // input_shape
+                                 {3},                  // begin shape
+                                 {3},                  // end shape
+                                 {2, 2, 6},            // strides
+                                 {1, 0, 1},            // begin mask
+                                 {1, 1, 0},            // end mask
+                                 {0, 0, 0},            // new axis mask
+                                 {0, 0, 0},            // shrink axis mask
+                                 {0, 0, 0},            // ellipsis mask
+                                 {4, {0, 8}, {0, 6}},  // reference shape
+                                 element::f32          // reference type
+                             },
+                             ConstStridedSliceTestParams{
+                                 "ignored_begin_ignored_end_const_strides",
+                                 {8, 16, 32},     // input_shape
+                                 {3},             // begin shape
+                                 {3},             // end shape
+                                 {2, 2, 6},       // strides
+                                 {1, 1, 1},       // begin mask
+                                 {1, 1, 1},       // end mask
+                                 {0, 0, 0},       // new axis mask
+                                 {0, 0, 0},       // shrink axis mask
+                                 {0, 0, 0},       // ellipsis mask
+                                 {4, 8, {0, 6}},  // reference shape   TODO: #167791
+                                 element::f32     // reference type
+                             }),
+                         ConstStridedSliceShapeInferTest::get_test_case_name);
+
 using StridedSliceIntervalParams =
     std::tuple<ov::PartialShape, ov::PartialShape, ov::PartialShape, int64_t, int64_t, int64_t, ov::PartialShape>;
 

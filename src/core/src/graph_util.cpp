@@ -158,11 +158,11 @@ void replace_node(const std::shared_ptr<Node>& target, const OutputVector& repla
     //         Change I's connected upstream output to O_rep
     for (size_t i = 0; i < target->get_output_size(); i++) {
         auto& replacement_value = replacement_values.at(i);
-        auto replacement_node = replacement_value.get_node_shared_ptr();
-        if (replacement_nodes.find(replacement_node) == replacement_nodes.end()) {
+        if (auto&& replacement_node = replacement_value.get_node_shared_ptr();
+            replacement_nodes.find(replacement_node) == replacement_nodes.end()) {
             replacement_node->add_node_control_dependents(target);
             replacement_node->add_node_control_dependencies(target);
-            replacement_nodes.insert(replacement_node);
+            replacement_nodes.insert(std::move(replacement_node));
         }
         target->output(i).replace(replacement_values.at(i));
     }
@@ -227,7 +227,7 @@ std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node
         if (!result) {
             OPENVINO_THROW("Results should be of type ov::op::v0::Result");
         }
-        cloned_results.push_back(result);
+        cloned_results.push_back(std::move(result));
     }
     SinkVector cloned_sinks;
     for (const auto& node : func.get_sinks()) {

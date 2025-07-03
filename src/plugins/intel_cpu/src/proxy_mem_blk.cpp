@@ -4,6 +4,12 @@
 
 #include "proxy_mem_blk.h"
 
+#include <cstddef>
+#include <memory>
+#include <utility>
+
+#include "cpu_memory.h"
+#include "openvino/core/except.hpp"
 #include "utils/debug_capabilities.h"
 
 using namespace ov::intel_cpu;
@@ -77,7 +83,7 @@ void ProxyMemoryBlock::unregisterMemory(Memory* memPtr) {
 }
 
 void ProxyMemoryBlock::notifyUpdate() {
-    for (auto& item : m_setMemPtrs) {
+    for (const auto& item : m_setMemPtrs) {
         if (item) {
             item->update();
         }

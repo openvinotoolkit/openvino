@@ -50,6 +50,7 @@ public:
         buffer << traits._order;
         buffer << traits.order;
         buffer << traits.internal_order;
+        buffer << traits.desc_size;
         buffer << traits.block_sizes.size();
         for (auto& block_size : traits.block_sizes) {
             buffer << block_size.first;
@@ -74,6 +75,7 @@ public:
         buffer >> traits._order;
         buffer >> traits.order;
         buffer >> traits.internal_order;
+        buffer >> traits.desc_size;
 
         size_t num_block_size;
         buffer >> num_block_size;

@@ -48,7 +48,7 @@ private:
     /// Creates the mapping.
     EnumNames(const std::string& enum_name, const std::vector<std::pair<std::string, EnumType>> string_enums)
         : m_enum_name(enum_name),
-          m_string_enums(string_enums) {}
+          m_string_enums(std::move(string_enums)) {}
 
     /// Must be defined to returns a singleton for each supported enum class
     static EnumNames<EnumType>& get();

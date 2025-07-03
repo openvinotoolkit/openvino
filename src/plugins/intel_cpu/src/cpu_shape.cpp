@@ -4,7 +4,13 @@
 
 #include "cpu_shape.h"
 
-#include "utils/general_utils.h"
+#include <algorithm>
+#include <cstddef>
+#include <sstream>
+#include <string>
+
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

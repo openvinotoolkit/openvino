@@ -52,14 +52,21 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
     auto input_layout = impl_param.get_input_layout();
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    }
 
     auto output_fmt = input_layout.format;
     if (node.get_preferred_output_fmt() != format::any) {
         output_fmt = node.get_preferred_output_fmt();
     }
+
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_output_element_type();
+        for (auto& desc : impl_param.fused_desc) {
+            if (desc.is_type<reorder>()) {
+                output_fmt = desc.output_layout.format;
+            }
+        }
+    }
+
     ShapeType input_shape = input_layout.get<ShapeType>();
     ShapeType output_shape;
     ov::Rank input_rank = input_shape.rank();

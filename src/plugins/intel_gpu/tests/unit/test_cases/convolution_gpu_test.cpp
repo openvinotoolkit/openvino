@@ -5587,6 +5587,84 @@ TEST(convolution_f16_fsv_gpu, convolution_f16_fsv_gpu_padding) {
                 }
 }
 
+TEST(convolution_f16_fsv16, preload_groups_when_groups_is_not_greater_than_one) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_fp16) {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+    const int batch_num = 1;
+    const int input_xy = 5;
+    const int input_f = 1;
+    const int output_f = 8;
+    const int filter_xy = 1;
+    const int stride = 1;
+    const int pad = 0;
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
+    VVVVF<ov::float16> weights_data(output_f, VVVF<ov::float16>(input_f,
+                                            VVF<ov::float16>(filter_xy,
+                                                             VF<ov::float16>(filter_xy, ov::float16(1.f)))));
+    for (int ofi = 0; ofi < output_f; ++ofi)
+        for (int ifi = 0; ifi < input_f; ++ifi)
+            for (int y = 0; y < filter_xy; ++y)
+                for (int x = 0; x < filter_xy; ++x)
+                    weights_data[ofi][ifi][y][x] = ov::float16(1.0f);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+    auto reference_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
+    for (int bi = 0; bi < batch_num; ++bi)
+        for (int ofi = 0; ofi < output_f; ++ofi)
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],
+                stride, stride,
+                0,
+                1, 1,
+                pad, pad);
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        data("weights", weights_mem));
+    topology.add(reorder("input_fsv16", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+    auto conv_fsv16 = convolution("conv_fsv16",
+                                  input_info("input_fsv16"),
+                                  "weights",
+                                  no_bias,
+                                  1,
+                                  { stride, stride },
+                                  { 1, 1 },
+                                  { pad, pad },
+                                  { pad, pad },
+                                  false);
+    topology.add(conv_fsv16);
+    topology.add(reorder("out", input_info("conv_fsv16"), format::bfyx, data_types::f16));
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv16", conv_impl } }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out"}));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    auto out_mem = outputs.at("out").get_memory();
+    cldnn::mem_lock<ov::float16> out_ptr(out_mem, get_test_stream());
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+    for (size_t i = 0; i < flatten_ref.size(); i++) {
+        auto equal = are_equal(flatten_ref[i], out_ptr[i], 1e-3f);
+        ASSERT_TRUE(equal);
+        if (!equal) {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
 using TestParamType_convolution_gpu_with_crop = ::testing::tuple<int,   // 0 - Filter size
     int,   // 1 - Input size
     int,   // 2 - Input/output features
@@ -10376,6 +10454,121 @@ TEST(convolution_gpu_onednn, grouped_runtime_weights) {
     ASSERT_EQ(output_layout.get_shape(), ov::Shape({1, 256, 25, 25}));
 }
 
+TEST(convolution_gpu_onednn, dyn_conv4d_reshape6d_pattern) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    if (!engine.get_device_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        ASSERT_EQ(1, 1);
+        return;
+    }
+
+    const int input_x = 8, input_y = 8, input_f = 32, output_f = 32, filter_x = 3, filter_y = 3, groups = 1, batch_num = 1;
+    const uint64_t stride = 1;
+    auto input_data_format = format::bfyx;
+
+    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    auto in_layout = layout { ov::PartialShape::dynamic(4), data_types::f16, format::bfyx };;
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_y, filter_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto expected_result = VVVVF<ov::float16>(batch_num, VVVF<ov::float16>(output_f));
+    topology topology;
+
+    // Calculate reference values
+    for (auto bi = 0; bi < batch_num; ++bi) {
+        for (auto ofi = 0; ofi < output_f; ++ofi) {
+            expected_result[bi][ofi] = reference_convolve(input_data[bi],                      // input
+                                                            weights_data[ofi],                 // weights
+                                                            stride, stride,                    // strides
+                                                            0,                                 // bias
+                                                            1, 1,                              // dilation
+                                                            0, 0,  // input padding
+                                                            0, 0);   // output_padding
+        }
+    }
+
+    topology.add(input_layout("input", in_layout),
+                    data("weights_fsv", weights_mem),
+                    reorder("input_fsv", input_info("input"), { data_types::f16, input_data_format, input_size }));
+
+    auto conv_fsv = convolution("conv_fsv",
+                                input_info("input_fsv"),
+                                "weights_fsv",
+                                no_bias,
+                                groups,
+                                { stride, stride },
+                                {1, 1},
+                                { 0, 0 },
+                                { 0, 0 },
+                                false);
+    conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
+    topology.add(conv_fsv);
+
+    
+    auto const_shape = engine.allocate_memory({ov::PartialShape{6}, data_types::i32, format::bfwzyx});
+    set_values<int32_t>(const_shape, {1, 32, 1, 1, 6, 6});
+    topology.add(data("const", const_shape));
+    auto reshape_prim = reshape("reshape", input_info("conv_fsv"), input_info("const"), false, ov::PartialShape::dynamic(6),
+                cldnn::reshape::reshape_mode::base);
+    topology.add(reshape_prim);
+
+    topology.add(reorder("reorder_bfyx", input_info("reshape"), format::bfwzyx, data_types::f32));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv","reorder_bfyx"}));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(2));
+    ASSERT_TRUE(outputs.find("conv_fsv") != outputs.end());
+
+    for (auto& p : network.get_primitives_info())
+        std::cerr << p.original_id << " " << p.kernel_id << std::endl;
+
+    auto out_ptr = get_output_values_to_float<float>(network, outputs.find("reorder_bfyx")->second);
+
+    auto output_memory = outputs.at("reorder_bfyx").get_memory();
+    auto out_lay = output_memory->get_layout();
+
+    ASSERT_EQ(out_lay.batch(), expected_result.size());
+    ASSERT_EQ(out_lay.feature(), expected_result[0].size());
+    ASSERT_EQ(out_lay.spatial(1), expected_result[0][0].size());
+    ASSERT_EQ(out_lay.spatial(0), expected_result[0][0][0].size());
+
+    for (int bi = 0; bi < out_lay.batch(); ++bi)
+        for (int ofi = 0; ofi < out_lay.feature(); ++ofi)
+            for (int yi = 0; yi < out_lay.spatial(1); ++yi)
+                for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
+                    tensor coords = tensor(batch(bi), feature(ofi), spatial(xi, yi, 0, 0));
+                    auto offset = out_lay.get_linear_offset(coords);
+                    auto val = out_ptr[offset];
+                    auto val_ref = expected_result[bi][ofi][yi][xi];
+                    auto equal = are_equal(val_ref, val, 1);
+                    if (!equal) {
+                        std::cout << "Value at batch: " << bi << ", output_f: " << ofi
+                                    << ", y: " << yi << ", x: " << xi << " = " << static_cast<float>(val) << std::endl;
+                        std::cout << "Reference value at batch: " << bi << ", output_f: " << ofi << ", y: " << yi
+                                  << ", x: " << xi << " = " << static_cast<float>(val_ref) << std::endl;
+                    }
+                    ASSERT_TRUE(equal);
+                }
+}
 #endif   // ENABLE_ONEDNN_FOR_GPU
 
 template <typename T>

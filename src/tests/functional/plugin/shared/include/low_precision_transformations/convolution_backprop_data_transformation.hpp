@@ -41,14 +41,12 @@ public:
         layerName(std::move(layerName)), expectedKernelType(std::move(expectedKernelType)) {}
 };
 
-typedef std::tuple<
-    ov::element::Type, // netPrecision
-    std::pair<ov::PartialShape, bool>, // input shape and shape support flag
-    ov::Shape,         // outputShape
-    std::string,           // targetDevice
-    ov::pass::low_precision::LayerTransformation::Params,
-    ConvolutionBackpropDataTransformationParam
-> ConvolutionBackpropDataTransformationParams;
+typedef std::tuple<ov::element::Type,                  // netPrecision
+                   std::pair<ov::PartialShape, bool>,  // input shape and shape support flag
+                   ov::Shape,                          // outputShape
+                   std::string,                        // targetDevice
+                   ConvolutionBackpropDataTransformationParam>
+    ConvolutionBackpropDataTransformationParams;
 
 class ConvolutionBackpropDataTransformation :
     public testing::WithParamInterface<ConvolutionBackpropDataTransformationParams>,

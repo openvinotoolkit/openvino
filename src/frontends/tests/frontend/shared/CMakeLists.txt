@@ -33,3 +33,5 @@ target_compile_definitions(${TARGET_NAME}
         SHARED_LIB_SUFFIX="${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
+ov_build_target_faster(${TARGET_NAME} PCH)

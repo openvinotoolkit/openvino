@@ -21,7 +21,7 @@ add_library(cpuUtils STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.h
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/precision_support.cpp
     ${CPU_ISA_TRAITS_RV64})
-set(CPU_UTILS_LINK_LIBRARIES openvino::runtime)
+set(CPU_UTILS_LINK_LIBRARIES openvino::runtime::dev)
 set(CPU_UTILS_INCLUDE_PATHS)
 if(OV_CPU_WITH_ACL)
     list(APPEND CPU_UTILS_LINK_LIBRARIES arm_compute::arm_compute)
@@ -110,6 +110,8 @@ ov_add_test_target(
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})
+
+ov_build_target_faster(${TARGET_NAME} PCH)
 
 include(cmake/specific_tests.cmake)
 include(cmake/target_per_test.cmake)

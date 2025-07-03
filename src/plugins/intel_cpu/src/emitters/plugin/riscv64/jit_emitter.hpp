@@ -4,19 +4,18 @@
 
 #pragma once
 
-#include "node.h"
+#include <cstdint>
+#include <set>
 
+#include "emitters/utils.hpp"
+#include "node.h"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
-#include "emitters/utils.hpp"
 #include "snippets/generator.hpp"
-#include "snippets/snippets_isa.hpp"
-
-#include <set>
 
 namespace ov::intel_cpu::riscv64 {
 
-enum emitter_in_out_map {
+enum emitter_in_out_map : uint8_t {
     vec_to_vec,
     vec_to_gpr,
     gpr_to_vec,
@@ -66,15 +65,23 @@ public:
     }
 
 protected:
-    size_t get_max_gpr_count() const { return 32; }
-    size_t get_max_fp_gpr_count() const { return 32; }
-    size_t get_max_vecs_count() const { return 32; }
+    static size_t get_max_gpr_count() {
+        return 32;
+    }
+    static size_t get_max_fp_gpr_count() {
+        return 32;
+    }
+    static size_t get_max_vecs_count() {
+        return 32;
+    }
 
     size_t get_gpr_length() const;
     size_t get_fp_gpr_length() const;
     size_t get_vec_length() const;
 
-    Xbyak_riscv::VReg mask_vreg() const { return Xbyak_riscv::v0; }
+    static Xbyak_riscv::VReg mask_vreg() {
+        return Xbyak_riscv::v0;
+    }
 
     void emit_code_impl(const std::vector<size_t>& in_idxs,
                         const std::vector<size_t>& out_idxs,
@@ -114,7 +121,8 @@ protected:
                         const std::vector<size_t>& exclude_fp_gpr_regs,
                         const std::vector<size_t>& exclude_vec_regs) const;
 
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+    virtual void validate_arguments([[maybe_unused]] const std::vector<size_t>& in,
+                                    [[maybe_unused]] const std::vector<size_t>& out) const {}
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
     using table_entry_val_t = uint32_t;
@@ -134,9 +142,9 @@ protected:
     }
 
     void push_entries_of(const table_t& t) {
-        for (auto it = t.begin(); it != t.end(); it++) {
-            auto key = (*it).first;
-            auto te = (*it).second;  // copy values from table
+        for (const auto& it : t) {
+            auto key = it.first;
+            auto te = it.second;  // copy values from table
             push_arg_entry_of(key, te);
         }
     }
@@ -150,18 +158,21 @@ protected:
         h->uni_li(p_table, address);
     }
 
-    inline void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
+    void load_table_val(const std::string& key, const Xbyak_riscv::FReg& freg, size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
         h->flw(freg, p_table, off);
     }
 
-    inline void load_table_val(const std::string& key, const Xbyak_riscv::Reg& reg, size_t key_off_val_shift = 0) const {
+    void load_table_val(const std::string& key, const Xbyak_riscv::Reg& reg, size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
         h->lw(reg, p_table, off);
     }
 
     // Load scalar to vector with broadcast
-    inline void load_table_val(const std::string& key, const Xbyak_riscv::VReg& vreg, const Xbyak_riscv::Reg& tmp, size_t key_off_val_shift = 0) const {
+    void load_table_val(const std::string& key,
+                        const Xbyak_riscv::VReg& vreg,
+                        const Xbyak_riscv::Reg& tmp,
+                        size_t key_off_val_shift = 0) const {
         auto off = table_off(key, key_off_val_shift);
         h->lw(tmp, p_table, off);
         h->vmv_v_x(vreg, tmp);
@@ -203,4 +214,4 @@ private:
     }
 };
 
-}  // ov::intel_cpu::riscv64
+}  // namespace ov::intel_cpu::riscv64

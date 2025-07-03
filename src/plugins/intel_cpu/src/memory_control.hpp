@@ -4,6 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
 #include "edge.h"
 
 namespace ov::intel_cpu {
@@ -42,7 +51,6 @@ public:
     using Ptr = std::shared_ptr<MemoryControl>;
     using CPtr = std::shared_ptr<const MemoryControl>;
 
-public:
     void insert(const MemoryRegions& regions, const std::vector<size_t>& syncInds);
 
     MemorySolution solve();
@@ -54,18 +62,17 @@ public:
     void allocateMemory();
     void releaseMemory();
 
-    const std::string& getId() const {
+    [[nodiscard]] const std::string& getId() const {
         return m_id;
     }
 
 private:
     explicit MemoryControl(std::string id);
     void insert(const MemoryRegion& region, const std::vector<size_t>& syncInds);
-    MemoryStatistics dumpStatistics() const;
+    [[nodiscard]] MemoryStatistics dumpStatistics() const;
 
     friend class NetworkMemoryControl;
 
-private:
     std::string m_id;
     std::vector<RegionHandlerPtr> m_handlers;
     bool m_allocated = false;
@@ -79,9 +86,9 @@ public:
     void allocateMemory();
     void releaseMemory();
 
-    std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
+    [[nodiscard]] std::vector<std::pair<std::string, MemoryStatistics>> dumpStatistics() const;
 
-    const std::vector<MemoryControl::Ptr>& controlUnits() const {
+    [[nodiscard]] const std::vector<MemoryControl::Ptr>& controlUnits() const {
         return m_controlUnits;
     }
 

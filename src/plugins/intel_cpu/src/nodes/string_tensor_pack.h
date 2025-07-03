@@ -4,11 +4,15 @@
 
 #pragma once
 
-#include "node.h"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class StringTensorPack : public Node {
 public:
@@ -17,10 +21,10 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool isExecutable() const override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
 private:
@@ -31,6 +35,4 @@ private:
     struct StringTensorPackExecute;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

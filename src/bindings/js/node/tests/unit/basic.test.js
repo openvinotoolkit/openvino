@@ -13,9 +13,8 @@ const {
   compareModels,
   isModelAvailable,
   sleep,
-  lengthFromShape,
+  generateImage,
 } = require('../utils.js');
-const epsilon = 0.5;
 
 describe('ov basic tests.', () => {
   const { testModelFP32 } = testModels;
@@ -63,6 +62,7 @@ describe('ov basic tests.', () => {
       assert.doesNotThrow(() => ov.saveModelSync(model, xmlPath));
 
       const savedModel = core.readModelSync(xmlPath);
+      assert.ok(savedModel instanceof ov.Model);
       assert.doesNotThrow(() => compareModels(model, savedModel));
     });
     it('saveModelSync(model, path, compressToFp16=false)', () => {
@@ -144,6 +144,7 @@ describe('ov basic tests.', () => {
 
     it('compileModelSync(model:model_path, deviceName: string) ', () => {
       const cm = core.compileModelSync(testModelFP32.xml, 'CPU');
+      assert.ok(cm instanceof ov.CompiledModel);
       assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
     });
 
@@ -196,6 +197,20 @@ describe('ov basic tests.', () => {
       core.compileModel(model, 'CPU', tput).then((cm) => {
         assert.deepStrictEqual(cm.output(0).shape, [1, 10]);
       });
+    });
+
+    it('compileModel(model:Model) returns Promise<CompiledModel>', async () => {
+      const promise = core.compileModel(model, 'CPU');
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
+    });
+
+    it('compileModel(model_path) returns Promise<CompiledModel>', async () => {
+      const promise = core.compileModel(testModelFP32.xml, 'CPU');
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
     });
 
     it('compileModel(model_path, deviceName, config: {}) ', () => {
@@ -291,10 +306,7 @@ describe('ov basic tests.', () => {
     let res1 = null;
 
     before(() => {
-      tensor = Float32Array.from(
-        { length: lengthFromShape(testModelFP32.inputShape) },
-        () => Math.random() + epsilon,
-      );
+      tensor = generateImage(testModelFP32.inputShape);
       const core = new ov.Core();
       const model = core.readModelSync(testModelFP32.xml);
       const compiledModel = core.compileModelSync(model, 'CPU');
@@ -305,6 +317,7 @@ describe('ov basic tests.', () => {
 
     it('Test importModelSync(stream, device)', () => {
       const newCompiled = core.importModelSync(userStream, 'CPU');
+      assert.ok(newCompiled instanceof ov.CompiledModel);
       const newInferRequest = newCompiled.createInferRequest();
       const res2 = newInferRequest.infer([tensor]);
 
@@ -323,7 +336,7 @@ describe('ov basic tests.', () => {
 
     it('Test importModelSync(stream, device) throws', () => {
       assert.throws(
-        () => core.importModelSync(epsilon, 'CPU'),
+        () => core.importModelSync(model, 'CPU'),
         /The first argument must be of type Buffer./,
       );
     });
@@ -358,6 +371,13 @@ describe('ov basic tests.', () => {
       );
     });
 
+    it('importModel returns promise with CompiledModel', async () => {
+      const promise = core.importModel(userStream, 'CPU');
+      assert.ok(promise instanceof Promise);
+      const cm = await promise;
+      assert.ok(cm instanceof ov.CompiledModel);
+    });
+
     it('Test importModel(stream, device)', () => {
       core.importModel(userStream, 'CPU').then((newCompiled) => {
         const newInferRequest = newCompiled.createInferRequest();
@@ -382,7 +402,7 @@ describe('ov basic tests.', () => {
 
     it('Test importModel(stream, device) throws', () => {
       assert.throws(
-        () => core.importModel(epsilon, 'CPU').then(),
+        () => core.importModel(model, 'CPU').then(),
         /'importModel' method called with incorrect parameters./,
       );
     });

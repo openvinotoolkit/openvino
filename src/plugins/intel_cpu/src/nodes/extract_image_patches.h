@@ -4,11 +4,21 @@
 
 #pragma once
 
-#include "node.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
+#include <string>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 struct jit_extract_image_patches_params {
     size_t IW;
@@ -30,22 +40,22 @@ struct jit_extract_image_patches_args {
 };
 
 struct jit_uni_extract_image_patches_kernel {
-    void (*ker_)(const jit_extract_image_patches_args*);
-    void operator()(const jit_extract_image_patches_args* args) {
+    void (*ker_)(const jit_extract_image_patches_args*) = nullptr;
+    void operator()(const jit_extract_image_patches_args* args) const {
         assert(ker_);
         ker_(args);
     }
     jit_extract_image_patches_params jpp;
     virtual void create_ker() = 0;
-    explicit jit_uni_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : ker_(nullptr), jpp(jpp) {}
-    virtual ~jit_uni_extract_image_patches_kernel() {}
+    explicit jit_uni_extract_image_patches_kernel(jit_extract_image_patches_params jpp) : jpp(jpp) {}
+    virtual ~jit_uni_extract_image_patches_kernel() = default;
 };
 
 class ExtractImagePatches : public Node {
 public:
     ExtractImagePatches(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
@@ -54,7 +64,7 @@ public:
     void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    enum class ExtImgPatcherPadType { VALID, SAME_LOWER, SAME_UPPER };
+    enum class ExtImgPatcherPadType : uint8_t { VALID, SAME_LOWER, SAME_UPPER };
 
 private:
     std::vector<size_t> _ksizes;
@@ -72,7 +82,7 @@ private:
                                                  const VectorDims& strides,
                                                  const VectorDims& rates,
                                                  const ExtImgPatcherPadType& padType,
-                                                 const size_t prcSize);
+                                                 size_t prcSize);
         virtual ~ExtractImagePatchesExecutor() = default;
 
     protected:
@@ -95,7 +105,7 @@ private:
                                        const VectorDims& strides,
                                        const VectorDims& rates,
                                        const ExtImgPatcherPadType& padType,
-                                       const size_t prcSize);
+                                       size_t prcSize);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeOptimizedGeneric(void* src,
                                      void* dst,
@@ -113,7 +123,7 @@ private:
                                        const VectorDims& strides,
                                        const VectorDims& rates,
                                        const ExtImgPatcherPadType& padType,
-                                       const size_t prcSize);
+                                       size_t prcSize);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeReference(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
 
@@ -122,6 +132,4 @@ private:
     };
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

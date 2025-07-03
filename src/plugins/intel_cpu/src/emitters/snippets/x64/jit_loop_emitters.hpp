@@ -4,9 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "snippets/op/loop.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -88,10 +96,10 @@ protected:
     size_t num_outputs = 0;
     size_t work_amount = 0;
     size_t wa_increment = 0;
-    std::vector<bool> is_incremented = {};
-    std::vector<int64_t> ptr_increments = {};
-    std::vector<int64_t> finalization_offsets = {};
-    std::vector<int64_t> data_sizes = {};
+    std::vector<bool> is_incremented;
+    std::vector<int64_t> ptr_increments;
+    std::vector<int64_t> finalization_offsets;
+    std::vector<int64_t> data_sizes;
     size_t loop_id = 0;
     bool evaluate_once = false;
     bool are_ptr_increments_dynamic = false;

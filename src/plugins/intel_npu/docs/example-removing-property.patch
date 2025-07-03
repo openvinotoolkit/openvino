@@ -1,0 +1,167 @@
+From 569809974c58901faef73e4bd3d6b84c47a3ff2c Mon Sep 17 00:00:00 2001
+From: csoka <attila.csok@intel.com>
+Date: Tue, 27 May 2025 20:51:40 +0300
+Subject: [PATCH 2/2] [intel-npu] Example for removing a config-backed NPU
+ property
+
+---
+ .../npu-device.rst                            |  1 -
+ .../pyopenvino/core/properties/properties.cpp |  1 -
+ .../openvino/runtime/intel_npu/properties.hpp |  8 ---
+ src/plugins/intel_npu/README.md               |  1 -
+ .../al/include/intel_npu/config/options.hpp   | 55 -------------------
+ .../intel_npu/src/plugin/src/plugin.cpp       |  1 -
+ .../intel_npu/src/plugin/src/properties.cpp   |  2 -
+ 7 files changed, 69 deletions(-)
+
+diff --git a/docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst b/docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst
+index 93c749d83a..279ad1dfcf 100644
+--- a/docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst
++++ b/docs/articles_en/openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst
+@@ -151,7 +151,6 @@ offer a limited set of supported OpenVINO features.
+          ov::intel_npu::bypass_umd_caching
+          ov::intel_npu::defer_weights_load
+          ov::intel_npu::run_inferences_sequentially
+-         ov::intel_npu::example_property
+ 
+    .. tab-item:: Read-only properties
+ 
+diff --git a/src/bindings/python/src/pyopenvino/core/properties/properties.cpp b/src/bindings/python/src/pyopenvino/core/properties/properties.cpp
+index 5349248ac7..4aadb3dec9 100644
+--- a/src/bindings/python/src/pyopenvino/core/properties/properties.cpp
++++ b/src/bindings/python/src/pyopenvino/core/properties/properties.cpp
+@@ -342,5 +342,4 @@ void regmodule_properties(py::module m) {
+     wrap_property_RW(m_intel_npu, ov::intel_npu::compiler_dynamic_quantization, "compiler_dynamic_quantization");
+     wrap_property_RW(m_intel_npu, ov::intel_npu::qdq_optimization, "qdq_optimization");
+     wrap_property_RW(m_intel_npu, ov::intel_npu::run_inferences_sequentially, "run_inferences_sequentially");
+-    wrap_property_RW(m_intel_npu, ov::intel_npu::example_property, "example_property");
+ }
+diff --git a/src/inference/include/openvino/runtime/intel_npu/properties.hpp b/src/inference/include/openvino/runtime/intel_npu/properties.hpp
+index 10ba958498..5deabd6ba6 100644
+--- a/src/inference/include/openvino/runtime/intel_npu/properties.hpp
++++ b/src/inference/include/openvino/runtime/intel_npu/properties.hpp
+@@ -136,13 +136,5 @@ static constexpr ov::Property<bool> defer_weights_load{"NPU_DEFER_WEIGHTS_LOAD"}
+  */
+ static constexpr ov::Property<bool> run_inferences_sequentially{"NPU_RUN_INFERENCES_SEQUENTIALLY"};
+ 
+-/**
+- * @brief [Only for NPU Plugin]
+- * Type: boolean, default is false.
+- * Example property for demonstration and documentation purposes
+- * @ingroup ov_runtime_npu_prop_cpp_api
+- */
+-static constexpr ov::Property<uint32_t, ov::PropertyMutability::RW> example_property{"NPU_EXAMPLE_PROPERTY"};
+-
+ }  // namespace intel_npu
+ }  // namespace ov
+diff --git a/src/plugins/intel_npu/README.md b/src/plugins/intel_npu/README.md
+index c15e61091b..ab8d083fda 100644
+--- a/src/plugins/intel_npu/README.md
++++ b/src/plugins/intel_npu/README.md
+@@ -204,7 +204,6 @@ The following properties are supported (may differ based on current system confi
+ | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
+ | `ov::intel_npu::defer_weights_load`/</br>`NPU_DEFER_WEIGHTS_LOAD` | RW | Delay loading the weights until inference is created. | `YES`/ `NO`| `NO` |
+ | `ov::intel_npu::run_inferences_sequentially`/</br>`NPU_RUN_INFERENCES_SEQUENTIALLY` | RW | Run inferences in async mode sequentially in the order in which they are started to optimize host scheduling. | `YES`/ `NO`| `NO` |
+-| `ov::intel_npu::example_property`/</br>`NPU_EXAMPLE_PROPERTY` | RW | Example property for demonstration purposes | `<std::uint32_t>`| `1337` |
+ 
+ &nbsp;
+ ### Compiled_model properties VS Plugin properties
+diff --git a/src/plugins/intel_npu/src/al/include/intel_npu/config/options.hpp b/src/plugins/intel_npu/src/al/include/intel_npu/config/options.hpp
+index fa311e84de..0ecd186c05 100644
+--- a/src/plugins/intel_npu/src/al/include/intel_npu/config/options.hpp
++++ b/src/plugins/intel_npu/src/al/include/intel_npu/config/options.hpp
+@@ -1407,59 +1407,4 @@ struct MODEL_PTR final : OptionBase<MODEL_PTR, std::shared_ptr<const ov::Model>>
+     }
+ };
+ 
+-//
+-// EXAMPLE_PROPERTY
+-//
+-struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, uint32_t> {
+-    static std::string_view key() {
+-        return ov::intel_npu::example_property.name();
+-    }
+-
+-    static constexpr std::string_view getTypeName() {
+-        return "uint32_t";
+-    }
+-
+-    static uint32_t defaultValue() {
+-        return 1337;
+-    }
+-
+-    static uint32_t compilerSupportVersion() {
+-        return ONEAPI_MAKE_VERSION(5, 5);
+-    }
+-
+-    static bool isPublic() {
+-        return true;
+-    }
+-
+-    static OptionMode mode() {
+-        return OptionMode::Both;
+-    }
+-
+-    static ov::PropertyMutability mutability() {
+-        return ov::PropertyMutability::RW;
+-    }
+-
+-    static std::string_view envVar() {
+-        return "IE_NPU_EXAMPLE_PROPERTY";
+-    }
+-
+-    static uint32_t parse(std::string_view val) {
+-        if (val == "1337") {
+-            return 1337;
+-        } else if (val == "666") {
+-            return 666;
+-        }
+-
+-        OPENVINO_THROW("Value '", val, "'is not a valid EXAMPLE_PROPERTY option");
+-    }
+-
+-    static std::string toString(const uint32_t& val) {
+-        std::stringstream strStream;
+-
+-        strStream << val;
+-
+-        return strStream.str();
+-    }
+-};
+-
+ }  // namespace intel_npu
+diff --git a/src/plugins/intel_npu/src/plugin/src/plugin.cpp b/src/plugins/intel_npu/src/plugin/src/plugin.cpp
+index a0a98ca709..1f8e9c8732 100644
+--- a/src/plugins/intel_npu/src/plugin/src/plugin.cpp
++++ b/src/plugins/intel_npu/src/plugin/src/plugin.cpp
+@@ -215,7 +215,6 @@ void Plugin::init_options() {
+     REGISTER_OPTION(DISABLE_VERSION_CHECK);
+     REGISTER_OPTION(MODEL_PTR);
+     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
+-    REGISTER_OPTION(EXAMPLE_PROPERTY);
+     if (_backend) {
+         if (_backend->isCommandQueueExtSupported()) {
+             REGISTER_OPTION(TURBO);
+diff --git a/src/plugins/intel_npu/src/plugin/src/properties.cpp b/src/plugins/intel_npu/src/plugin/src/properties.cpp
+index 79ed35c2af..cf9f68f570 100644
+--- a/src/plugins/intel_npu/src/plugin/src/properties.cpp
++++ b/src/plugins/intel_npu/src/plugin/src/properties.cpp
+@@ -377,7 +377,6 @@ void Properties::registerPluginProperties() {
+     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
+     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
+     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
+-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::example_property, EXAMPLE_PROPERTY);
+ 
+     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
+         if (!config.has<STEPPING>()) {
+@@ -532,7 +531,6 @@ void Properties::registerCompiledModelProperties() {
+     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::batch_compiler_mode_settings,
+                                               BATCH_COMPILER_MODE_SETTINGS);
+     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
+-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::example_property, EXAMPLE_PROPERTY);
+ 
+     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
+ 
+-- 
+2.34.1
+

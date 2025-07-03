@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <typeinfo>
+#include <memory>
+#include <string>
 
+#include "openvino/core/type.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 
-
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @brief Base class for Subgraph passes.
@@ -29,17 +29,18 @@ public:
 
     virtual bool run_on_subgraph(const std::shared_ptr<op::Subgraph>& subgraph) = 0;
 
-    void set_name(const std::string& name) { m_name = name; }
-    std::string get_name() const { return m_name; }
+    void set_name(const std::string& name) {
+        m_name = name;
+    }
+    [[nodiscard]] std::string get_name() const {
+        return m_name;
+    }
 
     using type_info_t = DiscreteTypeInfo;
-    virtual const type_info_t& get_type_info() const = 0;
+    [[nodiscard]] virtual const type_info_t& get_type_info() const = 0;
 
 private:
     std::string m_name;
 };
 
-
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::pass

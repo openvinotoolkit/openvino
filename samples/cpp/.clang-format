@@ -4,7 +4,7 @@ UseTab: Never
 ColumnLimit: 120
 
 Language: Cpp
-Standard: Cpp11
+Standard: c++17
 
 AccessModifierOffset: -4
 AlignConsecutiveMacros: true
@@ -23,6 +23,7 @@ DerivePointerAlignment: false
 FixNamespaceComments: true
 IndentCaseLabels: false
 IndentPPDirectives: AfterHash
+QualifierAlignment: Left
 ForEachMacros:
   - foreach
   - FOREACH_CHILD

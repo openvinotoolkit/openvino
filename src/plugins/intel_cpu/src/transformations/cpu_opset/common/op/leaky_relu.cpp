@@ -4,6 +4,13 @@
 
 #include "leaky_relu.hpp"
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::LeakyReluNode::LeakyReluNode(const ov::Output<ov::Node>& data,

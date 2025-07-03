@@ -4,19 +4,25 @@
 
 #pragma once
 
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "infer_request.h"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
     AsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
                       const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
-                      const bool is_optimized_single_stream = false);
-    ~AsyncInferRequest();
+                      bool is_optimized_single_stream = false);
+    ~AsyncInferRequest() override;
 
     void infer() override;
 
@@ -39,5 +45,4 @@ public:
     std::function<void()> m_infer_func;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

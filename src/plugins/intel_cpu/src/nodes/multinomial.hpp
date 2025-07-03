@@ -4,11 +4,17 @@
 
 #pragma once
 
-#include <random>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "node.h"
-#include "openvino/core/parallel.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -52,7 +58,7 @@ private:
     static constexpr size_t OUTPUT_PORT = 0lu;
     bool m_const_inputs[2] = {false, false};
     bool m_const_batch = false;
-    VectorDims m_output_shape = {};
+    VectorDims m_output_shape;
 
     /// General algorithm variables
     ov::element::Type m_probs_precision;

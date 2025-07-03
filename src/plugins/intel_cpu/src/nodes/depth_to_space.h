@@ -4,12 +4,20 @@
 
 #pragma once
 
-#include "common/permute_kernel.h"
-#include "node.h"
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "common/permute_kernel.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class DepthToSpace : public Node {
 public:
@@ -20,20 +28,20 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     void prepareParams() override;
 
-    enum Mode { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
+    enum Mode : uint8_t { BLOCKS_FIRST = 0, DEPTH_FIRST = 1 };
     struct DepthToSpaceAttrs {
-        LayoutType layoutType;
-        Mode mode;
+        LayoutType layoutType = LayoutType::nspc;
+        Mode mode = BLOCKS_FIRST;
         size_t blockSize = 0lu;
         size_t blockStep = 0lu;
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
         VectorDims srcBlockedDims;
-        size_t hash() const;
+        [[nodiscard]] size_t hash() const;
         bool operator==(const DepthToSpaceAttrs& rhs) const;
     };
 
@@ -44,7 +52,7 @@ private:
     DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
         DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
-        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB);
+        void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB);
         ~DepthToSpaceExecutor() = default;
 
     private:
@@ -54,6 +62,4 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

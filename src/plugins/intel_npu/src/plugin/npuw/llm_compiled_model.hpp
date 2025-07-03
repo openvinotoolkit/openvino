@@ -50,17 +50,20 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
-    void serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& ctx) const;
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
-                                                         const ov::npuw::s11n::EncryptContext& ctx);
+                                                         const ov::npuw::s11n::CompiledContext& ctx);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
     GetPropertiesMap m_prop_to_opt;
     ov::AnyMap m_non_llm_props;
+
+    // Cache bf16 constants for weightless deserialization
+    ov::npuw::s11n::BF16Cache m_bf16_consts;
 
     KVCacheDesc m_kvcache_desc;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;

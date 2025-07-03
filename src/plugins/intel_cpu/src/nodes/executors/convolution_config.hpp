@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "executor_config.hpp"
 #include "post_ops.hpp"
 
@@ -20,16 +24,16 @@ struct ConvAttrs {
     std::vector<size_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
-    AutoPaddingType autoPadding;
+    AutoPaddingType autoPadding = AutoPaddingType::None;
 
-    bool withBias;
-    bool weightsNonTransposed;
-    bool isGrouped;
+    bool withBias = false;
+    bool weightsNonTransposed = false;
+    bool isGrouped = false;
     // @todo can we just check for port precisions instead?
-    bool isGraphQuantized;
-    bool fcSemantic;
-    bool nonConstantWeights;
-    ZeroPointsType inputZeroPointsType;
+    bool isGraphQuantized = false;
+    bool fcSemantic = false;
+    bool nonConstantWeights = false;
+    ZeroPointsType inputZeroPointsType = ZeroPointsType::None;
     std::vector<float> dqScales;
 
     PostOps postOps;

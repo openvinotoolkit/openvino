@@ -124,7 +124,7 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     // check if the tensor names of target port is a subset of source port's tensor names
     auto check_tensor_names = [](const std::unordered_set<std::string>& source,
                                  const std::unordered_set<std::string>& target) {
-        for (auto const& name : target) {
+        for (const auto& name : target) {
             if (source.find(name) == source.end())
                 return false;
         }

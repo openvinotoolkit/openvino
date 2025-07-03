@@ -4,12 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "edge.h"
 #include "graph_context.h"
 #include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Concat : public Node {
 public:
@@ -20,18 +28,18 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
     void selectOptimalPrimitiveDescriptor() override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
     void resolveInPlaceEdges(Edge::LOOK look) override;
 
-    ov::element::Type getRuntimePrecision() const override;
+    [[nodiscard]] ov::element::Type getRuntimePrecision() const override;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void prepareParams() override;
 
 private:
@@ -41,7 +49,7 @@ private:
     bool canOptimizeNspc = false;
     bool canOptimize1DCase = false;
     void execRef();
-    size_t inverseOrder(const VectorDims& order, size_t axis);
+    static size_t inverseOrder(const VectorDims& order, size_t axis);
     void execNspcSpecCase();
     void exec1DCase();
     std::vector<VectorDims> inputStrides;
@@ -57,6 +65,4 @@ private:
     dnnl::primitive prim;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

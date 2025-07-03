@@ -3,13 +3,20 @@
 //
 
 #include "snippets/pass/canonicalization.hpp"
-#include "snippets/op/rank_normalization.hpp"
-#include "snippets/itt.hpp"
-#include "snippets/utils/utils.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
 
-namespace ov {
-namespace snippets {
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <set>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/op/parameter.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/utils/utils.hpp"
+
+namespace ov::snippets {
 
 pass::Canonicalization::Canonicalization(const BlockedShapeVector& blocked_input_shapes) {
     m_in_shapes.reserve(blocked_input_shapes.size());
@@ -19,7 +26,8 @@ pass::Canonicalization::Canonicalization(const BlockedShapeVector& blocked_input
         m_in_shapes.emplace_back(bs.first);
         m_in_layouts.emplace_back(bs.second);
         // Note: Blocking (if any) must be accounted for in input shapes
-        OPENVINO_ASSERT(m_in_shapes.back().size() == m_in_layouts.back().size(), "Input shapes and layouts must have the same rank");
+        OPENVINO_ASSERT(m_in_shapes.back().size() == m_in_layouts.back().size(),
+                        "Input shapes and layouts must have the same rank");
     }
 }
 
@@ -30,7 +38,11 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     const ParameterVector& params = m->get_parameters();
     OPENVINO_ASSERT(m_in_shapes.size() == params.size(),
                     "Number of parameters for snippet doesn't match passed to the Canonicalization pass. ",
-                    "Expected: ", m_in_shapes.size(), " Got: ", params.size(), ".");
+                    "Expected: ",
+                    m_in_shapes.size(),
+                    " Got: ",
+                    params.size(),
+                    ".");
 
     // Note that shape rank also incorporates layout, so NCHW16c would have shape rank 5
     auto is_blocked_layout = [](const Layout& l) {
@@ -58,27 +70,30 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
         //   then insert RankNormalization op after this input. This is needed, so all shapes inside the body have
         //   similar ranks.
         if (i_is_blocked) {
-            OPENVINO_ASSERT(base_is_blocked && i_rank == max_rank, "If this shape is blocked, base must also be blocked");
+            OPENVINO_ASSERT(base_is_blocked && i_rank == max_rank,
+                            "If this shape is blocked, base must also be blocked");
             params[i]->set_partial_shape(snippets::utils::vdims_to_pshape(i_shape));
             is_modified = true;
         } else if (i_rank < max_rank) {
-            size_t num_append = base_is_blocked;
-            OPENVINO_ASSERT(max_rank >= i_rank + num_append, "Unsupported blocked shapes combination in canonicalization");
+            auto num_append = static_cast<size_t>(base_is_blocked);
+            OPENVINO_ASSERT(max_rank >= i_rank + num_append,
+                            "Unsupported blocked shapes combination in canonicalization");
             size_t num_prepend = max_rank - i_rank - num_append;
             const auto& out = params[i]->output(0);
             const auto& target_inputs = out.get_target_inputs();
             auto rank_norm = std::make_shared<op::RankNormalization>(out, num_prepend, num_append);
-            for (auto& in : target_inputs)
+            for (const auto& in : target_inputs) {
                 in.replace_source_output(rank_norm);
+            }
             is_modified = true;
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
-            OPENVINO_ASSERT(equal(base_layout.begin(), base_layout.end(), i_layout.begin()),
-                            "Canonicalization got input shapes of equal ranks but different layouts, which is not supported");
+            OPENVINO_ASSERT(
+                equal(base_layout.begin(), base_layout.end(), i_layout.begin()),
+                "Canonicalization got input shapes of equal ranks but different layouts, which is not supported");
         }
     }
     return is_modified;
 }
 
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets

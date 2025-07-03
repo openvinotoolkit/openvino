@@ -74,6 +74,7 @@ bool check_interval(const std::shared_ptr<ov::opset1::FakeQuantize>& fq,
             fq->input_value(2),
             fq->input_value(3),
             fq->input_value(4)}));
+        OPENVINO_ASSERT(tmp_fq != nullptr, "Failed to clone FakeQuantize node");
         auto result = NetworkHelper::fold_fake_quantize(tmp_fq, false);
         const auto result_constant = as_type_ptr<ov::opset1::Constant>(result);
         if (result_constant == nullptr) {

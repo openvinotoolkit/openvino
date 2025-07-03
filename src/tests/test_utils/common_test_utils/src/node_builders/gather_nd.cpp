@@ -46,7 +46,8 @@ std::shared_ptr<ov::Node> make_gather_nd(const ov::Output<Node>& data_node,
 std::shared_ptr<ov::Node> make_gather_nd8(const ov::Output<Node>& data_node,
                                           const ov::Shape& indices_shape,
                                           const ov::element::Type& indices_type,
-                                          const std::size_t batch_dims) {
+                                          const std::size_t batch_dims,
+                                          const std::string& targetDevice) {
     const auto indices = [&] {
         const auto& data_shape = data_node.get_shape();
         const auto indices_count =
@@ -56,11 +57,16 @@ std::shared_ptr<ov::Node> make_gather_nd8(const ov::Output<Node>& data_node,
         const auto max_dim = *std::max_element(begin(data_shape), end(data_shape));
 
         std::vector<int> indices_values(indices_count * slice_rank);
-        ov::test::utils::fill_data_random(indices_values.data(), indices_count * slice_rank, max_dim, 0);
+        const double startFrom = -static_cast<double>(max_dim);
+        const auto range = 2 * max_dim;
+
+        ov::test::utils::fill_data_random<int>(indices_values.data(), indices_count * slice_rank, range, startFrom);
+
         auto indices_data = indices_values.data();
         for (int i = 0; i < indices_count; i++) {
             for (int dim = 0; dim < slice_rank; dim++) {
-                indices_data[0] = indices_data[0] % data_shape[dim + batch_dims];
+                const int modulus = static_cast<int>(data_shape[dim + batch_dims]);
+                indices_data[0] = indices_data[0] % modulus;
                 indices_data++;
             }
         }

@@ -7,7 +7,7 @@
 
 namespace ov::intel_cpu {
 
-#ifdef OPENVINO_CPP_23_VER
+#ifdef OPENVINO_CPP_VER_AT_LEAST_23
 using to_underlying = std::to_underlying;
 #else
 // implementation of C++23 std::to_underlying

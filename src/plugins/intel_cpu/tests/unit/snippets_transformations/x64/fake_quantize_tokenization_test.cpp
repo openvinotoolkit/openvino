@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/tokenization.hpp"

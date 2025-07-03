@@ -23,7 +23,7 @@ Install required dependencies:
          python3 -m venv npu-env
          npu-env/bin/activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.1 openvino-tokenizers==2025.1 openvino-genai==2025.1
+         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
 
 
       For the pre-production version, use the following line, instead:
@@ -40,7 +40,7 @@ Install required dependencies:
          python -m venv npu-env
          npu-env\Scripts\activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.1 openvino-tokenizers==2025.1 openvino-genai==2025.1
+         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
 
 
       For the pre-production version, use the following line, instead:
@@ -62,7 +62,7 @@ Currently, the Whisper pipeline (using:
 `whisper-base <https://huggingface.co/openai/whisper-base>`__,
 `whisper-small <https://huggingface.co/openai/whisper-small>`__, or
 `whisper-large <https://huggingface.co/openai/whisper-large>`__)
-only accepts models generated with the ``--disable-stateful`` flag.
+only accepts stateless models. The pipeline will convert stateful models to stateless models automatically or you can manually generate stateless models with the ``--disable-stateful`` flag.
 Here is a conversion example:
 
 .. code:: console

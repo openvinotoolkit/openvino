@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <memory>
+
 #include "jit_dnnl_emitters.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/elu.hpp"

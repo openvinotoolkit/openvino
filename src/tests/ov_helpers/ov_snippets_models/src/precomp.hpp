@@ -4,25 +4,4 @@
 
 #pragma once
 
-#include "openvino/openvino.hpp"
-#include "openvino/op/ops.hpp"
-
-#include <algorithm>
-#include <functional>
-#include <initializer_list>
-#include <iterator>
-#include <map>
-#include <memory>
-#include <numeric>
-#include <ostream>
-#include <set>
-#include <tuple>
-#include <type_traits>
-#include <typeinfo>
-#include <utility>
-#include <vector>
-
-#include <cassert>
-#include <cctype>
-#include <cmath>
-#include <cstdlib>
+#include "openvino/pch/precomp_std.hpp"

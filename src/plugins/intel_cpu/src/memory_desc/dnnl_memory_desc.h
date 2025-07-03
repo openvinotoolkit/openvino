@@ -4,14 +4,22 @@
 
 #pragma once
 
-#include <common/memory_desc.hpp>
-#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/memory_desc.hpp>
+#include <cstddef>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlMemoryDesc;
 
@@ -24,12 +32,12 @@ public:
 
     MemoryDescPtr clone() const override;
 
-    MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override;
+    MemoryDescPtr cloneWithNewPrecision(ov::element::Type prec) const override;
 
     bool isCompatible(const MemoryDesc& rhs) const override;
     bool isCompatible(const DnnlMemoryDesc& rhs) const;
 
-    bool hasLayoutType(LayoutType layoutType) const override {
+    bool hasLayoutType([[maybe_unused]] LayoutType layoutType) const override {
         return false;
     }
 
@@ -37,7 +45,7 @@ public:
 
     size_t getMaxMemSize() const override;
 
-    virtual bool isSame(dnnl::memory::format_tag fmt) const {
+    virtual bool isSame([[maybe_unused]] dnnl::memory::format_tag fmt) const {
         return false;
     }
 
@@ -78,5 +86,4 @@ private:
     friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

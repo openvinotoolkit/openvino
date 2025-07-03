@@ -4,13 +4,18 @@
 
 #pragma once
 
-#include "node.h"
-#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
-#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+
+namespace ov::intel_cpu::node {
 
 class LLMMLP : public Node {
 public:
@@ -41,9 +46,7 @@ private:
     std::shared_ptr<ExecutorBase> m_executor;
     template <typename T>
     struct Executor;
-    LLMMLPNode::Config m_mlp_config;
+    LLMMLPNode::Config m_mlp_config{};
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

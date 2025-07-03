@@ -278,10 +278,10 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |QLinearGlobalAveragePool                                |                        |1                               |                                |
 |com.microsoft           |QLinearLeakyRelu                                        |1                       |1                               |                                |
 |com.microsoft           |QLinearMul                                              |1                       |1                               |                                |
-|com.microsoft           |QLinearReduceMean                                       |                        |1                               |                                |
+|com.microsoft           |QLinearReduceMean                                       |1                       |1                               |                                |
 |com.microsoft           |QLinearSigmoid                                          |1                       |1                               |                                |
 |com.microsoft           |QLinearSoftmax                                          |1                       |1                               |                                |
-|com.microsoft           |QLinearWhere                                            |                        |1                               |                                |
+|com.microsoft           |QLinearWhere                                            |1                       |1                               |                                |
 |com.microsoft           |QMoE                                                    |                        |1                               |                                |
 |com.microsoft           |QOrderedAttention                                       |                        |1                               |                                |
 |com.microsoft           |QOrderedGelu                                            |                        |1                               |                                |
@@ -301,7 +301,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |RotaryEmbedding                                         |                        |1                               |                                |
 |com.microsoft           |SampleOp                                                |                        |1                               |                                |
 |com.microsoft           |Sampling                                                |                        |1                               |                                |
-|com.microsoft           |SimplifiedLayerNormalization                            |                        |1                               |                                |
+|com.microsoft           |SimplifiedLayerNormalization                            |1                       |1                               |                                |
 |com.microsoft           |SkipGroupNorm                                           |                        |1                               |                                |
 |com.microsoft           |SkipLayerNormalization                                  |1                       |1                               |                                |
 |com.microsoft           |SkipSimplifiedLayerNormalization                        |1                       |1                               |                                |

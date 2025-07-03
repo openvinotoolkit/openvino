@@ -15,26 +15,17 @@
 
 namespace LayerTestsDefinitions {
 std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<SplitTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape  inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    SplitTransformationParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShapes, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShapes, device) << "_" <<
            param.fakeQuantize << "_axis=" << param.splitedAxis << "_n_splits=" << param.numSplit;
     return result.str();
 }
 
 
 void SplitTransformation::SetUp() {
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    SplitTransformationParam param;
-    std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [precision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

@@ -215,7 +215,8 @@ public:
 
 #define CASE_FC_FP16_INT4_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 #define CASE_FC_FP16_INT4_COMP_3D_1 { 1, 1, 128 }, { 1, 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::i4, format::oiyx, data_types::f16, format::bfyx
-#define CASE_FC_FP16_INT4_COMP_3D_2 { 1, 64, 128}, { 1, 64, 128}, { 128, 128 }, data_types::f16, format::bfyx, data_types::i4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_COMP_3D_2 { 1, 32, 128 }, { 1, 32, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::i4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_COMP_3D_3 { 1, 96, 128}, { 1, 96, 128}, { 128, 128 }, data_types::f16, format::bfyx, data_types::i4, format::oiyx, data_types::f16, format::bfyx
 
 #define CASE_FC_FP16_INT8_COMP_1 { 1, 128 }, { 1, 128 }, { 128, 128 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
 #define CASE_FC_FP16_3D_INT8_COMP_1 { 2, 32, 4 }, { 2, 32, 16 }, { 16, 4 }, data_types::f16, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
@@ -905,8 +906,9 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_int8_bias_prod_unfused_dynamic_onednn, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_1, 2, 3 },
-    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_2, 3, 3 },
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_1, 2, 3 },   // dyn_quan is skipeed at runtime
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_2, 2, 3 },   // dyn_quan is skipped at runtime
+    fully_connected_test_params{ CASE_FC_FP16_INT4_COMP_3D_3, 3, 3 },   // dyn_quan is not skipped
 }));
 
 class fc_fp16_eltwise_sub : public FullyConnectedFusingTestOneDNN {

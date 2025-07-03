@@ -15,7 +15,7 @@
 #include <openvino/runtime/compiled_model.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"

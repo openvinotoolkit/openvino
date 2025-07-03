@@ -4,7 +4,13 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 #include "pooling.hpp"
 #if defined(OV_CPU_WITH_ACL)
 #    include "acl/acl_pooling.hpp"
@@ -26,7 +32,7 @@ public:
                            const std::vector<MemoryDescPtr>& dstDescs,
                            const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getPoolingExecutorsList()) {
+        for (const auto& desc : getPoolingExecutorsList()) {
             if (desc.builder->isSupported(poolingAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

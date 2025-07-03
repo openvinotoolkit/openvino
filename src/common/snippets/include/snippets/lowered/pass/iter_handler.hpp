@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 /**
  * @interface UpdateMemoryAccessCounts
  * @brief The pass changes counts of all MemoryAccess ops
@@ -49,7 +50,8 @@ private:
 
 /**
  * @interface SetLoopIncrementOne
- * @brief The pass set `increment = 1` to ExpandedLoopInfo which is mapped on LoopEnd in the passed iterator `end` and to this LoopEnd.
+ * @brief The pass set `increment = 1` to ExpandedLoopInfo which is mapped on LoopEnd in the passed iterator `end` and
+ * to this LoopEnd.
  * @ingroup snippets
  */
 class SetLoopIncrementOne : public snippets::lowered::pass::RangedPass {
@@ -59,10 +61,8 @@ public:
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;
-    std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
+    std::shared_ptr<snippets::lowered::pass::PassBase> merge(
+        const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

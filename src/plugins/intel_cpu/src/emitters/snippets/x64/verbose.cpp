@@ -2,18 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
+#include <sstream>
+#include <string>
 #ifdef SNIPPETS_DEBUG_CAPS
-
-#    include "verbose.hpp"
 
 #    include "jit_brgemm_copy_b_emitter.hpp"
 #    include "jit_brgemm_emitter.hpp"
 #    include "jit_kernel_emitter.hpp"
 #    include "jit_memory_emitters.hpp"
 #    include "jit_segfault_detector_emitter.hpp"
-#    include "jit_snippets_emitters.hpp"
 #    include "kernel_executors/brgemm.hpp"
 #    include "kernel_executors/brgemm_amx.hpp"
+#    include "verbose.hpp"
 
 #    ifndef _WIN32
 #        include <cxxabi.h>
@@ -44,7 +47,7 @@ std::string vector_to_string(const T& v) {
 std::string get_emitter_type_name(const jit_emitter* emitter) {
     std::string name = typeid(*emitter).name();
 #    ifndef _WIN32
-    int status;
+    int status = 0;
     std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
                                                           std::free);
     name = demangled_name.get();
@@ -119,9 +122,8 @@ std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter*
 
 std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitter* emitter) {
     std::stringstream ss;
-    ss << "Emitter_type_name:jit_kernel_dynamic_emitter"
-       << " num_inputs:" << emitter->num_inputs << " num_outputs:" << emitter->num_outputs
-       << " num_unique_buffers:" << emitter->num_unique_buffers
+    ss << "Emitter_type_name:jit_kernel_dynamic_emitter" << " num_inputs:" << emitter->num_inputs
+       << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
        << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
     return ss.str();
 }
@@ -135,7 +137,7 @@ std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_d
            << " iteration:" << emitter->iteration << " ";
     }
     // traget emitter info
-    if (auto target_e = emitter->get_target_emitter()) {
+    if (const auto* target_e = emitter->get_target_emitter()) {
         ss << target_e->info();
     }
     return ss.str();
@@ -151,21 +153,21 @@ void jit_emitter_info_t::init(const jit_emitter* emitter) {
     if (is_initialized_) {
         return;
     }
-    if (auto e_type = dynamic_cast<const jit_load_memory_emitter*>(emitter)) {
+    if (const auto* e_type = dynamic_cast<const jit_load_memory_emitter*>(emitter)) {
         str_ = init_info_jit_load_memory_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
         str_ = init_info_jit_load_broadcast_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_store_memory_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_store_memory_emitter*>(emitter)) {
         str_ = init_info_jit_store_memory_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_brgemm_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_brgemm_emitter*>(emitter)) {
         str_ = init_info_jit_brgemm_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_brgemm_copy_b_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_brgemm_copy_b_emitter*>(emitter)) {
         str_ = init_info_jit_brgemm_copy_b_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_kernel_static_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_kernel_static_emitter*>(emitter)) {
         str_ = init_info_jit_kernel_static_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_kernel_dynamic_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_kernel_dynamic_emitter*>(emitter)) {
         str_ = init_info_jit_kernel_dynamic_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_uni_segfault_detector_emitter*>(emitter)) {
+    } else if (const auto* e_type = dynamic_cast<const jit_uni_segfault_detector_emitter*>(emitter)) {
         str_ = init_info_jit_uni_segfault_detector_emitter(e_type);
     } else {
         str_ = init_info_jit_emitter_general(emitter);

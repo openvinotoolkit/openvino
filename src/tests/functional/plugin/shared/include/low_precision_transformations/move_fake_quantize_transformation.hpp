@@ -33,7 +33,6 @@ typedef std::tuple <
     ov::element::Type,
     std::vector<ov::PartialShape>,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     bool,
     MoveFakeQuantizeTransformationParam
 > MoveFakeQuantizeTransformationParams;

@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <deque>
+#include <string>
+
+#include "utils/debug_caps_config.h"
 #ifdef CPU_DEBUG_CAPS
 #    include "compiled_model.h"
 #    include "weights_cache.hpp"

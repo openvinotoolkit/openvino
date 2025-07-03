@@ -4,12 +4,17 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <numeric>
+#include <type_traits>
 #include <vector>
 
+#include "cpu_types.h"
 #include "general_utils.h"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "precision_support.h"
 
 namespace ov::intel_cpu {
@@ -81,8 +86,8 @@ inline bool isPerTensorOrPerChannelBroadcastable(const VectorDims& firstInputDim
             }
         }
     } else {
-        for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-            if (normalizedSecondInputDims[i] != 1) {
+        for (uint64_t normalizedSecondInputDim : normalizedSecondInputDims) {
+            if (normalizedSecondInputDim != 1) {
                 return false;
             }
         }

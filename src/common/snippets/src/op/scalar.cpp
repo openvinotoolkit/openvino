@@ -4,9 +4,15 @@
 
 #include "snippets/op/scalar.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/constant.hpp"
+
+namespace ov::snippets::op {
 
 std::shared_ptr<ov::Node> Scalar::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
@@ -18,9 +24,11 @@ void Scalar::validate_and_infer_types() {
     Constant::validate_and_infer_types();
     auto out_pshape = get_output_partial_shape(0);
     NODE_VALIDATION_CHECK(this, out_pshape.is_static(), "Scalar supports only static input shapes");
-    NODE_VALIDATION_CHECK(this, out_pshape.get_shape().empty() || ov::shape_size(out_pshape.get_shape()) == 1,
-                      "Scalar supports only one-element constants, got ", out_pshape.get_shape(),
-                      " shape");
+    NODE_VALIDATION_CHECK(this,
+                          out_pshape.get_shape().empty() || ov::shape_size(out_pshape.get_shape()) == 1,
+                          "Scalar supports only one-element constants, got ",
+                          out_pshape.get_shape(),
+                          " shape");
 }
 
 bool Scalar::visit_attributes(AttributeVisitor& visitor) {
@@ -33,6 +41,4 @@ bool Scalar::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

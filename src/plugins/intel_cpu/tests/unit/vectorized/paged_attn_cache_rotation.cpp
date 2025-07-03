@@ -13,6 +13,7 @@
 // the includes in the block below are necessary in order for the common.hpp header to be
 // instantiated correctly
 #include <cstring>
+#include "openvino/runtime/system_conf.hpp"
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif
@@ -253,7 +254,7 @@ TYPED_TEST_P(CacheRotationKernelInputTypeParameterizedTest, RefBlockRotationGive
     compare_with_tolerance(test_values_after_rotation, this->ref_values_after_rotation, get_tolerance<TypeParam>());
 }
 
-enum class TargetInstructionSet { AVX2, AVX512 };
+enum class TargetInstructionSet : uint8_t { AVX2, AVX512 };
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic push

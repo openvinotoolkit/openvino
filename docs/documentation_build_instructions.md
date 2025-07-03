@@ -44,5 +44,9 @@ $ source env/bin/activate
 Depending on the needs, following variables can be added to first cmake call:
 - building C/C++ API:  `-DENABLE_CPP_API=ON`
 - building Python API: `-DENABLE_PYTHON_API=ON`
+- building GenAI API:  `-DENABLE_GENAI_API=ON`
 - building Notebooks:  `-DENABLE_NOTEBOOKS=ON`
 - building OVMS:       `-DENABLE_OVMS=ON -DOVMS_DOCS_DIR=<path_to_OVMS_repo>`
+
+> > **Note:** When building the Python API documentation, the OpenVINO package version specified in [conf.py](./sphinx_setup/conf.py) is automatically downloaded using the [installation script](./scripts/install_appropriate_openvino_version.py).  
+> If you need a specific version or want to use an already installed OpenVINO package, modify these files accordingly.

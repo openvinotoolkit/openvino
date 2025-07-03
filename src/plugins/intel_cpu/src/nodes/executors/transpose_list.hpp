@@ -4,18 +4,16 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "transpose.hpp"
 #if defined(OV_CPU_WITH_ACL)
 #    include "acl/acl_transpose.hpp"
 #endif
-
-#include "common/primitive_cache.hpp"
-#include "common/ref_opt_transpose.hpp"
-#include "common/ref_transpose.hpp"
-#include "mlas/mlas_transpose.hpp"
-#include "onednn/iml_type_mapper.h"
-#include "x64/jit_transpose.hpp"
 
 namespace ov::intel_cpu {
 
@@ -33,7 +31,7 @@ public:
                              const std::vector<MemoryDescPtr>& dstDescs,
                              const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getTransposeExecutorsList()) {
+        for (const auto& desc : getTransposeExecutorsList()) {
             if (desc.builder->isSupported(transposeParams, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
 #ifdef SNIPPETS_DEBUG_CAPS
-
-#    include "jit_debug_emitter.hpp"
 
 #    include <vector>
 
-#    include "utils/general_utils.h"
+#    include "jit_debug_emitter.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;

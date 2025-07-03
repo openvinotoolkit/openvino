@@ -266,7 +266,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
-    device_query query(engine_type, runtime_type);
+    device_query query(engine_type, runtime_type, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
 
     OPENVINO_ASSERT(!devices.empty(), "[GPU] Can't create ", engine_type, " engine for ", runtime_type, " runtime as no suitable devices are found\n"

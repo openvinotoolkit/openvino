@@ -171,6 +171,7 @@ macro(ov_add_frontend)
                 COMMAND_EXPAND_LISTS)
         list(APPEND PROTO_SRCS "${OUTPUT_PB_SRC}")
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
+        set_source_files_properties(${OUTPUT_PB_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     endforeach()
 
     file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)

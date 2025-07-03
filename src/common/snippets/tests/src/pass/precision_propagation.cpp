@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"

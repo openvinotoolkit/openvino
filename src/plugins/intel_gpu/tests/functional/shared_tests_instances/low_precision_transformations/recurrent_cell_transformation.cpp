@@ -11,11 +11,6 @@ using namespace LayerTestsDefinitions;
 
 const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
-    ov::element::f16
-};
-
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
 };
 
 namespace testValues1 {
@@ -48,8 +43,8 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {},
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
-        "RNNCell",
-        "U8"
+        "RNNSeq",
+        "u8"
     },
     // asymmetrical FQ on weights
     {
@@ -78,22 +73,20 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {},
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
-        "RNNCell",
-        "FP32"
+        "RNNSeq",
+        "f32"
     }
 };
 
-const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 1, 16}, {1, 1, 128}, {1, 1, 128}}};
+const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 2, 16}, {1, 1, 128}, {1, 1, 128}}};
 const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 512, 16}, {1, 512, 128}, {1, 512}}};
 
-// Quantized Recurrent models are not supported by GPU yet. Keep tests for future
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);
@@ -102,7 +95,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
 namespace testValues2 {
 
 const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> params = {
-    // GRUSequence
+    // GRU
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
@@ -129,8 +122,8 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {},
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
-        "RNNCell",
-        "U8"
+        "RNNSeq",
+        "u8"
     },
     // asymmetrical FQ on weights
     {
@@ -159,22 +152,20 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {},
         {{}, {}, {}},
         ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
-        "RNNCell",
-        "FP32"
+        "RNNSeq",
+        "f32"
     }
 };
 
-const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 2, 3}, {1, 2, 3}, {}}};
+const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 1, 3}, {1, 1, 3}, {}}};
 const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 9, 3}, {1, 9, 3}, {1, 9}}};
 
-// Quantized Recurrent models are not supported by GPU yet. Keep tests for future
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_LPT, RecurrentCellTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);

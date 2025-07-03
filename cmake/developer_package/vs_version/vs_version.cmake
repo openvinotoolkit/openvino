@@ -9,7 +9,7 @@ set(OV_VS_VER_FILEVERSION_STR "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINO
 set(OV_VS_VER_COMPANY_NAME_STR "Intel Corporation")
 set(OV_VS_VER_PRODUCTVERSION_STR "${CI_BUILD_NUMBER}")
 set(OV_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
-set(OV_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2021, Intel Corporation")
+set(OV_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-${OpenVINO_VERSION_MAJOR}, Intel Corporation")
 set(OV_VS_VER_COMMENTS_STR "https://docs.openvino.ai/")
 
 #

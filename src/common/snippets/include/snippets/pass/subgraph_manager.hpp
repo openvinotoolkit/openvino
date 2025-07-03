@@ -5,21 +5,19 @@
 #pragma once
 
 #include <memory>
-#include <typeinfo>
+#include <type_traits>
 #include <vector>
 
-#include "snippets/pass/common_optimizations.hpp"
-
-#include "snippets/pass/subgraph_pass.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/pass/common_optimizations.hpp"
+#include "snippets/pass/subgraph_pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 /**
  * @brief Manager class allows to manage transformation passes (SubgraphPasses) on Subgraph ops.
  *        See SubgraphPasses description for more details.
- *        It's light version of ov::Manager implementation the purpose of which is to change only Subgraph as separate node in model.
+ *        It's light version of ov::Manager implementation the purpose of which is to change only Subgraph as separate
+ *        node in model.
  * @ingroup snippets
  */
 class CommonOptimizations::SubgraphManager {
@@ -39,11 +37,9 @@ public:
     /// @brief      Runs registered transformations on a given model
     /// @param      subgraph Input model
     /// @return     Returns true if the model was changed by transformations, false otherwise.
-    bool run_passes(std::shared_ptr<ov::snippets::op::Subgraph> subgraph);
+    bool run_passes(const std::shared_ptr<ov::snippets::op::Subgraph>& subgraph);
 
 protected:
     std::vector<std::shared_ptr<SubgraphPass>> m_pass_list;
 };
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

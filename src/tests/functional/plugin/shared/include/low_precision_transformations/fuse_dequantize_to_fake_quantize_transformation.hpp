@@ -26,7 +26,6 @@ public:
     };
 
     ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };
 

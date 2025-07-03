@@ -4,10 +4,20 @@
 
 #pragma once
 
-#include <cpu/x64/brgemm/brgemm.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "emitters/snippets/brgemm_generic.hpp"
+#include "onednn/dnnl.h"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::intel_cpu::x64 {
 
@@ -33,9 +43,16 @@ public:
     [[nodiscard]] dnnl_data_type_t get_dt_in1() const {
         return get_static_params()->dt_in1;
     }
+    [[nodiscard]] dnnl_data_type_t get_dt_out() const {
+        return get_static_params()->dt_out;
+    }
 
     [[nodiscard]] dnnl::impl::cpu::x64::cpu_isa_t get_isa() const {
         return get_static_params()->isa;
+    }
+
+    [[nodiscard]] const dnnl_post_ops& get_post_ops() const {
+        return get_static_params()->post_ops;
     }
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -46,12 +63,15 @@ protected:
     struct StaticBaseParams {
         StaticBaseParams(const element::Type& in0_dtype,
                          const element::Type& in1_dtype,
+                         const element::Type& out_dtype,
                          dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+                         const dnnl_post_ops& post_ops,
                          size_t hash_seed);
         virtual ~StaticBaseParams() = default;
 
-        const dnnl_data_type_t dt_in0{dnnl_f32}, dt_in1{dnnl_f32};
+        const dnnl_data_type_t dt_in0{dnnl_f32}, dt_in1{dnnl_f32}, dt_out{dnnl_f32};
         const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::isa_undef};
+        const dnnl_post_ops post_ops;
 
         [[nodiscard]] size_t hash() const {
             return m_hash;
@@ -68,7 +88,9 @@ protected:
         static size_t compute_hash(size_t hash_seed,
                                    dnnl_data_type_t dt_in0,
                                    dnnl_data_type_t dt_in1,
-                                   dnnl::impl::cpu::x64::cpu_isa_t isa);
+                                   dnnl_data_type_t dt_out,
+                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                   const dnnl_post_ops& post_ops);
 
         const size_t m_hash{0};
     };
@@ -91,8 +113,9 @@ protected:
                               BrgemmBaseKernelConfig& config);
 
     static void create_brgemm_kernel(std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& kernel,
-                                     dnnl_data_type_t dt0,
-                                     dnnl_data_type_t dt1,
+                                     dnnl_data_type_t dt_in0,
+                                     dnnl_data_type_t dt_in1,
+                                     dnnl_data_type_t dt_out,
                                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                                      dnnl_dim_t M,
                                      dnnl_dim_t N,
@@ -101,6 +124,7 @@ protected:
                                      dnnl_dim_t LDB,
                                      dnnl_dim_t LDC,
                                      float beta,
+                                     const dnnl_post_ops& post_ops,
                                      bool with_amx = false,
                                      char* palette = nullptr);
 
@@ -109,7 +133,9 @@ protected:
                                       const void* wei,
                                       void* dst,
                                       void* scratch,
-                                      bool with_comp);
+                                      const void* post_ops_binary_arg_vec,
+                                      bool with_comp,
+                                      bool apply_post_ops);
 };
 
 }  // namespace ov::intel_cpu::x64

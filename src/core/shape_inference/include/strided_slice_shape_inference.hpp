@@ -65,9 +65,8 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
     std::optional<std::vector<int64_t>> strides;
     if (input_shapes.size() > 3) {
         strides = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
-    } else if (begin) {
-        // generate default strides
-        strides.emplace(begin->size(), 1);
+    } else if (const auto strides_size = ov::op::slice::default_stride_size(begin_shape, end_shape); strides_size > 0) {
+        strides = std::vector<int64_t>(strides_size, 1);
     }
 
     // compute and check a number of axes for which begin, end, and strides are defined
@@ -121,6 +120,8 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
 
     auto& out = output_shapes.front();
     out.resize(0);
+
+    std::optional<std::pair<size_t, DimType>> last_dynamic_dim;
     int64_t input_shape_idx = 0;
     for (int64_t axis = 0; axis < number_axes; ++axis) {
         // add all dimensions hidden under the ellipsis mask if ellipsis mask is set
@@ -158,7 +159,7 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                 input_shape_idx++;
             }
             // calculating dimension (begin, end, begin_mask, end_mask, stride)
-            else if (begin && end && strides) {
+            else if (strides) {
                 // set default value for stride or use given value
                 const auto& input_dim = input_shape[input_shape_idx];
                 auto stride =
@@ -178,16 +179,37 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
                 const auto& default_start = is_reverse_stride ? norm_dim_bounds : default_fstart;
                 const auto& default_stop = is_reverse_stride ? default_rstop : norm_dim_bounds;
 
-                const auto& start = begin_mask.count(axis) ? default_start : (*begin)[axis];
-                const auto& stop = end_mask.count(axis) ? default_stop : (*end)[axis];
-                auto sliced_dim = slice::make_dim(input_dim, start, stop, stride);
+                const auto start = begin_mask.count(axis) ? &default_start : begin ? &(*begin)[axis] : nullptr;
+                const auto stop = end_mask.count(axis) ? &default_stop : end ? &(*end)[axis] : nullptr;
 
-                if (std::is_same<DimType, ov::Dimension>::value &&
-                    (sliced_dim == input_dim && sliced_dim != Dimension::dynamic())) {
+                if constexpr (std::is_same_v<DimType, ov::Dimension>) {
+                    if (!begin || !end) {
+                        last_dynamic_dim = std::make_pair(out.size(),
+                                                          slice::make_dim(DimType(0, input_dim.get_max_length()),
+                                                                          default_start,
+                                                                          default_stop,
+                                                                          stride));
+                    }
+
+                    // non-constant begin/end produce dynamic output dimensions unless the axis is ignored by setting
+                    // the corresponding mask to 1; since the stride is constant it can still be applied on the bounds
+                    auto sliced_dim =
+                        start && stop ? slice::make_dim(input_dim, *start, *stop, stride) : last_dynamic_dim->second;
+
                     // for equal ov::Dimension do merge to get input label (always success)
-                    DimType::merge(sliced_dim, sliced_dim, input_dim);
+                    if (sliced_dim == input_dim && sliced_dim != Dimension::dynamic()) {
+                        DimType::merge(sliced_dim, sliced_dim, input_dim);
+                    }
+
+                    out.push_back(std::move(sliced_dim));
+                } else {
+                    NODE_SHAPE_INFER_CHECK(op,
+                                           input_shapes,
+                                           start && stop,
+                                           "Requires both start and stop to be defined for static shapes.");
+                    auto sliced_dim = slice::make_dim(input_dim, *start, *stop, stride);
+                    out.push_back(std::move(sliced_dim));
                 }
-                out.push_back(std::move(sliced_dim));
 
                 input_shape_idx++;
             } else {
@@ -195,6 +217,13 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
 
                 input_shape_idx++;
             }
+        }
+    }
+
+    if constexpr (std::is_same_v<DimType, ov::Dimension>) {
+        // TODO: #167791 at least one dim must remain dynamic for now
+        if (last_dynamic_dim.has_value() && out.is_static()) {
+            out[last_dynamic_dim->first] = std::move(last_dynamic_dim->second);
         }
     }
 

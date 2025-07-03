@@ -4,19 +4,19 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
-#include <memory>
+#include <utility>
 
 #include "lru_cache.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class CacheEntryBase {
 public:
     enum class LookUpStatus : int8_t { Hit, Miss };
 
-public:
     virtual ~CacheEntryBase() = default;
 };
 
@@ -36,7 +36,6 @@ class CacheEntry : public CacheEntryBase {
 public:
     using ResultType = std::pair<ValType, LookUpStatus>;
 
-public:
     explicit CacheEntry(size_t capacity) : _impl(capacity) {}
 
     /**
@@ -59,15 +58,14 @@ public:
         if (retVal == retEmpty) {
             retStatus = LookUpStatus::Miss;
             retVal = builder(key);
-            if (retVal != retEmpty)
+            if (retVal != retEmpty) {
                 _impl.put(key, retVal);
+            }
         }
         return {retVal, retStatus};
     }
 
-public:
     ImplType _impl;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

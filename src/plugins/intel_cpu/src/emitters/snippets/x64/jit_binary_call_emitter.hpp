@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <set>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu {
 /**
@@ -62,7 +71,7 @@ protected:
 private:
     // Note: init_regs() can be called only from emit_impl, since it needs initialized regs
     // init_impl is a constant method, so all these fields have to be mutable
-    mutable std::set<snippets::Reg> m_regs_to_spill{};
+    mutable std::set<snippets::Reg> m_regs_to_spill;
     mutable Xbyak::Reg64 m_callee_saved_reg;
     mutable Xbyak::Reg64 m_call_address_reg;
     mutable bool m_regs_initialized = false;
