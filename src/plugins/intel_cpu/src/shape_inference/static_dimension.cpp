@@ -156,7 +156,7 @@ StaticDimension& StaticDimension::operator=(value_type val) {
 
 StaticDimension StaticDimension::operator*(const ov::Dimension& dim) const {
     if (dim.is_static()) {
-        return {m_dimension * dim.get_length()};
+        return {static_cast<value_type>(m_dimension * dim.get_length())};
     }
     // For dynamic dimensions, return 0 (or could throw)
     return {0};
