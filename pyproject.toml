@@ -22,6 +22,14 @@ dependencies = [
     "packaging<=25.0"
 ]
 
+[project.optional-dependencies]
+preprocess = [
+    "torch<=2.7.1",
+    "torchvision<=0.22.0",
+    "networkx<=3.2.1; python_version <= '3.9'",
+    "pillow>=9.0,<=11.2.1"
+]
+
 [tool.poetry]
 package-mode = false
 
@@ -29,6 +37,10 @@ package-mode = false
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
+
+[tool.poetry.dependencies]
+torch = { version = "*", source = "pytorch-cpu" }
+torchvision = { version = "*", source = "pytorch-cpu" }
 
 [tool.poetry.group.tests]
 optional = true
@@ -46,19 +58,6 @@ transformers = ">=4.0.0,<=4.45.4"
 pillow = ">=6.2.0,<=11.2.1"
 defusedxml = ">=0.5.0,<=0.7.1"
 sympy = { version = ">=1.8.0,<=1.14.0", markers = "platform_machine == 'arm64'" }
-
-[tool.poetry.group.torch]
-optional = true
-
-[tool.poetry.group.torch.dependencies]
-torch = { version = "<=2.7.1", source = "pytorch-cpu" }
-
-[tool.poetry.group.tensorflow]
-optional = true
-
-[tool.poetry.group.tensorflow.dependencies]
-h5py = ">=3.1.0,<3.15.0"
-tensorflow = ">=1.15.5,<2.20.0"
 
 [tool.poetry.group.onnx]
 optional = true
@@ -87,7 +86,7 @@ optional = true
 tox = "<=4.26.0"
 pygments = "<=2.16.1"
 pep8-naming = "<=0.13.0"
-pillow = "<=10.3.0"
+pillow = ">=9.0,<=10.3.0"
 pydocstyle = "<=6.3.0"
 radon = "<=5.0.0"
 retrying = "<=1.3.3"

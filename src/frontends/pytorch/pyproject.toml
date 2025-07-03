@@ -48,3 +48,7 @@ rjieba = "<=0.1.11"
 # - katuni4ka/tiny-random-internlm2
 transformers_stream_generator = "<=0.0.5"
 einops = "<=0.8.0"
+optimum-intel = [
+    { git = "https://github.com/huggingface/optimum-intel.git", rev = "303bc50fdeb34b427dc1b04be741bf4f11415b2d", extras = ["nncf"], allow-prereleases = true, markers = "python_version >= '3.12'" },
+    { git = "https://github.com/huggingface/optimum-intel.git", rev = "8ba536cd0a2bf93e9e88408b0048a7695db5be0b", extras = ["nncf"], allow-prereleases = true, markers = "python_version < '3.12'" },
+]
