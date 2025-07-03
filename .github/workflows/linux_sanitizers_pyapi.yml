@@ -200,7 +200,7 @@ jobs:
             -DENABLE_INTEL_NPU=OFF \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-            -DENABLE_WHEEL=OFF \
+            -DENABLE_WHEEL=ON \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
