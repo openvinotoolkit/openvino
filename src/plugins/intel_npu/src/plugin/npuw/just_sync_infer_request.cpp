@@ -569,6 +569,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         if (!is_spatial) {
             // Non-spatial case - set immediately
             m_subrequests[real_idx]->set_tensor(oport, o_tensor);
+            
+            auto tmp_port = m_npuw_model->outputs()[i];
+            m_subrequests[real_idx]->set_tensor(oport, m_port_to_tensor.at(tmp_port).tensor);
         } else {
             // Spatial case - defer
             m_spatial_io[real_idx].outputs.at(i) = o_tensor;
