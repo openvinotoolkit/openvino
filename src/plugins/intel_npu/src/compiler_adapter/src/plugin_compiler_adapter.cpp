@@ -20,6 +20,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
+#ifndef VCL_FOR_COMPILER
 namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -48,6 +49,7 @@ ov::SoPtr<intel_npu::ICompiler> loadCompiler(const std::string& libpath) {
     return ov::SoPtr<intel_npu::ICompiler>(compiler, compilerSO);
 }
 }  // namespace
+#endif
 
 namespace intel_npu {
 

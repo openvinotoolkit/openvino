@@ -81,7 +81,7 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
     try {
 #define vcl_symbol_statement(vcl_symbol) \
     this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol));
-    vcl_symbols_list();
+        vcl_symbols_list();
 #undef vcl_symbol_statement
     } catch (const std::runtime_error& error) {
         _logger.debug("Failed to get formal symbols from npu_vcl_compiler");
@@ -92,7 +92,7 @@ VCLApi::VCLApi() : _logger("VCLApi", ov::log::Level::DEBUG) {
     try {                                                                                                     \
         this->vcl_symbol = reinterpret_cast<decltype(&::vcl_symbol)>(ov::util::get_symbol(lib, #vcl_symbol)); \
     } catch (const std::runtime_error&) {                                                                     \
-        _logger.debug("Failed to get %s from npu_vcl_compiler", #vcl_symbol);                              \
+        _logger.debug("Failed to get %s from npu_vcl_compiler", #vcl_symbol);                                 \
         this->vcl_symbol = nullptr;                                                                           \
     }
     vcl_weak_symbols_list();
@@ -156,8 +156,7 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 }
 
 struct vcl_allocator_vector : vcl_allocator2_t {
-    vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {
-    }
+    vcl_allocator_vector() : vcl_allocator2_t{vector_allocate, vector_deallocate} {}
 
     static uint8_t* vector_allocate(vcl_allocator2_t* allocator, size_t size) {
         vcl_allocator_vector* vecAllocator = static_cast<vcl_allocator_vector*>(allocator);
@@ -232,10 +231,9 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
         // For older versions, we use vclAllocatedExecutableCreate
         _logger.debug("Using vclAllocatedExecutableCreate for 6.1 < VCL < 7.4");
 
-        vcl_allocator_t allocator = {
-            .allocate = vcl_allocator_malloc::vcl_allocate,
-            .deallocate = vcl_allocator_malloc::vcl_deallocate,
-        };
+        vcl_allocator_t allocator;
+        allocator.allocate = vcl_allocator_malloc::vcl_allocate;
+        allocator.deallocate = vcl_allocator_malloc::vcl_deallocate;
         uint8_t* blob = nullptr;
         size_t size = 0;
         THROW_ON_FAIL_FOR_VCL("vclAllocatedExecutableCreate",
