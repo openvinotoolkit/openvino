@@ -1,11 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/perf_count.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#    include "jit_perf_count_chrono_emitters.hpp"
-
 #    include "emitters/plugin/x64/utils.hpp"
+#    include "jit_perf_count_chrono_emitters.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -32,8 +42,8 @@ void jit_perf_count_chrono_start_emitter::set_start_time(snippets::op::PerfCount
     start_node->set_start_time();
 }
 
-void jit_perf_count_chrono_start_emitter::emit_impl(const std::vector<size_t>& in_idxs,
-                                                    const std::vector<size_t>& out_idxs) const {
+void jit_perf_count_chrono_start_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in_idxs,
+                                                    [[maybe_unused]] const std::vector<size_t>& out_idxs) const {
     init_binary_call_regs(0, {});
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
@@ -68,8 +78,8 @@ void jit_perf_count_chrono_end_emitter::set_accumulated_time(snippets::op::PerfC
     end_node->set_accumulated_time();
 }
 
-void jit_perf_count_chrono_end_emitter::emit_impl(const std::vector<size_t>& in_idxs,
-                                                  const std::vector<size_t>& out_idxs) const {
+void jit_perf_count_chrono_end_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in_idxs,
+                                                  [[maybe_unused]] const std::vector<size_t>& out_idxs) const {
     init_binary_call_regs(0, {});
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();

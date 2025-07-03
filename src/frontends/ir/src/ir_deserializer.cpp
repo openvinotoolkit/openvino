@@ -6,6 +6,7 @@
 
 #include <pugixml.hpp>
 #include <regex>
+#include <stack>
 #include <string_view>
 
 #include "openvino/core/descriptor_tensor.hpp"
@@ -57,7 +58,7 @@ std::unordered_set<std::string> deserialize_tensor_names(const std::string_view&
                 *name_inserter = std::regex_replace(std::string(name_view), escaped_delim, delim);
             }
             start = pos;
-        } else if (auto delim_pos = pos - 1; delim_pos != std::string::npos && tensor_names[delim_pos] == esc_char) {
+        } else if (pos > 0 && tensor_names[pos - 1] == esc_char) {
             ++pos;
         } else {
             if (auto length = pos - start; length > 0) {
@@ -484,7 +485,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
 
     struct FunctionNodes {
         ov::ParameterVector parameters;
-        ov::ResultVector results;
+        ov::OutputVector results;
         ov::NodeVector all;
         ov::SinkVector sinks;
     };
@@ -529,15 +530,31 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
         edges[toLayer].push_back({fromLayer, fromPort, toPort});
     }
 
-    // Run DFS starting from outputs to get nodes topological order
-    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes, &dfs](const size_t id) {
-        if (dfs_used_nodes.count(id))
-            return;
-        dfs_used_nodes.insert(id);
-        for (auto& edge : edges[id]) {
-            dfs(edge.fromLayerId);
+    // Run DFS starting from outputs to get nodes topological order without recursion
+    std::function<void(size_t)> dfs = [&edges, &order, &dfs_used_nodes](const size_t start_id) {
+        std::stack<size_t> stack;
+        std::unordered_set<size_t> visited;
+        stack.push(start_id);
+
+        while (!stack.empty()) {
+            size_t id = stack.top();
+            if (dfs_used_nodes.count(id)) {
+                stack.pop();
+                continue;
+            }
+            if (visited.count(id)) {
+                dfs_used_nodes.insert(id);
+                order.push_back(id);
+                stack.pop();
+                continue;
+            }
+            visited.insert(id);
+            for (auto& edge : edges[id]) {
+                if (!dfs_used_nodes.count(edge.fromLayerId)) {
+                    stack.push(edge.fromLayerId);
+                }
+            }
         }
-        order.push_back(id);
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
 
@@ -558,7 +575,7 @@ std::shared_ptr<ov::Model> ov::XmlDeserializer::parse_function(const pugi::xml_n
                 OPENVINO_THROW("Attempt to access node ", e.fromLayerId, " that not in graph.");
             }
             auto& p_output = params[e.fromLayerId].params;
-            size_t const realInputPortId = p.params.get_real_input_port_id(e.toPortId);
+            const size_t realInputPortId = p.params.get_real_input_port_id(e.toPortId);
             if (realInputPortId >= inputs.size())
                 OPENVINO_THROW(p.params.type,
                                " layer ",
@@ -911,7 +928,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
             }
         }
 
-        auto const& opset = opsetIt->second;
+        const auto& opset = opsetIt->second;
 
         ovNode = std::shared_ptr<ov::Node>(opset.create_insensitive(type_name));
         if (!ovNode) {

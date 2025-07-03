@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -23,6 +24,10 @@ bool is_set(const std::size_t sub_idx,
 // Every great project has its own string class...
 // NB: Newer C++ standards would allow to use string views or smt
 ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
+
+// In case of working with memory which will be detached later (Constant will be freed),
+// we need to explicitly create a tensor which owns the memory during the execution.
+ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
@@ -151,6 +156,14 @@ void non_parallel_for(std::size_t count, F&& f) {
         f(idx);
     }
 }
+
+template <class CountedType>
+struct Unique {
+    static std::string name() {
+        static std::size_t counter = 0u;
+        return std::string(CountedType::name) + "_" + std::to_string(counter++);
+    }
+};
 
 }  // namespace util
 }  // namespace npuw

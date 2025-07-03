@@ -14,6 +14,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/pass.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 
@@ -520,8 +521,10 @@ class ReadAndStoreAttributes : public ov::AttributeVisitor, protected storage::S
 public:
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
 
-#define ON_ADAPTER(TYPE) \
-    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { insert(name, adapter.get()); }
+#define ON_ADAPTER(TYPE)                                                                  \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
+        insert(name, adapter.get());                                                      \
+    }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
@@ -914,8 +917,10 @@ public:
         verify_others(name, adapter);
     }
 
-#define ON_ADAPTER(TYPE) \
-    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { verify(name, adapter.get()); }
+#define ON_ADAPTER(TYPE)                                                                  \
+    void on_adapter(const std::string& name, ov::ValueAccessor<TYPE>& adapter) override { \
+        verify(name, adapter.get());                                                      \
+    }
 
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)

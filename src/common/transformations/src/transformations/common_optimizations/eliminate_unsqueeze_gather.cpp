@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"

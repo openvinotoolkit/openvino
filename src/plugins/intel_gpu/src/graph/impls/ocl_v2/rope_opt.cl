@@ -122,7 +122,12 @@
 #ifdef CHATGLM
 KERNEL(rope_opt)(
     OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
+#ifdef USE_ROPE_CACHE
     const __global INPUT1_TYPE* cos_sin,
+#else
+    const __global INPUT1_TYPE* cos,
+    const __global INPUT2_TYPE* sin,
+#endif
     __global OUTPUT_TYPE* output) {
 #if VEC_SIZE != 1 && VEC_SIZE != 8 && VEC_SIZE != 16
 #   error "rope_opt.cl - VEC_SIZE must be one of {1, 8, 16}"
@@ -153,10 +158,18 @@ KERNEL(rope_opt)(
     uint cos_sin_p = p < INPUT1_BATCH_NUM ? p : 0;
     uint cos_sin_b = b < INPUT1_FEATURE_NUM ? b : 0;
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, cos_sin_b, 0, 0);
+#if !defined(USE_ROPE_CACHE)
+    uint cos_sin_r = r >> 1;
+#endif
 
 #if VEC_SIZE == 1
+    #ifdef USE_ROPE_CACHE
     float cosv = convert_float(cos_sin[cos_sin_idx + r]);
     float sinv = convert_float(cos_sin[cos_sin_idx + r + 1]);
+    #else
+    float cosv = convert_float(cos[cos_sin_idx + cos_sin_r]);
+    float sinv = convert_float(sin[cos_sin_idx + cos_sin_r]);
+    #endif
 
     float in1 = convert_float(input[input_idx + r]);
     float in2 = convert_float(input[input_idx + r + 1]);
@@ -171,14 +184,22 @@ KERNEL(rope_opt)(
 #elif VEC_SIZE == 8
     INPUT_VEC_TYPE inv1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE inv2 = *(INPUT_VEC_TYPE*)(input + input_idx + r + VEC_SIZE);
-    INPUT_VEC_TYPE cossinv1 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r);
-    INPUT_VEC_TYPE cossinv2 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + VEC_SIZE);
 
-    float8 in1, in2, cosv, sinv;
+    float8 in1, in2;
     UNPACK_FLOAT_VEC_1(in1, inv1, inv2);
     UNPACK_FLOAT_VEC_2(in2, inv1, inv2);
+    #ifdef USE_ROPE_CACHE
+    INPUT_VEC_TYPE cossinv1 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r);
+    INPUT_VEC_TYPE cossinv2 = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + VEC_SIZE);
+    float8 cosv, sinv;
     UNPACK_FLOAT_VEC_1(cosv, cossinv1, cossinv2);
     UNPACK_FLOAT_VEC_2(sinv, cossinv1, cossinv2);
+    #else
+    INPUT_VEC_TYPE cosvv = *(INPUT_VEC_TYPE*)(cos + cos_sin_idx + cos_sin_r);
+    INPUT_VEC_TYPE sinvv = *(INPUT_VEC_TYPE*)(sin + cos_sin_idx + cos_sin_r);
+    float8 cosv = convert_float8(cosvv);
+    float8 sinv = convert_float8(sinvv);
+    #endif
     float8 out1 = cosv * in1 - sinv * in2;
     float8 out2 = sinv * in1 + cosv * in2;
 
@@ -195,12 +216,20 @@ KERNEL(rope_opt)(
 #elif VEC_SIZE == 16
     unroll_for(int i = 0; i < 2; i += 1) {
         INPUT_VEC_TYPE inv = *(INPUT_VEC_TYPE*)(input + input_idx + r + i * VEC_SIZE);
-        INPUT_VEC_TYPE cossinv = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + i * VEC_SIZE);
-        float8 in1, in2, cosv, sinv;
+        float8 in1, in2;
         UNPACK_HALF_VEC_1(in1, inv);
         UNPACK_HALF_VEC_2(in2, inv);
+    #ifdef USE_ROPE_CACHE
+        INPUT_VEC_TYPE cossinv = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + i * VEC_SIZE);
+        float8 cosv, sinv;
         UNPACK_HALF_VEC_1(cosv, cossinv);
         UNPACK_HALF_VEC_2(sinv, cossinv);
+    #else
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) cosvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(cos + cos_sin_idx + cos_sin_r + i * 8);
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) sinvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(sin + cos_sin_idx + cos_sin_r + i * 8);
+        float8 cosv = convert_float8(cosvv);
+        float8 sinv = convert_float8(sinvv);
+    #endif
         float8 out1 = cosv * in1 - sinv * in2;
         float8 out2 = sinv * in1 + cosv * in2;
 
@@ -316,9 +345,7 @@ KERNEL(rope_opt)
     #endif
 #endif
 
-    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
-    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
-    uint cos_sin_p = p;
+uint cos_sin_p = p;
 #ifdef ENABLE_GATHER
     uint gather_b = b < INPUT3_BATCH_NUM ? b : 0;
     #if GATHER_RANK == 4
@@ -331,6 +358,10 @@ KERNEL(rope_opt)
     #endif
     cos_sin_p = gather[gather_idx];
 #endif
+
+#if INPUT1_DIMS == 4 && INPUT2_DIMS == 4
+    uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
+    uint cos_sin_h = h < INPUT1_FEATURE_NUM ? h : 0;
     cos_sin_p = cos_sin_p < INPUT1_SIZE_Y ? cos_sin_p : 0;
 
 #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
@@ -341,6 +372,23 @@ KERNEL(rope_opt)
 #else
     uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
     uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+#endif
+#elif INPUT1_DIMS == 2 && INPUT2_DIMS == 2
+    uint cos_sin_b = 0;
+    uint cos_sin_h = 0;
+    cos_sin_p = cos_sin_p < INPUT1_BATCH_NUM ? cos_sin_p : 0;
+
+    #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
+
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
+#else
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_p, 0, 0, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_p, 0, 0, 0);
+#endif
+#else
+#   error "rope_opt.cl - 4 or 2 of INPUT1_DIMS/INPUT2_DIMS is supported only"
 #endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);

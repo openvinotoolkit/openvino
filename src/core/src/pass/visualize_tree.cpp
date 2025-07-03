@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -158,9 +159,7 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
             item.second.print(ss);
             ss << "}";
         } else {
-            ss << "{"
-               << "[EMPTY]"
-               << "}";
+            ss << "{[EMPTY]}";
         }
 
         first = false;

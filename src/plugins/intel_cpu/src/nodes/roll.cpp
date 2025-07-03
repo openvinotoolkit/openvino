@@ -4,16 +4,35 @@
 
 #include "roll.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
-#include <openvino/opsets/opset7.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <openvino/op/roll.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 using namespace dnnl;
 
@@ -21,9 +40,9 @@ namespace ov::intel_cpu::node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto interp = ov::as_type_ptr<const ov::opset7::Roll>(op);
+        const auto interp = ov::as_type_ptr<const ov::op::v7::Roll>(op);
         if (!interp) {
-            errorMessage = "Only opset7 Roll operation is supported";
+            errorMessage = "Only v7 Roll operation is supported";
             return false;
         }
     } catch (...) {
@@ -131,7 +150,7 @@ void Roll::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void Roll::execute(const dnnl::stream& strm) {
+void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has no compiled executor");
     }
@@ -171,7 +190,7 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& dstDims)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
-      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<>()) / blockSize},
+      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1UL, std::multiplies<>()) / blockSize},
       axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
         if (dataDims[i] != dstDims[i]) {
@@ -194,7 +213,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
     const auto* axes = axesMemPtr->getDataAs<const int32_t>();
     auto* dst = dstMemPtr->getDataAs<T>();
 
-    std::vector<size_t> shiftsVector(numOfDims, 0ul);
+    std::vector<size_t> shiftsVector(numOfDims, 0UL);
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
 
     for (size_t dim = 0; dim < axesLength; ++dim) {
@@ -241,7 +260,5 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
 bool Roll::created() const {
     return getType() == Type::Roll;
 }
-
-constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
 }  // namespace ov::intel_cpu::node

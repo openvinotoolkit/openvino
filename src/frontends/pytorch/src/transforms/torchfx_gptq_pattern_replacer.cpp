@@ -4,6 +4,7 @@
 
 #include "torchfx_gptq_pattern_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"

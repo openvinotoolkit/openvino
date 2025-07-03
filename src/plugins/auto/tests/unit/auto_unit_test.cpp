@@ -51,7 +51,7 @@ std::shared_ptr<ov::Model> ov::mock_auto_plugin::tests::BaseTest::create_dynamic
                                                                score_threshold);
     auto res = std::make_shared<ov::op::v0::Result>(nms);
     res->set_friendly_name("output_dynamic");
-    return std::make_shared<ov::Model>(ov::NodeVector{nms}, ov::ParameterVector{boxes, scores});
+    return std::make_shared<ov::Model>(ov::OutputVector{nms}, ov::ParameterVector{boxes, scores});
 }
 
 ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
@@ -106,9 +106,12 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::hint::num_requests.name()))).WillByDefault(Return(ov::Any(num)));
     ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::hint::num_requests.name())))
         .WillByDefault(Return(ov::Any(num)));
-    ON_CALL(*plugin, get_device_list).WillByDefault([this](const ov::AnyMap& config) {
-        return plugin->Plugin::get_device_list(config);
-    });
+    ON_CALL(*plugin, get_device_list)
+        .WillByDefault([this](ov::AnyMap& config,
+                              const std::shared_ptr<const ov::Model>& model,
+                              const std::string& model_path) {
+            return plugin->Plugin::get_device_list(config, model, {});
+        });
     ON_CALL(*plugin, parse_meta_devices)
         .WillByDefault([this](const std::string& priorityDevices, const ov::AnyMap& config) {
             return plugin->Plugin::parse_meta_devices(priorityDevices, config);

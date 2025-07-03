@@ -4,9 +4,22 @@
 
 #include "jit_memory_emitters.hpp"
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
 #include <memory>
+#include <vector>
 
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/plugin/aarch64/jit_load_store_emitters.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/store.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 

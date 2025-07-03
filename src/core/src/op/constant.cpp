@@ -207,8 +207,10 @@ Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
       m_shape{tensor.get_shape()},
       m_byte_strides{m_element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{}},
-      m_data{
-          std::make_shared<SharedBuffer<Tensor>>(static_cast<char*>(tensor.data()), tensor.get_byte_size(), tensor)} {
+      // cast is for internal use only to store tensor data in shared buffer (not for modification)
+      m_data{std::make_shared<SharedBuffer<Tensor>>(const_cast<char*>(static_cast<const char*>(tensor.data())),
+                                                    tensor.get_byte_size(),
+                                                    tensor)} {
     constructor_validate_and_infer_types();
 }
 

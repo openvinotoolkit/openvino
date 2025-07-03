@@ -10,6 +10,7 @@
 #include "snippets/codegen_gelu.hpp"
 #include "subgraph_simple.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {
@@ -64,9 +65,7 @@ namespace snippets {
             ov::pass::InitNodeInfo().run_on_model(function);
             ov::pass::ConstantFolding().run_on_model(function);
         }
-        if (!configuration.count("SNIPPETS_MODE")) {
-            configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-        }
+        setIgnoreCallbackMode();
     }
 
 TEST_P(CodegenGelu, CompareWithRefImpl) {

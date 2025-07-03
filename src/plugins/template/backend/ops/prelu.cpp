@@ -5,6 +5,8 @@
 #include "openvino/reference/prelu.hpp"
 
 #include "evaluate_node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/prelu.hpp"
 
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v0::PRelu>& op, ov::TensorVector& outputs, const ov::TensorVector& inputs) {

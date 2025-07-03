@@ -82,9 +82,9 @@ LinuxCpuMapTestCase cache_2sockets_104cores_hyperthreading = {
     2,    // param[expected out]: total 2 numa nodes on this simulated platform
     2,    // param[expected out]: total 2 sockets on this simulated platform
     104,  // param[expected out]: total 104 CPU cores on this simulated platform
-    {{208, 104, 0, 104, -1, -1},
-     {104, 52, 0, 52, 0, 0},
-     {104, 52, 0, 52, 1, 1}},  // param[expected out]: The proc_type_table of this simulated platform
+    {{208, 104, 0, 0, 104, -1, -1},
+     {104, 52, 0, 0, 52, 0, 0},
+     {104, 52, 0, 0, 52, 1, 1}},  // param[expected out]: The proc_type_table of this simulated platform
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},       {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -304,7 +304,7 @@ LinuxCpuMapTestCase cache_1sockets_96cores = {
     1,
     1,
     96,
-    {{96, 0, 96, 0, 0, 0}},
+    {{96, 0, 96, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},    {1, 0, 0, 1, EFFICIENT_CORE_PROC, 0, -1},
         {2, 0, 0, 2, EFFICIENT_CORE_PROC, 0, -1},    {3, 0, 0, 3, EFFICIENT_CORE_PROC, 0, -1},
@@ -390,7 +390,7 @@ LinuxCpuMapTestCase cache_2sockets_56cores_hyperthreading = {
     2,
     2,
     56,
-    {{110, 56, 0, 54, -1, -1}, {54, 28, 0, 26, 0, 0}, {56, 28, 0, 28, 1, 1}},
+    {{110, 56, 0, 0, 54, -1, -1}, {54, 28, 0, 0, 26, 0, 0}, {56, 28, 0, 0, 28, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -572,7 +572,7 @@ LinuxCpuMapTestCase cache_2sockets_48cores_hyperthreading = {
     2,
     2,
     48,
-    {{96, 48, 0, 48, -1, -1}, {48, 24, 0, 24, 0, 0}, {48, 24, 0, 24, 1, 1}},
+    {{96, 48, 0, 0, 48, -1, -1}, {48, 24, 0, 0, 24, 0, 0}, {48, 24, 0, 0, 24, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -664,11 +664,11 @@ LinuxCpuMapTestCase cache_2sockets_48cores_hyperthreading_1 = {
     4,
     2,
     48,
-    {{96, 48, 0, 48, -1, -1},
-     {24, 12, 0, 12, 0, 0},
-     {24, 12, 0, 12, 1, 0},
-     {24, 12, 0, 12, 2, 1},
-     {24, 12, 0, 12, 3, 1}},
+    {{96, 48, 0, 0, 48, -1, -1},
+     {24, 12, 0, 0, 12, 0, 0},
+     {24, 12, 0, 0, 12, 1, 0},
+     {24, 12, 0, 0, 12, 2, 1},
+     {24, 12, 0, 0, 12, 3, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -760,7 +760,7 @@ LinuxCpuMapTestCase cache_2sockets_24cores_hyperthreading = {
     2,
     2,
     24,
-    {{48, 24, 0, 24, -1, -1}, {24, 12, 0, 12, 0, 0}, {24, 12, 0, 12, 1, 1}},
+    {{48, 24, 0, 0, 24, -1, -1}, {24, 12, 0, 0, 12, 0, 0}, {24, 12, 0, 0, 12, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 1, 1, 12, HYPER_THREADING_PROC, 12, -1},
         {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},    {3, 1, 1, 13, HYPER_THREADING_PROC, 13, -1},
@@ -845,7 +845,11 @@ LinuxCpuMapTestCase cache_2sockets_24cores_hyperthreading_1 = {
     4,
     2,
     24,
-    {{48, 24, 0, 24, -1, -1}, {12, 6, 0, 6, 0, 0}, {12, 6, 0, 6, 1, 0}, {12, 6, 0, 6, 2, 1}, {12, 6, 0, 6, 3, 1}},
+    {{48, 24, 0, 0, 24, -1, -1},
+     {12, 6, 0, 0, 6, 0, 0},
+     {12, 6, 0, 0, 6, 1, 0},
+     {12, 6, 0, 0, 6, 2, 1},
+     {12, 6, 0, 0, 6, 3, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 2, 1, 12, HYPER_THREADING_PROC, 12, -1},
         {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},    {3, 2, 1, 13, HYPER_THREADING_PROC, 13, -1},
@@ -932,7 +936,7 @@ LinuxCpuMapTestCase cache_2sockets_48cores = {
     2,
     2,
     48,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -984,7 +988,7 @@ LinuxCpuMapTestCase cache_2sockets_48cores_1 = {
     2,
     2,
     48,
-    {{48, 48, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0}, {24, 24, 0, 0, 1, 1}},
+    {{48, 48, 0, 0, 0, -1, -1}, {24, 24, 0, 0, 0, 0, 0}, {24, 24, 0, 0, 0, 1, 1}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -1036,7 +1040,11 @@ LinuxCpuMapTestCase cache_2sockets_48cores_2 = {
     4,
     2,
     48,
-    {{48, 48, 0, 0, -1, -1}, {12, 12, 0, 0, 0, 0}, {12, 12, 0, 0, 1, 0}, {12, 12, 0, 0, 2, 1}, {12, 12, 0, 0, 3, 1}},
+    {{48, 48, 0, 0, 0, -1, -1},
+     {12, 12, 0, 0, 0, 0, 0},
+     {12, 12, 0, 0, 0, 1, 0},
+     {12, 12, 0, 0, 0, 2, 1},
+     {12, 12, 0, 0, 0, 3, 1}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},    {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
@@ -1088,7 +1096,7 @@ LinuxCpuMapTestCase cache_2sockets_20cores_hyperthreading = {
     2,
     2,
     20,
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -1140,7 +1148,7 @@ LinuxCpuMapTestCase cache_2sockets_20cores_hyperthreading_1 = {
     2,
     2,
     20,
-    {{40, 20, 0, 20, -1, -1}, {20, 10, 0, 10, 0, 0}, {20, 10, 0, 10, 1, 1}},
+    {{40, 20, 0, 0, 20, -1, -1}, {20, 10, 0, 0, 10, 0, 0}, {20, 10, 0, 0, 10, 1, 1}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -1192,7 +1200,7 @@ LinuxCpuMapTestCase cache_1sockets_16cores_hyperthreading = {
     1,
     1,
     14,
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 0, 1, MAIN_CORE_PROC, 1, -1},        {3, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
@@ -1217,12 +1225,58 @@ LinuxCpuMapTestCase cache_1sockets_16cores_hyperthreading = {
         {"0-21"},
     },
 };
+LinuxCpuMapTestCase cache_1sockets_16cores = {
+    16,
+    1,
+    1,
+    16,
+    {{16, 4, 8, 4, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, EFFICIENT_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 4, -1},
+        {6, 0, 0, 6, EFFICIENT_CORE_PROC, 4, -1},
+        {7, 0, 0, 7, EFFICIENT_CORE_PROC, 4, -1},
+        {8, 0, 0, 8, EFFICIENT_CORE_PROC, 5, -1},
+        {9, 0, 0, 9, EFFICIENT_CORE_PROC, 5, -1},
+        {10, 0, 0, 10, EFFICIENT_CORE_PROC, 5, -1},
+        {11, 0, 0, 11, EFFICIENT_CORE_PROC, 5, -1},
+        {12, 0, 0, 12, LP_EFFICIENT_CORE_PROC, 6, -1},
+        {13, 0, 0, 13, LP_EFFICIENT_CORE_PROC, 6, -1},
+        {14, 0, 0, 14, LP_EFFICIENT_CORE_PROC, 6, -1},
+        {15, 0, 0, 15, LP_EFFICIENT_CORE_PROC, 6, -1},
+    },
+    {
+        {"0", "0", "0-11"},
+        {"1", "1", "0-11"},
+        {"2", "2", "0-11"},
+        {"3", "3", "0-11"},
+        {"4", "4-7", "0-11"},
+        {"5", "4-7", "0-11"},
+        {"6", "4-7", "0-11"},
+        {"7", "4-7", "0-11"},
+        {"8", "8-11", "0-11"},
+        {"9", "8-11", "0-11"},
+        {"10", "8-11", "0-11"},
+        {"11", "8-11", "0-11"},
+        {"12", "12-15", ""},
+        {"13", "12-15", ""},
+        {"14", "12-15", ""},
+        {"15", "12-15", ""},
+    },
+    {
+        {"0-15"},
+    },
+};
 LinuxCpuMapTestCase cache_1sockets_14cores_hyperthreading = {
     20,
     1,
     1,
     14,
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1251,7 +1305,7 @@ LinuxCpuMapTestCase cache_1sockets_14cores_hyperthreading_1 = {
     1,
     1,
     14,
-    {{20, 6, 8, 6, 0, 0}},
+    {{20, 6, 8, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1280,7 +1334,7 @@ LinuxCpuMapTestCase cache_1sockets_14cores = {
     1,
     1,
     9,
-    {{9, 1, 8, 0, 0, 0}},
+    {{9, 1, 8, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {6, 0, 0, 1, EFFICIENT_CORE_PROC, 1, -1},
@@ -1315,7 +1369,7 @@ LinuxCpuMapTestCase cache_1sockets_10cores_hyperthreading = {
     1,
     1,
     10,
-    {{12, 2, 8, 2, 0, 0}},
+    {{12, 2, 8, 0, 2, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1351,7 +1405,7 @@ LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading = {
     1,
     1,
     8,
-    {{12, 4, 4, 4, 0, 0}},
+    {{12, 4, 4, 0, 4, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1382,21 +1436,21 @@ LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading = {
     },
     {{"0-11"}},
 };
-LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading_1 = {
+LinuxCpuMapTestCase cache_1sockets_8cores = {
     8,
     1,
     1,
     8,
-    {{8, 4, 4, 0, 0, 0}},
+    {{8, 4, 0, 4, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
         {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
         {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
-        {4, 0, 0, 4, EFFICIENT_CORE_PROC, 4, -1},
-        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 4, -1},
-        {6, 0, 0, 6, EFFICIENT_CORE_PROC, 4, -1},
-        {7, 0, 0, 7, EFFICIENT_CORE_PROC, 4, -1},
+        {4, 0, 0, 4, LP_EFFICIENT_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, LP_EFFICIENT_CORE_PROC, 4, -1},
+        {6, 0, 0, 6, LP_EFFICIENT_CORE_PROC, 4, -1},
+        {7, 0, 0, 7, LP_EFFICIENT_CORE_PROC, 4, -1},
     },
     {
         {"0", "0", "0-3"},
@@ -1412,12 +1466,40 @@ LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading_1 = {
         {"0-7"},
     },
 };
+LinuxCpuMapTestCase cache_1sockets_8cores_1 = {
+    8,
+    1,
+    1,
+    8,
+    {{8, 8, 0, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {6, 0, 0, 6, MAIN_CORE_PROC, 6, -1},
+        {7, 0, 0, 7, MAIN_CORE_PROC, 7, -1},
+    },
+    {
+        {"0", "0", "0-7"},
+        {"1", "1", "0-7"},
+        {"2", "2", "0-7"},
+        {"3", "3", "0-7"},
+        {"4", "4", "0-7"},
+        {"5", "5", "0-7"},
+        {"6", "6", "0-7"},
+        {"7", "7", "0-7"},
+    },
+    {},
+};
 LinuxCpuMapTestCase cache_1sockets_6cores_hyperthreading = {
     12,
     1,
     1,
     6,
-    {{12, 6, 0, 6, 0, 0}},
+    {{12, 6, 0, 0, 6, 0, 0}},
     {
         {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -1453,7 +1535,7 @@ LinuxCpuMapTestCase cache_1sockets_4cores = {
     1,
     1,
     4,
-    {{4, 4, 0, 0, 0, 0}},
+    {{4, 4, 0, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
         {1, 0, 0, 1, MAIN_CORE_PROC, 0, -1},
@@ -1467,6 +1549,48 @@ LinuxCpuMapTestCase cache_1sockets_4cores = {
         {{"3"}, {"2-3"}, {"0-3"}},
     },
     {},
+};
+LinuxCpuMapTestCase cache_1sockets_4cores_1 = {
+    4,
+    1,
+    1,
+    4,
+    {{4, 0, 4, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, EFFICIENT_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, EFFICIENT_CORE_PROC, 0, -1},
+        {3, 0, 0, 3, EFFICIENT_CORE_PROC, 0, -1},
+    },
+    {
+        {"0", "0-3", ""},
+        {"1", "0-3", ""},
+        {"2", "0-3", ""},
+        {"3", "0-3", ""},
+    },
+    {},
+};
+LinuxCpuMapTestCase cache_1sockets_4cores_2 = {
+    4,
+    1,
+    1,
+    4,
+    {{4, 4, 0, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 1, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 1, -1},
+    },
+    {
+        {{"0"}, {"0-1"}, {""}},
+        {{"1"}, {"0-1"}, {""}},
+        {{"2"}, {"2-3"}, {""}},
+        {{"3"}, {"2-3"}, {""}},
+    },
+    {
+        {"0-3"},
+    },
 };
 LinuxCpuMapTestCase cache_VM_cache_0 = {
     0,
@@ -1508,14 +1632,18 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_2sockets_20cores_hyperthreading,
                                          cache_2sockets_20cores_hyperthreading_1,
                                          cache_1sockets_16cores_hyperthreading,
+                                         cache_1sockets_16cores,
                                          cache_1sockets_14cores_hyperthreading,
                                          cache_1sockets_14cores_hyperthreading_1,
                                          cache_1sockets_14cores,
                                          cache_1sockets_10cores_hyperthreading,
                                          cache_1sockets_8cores_hyperthreading,
-                                         cache_1sockets_8cores_hyperthreading_1,
+                                         cache_1sockets_8cores,
+                                         cache_1sockets_8cores_1,
                                          cache_1sockets_6cores_hyperthreading,
                                          cache_1sockets_4cores,
+                                         cache_1sockets_4cores_1,
+                                         cache_1sockets_4cores_2,
                                          cache_VM_cache_0));
 
 TEST_P(LinuxGetCpuMapFromCoresTests, LinuxCore) {}

@@ -4,8 +4,17 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -57,7 +66,6 @@ private:
 
     void emit_data() const override;
 
-private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
@@ -93,7 +101,6 @@ private:
 
     void emit_data() const override;
 
-private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 

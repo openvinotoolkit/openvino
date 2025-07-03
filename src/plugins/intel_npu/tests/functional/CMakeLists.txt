@@ -14,7 +14,7 @@ set(EXCLUDED_FUNC_TESTS_DIR "")
 set(OPTIONAL_FUNC_TESTS_INCLUDES "")
 set(OPTIONAL_FUNC_TESTS_LIBS "")
 
-set(SKIP_CONFIG "skip_tests.xml")
+set(SKIP_CONFIG "npu_skip_func_tests.xml")
 set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_CONFIG})
 
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
@@ -64,6 +64,12 @@ endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")
 
+file(GLOB_RECURSE BLOBS "*.blob")
+file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
+add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                  COMMAND ${CMAKE_COMMAND} -E copy ${BLOBS}
+                  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/intel_npu_blobs)
+
 install(
   TARGETS ${TARGET_NAME}
   RUNTIME DESTINATION tests
@@ -73,5 +79,23 @@ install(
 install(
   FILES ${SKIP_CONFIG_PATH}
   DESTINATION tests
+  COMPONENT tests
+  EXCLUDE_FROM_ALL)
+
+# For developer builds we need to find the output folder of compiled binaries
+get_target_property(EXE_LOCATION ${TARGET_NAME} RUNTIME_OUTPUT_DIRECTORY)
+
+if(EXE_LOCATION)
+    # Copy tests skip config to binary output folder
+    configure_file(
+        ${SKIP_CONFIG_PATH}
+        ${EXE_LOCATION}/${SKIP_CONFIG}
+        COPYONLY
+    )
+endif()
+
+install(
+  FILES ${BLOBS}
+  DESTINATION tests/intel_npu_blobs
   COMPONENT tests
   EXCLUDE_FROM_ALL)

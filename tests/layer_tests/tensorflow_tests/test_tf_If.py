@@ -69,13 +69,11 @@ class TestIfFloat(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestIfInt(CommonTFLayerTest):
@@ -139,13 +137,11 @@ class TestIfInt(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestNestedIf(CommonTFLayerTest):
@@ -217,13 +213,11 @@ class TestNestedIf(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_if_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
 class TestSequantialIfs(CommonTFLayerTest):
@@ -307,10 +301,8 @@ class TestSequantialIfs(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_legacy_frontend):
+    def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'GPU':
             pytest.xfail('104855: If operation is not supported by GPU')
         self._test(*self.create_sequential_ifs_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

@@ -4,20 +4,45 @@
 
 #include "region_yolo.h"
 
+#include <algorithm>
+#include <cassert>
 #include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_convert.h"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "dnnl_types.h"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
-#include "nodes/common/blocked_desc_creator.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/softmax.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/region_yolo.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/cpp/bit_cast.hpp"
+#include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <common/c_types_map.hpp>
+#    include <common/utils.hpp>
+
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
@@ -46,7 +71,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
     void generate() override {
         exp_injector.reset(
-            new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f, data_type::f32));
+            new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.F, 0.F, 1.F, data_type::f32));
 
         if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
@@ -184,7 +209,7 @@ private:
         int float_1 = 0x3f800000;    // 1 //  1.0f
     } vals_for_logistic_activate;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
         switch (src_dt) {
         case ov::element::f32:
             uni_vmovups(vmm_src, op);
@@ -197,7 +222,7 @@ private:
             assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
         auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
@@ -213,7 +238,7 @@ private:
             assert(!"unknown dst_dt");
         }
     }
-    inline void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
+    void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
         switch (src_dt) {
         case ov::element::f32:
             uni_vmovss(xmm_src, op);
@@ -226,7 +251,7 @@ private:
             assert(!"unknown src_dt");
         }
     }
-    inline void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
+    void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
         switch (dst_dt) {
         case ov::element::f32:
             uni_vmovss(op, xmm_dst);
@@ -244,9 +269,9 @@ private:
 
 bool RegionYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
+        const auto regionYolo = ov::as_type_ptr<const ov::op::v0::RegionYolo>(op);
         if (!regionYolo) {
-            errorMessage = "Only opset1 RegionYolo operation is supported";
+            errorMessage = "Only v0 RegionYolo operation is supported";
             return false;
         }
     } catch (...) {
@@ -259,7 +284,7 @@ bool RegionYolo::needPrepareParams() const {
     return false;
 }
 
-RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
+RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)  //
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -270,11 +295,11 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }
 
-    const auto regionYolo = ov::as_type_ptr<const ov::opset1::RegionYolo>(op);
+    const auto regionYolo = ov::as_type_ptr<const ov::op::v0::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
     coords = regionYolo->get_num_coords();
     num = regionYolo->get_num_regions();
-    do_softmax = regionYolo->get_do_softmax();
+    do_softmax = static_cast<float>(regionYolo->get_do_softmax());
     mask = regionYolo->get_mask();
     block_size = 1;
 }
@@ -301,16 +326,18 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&] {
+        if (mayiuse(x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     addSupportedPrimDesc({{LayoutType::ncsp, input_prec}}, {{LayoutType::ncsp, output_prec}}, impl_type);
 }
@@ -345,9 +372,7 @@ void RegionYolo::createPrimitive() {
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
-    U aux2;
-    aux2.as_float_value = src;
-    int sign = aux2.as_int_value >> 31;
+    int sign = ov::intel_cpu::bit_cast<int>(src) >> 31;
     if (sign == 0) {
         src *= -1;
     }
@@ -378,12 +403,12 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
         });
     } else {
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             for (int i = 0; i < count; i++) {
                 float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
             }
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<ov::intel_cpu::bfloat16_t*>(dst_data);
             for (int i = 0; i < count; i++) {
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
@@ -393,7 +418,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
     }
 }
 
-void RegionYolo::execute(const dnnl::stream& strm) {
+void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
     size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;
@@ -405,7 +430,7 @@ void RegionYolo::execute(const dnnl::stream& strm) {
     int end_index = 0;
     int num_ = 0;
     size_t output_size = 0;
-    if (do_softmax) {
+    if (do_softmax != 0.0F) {
         // Region layer (Yolo v2)
         end_index = IW * IH;
         num_ = num;
@@ -446,7 +471,7 @@ void RegionYolo::execute(const dnnl::stream& strm) {
         }
     }
 
-    if (do_softmax) {
+    if (do_softmax != 0.0F) {
         int index = IW * IH * (coords + 1);
         int batch_offset = inputs_size / num;
         for (size_t b = 0; b < B * num; b++) {

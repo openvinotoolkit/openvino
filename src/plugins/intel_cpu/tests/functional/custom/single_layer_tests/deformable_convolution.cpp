@@ -5,11 +5,12 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/deformable_convolution.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
 namespace test {
-enum OffsetType { ZERO, NATURAL, REAL_POSITIVE, REAL_NEGATIVE, REAL_MISC };
+enum OffsetType : uint8_t { ZERO, NATURAL, REAL_POSITIVE, REAL_NEGATIVE, REAL_MISC };
 
 typedef std::tuple<bool,       // with_bilinear_interpolation_pad
                    bool,       // with_modulation

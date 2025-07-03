@@ -1,15 +1,15 @@
 # type: ignore
+from __future__ import annotations
 from functools import partial
 from functools import singledispatch
-from __future__ import annotations
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Output
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import Shape
 from openvino._pyopenvino import Type
-from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import Constant
 from openvino._pyopenvino.op import Parameter
+from openvino._pyopenvino.op import assign
 from openvino._pyopenvino.op import read_value as _read_value
 from openvino._pyopenvino.op.util import Variable
 from openvino._pyopenvino.op.util import VariableInfo

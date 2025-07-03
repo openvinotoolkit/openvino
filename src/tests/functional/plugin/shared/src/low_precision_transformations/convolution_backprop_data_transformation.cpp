@@ -13,16 +13,10 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionBackpropDataTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    std::pair<ov::PartialShape, bool> inputShape;
-    ov::Shape outputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionBackpropDataTransformationParam param;
-    std::tie(netPrecision, inputShape, outputShape, targetDevice, params, param) = obj.param;
+    auto [netPrecision, inputShape, outputShape, device, param] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape.first, targetDevice, params) << "_" <<
+    result << get_test_case_name_by_params(netPrecision, inputShape.first, device) << "_" <<
            outputShape << "_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights << "_" <<
@@ -31,13 +25,8 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
 }
 
 void ConvolutionBackpropDataTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    std::pair<ov::PartialShape, bool> inputShapeAndHandling;
-    ov::Shape outputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionBackpropDataTransformationParam param;
-    std::tie(netPrecision, inputShapeAndHandling, outputShape, targetDevice, params, param) = this->GetParam();
-
+    auto [netPrecision, inputShapeAndHandling, outputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     std::shared_ptr<ov::Node> weights;
 
@@ -74,7 +63,7 @@ void ConvolutionBackpropDataTransformation::run() {
 
     const auto inputShape = std::get<1>(GetParam());
     if (inputShape.second) {
-        const auto params = std::get<5>(GetParam());
+        const auto params = std::get<4>(GetParam());
         const auto actualType = get_runtime_precision(params.layerName);
         EXPECT_EQ(actualType, params.expectedKernelType);
     }

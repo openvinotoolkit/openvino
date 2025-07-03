@@ -2,13 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef CPU_DEBUG_CAPS
-#    include "memory_stats_dump.hpp"
+#include <cstddef>
+#include <deque>
+#include <iostream>
+#include <ostream>
+#include <string>
 
+#include "compiled_model.h"
+#include "openvino/core/except.hpp"
+#include "utils/debug_caps_config.h"
+#include "weights_cache.hpp"
+#ifdef CPU_DEBUG_CAPS
 #    include <filesystem>
 #    include <fstream>
 
 #    include "debug_capabilities.h"
+#    include "memory_stats_dump.hpp"
 
 namespace ov::intel_cpu {
 
@@ -34,7 +43,7 @@ static void dumpStatistics(std::ostream& os,
             }
         }
 
-        auto& scratchpads = ctx->getScratchPads();
+        const auto& scratchpads = ctx->getScratchPads();
         for (size_t i = 0; i < scratchpads.size(); ++i) {
             os << "Scratchpad " << i << " size: " << scratchpads[i]->size() << " bytes\n\n";
         }
@@ -49,7 +58,7 @@ static void dumpStatistics(std::ostream& os,
 }
 
 static void dumpStatisticsCSV(std::ofstream& os,
-                              const std::string& network_name,
+                              [[maybe_unused]] const std::string& network_name,
                               std::deque<CompiledModel::GraphGuard>& graphs,
                               const SocketsWeights& weights_cache) {
     for (auto&& graph : graphs) {
@@ -73,7 +82,7 @@ static void dumpStatisticsCSV(std::ofstream& os,
 
         os << "Scratchpad ID;Size [bytes];;;;;\n";
 
-        auto& scratchpads = ctx->getScratchPads();
+        const auto& scratchpads = ctx->getScratchPads();
         for (size_t i = 0; i < scratchpads.size(); ++i) {
             os << i << ";" << scratchpads[i]->size() << ";;;;;\n";
         }

@@ -39,8 +39,6 @@ xfail_issue_33606 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "Det")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "TfIdfVectorizer")
-xfail_issue_33581 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
-                                      "GatherElements")
 xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
                                       "DFT, LayerNormalization, "
                                       "MelWeightMatrix, SequenceMap, STFT")
@@ -134,7 +132,6 @@ xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes stre
 
 xfail_issue_78843 = xfail_test(reason="Missing reference output files for ssd mobilenet models")
 
-xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in OV cache")
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")

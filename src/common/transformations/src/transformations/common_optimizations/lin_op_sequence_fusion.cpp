@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -22,7 +23,7 @@ const auto is_eltwise_supported_type = [](const Output<Node>& output) -> bool {
     const auto is_single_output = pass::pattern::consumers_count(1);
     return is_single_output(output) && output.get_node()->has_evaluate();
 };
-}
+}  // namespace
 
 ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     MATCHER_SCOPE(AddMultiplyFusion);
