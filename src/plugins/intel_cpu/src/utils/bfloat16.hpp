@@ -22,7 +22,7 @@ namespace ov::intel_cpu {
 class bfloat16_t {
 public:
     bfloat16_t() = default;
-    bfloat16_t(float value) noexcept
+    bfloat16_t(float value) noexcept  // NOLINT(google-explicit-constructor)
         : m_value{
 #if defined BFLOAT16_ROUND_MODE_TO_NEAREST
               round_to_nearest(value)
@@ -37,7 +37,7 @@ public:
           } {
     }
 
-    operator float() const {
+    operator float() const {  // NOLINT(google-explicit-constructor)
         auto bits = static_cast<uint32_t>(m_value) << 16;
         return ov::intel_cpu::bit_cast<float>(bits);
     }

@@ -610,7 +610,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     nodeConfig.inConfs.resize(srcDescs.size());
     for (const auto& desc : nodeDescriptors) {
         if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
-            nodeConfig.inConfs[it->second] = desc.second;
+            nodeConfig.inConfs[it->second] = PortConfig(desc.second);
         }
     }
 
@@ -618,7 +618,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     // @todo pass all the input descriptors to getProperMemoryDescriptors and allow
     // to ignore extra input descriptors if necessery
     for (size_t i = 3; i < srcDescs.size(); i++) {
-        nodeConfig.inConfs[i] = srcDescs[i];
+        nodeConfig.inConfs[i] = PortConfig(srcDescs[i]);
     }
 
     const int inPlace = canBeInPlace() ? 0 : -1;
