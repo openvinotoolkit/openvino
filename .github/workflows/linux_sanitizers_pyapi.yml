@@ -363,6 +363,8 @@ jobs:
           #   source ${INSTALL_DIR}/setupvars.sh
           # fi
           # # Needed as ze_loader.so is under INSTALL_TEST_DIR
+          echo 'ls'
+          ls -la ${INSTALL_DIR}
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_DIR}
 
