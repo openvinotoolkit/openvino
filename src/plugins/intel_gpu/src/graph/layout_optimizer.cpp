@@ -916,6 +916,7 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout();
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
+    bool is_fp16_input = input_layout.data_type == data_types::f16;
     if (i8_u8_input) {
         node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
         bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
@@ -931,7 +932,7 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
             node.set_preferred_output_fmt(0, cldnn::format::byxf);
         }
-    } else { // fp16
+    } else if (is_fp16_input) {
         if (input_layout.get_partial_shape().size() <= 4)
             node.set_preferred_output_fmt(0, format::b_fs_yx_fsv16);
         else if (input_layout.get_partial_shape().size() == 5)
