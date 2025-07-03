@@ -6,4 +6,4 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 protobuf = ">=3.20.0,<=4.25.0"
-paddlepaddle = ">=2.4.0,<=2.6.0"
+paddlepaddle = ">=2.4.0,<=3.0.0"
