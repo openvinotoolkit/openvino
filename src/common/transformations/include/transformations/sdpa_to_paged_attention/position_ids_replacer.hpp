@@ -55,11 +55,11 @@ public:
  * when values for the entire sequence need to be sliced.
  *
  * We change from this:
- *                                         
- *                 ┌─────┐                
- *                 │Range│                
- *                 └──┬──┘                
- *                    │                   
+ *
+ *                 ┌─────┐
+ *                 │Range│
+ *                 └──┬──┘
+ *                    │
  * ┌─────────┐     ┌──┴──┐     ┌─────────┐
  * │Start    │     │RoPE │     │   End   │
  * │(prev    │     │Block│     │(cur.seq │
@@ -71,18 +71,18 @@ public:
  * 
  * To this to Gather by position_ids
  *
- *  ┌─────┐                    
- *  │Range│                    
- *  └──┬──┘                    
- *     │                       
- *  ┌──┴──┐                    
- *  │RoPE │                    
+ *  ┌─────┐
+ *  │Range│
+ *  └──┬──┘
+ *     │
+ *  ┌──┴──┐
+ *  │RoPE │
  *  │Block│    ┌──────────────┐
  *  └──┬──┘    │ position_ids │
  *     │       └──────┬───────┘
- *  ┌──┴───┐          │        
- *  │Gather├──────────┘        
- *  └──────┘                   
+ *  ┌──┴───┐          │
+ *  │Gather├──────────┘
+ *  └──────┘
  */
 class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
 public:

@@ -88,7 +88,8 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     // dequantizing subgraph, so it's going to be any_input() here.
     auto p_rotary_emb_sincos = pattern::any_input();
     // the rotary_emb_cos/rotary_emb_sin are sliced by the total length [1,..4096,1,128]
-    auto p_slice_1 = wrap_type<v8::Slice>({p_rotary_emb_sincos, wrap_const(), p_opt_reshape, wrap_const(), wrap_const()});
+    auto p_slice_1 =
+        wrap_type<v8::Slice>({p_rotary_emb_sincos, wrap_const(), p_opt_reshape, wrap_const(), wrap_const()});
     auto p_slice_2 = wrap_type<v8::Slice>({p_slice_1, p_neg_mul, wrap_const(), wrap_const(), wrap_const()});
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
