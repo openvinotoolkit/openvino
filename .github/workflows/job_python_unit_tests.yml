@@ -99,7 +99,7 @@ jobs:
         run: poetry run pip install --no-deps ${{ steps.ov_wheel.outputs.wheel_path }}
         
       - name: Install Test dependencies
-        run: poetry install --with tests,torch,onnx,tensorflow
+        run: poetry install --extras=preprocess --with tests
 
       #
       # Tests
