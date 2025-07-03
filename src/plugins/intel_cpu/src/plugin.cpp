@@ -433,17 +433,15 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     }
 
     if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type {
+        return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
-                ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
-                ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-                ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-                ov::PropertyName {
-                ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
-            }
-        };
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
+                             ov::PropertyMutability::RO}};
     }
     if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);

@@ -8,13 +8,15 @@
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_util.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
-#define DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_name)             \
-    const char* name() const override { return #jit_name; } \
-    const char* source_file() const override { return __FILE__; }
+#define DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_name) \
+    const char* name() const override {         \
+        return #jit_name;                       \
+    }                                           \
+    const char* source_file() const override {  \
+        return __FILE__;                        \
+    }
 
 // RISCV-64 specific registers mapping
 // reg    | ABI Name | descripion             | saved by
@@ -46,9 +48,9 @@ class jit_generator : public Xbyak_riscv::CodeGenerator {
 public:
     jit_generator(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
                   void* userPtr = Xbyak_riscv::DontSetProtectRWE,
-                  Xbyak_riscv::Allocator* allocator = 0)
+                  Xbyak_riscv::Allocator* allocator = nullptr)
         : Xbyak_riscv::CodeGenerator(maxSize, userPtr, allocator) {}
-    virtual ~jit_generator() {}
+    ~jit_generator() override = default;
 
     const uint8_t* jit_ker() const {
         OPENVINO_ASSERT(jit_ker_, "jit_ker_ is nullable");
@@ -65,7 +67,7 @@ public:
     virtual bool create_kernel() {
         generate();
         jit_ker_ = getCode();
-        return jit_ker_;
+        return jit_ker_ != nullptr;
     }
 
     void preamble();
@@ -126,10 +128,10 @@ public:
                   const Xbyak_riscv::VReg& vs,
                   Xbyak_riscv::VM vm = Xbyak_riscv::VM::unmasked);
 
-    static Xbyak_riscv::LMUL float2lmul(const float lmul);
-    static Xbyak_riscv::SEW bytes2sew(const size_t bytes);
-    static float lmul2float(const Xbyak_riscv::LMUL lmul);
-    static size_t sew2bytes(const Xbyak_riscv::SEW sew);
+    static Xbyak_riscv::LMUL float2lmul(float lmul);
+    static Xbyak_riscv::SEW bytes2sew(size_t sew);
+    static float lmul2float(Xbyak_riscv::LMUL lmul);
+    static size_t sew2bytes(Xbyak_riscv::SEW sew);
 
 protected:
     virtual void generate() = 0;
@@ -162,18 +164,17 @@ protected:
 private:
     const uint8_t* getCode() {
         ready();
-        if (!is_initialized())
+        if (!is_initialized()) {
             return nullptr;
+        }
         return getCodeAddress();
     }
 
-    static inline bool is_initialized() {
+    static bool is_initialized() {
         // At the moment, Xbyak_riscv does not have GetError()
         // so that return dummy result.
         return true;
     }
 };
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::riscv64

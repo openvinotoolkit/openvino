@@ -541,7 +541,7 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
     // can re-use Clamp as bf16 is converted to float before clamping
     using clamp_bf16_f16 = Clamp<float, float16>;
     convert_impl<clamp_bf16_f16>(arg, out, count);
-    // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
+    // CVS-125496: duplicate and stub for ARM, provide optimized solution
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {

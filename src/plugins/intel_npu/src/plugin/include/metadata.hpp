@@ -99,6 +99,16 @@ public:
 
     OpenvinoVersion(const OpenvinoVersion& version);
 
+    OpenvinoVersion& operator=(const OpenvinoVersion& other) {
+        if (this != &other) {
+            _major = other.get_major();
+            _minor = other.get_minor();
+            _patch = other.get_patch();
+        }
+
+        return *this;
+    }
+
     /**
      * @brief Reads version data from a stream.
      */

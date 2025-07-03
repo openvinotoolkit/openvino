@@ -107,8 +107,8 @@ constexpr bool implication(bool cause, bool cond) {
 template <typename T, typename U>
 static inline auto div_up(const T lhs, const U rhs) -> decltype((lhs + rhs - 1) / rhs) {
     OPENVINO_ASSERT(rhs != 0, "Divider must not be zero");
-    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>)&&utils::is_dynamic_value(lhs)) ||
-        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>)&&utils::is_dynamic_value(rhs))) {
+    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>) && utils::is_dynamic_value(lhs)) ||
+        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>) && utils::is_dynamic_value(rhs))) {
         return utils::get_dynamic_value<T>();
     }
     return (lhs + rhs - 1) / rhs;
@@ -117,8 +117,8 @@ static inline auto div_up(const T lhs, const U rhs) -> decltype((lhs + rhs - 1) 
 template <typename T, typename U>
 static inline auto rnd_up(const T lhs, const U rhs) -> decltype(div_up(lhs, rhs) * rhs) {
     const T div_up_res = div_up(lhs, rhs);
-    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>)&&utils::is_dynamic_value(div_up_res)) ||
-        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>)&&utils::is_dynamic_value(rhs))) {
+    if (((std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>) && utils::is_dynamic_value(div_up_res)) ||
+        ((std::is_same_v<U, size_t> || std::is_same_v<U, int64_t>) && utils::is_dynamic_value(rhs))) {
         return utils::get_dynamic_value<T>();
     }
     return div_up_res * rhs;

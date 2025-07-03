@@ -77,7 +77,7 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
        [Xm0 Xm1 ... Xmn]]      [Xm0 Xm1 ... Xmn]]
     */
 
-    const auto src_shape = src->get_shape();
+    const auto& src_shape = src->get_shape();
 
     OPENVINO_ASSERT(src_shape.size() == 4u);
     OPENVINO_ASSERT(src_shape == dst->get_shape());
