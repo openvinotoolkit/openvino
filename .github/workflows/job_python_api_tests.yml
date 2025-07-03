@@ -61,6 +61,7 @@ jobs:
             **/*.lock
             src/bindings/python/scripts/generate_pyapi_stubs.py
             src/bindings/python/**/*.pyi
+            docs/articles_en/assets/snippets
           sparse-checkout-cone-mode: false
           
       - name: Download OpenVINO artifacts (tarballs and wheels)
@@ -133,19 +134,12 @@ jobs:
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph_new_numpy.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
-      - name: Clone API snippets
-        if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        timeout-minutes: 15
-        with:
-          sparse-checkout: docs/articles_en/assets/snippets
-          submodules: 'false'
-
       - name: Docs Python snippets
         if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
         run: |
           # torch, onnx
-          poetry install --with onnx
+          poetry install -P src/frontends/onnx 
+          poetry install -P src/frontends/pytorch
           # to find 'snippets' module in docs
           export PYTHONPATH=docs/articles_en/assets
           # for 'template' extension
