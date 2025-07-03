@@ -32,6 +32,7 @@ type OVAny = string | number | boolean;
  * It is recommended to have a single Core instance per application.
  */
 interface Core {
+  new(): Core;
   /**
    * Registers extensions to a Core object.
    * @param libraryPath Path to the library with ov::Extension.
@@ -220,14 +221,13 @@ interface Core {
     properties?: Record<string, OVAny>,
   ): { [key: string]: string };
 }
-interface CoreConstructor {
-  new (): Core;
-}
 
-/**
- * A user-defined model read by {@link Core.readModel}.
- */
 interface Model {
+  /**
+ * It constructs a default Model object. Use {@link Core.readModel}
+ * to read Model from supported file format.
+ */
+  new(): Model;
   /**
    * It returns a cloned model.
    */
@@ -336,6 +336,11 @@ interface Model {
  * then mapping to compute kernels.
  */
 interface CompiledModel {
+  /**
+   * It constructs a default CompiledModel object. Use {@link Core.compileModel}
+   * or {@link Core.importModel} to get model compiled for a specific device.
+   */
+  new(): CompiledModel;
   /** It gets all inputs of a compiled model. */
   inputs: Output[];
   /** It gets all outputs of a compiled model. */
@@ -409,6 +414,32 @@ interface CompiledModel {
  * in {@link TensorConstructor} section.
  */
 interface Tensor {
+    /**
+   * It constructs a tensor using the element type and shape. The new tensor
+   * data will be allocated by default.
+   * @param type The element type of the new tensor.
+   * @param shape The shape of the new tensor.
+   */
+  new (type: element | elementTypeString, shape: number[]): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The new tensor
+   * wraps allocated host memory.
+   * @param type The element type of the new tensor.
+   * @param shape The shape of the new tensor.
+   * @param tensorData A subclass of TypedArray that will be wrapped
+   * by a {@link Tensor}.
+   */
+  new (
+    type: element | elementTypeString,
+    shape: number[],
+    tensorData: SupportedTypedArray,
+  ): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The strings from
+   * the array are used to fill the new tensor. Each element of a string tensor
+   * is a string of arbitrary length, including an empty string.
+   */
+  new (tensorData: string[]): Tensor;
   /**
    * This property provides access to the tensor's data.
    *
@@ -455,42 +486,18 @@ interface Tensor {
  * the user. Any action performed on the TypedArray will be reflected in this
  * tensor memory.
  */
-interface TensorConstructor {
-  /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * data will be allocated by default.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   */
-  new (type: element | elementTypeString, shape: number[]): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * wraps allocated host memory.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   * @param tensorData A subclass of TypedArray that will be wrapped
-   * by a {@link Tensor}.
-   */
-  new (
-    type: element | elementTypeString,
-    shape: number[],
-    tensorData: SupportedTypedArray,
-  ): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The strings from
-   * the array are used to fill the new tensor. Each element of a string tensor
-   * is a string of arbitrary length, including an empty string.
-   */
-  new (tensorData: string[]): Tensor;
-}
 
 /**
- * The {@link InferRequest} object is created using
- * {@link CompiledModel.createInferRequest} method and is specific for a given
- * deployed model. It is used to make predictions and can be run in
+ * The {@link InferRequest} object is used to make predictions and can be run in
  * asynchronous or synchronous manners.
  */
 interface InferRequest {
+  /**
+   * It constructs a default InferRequest object.
+   * Use {@link CompiledModel.createInferRequest}
+   * to get InferRequest object specific for a given deployed model.
+   */
+  new(): InferRequest;
   /**
    * It infers specified input(s) in the synchronous mode.
    * @remarks
@@ -607,6 +614,7 @@ interface InferRequest {
 type Dimension = number | [number, number];
 
 interface Output {
+  new(): Output;
   anyName: string;
   shape: number[];
   toString(): string;
@@ -653,22 +661,16 @@ interface PrePostProcessorConstructor {
 }
 
 interface PartialShape {
-  isStatic(): boolean;
-  isDynamic(): boolean;
-  toString(): string;
-  getDimensions(): Dimension[];
-}
-
-/**
- * This interface contains constructor of the {@link PartialShape} class.
- */
-interface PartialShapeConstructor {
   /**
    * It constructs a PartialShape by passed string.
    * Omit parameter to create empty shape.
    * @param [shape] String representation of the shape.
    */
   new (shape?: string): PartialShape;
+  isStatic(): boolean;
+  isDynamic(): boolean;
+  toString(): string;
+  getDimensions(): Dimension[];
 }
 
 declare enum element {
@@ -692,9 +694,13 @@ declare enum resizeAlgorithm {
 }
 
 export interface NodeAddon {
-  Core: CoreConstructor;
-  Tensor: TensorConstructor;
-  PartialShape: PartialShapeConstructor;
+  Core: Core;
+  Model: Model;
+  CompiledModel: CompiledModel;
+  Tensor: Tensor;
+  InferRequest: InferRequest;
+  Output: Output;
+  PartialShape: PartialShape;
 
   preprocess: {
     resizeAlgorithm: typeof resizeAlgorithm;
@@ -717,6 +723,7 @@ export interface NodeAddon {
   saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
 
   element: typeof element;
+  resizeAlgorithm: typeof resizeAlgorithm;
 }
 
 export default // eslint-disable-next-line @typescript-eslint/no-var-requires
