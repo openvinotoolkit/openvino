@@ -697,7 +697,7 @@ int get_model_prefer_threads(const int num_streams,
 #    else
         if (num_streams <= sockets && num_streams > 0) {
             if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-                if (ov::get_number_of_blocked_cores() || (isa == dnnl::cpu_isa::avx2_vnni_2)) {
+                if (ov::get_number_of_blocked_cores() || (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0)) {
                     if (is_llm) {
                         config.modelPreferThreads = proc_type_table[0][MAIN_CORE_PROC];
                     } else {
