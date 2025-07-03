@@ -9,6 +9,12 @@ OpenVINO™ Integrations
 
 .. = 1 ========================================================================================
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino-project/openvino-test-drive
+
 **Hugging Face Optimum-Intel**
 
 |hr|
@@ -100,7 +106,6 @@ OpenVINO™ Integrations
    .. grid-item::
 
       * :doc:`PyTorch Deployment via torch.compile <../../openvino-workflow/torch-compile>`
-      * A notebook example: n.a.
       * `torch.compiler documentation <https://pytorch.org/docs/stable/torch.compiler.html>`__
       * `torch.compiler API reference <https://pytorch.org/docs/stable/torch.compiler_api.html>`__
 
@@ -138,7 +143,6 @@ OpenVINO™ Integrations
 
       * :doc:`LLM inference with Optimum-intel <../../openvino-workflow-generative/inference-with-optimum-intel>`
       * `A notebook example: llm-agent-rag <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/llm-agent-react/llm-agent-rag-llamaindex.ipynb>`__
-      *
       * `Inference documentation <https://docs.llamaindex.ai/en/stable/examples/llm/openvino/>`__
       * `Rerank documentation <https://docs.llamaindex.ai/en/stable/examples/node_postprocessor/openvino_rerank/>`__
       * `Embeddings documentation <https://docs.llamaindex.ai/en/stable/examples/embeddings/openvino/>`__
@@ -167,8 +171,37 @@ OpenVINO™ Integrations
           device_map="cpu",
       )
 
+.. = 5 ========================================================================================
 
+**OpenVINO Backend for ExecuTorch**
 
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Export and run AI models using OpenVINO with ExecuTorch to optimize performance on 
+        Intel hardware. 
+      | Benefits:
+      | - Accelerate inference, reduce latency, and simplify deployment for efficient AI applications.
+
+   .. grid-item::
+
+      * `OpenVINO Backend for ExecuTorch <https://github.com/pytorch/executorch/blob/main/backends/openvino/README.md`__
+      * `OpenVINO Backend Examples <https://github.com/pytorch/executorch/blob/main/examples/openvino/README.md>`__
+      * `Building and Running ExecuTorch with OpenVINO Backend <https://github.com/pytorch/executorch/blob/main/docs/source/build-run-openvino.md>`__
+
+.. dropdown:: Check example code
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   .. code-block:: python
+
+      ...
+      python aot_optimize_and_infer.py --export --suite timm --model vgg16 --input_shape "[1, 3, 224, 224]" --device CPU
+      ...
 
 
 
