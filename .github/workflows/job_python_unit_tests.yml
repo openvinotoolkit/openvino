@@ -106,7 +106,9 @@ jobs:
       #
 
       - name: Install ONNX test dependencies
-        run: poetry install --with tests -P src/frontends/onnx
+        run: |
+          eval $(poetry env activate)
+          poetry install --with tests -P src/frontends/onnx
       
       - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||

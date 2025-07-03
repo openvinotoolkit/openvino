@@ -168,6 +168,7 @@ jobs:
       - name: Install Test dependencies
         run: |
           poetry env info
+          eval $(poetry env activate)
           poetry install --with build
           # required for test model generation:
           poetry install -P src/frontends/onnx
