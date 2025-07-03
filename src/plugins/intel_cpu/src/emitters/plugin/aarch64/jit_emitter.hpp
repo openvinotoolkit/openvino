@@ -21,6 +21,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/emitter.hpp"
 
+#ifdef SNIPPETS_DEBUG_CAPS
+#    include "emitters/snippets/aarch64/verbose.hpp"
+#endif
+
 namespace ov::intel_cpu::aarch64 {
 
 enum emitter_in_out_map {
@@ -71,6 +75,16 @@ public:
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    const char* info() const {
+        if (!info_.is_initialized()) {
+            std::cout << "!info_.is_initialized(): " << !info_.is_initialized() << std::endl;
+            info_.init(this);
+        }
+        return info_.c_str();
+    }
+#endif
 
 protected:
     static size_t get_max_vecs_count();
@@ -157,6 +171,10 @@ protected:
         }
     }
 
+    inline int32_t get_gpr_length() const {
+        return h->x0.getBit() / 8;
+    }
+
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
     mutable std::vector<size_t> preserved_gpr_idxs;
@@ -180,10 +198,6 @@ private:
         return 32;
     }
 
-    inline int32_t get_gpr_length() const {
-        return h->x0.getBit() / 8;
-    }
-
     void store_context(const std::vector<size_t>& gpr_regs,
                        const std::vector<size_t>& vec_regs,
                        const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
@@ -191,6 +205,11 @@ private:
     void restore_context(const std::vector<size_t>& gpr_regs,
                          const std::vector<size_t>& vec_regs,
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    mutable jit_emitter_info_t info_;
+    friend class jit_debug_emitter;
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64

@@ -4,6 +4,7 @@
 
 #include "nodes/executors/aarch64/subgraph.hpp"
 
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -14,6 +15,11 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "nodes/executors/subgraph.hpp"
 #include "openvino/core/except.hpp"
+#if defined(SNIPPETS_DEBUG_CAPS)
+#    include "emitters/snippets/aarch64/jit_segfault_detector_emitter.hpp"
+#    include "emitters/snippets/aarch64/cpu_generator.hpp"
+std::mutex err_print_lock;
+#endif
 
 namespace ov::intel_cpu {
 
@@ -32,6 +38,11 @@ SubgraphExecutor::SubgraphExecutor(const std::shared_ptr<CPURuntimeConfig>& snip
                            allocator,
                            kernel_cache) {
     m_buffer_scratchpad = allocator(m_internal_buffer_size);
+#if defined(SNIPPETS_DEBUG_CAPS)
+    const auto target = std::dynamic_pointer_cast<const aarch64::CPUTargetMachine>(
+        snippet_attrs->snippet->get_generator()->get_target_machine());
+    enabled_segfault_detector = target && target->debug_config.enable_segfault_detector;
+#endif
 }
 
 void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& inMemPtrs,
@@ -46,6 +57,10 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& inMemPtrs,
         [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes, [[maybe_unused]] size_t ithr) {
             callable(&call_args, indexes.data());
         };
+
+#if defined(SNIPPETS_DEBUG_CAPS)
+    segfault_detector();
+#endif
 
     if (m_parallel_exec_domain.size() == rank6D) {
         parallel_for6d(initializer, caller);
@@ -80,11 +95,39 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
             callable(&call_args);
         };
 
+#if defined(SNIPPETS_DEBUG_CAPS)
+    segfault_detector();
+#endif
+
     if (m_parallel_exec_domain.size() == rank6D) {
         parallel_for6d(initializer, caller);
     } else {
         parallel_forNd(initializer, caller);
     }
 }
+
+#if defined(SNIPPETS_DEBUG_CAPS)
+// NOLINTBEGIN(misc-include-cleaner)
+void SubgraphExecutor::segfault_detector() const {
+    if (enabled_segfault_detector) {
+        std::cout << "registered!\n";
+        auto signal_handler = []([[maybe_unused]] int signal) {
+            std::cout << "opa! " << ov::intel_cpu::aarch64::g_custom_segfault_handler->local() << std::endl;
+            // std::lock_guard<std::mutex> guard(err_print_lock);
+            if (ov::intel_cpu::aarch64::jit_uni_segfault_detector_emitter* segfault_detector_emitter = ov::intel_cpu::aarch64::g_custom_segfault_handler->local()) {
+                std::cout << segfault_detector_emitter->info() << '\n';
+            }
+            std::cout << "2opa!" << std::endl;
+            auto tid = parallel_get_thread_num();
+            OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " +
+                           std::to_string(tid));
+        };
+        struct sigaction new_handler {};
+        new_handler.sa_handler = signal_handler;
+        sigaction(SIGSEGV, &new_handler, nullptr);
+    }
+}
+// NOLINTEND(misc-include-cleaner)
+#endif
 
 }  // namespace ov::intel_cpu
