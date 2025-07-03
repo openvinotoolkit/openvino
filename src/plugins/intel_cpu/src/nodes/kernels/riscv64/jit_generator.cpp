@@ -4,11 +4,16 @@
 
 #include "jit_generator.hpp"
 
-#include "utils/general_utils.h"
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+#include "openvino/core/except.hpp"
+#include "utils/general_utils.h"
+#include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
+
+namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
@@ -54,7 +59,7 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
 
     // Check that value is 32-bit value
     if (static_cast<uint64_t>(static_cast<int64_t>(value << 32) >> 32) == value) {
-        const uint32_t value32 = static_cast<uint32_t>(value);
+        const auto value32 = static_cast<uint32_t>(value);
         if (value32 == 0) {
             mv(rd, zero);
             return;
@@ -64,10 +69,12 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
         const auto upper_20 = (value32 + 0x800) >> 12 & 0xFFFFF;
         int32_t lower_12 = static_cast<int32_t>(value32) & 0xFFF;
         // Convert to signed 12-bit
-        if (lower_12 > 2047)
+        if (lower_12 > 2047) {
             lower_12 -= 4096;
-        if (lower_12 < -2048)
+        }
+        if (lower_12 < -2048) {
             lower_12 += 4096;
+        }
 
         if (upper_20 != 0) {
             lui(rd, upper_20);
@@ -83,8 +90,9 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
 
     auto trailing_zero = [](uint64_t value) {
         uint32_t bits = 0;
-        if (value == 0)
+        if (value == 0) {
             return bits;
+        }
         while ((value & 1) == 0) {
             bits++;
             value >>= 1;
@@ -92,12 +100,14 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
         return bits;
     };
 
-    int32_t lower_12 = static_cast<int32_t>(static_cast<int64_t>(value << 52) >> 52);
+    auto lower_12 = static_cast<int32_t>(static_cast<int64_t>(value << 52) >> 52);
     // Convert to signed 12-bit
-    if (lower_12 > 2047)
+    if (lower_12 > 2047) {
         lower_12 -= 4096;
-    if (lower_12 < -2048)
+    }
+    if (lower_12 < -2048) {
         lower_12 += 4096;
+    }
 
     // Add 0x800 to cancel out the signed extension of ADDI.
     uint64_t upper_52 = (value + 0x800) >> 12;
@@ -116,20 +126,27 @@ void jit_generator::vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VRe
 }
 
 Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) {
-    if (lmul == 0.125f)
+    if (lmul == 0.125f) {
         return LMUL::mf8;
-    if (lmul == 0.25f)
+    }
+    if (lmul == 0.25f) {
         return LMUL::mf4;
-    if (lmul == 0.5f)
+    }
+    if (lmul == 0.5f) {
         return LMUL::mf2;
-    if (lmul == 1.f)
+    }
+    if (lmul == 1.f) {
         return LMUL::m1;
-    if (lmul == 2.f)
+    }
+    if (lmul == 2.f) {
         return LMUL::m2;
-    if (lmul == 4.f)
+    }
+    if (lmul == 4.f) {
         return LMUL::m4;
-    if (lmul == 8.f)
+    }
+    if (lmul == 8.f) {
         return LMUL::m8;
+    }
     OPENVINO_THROW(std::string("not supported vector length multiplier: ") + std::to_string(lmul));
 }
 
@@ -188,6 +205,4 @@ size_t jit_generator::sew2bytes(const Xbyak_riscv::SEW sew) {
     }
 }
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::riscv64
