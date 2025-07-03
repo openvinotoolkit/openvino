@@ -14,7 +14,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/op/constant.hpp"
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using namespace ::testing;
 
