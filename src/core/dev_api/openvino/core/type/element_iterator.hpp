@@ -146,8 +146,8 @@ private:
 
     using Bits = std::conditional_t<std::is_const_v<T>, const uint8_t, uint8_t>;
 
-    static constexpr size_t m_bits = bit_width<ET>();                            //!< Number of bit for single value.
-    static constexpr size_t m_num_values = 8 / m_bits;                           //!< Number values in byte.
+    static constexpr size_t m_bits = bit_width<ET>();   //!< Number of bit for single value.
+    static constexpr size_t m_num_values = 8 / m_bits;  //!< Number values in byte.
     static constexpr size_t m_shift_init =
         (is_nibble_type(ET) || ET == element::u2) ? 0 : 8 - m_bits;  //!< Initial value for bit shift.
 
