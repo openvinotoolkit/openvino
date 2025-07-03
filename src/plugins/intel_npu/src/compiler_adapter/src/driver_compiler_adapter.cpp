@@ -4,12 +4,14 @@
 
 #include "driver_compiler_adapter.hpp"
 
+#include <fstream>
 #include <regex>
 #include <string_view>
 
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
+#include "intel_npu/common/passes.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -18,6 +20,8 @@
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "weightless_graph.hpp"
 
 namespace {
 
@@ -141,6 +145,45 @@ std::string rankToLegacyLayoutString(const size_t rank) {
     }
 }
 
+bool isInitMetadata(const intel_npu::NetworkMetadata& networkMetadata) {
+    if (networkMetadata.inputs.size() == 0) {
+        return false;
+    }
+    return networkMetadata.inputs.at(0).isInitInputWeights;
+}
+
+/**
+ * @brief Stores the information within the "WeightlessCacheAttribute" as runtime fields that persist upon
+ * serialization.
+ * @details Constant nodes (weights) may contain as medatadata the "WeightlessCacheAttribute", that is information
+ * regarding the offset of the weights within the binary file, as well as the original size and precision. This
+ * information is required within the "weights separation" flow, therefore this function is here to store it.
+ * @note Not calling this function in the weights separation flow would lead to this information being lost upon
+ * serialization. The "WeightlessCacheAttribute" information that is populated upon de-serialization would represent
+ * metadata corresponding to the serialized stream, not the original weights file. Therefore the compiler would be
+ * misinformed and lookups of weights offsets could fail.
+ *
+ * @param model Both source and target.
+ */
+void storeWeightlessCacheAttribute(const std::shared_ptr<ov::Model>& model) {
+    size_t constantId = 0;
+    for (auto&& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::Constant>(node)) {
+            ov::RTMap& runtimeInfoMap = node->get_rt_info();
+            const auto& weightlessCacheAttrIt =
+                runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+
+            const std::string constantIdString = std::to_string(constantId++);
+            if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
+                auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+                model->set_rt_info(weightlessCacheAttr.bin_offset, "ws_bin_offset_" + constantIdString);
+                model->set_rt_info(weightlessCacheAttr.original_size, "ws_original_size_" + constantIdString);
+                model->set_rt_info(weightlessCacheAttr.original_dtype, "ws_original_dtype_" + constantIdString);
+            }
+        }
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -208,26 +251,169 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    config);
 }
 
-std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
-                                                     bool blobAllocatedByPlugin,
-                                                     const Config& config) const {
+std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
+                                                         const Config& config) const {
+    OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
+
+    const ov::RTMap& runtimeInfoMap = model->get_rt_info();
+    const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
+    const bool weightlessCacheAttributeFound =
+        weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>();
+    if (weightlessCacheAttributeFound) {
+        storeWeightlessCacheAttribute(model);
+    }
+
+    const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+
+    if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
+        OPENVINO_THROW("Minimum compiler version required for weights separation: 6.3. Found: ",
+                       compilerVersion.major,
+                       ".",
+                       compilerVersion.minor);
+    }
+
+    const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
+    _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
+
+    if (config.get<SEPARATE_WEIGHTS_VERSION>() != ov::intel_npu::WSVersion::ITERATIVE) {
+        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call:",
+                       config.get<SEPARATE_WEIGHTS_VERSION>(),
+                       ". \"WSVersion::ITERATIVE\" is the only supported value for the compiler-in-driver path.");
+    }
+
+    _logger.debug("serialize IR");
+    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+
+    std::string buildFlags;
+    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
+
+    const std::string serializedIOInfo = serializeIOInfo(model, useIndices);
+    const FilteredConfig* plgConfig = dynamic_cast<const FilteredConfig*>(&config);
+    if (plgConfig == nullptr) {
+        OPENVINO_THROW("config is not FilteredConfig");
+    }
+    FilteredConfig updatedConfig = *plgConfig;
+
+    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
+    const auto set_cache_dir = config.get<CACHE_DIR>();
+    if (!set_cache_dir.empty() || config.get<BYPASS_UMD_CACHING>()) {
+        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+    }
+
+    // WS v3 is based on a stateless compiler. We'll use a separate config entry for informing the compiler the index of
+    // the current call iteration.
+    std::vector<NetworkMetadata> initNetworkMetadata;
+    NetworkMetadata mainNetworkMetadata;
+    std::vector<ze_graph_handle_t> initGraphHandles;
+    ze_graph_handle_t mainGraphHandle;
+    size_t callNumber = 0;
+
+    // Convention: run until the main schedule has been returned.
+    while (true) {
+        _logger.debug("compileWS iteration %d", callNumber);
+        updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
+
+        _logger.debug("build flags");
+        buildFlags = serializedIOInfo;
+        buildFlags += " ";
+        buildFlags += serializeConfig(updatedConfig, compilerVersion);
+
+        _logger.debug("compile start");
+        ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(serializedIR, buildFlags, flags);
+        _logger.debug("compile end");
+
+        OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
+        NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphHandle);
+
+        if (isInitMetadata(networkMetadata)) {
+            networkMetadata.name = model->get_friendly_name() + "_init";
+            initNetworkMetadata.push_back(std::move(networkMetadata));
+            initGraphHandles.push_back(graphHandle);
+        } else {
+            networkMetadata.name = model->get_friendly_name() + "_main";
+            mainNetworkMetadata = std::move(networkMetadata);
+            mainGraphHandle = graphHandle;
+            serializedIR = SerializedIR();
+            // By convention, the main schedule is the last result produced by the compiler
+            break;
+        }
+    }
+
+    // If "WeightlessCacheAttribute" fields have not been added to the Constant nodes, then we have to fallback to the
+    // approach that relies on running the common OV passes inside the plugin as well
+    std::shared_ptr<ov::Model> probablyModifiedModel = model;
+    if (!weightlessCacheAttributeFound) {
+        // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of the
+        // ov::Model object with the init inputs
+        probablyModifiedModel = runOVPasses(model);
+        _logger.warning(
+            "OV common model passes were applied inside the NPU plugin as part of the \"weights separation\" flow. "
+            "This "
+            "might lead to mismatches between weights and inputs depending on the version of the compiler.");
+    }
+
+    return std::make_shared<WeightlessGraph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             /* blobAllocatedByPlugin = */ false,
+                                             mainGraphHandle,
+                                             std::move(mainNetworkMetadata),
+                                             /* mainBlob = */ std::nullopt,
+                                             initGraphHandles,
+                                             std::move(initNetworkMetadata),
+                                             /* initBlobs = */ std::nullopt,
+                                             probablyModifiedModel,
+                                             config);
+}
+
+std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
+    ov::Tensor mainBlob,
+    const bool blobAllocatedByPlugin,
+    const Config& config,
+    std::optional<std::vector<ov::Tensor>> initBlobs,
+    const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
 
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphHandle,
-                                   std::move(networkMeta),
-                                   std::move(blob),
-                                   blobAllocatedByPlugin,
-                                   config);
+    if (!initBlobs.has_value()) {
+        return std::make_shared<Graph>(_zeGraphExt,
+                                       _zeroInitStruct,
+                                       graphHandle,
+                                       std::move(networkMeta),
+                                       std::move(mainBlob),
+                                       blobAllocatedByPlugin,
+                                       config);
+    }
+
+    // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
+    // "Graph" object as wrapper over all L0 handles.
+    std::vector<ze_graph_handle_t> initGraphHandles;
+    std::vector<NetworkMetadata> initMetadata;
+    for (const auto& initBlob : initBlobs.value()) {
+        ze_graph_handle_t initGraphHandle =
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(initBlob.data()), initBlob.get_byte_size());
+        initGraphHandles.push_back(initGraphHandle);
+        initMetadata.push_back(_zeGraphExt->getNetworkMeta(initGraphHandle));
+    }
+
+    return std::make_shared<WeightlessGraph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             blobAllocatedByPlugin,
+                                             graphHandle,
+                                             std::move(networkMeta),
+                                             std::move(mainBlob),
+                                             initGraphHandles,
+                                             std::move(initMetadata),
+                                             std::move(initBlobs),
+                                             model.value(),
+                                             config);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

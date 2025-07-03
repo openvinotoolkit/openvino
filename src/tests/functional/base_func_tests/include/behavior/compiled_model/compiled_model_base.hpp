@@ -6,7 +6,6 @@
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/pass/serialize.hpp>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -24,6 +23,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov::test::behavior {
 namespace {
@@ -1170,7 +1170,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         // Model loaded from cache since weightless cache with ov::Model is supported.
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
-        if (target_device == utils::DEVICE_GPU) {
+        if (target_device == utils::DEVICE_GPU || target_device == utils::DEVICE_NPU) {
             EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
         } else {
             EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));

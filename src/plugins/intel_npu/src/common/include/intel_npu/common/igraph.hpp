@@ -19,7 +19,15 @@ class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
 
-    virtual size_t export_blob(std::ostream& stream) const = 0;
+    /**
+     * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
+     * later be used for importing the model.
+     *
+     * @param stream Where the content is placed
+     * @return A pair made of the size of the main binary object and an optional variable. The optional variable
+     * constitues the size of each init binary object if weights separation is enabled.
+     */
+    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
@@ -40,7 +48,7 @@ public:
     const std::shared_ptr<CommandQueue>& get_command_queue() const;
     uint32_t get_command_queue_group_ordinal() const;
 
-    void set_workload_type(const ov::WorkloadType workloadType) const;
+    virtual void set_workload_type(const ov::WorkloadType workloadType) const;
 
     std::mutex& get_mutex();
 
