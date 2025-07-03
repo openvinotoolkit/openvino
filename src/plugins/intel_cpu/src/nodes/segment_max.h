@@ -4,11 +4,16 @@
 
 #pragma once
 
-#include "node.h"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/op/util/attr_types.hpp"
+
+namespace ov::intel_cpu::node {
 
 class SegmentMax : public Node {
 public:
@@ -18,10 +23,10 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     template <class OV_DATA_TYPE>
@@ -35,6 +40,4 @@ private:
     std::vector<int32_t> lastNumSegments;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

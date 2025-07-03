@@ -2,23 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "snippets/op/buffer.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
-
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 Buffer::Buffer(const ov::Output<ov::Node>& arg) : Buffer(ov::OutputVector{arg}) {}
 
 Buffer::Buffer(const OutputVector& arguments) : Op(arguments), m_impl(std::make_shared<IntermediateMemoryImpl>()) {
     constructor_validate_and_infer_types();
 }
-Buffer::Buffer(const ov::Shape& shape, ov::element::Type element_type) : Op(), m_impl(std::make_shared<NewMemoryImpl>(shape, element_type)) {
+Buffer::Buffer(const ov::Shape& shape, ov::element::Type element_type)
+    : m_impl(std::make_shared<NewMemoryImpl>(shape, element_type)) {
     constructor_validate_and_infer_types();
 }
 Buffer::Buffer(const OutputVector& arguments, std::shared_ptr<BaseImpl> impl) : Op(arguments), m_impl(std::move(impl)) {
@@ -61,19 +73,24 @@ void Buffer::IntermediateMemoryImpl::validate_and_infer_types(Buffer* buffer) co
     const auto inputs = buffer->input_values();
     const auto& inshape = buffer->get_input_partial_shape(0);
     const auto& intype = buffer->get_input_element_type(0);
-    OPENVINO_ASSERT(std::all_of(inputs.cbegin() + 1, inputs.cend(),
-                                [&](const ov::Output<ov::Node>& in) { return in.get_partial_shape() == inshape && in.get_element_type() == intype; }),
+    OPENVINO_ASSERT(std::all_of(inputs.cbegin() + 1,
+                                inputs.cend(),
+                                [&](const ov::Output<ov::Node>& in) {
+                                    return in.get_partial_shape() == inshape && in.get_element_type() == intype;
+                                }),
                     "All inputs of Buffers must have the same shape and element type");
     buffer->set_output_type(0, intype, inshape);
 }
 
-Buffer::IntermediateMemoryImpl::ShapeInfer::Result Buffer::IntermediateMemoryImpl::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+Buffer::IntermediateMemoryImpl::ShapeInfer::Result Buffer::IntermediateMemoryImpl::ShapeInfer::infer(
+    const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(!input_shapes.empty(), "IntermediateMemoryBuffer shape inference must have input shapes");
     return {{input_shapes[0].get()}, ShapeInferStatus::success};
 }
 
 Buffer::NewMemoryImpl::NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type)
-    : m_shape(shape), m_element_type(element_type) {}
+    : m_shape(shape),
+      m_element_type(element_type) {}
 
 size_t Buffer::NewMemoryImpl::get_allocation_size() const {
     return ov::shape_size(m_shape);
@@ -95,13 +112,12 @@ bool Buffer::NewMemoryImpl::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(ov::Shape shape) : m_shape(std::move(shape)) {}
+Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(const ov::Shape& shape) : m_shape(shape) {}
 
-Buffer::NewMemoryImpl::ShapeInfer::Result Buffer::NewMemoryImpl::ShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+Buffer::NewMemoryImpl::ShapeInfer::Result Buffer::NewMemoryImpl::ShapeInfer::infer(
+    const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.empty(), "NewMemoryBuffer shape inference must have input shapes");
     return {{m_shape}, ShapeInferStatus::success};
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

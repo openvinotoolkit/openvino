@@ -1,12 +1,16 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
+#include <cstdlib>
+
+#include "openvino/core/except.hpp"
+#include "openvino/util/common_util.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include "snippets/utils/debug_caps_config.hpp"
+#    include "snippets/utils/debug_caps_config.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 void DebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
@@ -18,12 +22,11 @@ void DebugCapsConfig::readProperties() {
         return static_cast<const char*>(nullptr);
     };
 
-    const char* envVarValue = nullptr;
-    if ((envVarValue = readEnv("OV_SNIPPETS_DUMP_LIR"))) {
+    if (const auto* envVarValue = readEnv("OV_SNIPPETS_DUMP_LIR")) {
         dumpLIR.parseAndSet(envVarValue);
         OPENVINO_ASSERT(!dumpLIR.passes.empty(), "Passes option in OV_SNIPPETS_DUMP_LIR must be provided.");
     }
-    if ((envVarValue = readEnv("OV_SNIPPETS_DUMP_BRGEMM_PARAMS"))) {
+    if (const auto* envVarValue = readEnv("OV_SNIPPETS_DUMP_BRGEMM_PARAMS")) {
         dumpParams.parseAndSet(envVarValue);
     }
 }
@@ -34,8 +37,9 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
     bool failed = false;
     auto getHelp = [propertySetters]() {
         std::string help;
-        for (const auto& property : propertySetters)
+        for (const auto& property : propertySetters) {
             help.append('\t' + property->getPropertyName() + "=<" + property->getPropertyValueDescription() + ">\n");
+        }
         return help;
     };
 
@@ -61,16 +65,16 @@ void DebugCapsConfig::PropertyGroup::parseAndSet(const std::string& str) {
         }
     }
 
-    if (failed)
+    if (failed) {
         OPENVINO_THROW("Wrong syntax: ",
                        str,
                        "\n",
                        "The following space separated options are supported (option names are case insensitive):",
                        "\n",
                        getHelp());
+    }
 }
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets
 
-#endif // SNIPPETS_DEBUG_CAPS
+#endif  // SNIPPETS_DEBUG_CAPS

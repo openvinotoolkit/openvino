@@ -3,13 +3,7 @@
 //
 #pragma once
 
-#include <array>
 #include <cstddef>
-#include <cstdint>
-#include <vector>
-
-#include "common.hpp"
-#include "openvino/core/type/element_type.hpp"
 
 #if defined(HAVE_SVE)
 #    include "arm_sve.h"

@@ -37,6 +37,7 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/compute_hash.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
@@ -739,8 +740,8 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
 std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
 
-    // TODO: remove it one day: try to find opset name from RT info
-    // It's a dirty hack to TypeRelaxed and similar template internal operations
+    // CVS-169882: Try to find opset name from RT info. Below (not recommended) solution affects TypeRelaxed and similar
+    // template internal operations.
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
         if (opset_it->second.is<std::string>()) {
@@ -753,54 +754,22 @@ std::string get_opset_name(const ov::Node* n) {
 
 std::string get_precision_name(const ov::element::Type& elem_type) {
     switch (elem_type) {
-    case ::ov::element::Type_t::dynamic:
+    case ov::element::dynamic:
         return "UNSPECIFIED";
-    case ::ov::element::Type_t::f16:
-        return "FP16";
-    case ::ov::element::Type_t::f32:
-        return "FP32";
-    case ::ov::element::Type_t::bf16:
-        return "BF16";
-    case ::ov::element::Type_t::f64:
-        return "FP64";
-    case ::ov::element::Type_t::i4:
-        return "I4";
-    case ::ov::element::Type_t::i8:
-        return "I8";
-    case ::ov::element::Type_t::i16:
-        return "I16";
-    case ::ov::element::Type_t::i32:
-        return "I32";
-    case ::ov::element::Type_t::i64:
-        return "I64";
-    case ::ov::element::Type_t::u4:
-        return "U4";
-    case ::ov::element::Type_t::u8:
-        return "U8";
-    case ::ov::element::Type_t::u16:
-        return "U16";
-    case ::ov::element::Type_t::u32:
-        return "U32";
-    case ::ov::element::Type_t::u64:
-        return "U64";
-    case ::ov::element::Type_t::u1:
-        return "BIN";
-    case ::ov::element::Type_t::boolean:
+    case ov::element::boolean:
         return "BOOL";
-    case ::ov::element::Type_t::nf4:
-        return "NF4";
-    case ::ov::element::Type_t::f8e4m3:
-        return "F8E4M3";
-    case ::ov::element::Type_t::f8e5m2:
-        return "F8E5M2";
-    case ::ov::element::Type_t::string:
-        return "STRING";
-    case ::ov::element::Type_t::f4e2m1:
-        return "F4E2M1";
-    case ::ov::element::Type_t::f8e8m0:
-        return "F8E8M0";
+    case ov::element::u1:
+        return "BIN";
+    case ov::element::f16:
+        return "FP16";
+    case ov::element::f32:
+        return "FP32";
+    case ov::element::bf16:
+        return "BF16";
+    case ov::element::f64:
+        return "FP64";
     default:
-        OPENVINO_THROW("Unsupported precision: ", elem_type);
+        return ov::util::to_upper(elem_type.get_type_name());
     }
 }
 
@@ -1106,7 +1075,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
-                // WA for LSTMCellv0, peephole input shall not be serialized
+                // v0::LSTMCell peephole input shall not be serialized
                 if (i.get_index() == 6 && ov::as_type<ov::op::v0::LSTMCell>(node)) {
                     port_id++;
                     continue;
@@ -1231,7 +1200,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node edges = netXml.append_child("edges");
     auto ordered_ops = model.get_ordered_ops();
     for (auto e : edge_mapping) {
-        // WA for LSTMCellv0, peephole input shall not be serialized
+        // v0::LSTMCell peephole input shall not be serialized
         if (e.to_port == 6) {
             const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
             if (!strcmp(type_info.name, "LSTMCell")) {

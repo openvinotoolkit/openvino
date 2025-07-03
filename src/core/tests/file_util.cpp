@@ -12,6 +12,7 @@
 #include <string_view>
 #include <vector>
 
+#include "openvino/core/visibility.hpp"
 #include "openvino/util/file_path.hpp"
 
 using namespace std;

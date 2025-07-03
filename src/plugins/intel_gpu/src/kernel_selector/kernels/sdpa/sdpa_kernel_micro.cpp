@@ -801,6 +801,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
 
     size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
+    jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
     if (!params.conf.is_paged_attention) {
         if (params.conf.has_const_attn_mask_val) {
             jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
@@ -810,7 +811,6 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
             jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > attn_input_idx));
         }
     } else {
-        jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
         jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
     }
 

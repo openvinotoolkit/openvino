@@ -219,17 +219,30 @@ public:
 
     /**
      * @brief Provides an access to the underlying host memory
-     * @param type Optional type parameter.
-     * @note If type parameter is specified, the method throws an exception
-     * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
      * @{
      */
+
 #ifndef IN_OV_COMPONENT
     OPENVINO_DEPRECATED("This function will return const void* in 2026.0. Check if used correctly")
 #endif
-    void* data(const element::Type& type = {}) const;
-    void* data(const element::Type& type = {});
+    void* data() const;
+    void* data();
+/// @}
+
+/**
+ * @brief Provides an access to the underlying host memory
+ * @param type Optional type parameter.
+ * @note The method throws an exception
+ * if specified type's fundamental type does not match with tensor element type's fundamental type
+ * @return A host pointer to tensor memory
+ * @{
+ */
+#ifndef IN_OV_COMPONENT
+    OPENVINO_DEPRECATED("This function will return const void* in 2026.0. Check if used correctly")
+#endif
+    void* data(const element::Type& type) const;
+    void* data(const element::Type& type);
     /// @}
 
     /**
