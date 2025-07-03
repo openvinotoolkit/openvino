@@ -189,7 +189,7 @@ OpenVINO™ Integrations
 
    .. grid-item::
 
-      * `OpenVINO Backend for ExecuTorch <https://github.com/pytorch/executorch/blob/main/backends/openvino/README.md`__
+      * `OpenVINO Backend for ExecuTorch <https://github.com/pytorch/executorch/blob/main/backends/openvino/README.md>`__
       * `OpenVINO Backend Examples <https://github.com/pytorch/executorch/blob/main/examples/openvino/README.md>`__
       * `Building and Running ExecuTorch with OpenVINO Backend <https://github.com/pytorch/executorch/blob/main/docs/source/build-run-openvino.md>`__
 
