@@ -2118,7 +2118,7 @@ version = "0.23.0"
 description = "TensorFlow Addons."
 optional = false
 python-versions = "*"
-groups = ["dev"]
+groups = ["tests"]
 markers = "python_version < \"3.11\""
 files = [
     {file = "tensorflow_addons-0.23.0-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:28f13271ccb128406859b5cac5219ce3112f3ac84f587c2ba59491d6cbdce96b"},
@@ -2607,7 +2607,7 @@ version = "2.13.3"
 description = "Run-time type checker for Python"
 optional = false
 python-versions = ">=3.5.3"
-groups = ["dev"]
+groups = ["tests"]
 markers = "python_version < \"3.11\""
 files = [
     {file = "typeguard-2.13.3-py3-none-any.whl", hash = "sha256:5e3e3be01e887e7eafae5af63d1f36c849aaa94e3a0112097312aabfa16284f1"},
@@ -2817,4 +2817,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<4.0"
-content-hash = "6e5a93d12e50715353ad6425acc5d75c2c8b119a16be8c03525b6f90816e139a"
+content-hash = "caa1f291ac46f3bd609592504d687f3bf002d8a475dfb6bfb6cffb9f6477c287"
