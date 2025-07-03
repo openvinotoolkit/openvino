@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common/memory_desc_wrapper.hpp>
 #include <memory>
 #include <optional>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu_types.h"
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
@@ -27,15 +22,26 @@
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/mlas/mlas_gemm.hpp"
+#if defined(OV_CPU_WITH_MLAS)
+#    include "nodes/executors/mlas/mlas_gemm.hpp"
+#endif
 #include "nodes/executors/precision_matcher.hpp"
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
-#include "onednn/iml_type_mapper.h"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <common/memory_desc_wrapper.hpp>
+
+#    include "cpu_types.h"
+#    include "memory_desc/cpu_memory_desc_utils.h"
+#    include "memory_desc/dnnl_memory_desc.h"
+#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#    include "onednn/iml_type_mapper.h"
+#endif
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "nodes/executors/kleidiai/kleidiai_mm.hpp"
