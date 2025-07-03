@@ -1,6 +1,15 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+if(MSVC)
+       string(REPLACE "/WX" "/WX-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE "/WX" "/WX-" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+    string(REPLACE "/WX" "/WX-" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+
+    # أضف أمر لتجاهل الخطأ 4044 (التحذير عن /shared)
+    set(CMAKE_SHARED_LIBRARY_LINKER_FLAGS "${CMAKE_SHARED_LIBRARY_LINKER_FLAGS} /IGNORE:4044")
+endif()
+
 
 file(GLOB SOURCES "src/*.cpp" "include/*.hpp")
 file(GLOB_RECURSE NPUW_SOURCES "npuw/*.cpp" "npuw/*.hpp")
@@ -12,15 +21,22 @@ set(TARGET_NAME ${NPU_PLUGIN_TARGET})
 #
 # Plugin library
 #
-
+if(MSVC)
+set(CMAKE_SHARED_LIBRARY_LINKER_FLAGS "")
+set(CMAKE_SHARED_LIBRARY_LINK_FLAGS "")
+endif()
 ov_add_plugin(NAME ${NPU_PLUGIN_TARGET}
     DEVICE_NAME ${NPU_DEVICE_NAME}
     SOURCES ${SOURCES} ${NPUW_SOURCES}
     VERSION_DEFINES_FOR ${NPU_PLUGIN_ENGINE_SOURCE_FILE}
 )
+if(MSVC)
+    target_link_options(${TARGET_NAME} PRIVATE /IGNORE:4044)
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE

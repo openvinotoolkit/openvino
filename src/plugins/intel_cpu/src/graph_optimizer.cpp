@@ -79,8 +79,21 @@ using namespace ov::intel_cpu::node;
 namespace ov::intel_cpu {
 
 GraphOptimizer::GraphOptimizer() = default;
+/**
+ * Applies all common layer fusion passes unless disabled explicitly via config (DISABLE_LAYER_FUSION).
+ * If fusion is disabled, the graph will only be cleaned (e.g. dropped nodes/edges removed).
+ */
 
-void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
+void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph, bool disableFusion) {
+    std::cout << "[DEBUG] disableFusion = " << disableFusion << std::endl;
+    if (disableFusion) {
+        std::cout << "[OpenVINO CPU Plugin] Layer Fusion is DISABLED by config." << std::endl;
+        OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "SkipFusions");
+        graph.SortTopologically();
+        graph.RemoveDroppedNodes();
+        graph.RemoveDroppedEdges();
+        return;
+    }
     // For conv with input zp, canBeExecutedInInt8() check has dependency on input zero point check.
     // Also zero point node is the input of computing-intensive nodes. Most others fusing are the output of
     // computing-intensive nodes. So Locate the FuseConvolutionAndZeroPoints() as the first optimization.

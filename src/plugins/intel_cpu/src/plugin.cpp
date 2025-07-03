@@ -268,6 +268,10 @@ void Plugin::set_property(const ov::AnyMap& config) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
+        if (name == PluginConfigParams::DISABLE_LAYER_FUSION) {
+        return engConfig.disableFusion ? PluginConfigParams::YES : PluginConfigParams::NO;
+    }
+
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return static_cast<decltype(ov::optimal_number_of_infer_requests)::value_type>(

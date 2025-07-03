@@ -15,7 +15,7 @@ set(OPTIONAL_FUNC_TESTS_INCLUDES "")
 set(OPTIONAL_FUNC_TESTS_LIBS "")
 
 set(SKIP_CONFIG "npu_skip_func_tests.xml")
-set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_CONFIG})
+# set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_CONFIG})
 
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include")
@@ -33,7 +33,7 @@ ov_add_test_target(
   INCLUDES
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${OPTIONAL_FUNC_TESTS_INCLUDES}
-  "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
+#   "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
   "${CMAKE_CURRENT_SOURCE_DIR}/behavior"
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
   LINK_LIBRARIES

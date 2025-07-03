@@ -20,6 +20,12 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
 
+namespace PluginConfigParams {
+static constexpr const char* YES = "YES";
+static constexpr const char* NO = "NO";
+static constexpr const char* DISABLE_LAYER_FUSION = "DISABLE_LAYER_FUSION";
+}  // namespace PluginConfigParams
+
 namespace ov::intel_cpu {
 struct Config {
     Config();
@@ -103,6 +109,7 @@ struct Config {
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;
+    bool disableFusion = false;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
@@ -138,7 +145,7 @@ struct Config {
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
-    void applyDebugCapsProperties();
+    bool applyDebugCapsProperties();
 #endif
 };
 

@@ -408,7 +408,10 @@ void Graph::Configure([[maybe_unused]] bool optimize) {
     SortTopologically();
     InitNodes();
 
-    ov::intel_cpu::GraphOptimizer::ApplyCommonGraphOptimizations(*this);
+    // Check if fusion should be disabled
+    const bool disableFusion = m_context && m_context->getConfig().disableFusion;
+    std::cout << "[DEBUG] disableFusion = " << disableFusion << std::endl;
+    ov::intel_cpu::GraphOptimizer::ApplyCommonGraphOptimizations(*this, disableFusion);
 
     SortTopologically();
 

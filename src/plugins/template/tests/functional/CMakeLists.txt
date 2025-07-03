@@ -39,7 +39,7 @@ endif()
 
 if (ENABLE_INTEL_CPU)
     set_source_files_properties(
-        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/executable_network/get_metric.cpp"
+#         "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/executable_network/get_metric.cpp"
         PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
 endif()
 # [cmake:functional_tests]
