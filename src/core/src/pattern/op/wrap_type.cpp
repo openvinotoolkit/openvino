@@ -61,6 +61,6 @@ std::ostream& ov::pass::pattern::op::WrapType::write_type_description(std::ostre
     return out;
 }
 
-std::shared_ptr<ov::Node> ov::pass::pattern::constant() {
+std::shared_ptr<ov::Node> ov::pass::pattern::wrap_const() {
     return ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
 }

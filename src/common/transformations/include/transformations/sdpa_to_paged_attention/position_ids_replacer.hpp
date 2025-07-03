@@ -51,11 +51,38 @@ public:
  * @brief Codegen2 model doesn't use the position_ids input explicitly.
  * Instead, the model infers them from the max_context_len value by generating
  * a range from 0 to max_context_len, applying RoPE and only then Slicing the
- * last token.
+ * last token which is not correct in case of 0th iteration (prompt iteration)
+ * when values for the entire sequence need to be sliced.
  *
- * For some reason, on 0th iteration (prompt iteration), the Slice was slicing
- * only the last token of the prompt, while the entire prompt sequence needs to
- * be sliced in this case. Fix this by using Gather by position_ids.
+ * We change from this:
+ *                                         
+ *                 ┌─────┐                
+ *                 │Range│                
+ *                 └──┬──┘                
+ *                    │                   
+ * ┌─────────┐     ┌──┴──┐     ┌─────────┐
+ * │Start    │     │RoPE │     │   End   │
+ * │(prev    │     │Block│     │(cur.seq │
+ * │seq. len)│     └──┬──┘     │ len)    │
+ * └────┬────┘        │        └────┬────┘
+ *      │          ┌──┴──┐          │
+ *      └──────────┤Slice├──────────┘
+ *                 └─────┘
+ * 
+ * To this to Gather by position_ids
+ *
+ *  ┌─────┐                    
+ *  │Range│                    
+ *  └──┬──┘                    
+ *     │                       
+ *  ┌──┴──┐                    
+ *  │RoPE │                    
+ *  │Block│    ┌──────────────┐
+ *  └──┬──┘    │ position_ids │
+ *     │       └──────┬───────┘
+ *  ┌──┴───┐          │        
+ *  │Gather├──────────┘        
+ *  └──────┘                   
  */
 class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
 public:
