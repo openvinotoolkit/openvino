@@ -18,6 +18,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
+#include "transformations/hash.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 class RTInfoSerializationTest : public ov::test::TestsCommon {
@@ -393,6 +394,12 @@ TEST(RTInfoSerialization, custom_info) {
     const auto add = std::make_shared<op::v1::Add>(data, one);
     const auto result = std::make_shared<op::v0::Result>(add);
 
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    uint64_t bare_model_hash;
+    pass::Hash{bare_model_hash}.run_on_model(model);
+
+    model->set_friendly_name("CustomRTI");
+
     const auto add_info = [](const std::shared_ptr<Node>& node, const std::string& value) {
         node->set_friendly_name("node_" + value);
         node->get_rt_info()["node_info_" + value] = "v_" + value;
@@ -404,12 +411,14 @@ TEST(RTInfoSerialization, custom_info) {
     add_info(result, "D");
     result->get_rt_info()["__do not serialize"] = "double underscores in front";
 
-    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
-    model->set_friendly_name("CustomRTI");
-
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
     EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
+
+    uint64_t with_custom_rt_info_hash;
+    pass::Hash{with_custom_rt_info_hash}.run_on_model(model);
+    EXPECT_EQ(bare_model_hash, with_custom_rt_info_hash)
+        << "`ov::pass::Hash' output value must not be affected by custom rt info.";
 }
 
 TEST(RTInfoSerialization, AnyMap_info) {
@@ -466,6 +475,11 @@ TEST(RTInfoSerialization, AnyMap_info) {
     const auto abs = std::make_shared<op::v0::Abs>(data);
     const auto result = std::make_shared<op::v0::Result>(abs);
 
+    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    uint64_t bare_model_hash;
+    pass::Hash{bare_model_hash}.run_on_model(model);
+
+    model->set_friendly_name("CustomRTI");
     data->set_friendly_name("data");
     abs->set_friendly_name("abs");
     result->set_friendly_name("result");
@@ -474,12 +488,14 @@ TEST(RTInfoSerialization, AnyMap_info) {
     const auto nested = AnyMap{{"c", "d"}};
     abs->get_rt_info()["AnyMap"] = AnyMap{{"a", "b"}, {"empty", empty}, {"i", 7}, {"x", 3.14}, {"nested", nested}};
 
-    const auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
-    model->set_friendly_name("CustomRTI");
-
     std::stringstream model_ss, weights_ss;
     EXPECT_NO_THROW((ov::pass::Serialize{model_ss, weights_ss}.run_on_model(model)));
     EXPECT_EQ(ref_ir_xml.compare(model_ss.str()), 0);
+
+    uint64_t with_custom_rt_info_hash;
+    pass::Hash{with_custom_rt_info_hash}.run_on_model(model);
+    EXPECT_EQ(bare_model_hash, with_custom_rt_info_hash)
+        << "`ov::pass::Hash' output value must not be affected by custom rt info.";
 }
 
 TEST(RTInfoSerialization, nullptr_doesnt_throw) {
