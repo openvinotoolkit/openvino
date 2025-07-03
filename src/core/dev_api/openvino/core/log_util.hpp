@@ -16,7 +16,8 @@ using LogCallback = std::function<void(std::string_view)>;
 
 /** @brief Provides current log callback object.
  */
-OPENVINO_API LogCallback& get_log_callback();
+OPENVINO_API
+const LogCallback& get_log_callback();
 
 #ifdef ENABLE_OPENVINO_DEBUG
 

@@ -51,7 +51,7 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line) {
     }
 }
 
-std::function<void(std::string_view)>& get_log_callback();
+const std::function<void(std::string_view)>& get_log_callback();
 
 LogHelper::~LogHelper() {
     get_log_callback()(m_stream.str());

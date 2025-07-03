@@ -23,5 +23,5 @@ void reset_log_callback();
  *                          Empty object is fine - nothing is logged.
  */
 OPENVINO_API
-void set_log_callback(std::function<void(std::string_view)>& callback);
+void set_log_callback(const std::function<void(std::string_view)>& callback);
 }  // namespace ov::util

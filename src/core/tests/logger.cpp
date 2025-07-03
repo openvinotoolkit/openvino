@@ -74,7 +74,7 @@ protected:
     std::stringstream m_mock_out_stream;
 
     std::string m_callback_message;
-    LogCallback m_log_callback{[this](std::string_view msg) {
+    const LogCallback m_log_callback{[this](std::string_view msg) {
         m_callback_message = msg;
     }};
 };
@@ -101,7 +101,7 @@ TEST_P(TestLogHelper, toggle_callbacks) {
     EXPECT_TRUE(are_params_logged_to(m_callback_message)) << "1st callback got: '" << m_callback_message << "'\n";
     m_callback_message.clear();
     std::string aux_callback_msg;
-    LogCallback aux_callback = [&aux_callback_msg](std::string_view msg) {
+    const LogCallback aux_callback = [&aux_callback_msg](std::string_view msg) {
         aux_callback_msg = msg;
     };
     set_log_callback(aux_callback);
@@ -124,7 +124,7 @@ TEST_P(TestLogHelper, reset) {
 
 TEST_P(TestLogHelper, no_log) {
     set_log_callback(m_log_callback);
-    auto empty_callback = LogCallback{};
+    const auto empty_callback = LogCallback{};
     set_log_callback(empty_callback);
     ASSERT_NO_THROW(log_test_params());
     EXPECT_TRUE(m_callback_message.empty()) << "Expected no callback. Got: '" << m_callback_message << "'\n";
