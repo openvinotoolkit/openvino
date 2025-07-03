@@ -12,6 +12,7 @@
 #include "to_string_utils.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
+#include "loop_inst.h"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
@@ -444,7 +445,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
             in_layout.format == format::custom || out_layout.format == format::custom)
             continue;
 
-        if (in_layout.get_rank() != out_layout.get_rank()) {
+        if (node->is_type<loop>() && in_layout.get_rank() != out_layout.get_rank()) {
             // Don't add reorder if the ranks of prev and node are different.
             // issue case 1)  scatter_nd_update(bfyx:2x100x4) -> reorder(bfzyx:2x100x4) -> loop(bfzyx:2x100x1x1x360)
             //                                                   >> added reorder has abnormal format.
