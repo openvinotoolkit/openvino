@@ -62,7 +62,7 @@ jobs:
             src/bindings/python/scripts/generate_pyapi_stubs.py
             src/bindings/python/**/*.pyi
             docs/articles_en/assets/snippets
-          sparse-checkout-cone-mode: false
+          submodules: 'false'
           
       - name: Download OpenVINO artifacts (tarballs and wheels)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -138,13 +138,14 @@ jobs:
         if: ${{ runner.os != 'macOS' && fromJSON(inputs.affected-components).docs_snippets.test }}
         run: |
           # torch, onnx
+          eval $(poetry env activate)
           poetry install -P src/frontends/onnx 
           poetry install -P src/frontends/pytorch
           # to find 'snippets' module in docs
           export PYTHONPATH=docs/articles_en/assets
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          poetry run docs/articles_en/assets/snippets/main.py
+          poetry run python docs/articles_en/assets/snippets/main.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
