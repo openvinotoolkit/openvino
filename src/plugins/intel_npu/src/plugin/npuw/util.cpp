@@ -973,7 +973,6 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
     }
 }
 
-
 namespace {
 template <typename T>
 ov::npuw::util::range_1d validMaskRange(const T* data, std::size_t len) {
