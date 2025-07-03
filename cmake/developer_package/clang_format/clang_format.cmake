@@ -3,7 +3,7 @@
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(CLANG_FORMAT_REQUIRED_VERSION 18.1.8 CACHE STRING "Clang-format version to use")
+    set(CLANG_FORMAT_REQUIRED_VERSION 18 CACHE STRING "Clang-format version to use")
     set(CLANG_FORMAT_FILENAME clang-format-${CLANG_FORMAT_REQUIRED_VERSION} clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
     message(STATUS "Found clang-format: ${CLANG_FORMAT}")
