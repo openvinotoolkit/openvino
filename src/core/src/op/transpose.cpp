@@ -101,7 +101,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
         if ((arg_type == ov::element::i4 || arg_type == ov::element::u4) && arg.get_shape().size() == 2) {
             const auto out_shape_d0 = out_shape[0];
             const auto out_shape_d1 = out_shape[1];
-            
+
             for (size_t i = 0; i < out_shape_d0; i++) {
                 size_t off = i;
                 for (size_t j = 0; j < out_shape_d1; j++) {
