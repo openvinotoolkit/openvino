@@ -1535,7 +1535,7 @@ TEST(pattern, predicate_attr_match) {
     auto ss_pattern = pattern::any_input({{"begin_mask", std::vector<int64_t>{0, 1}}});
     // TODO: to allow initializer list as attribute value -- need to update ov::Attribute value type -- wrap ov::Any and
     //  allow implicit conversion from initializer lists of different types.
-    //  For now it seems excessive as it impacts quality of life of limited number of developers aka there is a WA
+    //  For now it seems excessive as it impacts quality of life of limited number of developers.
     ASSERT_TRUE(tm.match(ss_pattern, ss));
 }
 

@@ -13,7 +13,7 @@
 
 namespace intel_npu {
 
-struct Pipeline {
+struct Pipeline final {
 public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -23,7 +23,7 @@ public:
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    virtual ~Pipeline() = default;
+    ~Pipeline() = default;
 
     void push();
     void pull();

@@ -6,7 +6,6 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 

@@ -9,6 +9,7 @@
 #include "dict_attribute_visitor.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/node_input.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -85,6 +86,21 @@ void regclass_graph_Input(py::module m) {
 
                 :return: A dictionary of user defined data.
                 :rtype: openvino.RTMap
+             )");
+    input.def(
+        "set_rt_info",
+        [](ov::Input<ov::Node>& self, const py::object& value, const py::str& key) -> void {
+            self.get_rt_info()[key.cast<std::string>()] = Common::utils::py_object_to_any(value);
+        },
+        py::arg("value"),
+        py::arg("key"),
+        R"(
+                Add a value to the runtime info.
+
+                :param value: Value for the runtime info.
+                :type value: Any
+                :param key: String that defines a key in the runtime info dictionary.
+                :type key: str
              )");
     input.def("replace_source_output",
               &ov::Input<ov::Node>::replace_source_output,

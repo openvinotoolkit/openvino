@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <string>
+#include <utility>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "openvino/util/file_util.hpp"
@@ -11,8 +13,7 @@
 #    include "snippets/lowered/pass/serialize_data_flow.hpp"
 #    include "snippets/utils/debug_caps_config.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 class LIRPassDump {
 public:
@@ -53,12 +54,11 @@ private:
     const DebugCapsConfig& debug_config;
 };
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets
 
 #    define SNIPPETS_DEBUG_LIR_PASS_DUMP(_linear_ir, _pass)                                                       \
-        auto dumpLIR = _linear_ir.get_config().debug_config->dumpLIR;                                             \
-        auto pass_name = std::string(_pass->get_type_name());                                                     \
+        auto dumpLIR = (_linear_ir).get_config().debug_config->dumpLIR;                                           \
+        auto pass_name = std::string((_pass)->get_type_name());                                                   \
         auto dump_name = dumpLIR.passes;                                                                          \
         auto dumperPtr =                                                                                          \
             ((std::find(dump_name.begin(), dump_name.end(), ov::util::to_lower(pass_name)) != dump_name.end()) || \

@@ -4,11 +4,22 @@
 
 #include "snippets/lowered/linear_ir_builder.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 namespace {
 using NodeMap = std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>;
@@ -26,7 +37,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
                 cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
             }
             std::vector<std::shared_ptr<Node>> cloned_dependencies;
-            for (auto& dependency : node->get_control_dependencies()) {
+            for (const auto& dependency : node->get_control_dependencies()) {
                 std::shared_ptr<Node>& dependent = node_map.at(dependency.get());
                 if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
                     cloned_dependencies.end()) {
@@ -58,6 +69,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
     // create and return vector of cloned nodes
     // order matches input vector (not necessarily topological)
     std::vector<std::shared_ptr<ov::Node>> cloned_nodes;
+    cloned_nodes.reserve(nodes.size());
     for (const auto& node : nodes) {
         cloned_nodes.push_back(node_map.at(node.get()));
     }
@@ -115,18 +127,18 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
                         "Expressions after copying aren't matched!");
         // Copy tensor shapes as shared pointer if needed
         if (!m_config.deep_copy_of_shapes) {
-            for (size_t i = 0; i < original_expr->get_input_count(); ++i)
+            for (size_t i = 0; i < original_expr->get_input_count(); ++i) {
                 result_expr->get_input_port_descriptor(i)->m_tensor_shape =
                     original_expr->get_input_port_descriptor(i)->m_tensor_shape;
-            for (size_t i = 0; i < original_expr->get_output_count(); ++i)
+            }
+            for (size_t i = 0; i < original_expr->get_output_count(); ++i) {
                 result_expr->get_output_port_descriptor(i)->m_tensor_shape =
                     original_expr->get_output_port_descriptor(i)->m_tensor_shape;
+            }
         }
     }
 
     return result;
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

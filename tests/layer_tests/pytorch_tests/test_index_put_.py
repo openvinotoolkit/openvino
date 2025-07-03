@@ -112,6 +112,50 @@ class TestIndexPut_ManyIndices(PytorchLayerTest):
         self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version)
 
 
+class TestIndexPut_ManyIndicesWithNone(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.input_tensor, self.values)
+
+    def create_model(self, indices, accumulate):
+        class aten_index_put_(torch.nn.Module):
+            def __init__(self, indices, accumulate):
+                super().__init__()
+                self.indices_first = indices[0]
+                self.indices_second = indices[1]
+                self.indices_third = indices[2]
+                self.accumulate = accumulate
+
+            def forward(self, input_tensor, values):
+                return torch.ops.aten.index_put_.default(input_tensor, (self.indices_first, self.indices_second, self.indices_third), values, self.accumulate)
+
+        ref_net = None
+
+        return aten_index_put_(indices, accumulate), ref_net, "aten::index_put_"
+
+    @pytest.mark.parametrize(
+        "input_data",
+        (
+            {
+                "input_shape": [1, 8, 8, 8],
+                "values": np.ones((8,1,8)).astype(np.float32)
+            },
+        ),
+    )
+    @pytest.mark.parametrize(
+        "indices",
+        (
+            (None, None, torch.tensor([0], dtype=torch.long)),
+        ),
+    )
+    @pytest.mark.parametrize("accumulate", (True, False))
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    def test_index_put_many_indices_with_none(self, ie_device, precision, ir_version, input_data, indices, accumulate):
+        self.input_tensor = np.zeros(input_data["input_shape"]).astype(np.float32)
+        self.values = input_data["values"]
+        self._test(*self.create_model(indices, accumulate), ie_device, precision, ir_version, aot_autograd=True)
+
+
 class TestNonZero_IndexPut(PytorchLayerTest):
     def _prepare_input(self):
         return (self.input_tensor, self.values, self.indices_0, self.indices_1)

@@ -4,63 +4,78 @@
 
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 
-#include "openvino/core/rt_info.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/brgemm.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 bool FuseTransposeBrgemm::is_supported_transpose(const Output<Node>& transpose_out) {
     const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
-    if (!transpose)
+    if (!transpose) {
         return false;
+    }
     const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
-    if (!order)
+    if (!order) {
         return false;
+    }
     return is_supported_transpose_order(order->cast_vector<int32_t>());
 }
 
 bool FuseTransposeBrgemm::is_supported_transpose_order(const std::vector<int32_t>& order) {
     const auto size = order.size();
-    return order.size() > 0 && order.back() == (static_cast<int32_t>(size) - 1);
+    return !order.empty() && order.back() == (static_cast<int32_t>(size) - 1);
 }
 
 FuseTransposeBrgemm::FuseTransposeBrgemm() {
     MATCHER_SCOPE(FuseTransposeBrgemm);
-    auto constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
-    auto transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), constant},
-                                                                         is_supported_transpose);
-    auto transpose_matcher = std::make_shared<ov::pass::pattern::Matcher>(transpose);
+    auto m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({ov::pass::pattern::any_input(), m_constant},
+                                                                           is_supported_transpose);
 
     // Pattern 0: Transpose on 0-th input of MatMul
-    auto brgemm_in0 = ov::pass::pattern::wrap_type<op::Brgemm>({transpose, ov::pass::pattern::any_input()});
+    auto m_brgemm_in0 = ov::pass::pattern::wrap_type<op::Brgemm>({m_transpose, ov::pass::pattern::any_input()});
 
     // Pattern 1: Transpose on 1-st input of MatMul
-    auto brgemm_in1 = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), transpose});
+    auto m_brgemm_in1 = ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), m_transpose});
 
     // Pattern 2: Transpose on output of MatMul
-    auto brgemm_out =
+    auto m_brgemm_out =
         ov::pass::pattern::wrap_type<op::Brgemm>({ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
-    auto transpose2 =
-        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({brgemm_out, constant}, is_supported_transpose);
+    auto m_transpose2 =
+        ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_brgemm_out, m_constant}, is_supported_transpose);
 
-    auto brgemm_or_transpose =
-        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{brgemm_in0, brgemm_in1, transpose2});
+    auto m_brgemm_or_transpose =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{m_brgemm_in0, m_brgemm_in1, m_transpose2});
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto brgemm = ov::as_type_ptr<op::Brgemm>(m.get_match_root());
 
         auto fuse_layouts = [](const std::vector<size_t>& layout_1, const std::vector<size_t>& layout_2) {
-            if (layout_1.empty())
+            if (layout_1.empty()) {
                 return layout_2;
-            if (layout_2.empty())
+            }
+            if (layout_2.empty()) {
                 return layout_1;
+            }
             OPENVINO_ASSERT(layout_1.size() == layout_2.size(), "Fused layouts must have equal ranks");
             std::vector<size_t> fused_layout(layout_1.size());
             for (size_t i = 0; i < layout_1.size(); ++i) {
@@ -82,14 +97,15 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             const auto& out_layout = original_port->get_layout();
             const auto& transpose_order = const_order->cast_vector<size_t>();
             original_port->set_layout(fuse_layouts(out_layout, transpose_order));
-            for (const auto& in : transpose_out.get_target_inputs())
+            for (const auto& in : transpose_out.get_target_inputs()) {
                 in.replace_source_output(brgemm->output(0));
+            }
         }
 
         for (size_t i = 0; i < brgemm->get_input_size(); i++) {
             const auto& in = brgemm->input(i);
             const auto& in_value = in.get_source_output();
-            if (transpose_matcher->match(in_value)) {
+            if (is_supported_transpose(in_value)) {
                 const auto& transpose = as_type_ptr<ov::op::v1::Transpose>(in_value.get_node_shared_ptr());
                 const auto& const_order =
                     ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
@@ -108,9 +124,7 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         return true;
     };
 
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(brgemm_or_transpose, matcher_name), callback);
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(m_brgemm_or_transpose, matcher_name), callback);
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

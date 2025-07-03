@@ -4,6 +4,7 @@
 
 #include "subgraph_transpose.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {

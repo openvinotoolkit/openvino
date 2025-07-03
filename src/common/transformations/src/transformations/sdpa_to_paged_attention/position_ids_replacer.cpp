@@ -72,7 +72,9 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
     auto p_current_len = wrap_type<v8::Gather>({p_shape_of, _const(), _const()});
 
     auto p_neg_const = wrap_type<v0::Constant>();
-    auto p_neg_mul = wrap_type<v1::Multiply>({p_current_len, p_neg_const});
+    auto p_neg_const_convert = optional<v0::Convert>(p_neg_const);
+    auto p_neg_const_reshape = optional<v1::Reshape>({p_neg_const_convert, any_input()});
+    auto p_neg_mul = wrap_type<v1::Multiply>({p_current_len, p_neg_const_reshape});
 
     // For now, it has always been a constant, but this may change in the future.
     // In case of model being in FP16, there will be a decompressing subgraph:

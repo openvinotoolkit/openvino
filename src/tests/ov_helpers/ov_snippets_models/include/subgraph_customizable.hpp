@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/op/add.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "snippets_helpers.hpp"
 #include "snippets/utils/utils.hpp"
 

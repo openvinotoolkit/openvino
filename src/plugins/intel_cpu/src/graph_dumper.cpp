@@ -22,6 +22,7 @@
 
 #include "cpu_types.h"
 #include "node.h"
+#include "nodes/scaled_attn.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -122,6 +123,13 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
     serialization_info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
 
     serialization_info[ov::exec_model_info::RUNTIME_PRECISION] = node->getRuntimePrecision().get_type_name();
+    // record kv cache precision for ScaledDotProductAttention node
+    if (node->getType() == Type::ScaledDotProductAttention) {
+        auto* sdpa_node = dynamic_cast<ov::intel_cpu::node::ScaledDotProductAttention*>(node.get());
+        if (sdpa_node) {
+            serialization_info["kv_cache_precision"] = sdpa_node->getKVCachePrecision().get_type_name();
+        }
+    }
 
     return serialization_info;
 }
@@ -422,8 +430,7 @@ void average_counters(const Graph& graph) {
         const auto realTime = cpuTime;
 
         file << node->getName() << ";" << status << ";" << node->getTypeStr() << ";"
-             << node->getPrimitiveDescriptorType() << ";" << realTime << ";" << cpuTime << ";"
-             << "\n";
+             << node->getPrimitiveDescriptorType() << ";" << realTime << ";" << cpuTime << ";" << "\n";
 
         return avg;
     };
@@ -438,8 +445,7 @@ void average_counters(const Graph& graph) {
 
     const auto totalMs = toMs(total);
 
-    file << "Total;;;;" << totalMs << ";" << totalMs << ";"
-         << "\n";
+    file << "Total;;;;" << totalMs << ";" << totalMs << ";\n";
 
     file.close();
 }

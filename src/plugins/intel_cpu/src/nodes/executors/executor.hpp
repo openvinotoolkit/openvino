@@ -64,7 +64,7 @@ public:
         return scratchPads[curNumaNodeId];
     }
 
-    [[nodiscard]] std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
+    [[nodiscard]] std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeightCache() const {
         return privateWeighCache;
     }
 

@@ -4,16 +4,29 @@
 
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <map>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 namespace {
 
 // The algorithm uses the following special values in subtensors/shapes:
@@ -111,10 +124,15 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 for (size_t i = 0; i < new_subtensor.size(); ++i) {
                     // If user forces dynamic value to set in subtensor, set real dynamic dimension using
                     // `get_dynamic_value<size_t>()`
-                    new_subtensor[i] = new_subtensor[i] == FORCED_DYNAMIC_VALUE ? utils::get_dynamic_value<size_t>()
-                                       : utils::is_full_dim_value(subtensor[i])
-                                           ? subtensor[i]
-                                           : std::min(new_subtensor[i], subtensor[i]);
+                    new_subtensor[i] = [&]() -> size_t {
+                        if (new_subtensor[i] == FORCED_DYNAMIC_VALUE) {
+                            return utils::get_dynamic_value<size_t>();
+                        }
+                        if (utils::is_full_dim_value(subtensor[i])) {
+                            return subtensor[i];
+                        }
+                        return std::min(new_subtensor[i], subtensor[i]);
+                    }();
                 }
                 desc->set_subtensor(new_subtensor);
             }
@@ -127,8 +145,9 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     // For inner loops propagation function is called recursively
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
-        if (ov::is_type<snippets::op::LoopEnd>(expr->get_node()))
+        if (ov::is_type<snippets::op::LoopEnd>(expr->get_node())) {
             continue;
+        }
         if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(expr->get_node())) {
             const auto loop_end = loop_begin->get_loop_end();
             const auto inner_loop_info = linear_ir.get_loop_manager()->get_loop_info(loop_end->get_id());
@@ -137,8 +156,9 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
 
             // The corresponding shapes of inner loops input ports must be updated using existing subtensor values
             if (!most_outer_loop) {
-                for (const auto& port : loop_info->get_input_ports())
+                for (const auto& port : loop_info->get_input_ports()) {
                     update_only_dim_idx_with_subtensor_value(port);
+                }
             }
             propagate_updated_subtensor_through_loop(linear_ir, inner_loop_info, inner_begin, inner_end, false);
             expr_it = inner_end;
@@ -159,12 +179,14 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
     }
 
     // After subtensor propagation, the original shapes must be restored
-    for (const auto& elem : original_shapes)
+    for (const auto& elem : original_shapes) {
         elem.first->set_shape(elem.second);
+    }
     for (auto expr_it = begin; expr_it != shape_inference_end_it; expr_it++) {
-        const auto expr = *expr_it;
-        if (ov::is_type<snippets::op::LoopBase>(expr->get_node()))
+        const auto& expr = *expr_it;
+        if (ov::is_type<snippets::op::LoopBase>(expr->get_node())) {
             continue;
+        }
         expr->updateShapes();
     }
 }
@@ -185,16 +207,15 @@ bool UpdateSubtensors::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Lin
 }
 
 std::shared_ptr<pass::PassBase> UpdateSubtensors::merge(const std::shared_ptr<pass::PassBase>& other) {
-    if (!other)
+    if (!other) {
         return shared_from_this();
+    }
     const auto casted_pass = ov::as_type_ptr<UpdateSubtensors>(other);
-    size_t merged_size;
-    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_size, m_tail_size, casted_pass->m_tail_size))
+    size_t merged_size = 0;
+    if (!casted_pass || !ov::snippets::utils::merge_dynamic_dim(merged_size, m_tail_size, casted_pass->m_tail_size)) {
         return nullptr;
+    }
     return std::make_shared<UpdateSubtensors>(merged_size);
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

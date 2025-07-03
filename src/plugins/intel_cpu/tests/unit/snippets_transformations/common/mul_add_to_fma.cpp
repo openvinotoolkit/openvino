@@ -3,11 +3,12 @@
 //
 
 #include <gtest/gtest.h>
+#include <openvino/opsets/opset1.hpp>
 #include <subgraph_simple.hpp>
 #include <transformations/snippets/common/pass/mul_add_to_fma.hpp>
-#include <transformations/snippets/x64/shape_inference.hpp>
+#include <transformations/snippets/common/shape_inference.hpp>
 #include <transformations/snippets/common/op/fused_mul_add.hpp>
-#include <transformations/snippets/x64/shape_inference.hpp>
+#include <transformations/snippets/common/shape_inference.hpp>
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
 #include "common_test_utils/common_utils.hpp"

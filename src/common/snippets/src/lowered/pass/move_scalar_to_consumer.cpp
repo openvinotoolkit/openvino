@@ -4,26 +4,27 @@
 
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 
+#include <iterator>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/scalar.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MoveScalarToConsumer")
-    if (linear_ir.empty())
+    if (linear_ir.empty()) {
         return false;
+    }
 
     bool modified = false;
     // Visit expressions in reverse order, so we'll move Scalar to an already visited area.
     // This is needed to avoid extra hits, when we match to the same Scalar twice
     for (auto expr_it = linear_ir.rbegin(); expr_it != linear_ir.rend(); expr_it++) {
-        const auto expr = expr_it->get();
+        auto* const expr = expr_it->get();
         if (ov::is_type<op::Scalar>(expr->get_node())) {
             const auto consumers = expr->get_output_port_connector(0)->get_consumers();
             OPENVINO_ASSERT(!consumers.empty(), "Scalar expression should have at least one consumer");
@@ -45,8 +46,9 @@ bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
             if (consumer_expr != next_expr && !ov::is_type<op::Scalar>(next_expr->get_node())) {
                 expr_it = std::prev(expr_it);  // save iterator before moving
                 auto consumer_it = forward_it;
-                while (*consumer_it != consumer_expr)
+                while (*consumer_it != consumer_expr) {
                     consumer_it++;
+                }
                 linear_ir.move(forward_it, consumer_it);
                 modified = true;
             }
@@ -56,7 +58,4 @@ bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

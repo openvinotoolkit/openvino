@@ -4,8 +4,10 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset9_decl.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "snippets/op/subgraph.hpp"
