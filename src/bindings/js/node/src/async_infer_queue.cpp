@@ -55,17 +55,23 @@ AsyncInferQueue::~AsyncInferQueue() {
     m_user_inputs.clear();
 }
 
-void AsyncInferQueue::release(const Napi::CallbackInfo& info) {
-    if (!m_tsfn) {
-        return;
+void AsyncInferQueue::release() {
+    if (m_tsfn) {
+        const auto status = m_tsfn.Release();
+        if (status == napi_invalid_arg) {
+            OPENVINO_THROW("Failed to release AsyncInferQueue resources. "
+                           "ThreadSafeFunction is already released or not initialized.");
+        } else if (status != napi_ok) {
+            OPENVINO_THROW("Failed to release AsyncInferQueue resources.");
+        }
     }
-    const auto status = m_tsfn.Release();
-    if (status == napi_invalid_arg) {
-        reportError(
-            info.Env(),
-            "Failed to release AsyncInferQueue resources. AsyncInferQueue.release() could be called more than once.");
-    } else if (status != napi_ok) {
-        reportError(info.Env(), "Failed to release AsyncInferQueue resources.");
+}
+
+void AsyncInferQueue::release(const Napi::CallbackInfo& info) {
+    try {
+        release();
+    } catch (const ov::Exception& e) {
+        reportError(info.Env(), e.what());
     }
 }
 
@@ -89,6 +95,11 @@ int AsyncInferQueue::check_idle_request_id() {
     return idle_handle;
 }
 
+void AsyncInferQueue::set_tsfn(Napi::Env env, Napi::Function callback) {
+    release();  // release previous ThreadSafeFunction if it exists
+    m_tsfn = Napi::ThreadSafeFunction::New(env, callback, "AsyncInferQueueCallback", 0, 1);
+}
+
 void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
@@ -96,8 +107,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         "'set_callback'",
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
-        m_tsfn =
-            Napi::ThreadSafeFunction::New(info.Env(), info[0].As<Napi::Function>(), "AsyncInferQueueCallback", 0, 1);
+        set_tsfn(info.Env(), info[0].As<Napi::Function>());
         for (size_t handle = 0; handle < m_requests.size(); handle++) {
             m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
                 try {

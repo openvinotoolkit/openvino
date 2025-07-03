@@ -33,6 +33,8 @@ private:
                           Napi::Object infer_data,
                           Napi::Object user_data,
                           Napi::Promise::Deferred deferred);
+    void set_tsfn(Napi::Env env, Napi::Function callback);
+    void release();
 
     // AsyncInferQueue is the owner of all requests. When AsyncInferQueue is destroyed,
     // all of requests are destroyed as well.

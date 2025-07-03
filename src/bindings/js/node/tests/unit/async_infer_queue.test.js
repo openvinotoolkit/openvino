@@ -132,13 +132,20 @@ describe('Tests for AsyncInferQueue.', () => {
     }
   });
 
+  it('Test double set_callback', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    inferQueue.setCallback(() => {});
+    inferQueue.setCallback(() => {});
+    inferQueue.release();
+  });
+
   it('Test repeated AsyncInferQueue.release()', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
     inferQueue.release();
     assert.throws(() => {
       inferQueue.release();
-    }, /Failed to release AsyncInferQueue resources. AsyncInferQueue.release/);
+    }, /Failed to release AsyncInferQueue resources. ThreadSafeFunction/);
 
   });
 
