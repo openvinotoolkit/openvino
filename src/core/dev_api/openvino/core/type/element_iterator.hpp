@@ -150,6 +150,8 @@ private:
     static constexpr size_t m_num_values = 8 / m_bits;  //!< Number values in byte.
     static constexpr size_t m_shift_init =
         (is_nibble_type(ET) || ET == element::u2) ? 0 : 8 - m_bits;  //!< Initial value for bit shift.
+    static constexpr size_t m_shift_last =
+        (is_nibble_type(ET) || ET == element::u2) ? 8 - m_bits : 0;  //!< Last value for bit shift.
 
     Bits* m_ptr;         //!< Pointer to T as Bits used to get value from bits.
     size_t m_bit_shift;  //!< Current bit shift to get value.
@@ -435,13 +437,12 @@ public:
             --m_et_ptr.m_bit_shift;
             m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % m_et_ptr.m_num_values;
             m_et_ptr.m_ptr += (m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init) ? 3 : 0;
-        } else if constexpr (ET == element::u2) {
-            m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
-            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
-            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
-
         } else {
-            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
+            if constexpr (ET == element::u2) {
+                m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
+            } else {
+                m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
+            }
             m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
             m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
         }
@@ -465,10 +466,9 @@ public:
             m_et_ptr.m_bit_shift = m_et_ptr.m_shift_init - (advance % m_et_ptr.m_num_values);
             m_et_ptr.m_ptr += 3 * (advance / m_et_ptr.m_num_values);
         } else if constexpr (ET == element::u2) {
-            m_et_ptr.m_ptr += n / m_et_ptr.m_num_values;
-            m_et_ptr.m_bit_shift += m_et_ptr.m_bits * (n % m_et_ptr.m_num_values);
-            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift > (8 - m_et_ptr.m_bits));
-            m_et_ptr.m_bit_shift %= (m_et_ptr.m_num_values * m_et_ptr.m_bits);
+            const auto advance = n + m_et_ptr.m_bit_shift / m_et_ptr.m_bits;
+            m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
+            m_et_ptr.m_ptr += advance / m_et_ptr.m_num_values;
         } else {
             const auto advance = n + (m_et_ptr.m_shift_init - m_et_ptr.m_bit_shift) / m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = m_et_ptr.m_shift_init - (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
@@ -491,14 +491,14 @@ public:
             ++m_et_ptr.m_bit_shift;
             m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % m_et_ptr.m_num_values;
             m_et_ptr.m_ptr -= m_et_ptr.m_bit_shift == 0 ? 3 : 0;
-        } else if constexpr (ET == element::u2) {
-            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
-            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
-            m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == (8 - m_et_ptr.m_bits));
         } else {
-            m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
+            if constexpr (ET == element::u2) {
+                m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
+            } else {
+                m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
+            }
             m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
-            m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == 0);
+            m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_last);
         }
         return *this;
     }
@@ -520,10 +520,9 @@ public:
             m_et_ptr.m_bit_shift = advance % m_et_ptr.m_num_values;
             m_et_ptr.m_ptr -= 3 * (advance / m_et_ptr.m_num_values);
         } else if constexpr (ET == element::u2) {
-            m_et_ptr.m_ptr -= n / m_et_ptr.m_num_values;
-            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits * (n % m_et_ptr.m_num_values);
-            m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift > (8 - m_et_ptr.m_bits));
-            m_et_ptr.m_bit_shift %= (m_et_ptr.m_num_values * m_et_ptr.m_bits);
+            const auto advance = n + (m_et_ptr.m_shift_last - m_et_ptr.m_bit_shift) / m_et_ptr.m_bits;
+            m_et_ptr.m_bit_shift = m_et_ptr.m_shift_last - (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
+            m_et_ptr.m_ptr -= advance / m_et_ptr.m_num_values;
         } else {
             const auto advance = m_et_ptr.m_bit_shift / m_et_ptr.m_bits + n;
             m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
