@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// clang-format off
+// Put this file at first to avoid incorrect header files includes order.
+// For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "sdpa_gen_micro.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -10,7 +14,7 @@
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
 #include "utils/kernel_generator.hpp"
-
+// clang-format on
 namespace ov::intel_gpu::ocl {
 namespace {
 size_t get_subgroup_size(gpu_arch arch) {
@@ -1004,10 +1008,10 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_SCALE", data_inputs_num > scale_input_idx);
     }
 
-    jit.make("Q_ALIGN", micro::alignment_for_ld(ldq));
-    jit.make("K_ALIGN", micro::alignment_for_ld(ldk));
-    jit.make("V_ALIGN", micro::alignment_for_ld(ldv));
-    jit.make("A_ALIGN", micro::alignment_for_ld(lda));
+    jit.make("Q_ALIGN", micro::alignment_for_ld(static_cast<int>(ldq)));
+    jit.make("K_ALIGN", micro::alignment_for_ld(static_cast<int>(ldk)));
+    jit.make("V_ALIGN", micro::alignment_for_ld(static_cast<int>(ldv)));
+    jit.make("A_ALIGN", micro::alignment_for_ld(static_cast<int>(lda)));
 
     jit.make("TRANSPOSE_K", false);
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
@@ -1254,7 +1258,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 }
 
 DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[this](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
@@ -1431,7 +1435,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     if (configuration.is_kv_compressed) {
         problem_kq.aqGroupM = 1;
-        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : k_head_size;
+        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : static_cast<int>(k_head_size);
     }
 
     opts_kq.scaleA = configuration.is_kv_compressed && !kq_common_scales;
@@ -1442,7 +1446,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_kq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
     problem_kq.B.setAlignment(64);  // Q is packed in VNNI format in SLM
     problem_kq.B.crosspack = 2;
-    problem_kq.B.tileR = d_max;
+    problem_kq.B.tileR = static_cast<uint16_t>(d_max);
     problem_kq.B.tileC = static_cast<uint16_t>(get_subgroup_size(device_info.arch));
 
     /* Set up problem size information */
@@ -1500,7 +1504,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
 
     if (configuration.is_kv_compressed) {
-        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(v_head_size);
+        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : static_cast<int>(micro::rnd_up_pow2(v_head_size));
         problem_vs.aqGroupK = 1;
     }
 
@@ -1539,3 +1543,4 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 }
 
 }  // namespace ov::intel_gpu::ocl
+#endif

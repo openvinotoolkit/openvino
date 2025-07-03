@@ -1,9 +1,15 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+// clang-format off
+// Put this file at first to avoid incorrect header files includes order.
+// For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "sdpa_gen_micro.hpp"
+// clang-format on
 
 #include "sdpa_opt.hpp"
+
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
@@ -133,6 +139,7 @@ public:
 };
 
 bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
 
@@ -176,6 +183,9 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 
     // Do not use sdpa_micro kernel with a scalar-value mask
     return data_inputs_num <= 3 || params.get_input_layout(3).is_dynamic() || params.get_input_layout(3).count() != 1;
+#else
+    return false;
+#endif
 }
 
 std::unique_ptr<primitive_impl> SDPAOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
