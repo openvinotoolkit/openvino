@@ -151,19 +151,23 @@ public:
                        ov::element::Type src_type = ov::element::dynamic,
                        bool ptr_is_temporary = false) {  // when true, do not rely on ptr after this function call, data
                                                          // is temporary allocated
-        const FilePosition write_pos = m_binary_output.tellp();
-        const auto offset = write_pos - m_blob_offset;
-        new_size = size;
 
-        if (!m_enable_compression) {
-            if (!compress_to_fp16) {
-                m_binary_output.write(ptr, size);
-            } else {
-                OPENVINO_ASSERT(size % src_type.size() == 0);
-                auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
-                m_binary_output.write(fp16_buffer.get(), new_size);
-            }
-            return offset;
+                                                         const FilePosition write_pos = m_binary_output.tellp();
+                                                         const auto offset = write_pos - m_blob_offset;
+                                                         new_size = size;
+
+                                                         if (!m_enable_compression) {
+                                                             if (!compress_to_fp16) {
+                                                                 m_binary_output.write(ptr, size);
+                                                             } else {
+                                                                 OPENVINO_ASSERT(size % src_type.size() == 0);
+                                                                 auto fp16_buffer = compress_data_to_fp16(ptr,
+                                                                                                          size,
+                                                                                                          src_type,
+                                                                                                          new_size);
+                                                                 m_binary_output.write(fp16_buffer.get(), new_size);
+                                                             }
+                                                             return offset;
         } else {
             std::unique_ptr<char[]> fp16_buffer = nullptr;
             if (compress_to_fp16) {
@@ -243,7 +247,7 @@ private:
 
     ConstWritePositions m_hash_to_file_positions;
     std::ostream& m_binary_output;
-    ov::pass::WeightsMap* m_weights_map;
+    ov::pass::WeightsMap* m_weights_map = nullptr;
     bool m_enable_compression;
     bool m_write_hash_value = false;
     FilePosition m_blob_offset;  // blob offset inside output stream
@@ -1342,6 +1346,7 @@ void serializeFunc(std::ostream& xml_file,
     } else {
         // If weights map is provided, we need to write constants to the map
         // and serialize it to the xml file
+
         std::ofstream fake_bin_file;
         ConstantWriter constant_write_handler(fake_bin_file, weights_map);
         XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
@@ -1368,9 +1373,9 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (fp16_compression_is_disabled(node))
             disable_fp16_compression(node);
 
-    if (m_xmlFile && m_binFile) {
+    if (m_xmlFile && m_binFile && !m_weightsMapWrapper) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
-    } else if (m_xmlFile && !m_weightsMapWrapper) {
+    } else if (m_xmlFile && m_weightsMapWrapper) {
         ov::pass::WeightsMap* map = reinterpret_cast<ov::pass::WeightsMap*>(m_weightsMapWrapper->get());
         std::ofstream fake_bin_file;
         serializeFunc(*m_xmlFile, fake_bin_file, model, m_version, false, map);
@@ -1420,6 +1425,7 @@ pass::Serialize::Serialize(std::ostream& xmlFile,
                            WeightsMapWrapper* weightsMapWrapper,
                            pass::Serialize::Version version)
     : m_xmlFile{&xmlFile},
+      m_binFile{nullptr},
       m_weightsMapWrapper(weightsMapWrapper),
       m_version{version} {
     WeightsMap* weightsMap = new ov::pass::WeightsMap();
