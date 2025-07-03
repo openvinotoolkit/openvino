@@ -440,6 +440,22 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return nullptr;
 }
 
+std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::initializer_list<std::string>& types) {
+    const auto types_set = std::unordered_set<std::string>(types);
+    return [types_set](const Output<Node>& arg) -> bool {
+        auto fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(arg.get_node_shared_ptr());
+        if (!fw_node) {
+            return false;
+        }
+        const auto& attrs = fw_node->get_attrs();
+        const auto op_type = attrs.find(PtFrameworkNode::op_type_key);
+        if (op_type == attrs.end()) {
+            return false;
+        }
+        return std::find(types_set.begin(), types_set.end(), op_type->second) != types_set.end();
+    };
+}
+
 std::shared_ptr<ov::Node> make_list_construct(const ov::OutputVector& inputs) {
     auto list_construct = std::make_shared<ov::op::util::FrameworkNode>(inputs, inputs.size());
     ov::op::util::FrameworkNodeAttrs attrs;

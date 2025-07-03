@@ -18,6 +18,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
+#include "utils_quantize.hpp"
 
 namespace ov {
 namespace frontend {
@@ -29,6 +30,9 @@ using namespace ov::op;
 namespace {
 bool process_loop_case(std::shared_ptr<Node> cat, std::shared_ptr<v5::Loop> loop, int64_t axis, bool is_stack) {
     // Concatenation of the list happens inside Loop operation
+    // prim::ListConstruct -> Loop [Parameter -> prim::append -> Result] -> aten::cat
+    // We recreate the Loop to remove the original merged output and create new output using get_concatenated_slices
+    // Also we remove original input which was prim::ListConstruct
     auto body = loop->get_function();
     auto output_index = cat->input(0).get_source_output().get_index();
 
@@ -162,19 +166,15 @@ bool process_loop_case(std::shared_ptr<Node> cat, std::shared_ptr<v5::Loop> loop
 //                    \      /
 //                    aten::cat
 AtenCatToConcat::AtenCatToConcat() {
-    auto aten_cat = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto aten_cat = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
+        fw_node_predicate({"aten::cat", "aten::concat", "aten::concatenate", "quantized::cat", "aten::stack"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         const auto root = m.get_match_root();
-        bool is_stack = false;
-        auto cat = cast_fw_node(root, {"aten::cat", "aten::concat", "aten::concatenate", "quantized::cat"});
-        if (!cat) {
-            if ((cat = cast_fw_node(root, "aten::stack"))) {
-                is_stack = true;
-            } else {
-                return false;
-            }
-        }
+        bool is_stack = cast_fw_node(root, "aten::stack") != nullptr;
+        auto cat = ov::as_type_ptr<ov::op::util::FrameworkNode>(root);
+        if (!cat)
+            return false;
 
         int64_t axis;
         if (cat->get_input_size() > 1) {
@@ -203,8 +203,28 @@ AtenCatToConcat::AtenCatToConcat() {
             return process_loop_case(cat, loop, axis, is_stack);
         }
 
+        if (is_stack) {
+            // Special case for GPTQ pattern
+            auto list_construct = cast_fw_node(input_node, "prim::ListConstruct");
+            if (const auto& compression = u4_compression_stack(input_node->input_values(), axis)) {
+                copy_runtime_info_and_name(cat, {compression}, {input_node});
+                replace_node(cat, compression);
+                return true;
+            }
+        }
+
         const auto&& tmp_inputs = get_list_as_outputs(cat->get_input_source_output(0));
-        auto result = std::make_shared<v0::Concat>(OutputVector(tmp_inputs.begin(), tmp_inputs.end()), axis);
+        OutputVector concat_inputs;
+        if (is_stack) {
+            auto axis_to_unsqueeze = v0::Constant::create(element::i32, Shape{}, {axis});
+            for (const auto& list_input : tmp_inputs) {
+                auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(list_input, axis_to_unsqueeze);
+                concat_inputs.push_back(unsqueezed_node);
+            }
+        } else {
+            concat_inputs = OutputVector(tmp_inputs.begin(), tmp_inputs.end());
+        }
+        auto result = std::make_shared<v0::Concat>(concat_inputs, axis);
         copy_runtime_info_and_name(cat, {result});
         replace_node(cat, result);
 
