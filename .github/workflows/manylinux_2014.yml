@@ -292,7 +292,7 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ matrix.image }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ matrix.image }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
 
