@@ -13,11 +13,11 @@
 namespace LayerTestsDefinitions {
 
 std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj) {
-    auto [netPrecision, inputShapes, device, param, elementwiseType] = obj.param;
+    auto [netPrecision, inputShapes, device, params] = obj.param;
 
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, inputShapes, device) <<
-           "_elementwiseType_" << elementwiseType;
+           "_elementwiseType_" << params.second;
 
     auto toString = [](const ov::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
         if (fqOnData.empty()) {
@@ -34,15 +34,15 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
     };
 
     result <<
-        "_on_branch1_" << toString(param.branch1.fakeQuantizeBefore) << toString(param.branch1.fakeQuantizeAfter) <<
-        "_on_branch1_" << toString(param.branch1.fakeQuantizeBefore) << toString(param.branch1.fakeQuantizeAfter) <<
-        "_" << toString(param.fakeQuantizeAfter);
+        "_on_branch1_" << toString(params.first.branch1.fakeQuantizeBefore) << toString(params.first.branch1.fakeQuantizeAfter) <<
+        "_on_branch1_" << toString(params.first.branch1.fakeQuantizeBefore) << toString(params.first.branch1.fakeQuantizeAfter) <<
+        "_" << toString(params.first.fakeQuantizeAfter);
 
     return result.str();
 }
 
 void ElementwiseBranchSelectionTransformation::SetUp() {
-    auto [precision, inputShape, device, param, elementwiseType] = this->GetParam();
+    auto [precision, inputShape, device, params] = this->GetParam();
     targetDevice = device;
 
     init_input_shapes({ inputShape, inputShape });
@@ -51,14 +51,14 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
         precision,
         inputShape,
         false,
-        elementwiseType,
-        param.branch1.fakeQuantizeBefore,
-        param.branch1.convolution,
-        param.branch1.fakeQuantizeAfter,
-        param.branch2.fakeQuantizeBefore,
-        param.branch2.convolution,
-        param.branch2.fakeQuantizeAfter,
-        param.fakeQuantizeAfter);
+        params.second,
+        params.first.branch1.fakeQuantizeBefore,
+        params.first.branch1.convolution,
+        params.first.branch1.fakeQuantizeAfter,
+        params.first.branch2.fakeQuantizeBefore,
+        params.first.branch2.convolution,
+        params.first.branch2.fakeQuantizeAfter,
+        params.first.fakeQuantizeAfter);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }
@@ -66,8 +66,7 @@ void ElementwiseBranchSelectionTransformation::SetUp() {
 void ElementwiseBranchSelectionTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<3>(GetParam());
-    const auto elementwiseType = std::get<4>(GetParam());
+    const auto [params, elementwiseType] = std::get<3>(GetParam());
 
     std::vector<std::pair<std::string, std::string>> expectedReorders = params.expectedReorders;
     if (!expectedReorders.empty()) {
