@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
@@ -14,10 +15,11 @@ namespace ov::util {
 
 using LogCallback = std::function<void(std::string_view)>;
 
-/** @brief Provides current log callback object.
+/** @brief Logs the message using current log callback object.
+ * @param [in] message text to be logged.
  */
 OPENVINO_API
-const LogCallback& get_log_callback();
+void log_message(std::string_view message);
 
 #ifdef ENABLE_OPENVINO_DEBUG
 

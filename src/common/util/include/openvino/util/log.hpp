@@ -40,21 +40,6 @@ private:
     std::stringstream m_stream;
 };
 
-class Logger {
-    friend class LogHelper;
-
-public:
-    static void set_log_path(const std::string& path);
-    static void start();
-    static void stop();
-
-private:
-    static void process_event(const std::string& s);
-    static void thread_entry(void* param);
-    static std::string m_log_path;
-    static std::deque<std::string> m_queue;
-};
-
 #ifdef ENABLE_OPENVINO_DEBUG
 /* Template function _write_all_to_stream has duplicates
  * It's defined in:

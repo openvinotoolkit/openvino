@@ -8,23 +8,14 @@
 
 namespace ov::util {
 namespace {
-const LogCallback default_callback{[](std::string_view s) {
-    std::cout << s << std::endl;
-}};
+const LogCallback* current_callback = nullptr;
 
 const LogCallback silent_callback{[](std::string_view s) {}};
-
-const LogCallback* current_callback = &default_callback;
 }  // namespace
 
 OPENVINO_API
-const LogCallback& get_log_callback() {
-    return *current_callback;
-}
-
-OPENVINO_API
 void reset_log_callback() {
-    current_callback = &default_callback;
+    current_callback = nullptr;
 }
 
 OPENVINO_API
@@ -34,5 +25,13 @@ void set_log_callback(const std::function<void(std::string_view)>& callback) {
     } else {
         current_callback = &callback;
     }
+}
+
+OPENVINO_API
+void log_message(std::string_view message) {
+    if (current_callback)
+        (*current_callback)(message);
+    else
+        std::cout << message << std::endl;
 }
 }  // namespace ov::util

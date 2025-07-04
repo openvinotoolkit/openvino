@@ -51,9 +51,9 @@ LogHelper::LogHelper(LOG_TYPE type, const char* file, int line) {
     }
 }
 
-const std::function<void(std::string_view)>& get_log_callback();
+void log_message(std::string_view);
 
 LogHelper::~LogHelper() {
-    get_log_callback()(m_stream.str());
+    log_message(m_stream.str());
 }
 }  // namespace ov::util
