@@ -1,3 +1,7 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "utils/model.hpp"
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
@@ -36,6 +40,16 @@ static inline std::pair<double, double> get_cv_type_range(int cv_type) {
     }
 }
 
+static inline const char* cv_type_to_str(int cv_type) {
+    switch (cv_type) {
+        case CV_8U:  return "U8";
+        case CV_32S: return "I32";
+        case CV_32F: return "F32";
+        case CV_16F: return "F16";
+        default:     return "UNKNOWN";
+    }
+}
+
 ModelHelper::ModelHelper(const OpenVINOParams& params) : m_params(params) {
     ov::Core core;
     if (std::holds_alternative<OpenVINOParams::ModelPath>(m_params.path)) {
@@ -56,7 +70,9 @@ void ModelHelper::cleanupAllTempFiles() {
     LOG_DEBUG() << "Deleting all temp files." << std::endl;
     for (const auto& path : s_tempFiles) {
         if (std::filesystem::exists(path)) {
-            std::filesystem::remove(path);
+            if (!std::filesystem::remove(path)) {
+                // TODO: warn the user the temp file couldn't be removed
+            }
         }
     }
     s_tempFiles.clear();
@@ -72,7 +88,7 @@ void ModelHelper::prepareModel() {
 
     if (need_save) {
         if (!saveTempModel()) {
-            THROW_ERROR("Couldn't save the temporary model.");
+            THROW_ERROR("Failed to save the temporary model.");
         }
     }
 }
@@ -101,10 +117,10 @@ void ModelHelper::clampOutputs() {
         auto output = result->input_value(0);
         const auto& name = output.get_any_name();
 
-        auto output_precision_type = get_output_cv_type(name, m_params.output_precision);
-        auto [min_val, max_val] = get_cv_type_range(output_precision_type);
+        auto output_cv_type = get_output_cv_type(name, m_params.output_precision);
+        auto [min_val, max_val] = get_cv_type_range(output_cv_type);
 
-        LOG_DEBUG() << "Clamping output '" << name << "' to [" << min_val << ", " << max_val << "]" << std::endl;
+        LOG_DEBUG() << "Clamping output '" << name << "' to " << cv_type_to_str(output_cv_type) << std::endl;
 
         auto clamp = std::make_shared<ov::opset1::Clamp>(output, min_val, max_val);
         clamp->set_friendly_name(result->get_friendly_name() + "_clamped");
@@ -122,7 +138,9 @@ bool ModelHelper::saveTempModel() {
     ov::pass::Serialize(tmp_xml.string(), "").run_on_model(m_model);
 
     if (std::filesystem::exists(tmp_bin)) {
-        std::filesystem::remove(tmp_bin);
+        if (!std::filesystem::remove(tmp_bin)) {
+            // TODO: warn the user tmp_bin couldn't be removed
+        }
     }
     if (std::filesystem::exists(tmp_xml)) {
         m_xmlPath = tmp_xml;
