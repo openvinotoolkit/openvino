@@ -268,8 +268,8 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
     cl_kernel->code.kernelString->options = primitive->build_options;
-    const std::vector<unsigned long> const_gws = gws;
-    const std::vector<unsigned long> const_lws = lws;
+    const std::vector<size_t> const_gws = gws;
+    const std::vector<size_t> const_lws = lws;
     cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param, const_gws, const_lws);
     for (const auto& s : primitive->kernels_code) {
         cl_kernel->code.kernelString->str += s + "\n";
