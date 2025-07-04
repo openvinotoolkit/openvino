@@ -87,7 +87,8 @@ ov::npuw::IBaseInferRequest::RqPtrs ov::npuw::IBaseInferRequest::create_infer_re
         } else {
             LOG_INFO("Skip creation of reference subrequest for submodule["
                      << id << "] on reference device: " << m_npuw_model->m_ref_device << ", as actual subrequest ["
-                     << id << "] has been already created on " << "it .");
+                     << id << "] has been already created on "
+                     << "it .");
         }
     }
 
@@ -465,7 +466,71 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = request->get_tensor(lport);
+
         ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
+    }
+
+    // Run host-side quantized gather, if required
+    if (comp_model_desc.quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(comp_model_desc.quant_unpack_gather.idx_idx != -1 && comp_model_desc.quant_unpack_gather.src_w_idx != -1);
+
+        const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
+        const auto lookup = request->get_tensor(lport);
+
+        const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_idx];
+        const auto gather = request->get_tensor(gport);
+
+        const auto& wport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_w_idx];
+        const auto& vocabw = request->get_tensor(wport);
+
+        auto ids_shape = lookup->get_shape();
+        auto w_shape = vocabw->get_shape();
+
+        ov::Tensor gatherw(vocabw->get_element_type(),
+                           ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]});
+        // Gather weight
+        ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(gatherw));
+
+        if (comp_model_desc.quant_unpack_gather.src_z_idx != -1 &&
+            comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
+            const auto& zport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_z_idx];
+            const auto& vocabz = request->get_tensor(zport);
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            auto z_shape = vocabz->get_shape();
+            auto s_shape = vocabs->get_shape();
+
+            ov::Tensor gatherz(vocabz->get_element_type(),
+                               ov::Shape{1, ids_shape[1], z_shape.size() == 3 ? z_shape[1] * z_shape[2] : z_shape[1]});
+            ov::Tensor gathers(vocabs->get_element_type(),
+                               ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]});
+            // Gather first
+            ov::npuw::util::gather(vocabz, lookup, ov::get_tensor_impl(gatherz));
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(gathers));
+
+            // Then unpack
+            ov::npuw::util::unpack(ov::get_tensor_impl(gatherw),
+                                   ov::get_tensor_impl(gatherz),
+                                   ov::get_tensor_impl(gathers),
+                                   gather);
+        } else if (comp_model_desc.quant_unpack_gather.src_s_idx != -1) {
+            const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            auto s_shape = vocabs->get_shape();
+            ov::Tensor gathers(vocabs->get_element_type(),
+                               ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]});
+            // Gather first
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(gathers));
+
+            // Then unpack
+            ov::npuw::util::unpack(ov::get_tensor_impl(gatherw), ov::get_tensor_impl(gathers), gather);
+        } else {
+            // Already gathered above - just unpack
+            ov::npuw::util::unpack(ov::get_tensor_impl(gatherw), gather);
+        }
     }
 
     LOG_DEBUG("Done");

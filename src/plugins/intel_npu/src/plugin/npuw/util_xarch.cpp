@@ -930,7 +930,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }  // for(index)
+            }                     // for(index)
             pSclLocal += scale_elem_type.size();
         }  // for(sindex)
     };
@@ -1111,7 +1111,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }  // for(index)
+            }                     // for(index)
             pSclLocal += scale_elem_type.size();
             if (sindex % 2 == 1) {
                 pZerLocal += zerop_elem_type.size();

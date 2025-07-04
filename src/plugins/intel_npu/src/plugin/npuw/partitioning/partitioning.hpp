@@ -59,6 +59,17 @@ struct Subgraph {
     };
     Gather _host_gather;
 
+    struct QuantUnpackGather {
+        int64_t dst_idx = -1;
+
+        int64_t src_w_idx = -1;
+        int64_t src_z_idx = -1;
+        int64_t src_s_idx = -1;
+
+        int64_t idx_idx = -1;
+    };
+    QuantUnpackGather _quant_unpack_gather;
+
     using Ref = std::reference_wrapper<Subgraph>;
 };
 
