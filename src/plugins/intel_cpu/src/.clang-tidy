@@ -39,7 +39,6 @@
 # -cppcoreguidelines-avoid-const-or-ref-data-members
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
-# -google-explicit-constructor,
 # -google-readability-casting,
 # -modernize-avoid-c-arrays,
 # -misc-header-include-cycle,
@@ -91,7 +90,6 @@ Checks: >
   -cppcoreguidelines-rvalue-reference-param-not-moved,
   -cppcoreguidelines-special-member-functions,
   -google-build-using-namespace,
-  -google-explicit-constructor,
   -google-readability-casting,
   -google-readability-todo,
   -modernize-avoid-c-arrays,

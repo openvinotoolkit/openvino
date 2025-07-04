@@ -583,9 +583,10 @@ void Input::cloneBlobIfRequired() {
         // original weights are stored.
         (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
 
-    memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr())
-                                    : std::const_pointer_cast<const IMemory>(
-                                          weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());
+    memoryPtr = clone_is_not_needed
+                    ? std::make_shared<Memory>(getEngine(), memDesc, m_constOp->get_data_ptr())
+                    : std::const_pointer_cast<const IMemory>(
+                          weightCache ? MemoryPtr(*weightCache->findOrCreate(blobKey(), cloneBlob)) : cloneBlob());
 }
 
 static std::vector<Shape> createInputShapes(const Shape& shape, const Type type) {

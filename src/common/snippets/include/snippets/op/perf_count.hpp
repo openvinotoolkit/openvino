@@ -70,7 +70,7 @@ private:
  */
 class CSVDumper : public Dumper {
 public:
-    CSVDumper(std::string csv_path);
+    explicit CSVDumper(std::string csv_path);
     ~CSVDumper() override;
 
     void update(const op::PerfCountEnd* node) override;
@@ -91,7 +91,7 @@ namespace op {
 class PerfCountBeginBase : public ov::op::Op {
 public:
     OPENVINO_OP("PerfCountBeginBase", "SnippetsOpset");
-    PerfCountBeginBase(const std::vector<Output<Node>>& args);
+    explicit PerfCountBeginBase(const std::vector<Output<Node>>& args);
     PerfCountBeginBase() = default;
 
     void validate_and_infer_types() override;
@@ -108,7 +108,7 @@ protected:
 class PerfCountEndBase : public ov::op::Op {
 public:
     OPENVINO_OP("PerfCountEndBase", "SnippetsOpset");
-    PerfCountEndBase(const std::vector<Output<Node>>& args);
+    explicit PerfCountEndBase(const std::vector<Output<Node>>& args);
     PerfCountEndBase() = default;
 
     void validate_and_infer_types() override;
@@ -141,9 +141,9 @@ private:
 class PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
-    PerfCountEnd(const Output<Node>& pc_begin,
-                 std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
-                 const std::string& params = "");
+    explicit PerfCountEnd(const Output<Node>& pc_begin,
+                          std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
+                          const std::string& params = "");
     PerfCountEnd() = default;
     ~PerfCountEnd() override;
 

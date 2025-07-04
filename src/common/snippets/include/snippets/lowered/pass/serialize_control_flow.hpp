@@ -20,7 +20,7 @@ namespace ov::snippets::lowered::pass {
 class SerializeControlFlow : public SerializeBase {
 public:
     OPENVINO_RTTI("SerializeControlFlow", "", SerializeBase)
-    SerializeControlFlow(const std::string& xml_path, bool update_dynamic_ops = false)
+    explicit SerializeControlFlow(const std::string& xml_path, bool update_dynamic_ops = false)
         : SerializeBase(xml_path),
           m_update_dynamic_ops{update_dynamic_ops} {}
     bool run(const LinearIR& linear_ir) override;

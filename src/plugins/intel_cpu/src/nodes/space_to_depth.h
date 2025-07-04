@@ -54,7 +54,7 @@ private:
     SpaceToDepthAttrs attrs;
 
     struct SpaceToDepthExecutor final {
-        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs);
+        explicit SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs);
         void exec(const uint8_t* srcData, uint8_t* dstData, int MB);
         ~SpaceToDepthExecutor() = default;
 

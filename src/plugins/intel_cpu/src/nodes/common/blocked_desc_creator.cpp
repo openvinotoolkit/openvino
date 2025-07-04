@@ -61,7 +61,7 @@ public:
 
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
-    ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
+    explicit ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
     [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
                                                   const Shape& srcShape) const override {
         if (srcShape.getRank() < 2) {

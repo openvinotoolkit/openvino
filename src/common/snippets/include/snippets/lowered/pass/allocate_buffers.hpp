@@ -26,7 +26,7 @@ namespace ov::snippets::lowered::pass {
 class AllocateBuffers : public RangedPass {
 public:
     OPENVINO_RTTI("AllocateBuffers", "", RangedPass)
-    AllocateBuffers(bool is_optimized = true);
+    explicit AllocateBuffers(bool is_optimized = true);
 
     /**
      * @brief Apply the pass to the Linear IR`

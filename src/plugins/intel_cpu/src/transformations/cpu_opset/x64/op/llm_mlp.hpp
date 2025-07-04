@@ -63,7 +63,7 @@ template <>
 class AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>
     : public EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN> {
 public:
-    AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
+    explicit AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
         : EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>");
