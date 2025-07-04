@@ -11,7 +11,6 @@ OpenVINO Ecosystem
 
    OpenVINO Integrations <openvino-ecosystem/openvino-integrations>
    The OpenVINO Project <openvino-ecosystem/openvino-project>
-   OpenVINO Adoptions <openvino-ecosystem/openvino-adoptions>
 
 
 OpenVINO™, as a toolkit should, involves multiple components and integrations that may be used
