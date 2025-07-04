@@ -33,7 +33,7 @@ protected:
 
 private:
     arm_compute::GEMMInfo gemmInfo;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
     arm_compute::TensorInfo weiTensorInfo;
 
     MemoryCPtr packedWeights;

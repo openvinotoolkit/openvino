@@ -36,7 +36,7 @@ public:
         : SubgraphExecutor(config, std::forward<Args>(rest)...),
           SubgraphStaticBaseExecutor(external_ptrs_idces, in_num) {}
 
-    void exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs, const std::vector<MemoryPtr>& out_mem_ptrs) override;
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
 
 class SubgraphDynamicSpecializedExecutor : public SubgraphExecutor, public SubgraphDynamicSpecializedBaseExecutor {
@@ -49,7 +49,7 @@ public:
         : SubgraphExecutor(config, std::forward<Args>(rest)...),
           SubgraphDynamicSpecializedBaseExecutor(config, external_ptrs_idces, in_num) {}
 
-    void exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs, const std::vector<MemoryPtr>& out_mem_ptrs) override;
+    void exec_impl(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 };
 
 }  // namespace ov::intel_cpu

@@ -21,7 +21,7 @@ class jit_horizon_max_emitter : public jit_emitter {
 public:
     jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                            const ov::element::Type exec_prc = ov::element::f32);
+                            ov::element::Type exec_prc = ov::element::f32);
 
     jit_horizon_max_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -43,7 +43,7 @@ class jit_horizon_sum_emitter : public jit_emitter {
 public:
     jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                            const ov::element::Type exec_prc = ov::element::f32);
+                            ov::element::Type exec_prc = ov::element::f32);
 
     jit_horizon_sum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,

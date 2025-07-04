@@ -40,9 +40,6 @@
 #    include "cpu/x64/jit_avx512_core_fp8cvt.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #    include "nodes/kernels/x64/jit_kernel.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
-#    include "cpu_memory.h"
-#    include "openvino/core/type/element_type_traits.hpp"
 #endif
 
 namespace ov::intel_cpu {

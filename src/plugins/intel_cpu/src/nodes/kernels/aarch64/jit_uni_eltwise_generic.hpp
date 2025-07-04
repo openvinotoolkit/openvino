@@ -109,7 +109,7 @@ private:
     const XReg reg_work_amount = x9;
     const XReg reg_dst = x16;
 
-    inline XReg get_src_reg(uint32_t idx) {
+    XReg get_src_reg(uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector ptr register " + std::to_string(idx) + " is not supported");
         }
@@ -118,7 +118,7 @@ private:
         return XReg(src_gprs[idx]);
     }
 
-    inline XReg get_aux_gpr(const uint32_t idx) {
+    XReg get_aux_gpr(const uint32_t idx) {
         if (idx > 3) {
             OPENVINO_THROW("aux gpr register " + std::to_string(idx) + " is not supported");
         }
@@ -154,21 +154,21 @@ private:
 
     TReg vmm_dst{9};
 
-    inline TReg get_vmm_reg(const uint32_t idx) {
+    TReg get_vmm_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(19 + idx);
     }
 
-    inline SReg get_scl_reg(const uint32_t idx) {
+    SReg get_scl_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source scalar register " + std::to_string(idx) + " is not supported");
         }
         return SReg(19 + idx);
     }
 
-    inline TReg get_aux_vmm(const uint32_t idx) {
+    TReg get_aux_vmm(const uint32_t idx) {
         if (idx > 8) {
             OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
         }
@@ -179,26 +179,26 @@ private:
                      const XReg& ptr,
                      const ov::element::Type& src_prc,
                      const ov::element::Type& dst_prc,
-                     const bool broadcast,
-                     const int32_t ptr_offset = 0);
+                     bool broadcast,
+                     int32_t ptr_offset = 0);
 
     void load_scalar(const SReg& data,
                      const XReg& ptr,
                      const ov::element::Type& src_prc,
                      const ov::element::Type& dst_prc,
-                     const int32_t ptr_offset = 0);
+                     int32_t ptr_offset = 0);
 
     void store_vector(const XReg& ptr,
                       const TReg& data,
                       const ov::element::Type& src_prc,
                       const ov::element::Type& dst_prc,
-                      const int32_t ptr_offset = 0);
+                      int32_t ptr_offset = 0);
 
     void store_scalar(const XReg& ptr,
                       const SReg& data,
                       const ov::element::Type& src_prc,
                       const ov::element::Type& dst_prc,
-                      const int32_t ptr_offset = 0);
+                      int32_t ptr_offset = 0);
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(const EltwiseData& data, const ov::element::Type& exec_prec);
 

@@ -25,6 +25,10 @@
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
+#if defined(OPENVINO_ARCH_ARM64)
+#    include <limits>
+#endif
+
 namespace ov::intel_cpu {
 
 using namespace ov::threading;

@@ -4,6 +4,15 @@
 
 #include "gemm_cpu.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/utils/utils.hpp"
@@ -18,8 +27,7 @@ GemmCPU::GemmCPU(const Output<Node>& A,
                  const PortDescriptor& desc_c,
                  const std::vector<size_t>& layout_a,
                  const std::vector<size_t>& layout_b,
-                 const std::vector<size_t>& layout_c)
-    : Brgemm() {
+                 const std::vector<size_t>& layout_c) {
     set_arguments({A, B});
     set_output_size(1);
     m_input_ports = {{0, desc_a}, {1, desc_b}};

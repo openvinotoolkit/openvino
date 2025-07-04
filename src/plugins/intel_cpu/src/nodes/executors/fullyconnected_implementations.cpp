@@ -22,7 +22,7 @@
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#if defined(OV_CPU_WITH_MLAS)
+#if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/executors/mlas/mlas_gemm.hpp"
 #endif
 #include "nodes/executors/precision_matcher.hpp"
