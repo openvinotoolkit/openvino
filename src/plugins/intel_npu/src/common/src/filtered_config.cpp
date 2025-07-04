@@ -34,7 +34,7 @@ void FilteredConfig::update(const ConfigMap& options, OptionMode mode) {
             const auto opt = _desc->get(p.first, mode);
             _impl[opt.key().data()] = opt.validateAndParse(p.second);
         } else {
-            OPENVINO_THROW("[ NOT_FOUND ] Option " + p.first + " is not supported for current configuration");
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
         }
     }
 }
