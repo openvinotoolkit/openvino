@@ -150,24 +150,21 @@ public:
                        bool compress_to_fp16 = false,
                        ov::element::Type src_type = ov::element::dynamic,
                        bool ptr_is_temporary = false) {  // when true, do not rely on ptr after this function call, data
-                                                         // is temporary allocated
+        // is temporary allocated
 
-                                                         const FilePosition write_pos = m_binary_output.tellp();
-                                                         const auto offset = write_pos - m_blob_offset;
-                                                         new_size = size;
+        const FilePosition write_pos = m_binary_output.tellp();
+        const auto offset = write_pos - m_blob_offset;
+        new_size = size;
 
-                                                         if (!m_enable_compression) {
-                                                             if (!compress_to_fp16) {
-                                                                 m_binary_output.write(ptr, size);
-                                                             } else {
-                                                                 OPENVINO_ASSERT(size % src_type.size() == 0);
-                                                                 auto fp16_buffer = compress_data_to_fp16(ptr,
-                                                                                                          size,
-                                                                                                          src_type,
-                                                                                                          new_size);
-                                                                 m_binary_output.write(fp16_buffer.get(), new_size);
-                                                             }
-                                                             return offset;
+        if (!m_enable_compression) {
+            if (!compress_to_fp16) {
+                m_binary_output.write(ptr, size);
+            } else {
+                OPENVINO_ASSERT(size % src_type.size() == 0);
+                auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+                m_binary_output.write(fp16_buffer.get(), new_size);
+            }
+            return offset;
         } else {
             std::unique_ptr<char[]> fp16_buffer = nullptr;
             if (compress_to_fp16) {
