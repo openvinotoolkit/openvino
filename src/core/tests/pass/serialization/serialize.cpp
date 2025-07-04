@@ -7,12 +7,15 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <ov_ops/rms.hpp>
+#include <ov_ops/rotary_positional_embeddings.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -163,6 +166,27 @@ TEST_P(SerializationTest, SaveModelByPath) {
     const auto out_xml_path = std::filesystem::path(m_out_xml_path);
     CompareSerialized([&out_xml_path](const auto& m) {
         ov::save_model(m, out_xml_path, false);
+    });
+}
+
+TEST_P(SerializationTest, SerializeWithMap) {
+    CompareSerialized([this](const auto& m) {
+        // Serialize model with weights map
+        // const auto passConfig = std::make_shared<ov::pass::PassConfig>();
+        std::stringstream xmlStringStream;
+        ov::pass::WeightsMapWrapper weightsMapWrapper;
+        // manager.register_pass<ov::pass::Serialize>(xmlStringStream, offsetConstMap);
+        // manager.run_passes(m);
+        ov::pass::Serialize(xmlStringStream, &weightsMapWrapper).run_on_model(m);
+
+        // Read model with the xml and weights map
+        ov::Tensor weightsTensor = ov::Tensor(ov::element::u8,
+                                              {weightsMapWrapper.size()},
+                                              reinterpret_cast<uint8_t*>(weightsMapWrapper.get()));
+        ov::Core core;
+        auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);
+
+        ov::serialize(modelNew, m_out_xml_path, m_out_bin_path);
     });
 }
 
