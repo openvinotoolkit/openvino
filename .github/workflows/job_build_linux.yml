@@ -168,12 +168,7 @@ jobs:
       - name: Install Test dependencies
         run: |
           poetry env info
-          eval $(poetry env activate)
-          poetry install --with build
-          # required for test model generation:
-          poetry install -P src/frontends/onnx
-          poetry install -P src/frontends/paddle
-          poetry install -P src/frontends/tensorflow
+          poetry install --with build,onnx,paddle,tensorflow # required for test model generation
         working-directory: ${{ env.OPENVINO_REPO }}
 
       #
