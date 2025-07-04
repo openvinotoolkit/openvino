@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -14,6 +15,8 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -80,10 +83,23 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
         result = decomp_ops.make<ov::op::v0::Clamp>(result, lower_bound, upper_bound);
         result = decomp_ops.make<ov::op::v0::Convert>(result, fake_convert->get_destination_element_type());
         result = decomp_ops.make<ov::op::v0::Convert>(result, input_type);
+        // Note: upconvert part is composed as Subtract->Multiply sequence
+        // in order to match LPT dequantization operations representation
         if (shift.get_node() != nullptr) {
-            result = decomp_ops.make<ov::op::v1::Add>(result, shift);
+            const auto negative = decomp_ops.make<ov::op::v0::Negative>(shift);
+            if (const auto constant = ov::util::get_constant_from_source(negative)) {
+                result = decomp_ops.make<ov::op::v1::Subtract>(result, constant);
+            } else {
+                result = decomp_ops.make<ov::op::v1::Subtract>(result, negative);
+            }
         }
-        result = decomp_ops.make<ov::op::v1::Divide>(result, input_scale);
+        const auto power_const = decomp_ops.make<ov::op::v0::Constant>(input_type, Shape{}, -1.f);
+        const auto power = decomp_ops.make<ov::op::v1::Power>(input_scale, power_const);
+        if (const auto constant = ov::util::get_constant_from_source(power)) {
+            result = decomp_ops.make<ov::op::v1::Multiply>(result, constant);
+        } else {
+            result = decomp_ops.make<ov::op::v1::Multiply>(result, power);
+        }
 
         if (result->get_output_element_type(0) != fake_convert->get_output_element_type(0)) {
             result = decomp_ops.make<ov::op::v0::Convert>(result, fake_convert->get_output_element_type(0));

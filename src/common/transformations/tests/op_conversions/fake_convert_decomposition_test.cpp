@@ -93,9 +93,7 @@ protected:
             if (default_shift) {
                 const auto clamp = std::make_shared<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
                 const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
-                const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
-
-                result = std::make_shared<ov::op::v1::Divide>(upconvert, input_scale);
+                result = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
             } else {
                 const auto shift = std::make_shared<ov::op::v1::Subtract>(scale, input_shift);
 
@@ -103,9 +101,11 @@ protected:
                 const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
                 const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
 
-                const auto deshift = std::make_shared<ov::op::v1::Add>(upconvert, input_shift);
-                result = std::make_shared<ov::op::v1::Divide>(deshift, input_scale);
+                const auto output_shift = std::make_shared<ov::op::v0::Constant>(data_prec, shift_shape, -12.f);
+                result = std::make_shared<ov::op::v1::Subtract>(upconvert, output_shift);
             }
+            const auto output_scale = std::make_shared<opset1::Constant>(data_prec, scale_shape, 1.f / 4.f);
+            result = std::make_shared<ov::op::v1::Multiply>(result, output_scale);
             model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
         }
     }
@@ -181,7 +181,8 @@ TEST_F(FakeConvertDecompositionTestBase, FakeConvert_Decomposition_TrivialShift)
         const auto clamp = std::make_shared<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
         const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
         const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
-        const auto divide = std::make_shared<ov::op::v1::Divide>(upconvert, input_scale);
-        model_ref = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{data});
+        const auto output_scale = std::make_shared<opset1::Constant>(data_prec, Shape{}, 1.f / 4.f);
+        const auto out_multiply = std::make_shared<ov::op::v1::Multiply>(upconvert, output_scale);
+        model_ref = std::make_shared<ov::Model>(OutputVector{out_multiply}, ParameterVector{data});
     }
 }
