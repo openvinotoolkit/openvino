@@ -49,13 +49,13 @@ DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_devi
 
 bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
     if (params.inputs[0].Feature().v != 3)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

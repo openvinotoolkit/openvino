@@ -196,7 +196,7 @@ KernelsPriority ConvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Param
 
 bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
@@ -205,22 +205,22 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     const auto& output = params.outputs[0];
 
     if (output.GetDType() != use_data_type)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (input.GetLayout() == DataLayout::bfzyx) {
         if (input.Feature().v != 3 || output.Feature().v % feature_block_size != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         if (output.GetDType() == Datatype::F16 && (output.Feature().v % 32 != 0))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     } else {
         if ((params.groups > 1) && (input.Feature().v / params.groups) % feature_block_size != 0 &&
             (input.Feature().v / params.groups) != 8)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Check if operation fusion is supported
@@ -230,7 +230,7 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
                                                 (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
 
         if (!ver_16mb16c && is_1stconv && output.GetDType() == Datatype::F16) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 
