@@ -455,7 +455,9 @@ uint32_t DriverCompilerAdapter::get_version() const {
 SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::Model>& model,
                                                 ze_graph_compiler_version_info_t compilerVersion,
                                                 const uint32_t supportedOpsetVersion) const {
-    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
+    bool useWeightsMap = true;
+    ov::pass::WeightsMapWrapper weightsMapWrapper;
+    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion, useWeightsMap);
 
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
@@ -464,7 +466,7 @@ SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::
 
     const uint32_t numberOfInputData = 2;
     const uint64_t xmlSize = static_cast<uint64_t>(irSerializer.getXmlSize());
-    const uint64_t weightsSize = static_cast<uint64_t>(irSerializer.getWeightsSize());
+    const uint64_t weightsSize = useWeightsMap ? sizeof(void*) : static_cast<uint64_t>(irSerializer.getWeightsSize());
 
     OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
     if (xmlSize >= maxSizeOfXML) {
@@ -501,7 +503,7 @@ SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::
     uint64_t weightsOffset = offset;
     offset += weightsSize;
 
-    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
+    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset, &weightsMapWrapper);
 
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 

@@ -72,7 +72,7 @@ public:
           m_extensions(extensions),
           m_variables(variables),
           m_version(version) {
-        m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weights->get_ptr());
+        memcpy(&m_weights_map, weights->get_ptr(), sizeof(void*));
         // print pointer value of m_weights_map for debugging
         std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
     }
