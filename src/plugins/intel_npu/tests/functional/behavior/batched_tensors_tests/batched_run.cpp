@@ -19,3 +19,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(batchedConfigs)),
                          BatchedTensorsRunTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> DynamicBatchedConfigs = {
+    {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN),
+     ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::MLIR)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         DynamicBatchedTensorsRunTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(DynamicBatchedConfigs)),
+                         BatchedTensorsRunTests::getTestCaseName);
