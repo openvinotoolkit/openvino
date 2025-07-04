@@ -156,8 +156,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
     manager.register_pass<TotalSequenceLengthPatternQwen>(max_context_len);
+    manager.register_pass<TotalSequenceLengthPatternCodeGen2>(max_context_len);
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids);
     manager.register_pass<PositionIDsReplacerQwen>(unsqueezed_position_ids);
+    manager.register_pass<PositionIDsReplacerCodeGen2>(position_ids);
     manager.run_passes(model);
 
     {
