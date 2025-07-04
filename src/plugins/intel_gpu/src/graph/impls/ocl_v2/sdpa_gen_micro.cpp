@@ -918,10 +918,11 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     return kd;
 }
 
-const bool kq_common_scales = false;
-const bool kq_common_zp = false;
-const bool vs_common_scales = false;
-const bool vs_common_zp = false;
+// Use 'maybe_unused' to avoid DPC++ build error
+[[maybe_unused]] const bool kq_common_scales = false;
+[[maybe_unused]] const bool kq_common_zp = false;
+[[maybe_unused]] const bool vs_common_scales = false;
+[[maybe_unused]] const bool vs_common_zp = false;
 
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
     auto jit = SDPABase::get_jit_constants(params);
