@@ -127,12 +127,12 @@ bool ResampleKernelOnnx::Validate(const Params& p) const {
     const resample_params& params = static_cast<const resample_params&>(p);
 
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
     if (input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

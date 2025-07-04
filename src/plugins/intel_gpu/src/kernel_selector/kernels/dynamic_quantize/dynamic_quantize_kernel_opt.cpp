@@ -191,32 +191,26 @@ KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*par
     return FORCE_PRIORITY_2;
 }
 
-#define LOG_AND_RETURN_FALSE(params) do { \
-    GPU_DEBUG_TRACE_DETAIL << (params).layerID << " : dynamic_quantize_opt is not supported" << std::endl; \
-    return false; \
-} while (0)
-
-
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
-        LOG_AND_RETURN_FALSE(params);
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
 
     auto bf = get_input_bf_size(dq_params);
     if (((bf.second) % (simd * 2)) != 0)
-        LOG_AND_RETURN_FALSE(params);
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
-        LOG_AND_RETURN_FALSE(params);
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (dq_params.append_axis != -1)
-        LOG_AND_RETURN_FALSE(params);
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     for (size_t i = 0; i < dq_params.group_sizes.size() - 1; i++) {
         if (dq_params.group_sizes[i] != 1)
-            LOG_AND_RETURN_FALSE(params);
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Allow only default scales order
@@ -224,14 +218,14 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (!scales_output_order.empty()) {
         for (size_t i = 0; i < scales_output_order.size(); i++)
             if (scales_output_order[i] != i)
-                LOG_AND_RETURN_FALSE(params);
+                DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (dq_params.use_asymmetric_quantization) {
         if (dq_params.combine_scales_and_zp)
-            LOG_AND_RETURN_FALSE(params);
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (dq_params.outputs[0].GetDType() != Datatype::UINT8)
-            LOG_AND_RETURN_FALSE(params);
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

@@ -86,7 +86,7 @@ JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& para
 
 bool PoolingKernelGPUInt8Ref::Validate(const Params& params) const {
     if (!PoolingKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     auto p = dynamic_cast<const pooling_params&>(params);
 
@@ -94,12 +94,12 @@ bool PoolingKernelGPUInt8Ref::Validate(const Params& params) const {
         // Max pooling doesn't change quantization ranges, so output data type should be the same as input
         if (p.poolType == PoolType::MAX && p.outputs[0].GetDType() != p.inputs[0].GetDType() &&
             p.quantization == QuantizationType::NONE)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 //         Average pooling should produce FP by default. (u)int8 is possible when quantize op is fused.
 //        if (p.poolType == PoolType::AVG &&
 //            !((p.outputs[0].GetDType() == p.inputs[0].GetDType() && !p.fused_ops.empty()) ||
 //              (p.outputs[0].GetDType() == Datatype::F32 || p.outputs[0].GetDType() == Datatype::F16)))
-//            return false;
+//            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

@@ -8,18 +8,18 @@
 namespace kernel_selector {
 bool PoolingKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::POOLING) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto& params = dynamic_cast<const pooling_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.inputs[0].Dimentions() > 5)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

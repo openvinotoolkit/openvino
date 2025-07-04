@@ -70,19 +70,19 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
 
 bool StridedSliceKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::STRIDED_SLICE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const strided_slice_params& params = static_cast<const strided_slice_params&>(p);
     if (params.inputs.empty())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.outputs[0].Dimentions() > 6 || params.inputs[0].Dimentions() > 6)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
@@ -94,7 +94,7 @@ bool StridedSliceKernelRef::Validate(const Params& p) const {
 
         // Count of actual output dims + count of shrinked axes shouldn't exceed 5 to be able to find input index correctly
         if (used_out_dims + shrinked_axes > 6) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
     return true;

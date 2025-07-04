@@ -105,15 +105,15 @@ ParamsKey SliceKernelRef::GetSupportedKey() const {
 
 bool SliceKernelRef::Validate(const Params &p) const {
     if (p.GetType() != KernelType::SLICE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const slice_params &params = dynamic_cast<const slice_params&>(p);
     if (params.inputs.empty())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.outputs[0].Dimentions() > MAX_SUPPORTED_DIM || params.inputs[0].Dimentions() > MAX_SUPPORTED_DIM)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

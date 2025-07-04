@@ -321,14 +321,14 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
 bool GatherKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::GATHER) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const gather_params& params = static_cast<const gather_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.outputs[0].is_dynamic()) {
@@ -344,11 +344,11 @@ bool GatherKernelRef::Validate(const Params& p) const {
 
         for (auto& in : params.inputs) {
             if (!supported_tensor_layout(in))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
         for (auto& out : params.outputs) {
             if (!supported_tensor_layout(out))
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

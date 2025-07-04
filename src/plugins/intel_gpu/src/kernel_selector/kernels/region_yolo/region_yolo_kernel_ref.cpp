@@ -64,7 +64,7 @@ JitConstants RegionYoloKernelRef::GetJitConstants(const region_yolo_params& ry) 
 
 bool RegionYoloKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::REGION_YOLO) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const region_yolo_params& params = static_cast<const region_yolo_params&>(p);
@@ -72,7 +72,7 @@ bool RegionYoloKernelRef::Validate(const Params& p) const {
             params.do_softmax ? params.inputs[0].X().v * params.inputs[0].Y().v * params.inputs[0].Feature().v : params.inputs[0].Feature().v;
 
     if (expected_feature_size != params.outputs[0].Feature().v) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

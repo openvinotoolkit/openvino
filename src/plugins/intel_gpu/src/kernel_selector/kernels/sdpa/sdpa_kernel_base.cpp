@@ -149,18 +149,18 @@ JitConstants SDPAKernelBase::GetJitConstants(const sdpa_params& params) const {
 
 bool SDPAKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SDPA) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
     for (size_t i = 0; i < params.inputs.size(); i++) {
         if (params.inputs[i].Dimentions() != 4)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.outputs[0].Dimentions() != 4)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

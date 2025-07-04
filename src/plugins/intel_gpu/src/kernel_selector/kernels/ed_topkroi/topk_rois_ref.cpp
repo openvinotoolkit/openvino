@@ -83,12 +83,12 @@ ParamsKey ExperimentalDetectronTopKROIRef::GetSupportedKey() const {
 
 bool ExperimentalDetectronTopKROIRef::Validate(const Params &params) const {
     if (params.GetType() != KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const experimental_detectron_topk_roi_params &new_params = dynamic_cast<const experimental_detectron_topk_roi_params &>(params);
     if (new_params.inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     return true;
 }

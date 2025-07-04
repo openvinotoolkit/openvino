@@ -25,7 +25,7 @@ JitConstants EltwiseKernel_fs_b_yx_fsv32::GetJitConstants(const eltwise_params& 
 
 bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params) const {
     if (!EltwiseKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
@@ -59,10 +59,10 @@ bool EltwiseKernel_fs_b_yx_fsv32::Validate(const Params& params) const {
     }
 
     if (IsUnsupportedModeForVecCode(ewParams))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (!bCheckSizes || !bSupportedCount || !bCheckUpdateInput || !bCheckUseOutput) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

@@ -122,7 +122,7 @@ float MatrixNmsKernelRef::GetKernelsPriority(const Params& params) const {
 
 bool MatrixNmsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::MATRIX_NMS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

@@ -36,14 +36,14 @@ JitConstants FullyConnected_fb_io_ref::GetJitConstants(const fully_connected_par
 
 bool FullyConnected_fb_io_ref::Validate(const Params& p) const {
     if (!FullyConnectedKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 
     if (!params.bias.empty()) {
         if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

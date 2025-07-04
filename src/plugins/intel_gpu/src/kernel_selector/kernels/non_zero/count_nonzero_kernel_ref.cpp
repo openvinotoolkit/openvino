@@ -113,7 +113,7 @@ KernelsPriority CountNonzeroKernelRef::GetKernelsPriority(const Params& /*params
 
 bool CountNonzeroKernelRef::Validate(const Params& p) const {
     if (!KernelBaseOpenCL::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& rp = static_cast<const count_nonzero_params&>(p);
 

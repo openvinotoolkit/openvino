@@ -167,14 +167,14 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 
 bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::NON_MAX_SUPPRESSION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const non_max_suppression_params& params = static_cast<const non_max_suppression_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

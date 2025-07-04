@@ -64,7 +64,7 @@ KernelsPriority ConvolutionKernel_yxfb_yxio_b8::GetKernelsPriority(const Params&
 
 bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
@@ -74,17 +74,17 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p) const {
     const bool bInputValidated = (filterOfmNum > 0) && (batchSize > 0) && (params.outputs[0].Feature().v == filterOfmNum);
 
     if (!bInputValidated) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const uint32_t lws0 = batchSize == 8 ? 8 : 16;
 
     if ((filterOfmNum * batchSize) % lws0 != 0 || batchSize > 16 || batchSize == 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.outputs[0].PitchesDifferFromLogicalDims())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

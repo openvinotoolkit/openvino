@@ -292,7 +292,7 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4_fsv::SetDefault(const permute_para
 
 // Validate is the same as permute_kernel_tile_8x8_4x4
 bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
         // Target transform: Rotate feature dim to back to be taken as inner-most axis
@@ -315,20 +315,20 @@ bool PermuteKernel_tile_8x8_4x4_fsv::Validate(const Params& p) const {
             if (params.outputs[0].GetLayout() != DataLayout::bfyx
                 && params.outputs[0].GetLayout() != DataLayout::bfzyx
                 && params.outputs[0].GetLayout() != DataLayout::bfwzyx)
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
         } else if ((params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) ||
                    (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32)) {
             if (params.outputs[0].GetLayout() != DataLayout::bfyx
                 && params.outputs[0].GetLayout() != DataLayout::bfzyx
                 && params.outputs[0].GetLayout() != DataLayout::bfwzyx) {
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         } else {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
     if (!is_rotating_except_batch(params.order)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

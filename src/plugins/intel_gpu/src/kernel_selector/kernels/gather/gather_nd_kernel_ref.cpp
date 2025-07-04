@@ -132,7 +132,7 @@ JitConstants GatherNDKernelRef::GetJitConstants(const gather_nd_params& params) 
 
 bool GatherNDKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType:: GATHER_ND) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const gather_nd_params& params = static_cast<const gather_nd_params&>(p);
@@ -145,28 +145,28 @@ bool GatherNDKernelRef::Validate(const Params& p) const {
     std::reverse(indices_dims.begin(), indices_dims.end());
 
     if (indices_rank < 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (batch_dims + indices_dims[indices_rank - 1] > input_dims.size()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (batch_dims >= std::min(input_dims.size(), static_cast<size_t>(indices_rank))) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!params.inputs[0].is_dynamic()) {
         for (uint8_t i = 0; i < batch_dims; i++) {
             if (input_dims[i] != indices_dims[i]) {
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         }
     }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

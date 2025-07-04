@@ -143,7 +143,7 @@ CommonDispatchData PermuteKernel_bfzyx_to_bfyxz::SetDefault(const permute_params
 }
 
 bool PermuteKernel_bfzyx_to_bfyxz::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_coords = [](const std::vector<uint16_t>& order) {
         const std::vector<uint16_t> expected_order {0, 1, 4, 2, 3};
@@ -156,10 +156,10 @@ bool PermuteKernel_bfzyx_to_bfyxz::Validate(const Params& p) const {
     const permute_params& params = static_cast<const permute_params&>(p);
 
     if (!is_rotating_coords(params.order))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

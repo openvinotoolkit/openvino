@@ -8,12 +8,12 @@
 namespace kernel_selector {
 bool RMSKernelBase::Validate(const Params& p) const {
     if (!KernelBaseOpenCL::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const rms_params& params = static_cast<const rms_params&>(p);
     auto supported_dyn_layouts = { DataLayout::bfyx, DataLayout::bfzyx };
     if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts)))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
