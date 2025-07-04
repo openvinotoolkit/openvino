@@ -423,11 +423,15 @@ void Transformations::UpToLpt() {
                                                           levels::int8,
                                                           levels::int8_narrow_range};
 
+    // TODO: Revert after FP8 PoC is done
+    const bool check_fake_convert = true;
     const bool useLpt = config.lpTransformsMode == Config::LPTransformsMode::On &&
-                        LowPrecision::isFunctionQuantized(model, supported_fq_levels) &&
+                        LowPrecision::isFunctionQuantized(model, supported_fq_levels, check_fake_convert) &&
                         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 
-    const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
+    auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
+    const auto fp8_precisions = precision_set::get_fp8_support();
+    defaultPrecisions.insert(defaultPrecisions.end(), fp8_precisions.begin(), fp8_precisions.end());
 
     PreLpt(defaultPrecisions);
 
