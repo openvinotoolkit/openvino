@@ -255,7 +255,7 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     const auto& orig_output_layout = impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_output_layout.is_static(), "out layouts should be static for create primitive_impl!");
 
-    std::vector<unsigned long> gws, lws;
+    std::vector<size_t> gws, lws;
     custom_gpu_primitive::update_work_group_size(orig_output_layout.get_partial_shape(),
                                                  primitive->calcWgDimInputIdx,
                                                  orig_output_layout.get_partial_shape(),
@@ -268,7 +268,9 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
     cl_kernel->code.kernelString->options = primitive->build_options;
-    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param, gws, lws);
+    const std::vector<unsigned long> const_gws = gws;
+    const std::vector<unsigned long> const_lws = lws;
+    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param, const_gws, const_lws);
     for (const auto& s : primitive->kernels_code) {
         cl_kernel->code.kernelString->str += s + "\n";
     }
