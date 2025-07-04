@@ -59,7 +59,7 @@ int main() {
     infer_request.start_async();
 
     // execute some postprocessing kernel.
-    // infer_request.wait() is not called, synchonization between inference and post-processing is done via
+    // infer_request.wait() is not called, synchronization between inference and post-processing is done via
     // enqueueBarrierWithWaitList call.
     cl::Kernel kernel_postproc(program, "user_kernel_postproc");
     kernel_postproc.setArg(0, shared_out_buffer);

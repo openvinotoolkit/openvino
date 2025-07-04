@@ -69,7 +69,7 @@ ov::Core create_core(const std::string& in_target_device) {
                 ov_core.set_property(config_device, global_plugin_config);
             } catch (...) {
                 OPENVINO_THROW("Property " + property.first +
-                               ", which was tryed to set in --config file, is not supported by " + target_device);
+                               ", which was tried to set in --config file, is not supported by " + target_device);
             }
         }
     }
