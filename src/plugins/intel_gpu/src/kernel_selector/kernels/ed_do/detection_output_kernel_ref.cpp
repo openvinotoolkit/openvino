@@ -36,7 +36,7 @@ KernelsPriority ExperimentalDetectronDetectionOutputKernelRef::GetKernelsPriorit
 
 bool ExperimentalDetectronDetectionOutputKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     return true;
 }

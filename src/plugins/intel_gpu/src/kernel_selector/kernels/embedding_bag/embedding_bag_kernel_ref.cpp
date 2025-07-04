@@ -102,7 +102,7 @@ ParamsKey EmbeddingBagKernelRef::GetSupportedKey() const {
 
 bool EmbeddingBagKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::EMBEDDING_BAG) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const embedding_bag_params& params = static_cast<const embedding_bag_params&>(p);
 
@@ -113,11 +113,11 @@ bool EmbeddingBagKernelRef::Validate(const Params& p) const {
     };
 
     if (!checkIntType(params.inputs[1].GetDType()))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.type == EmbeddingBagType::OFFSETS_SUM || params.type == EmbeddingBagType::SEGMENTS_SUM) {
         if (!checkIntType(params.inputs[2].GetDType()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
