@@ -37,6 +37,7 @@
 #include "transformations/common_optimizations/moc_transformations.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/multinomial_random_uniform_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
@@ -149,6 +150,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(common_fusions, InterpolateSequenceFusion)
     ADD_MATCHER(common_fusions, SkipGatherBeforeTransposeAndReshape)
     ADD_MATCHER(common_fusions, ReduceMerge)
+    ADD_MATCHER(common_fusions, ReduceMerge)
+    ADD_MATCHER(common_fusions, MultinomialRandomUniformFusion)
     common_fusions->set_name("ov::pass::CommonFusions");
 
     manager.register_pass<ConcatReduceFusion>();

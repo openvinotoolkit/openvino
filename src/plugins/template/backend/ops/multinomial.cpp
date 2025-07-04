@@ -20,16 +20,33 @@ inline void evaluate_output_t(const std::shared_ptr<ov::op::v13::Multinomial>& o
     const auto out_shape = ov::op::v13::shape_infer(op.get(), input_shapes, tensor_acc).front().to_shape();
     outputs[0].set_shape(out_shape);
 
-    ov::reference::multinomial::multinomial<T1, T2, T3>(inputs[0].data<const T1>(),
-                                                        op->get_input_shape(0),
-                                                        inputs[1].data<const T2>(),
-                                                        op->get_input_shape(1),
-                                                        outputs[0].data<T3>(),
-                                                        out_shape,
-                                                        op->get_with_replacement(),
-                                                        op->get_log_probs(),
-                                                        op->get_global_seed(),
-                                                        op->get_op_seed());
+    if (inputs.size() == 2) {
+        ov::reference::multinomial::multinomial<T1, T2, T3>(inputs[0].data<const T1>(),
+                                                            op->get_input_shape(0),
+                                                            inputs[1].data<const T2>(),
+                                                            op->get_input_shape(1),
+                                                            nullptr,
+                                                            ov::Shape({0}),
+                                                            outputs[0].data<T3>(),
+                                                            out_shape,
+                                                            op->get_with_replacement(),
+                                                            op->get_log_probs(),
+                                                            op->get_global_seed(),
+                                                            op->get_op_seed());
+    } else if (inputs.size() == 3) {
+        ov::reference::multinomial::multinomial<T1, T2, T3>(inputs[0].data<const T1>(),
+                                                            op->get_input_shape(0),
+                                                            inputs[1].data<const T2>(),
+                                                            op->get_input_shape(1),
+                                                            inputs[2].data<const T1>(),
+                                                            op->get_input_shape(2),
+                                                            outputs[0].data<T3>(),
+                                                            out_shape,
+                                                            op->get_with_replacement(),
+                                                            op->get_log_probs(),
+                                                            op->get_global_seed(),
+                                                            op->get_op_seed());
+    }
 }
 
 template <ov::element::Type_t INPUT_T, ov::element::Type_t SAMPLES_T>
