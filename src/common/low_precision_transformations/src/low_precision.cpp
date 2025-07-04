@@ -95,6 +95,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/fake_convert.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/mvn.hpp"
@@ -315,56 +316,23 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     return false;
 }
 
-bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(
-        const std::shared_ptr<const ov::Model>& model,
-        const std::set<levels>& supported_levels) {
-    std::set<std::shared_ptr<ov::Node>> handledNodes;
-    std::deque<std::shared_ptr<ov::Node>> nodes;
-    for (const auto& result : model->get_results()) {
-        nodes.push_front(result);
-    }
-
-    while (!nodes.empty()) {
-        const auto node = nodes.front();
-        nodes.pop_front();
-
-        for (size_t i = 0; i < node->inputs().size(); ++i) {
-            const auto parent = node->get_input_node_shared_ptr(i);
-            if (handledNodes.find(parent) != handledNodes.end()) {
-                continue;
+bool ov::pass::low_precision::LowPrecision::isFunctionQuantized(const std::shared_ptr<const ov::Model>& model,
+                                                                const std::set<levels>& supported_levels,
+                                                                bool check_fake_convert) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (check_fake_convert && ov::is_type<ov::op::v13::FakeConvert>(node)) {
+            return true;
+        } else if (const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(node)) {
+            if (QuantizationDetails::outputLayoutIsSupported(fakeQuantize, true) &&
+                QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels(), supported_levels)) {
+                return true;
             }
-
-            if (const auto fakeQuantize = ov::as_type_ptr<ov::opset1::FakeQuantize>(parent)) {
-                if (QuantizationDetails::outputLayoutIsSupported(fakeQuantize, true) &&
-                    QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels(), supported_levels)) {
+        } else if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+            // Look inside subraph operations, such as TensorIterator, Loop, If, etc
+            for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
+                if (isFunctionQuantized(multiSubGraph->get_function(i))) {
                     return true;
                 }
-            } else if (const auto multiSubGraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(parent)) {
-                // Look inside subraph operations, such as TensorIterator, Loop, If, etc
-                for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
-                    if (isFunctionQuantized(multiSubGraph->get_function(i))) {
-                        return true;
-                    }
-                }
-            }
-
-            nodes.push_front(parent);
-            handledNodes.insert(parent);
-        }
-    }
-
-    return false;
-}
-
-bool ov::pass::low_precision::LowPrecision::isFQLevelsPresent(
-        const std::shared_ptr<const ov::Model>& model,
-        const std::set<size_t>& levels) {
-    std::vector<std::shared_ptr<ov::Node>> nodes = model->get_ops();
-    for (auto& node : nodes) {
-        const auto fakeQuantize = as_type_ptr<ov::opset1::FakeQuantize>(node);
-        if (fakeQuantize != nullptr) {
-            if (levels.count(fakeQuantize->get_levels()) == 1) {
-                return true;
             }
         }
     }
