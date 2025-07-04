@@ -42,6 +42,9 @@ const testModels = {
   addModelWithVar: {
     xml: getModelPath('add_model_with_var.xml'),
   },
+  reluModel: {
+    xml: getModelPath('relu_model.xml'),
+  },
 };
 
 module.exports = {

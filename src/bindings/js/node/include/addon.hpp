@@ -9,6 +9,7 @@ typedef Napi::Function (*Prototype)(Napi::Env);
 
 /** @brief A structure with data that will be associated with the instance of the ov.js node-addon. */
 struct AddonData {
+    Napi::FunctionReference async_infer_queue;
     Napi::FunctionReference compiled_model;
     Napi::FunctionReference core;
     Napi::FunctionReference const_output;
