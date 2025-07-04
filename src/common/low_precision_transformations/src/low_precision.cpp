@@ -34,6 +34,7 @@
 #include "openvino/util/log.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/op_conversions/fake_convert_decomposition.hpp"
 #include "transformations/utils/utils.hpp"
 
 // prerequisite transformations
@@ -250,6 +251,13 @@ bool LowPrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ADD_MATCHER(common, ConvolutionBackpropDataTransformation, params)
     ADD_MATCHER(common, DepthToSpaceTransformation, params)
     ADD_MATCHER(common, FakeQuantizeDecompositionTransformation, params)
+    if (std::any_of(params.defaultPrecisions.begin(),
+                    params.defaultPrecisions.end(),
+                    [](const ov::element::Type& type) {
+                        return type.is_real();
+                    })) {
+        ADD_MATCHER(common, FakeConvertDecomposition);
+    }
     ADD_MATCHER(common, FakeQuantizeTransformation, params)
     ADD_MATCHER(common, InterpolateTransformation, params)
     ADD_MATCHER(common, GroupConvolutionTransformation, params)
