@@ -124,6 +124,8 @@ void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const o
     auto padded_shape = padded_position_ids->get_shape();
     auto position_shape = position_ids->get_shape();
 
+    OPENVINO_ASSERT(position_shape.size() <= 3);
+
     size_t diff_dim = 0;
     for (size_t i = 0; i < padded_shape.size(); ++i) {
         if (padded_shape[i] != position_shape[i]) {
