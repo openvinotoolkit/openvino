@@ -120,7 +120,7 @@ void ROIAlignLayerTest::SetUp() {
                                                             pooling_mode);
     function = std::make_shared<ov::Model>(roi_align->outputs(), ov::ParameterVector{param}, "roi_align");
 
-    if (model_type == ov::element::f32) {
+    if (targetDevice == "GPU" && model_type == ov::element::f32) {
         abs_threshold = 1e-4;   // ROIAlign may have very small differences in results
     }
 }
@@ -204,7 +204,7 @@ void ROIAlignV9LayerTest::SetUp() {
                                                             ov::EnumNames<ov::op::v9::ROIAlign::AlignedMode>::as_enum(roi_aligned_mode));
     function = std::make_shared<ov::Model>(roi_align->outputs(), ov::ParameterVector{param}, "roi_align");
 
-    if (model_type == ov::element::f32) {
+    if (targetDevice == "GPU" && model_type == ov::element::f32) {
         abs_threshold = 1e-4;   // ROIAlign may have very small differences in results
     }
 }
