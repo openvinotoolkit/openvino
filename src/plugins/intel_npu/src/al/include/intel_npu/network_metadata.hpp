@@ -112,6 +112,15 @@ struct NetworkMetadata final {
     size_t numStreams = 1;
 
     /**
+     * @brief Specifies the number of sub graphs to support dynamic shape
+     * @details For dynamic shape support, a model is split into subgraphs.
+     * To pipeline command list recording and inference execution,
+     * a command list is created per subgraph.
+     * npu plugin will create commandlists by refering to this member data
+     */
+    size_t numSubGraphs = 1;
+
+    /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.
      * @details For state inputs, the "relatedDescriptorIndex" value is set to the index of the output which bears the
