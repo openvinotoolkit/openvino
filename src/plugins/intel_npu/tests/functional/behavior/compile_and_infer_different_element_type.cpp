@@ -12,10 +12,7 @@
 
 auto configs = []() {
     return std::vector<ov::AnyMap>{{{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                                     ov::intel_npu::platform(ov::intel_npu::Platform::NPU3720),
-                                     {"NPU_COMPILATION_MODE", "DefaultHW"}}},
-                                   {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
-                                     ov::intel_npu::platform(ov::intel_npu::Platform::NPU4000),
+                                     ov::intel_npu::platform(ov::test::utils::DEVICE_NPU),
                                      {"NPU_COMPILATION_MODE", "DefaultHW"}}}};
 };
 

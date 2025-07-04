@@ -164,6 +164,9 @@ protected:
 // Test whether the serialization and inference results of the dynamic type model
 // and the undefined type model are the same
 TEST_P(NPUInferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     // Customize a model with a dynamic type
     std::string dynamicModel = R"V0G0N(<?xml version="1.0"?>
 <net name="custom_model" version="11">
