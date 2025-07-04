@@ -517,7 +517,8 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
         parallel_for(total_blocks, [&](int32_t block_count) {
             const auto block_id = block_number_start + block_count;
             const auto block_number = block_indices.ptr<int32_t>()[block_id];
-            const auto token_num = (block_count == (total_blocks - 1)) ? (q_len - block_count * block_size) : block_size;
+            const auto token_num =
+                (block_count == (total_blocks - 1)) ? (q_len - block_count * block_size) : block_size;
             const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto* p_scales = reinterpret_cast<float*>(base);
