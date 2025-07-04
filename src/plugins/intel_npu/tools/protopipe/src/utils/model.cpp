@@ -7,8 +7,6 @@
 #include "utils/logger.hpp"
 
 #include <filesystem>
-#include <fstream>
-#include <string>
 
 #include <openvino/opsets/opset1.hpp>
 #include <opencv2/core.hpp> // CV_*
@@ -82,8 +80,7 @@ void ModelHelper::prepareModel() {
     bool need_save = ensureNamedTensors();
 
     if (m_params.clamp_outputs) {
-        clampOutputs();
-        need_save = true;
+        need_save = clampOutputs() || need_save;
     }
 
     if (need_save) {
@@ -111,13 +108,17 @@ bool ModelHelper::ensureNamedTensors() {
     return need_save;
 }
 
-void ModelHelper::clampOutputs() {
+bool ModelHelper::clampOutputs() {
+    bool need_save = false;
     auto results = m_model->get_results();
     for (const auto& result : results) {
-        auto output = result->input_value(0);
+        const auto& output = result->input_value(0);
         const auto& name = output.get_any_name();
 
         auto output_cv_type = get_output_cv_type(name, m_params.output_precision);
+        if (output_cv_type == -1) {
+            continue;
+        }
         auto [min_val, max_val] = get_cv_type_range(output_cv_type);
 
         LOG_DEBUG() << "Clamping output '" << name << "' to " << cv_type_to_str(output_cv_type) << std::endl;
@@ -125,7 +126,10 @@ void ModelHelper::clampOutputs() {
         auto clamp = std::make_shared<ov::opset1::Clamp>(output, min_val, max_val);
         clamp->set_friendly_name(result->get_friendly_name() + "_clamped");
         result->input(0).replace_source_output(clamp->output(0));
+        need_save = true;
     }
+
+    return need_save;
 }
 
 bool ModelHelper::saveTempModel() {

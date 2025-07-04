@@ -30,7 +30,7 @@ public:
 
 private:
     bool ensureNamedTensors();
-    void clampOutputs();
+    bool clampOutputs();
 
     bool saveTempModel();
 
