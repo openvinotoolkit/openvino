@@ -22,15 +22,13 @@ namespace npuw {
 class LLMCompiledModel;
 class CompiledModel;
 namespace weights {
+class RemoteContextManager;
 
 class Bank {
 public:
     explicit Bank(const std::shared_ptr<const ov::ICore>& core,
                   const std::string& alloc_device,
-                  const std::string& bank_name)
-        : m_core(core),
-          m_alloc_device(alloc_device),
-          m_bank_name(bank_name) {}
+                  const std::string& bank_name);
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -44,6 +42,8 @@ public:
     bool is_remote(int64_t uid) const;
 
     std::string get_name() const;
+
+    ov::SoPtr<ov::IRemoteContext> get_context(const std::shared_ptr<const ov::ICore>& core, const std::string& device);
 
 private:
     friend class ov::npuw::LLMCompiledModel;
@@ -73,6 +73,7 @@ private:
     std::string m_alloc_device;
     int64_t uid_count = 0;
     std::string m_bank_name;
+    std::shared_ptr<RemoteContextManager> m_rcm = nullptr;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,
