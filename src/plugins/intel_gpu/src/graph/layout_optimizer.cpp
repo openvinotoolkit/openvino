@@ -913,6 +913,7 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
 }
 
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
+    assert(node.is_dynamic());
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout();
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
@@ -937,8 +938,10 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
             node.set_preferred_output_fmt(0, format::b_fs_yx_fsv16);
         else if (input_layout.get_partial_shape().size() == 5)
             node.set_preferred_output_fmt(0, format::b_fs_zyx_fsv16);
+        else
+            OPENVINO_ASSERT(false, "Unsupported input layout partial shape size ", input_layout.get_partial_shape().size());
         // Use planar format for dynamic convolution with small input channel(IC <= 3)
-        if (node.is_dynamic() && input_layout.get_partial_shape()[1].is_static() &&
+        if (input_layout.get_partial_shape()[1].is_static() &&
             (input_layout.get_partial_shape()[1].get_length() <= 4 || output_layout.get_partial_shape()[1].get_length() <= 4)) {
             node.set_preferred_output_fmt(0, format::get_default_format(input_layout.get_partial_shape().size()));
         }
