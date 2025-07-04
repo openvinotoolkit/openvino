@@ -6,7 +6,7 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 h5py = ">=2.10.0,<=3.13.0"
-tensorflow = ">=2.4.0,<=2.16.0"
+tensorflow = ">=1.15.5,<=2.19.0"
 
 [tool.poetry.group.tests]
 optional = true
