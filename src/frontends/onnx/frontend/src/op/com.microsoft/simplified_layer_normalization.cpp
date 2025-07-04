@@ -59,7 +59,10 @@ ov::OutputVector simplified_layer_normalization(const ov::frontend::onnx::Node& 
     auto rms_value =
         std::make_shared<v0::Sqrt>(std::make_shared<v1::Add>(mean, v0::Constant::create(stash_type, {}, {epsilon})));
     auto inv_std_var = std::make_shared<v1::Divide>(v0::Constant::create(stash_type, {}, {1.0}), rms_value);
-    auto normalized = std::make_shared<v1::Multiply>(X, inv_std_var);  // X / RMS(X)
+    ov::Output<ov::Node> normalized = std::make_shared<v1::Multiply>(X, inv_std_var);  // X / RMS(X)
+    if (needs_type_casting) {
+        normalized = std::make_shared<v0::Convert>(normalized, scale.get_element_type());
+    }
 
     auto scaled = std::make_shared<v1::Multiply>(normalized, scale);  // (X / RMS(X)) * scale
 

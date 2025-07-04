@@ -15,11 +15,17 @@ public:
 
     LoraSubgraphFused(const ov::Output<Node>& main_input,
                       const ov::Output<Node>& lora_input,
-                      const OutputVector& states);
+                      const OutputVector& states,
+                      bool transposed_states);
+
+    bool is_transposed_states() const { return transposed_states; }
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+
+protected:
+    bool transposed_states;
 };
 
 }   // namespace ov::intel_gpu::op
