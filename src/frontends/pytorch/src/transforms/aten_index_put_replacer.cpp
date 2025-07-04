@@ -46,13 +46,11 @@ Output<Node> generate_zeros_with_convertlike(ov::pass::NodeRegistry& rg,
 }  // namespace
 
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
-    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
+        fw_node_predicate({"aten::index_put_", "aten.index_put.default"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto index_op = cast_fw_node(m.get_match_root(), {"aten::index_put_", "aten.index_put.default"});
-        if (!index_op) {
-            return false;
-        }
+        auto index_op = m.get_match_root();
 
         NodeVector rt_copy_from;
         ov::pass::NodeRegistry rg;
