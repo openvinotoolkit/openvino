@@ -40,12 +40,11 @@ namespace pass {
 using namespace ov::op;
 
 PrimListUnpackReplacer::PrimListUnpackReplacer() {
-    auto list_unpack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto list_unpack =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"prim::ListUnpack"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto list_unpack = cast_fw_node(m.get_match_root(), "prim::ListUnpack");
-        if (!list_unpack)
-            return false;
+        auto list_unpack = m.get_match_root();
 
         auto input_node = list_unpack->input_value(0).get_node_shared_ptr();
         ov::pass::NodeRegistry rg;
