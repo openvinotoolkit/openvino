@@ -25,7 +25,7 @@ Therefore, in order to ease the configuration of the device, OpenVINO offers two
 
 For more information on conducting performance measurements with the ``benchmark_app``, refer to the last section in this document.
 
-Keep in mind that a typical model may take significantly more time to load with the ``ov::hint::PerformanceMode::THROUGHPUT`` and consume much more memory, compared to the ``ov::hint::PerformanceMode::LATENCY``. Also, the `THROUGHPUT` and `LATENCY` hints only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the :ref:`Prefer Async API <prefer-async-api>` section of this document.
+Models may load slower and consume more memory when using ``ov::hint::PerformanceMode::THROUGHPUT`` compared to ``ov::hint::PerformanceMode::LATENCY``. ``THROUGHPUT`` and ``LATENCY`` hints can improve performance in asynchronous inference and support different use cases in synchronous inference. For more details on asynchronous inference, see the :ref:`Working with Sync/Async API <working-with-sync-async-api>` section of this document.
 
 Performance Hints: How It Works
 ###############################
@@ -119,18 +119,16 @@ The hints are used on the presumption that the application queries ``ov::optimal
 
 While an application is free to create more requests if needed (for example to support asynchronous inputs population) **it is very important to at least run the** ``ov::optimal_number_of_infer_requests`` **of the inference requests in parallel**. It is recommended for efficiency, or device utilization, reasons.
 
-.. _prefer-async-api:
+.. _working-with-sync-async-api:
 
-Prefer Async API
-################
+Working with Sync/Async API
+###########################
 
 The API of the inference requests offers Sync and Async execution. The ``ov::InferRequest::infer()`` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` (or callbacks). For more information on synchronous and asynchronous modes, refer to the :doc:`OpenVINO Inference Request <../inference-request>`.
 
-Although the synchronous API can be easier to start with, it is recommended to use the asynchronous (callbacks-based) API in production code. It is the most general and scalable way to implement the flow control for any possible number of requests. The ``THROUGHPUT`` and ``LATENCY`` performance hints automatically configure the Asynchronous pipeline to use the optimal number of processing streams and inference requests.
+If a single application thread manages multiple inference requests, the asynchronous (callbacks-based) API is recommended for production. It is the most scalable way to handle any number of requests. ``THROUGHPUT`` and ``LATENCY`` hints automatically configure the asynchronous pipeline for the optimal number of streams and requests.
 
-.. note::
-
-   **Important:** Performance Hints only work when asynchronous execution mode is used. They do not affect the performance of a synchronous pipeline.
+If a single application thread manages only one inference request, the synchronous API can be used with the `LATENCY` hint for single-thread use cases and the `THROUGHPUT` hint for multi-thread use cases. 
 
 Combining the Hints and Individual Low-Level Settings
 #####################################################
