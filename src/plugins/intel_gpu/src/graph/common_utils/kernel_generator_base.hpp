@@ -10,7 +10,7 @@
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
-
+#include "include/primitive_inst.h"
 namespace micro {
 struct MicroKernelPackage;
 }  // namespace micro
@@ -29,7 +29,9 @@ using cldnn::WeightsReorderParams;
 using KernelLanguage = cldnn::kernel_language;
 
 struct KernelData;
-struct ImplRuntimeParams {};
+struct ImplRuntimeParams {
+    cldnn::primitive_inst* instance;
+};
 
 struct DispatchDataFunc {
     using FuncType = std::function<void(const RuntimeParams&, KernelData&, ImplRuntimeParams*)>;

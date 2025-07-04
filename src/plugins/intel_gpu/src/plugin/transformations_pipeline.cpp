@@ -113,6 +113,7 @@
 #include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/constants_reduce.hpp"
+#include "transformations/common_optimizations/multi_scale_deformable_attn_fusion.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/convert_precision.hpp"
@@ -179,6 +180,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "transformations/utils/print_model.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -1280,6 +1282,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::EliminatePad>();
 
         manager.register_pass<ov::pass::ConstantsReduce>();
+
+        manager.register_pass<ov::pass::PrintModel>("prior_MultiScaleDeformableAttnFusion.cpp");
+        manager.register_pass<ov::pass::MultiScaleDeformableAttnFusion>();
+        manager.register_pass<ov::pass::PrintModel>("post_MultiScaleDeformableAttnFusion.cpp");
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

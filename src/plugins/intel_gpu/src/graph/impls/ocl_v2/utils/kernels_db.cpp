@@ -16,6 +16,7 @@ std::string_view SourcesDB::get_kernel_template(std::string_view template_name) 
 #include "gpu_ocl_kernel_sources.inc"
     };
     for (const auto& s : sources) {
+        // std::cout << "wzx debug " << __LINE__ << ":"<< std::get<0>(s) << std::endl;
         if (std::get<0>(s) == template_name) {
             return std::get<1>(s);
         }
