@@ -58,7 +58,8 @@ public:
         static const std::set<element::Type_t> lowPrecision = {
                 element::i8, element::u8,
                 element::i16, element::u16,
-                element::i32, element::u32
+                element::i32, element::u32,
+                element::f8e4m3, element::f8e5m2
         };
         return lowPrecision.find(precision) != lowPrecision.end();
     }
@@ -187,27 +188,10 @@ public:
         }
     }
 
-    static bool hasNegativeValues(const std::vector<float>& values) {
-        for (const float value : values) {
-            if (value < 0.0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     element::Type precision;
     float min;
     float max;
     bool hasZeroPoint;
-
-    static element::Type getPrecision(const std::vector<float>& outputLowValues, const std::vector<float>& outputHighValues) {
-        return (hasNegativeValues(outputLowValues) || hasNegativeValues(outputHighValues)) ? element::i8 : element::u8;
-    }
-
-    static element::Type getPrecision(const size_t /* quantizationLevels */, const bool signedInterval) {
-        return signedInterval ? element::i8 : element::u8;
-    }
 };
 
 inline bool operator==(const DataPrecision& value1, const DataPrecision& value2) {
