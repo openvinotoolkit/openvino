@@ -71,7 +71,9 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
         CompiledModelDesc desc;
         desc.device = device;
         desc.model = sub_model;
-        desc.compiled_model = core->compile_model(sub_model, device, device_config);
+        auto model_ = sub_model->clone();
+        device_config[ov::internal::disable_transformation.name()] = true;
+        desc.compiled_model = core->compile_model(model_, device, device_config);
         m_compiled_submodels.emplace_back(std::move(desc));
     }
     set_inputs_and_outputs();
