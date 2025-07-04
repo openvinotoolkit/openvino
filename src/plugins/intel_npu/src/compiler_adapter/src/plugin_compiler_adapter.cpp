@@ -199,7 +199,7 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
         return {};
     }
 
-    if(options.empty()) {
+    if (options.empty()) {
         _logger.warning("get_supported_options returned empty options.");
         return {};
     }
