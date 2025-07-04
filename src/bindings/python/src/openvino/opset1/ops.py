@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import List, Optional, Union, get_args
+from typing import Optional, Union, get_args
 
 import numpy as np
 from functools import partial
@@ -108,7 +108,7 @@ def atan(node: NodeInput, name: Optional[str] = None) -> Node:
 @nameable_op
 def avg_pool(
     data_batch: NodeInput,
-    strides: List[int],
+    strides: list[int],
     pads_begin: TensorShape,
     pads_end: TensorShape,
     kernel_shape: TensorShape,
@@ -180,10 +180,10 @@ def batch_norm_inference(
 def binary_convolution(
     data: NodeInput,
     filters: NodeInput,
-    strides: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
-    dilations: List[int],
+    strides: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
+    dilations: list[int],
     mode: str,
     pad_value: float,
     auto_pad: str = "EXPLICIT",
@@ -320,7 +320,7 @@ def clamp(
 
 
 @nameable_op
-def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Node:
+def concat(nodes: list[NodeInput], axis: int, name: Optional[str] = None) -> Node:
     """Concatenate input nodes into single new node along specified axis.
 
     :param nodes: The nodes we want concatenate into single new node.
@@ -390,10 +390,10 @@ def convert_like(data: NodeInput, like: NodeInput, name: Optional[str] = None) -
 def convolution(
     data: NodeInput,
     filters: NodeInput,
-    strides: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
-    dilations: List[int],
+    strides: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
+    dilations: list[int],
     auto_pad: str = "EXPLICIT",
     name: Optional[str] = None,
 ) -> Node:
@@ -426,13 +426,13 @@ def convolution(
 def convolution_backprop_data(
     data: NodeInput,
     filters: NodeInput,
-    strides: List[int],
+    strides: list[int],
     output_shape: Optional[NodeInput] = None,
-    pads_begin: Optional[List[int]] = None,
-    pads_end: Optional[List[int]] = None,
-    dilations: Optional[List[int]] = None,
+    pads_begin: Optional[list[int]] = None,
+    pads_end: Optional[list[int]] = None,
+    dilations: Optional[list[int]] = None,
     auto_pad: Optional[str] = None,
-    output_padding: Optional[List[int]] = None,
+    output_padding: Optional[list[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Create node performing a batched-convolution backprop data operation.
@@ -506,10 +506,10 @@ def deformable_convolution(
     data: NodeInput,
     deformable_values: NodeInput,
     filters: NodeInput,
-    strides: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
-    dilations: List[int],
+    strides: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
+    dilations: list[int],
     auto_pad: str = "EXPLICIT",
     group: int = 1,
     deformable_group: int = 1,
@@ -1082,10 +1082,10 @@ def grn(data: Node, bias: float, name: Optional[str] = None) -> Node:
 def group_convolution(
     data: NodeInput,
     filters: NodeInput,
-    strides: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
-    dilations: List[int],
+    strides: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
+    dilations: list[int],
     auto_pad: str = "EXPLICIT",
     name: Optional[str] = None,
 ) -> Node:
@@ -1129,13 +1129,13 @@ def group_convolution(
 def group_convolution_backprop_data(
     data: NodeInput,
     filters: NodeInput,
-    strides: List[int],
+    strides: list[int],
     output_shape: Optional[NodeInput] = None,
-    pads_begin: Optional[List[int]] = None,
-    pads_end: Optional[List[int]] = None,
-    dilations: Optional[List[int]] = None,
+    pads_begin: Optional[list[int]] = None,
+    pads_end: Optional[list[int]] = None,
+    dilations: Optional[list[int]] = None,
     auto_pad: str = "EXPLICIT",
-    output_padding: Optional[List[int]] = None,
+    output_padding: Optional[list[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Perform Group Convolution operation on data from input node.
@@ -1235,7 +1235,7 @@ def interpolate(
     Available attributes are:
 
     * axes              Specify spatial dimension indices where interpolation is applied.
-                        Type: List of non-negative integer numbers.
+                        Type: list of non-negative integer numbers.
                         Required: yes.
 
     * mode              Specifies type of interpolation.
@@ -1469,9 +1469,9 @@ def lstm_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: Optional[List[str]] = None,
-    activations_alpha: Optional[List[float]] = None,
-    activations_beta: Optional[List[float]] = None,
+    activations: Optional[list[str]] = None,
+    activations_alpha: Optional[list[float]] = None,
+    activations_beta: Optional[list[float]] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
@@ -1558,9 +1558,9 @@ def matmul(
 @nameable_op
 def max_pool(
     data: NodeInput,
-    strides: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
+    strides: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
     kernel_shape: TensorShape,
     rounding_type: str = "floor",
     auto_pad: Optional[str] = None,
@@ -2486,10 +2486,10 @@ def region_yolo(
     classes: int,
     num: int,
     do_softmax: bool,
-    mask: List[int],
+    mask: list[int],
     axis: int,
     end_axis: int,
-    anchors: Optional[List[float]] = None,
+    anchors: Optional[list[float]] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which produces the RegionYolo operation.
@@ -2780,7 +2780,7 @@ def squeeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Nod
     """Perform squeeze operation on input tensor.
 
     :param data: The node with data tensor.
-    :param axes: List of non-negative integers, indicate the dimensions to squeeze.
+    :param axes: list of non-negative integers, indicate the dimensions to squeeze.
                   One of: input node or array.
     :param name: Optional new name for output node.
     :return: The new node performing a squeeze operation on input tensor.
@@ -2806,11 +2806,11 @@ def strided_slice(
     begin: NodeInput,
     end: NodeInput,
     strides: NodeInput,
-    begin_mask: List[int],
-    end_mask: List[int],
-    new_axis_mask: Optional[List[int]] = None,
-    shrink_axis_mask: Optional[List[int]] = None,
-    ellipsis_mask: Optional[List[int]] = None,
+    begin_mask: list[int],
+    end_mask: list[int],
+    new_axis_mask: Optional[list[int]] = None,
+    shrink_axis_mask: Optional[list[int]] = None,
+    ellipsis_mask: Optional[list[int]] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which dynamically repeats(replicates) the input data tensor.
@@ -2952,7 +2952,7 @@ def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> N
                  Result: tensor with shape [1, 3, 4, 5, 1]
 
     :param data: The node with data tensor.
-    :param axes: List of non-negative integers, indicate the dimensions to be inserted.
+    :param axes: list of non-negative integers, indicate the dimensions to be inserted.
                   One of: input node or array.
     :return: The new node performing an unsqueeze operation on input tensor.
     """
