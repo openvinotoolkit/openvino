@@ -10,6 +10,8 @@
 #include "openvino/util/common_util.hpp"
 
 namespace LayerTestsUtils {
+using namespace ov::test;
+
 LayerTransformation::LayerTransformation() {
     rel_threshold = 1.1;
     abs_threshold = 1.0e-4;
@@ -32,6 +34,14 @@ std::string LayerTransformation::get_test_case_name_by_params(
     const ov::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
     result << precision << "_" << inputShapes << "_" << targetDevice << "_" << to_string(params);
+    return result.str();
+}
+
+std::string LayerTransformation::get_test_case_name_by_params(ov::element::Type precision,
+                                                              const InputShape& inputShape,
+                                                              const std::string& targetDevice) {
+    std::ostringstream result;
+    result << precision << "_" << inputShape << "_" << targetDevice;
     return result.str();
 }
 
@@ -157,7 +167,7 @@ void LayerTransformation::init_input_shapes(const ov::PartialShape& shape) {
 }
 
 void LayerTransformation::init_input_shapes(const std::vector<ov::PartialShape>& shapes) {
-    auto input_shapes = ov::test::static_partial_shapes_to_test_representation(shapes);
+    auto input_shapes = static_partial_shapes_to_test_representation(shapes);
     SubgraphBaseTest::init_input_shapes(input_shapes);
 }
 
