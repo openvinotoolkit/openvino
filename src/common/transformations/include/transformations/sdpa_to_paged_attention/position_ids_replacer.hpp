@@ -6,6 +6,7 @@
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -16,6 +17,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API PositionIDsReplacer;
 class TRANSFORMATIONS_API PositionIDsReplacerQwen;
+class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
 
 }  // namespace pass
 }  // namespace ov
@@ -43,4 +45,47 @@ class ov::pass::PositionIDsReplacerQwen : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerQwen");
     explicit PositionIDsReplacerQwen(const Output<Node>& position_ids);
+};
+
+/**
+ * @brief Codegen2 model doesn't use the position_ids input explicitly.
+ * Instead, the model infers them from the max_context_len value by generating
+ * a range from 0 to max_context_len, applying RoPE and only then Slicing the
+ * last token which is not correct in case of 0th iteration (prompt iteration)
+ * when values for the entire sequence need to be sliced.
+ *
+ * We change from this:
+ *
+ *  ┌─────┐
+ *  │Range│
+ *  └──┬──┘
+ *     │
+ *  ┌──┴──┐     ┌─────────┐    ┌─────────┐
+ *  │RoPE │     │  Start  │    │   End   │
+ *  │Block│     │(prev.seq|    │(cur.seq │
+ *  └──┬──┘     │ len)    │    │   len)  │
+ *     │        └────┬────┘    └────┬────┘
+ *  ┌──┴──┐──────────┘              │
+ *  |Slice├─────────────────────────┘
+ *  └─────┘
+ *
+ * To this to Gather by position_ids
+ *
+ *  ┌─────┐
+ *  │Range│
+ *  └──┬──┘
+ *     │
+ *  ┌──┴──┐
+ *  │RoPE │
+ *  │Block│    ┌──────────────┐
+ *  └──┬──┘    │ position_ids │
+ *     │       └──────┬───────┘
+ *  ┌──┴───┐          │
+ *  │Gather├──────────┘
+ *  └──────┘
+ */
+class ov::pass::PositionIDsReplacerCodeGen2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerCodeGen2");
+    explicit PositionIDsReplacerCodeGen2(const std::shared_ptr<ov::op::v0::Parameter>& position_ids);
 };
