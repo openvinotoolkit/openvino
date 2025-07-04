@@ -59,7 +59,7 @@ bool pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(const ov::element::Type&
 }
 
 namespace {
-ov::pass::pattern::op::Predicate brgemm_predicate(
+const ov::pass::pattern::op::Predicate brgemm_predicate(
     [](const Output<Node>& output) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(output.get_node_shared_ptr());
         return has_static_rank()(output) && consumers_count(1)(output) && brgemm != nullptr &&
@@ -67,7 +67,7 @@ ov::pass::pattern::op::Predicate brgemm_predicate(
     },
     "brgemm_predicate");
 
-ov::pass::pattern::op::Predicate scalar_predicate(
+const ov::pass::pattern::op::Predicate scalar_predicate(
     [](const Output<Node>& output) {
         return type_matches(ov::element::f32)(output);
     },

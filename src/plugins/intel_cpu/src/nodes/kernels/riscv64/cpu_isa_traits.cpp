@@ -29,10 +29,9 @@ struct RVVGenerator : public CodeGenerator {
 };
 
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
-thread_local sigjmp_buf jmpbuf;
-
 bool can_compile_rvv100() {
 #if defined(__linux__)
+    static thread_local sigjmp_buf jmpbuf;
     __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
         siglongjmp(jmpbuf, 1);
     };
