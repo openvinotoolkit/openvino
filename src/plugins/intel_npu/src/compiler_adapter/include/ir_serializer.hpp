@@ -10,6 +10,7 @@
 #include "custom_stream_buffer.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
@@ -19,7 +20,9 @@ namespace intel_npu::driver_compiler_utils {
 
 class IRSerializer {
 public:
-    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
+    IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
+                 const uint32_t supportedOpset = 11,
+                 bool useWeightsMap = false);
 
     size_t getXmlSize() const {
         return _xmlSize;
@@ -32,13 +35,17 @@ public:
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
-    void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
+    void serializeModelToBuffer(uint8_t* xml,
+                                uint8_t* weights,
+                                ov::pass::WeightsMapWrapper* weightsMapWrapper = nullptr);
 
 private:
     /**
      * @brief Serialize OpenVINO model to target stream
      */
-    void serializeModelToStream(std::ostream& xml, std::ostream& weights);
+    void serializeModelToStream(std::ostream& xml,
+                                std::ostream& weights,
+                                ov::pass::WeightsMapWrapper* weightsMapWrapper = nullptr);
 
     /**
      * @brief Get size of xml and weights from model
@@ -50,6 +57,7 @@ private:
     uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
+    bool _useWeightsMap = false;  // Flag to use weights map for serialization
 };
 
 }  // namespace intel_npu::driver_compiler_utils
