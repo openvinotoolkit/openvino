@@ -43,6 +43,10 @@
 #include "shape_inference/custom/matmul.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#ifdef OPENVINO_ARCH_X86_64
+#    include "executors/x64/matmul_small.hpp"
+#endif
+
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
@@ -678,6 +682,48 @@ void MatMul::prepareParams() {
                                                key.out->getDnnlDesc(),
                                                key.attr);
         }
+#ifdef OPENVINO_ARCH_X86_64
+        auto can_optimize = [&key]() -> bool {
+            const auto& prec_in0 = key.inp0->getDataType();
+            const auto& prec_in1 = key.inp1->getDataType();
+            const auto& prec_out = key.out->getDataType();
+            if (!everyone_is(dnnl::memory::data_type::f32, prec_in0, prec_in1, prec_out)) {
+                return false;
+            }
+            const auto& stride_in0 = key.inp0->getDnnlDesc().get_strides();
+            const auto& stride_in1 = key.inp1->getDnnlDesc().get_strides();
+            if (stride_in0.back() != 1 || stride_in1.back() != 1) {
+                return false;
+            }
+            if (key.bias != nullptr) {
+                return false;
+            }
+            const auto& shape_src = key.inp0->getShape().getStaticDims();
+            const auto& shape_wei = key.inp1->getShape().getStaticDims();
+            auto src_rank = shape_src.size();
+            auto wei_rank = shape_wei.size();
+            if (src_rank < 2 || src_rank != wei_rank) {
+                return false;
+            }
+            for (size_t i = 0; i < src_rank - 2; i++) {
+                if (shape_src[i] != shape_wei[i]) {
+                    return false;
+                }
+            }
+            return (shape_src[src_rank - 1] <= 2) && (shape_src[src_rank - 2] <= 2) && (shape_wei[wei_rank - 1] <= 2) &&
+                   (shape_wei[wei_rank - 2] <= 2);
+        };
+        if (can_optimize()) {
+            MatMulSmallAttrs matmul_attr;
+            const auto& shape_in0 = key.inp0->getShape().getStaticDims();
+            const auto& shape_in1 = key.inp1->getShape().getStaticDims();
+            matmul_attr.M = *++shape_in0.rbegin();
+            matmul_attr.K = *shape_in0.rbegin();
+            matmul_attr.N = *shape_in1.rbegin();
+            matmul_attr.attr = key.attr;
+            return std::make_shared<MatMulSmallExecutor>(matmul_attr, prim_desc);
+        }
+#endif
 
         auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
