@@ -231,13 +231,15 @@ bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
         return false;
     }
     auto isSuitableParent = [](const std::shared_ptr<const Node>& node) {
-        return std::all_of(node->inputs().begin(), node->inputs().end(), [](const auto& input) {
+        const auto inputs = node->inputs();
+        return std::all_of(inputs.begin(), inputs.end(), [](const auto& input) {
             const auto parent = input.get_source_output().get_node_shared_ptr();
             return ov::is_type<ov::op::v3::ReadValue>(parent);
         });
     };
     auto isSuitableChild = [](const std::shared_ptr<const Node>& node) {
-        return std::all_of(node->outputs().begin(), node->outputs().end(), [](const auto& out) {
+        const auto outputs = node->outputs();
+        return std::all_of(outputs.begin(), outputs.end(), [](const auto& out) {
             const auto& child = out.get_node_shared_ptr();
             return ov::is_type<ov::op::v3::Assign>(child);
         });
