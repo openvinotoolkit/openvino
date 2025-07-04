@@ -42,7 +42,8 @@ public:
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    Stage::Ptr regular_micro = make_stage<SDPAMicroGenerator>(prefill);
+    Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
+    Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
 #endif
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
@@ -60,7 +61,8 @@ public:
             add_stage(indirect_finalization, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (SDPAOpt::supports_micro_sdpa(params)) {
-                add_stage(regular_micro, params);
+                add_stage(regular_micro_single_token, params);
+                add_stage(regular_micro_multi_tokens, params);
             }
 #endif
         } else {
@@ -70,7 +72,8 @@ public:
                     add_stage(indirect_multi_tokens, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 } else if (SDPAOpt::supports_micro_sdpa(params)) {
-                    add_stage(regular_micro, params);
+                    add_stage(regular_micro_single_token, params);
+                    add_stage(regular_micro_multi_tokens, params);
 #endif
                 } else {
                     add_stage(regular_multi_tokens, params);
@@ -86,7 +89,8 @@ public:
                     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 } else {
-                    add_stage(regular_micro, params);
+                    add_stage(regular_micro_single_token, params);
+                    add_stage(regular_micro_multi_tokens, params);
 #endif
                 }
             }
@@ -102,9 +106,13 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
         bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-        bool run_micro_sdpa = has_stage(regular_micro) && (is_prefill || !is_ARL_H) && !is_indirect;
+        bool run_micro_sdpa = has_stage(regular_micro_multi_tokens) && (is_prefill || !is_ARL_H) && !is_indirect;
         if (run_micro_sdpa) {
-            return execute_stage(events, instance, regular_micro);
+            if (is_prefill) {
+                return execute_stage(events, instance, regular_micro_multi_tokens);
+            } else {
+                return execute_stage(events, instance, regular_micro_single_token);
+            }
         }
 #endif
         if (is_prefill) {
