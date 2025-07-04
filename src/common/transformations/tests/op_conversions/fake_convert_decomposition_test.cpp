@@ -156,3 +156,32 @@ INSTANTIATE_TEST_SUITE_P(ElementwiseFakeConvert_Decomposition,
                          FakeConvertDecompositionTest,
                          elementwise_fake_convert_params,
                          FakeConvertDecompositionTest::getTestCaseName);
+
+TEST_F(FakeConvertDecompositionTestBase, FakeConvert_Decomposition_TrivialShift) {
+    const ov::element::Type_t data_prec = ov::element::f32;
+    const ov::PartialShape data_shape{2, 3, 4, 5};
+    const ov::element::Type_t dst_prec = ov::element::f8e4m3;
+    {
+        const auto data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
+        const auto scale = std::make_shared<opset1::Constant>(data_prec, Shape{}, 4.f);
+        const auto shift = std::make_shared<opset1::Constant>(data_prec, Shape{}, 0.f);
+
+        const auto fake_convert = std::make_shared<opset13::FakeConvert>(data, scale, shift, dst_prec);
+        model = std::make_shared<ov::Model>(OutputVector{fake_convert}, ParameterVector{data});
+    }
+
+    {
+        const auto data = std::make_shared<opset1::Parameter>(data_prec, PartialShape(data_shape));
+        const auto input_scale = std::make_shared<opset1::Constant>(data_prec, Shape{}, 4.f);
+
+        const auto lower_bound = static_cast<float>(std::numeric_limits<ov::float8_e4m3>::lowest());
+        const auto upper_bound = static_cast<float>(std::numeric_limits<ov::float8_e4m3>::max());
+
+        const auto scale = std::make_shared<ov::op::v1::Multiply>(data, input_scale);
+        const auto clamp = std::make_shared<ov::op::v0::Clamp>(scale, lower_bound, upper_bound);
+        const auto downconvert = std::make_shared<ov::op::v0::Convert>(clamp, dst_prec);
+        const auto upconvert = std::make_shared<ov::op::v0::Convert>(downconvert, data_prec);
+        const auto divide = std::make_shared<ov::op::v1::Divide>(upconvert, input_scale);
+        model_ref = std::make_shared<ov::Model>(OutputVector{divide}, ParameterVector{data});
+    }
+}
