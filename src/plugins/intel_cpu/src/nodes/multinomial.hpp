@@ -49,7 +49,7 @@ private:
     /// Shape inference
     static constexpr size_t PROBS_PORT = 0lu;
     static constexpr size_t NUM_SAMPLES_PORT = 1lu;
-    static constexpr size_t RANDOM_SAMPLES_PORT = 1lu;
+    static constexpr size_t RANDOM_SAMPLES_PORT = 2lu;
     static constexpr size_t OUTPUT_PORT = 0lu;
     bool m_const_inputs[3] = {false, false, false};
     bool m_const_batch = false;

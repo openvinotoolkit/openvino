@@ -42,7 +42,8 @@ ov::pass::MultinomialRandomUniformFusion::MultinomialRandomUniformFusion() {
             ov::op::v0::Constant::create(multinomial->get_input_element_type(0), ov::Shape{}, {1}),
             multinomial->get_input_element_type(0),
             multinomial->get_global_seed(),
-            multinomial->get_op_seed());
+            multinomial->get_op_seed(),
+            multinomial->get_alignment());
 
         auto new_multinomial = std::make_shared<ov::op::v13::Multinomial>(multinomial->input_value(0),
                                                                           multinomial->input_value(1),
@@ -51,7 +52,8 @@ ov::pass::MultinomialRandomUniformFusion::MultinomialRandomUniformFusion() {
                                                                           multinomial->get_with_replacement(),
                                                                           multinomial->get_log_probs(),
                                                                           multinomial->get_global_seed(),
-                                                                          multinomial->get_op_seed());
+                                                                          multinomial->get_op_seed(),
+                                                                          multinomial->get_alignment());
 
         new_multinomial->set_friendly_name(multinomial->get_friendly_name());
         ov::copy_runtime_info(multinomial, {random_samples, new_multinomial});
