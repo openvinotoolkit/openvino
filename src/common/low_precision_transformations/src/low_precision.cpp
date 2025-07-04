@@ -251,6 +251,7 @@ bool LowPrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ADD_MATCHER(common, ConvolutionBackpropDataTransformation, params)
     ADD_MATCHER(common, DepthToSpaceTransformation, params)
     ADD_MATCHER(common, FakeQuantizeDecompositionTransformation, params)
+    // In case of floating point low precision (e.g. fp8), FakeConvert is used for quantization
     if (std::any_of(params.defaultPrecisions.begin(),
                     params.defaultPrecisions.end(),
                     [](const ov::element::Type& type) {
