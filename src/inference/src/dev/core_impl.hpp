@@ -31,6 +31,7 @@ public:
     struct CacheConfig {
         std::string _cacheDir;
         std::shared_ptr<ov::ICacheManager> _cacheManager;
+        ov::CacheMode _cacheMode;
 
         static CacheConfig create(const std::string& dir);
     };
@@ -47,6 +48,8 @@ public:
     void set_cache_dir_for_device(const std::string& dir, const std::string& name);
 
     std::string get_cache_dir() const;
+
+    ov::CacheMode get_cache_mode() const;
 
     bool get_enable_mmap() const;
 

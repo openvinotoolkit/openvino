@@ -204,6 +204,21 @@ void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, c
     }
 }
 
+bool is_weightless_caching_enabled(ov::AnyMap& config) {   
+    bool is_weightless_caching = false;
+    
+    auto it = config.find("CACHE_MODE");
+
+    if (it != config.end()) {
+        ov::CacheMode cache_mode = it->second.as<ov::CacheMode>();
+
+        if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE)
+            is_weightless_caching = true;
+    }
+
+    return is_weightless_caching;
+}
+
 static const auto core_properties_names =
     ov::util::make_array(ov::cache_dir.name(), ov::enable_mmap.name(), ov::force_tbb_terminate.name());
 
@@ -377,6 +392,9 @@ ov::Parsed parse_device_config(const std::string& device_name,
             clean_batch_properties(updated_device_name, updated_config, name);
         }
     }
+
+    parsed._config.insert(ov::cache_mode(parsed._core_config.get_cache_mode()));
+
     return parsed;
 }
 }  // namespace
@@ -936,9 +954,21 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
         std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        
+        std::shared_ptr<ov::Model> model = nullptr;
+        bool is_weightless_caching = is_weightless_caching_enabled(parsed._config);
+
+        if (is_weightless_caching) {
+            model = read_model(model_str, weights);
+            cacheContent.model = model;
+        }
+
         compiled_model =
             load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
-                auto model = read_model(model_str, weights);
+                
+                if (!is_weightless_caching)
+                    model = read_model(model_str, weights);
+
                 return compile_model_and_cache(plugin,
                                                model,
                                                parsed._config,
@@ -1665,6 +1695,15 @@ void ov::CoreConfig::set(const ov::AnyMap& config) {
         auto flag = it->second.as<bool>();
         _flag_enable_mmap = flag;
     }
+
+    it = config.find(ov::cache_mode.name());
+    if (it != config.end()) {
+        auto cacheMode = it->second.as<ov::CacheMode>();
+
+        if (!_cacheConfig._cacheDir.empty()) {
+            _cacheConfig._cacheMode = cacheMode;
+        }
+    }
 }
 
 void ov::CoreConfig::set_and_update(ov::AnyMap& config) {
@@ -1692,6 +1731,11 @@ void ov::CoreConfig::set_cache_dir_for_device(const std::string& dir, const std:
 std::string ov::CoreConfig::get_cache_dir() const {
     std::lock_guard<std::mutex> lock(_cacheConfigMutex);
     return _cacheConfig._cacheDir;
+}
+
+ov::CacheMode ov::CoreConfig::get_cache_mode() const {
+    std::lock_guard<std::mutex> lock(_cacheConfigMutex);
+    return _cacheConfig._cacheMode;
 }
 
 bool ov::CoreConfig::get_enable_mmap() const {
