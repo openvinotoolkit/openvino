@@ -1,0 +1,9 @@
+[tool.poetry.dependencies]
+python = ">=3.9,<4.0"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+paddlepaddle = "==2.6.2"
+protobuf = ">=3.18.1,<=6.31.0"
