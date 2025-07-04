@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -60,14 +60,14 @@ struct TileConfig {
     void reset(int palette, int _startRow, const std::vector<std::pair<int, int>>& _rows_columnsBytes);
 };
 
-class TileConfiger : public dnnl::impl::cpu::x64::jit_generator {
+class TileConfiger : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(TileConfiger)
     TileConfiger();
     void generate() override;
 };
 
-class JitMatMulVecAMX : public dnnl::impl::cpu::x64::jit_generator {
+class JitMatMulVecAMX : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(JitMatMulVecAMX)
     void operator=(const JitMatMulVecAMX&) = delete;

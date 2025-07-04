@@ -17,7 +17,6 @@
 #include "compiled_model.h"
 #include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/xbyak/xbyak_util.h"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
 #include "itt.h"
@@ -52,6 +51,7 @@
 #include "utils/precision_support.h"
 #include "utils/serialize.hpp"
 #include "weights_cache.hpp"
+#include "xbyak/xbyak_util.h"
 
 using namespace ov::threading;
 

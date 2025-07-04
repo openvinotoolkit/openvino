@@ -27,11 +27,11 @@ using namespace Xbyak_aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_memory_emitter::jit_memory_emitter(jit_generator* h,
+jit_memory_emitter::jit_memory_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ExpressionPtr& expr,
                                        emitter_in_out_map in_out_type)
@@ -87,7 +87,7 @@ size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lo
     return SIZE_MAX;
 }
 
-jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_load_memory_emitter::jit_load_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     bool is_supported_precision =
         one_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
@@ -167,7 +167,7 @@ void jit_load_memory_emitter::emit_data() const {
     load_emitter->emit_data();
 }
 
-jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     OV_CPU_JIT_EMITTER_ASSERT(src_prc == dst_prc,
                               "Only support equal input and output types but gets ",
@@ -197,7 +197,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     h->uni_ld1rw(dst.s, src, compiled_byte_offset);
 }
 
-jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
+jit_store_memory_emitter::jit_store_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
     bool is_supported_precision =
         one_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
