@@ -1,22 +1,3 @@
-<attributes>
-    <processes>
-        <value>1</value>
-        <value>2</value>
-    </processes>
-    <threads>
-        <value>1</value>
-        <value>2</value>
-    </threads>
-    <iterations>
-        <value>100</value>
-    </iterations>
-    <devices>
-        <value>CPU</value>
-        <value>GPU</value>
-    </devices>
-    <models>
-        <model name="densenet-121-tf" precision="FP32" source="omz" />
-        <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
-        <model name="face-recognition-resnet100-arcface-onnx" precision="FP32" source="omz" />
-    </models>
-</attributes>
+version https://git-lfs.github.com/spec/v1
+oid sha256:08ba638b4bce5ac2db34407bf8c7b15c3fd84107bd01a324bbbf3b192885c0a3
+size 626
