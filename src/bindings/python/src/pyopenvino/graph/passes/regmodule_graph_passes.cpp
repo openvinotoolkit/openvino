@@ -22,9 +22,9 @@ void regmodule_graph_passes(py::module m) {
     reg_passes_predicate(m_passes);
     regclass_passes_PassBase(m_passes);
     regclass_passes_ModelPass(m_passes);
-    regclass_passes_GraphRewrite(m_passes);
     regclass_passes_Matcher(m_passes);
     regclass_passes_MatcherPass(m_passes);
+    regclass_passes_GraphRewrite(m_passes);
     regclass_transformations(m_passes);
     regclass_passes_Manager(m_passes);
     reg_passes_pattern_ops(m_passes);

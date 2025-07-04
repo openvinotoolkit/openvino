@@ -4,8 +4,23 @@
 
 #include "composite.h"
 
-#include "cpu_memory.h"
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "allocation_context.hpp"
+#include "graph_context.h"
+#include "node.h"
 #include "nodes/input.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "transformations/cpu_opset/common/op/submodel.hpp"
 #include "utils/debug_capabilities.h"
@@ -105,7 +120,7 @@ int Composite::registerToAllocationContext(int offset, AllocationContext& contex
     return m_graph.RegisterToAllocationContext(offset, context);
 }
 
-void Composite::execute(const dnnl::stream&) {
+void Composite::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_graph.Infer();
 }
 
@@ -115,11 +130,11 @@ void Composite::executeDynamicImpl(const dnnl::stream& strm) {
     // since the shape inference is not performed for the composite node
     // a memory of the extra child edges, attached to the output ports
     // has to be updated after an inference of the inner graph finished
-    auto& childEdges = getChildEdges();
+    const auto& childEdges = getChildEdges();
     for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
         const auto mem = getDstMemoryAtPort(i);
         for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
-            auto& childEdge = childEdges[j];
+            const auto& childEdge = childEdges[j];
             auto childEdgePtr = childEdge.lock();
             assert(childEdgePtr);
 

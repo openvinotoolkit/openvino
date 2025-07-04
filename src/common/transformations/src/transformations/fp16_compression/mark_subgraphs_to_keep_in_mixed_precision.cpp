@@ -24,6 +24,7 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/random_uniform.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -42,6 +43,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/pad_base.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -265,6 +267,33 @@ public:
         register_matcher(m, callback);
     }
 };
+
+class MarkRandomUniform : public pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkRandomUniform");
+
+    MarkRandomUniform() {
+        MATCHER_SCOPE(MarkRandomUniform);
+        auto random_uniform_pattern = pattern::wrap_type<ov::op::v8::RandomUniform>();
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& node = m.get_match_root();
+            if (!node)
+                return false;
+
+            disable_fp16_compression(node);
+            for (const auto& output : node->outputs()) {
+                for (const auto& out_inputs : output.get_target_inputs()) {
+                    mark_as_precision_sensitive(out_inputs);
+                }
+            }
+            return false;
+        };
+        auto m = make_shared<pattern::Matcher>(random_uniform_pattern, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
 /* MarkExpInReduceOpPath marks path that goes into ReduceSum and ReduceMean.
  * Values that go from Exp to ReduceSum/ReduceMean are precision
  * sensitive and should be kept in f32 precision for mixed inference.
@@ -435,6 +464,7 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     REGISTER_PASS(manager, ov::pass::MarkFloatingPointRange)
     REGISTER_PASS(manager, MarkDivWithEps)
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
+    REGISTER_PASS(manager, MarkRandomUniform)
     REGISTER_PASS(manager, PropagateDownDisableSensitivityForQuantized)
 
     // both Up and Down propagations are needed.

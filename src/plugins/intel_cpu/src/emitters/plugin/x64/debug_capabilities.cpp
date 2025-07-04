@@ -6,6 +6,12 @@
 
 #    include "debug_capabilities.hpp"
 
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+#    include <cstddef>
+#    include <cstdint>
 #    include <iostream>
 #    include <sstream>
 
@@ -36,10 +42,10 @@ void RegPrinter::print_reg_prc(const char* name, const char* ori_name, T* ptr) {
         ss << name << " | ";
     }
     ss << ori_name << ": ";
-    if (std::is_floating_point<T>::value) {
+    if (std::is_floating_point_v<T>) {
         ss << *ptr;
     } else {
-        if (std::is_signed<T>::value) {
+        if (std::is_signed_v<T>) {
             ss << static_cast<int64_t>(*ptr);
         } else {
             ss << static_cast<uint64_t>(*ptr);
@@ -122,13 +128,23 @@ void RegPrinter::restore_reg(jit_generator& h) {
 
 void RegPrinter::preamble(jit_generator& h) {
     save_reg(h);
-    mayiuse(cpu_isa_t::avx512_core) ? save_vmm<Zmm>(h)
-                                    : (mayiuse(cpu_isa_t::avx2) ? save_vmm<Ymm>(h) : save_vmm<Xmm>(h));
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        save_vmm<Zmm>(h);
+    } else if (mayiuse(cpu_isa_t::avx2)) {
+        save_vmm<Ymm>(h);
+    } else {
+        save_vmm<Xmm>(h);
+    }
 }
 
 void RegPrinter::postamble(jit_generator& h) {
-    mayiuse(cpu_isa_t::avx512_core) ? restore_vmm<Zmm>(h)
-                                    : (mayiuse(cpu_isa_t::avx2) ? restore_vmm<Ymm>(h) : restore_vmm<Xmm>(h));
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        restore_vmm<Zmm>(h);
+    } else if (mayiuse(cpu_isa_t::avx2)) {
+        restore_vmm<Ymm>(h);
+    } else {
+        restore_vmm<Xmm>(h);
+    }
     restore_reg(h);
 }
 
@@ -152,7 +168,15 @@ void RegPrinter::print_vmm(jit_generator& h, REG_T vmm, const char* name) {
     h.push(abi_param2);
     h.push(abi_param3);
     {
-        const int vlen = vmm.isZMM() ? 64 : (vmm.isYMM() ? 32 : 16);
+        int vlen = [&]() {
+            if (vmm.isZMM()) {
+                return 64;
+            }
+            if (vmm.isYMM()) {
+                return 32;
+            }
+            return 16;
+        }();
         h.sub(h.rsp, vlen);
         h.uni_vmovups(h.ptr[h.rsp], vmm);
 

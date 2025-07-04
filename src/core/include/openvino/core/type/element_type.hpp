@@ -97,7 +97,6 @@ public:
     std::string get_type_name() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
 
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2026.0.")
     static std::vector<const Type*> get_known_types();
 
     /// \brief Checks whether this element type is merge-compatible with `t`.
@@ -281,6 +280,7 @@ template <>
 class OPENVINO_API AttributeAdapter<ov::element::Type_t> : public EnumAttributeAdapterBase<ov::element::Type_t> {
 public:
     AttributeAdapter(ov::element::Type_t& value) : EnumAttributeAdapterBase<ov::element::Type_t>(value) {}
+    ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type_t>");
 };
@@ -290,6 +290,7 @@ class OPENVINO_API AttributeAdapter<ov::element::Type> : public ValueAccessor<st
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::Type>");
     constexpr AttributeAdapter(ov::element::Type& value) : m_ref(value) {}
+    ~AttributeAdapter() override;
 
     const std::string& get() override;
     void set(const std::string& value) override;
@@ -307,6 +308,7 @@ class OPENVINO_API AttributeAdapter<ov::element::TypeVector> : public DirectValu
 public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
     AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

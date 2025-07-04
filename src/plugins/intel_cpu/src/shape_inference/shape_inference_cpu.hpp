@@ -6,6 +6,14 @@
 
 #include <cpu_memory.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_types.h"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/node.hpp"
 #include "shape_inference_status.hpp"
@@ -24,7 +32,6 @@ public:
         ShapeInferStatus status;
     };
 
-public:
     virtual ~IShapeInfer() = default;
 
     /**
@@ -55,7 +62,7 @@ public:
      *
      * @return port_mask_t a bit mask where each bit corresponds to an input port number.
      */
-    virtual port_mask_t get_port_mask() const = 0;
+    [[nodiscard]] virtual port_mask_t get_port_mask() const = 0;
 };
 
 /**
@@ -65,10 +72,10 @@ public:
  */
 class ShapeInferEmptyPads : public IShapeInfer {
 public:
-    const ov::CoordinateDiff& get_pads_begin() override final {  // NOLINT
+    const ov::CoordinateDiff& get_pads_begin() override final {
         return m_emptyVec;
     }
-    const ov::CoordinateDiff& get_pads_end() override final {  // NOLINT
+    const ov::CoordinateDiff& get_pads_end() override final {
         return m_emptyVec;
     }
 
@@ -85,7 +92,7 @@ constexpr IShapeInfer::port_mask_t FULL_PORT_MASK = 0xffffffff;
 class ShapeInferFactory {
 public:
     virtual ~ShapeInferFactory() = default;
-    virtual ShapeInferPtr makeShapeInfer() const = 0;
+    [[nodiscard]] virtual ShapeInferPtr makeShapeInfer() const = 0;
 };
 
 /**
@@ -101,7 +108,7 @@ public:
      */
     NgraphShapeInferFactory(std::shared_ptr<ov::Node> op);
 
-    ShapeInferPtr makeShapeInfer() const override;
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:
     std::shared_ptr<ov::Node> m_op;

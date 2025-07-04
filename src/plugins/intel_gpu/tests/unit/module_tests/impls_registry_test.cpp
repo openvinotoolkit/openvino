@@ -4,7 +4,7 @@
 
 #include <memory>
 
-#include "impls/registry/registry.hpp"
+#include "registry/registry.hpp"
 #include "intel_gpu/primitives/adaptive_pooling.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/assign.hpp"

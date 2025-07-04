@@ -16,6 +16,8 @@ def add_common_args(parser: argparse.ArgumentParser):
                         default=os.getenv('GITHUB_EVENT_NAME'))
     parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,
                         default=os.getenv('ARTIFACTS_SHARE'))
+    parser.add_argument('-n', '--product_name', required=False, default='dldt',
+                        help='Product name for which artifacts are generated')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-d', '--storage_dir', help='Subdirectory name for artifacts, same as product type',
                        choices=[product_type.value for product_type in ProductType], type=str.lower)

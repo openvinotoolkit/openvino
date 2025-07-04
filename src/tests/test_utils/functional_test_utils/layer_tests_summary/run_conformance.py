@@ -49,7 +49,7 @@ def parse_arguments():
     ov_help = "OV binary path. The default way is to find the absolute path of latest bin in the repo (by using script path)"
     working_dir_help = "Specify a working directory to save a run artifacts"
     type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
-    workers_help = "Specify number of workers to run in parallel. The default value is `CPU_count-1`"
+    workers_help = "Specify number of workers to run in parallel. The default value is `CPU_count`"
     gtest_filter_helper = "Specify gtest filter to apply for a test run. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to a plugin config file as `.lst` file. Default value is ``"
     special_mode_help = "Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``"
@@ -106,7 +106,7 @@ class Conformance:
         self.__entity = ""
         if type == constants.OP_CONFORMANCE:
             if entity == "Inference" or entity == "QueryModel" or entity == "ImportExport" or entity == "" or entity == "OpImpl":
-                self.__entity = entity
+                self.__entity = entity if entity == "" else f"*.{entity}/"
             else:
                 logger.error(f'Incorrect value to set entity type: {special_mode}. Please check `help` to get possible values')
                 exit(-1)
@@ -115,7 +115,7 @@ class Conformance:
             else:
                 logger.error(f'Incorrect value to set shape mode: {special_mode}. Please check `help` to get possible values')
                 exit(-1)
-            self._gtest_filter = f"*{self.__entity}*{gtest_filter}*{'' if self.__entity == 'OpImpl' else ':-*OpImpl*'}"
+            self._gtest_filter = f"{self.__entity}*{gtest_filter}*"
         elif type == constants.API_CONFORMANCE:
             if entity == "ov_compiled_model" or entity == "ov_plugin" or entity == "ov_infer_request" or entity == "":
                 self.__entity = entity

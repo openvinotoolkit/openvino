@@ -4,7 +4,17 @@
 
 #include "jit_transpose.hpp"
 
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/common/permute_kernel.h"
+#include "nodes/executors/transpose.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
@@ -15,24 +25,24 @@ void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
     }
 
-    const uint8_t* srcData = src[0]->getDataAs<const uint8_t>();
-    uint8_t* dstData = dst[0]->getDataAs<uint8_t>();
+    const auto* srcData = src[0]->getDataAs<const uint8_t>();
+    auto* dstData = dst[0]->getDataAs<uint8_t>();
     const int MB = src[0]->getStaticDims()[0];
 
     pKernel->execute(srcData, dstData, MB);
 }
 
 bool JitTransposeExecutor::init(const TransposeParams& transposeParams,
-                                const std::vector<MemoryDescPtr>& srcDescs,
-                                const std::vector<MemoryDescPtr>& dstDescs,
-                                const dnnl::primitive_attr& attr) {
+                                [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs,
+                                [[maybe_unused]] const dnnl::primitive_attr& attr) {
     pKernel = std::make_shared<PermuteKernel>(transposeParams.permuteParams);
     return true;
 }
 
-bool JitTransposeExecutorBuilder::isSupported(const TransposeParams& transposeParams,
-                                              const std::vector<MemoryDescPtr>& srcDescs,
-                                              const std::vector<MemoryDescPtr>& dstDescs) const {
+bool JitTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposeParams& transposeParams,
+                                              [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
+                                              [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(x64::sse41)) {
         return true;

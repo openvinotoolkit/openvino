@@ -28,6 +28,7 @@ struct TestTransformationParams {
         bool deconvolutionSpecificChannelsRatio = false,
         std::vector<ov::element::Type> defaultPrecisions = { element::u8, element::i8 });
 
+    TestTransformationParams& setDeqPrecision(const element::Type deqPrecision);
     TestTransformationParams& setUpdatePrecisions(const bool updatePrecisions);
     TestTransformationParams& setSupportAsymmetricQuantization(const bool supportAsymmetricQuantization);
     TestTransformationParams& setPrecisionsOnActivations(const std::vector<element::Type>& precisionsOnActivations);

@@ -4,6 +4,14 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <set>
+#include <vector>
+
 #include "cpu/x64/jit_generator.hpp"
 #include "snippets/emitter.hpp"
 
@@ -29,7 +37,7 @@ class EmitABIRegSpills {
 public:
     EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
     ~EmitABIRegSpills();
-    size_t get_num_spilled_regs() const {
+    [[nodiscard]] size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();
     }
     /**

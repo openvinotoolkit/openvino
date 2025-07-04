@@ -3,9 +3,11 @@
 //
 
 #include <gtest/gtest.h>
-
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 #include "utils.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset10_decl.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

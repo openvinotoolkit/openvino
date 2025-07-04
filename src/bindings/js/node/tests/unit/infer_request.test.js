@@ -2,6 +2,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+const fs = require('node:fs/promises');
 const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it, before, beforeEach } = require('node:test');
@@ -9,9 +10,8 @@ const {
   testModels,
   isModelAvailable,
   lengthFromShape,
+  generateImage,
 } = require('../utils.js');
-
-const epsilon = 0.5; // To avoid very small numbers
 
 describe('ov.InferRequest tests', () => {
   const { testModelFP32 } = testModels;
@@ -28,10 +28,7 @@ describe('ov.InferRequest tests', () => {
     const model = core.readModelSync(testModelFP32.xml);
     compiledModel = core.compileModelSync(model, 'CPU');
 
-    tensorData = Float32Array.from(
-      { length: lengthFromShape(testModelFP32.inputShape) },
-      () => Math.random() + epsilon,
-    );
+    tensorData = generateImage(testModelFP32.inputShape);
     tensor = new ov.Tensor(
       ov.element.f32,
       testModelFP32.inputShape,
@@ -321,6 +318,45 @@ describe('ov.InferRequest tests', () => {
       const res2 = ir2.infer([tensorData]);
       const res1 = ir.infer([tensorData]);
       assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+    });
+  });
+});
+
+describe('ov.InferRequest tests with missing outputs names', () => {
+  const { modelV3Small } = testModels;
+  let compiledModel = null;
+  let tensorData = null;
+  let tensor = null;
+  let inferRequest = null;
+
+  before(async () => {
+    await isModelAvailable(modelV3Small);
+
+    const core = new ov.Core();
+
+    let modelData = await fs.readFile(modelV3Small.xml, 'utf8');
+    const weights = await fs.readFile(modelV3Small.bin);
+    modelData = modelData.replace(
+      'names="MobilenetV3/Predictions/Softmax:0"',
+      ''
+    );
+    const model = await core.readModel(Buffer.from(modelData, 'utf8'), weights);
+
+    compiledModel = await core.compileModel(model, 'CPU');
+    inferRequest = compiledModel.createInferRequest();
+
+    tensorData = generateImage(modelV3Small.inputShape);
+    tensor = new ov.Tensor(ov.element.f32, modelV3Small.inputShape, tensorData);
+  });
+
+  it('Test infer(inputData: Tensor[])', () => {
+    const result = inferRequest.infer([tensor]);
+    assert.deepStrictEqual(Object.keys(result).length, 1);
+  });
+
+  it('Test inferAsync(inputData: Tensor[])', () => {
+    inferRequest.inferAsync([tensor]).then((result) => {
+      assert.deepStrictEqual(Object.keys(result).length, 1);
     });
   });
 });

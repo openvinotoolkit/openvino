@@ -163,7 +163,9 @@ ov::element::Type getType(const std::string& value) {
         {"I32", ov::element::i32},  {"i32", ov::element::i32},      {"U16", ov::element::u16},
         {"u16", ov::element::u16},  {"I16", ov::element::i16},      {"i16", ov::element::i16},
         {"U8", ov::element::u8},    {"u8", ov::element::u8},        {"I8", ov::element::i8},
-        {"i8", ov::element::i8},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
+        {"i8", ov::element::i8},    {"U4", ov::element::u4},        {"u4", ov::element::u4},
+        {"I4", ov::element::i4},    {"i4", ov::element::i4},        {"U2", ov::element::u2},
+        {"u2", ov::element::u2},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
     };
 
     return getType(value, supported_types);
@@ -358,6 +360,9 @@ ov::element::Type getPrecision2(const std::string& value) {
         {"I16", ov::element::i16},
         {"U8", ov::element::u8},
         {"I8", ov::element::i8},
+        {"U4", ov::element::u4},
+        {"I4", ov::element::i4},
+        {"U2", ov::element::u2},
         {"BOOL", ov::element::boolean},
     };
 

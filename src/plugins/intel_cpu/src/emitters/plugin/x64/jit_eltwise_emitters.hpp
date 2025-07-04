@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
 #include "jit_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -708,7 +717,7 @@ public:
     }
     jit_is_finite_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                           dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                          const std::shared_ptr<ov::Node>& node,
+                          [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                           ov::element::Type execPrc = ov::element::f32)
         : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
@@ -718,7 +727,7 @@ public:
         return 1;
     };
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 
@@ -749,7 +758,7 @@ public:
     }
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                        dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       const std::shared_ptr<ov::Node>& node,
+                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                        ov::element::Type execPrc = ov::element::f32)
         : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
@@ -759,7 +768,7 @@ public:
         return 1;
     };
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 
@@ -775,8 +784,8 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 
-    bool detect_negative;
-    bool detect_positive;
+    bool detect_negative = false;
+    bool detect_positive = false;
 };
 
 class jit_is_nan_emitter : public jit_emitter {
@@ -789,7 +798,7 @@ public:
     }
     jit_is_nan_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                        dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       const std::shared_ptr<ov::Node>& node,
+                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                        ov::element::Type execPrc = ov::element::f32)
         : jit_emitter(host, hostIsa, execPrc) {
         prepare_table();
@@ -799,7 +808,7 @@ public:
         return 1;
     }
     static std::set<std::vector<element::Type>> get_supported_precisions(
-        const std::shared_ptr<ov::Node>& node = nullptr) {
+        [[maybe_unused]] const std::shared_ptr<ov::Node>& node = nullptr) {
         return {{element::f32}};
     }
 

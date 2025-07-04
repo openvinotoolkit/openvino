@@ -89,7 +89,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs& interpo
 
 void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
                                                  const std::vector<MemoryPtr>& dst,
-                                                 const void* post_ops_data_) {
+                                                 [[maybe_unused]] const void* post_ops_data_) {
     auto in_ptr_ = padPreprocess(src, dst);
     srcTensor.allocator()->import_memory(const_cast<void*>(reinterpret_cast<const void*>(in_ptr_)));
     dstTensor.allocator()->import_memory(dst[0]->getData());
@@ -115,8 +115,8 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     float scale_w = static_cast<float>(out_shape[index_w]) / inp_shape[index_w];
     bool is_upsample = scale_h > 1 && scale_w > 1;
 
-    auto& coord_mode = interpolateAttrs.coordTransMode;
-    auto& nearest_mode = interpolateAttrs.nearestMode;
+    const auto& coord_mode = interpolateAttrs.coordTransMode;
+    const auto& nearest_mode = interpolateAttrs.nearestMode;
 
     if (coord_mode == InterpolateCoordTransMode::align_corners &&
         nearest_mode == InterpolateNearestMode::round_prefer_ceil) {

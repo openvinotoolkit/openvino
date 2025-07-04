@@ -36,11 +36,11 @@ bool has_complex_inputs(Output<Node>& x, Output<Node>& y, element::Type& complex
     auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
     auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
     if (complex_type_mark_x) {
-        x = complex_type_mark_x->input_value(0);
+        x = complex_type_mark_x->get_data();
         complex_part_type = complex_type_mark_x->get_complex_part_type();
     }
     if (complex_type_mark_y) {
-        y = complex_type_mark_y->input_value(0);
+        y = complex_type_mark_y->get_data();
         complex_part_type = complex_type_mark_y->get_complex_part_type();
     }
     return (complex_type_mark_x || complex_type_mark_y);

@@ -9,7 +9,7 @@ const {
   checkIfPathExists,
 } = require('../scripts/lib/utils');
 
-const modelDir = 'tests/unit/test_models/';
+const modelDir = path.join(__dirname, 'unit', 'test_models');
 
 function getModelPath(fileName) {
   return path.join(modelDir, fileName);
@@ -26,6 +26,22 @@ const testModels = {
     binURL:
       'https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin',
   },
+  modelV3Small: {
+    xml: getModelPath('v3-small_224_1.0_float.xml'),
+    bin: getModelPath('v3-small_224_1.0_float.bin'),
+    inputShape: [1, 224, 224, 3],
+    outputShape: [1, 1001],
+    xmlURL:
+      'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.xml',
+    binURL:
+      'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.bin',
+  },
+  addModel: {
+    xml: getModelPath('add_model.xml'),
+  },
+  addModelWithVar: {
+    xml: getModelPath('add_model_with_var.xml'),
+  },
 };
 
 module.exports = {
@@ -35,6 +51,7 @@ module.exports = {
   isModelAvailable,
   testModels,
   lengthFromShape,
+  generateImage,
 };
 
 function compareModels(model1, model2) {
@@ -113,4 +130,15 @@ async function isModelAvailable(model) {
     '\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n',
   );
   process.exit(1);
+}
+
+function generateImage(shape = [1, 3, 32, 32]) {
+  const lemm = lengthFromShape(shape);
+  const epsilon = 0.5; // To avoid very small numbers
+  const tensorData = Float32Array.from(
+    { length: lemm },
+    () => Math.random() + epsilon,
+  );
+
+  return tensorData;
 }

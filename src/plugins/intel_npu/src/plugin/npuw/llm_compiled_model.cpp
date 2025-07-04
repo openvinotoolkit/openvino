@@ -5,11 +5,13 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
@@ -17,55 +19,94 @@
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
+#include "util.hpp"
 
 namespace opp = ov::pass::pattern;
+
+class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::RemoveEmptyKVTensors");
+
+    struct Context {
+        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
+        using Ref = std::reference_wrapper<Context>;
+    };
+
+    RemoveEmptyKVTensors(Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, opp::any_input()});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+            auto matched_param = ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            auto matched_node_concat = node_to_output.at(concat).get_node_shared_ptr();
+
+            ctx.get().old_params.push_back(matched_param);
+
+            auto users = matched_param->get_users();
+            if (users.size() == 2u) {
+                auto shapeof_node = ov::is_type<ov::op::v3::ShapeOf>(users[0]) ? users[0] : users[1];
+                NPUW_ASSERT(ov::is_type<ov::op::v3::ShapeOf>(shapeof_node));
+                auto cst_node =
+                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, matched_param->get_shape());
+                ov::replace_node(shapeof_node, cst_node);
+            } else {
+                NPUW_ASSERT(users.size() == 1u);
+            }
+
+            // Redirect second concat input to every node which reads from concat
+            auto curr_kv_tensor = matched_node_concat->input(1).get_source_output();
+            for (auto target_input : matched_node_concat->output(0u).get_target_inputs()) {
+                target_input.replace_source_output(curr_kv_tensor);
+            }
+
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(concat, "RemoveEmptyKVTensors"), std::move(callback));
+    }
+};
 
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
-        std::vector<std::shared_ptr<ov::opset13::Parameter>> new_params;
-        std::vector<std::shared_ptr<ov::opset13::Parameter>> old_params;
         using Ref = std::reference_wrapper<Context>;
+        bool bTransposed = false;
     };
 
 protected:
     // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
     void transpose_matmul_b(Context::Ref ctx,
-                            std::shared_ptr<ov::Node> node_param,
-                            std::shared_ptr<ov::Node> node_concat,
-                            std::shared_ptr<ov::Node> node_transpose,
-                            std::shared_ptr<ov::Node> node_matmul) {
+                            const std::shared_ptr<ov::op::v0::Parameter>& matched_param,
+                            const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
+                            const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
+                            const std::shared_ptr<ov::op::v0::MatMul>& matched_matmul) {
+        auto param_shape = matched_param->get_partial_shape();
+        NPUW_ASSERT(param_shape.size() == 4u);
+        // NB: Transpose Parameter that correspond to V-tensor it will
+        // speed-up its multiplication with attention scores
+        std::swap(param_shape[2], param_shape[3]);
+
+        matched_param->set_partial_shape(param_shape);
+
+        auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+
+        matched_transpose->set_argument(1, order_cst);
+        matched_concat->set_axis(3u);
+        matched_matmul->set_transpose_b(true);
+        ctx.get().bTransposed = true;
+    }
+
+    void transpose_matmul_b(Context::Ref ctx,
+                            const std::shared_ptr<ov::Node>& node_param,
+                            const std::shared_ptr<ov::Node>& node_concat,
+                            const std::shared_ptr<ov::Node>& node_transpose,
+                            const std::shared_ptr<ov::Node>& node_matmul) {
         auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
         auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
         auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
 
-        auto param_shape = matched_param->get_partial_shape();
-        OPENVINO_ASSERT(param_shape.size() == 4u);
-        // NB: Transpose Parameter that correspond to V-tensor it will
-        // speed-up its multiplication with attention scores
-        std::swap(param_shape[2], param_shape[3]);
-        auto new_param = std::make_shared<ov::opset13::Parameter>(matched_param->get_element_type(), param_shape);
-        new_param->set_friendly_name(matched_param->get_friendly_name());
-        new_param->outputs().begin()->get_tensor().set_names(
-            matched_param->outputs().begin()->get_tensor().get_names());
-        ov::replace_node(matched_param, new_param);
-        // NB: Save in order to add/remove to the model later on
-        ctx.get().new_params.push_back(new_param);
-        ctx.get().old_params.push_back(matched_param);
-
-        auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
-        auto new_transpose =
-            std::make_shared<ov::opset13::Transpose>(matched_transpose->input_value(0), order_cst->output(0));
-        new_transpose->set_friendly_name(matched_transpose->get_friendly_name());
-        ov::replace_node(matched_transpose, new_transpose);
-
-        auto new_concat =
-            std::make_shared<ov::opset13::Concat>(ov::OutputVector{new_param->output(0), new_transpose->output(0)}, 3u);
-        new_concat->set_friendly_name(matched_concat->get_friendly_name());
-        ov::replace_node(matched_concat, new_concat);
-
-        matched_matmul->set_transpose_b(true);
+        transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
     }
 };
 
@@ -81,7 +122,8 @@ private:
     void register_matcher_llama2(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
+        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
 
@@ -117,7 +159,8 @@ private:
     void register_matcher_llama3(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
-        auto concat = opp::wrap_type<ov::op::v0::Concat>({param, transpose});
+        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+        auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
 
         // only difference is that broadcast wrapped into unsquese/reshape, while transposed tensor didn't change
         const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
@@ -125,6 +168,7 @@ private:
         auto broadcast = opp::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({unsqueeze, opp::any_input()});
         auto reshape = opp::wrap_type<ov::op::v1::Reshape>({broadcast, opp::any_input()});
 
+        // v8 softmax? what? can be other softmaxes
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, reshape});
 
@@ -144,13 +188,12 @@ private:
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);
             auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(matched_node_transpose);
             auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-
             auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(matched_node_unsqueeze);
             auto matched_broadcast = std::static_pointer_cast<ov::op::v3::Broadcast>(matched_node_broadcast);
             auto matched_reshape = std::static_pointer_cast<ov::op::v1::Reshape>(matched_node_reshape);
 
             auto shape_broadcast = matched_broadcast->get_output_shape(0);
-            OPENVINO_ASSERT(shape_broadcast.size() == 5u);
+            NPUW_ASSERT(shape_broadcast.size() == 5u);
             std::swap(shape_broadcast[3], shape_broadcast[4]);
 
             LOG_DEBUG("shape_broadcast for: " << matched_broadcast->get_friendly_name()
@@ -162,7 +205,7 @@ private:
             matched_broadcast->input(1).replace_source_output(broadcast_axes_node);
 
             auto shape_reshape = matched_reshape->get_output_shape(0);
-            OPENVINO_ASSERT(shape_reshape.size() == 4u);
+            NPUW_ASSERT(shape_reshape.size() == 4u);
             std::swap(shape_reshape[2], shape_reshape[3]);
 
             LOG_DEBUG("shape_reshape for: " << matched_reshape->get_friendly_name() << ", shape=" << shape_reshape);
@@ -172,11 +215,7 @@ private:
             reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
-            transpose_matmul_b(ctx,
-                               matched_node_param,
-                               matched_node_concat,
-                               matched_node_transpose,
-                               matched_node_matmul);
+            transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
             LOG_DEBUG("vtensors transposed: LLama3 pattern");
             return true;
         };
@@ -187,7 +226,7 @@ private:
 class ScaledDotProductAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::ScaledDotProductAttentionDecomposition");
-    ScaledDotProductAttentionDecomposition() {
+    explicit ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -199,7 +238,7 @@ public:
                 return false;
             }
 
-            auto new_output_node = decompose(node);
+            auto new_output_node = decompose(node, use_high_precision_on_add);
             ov::replace_node(node, new_output_node);
             return true;
         };
@@ -207,7 +246,8 @@ public:
         auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "ScaledDotProductAttentionDecomposition");
         register_matcher(m, std::move(callback));
     }
-    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node) {
+    std::shared_ptr<ov::Node> decompose(std::shared_ptr<ov::op::v13::ScaledDotProductAttention> node,
+                                        bool use_high_precision_on_add) {
         using namespace ov::op;
         using namespace ov;
         auto query = node->input_value(0);
@@ -278,6 +318,12 @@ public:
                 auto triu = register_new_node<v1::GreaterEqual>(horizontal_range, vertical_range);
                 atten_mask = register_new_node<v1::Select>(triu, mask, zero_f);
             }
+            if (use_high_precision_on_add) {
+                npuw::util::HighPrecisionAttr attr_hp;
+                attr_hp.compute_precision_type = ov::element::f32;
+                atten_mask.get_rt_info()[npuw::util::HighPrecisionAttr::get_type_info_static()] = attr_hp;
+            }
+
             scaled_atten = register_new_node<v1::Add>(scaled_atten, atten_mask);
         }
 
@@ -286,6 +332,239 @@ public:
         result->set_friendly_name(node->get_friendly_name());
         copy_runtime_info(node, get_new_nodes());
         return result;
+    }
+};
+
+class GroupQueryAttentionDecomposition : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GroupQueryAttentionDecomposition");
+    GroupQueryAttentionDecomposition(bool is_prefill_model) {
+        auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
+
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& pattern_to_output = m.get_pattern_value_map();
+            auto node = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(
+                pattern_to_output.at(pattern_node).get_node_shared_ptr());
+
+            if (node == nullptr || transformation_callback(node)) {
+                return false;
+            }
+
+            auto new_output_node = decompose(node, is_prefill_model);
+            ov::replace_node(node, new_output_node);
+            return true;
+        };
+
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "GroupQueryAttentionDecomposition");
+        register_matcher(m, std::move(callback));
+    }
+
+    ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node, bool is_prefill_model) {
+        using namespace ov::op;
+        using namespace ov;
+
+        const auto num_heads = node->get_num_heads();
+        const auto kv_num_heads = node->get_kv_num_heads();
+        const auto scale = node->get_scale();
+        const auto do_rotary = node->get_do_rotary();
+        const auto rotary_interleaved = node->get_rotary_interleaved();
+        // TODO: add softcap support
+
+        auto Q = node->input_value(0);
+        auto K = node->input_value(1);
+        auto V = node->input_value(2);
+        auto past_key = node->input_value(3);
+        auto past_value = node->input_value(4);
+        auto seqlens_k = node->input_value(5);
+        auto cos_cache = node->input_value(6);
+        auto sin_cache = node->input_value(7);
+
+        // The length of all tokens (past + current) is `seqlens_k` + 1.
+        // current = Q.shape[2], past = `seqlens_k` + 1 - current
+
+        const auto T = Q.get_element_type();
+        const auto q_shape = register_new_node<v3::ShapeOf>(Q);
+        const auto current_seqlen = get_dimensions(q_shape, {2});
+        const auto head_size_node = get_dimensions(q_shape, {3});
+
+        const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+        const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+        const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+        const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
+        const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
+
+        // Only consider batch is 1
+        const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
+        const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
+        const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
+
+        if (do_rotary) {
+            ov::Output<ov::Node> position_ids = register_new_node<v4::Range>(zero_without_shape,
+                                                                             curr_seqlen_scalar,
+                                                                             one_without_shape,
+                                                                             ov::element::i64);
+            position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
+
+            const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
+            const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
+            Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
+            K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        }
+
+        auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
+            return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
+        };
+        K = construct_kv_cache(past_key, K);
+        V = construct_kv_cache(past_value, V);
+
+        ov::Output<ov::Node> present_k = K;
+        ov::Output<ov::Node> present_v = V;
+
+        const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
+        const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
+
+        // Broadcast KV if grouped query attention
+        const size_t kv_num_heads_factor = num_heads / kv_num_heads;
+        if (kv_num_heads_factor > 1) {
+            const auto kv_shape = register_new_node<v3::ShapeOf>(K);
+            const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
+            const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
+            auto new_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{kv_shape_prev_2, one, kv_shape_last_2}, 0);
+            K = register_new_node<v1::Reshape>(K, new_kv_shape, false);
+            V = register_new_node<v1::Reshape>(V, new_kv_shape, false);
+            K = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
+            V = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
+            const auto q_shape = register_new_node<v3::ShapeOf>(Q);
+            const auto q_shape_prev_2 = get_dimensions(q_shape, {0, 1});
+            auto extended_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{q_shape_prev_2, kv_shape_last_2}, 0);
+            K = register_new_node<v1::Reshape>(K, extended_kv_shape, false);
+            V = register_new_node<v1::Reshape>(V, extended_kv_shape, false);
+        }
+
+        // Make attention mask
+        std::shared_ptr<ov::Node> mask;
+
+        std::shared_ptr<ov::Node> hori_range =
+            register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
+        hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
+
+        std::shared_ptr<ov::Node> vert_range =
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
+        const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
+        vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
+
+        const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
+        const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
+        // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
+        std::shared_ptr<ov::Node> minus_inf = nullptr;
+        if (T == ov::element::f32)
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
+        else if (T == ov::element::f16)
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
+        mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
+
+        if (is_prefill_model) {
+            // prefill model
+            const auto padding_len = register_new_node<v1::Subtract>(concat_kv_len, seqlens_1d);
+            const auto padding_mask_vert_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, one}, 0);
+            const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
+            const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
+            mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
+        } else {
+            // kv cache model
+            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64);     // first N
+            const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, vert_range);  // last 1
+            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);       // [1,1,1,..., 0,0,0,1]
+            mask = register_new_node<v1::Select>(atte_mask, mask, minus_inf);
+        }
+
+        std::shared_ptr<ov::Node> qga_output;
+        if (scale != 0.0f) {
+            auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+        } else {
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+        }
+
+        // transpose the result from (batch_size, num_heads, sequence_length, head_size)
+        // to (batch_size, sequence_length, num_heads * head_size)
+        auto perm = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
+        auto qga_output_transposed = register_new_node<v1::Transpose>(qga_output, perm);
+        auto dim_merge_shape = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1}));
+        auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
+
+        return {output, present_k, present_v};
+    }
+
+    // make split functions is a copy-past from ONNX FE. TODO: move it to one place
+    ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
+        using namespace ov::op;
+        const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
+        const auto split = register_new_node<v1::Split>(value, axis_node, num_splits);
+
+        return split->outputs();
+    }
+
+    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
+                                             const std::vector<int>& dims) {
+        using namespace ov::op;
+        const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+        const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
+        return register_new_node<v8::Gather>(shape, dims_const, zero);
+    }
+
+    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
+        return get_dimensions(register_new_node<ov::op::v3::ShapeOf>(node), dims);
+    }
+
+    std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
+                                              ov::Output<ov::Node> cos,
+                                              ov::Output<ov::Node> sin,
+                                              bool interleaved) {
+        using namespace ov::op;
+        auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+
+        if (interleaved) {
+            auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+            auto cos_last_dim = get_dimensions(cos.get_node_shared_ptr(), {-1});
+            auto input_shape = register_new_node<v3::ShapeOf>(input);
+            auto dim_bns = get_dimensions(input_shape, {0, 1, 2});
+
+            auto negtive_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+            auto split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, two}, 0);
+            auto reshaped_input = register_new_node<v1::Reshape>(input, split_input_shape, false);
+
+            auto in_split = make_split(reshaped_input, 2, -1);
+            split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim}, 0);
+            auto in_split_0 = register_new_node<v1::Reshape>(in_split[0], split_input_shape, false);
+            auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
+
+            auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
+                                                         register_new_node<v1::Multiply>(in_split_1, sin));
+            auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
+                                                    register_new_node<v1::Multiply>(in_split_1, cos));
+
+            split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, one}, 0);
+            auto res_0_5d = register_new_node<v1::Reshape>(res_0, split_input_shape, false);
+            auto res_1_5d = register_new_node<v1::Reshape>(res_1, split_input_shape, false);
+
+            auto concat_ret = register_new_node<v0::Concat>(ov::NodeVector{res_0_5d, res_1_5d}, -1);
+            return register_new_node<v1::Reshape>(concat_ret, input_shape, false);
+        } else {
+            auto in_split = make_split(input, 2, -1);
+            auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
+                                                         register_new_node<v1::Multiply>(in_split[1], sin));
+            auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
+                                                    register_new_node<v1::Multiply>(in_split[1], cos));
+
+            return register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
+        }
     }
 };
 
@@ -326,36 +605,43 @@ std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::M
     return model;
 }
 
-std::shared_ptr<ov::Model> cvt_value_tensors_layout(std::shared_ptr<ov::Model> model) {
-    ov::preprocess::PrePostProcessor ppp(model);
-    for (const auto& tensor : model->outputs()) {
-        if (tensor.get_any_name().find("value") != std::string::npos) {
-            // NB: [batch, num_heads, seq_len, emb_size] -> [batch, num_heads, emb_size, seq_len]
-            ppp.output(tensor.get_any_name()).model().set_layout(ov::Layout("BHSE"));
-            ppp.output(tensor.get_any_name()).tensor().set_layout(ov::Layout("BHES"));
-        }
+bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
+    ov::pass::GraphRewrite rewr;
+    RemoveEmptyKVTensors::Context ctx;
+    rewr.add_matcher<RemoveEmptyKVTensors>(std::ref(ctx));
+    rewr.run_on_model(model);
+    for (auto old_param : ctx.old_params) {
+        model->remove_parameter(old_param);
     }
-    return ppp.build();
+    ov::pass::Validate().run_on_model(model);
+    // NB: if old_params is not empty - pass has been applied
+    return !ctx.old_params.empty();
 }
 
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model) {
+void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>();
+    rewr.add_matcher<GroupQueryAttentionDecomposition>(is_prefill_model);
+    rewr.run_on_model(model);
+}
+}  // namespace
+
+namespace ov::npuw::util {
+bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
     rewr.run_on_model(model);
 
-    model->add_parameters(ctx.new_params);
-    for (auto old_param : ctx.old_params) {
-        model->remove_parameter(old_param);
-    }
     ov::pass::Validate().run_on_model(model);
 
-    // NB: if new_params is not empty - pass has been applied
-    return !ctx.new_params.empty();
+    // NB: matmul parameters gets transposed, if pass applied
+    return ctx.bTransposed;
 }
+}  // namespace ov::npuw::util
 
+namespace {
 struct KVAxesPosition {
     uint32_t batch;
     uint32_t seq_len;
@@ -371,10 +657,21 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
         ov::PartialShape new_shape;
         if (input_name.find("input_ids") != std::string::npos) {
             new_shape = ov::PartialShape({1, input_size});
+        } else if (input_name.find("inputs_embeds") != std::string::npos) {
+            // NB: VLMs case, model accepts inputs_embeds[BATCH, SEQ_LEN, EMB_SIZE]
+            NPUW_ASSERT(input.get_partial_shape().size() == 3u);
+            NPUW_ASSERT(input.get_partial_shape()[2].is_static());
+            new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
         } else if (input_name.find("position_ids") != std::string::npos) {
-            new_shape = ov::PartialShape({1, input_size});
+            const auto partial_shape_size = input.get_partial_shape().size();
+            // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
+            // The first dimension (3) represents the three components of position encoding: time, height, and width
+            // enabling alignment across multimodal inputs like text, audio, and video
+            NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
+            new_shape =
+                partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
@@ -422,7 +719,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         supported_properties.end()) {
         compiler_dq = true;
     }
-    return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
+    return std::make_optional(NPUDesc{std::move(arch), max_tiles, compiler_dq});
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
@@ -467,10 +764,19 @@ ov::AnyMap get_default_common_config(const std::shared_ptr<ov::Model>& model, co
     return config;
 }
 
-ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
+ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
+                                      const std::optional<NPUDesc>& npudesc,
+                                      const ::intel_npu::npuw::llm::PrefillHint hint) {
     auto config = get_default_common_config(model, npudesc);
+    if (hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC) {
+        if (is_cw_compressed(model)) {
+            // NB: These two ifs are not combined into one with && deliberately
+            // there may be later changes w.r.t. required compiler versions for GQ
+            config.emplace("NPUW_ONLINE_PIPELINE", "SPATIAL");
+        }
+    }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
-        config.emplace("NPU_DPU_GROUPS", npudesc->max_tiles);
+        config.emplace("NPU_TILES", npudesc->max_tiles);
     }
     // Specify NPUW DQ if Compiler DQ is not enabled
     if (!npudesc.has_value() || !npudesc->compiler_dq) {
@@ -491,7 +797,7 @@ ov::AnyMap get_default_generate_config(const std::shared_ptr<ov::Model>& model,
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
     if (npudesc.has_value() && npudesc->arch == "4000") {
-        config.emplace("NPU_DPU_GROUPS", 4);
+        config.emplace("NPU_TILES", 4);
     }
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
@@ -566,6 +872,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
@@ -583,19 +892,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
 
+    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
+    decompose_GQA(prefill_model, true);
+    decompose_GQA(kvcache_model, false);
+
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
-        if (optimize_value_tensors(kvcache_model)) {
+        if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
+            NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
             m_kvcache_desc.v_tensors_transposed = true;
-            prefill_model = cvt_value_tensors_layout(prefill_model);
         } else {
             LOG_DEBUG("vtensors optimisation not applied");
         }
     } else {
         LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
+    NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
     LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");
@@ -604,8 +918,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
+
+    // NB: PREFILL_HINT is only applicable for default prefill config!
+    if (prefill_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::prefill_hint.name())) {
+        OPENVINO_THROW("PREFILL_HINT only works with default prefill config!");
+    }
+    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     auto prefill_config =
-        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc, prefill_hint)).as<ov::AnyMap>();
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
@@ -628,14 +948,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
-    OPENVINO_ASSERT(m_kvcache_compiled,
-                    "Can't create ov::npuw::CompiledModel for passed kvcache "
-                    "model and its config, please check passed config.");
+    NPUW_ASSERT(m_kvcache_compiled && "Can't create ov::npuw::CompiledModel for passed kvcache "
+                                      "model and its config, please check passed config.");
     m_prefill_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(prefill_model, plugin, prefill_config));
-    OPENVINO_ASSERT(m_prefill_compiled,
-                    "Can't create ov::npuw::CompiledModel for passed prefill "
-                    "model and its config, please check passed config.");
+    NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
+                                      "model and its config, please check passed config.");
 
     implement_properties();
     LOG_DEBUG("Done");
@@ -654,49 +972,110 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 }
 
 void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
-    LOG_INFO("Serializing LLMCompiledModel...");
-    LOG_BLOCK();
-
     using namespace ov::npuw::s11n;
 
+    // Identify encryption flow
+    bool encryption_required = false;
+    EncryptionCallbacks enc_callbacks;
+    if (auto it = m_non_llm_props.find(ov::cache_encryption_callbacks.name());
+        it != m_non_llm_props.end() && it->second.as<EncryptionCallbacks>().encrypt) {
+        LOG_INFO("Encryption will be done via the function provided.");
+        encryption_required = true;
+        enc_callbacks.encrypt = it->second.as<EncryptionCallbacks>().encrypt;
+    }
+
+    // Identify either full flow or weightless
+    bool is_weightless = true;
+    if (auto it = m_non_llm_props.find(ov::cache_mode.name());
+        it != m_non_llm_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+        LOG_INFO("Serialization will be done via flow with weights.");
+        is_weightless = false;
+    }
+
+    // Write header regardless of encryption requirement - to identify NPUW serializated blobs
     // Serialize magic number first
     write(stream, NPUW_SERIALIZATION_INDICATOR);
-
+    // Serilize LLMCompiledModel identifier
+    write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
     // Serialize general meta info
     write(stream, OPENVINO_VERSION_MAJOR);
     write(stream, OPENVINO_VERSION_MINOR);
     write(stream, OPENVINO_VERSION_PATCH);
     write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    // Serialize encrypted flag
+    write(stream, encryption_required);
+    // Write flow identifier
+    write(stream, is_weightless);
 
-    // Serialize name
-    write(stream, m_name);
+    if (!encryption_required) {
+        CompiledContext ctx(false, nullptr, nullptr);
+        return serialize(stream, ctx);
+    }
 
-    // Serialize inputs and outputs
-    write(stream, inputs());
-    write(stream, outputs());
+    // In case of weightless flow the whole blob will be encrypted on NPUW side.
+    std::stringstream non_encrypted_stream;
+    if (is_weightless) {
+        non_encrypted_stream.copyfmt(stream);
+        CompiledContext ctx(false, nullptr, nullptr);
+        serialize(non_encrypted_stream, ctx);
+        std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
+        write(stream, encrypted);
+    } else {
+        // In case of blob with weights only encrypt XML part of the model
+        CompiledContext ctx(true, enc_callbacks.encrypt, nullptr);
+        serialize(stream, ctx);
+    }
+}
 
-    // Serialize LLMCompiledModel-specific data
-    write(stream, m_kvcache_desc.max_prompt_size);
-    write(stream, m_kvcache_desc.total_size);
-    write(stream, m_kvcache_desc.num_stored_tokens);
-    write(stream, m_kvcache_desc.dim);
-    write(stream, m_kvcache_desc.v_tensors_transposed);
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const {
+    LOG_INFO("Serializing LLMCompiledModel...");
+    LOG_BLOCK();
 
-    // Write config
-    write(stream, m_cfg);
+    using namespace ov::npuw::s11n;
 
     // Identify either full flow or weightless
     bool is_weightless = true;
-    if (m_non_llm_props.count(ov::cache_mode.name()) &&
-        m_non_llm_props.at(ov::cache_mode.name()).as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
+    if (auto it = m_non_llm_props.find(ov::cache_mode.name());
+        it != m_non_llm_props.end() && it->second.as<CacheMode>() == CacheMode::OPTIMIZE_SPEED) {
         LOG_INFO("Serialization will be done via flow with weights.");
         is_weightless = false;
     }
-    write(stream, is_weightless);
 
-    // Serialize CompiledModels
-    m_kvcache_compiled->serialize(stream);
-    m_prefill_compiled->serialize(stream);
+    auto write_model_meta = [&](std::ostream& model_stream) {
+        // Serialize name
+        write(model_stream, m_name);
+
+        // Serialize inputs and outputs
+        write(model_stream, inputs());
+        write(model_stream, outputs());
+
+        // Serialize LLMCompiledModel-specific data
+        write(model_stream, m_kvcache_desc.max_prompt_size);
+        write(model_stream, m_kvcache_desc.total_size);
+        write(model_stream, m_kvcache_desc.num_stored_tokens);
+        write(model_stream, m_kvcache_desc.dim);
+        write(model_stream, m_kvcache_desc.v_tensors_transposed);
+
+        // Write config
+        write(model_stream, m_cfg);
+
+        // Serialize CompiledModels
+        // Note: no need to pass any encryption here as it's done in export_model()
+        CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
+        m_kvcache_compiled->serialize(model_stream, enc_ctx);
+        m_prefill_compiled->serialize(model_stream, enc_ctx);
+    };
+
+    std::stringstream non_encrypted_stream;
+    if (ctx.encrypted) {
+        NPUW_ASSERT(ctx.encrypt && "Encryption function isn't provided!");
+        non_encrypted_stream.copyfmt(stream);
+        write_model_meta(non_encrypted_stream);
+        std::string encrypted_str = ctx.encrypt(non_encrypted_stream.str());
+        write(stream, encrypted_str);
+    } else {
+        write_model_meta(stream);
+    }
 
     // Serialize bank name
     const auto& kv_bank = m_kvcache_compiled->m_weights_bank;
@@ -706,13 +1085,14 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
 
     if (!is_weightless) {
         // Serialize weights bank
+        // Note: no need to encrypt weights in full flow
         kv_bank->serialize(stream);
     }
 
     LOG_INFO("Done.");
 }
 
-std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_model(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
@@ -722,9 +1102,14 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     using namespace ov::npuw::s11n;
 
     // Sanity check magic number
-    std::array<uint8_t, 6> serialization_indicator;
+    ov::npuw::s11n::IndicatorType serialization_indicator;
     read(stream, serialization_indicator);
     NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
+
+    ov::npuw::s11n::IndicatorType llm_compiled_indicator;
+    read(stream, llm_compiled_indicator);
+    NPUW_ASSERT(llm_compiled_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR &&
+                "This blob wasn't serialized via LLMCompiledModel!");
 
     // Deserialize general meta info
     int vmajor, vminor, vpatch;
@@ -755,64 +1140,132 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
                        NPUW_SERIALIZATION_VERSION);
     }
 
-    // Deserialize model name first
-    std::string model_name;
-    read(stream, model_name);
-
-    // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
-    // to continue deserialization
-    ov::ParameterVector parameters;
-    ov::NodeVector results;
-
-    read(stream, parameters);
-    read(stream, results);
-
-    auto ov_model = std::make_shared<ov::Model>(results, parameters, model_name);
-
-    auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
-
-    // Deserialize LLMCompiledModel-specific data
-    read(stream, compiled->m_kvcache_desc.max_prompt_size);
-    read(stream, compiled->m_kvcache_desc.total_size);
-    read(stream, compiled->m_kvcache_desc.num_stored_tokens);
-    read(stream, compiled->m_kvcache_desc.dim);
-    read(stream, compiled->m_kvcache_desc.v_tensors_transposed);
-
-    // Deserialize config
-    read(stream, compiled->m_cfg);
-    compiled->implement_properties();
-
-    // Deserialize flow indicator
-    bool is_weightless = false;
+    bool encrypted = false;
+    read(stream, encrypted);
+    bool is_weightless = true;
     read(stream, is_weightless);
 
-    // Deserialize CompiledModels
-    compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
-    compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(stream, plugin, properties);
+    auto read_and_finalize_banks = [&](std::istream& model_stream,
+                                       const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        // Deserialize weights bank name
+        std::string bank_name;
+        read(model_stream, bank_name);
 
-    // Deserialize weights bank name
-    std::string bank_name;
-    read(stream, bank_name);
+        if (is_weightless) {
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
-    if (is_weightless) {
-        auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->m_weights_bank = bank;
 
-        compiled->m_kvcache_compiled->m_weights_bank = bank;
-        compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_kvcache_compiled->finalize_weights_bank();
+            compiled->m_prefill_compiled->finalize_weights_bank();
+        } else {
+            auto bank =
+                ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
 
-        compiled->m_kvcache_compiled->finalize_weights_bank();
-        compiled->m_prefill_compiled->finalize_weights_bank();
-    } else {
-        auto bank = ov::npuw::weights::Bank::deserialize(stream, compiled->get_plugin()->get_core(), bank_name);
+            compiled->m_kvcache_compiled->m_weights_bank = bank;
+            compiled->m_prefill_compiled->m_weights_bank = bank;
 
-        compiled->m_kvcache_compiled->m_weights_bank = bank;
-        compiled->m_prefill_compiled->m_weights_bank = bank;
+            compiled->m_kvcache_compiled->reconstruct_closure();
+            compiled->m_prefill_compiled->reconstruct_closure();
+        }
+    };
 
-        compiled->m_kvcache_compiled->reconstruct_closure();
-        compiled->m_prefill_compiled->reconstruct_closure();
+    if (!encrypted) {
+        CompiledContext ctx(false, nullptr, nullptr);
+        auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+        NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
+        read_and_finalize_banks(stream, compiled_model);
+        LOG_INFO("Done.");
+        return compiled_model;
     }
 
+    EncryptionCallbacks enc_callbacks;
+    NPUW_ASSERT(properties.count(ov::cache_encryption_callbacks.name()) &&
+                properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt &&
+                "Model is encrypted but no decrypt function was provided!");
+    enc_callbacks.decrypt = properties.at(ov::cache_encryption_callbacks.name()).as<EncryptionCallbacks>().decrypt;
+
+    LOG_INFO("Decryption will be done via the function provided.");
+
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled_model = nullptr;
+
+    // Model is encrypted
+    if (is_weightless) {
+        std::string encrypted_str;
+        read(stream, encrypted_str);
+        std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
+        CompiledContext ctx(false, nullptr, nullptr);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
+    } else {
+        CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
+        compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+    }
+
+    NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
+    read_and_finalize_banks(stream, compiled_model);
+
     LOG_INFO("Done.");
+
+    return compiled_model;
+}
+
+std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserialize(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties,
+    const ov::npuw::s11n::CompiledContext& ctx) {
+    using namespace ov::npuw::s11n;
+
+    auto read_model_meta = [&](std::istream& model_stream) {
+        // Deserialize model name first
+        std::string model_name;
+        read(model_stream, model_name);
+
+        // Create a dummy CompiledModel with an empty ov::Model - this will skip the constructor flow
+        // to continue deserialization
+        ov::ParameterVector parameters;
+        ov::NodeVector results;
+
+        read(model_stream, parameters);
+        read(model_stream, results);
+
+        auto ov_model = std::make_shared<ov::Model>(ov::as_output_vector(results), parameters, model_name);
+
+        auto compiled = std::make_shared<ov::npuw::LLMCompiledModel>(ov_model, plugin, true);
+
+        // Deserialize LLMCompiledModel-specific data
+        read(model_stream, compiled->m_kvcache_desc.max_prompt_size);
+        read(model_stream, compiled->m_kvcache_desc.total_size);
+        read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
+        read(model_stream, compiled->m_kvcache_desc.dim);
+        read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
+
+        // Deserialize config
+        read(model_stream, compiled->m_cfg);
+        compiled->implement_properties();
+
+        // Deserialize CompiledModels
+        // Note: no need to pass any encryption here as it's done in import_model()
+        CompiledContext enc_ctx(false, nullptr, nullptr);
+        compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+        compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
+
+        return compiled;
+    };
+
+    std::shared_ptr<ov::npuw::LLMCompiledModel> compiled = nullptr;
+    if (ctx.encrypted) {
+        std::string encrypted_string;
+        read(stream, encrypted_string);
+        std::istringstream decrypted_stream(std::move(ctx.decrypt(encrypted_string)));
+        compiled = read_model_meta(decrypted_stream);
+    } else {
+        compiled = read_model_meta(stream);
+    }
+
+    NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
+
     return compiled;
 }
 
@@ -866,6 +1319,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
+                          BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
 #undef BIND
 }

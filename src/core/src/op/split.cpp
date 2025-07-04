@@ -91,7 +91,7 @@ bool Split::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
         auto axis = get_tensor_data_as<int64_t>(axis_tensor).front();
         axis = ov::util::normalize(axis, data_tensor.get_shape().size());
 
-        ov::reference::split(static_cast<char*>(data_tensor.data()),
+        ov::reference::split(static_cast<const char*>(data_tensor.data()),
                              data_tensor.get_shape(),
                              data_tensor.get_element_type().size(),
                              axis,

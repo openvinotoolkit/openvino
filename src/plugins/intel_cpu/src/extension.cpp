@@ -4,7 +4,54 @@
 
 #include "openvino/core/extension.hpp"
 
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/op_extension.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/matrix_nms.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -18,7 +65,28 @@
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/nop.hpp"
+#include "snippets/op/perf_count.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
@@ -26,25 +94,30 @@
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
-#include "transformations/cpu_opset/x64/op/mha.hpp"
-#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
-#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/x64/op/interaction.hpp"
+#    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#    include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#    include "transformations/snippets/x64/op/load_convert.hpp"
+#    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+#    include "transformations/snippets/x64/op/store_convert.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#endif
 
 namespace {
 
 template <typename Op>
 class TypeRelaxedExtension : public ov::OpExtension<ov::op::TypeRelaxed<Op>> {
 public:
-    TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
+    TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, version()) {}
+
     ~TypeRelaxedExtension() override = default;
 
-    const ov::DiscreteTypeInfo& get_type_info() const override {
+    [[nodiscard]] const ov::DiscreteTypeInfo& get_type_info() const override {
         return m_ext_type;
     }
 
@@ -52,140 +125,154 @@ public:
         return ov::OpExtension<ov::op::TypeRelaxed<Op>>::create(inputs, visitor);
     }
 
-    std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
+    [[nodiscard]] std::vector<ov::Extension::Ptr> get_attached_extensions() const override {
         return {};
     }
 
 private:
+    static const char* version() {
+        static const auto version =
+            std::string(ov::op::TypeRelaxedBase::version_prefix) + Op::get_type_info_static().version_id;
+        return version.data();
+    }
+
     ov::DiscreteTypeInfo m_ext_type;
 };
 
 }  // namespace
 
-#define OP_EXTENSION(NAME) std::make_shared<ov::OpExtension<NAME>>(),
-
-#define TYPE_RELAXED_OP_EXTENSION(NAME) std::make_shared<TypeRelaxedExtension<NAME>>(),
-
 #if defined(OPENVINO_ARCH_X86_64)
-#    define OP_EXTENSION_X64(NAME) OP_EXTENSION(NAME)
+#    define OP_EXTENSION_X64(x) x,
 #else
-#    define OP_EXTENSION_X64(NAME)
+#    define OP_EXTENSION_X64(x)
 #endif
 
-#define CPU_EXTENSIONS                                                      \
-    OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
-    OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
-    OP_EXTENSION(ov::intel_cpu::CausalMaskPreprocessNode)                   \
-    OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
-    OP_EXTENSION(ov::intel_cpu::SDPAWithTransposeReshape)                   \
-    OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
-    OP_EXTENSION(ov::intel_cpu::ReadValueWithSubgraph)                      \
-    OP_EXTENSION(ov::op::internal::GatherCompressed)                        \
-    OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
-    OP_EXTENSION(ov::op::internal::MulticlassNmsIEInternal)                 \
-    OP_EXTENSION(ov::op::internal::AUGRUCell)                               \
-    OP_EXTENSION(ov::op::internal::AUGRUSequence)                           \
-    OP_EXTENSION(ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>) \
-    OP_EXTENSION(ov::op::internal::RMS)                                     \
-    OP_EXTENSION(ov::op::internal::RoPE)                                    \
-    OP_EXTENSION(ov::op::internal::FullyConnected)                          \
-    OP_EXTENSION(ov::op::internal::FullyConnectedCompressed)                \
-    OP_EXTENSION(ov::op::internal::FullyConnectedQuantizedLegacy)           \
-    OP_EXTENSION(ov::op::internal::FullyConnectedQuantized)                 \
-    OP_EXTENSION_X64(ov::intel_cpu::MHANode)                                \
-    OP_EXTENSION_X64(ov::intel_cpu::InteractionNode)                        \
-    OP_EXTENSION_X64(ov::intel_cpu::LLMMLPNode)                             \
-    OP_EXTENSION_X64(ov::intel_cpu::QKVProjectionNode)                      \
-    OP_EXTENSION_X64(ov::intel_cpu::ScaledDotProductAttentionWithKVCache)   \
-    OP_EXTENSION_X64(ov::intel_cpu::LoadConvertSaturation)                  \
-    OP_EXTENSION_X64(ov::intel_cpu::LoadConvertTruncation)                  \
-    OP_EXTENSION_X64(ov::intel_cpu::StoreConvertSaturation)                 \
-    OP_EXTENSION_X64(ov::intel_cpu::StoreConvertTruncation)                 \
-    OP_EXTENSION_X64(ov::intel_cpu::BrgemmCPU)                              \
-    OP_EXTENSION_X64(ov::intel_cpu::BrgemmCopyB)
-
-#define TYPE_RELAXED_EXTENSIONS                                         \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Add)                          \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::AvgPool)                      \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v14::AvgPool)                     \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Clamp)                        \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Concat)                       \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Convolution)                  \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ConvolutionBackpropData)      \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::DepthToSpace)                 \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Equal)                        \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::FakeQuantize)                 \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Greater)                      \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::GreaterEqual)                 \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::GroupConvolution)             \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::GroupConvolutionBackpropData) \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Interpolate)                  \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v4::Interpolate)                  \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Less)                         \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LessEqual)                    \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalAnd)                   \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalNot)                   \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalOr)                    \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::LogicalXor)                   \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::MatMul)                       \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::MaxPool)                      \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Multiply)                     \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::NormalizeL2)                  \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::NotEqual)                     \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::PRelu)                        \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Relu)                         \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceMax)                    \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceLogicalAnd)             \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceLogicalOr)              \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceMean)                   \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceMin)                    \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::ReduceSum)                    \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Reshape)                      \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Select)                       \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::ShapeOf)                      \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::ShuffleChannels)              \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Squeeze)                      \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Subtract)                     \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Unsqueeze)                    \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v0::MVN)                          \
-    TYPE_RELAXED_OP_EXTENSION(ov::op::v6::MVN)
-
-#ifdef SNIPPETS_DEBUG_CAPS
-#    define SNIPPETS_DEBUG_CAPS_EXTENSIONS                   \
-        OP_EXTENSION(ov::snippets::op::PerfCountBegin)       \
-        OP_EXTENSION(ov::snippets::op::PerfCountEnd)         \
-        OP_EXTENSION_X64(ov::intel_cpu::PerfCountRdtscBegin) \
-        OP_EXTENSION_X64(ov::intel_cpu::PerfCountRdtscEnd)
+#if defined(OPENVINO_ARCH_ARM64)
+#    define OP_EXTENSION_ARM64(x) x,
 #else
-#    define SNIPPETS_DEBUG_CAPS_EXTENSIONS
+#    define OP_EXTENSION_ARM64(x)
 #endif
 
-#define SNIPPETS_EXTENSIONS                           \
-    OP_EXTENSION(ov::snippets::op::Brgemm)            \
-    OP_EXTENSION(ov::snippets::op::BroadcastLoad)     \
-    OP_EXTENSION(ov::snippets::op::BroadcastMove)     \
-    OP_EXTENSION(ov::snippets::op::ConvertSaturation) \
-    OP_EXTENSION(ov::snippets::op::ConvertTruncation) \
-    OP_EXTENSION(ov::snippets::op::Fill)              \
-    OP_EXTENSION(ov::snippets::op::HorizonMax)        \
-    OP_EXTENSION(ov::snippets::op::HorizonSum)        \
-    OP_EXTENSION(ov::snippets::op::KernelStatic)      \
-    OP_EXTENSION(ov::snippets::op::KernelDynamic)     \
-    OP_EXTENSION(ov::snippets::op::Load)              \
-    OP_EXTENSION(ov::snippets::op::LoadReorder)       \
-    OP_EXTENSION(ov::snippets::op::LoopBegin)         \
-    OP_EXTENSION(ov::snippets::op::LoopEnd)           \
-    OP_EXTENSION(ov::snippets::op::Buffer)            \
-    OP_EXTENSION(ov::snippets::op::Nop)               \
-    OP_EXTENSION(ov::snippets::op::PowerStatic)       \
-    OP_EXTENSION(ov::snippets::op::Scalar)            \
-    OP_EXTENSION(ov::snippets::op::Store)             \
-    OP_EXTENSION(ov::snippets::op::Subgraph)          \
-    OP_EXTENSION(ov::snippets::op::VectorBuffer)      \
-    OP_EXTENSION(ov::snippets::op::RankNormalization) \
-    OP_EXTENSION(ov::snippets::op::ReduceMax)         \
-    OP_EXTENSION(ov::snippets::op::ReduceSum)         \
-    OP_EXTENSION(ov::snippets::op::Reshape)
+#if defined(SNIPPETS_DEBUG_CAPS)
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS(x) x,
+#else
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS(x)
+#endif
 
-OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(
-    {CPU_EXTENSIONS TYPE_RELAXED_EXTENSIONS SNIPPETS_EXTENSIONS SNIPPETS_DEBUG_CAPS_EXTENSIONS}));
+#if defined(SNIPPETS_DEBUG_CAPS) && defined(OPENVINO_ARCH_X86_64)
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(x) x,
+#else
+#    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(x)
+#endif
+
+OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
+    // CPU extensions
+    std::make_shared<ov::OpExtension<ov::intel_cpu::LeakyReluNode>>(),
+    std::make_shared<ov::OpExtension<ov::intel_cpu::PowerStaticNode>>(),
+    std::make_shared<ov::OpExtension<ov::intel_cpu::CausalMaskPreprocessNode>>(),
+    std::make_shared<ov::OpExtension<ov::intel_cpu::SwishNode>>(),
+    std::make_shared<ov::OpExtension<ov::intel_cpu::SDPAWithTransposeReshape>>(),
+    std::make_shared<ov::OpExtension<ov::intel_cpu::NgramNode>>(),
+    std::make_shared<ov::OpExtension<ov::intel_cpu::ReadValueWithSubgraph>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::GatherCompressed>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::NonMaxSuppressionIEInternal>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::MulticlassNmsIEInternal>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::AUGRUCell>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::AUGRUSequence>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::RMS>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::RoPE>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::FullyConnected>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedCompressed>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantizedLegacy>>(),
+    std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantized>>(),
+    // clang-format off
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::QKVProjectionNode>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::ScaledDotProductAttentionWithKVCache>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertSaturation>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertTruncation>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertSaturation>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertTruncation>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCPU>>())
+    OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCopyB>>())
+    OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCPU>>())
+    OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCopyB>>())
+    // clang-format on
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v14::AvgPool>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::Clamp>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::Concat>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Convolution>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::ConvolutionBackpropData>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::DepthToSpace>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Equal>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::FakeQuantize>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Greater>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::GreaterEqual>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::GroupConvolution>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::GroupConvolutionBackpropData>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::Interpolate>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v4::Interpolate>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Less>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::LessEqual>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::LogicalAnd>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::LogicalNot>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::LogicalOr>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::LogicalXor>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::MatMul>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::MaxPool>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Multiply>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::NormalizeL2>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::NotEqual>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::PRelu>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::Relu>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::ReduceMax>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::ReduceLogicalAnd>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::ReduceLogicalOr>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::ReduceMean>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::ReduceMin>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::ReduceSum>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Reshape>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Select>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::ShapeOf>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::ShuffleChannels>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::Squeeze>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v1::Subtract>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::Unsqueeze>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v0::MVN>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v6::MVN>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Brgemm>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastLoad>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastMove>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::ConvertSaturation>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::ConvertTruncation>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Fill>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::HorizonMax>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::HorizonSum>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::KernelStatic>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::KernelDynamic>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Load>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::LoadReorder>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::LoopBegin>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::LoopEnd>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Buffer>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Nop>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::PowerStatic>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Scalar>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Store>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Subgraph>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::VectorBuffer>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::RankNormalization>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::ReduceMax>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::ReduceSum>>(),
+    std::make_shared<ov::OpExtension<ov::snippets::op::Reshape>>(),
+    // clang-format off
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountBegin>>())
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS(std::make_shared<ov::OpExtension<ov::snippets::op::PerfCountEnd>>())
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscBegin>>())
+    OP_EXTENSION_SNIPPETS_DEBUG_CAPS_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::PerfCountRdtscEnd>>())
+    // clang-format on
+}));

@@ -8,7 +8,7 @@
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 #include "overload/ov_infer_request/io_tensor.hpp"
 
 using namespace ov::test::behavior;
@@ -64,6 +64,7 @@ const std::vector<ov::element::Type> prcs = {
     ov::element::i32,
     ov::element::i64,
     ov::element::u1,
+    ov::element::u2,
     ov::element::u4,
     ov::element::u8,
     ov::element::u16,

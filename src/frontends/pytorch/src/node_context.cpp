@@ -6,6 +6,7 @@
 
 #include "helper_ops/internal_op.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/constant.hpp"
@@ -44,6 +45,10 @@ OutputVector NodeContext::as_constant() const {
     } else {
         auto c_outs = m_decoder->as_constant();
         FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
+        if (dtype.is<type::Tensor>() && dtype.as<type::Tensor>().element_type.is<type::Complex>()) {
+            // Add complex mark to complex constant
+            c_outs = {mark_node(std::make_shared<ComplexTypeMark>(c_outs[0], c_outs[0].get_element_type()))};
+        }
         return c_outs;
     }
 }
@@ -369,6 +374,26 @@ Any NodeContext::get_values_from_const_input(int index) const {
     FRONT_END_GENERAL_CHECK(false, "Input node with index ", index, " cannot be interpreted as constant", input_val);
 
     return 0;
+}
+
+ov::Any NodeContext::apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const {
+    if (data.is<Output<Node>>() && type_info != typeid(Output<Node>)) {
+        auto const_node = as_type_ptr<v0::Constant>(data.as<Output<Node>>().get_node_shared_ptr());
+        FRONT_END_GENERAL_CHECK(const_node, "Attribute must be const if requested as not a Node.");
+        if (type_info == typeid(bool)) {
+            bool res = const_node->cast_vector<bool>()[0];
+            return res;
+        } else if (type_info == typeid(int32_t)) {
+            int32_t res = const_node->cast_vector<int32_t>()[0];
+            return res;
+        } else {
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Could not decode attribute for ",
+                                    get_name(),
+                                    " node. Provided type is not known.");
+        }
+    }
+    return data;
 }
 
 }  // namespace pytorch

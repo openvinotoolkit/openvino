@@ -5,15 +5,19 @@
 #pragma once
 
 #include <cstddef>
+#include <initializer_list>
+#include <iterator>
+#include <ostream>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "cpu_types.h"
-#include "openvino/core/attribute_adapter.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
-#include "shape_infer_type_utils.hpp"
 #include "static_dimension.hpp"
 
 namespace ov {
@@ -33,8 +37,8 @@ using StaticShape = StaticShapeAdapter<VectorDims>;
 
 template <class T>
 constexpr bool is_static_shape_adapter() {
-    using U = typename std::decay<T>::type;
-    return std::is_same<U, StaticShapeRef>::value || std::is_same<U, StaticShape>::value;
+    using U = std::decay_t<T>;
+    return std::is_same_v<U, StaticShapeRef> || std::is_same_v<U, StaticShape>;
 }
 
 /**
@@ -54,9 +58,9 @@ public:
     using iterator = typename TDims::iterator;
     using const_iterator = typename TDims::const_iterator;
 
-    static_assert(std::is_same<dim_type, typename StaticDimension::value_type>::value,
+    static_assert(std::is_same_v<dim_type, typename StaticDimension::value_type>,
                   "Static dimension must be of the same type as the CPU dimension.");
-    static_assert(std::is_standard_layout<StaticDimension>::value,
+    static_assert(std::is_standard_layout_v<StaticDimension>,
                   "StaticShape must be standard layout to cast on CPU dimension type.");
     static_assert(sizeof(dim_type) == sizeof(StaticDimension),
                   "StaticDimension must have the same number of bytes as the CPU dimension type.");
@@ -68,7 +72,7 @@ public:
     StaticShapeAdapter(std::vector<value_type> dims) noexcept : m_dims(dims.begin(), dims.end()) {}
 
     StaticShapeAdapter(const StaticShape& other);
-    StaticShapeAdapter(const ov::PartialShape&);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     const TDims& operator*() const& noexcept {
         return m_dims;
@@ -100,24 +104,24 @@ public:
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(const T& other) const {
+    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(const T& other) const {
+    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> same_scheme(const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
 
-    ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
-    ov::Shape to_shape() const;
-    ov::Shape get_max_shape() const;
-    ov::Shape get_min_shape() const;
-    ov::Shape get_shape() const;
-    ov::PartialShape to_partial_shape() const;
+    [[nodiscard]] ov::Rank rank() const;
+    [[nodiscard]] bool merge_rank(const ov::Rank& r) const;
+    [[nodiscard]] ov::Shape to_shape() const;
+    [[nodiscard]] ov::Shape get_max_shape() const;
+    [[nodiscard]] ov::Shape get_min_shape() const;
+    [[nodiscard]] ov::Shape get_shape() const;
+    [[nodiscard]] ov::PartialShape to_partial_shape() const;
 
     static bool merge_into(StaticShapeAdapter& dst, const StaticShapeAdapter& src);
     static bool broadcast_merge_into(StaticShapeAdapter& dst,
@@ -125,11 +129,11 @@ public:
                                      const ov::op::AutoBroadcastSpec& autob);
 
     //-- Container functions
-    const_iterator cbegin() const noexcept {
+    [[nodiscard]] const_iterator cbegin() const noexcept {
         return m_dims.cbegin();
     }
 
-    const_iterator begin() const noexcept {
+    [[nodiscard]] const_iterator begin() const noexcept {
         return cbegin();
     }
 
@@ -137,11 +141,11 @@ public:
         return m_dims.begin();
     }
 
-    const_iterator cend() const noexcept {
+    [[nodiscard]] const_iterator cend() const noexcept {
         return m_dims.cend();
     }
 
-    const_iterator end() const noexcept {
+    [[nodiscard]] const_iterator end() const noexcept {
         return cend();
     }
 
@@ -149,11 +153,11 @@ public:
         return m_dims.end();
     }
 
-    size_t size() const {
+    [[nodiscard]] size_t size() const {
         return m_dims.size();
     }
 
-    bool empty() const {
+    [[nodiscard]] bool empty() const {
         return m_dims.empty();
     }
 
@@ -212,19 +216,19 @@ public:
     using iterator = typename TDims::const_iterator;
     using const_iterator = typename TDims::const_iterator;
 
-    static_assert(std::is_same<dim_type, typename StaticDimension::value_type>::value,
+    static_assert(std::is_same_v<dim_type, typename StaticDimension::value_type>,
                   "Static dimension must be of the same type as the CPU dimension.");
-    static_assert(std::is_standard_layout<StaticDimension>::value,
+    static_assert(std::is_standard_layout_v<StaticDimension>,
                   "StaticShape must be standard layout to cast on CPU dimension type.");
     static_assert(sizeof(dim_type) == sizeof(StaticDimension),
                   "StaticDimension must have the same number of bytes as the CPU dimension type.");
 
-    constexpr StaticShapeAdapter() : m_dims{} {}
+    constexpr StaticShapeAdapter() = default;
     constexpr StaticShapeAdapter(const TDims& dims) : m_dims{&dims} {}
-    constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) : m_dims{other.m_dims} {}
+    constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) = default;
 
     StaticShapeAdapter(const StaticShape& shape);
-    StaticShapeAdapter(const ov::PartialShape&);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     operator StaticShape() const {
         return m_dims ? StaticShape(*m_dims) : StaticShape();
@@ -248,47 +252,47 @@ public:
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type compatible(const T& other) const {
+    [[nodiscard]] constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
 
     template <class T>
-    constexpr typename std::enable_if<is_static_shape_adapter<T>(), bool>::type same_scheme(const T& other) const {
+    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> same_scheme(const T& other) const {
         // for static shape same_scheme == compatible;
         return compatible(other);
     }
 
-    ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r);
-    ov::Shape to_shape() const;
-    ov::Shape get_max_shape() const;
-    ov::Shape get_min_shape() const;
-    ov::Shape get_shape() const;
-    ov::PartialShape to_partial_shape() const;
+    [[nodiscard]] ov::Rank rank() const;
+    [[nodiscard]] bool merge_rank(const ov::Rank& r) const;
+    [[nodiscard]] ov::Shape to_shape() const;
+    [[nodiscard]] ov::Shape get_max_shape() const;
+    [[nodiscard]] ov::Shape get_min_shape() const;
+    [[nodiscard]] ov::Shape get_shape() const;
+    [[nodiscard]] ov::PartialShape to_partial_shape() const;
 
     //-- Container functions
-    const_iterator cbegin() const noexcept {
+    [[nodiscard]] const_iterator cbegin() const noexcept {
         return m_dims ? m_dims->cbegin() : const_iterator{};
     }
 
-    const_iterator begin() const noexcept {
+    [[nodiscard]] const_iterator begin() const noexcept {
         return cbegin();
     }
 
-    const_iterator cend() const noexcept {
+    [[nodiscard]] const_iterator cend() const noexcept {
         return m_dims ? m_dims->cend() : const_iterator{};
     }
 
-    const_iterator end() const noexcept {
+    [[nodiscard]] const_iterator end() const noexcept {
         return cend();
     }
 
-    size_t size() const noexcept {
+    [[nodiscard]] size_t size() const noexcept {
         return m_dims ? m_dims->size() : 0;
     }
 
-    bool empty() const {
+    [[nodiscard]] bool empty() const {
         return m_dims ? m_dims->empty() : true;
     }
 
@@ -297,8 +301,7 @@ private:
 };
 
 template <class T>
-typename std::enable_if<is_static_shape_adapter<T>(), std::ostream&>::type operator<<(std::ostream& out,
-                                                                                      const T& shape) {
+std::enable_if_t<is_static_shape_adapter<T>(), std::ostream&> operator<<(std::ostream& out, const T& shape) {
     out << '{';
     if (!shape.empty()) {
         std::copy(shape.cbegin(), shape.cend() - 1, std::ostream_iterator<StaticDimension>(out, ","));
@@ -309,7 +312,7 @@ typename std::enable_if<is_static_shape_adapter<T>(), std::ostream&>::type opera
 }
 
 template <class T, class U>
-constexpr typename std::enable_if<is_static_shape_adapter<T>() && is_static_shape_adapter<U>(), bool>::type operator==(
+constexpr std::enable_if_t<is_static_shape_adapter<T>() && is_static_shape_adapter<U>(), bool> operator==(
     const T& lhs,
     const U& rhs) {
     // The CPU dimension type and StaticDimension::value_type is same,

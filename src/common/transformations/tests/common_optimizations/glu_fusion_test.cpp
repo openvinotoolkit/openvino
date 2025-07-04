@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, GLUFusionTest1) {
         auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
     }
     {
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, GLUFusionTest1) {
                                                               0,
                                                               ov::element::f16);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{swiglu}, ov::ParameterVector{input});
     }
 }
 
@@ -60,7 +60,7 @@ TEST_F(TransformationTestsF, GLUFusionTest2) {
         auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
     }
 }
@@ -74,7 +74,7 @@ TEST_F(TransformationTestsF, GLUFusionTest3) {
         auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(1));
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
     }
     {
@@ -88,7 +88,7 @@ TEST_F(TransformationTestsF, GLUFusionTest3) {
                                                               0,
                                                               ov::element::f16);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{swiglu}, ov::ParameterVector{input});
     }
 }
 
@@ -101,7 +101,7 @@ TEST_F(TransformationTestsF, GLUFusionTest3ReverseOrder) {
         auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
         auto mul = std::make_shared<ov::op::v1::Multiply>(variadic_split->output(1), swish);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
     }
     {
@@ -115,7 +115,7 @@ TEST_F(TransformationTestsF, GLUFusionTest3ReverseOrder) {
                                                               0,
                                                               ov::element::f16);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{swiglu}, ov::ParameterVector{input});
     }
 }
 
@@ -128,7 +128,7 @@ TEST_F(TransformationTestsF, GLUFusionTest4) {
         auto swish = std::make_shared<ov::op::v4::Swish>(variadic_split->output(0));
         auto mul = std::make_shared<ov::op::v1::Multiply>(swish, variadic_split->output(0));
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
     }
 }
@@ -142,7 +142,7 @@ TEST_F(TransformationTestsF, GeGLUFusionTest1) {
         auto gelu = std::make_shared<ov::op::v7::Gelu>(variadic_split->output(1));
         auto mul = std::make_shared<ov::op::v1::Multiply>(variadic_split->output(0), gelu);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{mul}, ov::ParameterVector{input});
+        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
         manager.register_pass<GLUFusion>();
     }
     {
@@ -156,6 +156,6 @@ TEST_F(TransformationTestsF, GeGLUFusionTest1) {
                                                               1,
                                                               ov::element::f16);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{swiglu}, ov::ParameterVector{input});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{swiglu}, ov::ParameterVector{input});
     }
 }

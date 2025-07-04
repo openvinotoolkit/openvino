@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <type_traits>
 #include <vector>
 
+#include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 
@@ -24,7 +26,8 @@ const std::vector<ExecutorImplementation<Attrs>>& getImplementations() {
 // FullyConnected
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations();
-
-// ...
+// Convolution
+template <>
+const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations();
 
 }  // namespace ov::intel_cpu

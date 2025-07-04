@@ -4,6 +4,7 @@
 
 #include "u4_block_repack.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -185,7 +186,7 @@ U4ConvertReshape::U4ConvertReshape() {
             }
 
             NodeVector pattern_nodes;
-            for (auto const& iout : pattern_to_output)
+            for (const auto& iout : pattern_to_output)
                 pattern_nodes.push_back(std::move(iout.first));
 
             copy_runtime_info(pattern_nodes, new_const);

@@ -71,7 +71,7 @@ private:
         } else {
             gatherND = std::make_shared<op::v5::GatherND>(data, indices, params.batchDims);
         }
-        function = std::make_shared<ov::Model>(NodeVector{gatherND}, ParameterVector{data, indices});
+        function = std::make_shared<ov::Model>(OutputVector{gatherND}, ParameterVector{data, indices});
         return function;
     }
 };
@@ -89,6 +89,11 @@ std::vector<GatherNDParams> generateParams() {
                        0,
                        reference_tests::Tensor(IN_ET, {}, std::vector<T>{15}),
                        "gather_nd_single_indices"),
+        GatherNDParams(reference_tests::Tensor(IN_ET, {3, 3}, std::vector<T>{10, 11, 12, 13, 14, 15, 16, 17, 18}),
+                       reference_tests::Tensor(element::i32, {2}, std::vector<int32_t>{-2, -1}),
+                       0,
+                       reference_tests::Tensor(IN_ET, {}, std::vector<T>{15}),
+                       "gather_nd_single_negative_indices"),
         GatherNDParams(reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
                        reference_tests::Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 0, 1, 1}),
                        0,
@@ -247,7 +252,7 @@ private:
         } else {
             gatherND = std::make_shared<op::v8::GatherND>(data, indices, params.batchDims);
         }
-        function = std::make_shared<ov::Model>(NodeVector{gatherND}, ParameterVector{data, indices});
+        function = std::make_shared<ov::Model>(OutputVector{gatherND}, ParameterVector{data, indices});
         return function;
     }
 };
@@ -300,6 +305,11 @@ std::vector<GatherNDParams> generateParams_v8() {
                        0,
                        reference_tests::Tensor(IN_ET, {2, 1, 2}, std::vector<T>{12, 13, 10, 11}),
                        "gather_nd_8_batch_1d_from_2d"),
+        GatherNDParams(reference_tests::Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
+                       reference_tests::Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{-1, -2}),
+                       0,
+                       reference_tests::Tensor(IN_ET, {2, 1, 2}, std::vector<T>{12, 13, 10, 11}),
+                       "gather_nd_8_batch_1d_from_2d_negative"),
         GatherNDParams(
             reference_tests::Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
             reference_tests::Tensor(element::i32, {2, 2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0}),

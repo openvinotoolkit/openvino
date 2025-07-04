@@ -11,6 +11,7 @@
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
 #include "node/include/type_validation.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
@@ -92,6 +93,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
         } else {
             OPENVINO_THROW("'readModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
+        ov::util::set_tensors_names(ov::AUTO, *model);
 
         return cpp_to_js(info.Env(), model);
     } catch (std::runtime_error& err) {
@@ -194,12 +196,7 @@ void compileModelThreadModel(TsfnContextModel* context) {
     context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextModel* context) {
-        Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::get_class(env).New({});
-        auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
-        cm->set_compiled_model(context->_compiled_model);
-
-        context->deferred.Resolve(obj);
+        context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
     };
 
     context->tsfn.BlockingCall(context, callback);
@@ -211,12 +208,7 @@ void compileModelThreadPath(TsfnContextPath* context) {
     context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
 
     auto callback = [](Napi::Env env, Napi::Function, TsfnContextPath* context) {
-        Napi::HandleScope scope(env);
-        auto obj = CompiledModelWrap::get_class(env).New({});
-        auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
-        cm->set_compiled_model(context->_compiled_model);
-
-        context->deferred.Resolve(obj);
+        context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
     };
 
     context->tsfn.BlockingCall(context, callback);

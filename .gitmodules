@@ -89,4 +89,7 @@
 	url = https://github.com/openvinotoolkit/shl.git
 [submodule "src/plugins/intel_cpu/thirdparty/kleidiai"]
 	path = src/plugins/intel_cpu/thirdparty/kleidiai
-	url = https://git.gitlab.arm.com/kleidi/kleidiai.git
+	url = https://github.com/ARM-software/kleidiai.git
+[submodule "src/plugins/intel_cpu/thirdparty/xbyak_riscv"]
+	path = src/plugins/intel_cpu/thirdparty/xbyak_riscv
+	url = https://github.com/herumi/xbyak_riscv.git

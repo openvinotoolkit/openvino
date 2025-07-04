@@ -15,12 +15,18 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
+#if defined(_WIN32)
+#    include <windows.h>
+#endif
+
 using namespace testing;
 using Device = std::string;
 using Config = ov::AnyMap;
 using CpuReservationTest = ::testing::Test;
 
-TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
+#if !(defined(__arm__) || defined(__APPLE__) || defined(__EMSCRIPTEN__))
+
+TEST_F(CpuReservationTest, smoke_Mutiple_CompiledModel_Reservation) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -56,7 +62,7 @@ TEST_F(CpuReservationTest, Mutiple_CompiledModel_Reservation) {
     }
 }
 
-TEST_F(CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
+TEST_F(CpuReservationTest, smoke_Cpu_Reservation_NoAvailableCores) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -72,8 +78,23 @@ TEST_F(CpuReservationTest, Cpu_Reservation_NoAvailableCores) {
     EXPECT_THROW(core->compile_model(models[0], target_device, property_config), ov::Exception);
 }
 
-#if defined(__linux__)
-TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
+TEST_F(CpuReservationTest, smoke_Cpu_Reservation_CpuPinning) {
+    std::vector<std::shared_ptr<ov::Model>> models;
+    Config config = {ov::enable_profiling(true)};
+    Device target_device(ov::test::utils::DEVICE_CPU);
+    models.emplace_back(ov::test::utils::make_2_input_subtract());
+    bool cpu_pinning = true;
+
+    std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
+    core->set_property(target_device, config);
+    ov::AnyMap property_config = {{ov::inference_num_threads.name(), 1},
+                                  {ov::hint::enable_cpu_reservation.name(), true}};
+    auto compiled_model = core->compile_model(models[0], target_device, property_config);
+    auto res_cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning.name());
+    ASSERT_EQ(res_cpu_pinning, cpu_pinning);
+}
+
+TEST_F(CpuReservationTest, smoke_Cpu_Reservation_CompiledModel_Release) {
     std::vector<std::shared_ptr<ov::Model>> models;
     Config config = {ov::enable_profiling(true)};
     Device target_device(ov::test::utils::DEVICE_CPU);
@@ -81,10 +102,19 @@ TEST_F(CpuReservationTest, Cpu_Reservation_CpuPinning) {
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
     core->set_property(target_device, config);
-    ov::AnyMap property_config = {{ov::inference_num_threads.name(), 1},
+    ov::AnyMap property_config = {{ov::num_streams.name(), 2000},
+                                  {ov::inference_num_threads.name(), 2000},
+                                  {ov::hint::enable_hyper_threading.name(), true},
                                   {ov::hint::enable_cpu_reservation.name(), true}};
-    auto compiled_model = core->compile_model(models[0], target_device, property_config);
-    auto cpu_pinning = compiled_model.get_property(ov::hint::enable_cpu_pinning.name());
-    ASSERT_EQ(cpu_pinning, true);
+    {
+        auto compiled_model = core->compile_model(models[0], target_device, property_config);
+        EXPECT_THROW(core->compile_model(models[0], target_device, property_config), ov::Exception);
+    }
+
+    ov::AnyMap reserve_1_config = {{ov::num_streams.name(), 1},
+                                  {ov::inference_num_threads.name(), 1},
+                                  {ov::hint::enable_cpu_reservation.name(), true}};
+    EXPECT_NO_THROW(core->compile_model(models[0], target_device, reserve_1_config));
 }
+
 #endif

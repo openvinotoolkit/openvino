@@ -6,19 +6,41 @@
 
 #include <algorithm>
 #include <cmath>
+#include <common/float16.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
 #include <memory>
-#include <openvino/opsets/opset2.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/roi_pooling.hpp"
 #include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -45,9 +67,9 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     };
 
     void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, jpp_.src_prc, ov::element::f32, step));
-        store_emitter.reset(new jit_store_emitter(this, isa, ov::element::f32, jpp_.dst_prc, step));
-        store_empty_roi_emitter.reset(new jit_store_emitter(this, isa, jpp_.src_prc, jpp_.dst_prc, step));
+        load_emitter = std::make_unique<jit_load_emitter>(this, isa, jpp_.src_prc, ov::element::f32, step);
+        store_emitter = std::make_unique<jit_store_emitter>(this, isa, ov::element::f32, jpp_.dst_prc, step);
+        store_empty_roi_emitter = std::make_unique<jit_store_emitter>(this, isa, jpp_.src_prc, jpp_.dst_prc, step);
 
         this->preamble();
 
@@ -342,13 +364,12 @@ namespace {
 struct RoiPoolingKey {
     jit_roi_pooling_params refParams;
 
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const RoiPoolingKey& rhs) const;
 };
 
 size_t RoiPoolingKey::hash() const {
     using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
 
     size_t seed = 0;
 
@@ -385,9 +406,9 @@ bool jit_roi_pooling_params::operator==(const jit_roi_pooling_params& rhs) const
 
 bool ROIPooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
+        auto roiPooling = ov::as_type_ptr<const ov::op::v0::ROIPooling>(op);
         if (!roiPooling) {
-            errorMessage = "Only opset2 ROIPooling operation is supported";
+            errorMessage = "Only v0 ROIPooling operation is supported";
             return false;
         }
         const std::string mode = roiPooling->get_method();
@@ -408,7 +429,7 @@ ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto roiPooling = ov::as_type_ptr<const ov::opset2::ROIPooling>(op);
+    auto roiPooling = ov::as_type_ptr<const ov::op::v0::ROIPooling>(op);
     refParams.pooled_h = roiPooling->get_output_roi()[0];
     refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();
@@ -452,16 +473,18 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     }
 
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     refParams.src_prc = getOriginalInputPrecisionAtPort(0);
 
@@ -481,7 +504,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 }
 
 void ROIPooling::createPrimitive() {
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
     }
@@ -503,7 +526,7 @@ void ROIPooling::createPrimitive() {
     }
 }
 
-void ROIPooling::execute(const dnnl::stream& strm) {
+void ROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (execPtr) {
         const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
         const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
@@ -561,11 +584,11 @@ public:
     ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
         } else if (mayiuse(cpu::x64::avx2)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>>(jpp);
         } else if (mayiuse(cpu::x64::sse41)) {
-            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
+            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>>(jpp);
         } else {
             OPENVINO_THROW("Can't create jit RoiPooling kernel");
         }
@@ -606,7 +629,7 @@ private:
             size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
-            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
             }
@@ -626,25 +649,24 @@ private:
                 size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
-                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
-                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
-                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
-                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
-                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+                    auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    auto roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart, hend, wstart, wend;
-                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
-                                                                                roi_end_h,
-                                                                                roi_start_w,
-                                                                                roi_end_w,
-                                                                                jpp.ih,
-                                                                                oh,
-                                                                                jpp.iw,
-                                                                                ow,
-                                                                                jpp.pooled_h,
-                                                                                jpp.pooled_w);
+                    auto [hstart, hend, wstart, wend] = getBordersForMaxMode(roi_start_h,
+                                                                             roi_end_h,
+                                                                             roi_start_w,
+                                                                             roi_end_w,
+                                                                             jpp.ih,
+                                                                             oh,
+                                                                             jpp.iw,
+                                                                             ow,
+                                                                             jpp.pooled_h,
+                                                                             jpp.pooled_w);
 
                     arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] + hstart * src_strides[2] +
                                         wstart * src_strides[3]];
@@ -660,27 +682,26 @@ private:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x, in_y;
-                    std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
-                                                                roi_end_h_,
-                                                                roi_start_w_,
-                                                                roi_end_w_,
-                                                                jpp.ih,
-                                                                oh,
-                                                                jpp.iw,
-                                                                ow,
-                                                                jpp.pooled_h,
-                                                                jpp.pooled_w);
+                    auto [in_x, in_y] = getXYForBilinearMode(roi_start_h_,
+                                                             roi_end_h_,
+                                                             roi_start_w_,
+                                                             roi_end_w_,
+                                                             jpp.ih,
+                                                             oh,
+                                                             jpp.iw,
+                                                             ow,
+                                                             jpp.pooled_h,
+                                                             jpp.pooled_w);
 
                     if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                         arg.bin_area = 0;
                         arg.dst =
                             &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
                     } else {
-                        int top_y_index = static_cast<int>(floorf(in_y));
-                        int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index = static_cast<int>(floorf(in_x));
-                        int right_x_index = static_cast<int>(ceilf(in_x));
+                        auto top_y_index = static_cast<int>(floorf(in_y));
+                        auto bottom_y_index = static_cast<int>(ceilf(in_y));
+                        auto left_x_index = static_cast<int>(floorf(in_x));
+                        auto right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;
@@ -742,7 +763,7 @@ public:
             size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
-            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
             if (roi_batch_ind == -1) {
                 break;
             }
@@ -767,25 +788,24 @@ public:
                 size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
-                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+                auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
 
                 if (jpp.alg == Algorithm::ROIPoolingMax) {
-                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
-                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
-                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
-                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+                    auto roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    auto roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    auto roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    auto roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
 
-                    int hstart, hend, wstart, wend;
-                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(roi_start_h,
-                                                                                roi_end_h,
-                                                                                roi_start_w,
-                                                                                roi_end_w,
-                                                                                jpp.ih,
-                                                                                oh,
-                                                                                jpp.iw,
-                                                                                ow,
-                                                                                jpp.pooled_h,
-                                                                                jpp.pooled_w);
+                    auto [hstart, hend, wstart, wend] = getBordersForMaxMode(roi_start_h,
+                                                                             roi_end_h,
+                                                                             roi_start_w,
+                                                                             roi_end_w,
+                                                                             jpp.ih,
+                                                                             oh,
+                                                                             jpp.iw,
+                                                                             ow,
+                                                                             jpp.pooled_h,
+                                                                             jpp.pooled_w);
 
                     for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
                         int ch_blk_cur = cbb * cb_num + cbb_cur;
@@ -818,17 +838,16 @@ public:
                     float roi_end_w_ = src_roi_ptr[3];
                     float roi_end_h_ = src_roi_ptr[4];
 
-                    float in_x, in_y;
-                    std::tie(in_x, in_y) = getXYForBilinearMode(roi_start_h_,
-                                                                roi_end_h_,
-                                                                roi_start_w_,
-                                                                roi_end_w_,
-                                                                jpp.ih,
-                                                                oh,
-                                                                jpp.iw,
-                                                                ow,
-                                                                jpp.pooled_h,
-                                                                jpp.pooled_w);
+                    auto [in_x, in_y] = getXYForBilinearMode(roi_start_h_,
+                                                             roi_end_h_,
+                                                             roi_start_w_,
+                                                             roi_end_w_,
+                                                             jpp.ih,
+                                                             oh,
+                                                             jpp.iw,
+                                                             ow,
+                                                             jpp.pooled_h,
+                                                             jpp.pooled_w);
 
                     if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                         for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
@@ -842,10 +861,10 @@ public:
                             }
                         }
                     } else {
-                        int top_y_index = static_cast<int>(floorf(in_y));
-                        int bottom_y_index = static_cast<int>(ceilf(in_y));
-                        int left_x_index = static_cast<int>(floorf(in_x));
-                        int right_x_index = static_cast<int>(ceilf(in_x));
+                        auto top_y_index = static_cast<int>(floorf(in_y));
+                        auto bottom_y_index = static_cast<int>(ceilf(in_y));
+                        auto left_x_index = static_cast<int>(floorf(in_x));
+                        auto right_x_index = static_cast<int>(ceilf(in_x));
 
                         if (right_x_index > jpp.iw - 1) {
                             right_x_index = jpp.iw - 1;
@@ -959,7 +978,8 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
     float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
     float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
 
-    float in_y, in_x;
+    float in_y = NAN;
+    float in_x = NAN;
     // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
     // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
     // and as result excess of right limit for proposal value,

@@ -4,18 +4,29 @@
 
 #include "reorg_yolo.h"
 
-#include <openvino/opsets/opset2.hpp>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 
-#include "openvino/core/parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/reorg_yolo.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
+        const auto reorgYolo = ov::as_type_ptr<const ov::op::v0::ReorgYolo>(op);
         if (!reorgYolo) {
-            errorMessage = "Only opset2 ReorgYolo operation is supported";
+            errorMessage = "Only v0 ReorgYolo operation is supported";
             return false;
         }
     } catch (...) {
@@ -35,7 +46,7 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
     }
 
-    const auto reorgYolo = ov::as_type_ptr<const ov::opset2::ReorgYolo>(op);
+    const auto reorgYolo = ov::as_type_ptr<const ov::op::v0::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
     if (strides.empty()) {
         THROW_CPU_NODE_ERR("has empty strides");
@@ -57,7 +68,7 @@ void ReorgYolo::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void ReorgYolo::execute(const dnnl::stream& strm) {
+void ReorgYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* src_data = getSrcDataAtPortAs<const float>(0);
     auto* dst_data = getDstDataAtPortAs<float>(0);
 
@@ -65,7 +76,7 @@ void ReorgYolo::execute(const dnnl::stream& strm) {
     int IW = (inDims.size() > 3) ? inDims[3] : 1;
     int IH = (inDims.size() > 2) ? inDims[2] : 1;
     int IC = (inDims.size() > 1) ? inDims[1] : 1;
-    int B = (inDims.size() > 0) ? inDims[0] : 1;
+    int B = (!inDims.empty()) ? inDims[0] : 1;
 
     int ic_off = IC / (stride * stride);
     int ih_off = IH * stride;

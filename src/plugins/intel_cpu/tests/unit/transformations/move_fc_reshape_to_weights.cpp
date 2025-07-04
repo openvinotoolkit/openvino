@@ -10,17 +10,21 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1_decl.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace testing;
 using namespace ov::intel_cpu;
 
-enum class ZeroPointType { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
+enum class ZeroPointType : uint8_t { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
     switch (type) {
         case ZeroPointType::NO_ZP:
@@ -38,7 +42,7 @@ inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
     return os;
 }
 
-enum class ZeroPointShape { SCALAR, PER_CHANNEL };
+enum class ZeroPointShape : uint8_t { SCALAR, PER_CHANNEL };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointShape type) {
     switch (type) {
         case ZeroPointShape::SCALAR:
@@ -121,7 +125,7 @@ public:
             weights_path,
             std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0}));
 
-        return std::make_shared<ov::Model>(ov::NodeVector{fully_connected}, ov::ParameterVector{data});
+        return std::make_shared<ov::Model>(ov::OutputVector{fully_connected}, ov::ParameterVector{data});
     }
 
 protected:

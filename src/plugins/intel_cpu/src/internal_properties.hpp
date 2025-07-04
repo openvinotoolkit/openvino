@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include <cstdint>
+#include <istream>
+#include <ostream>
+#include <string>
+
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
@@ -18,7 +23,7 @@ static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_cap
 /**
  * @brief Enum to define possible snippets mode hints.
  */
-enum class SnippetsMode {
+enum class SnippetsMode : uint8_t {
     ENABLE = 0,           //!<  Enable
     IGNORE_CALLBACK = 1,  //!<  Ignore callback
     DISABLE = 2,          //!<  Disable
@@ -61,5 +66,60 @@ inline std::istream& operator>>(std::istream& is, SnippetsMode& mode) {
  * @param DISABLE - turn off the Snippets
  */
 static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"SNIPPETS_MODE"};
+
+/**
+ * @brief Enum to define possible cache quant schema hints.
+ */
+enum class CacheQuantMode : uint8_t {
+    AUTO,
+    BY_CHANNEL,
+    BY_HIDDEN,
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CacheQuantMode& mode) {
+    switch (mode) {
+    case CacheQuantMode::AUTO:
+        return os << "AUTO";
+    case CacheQuantMode::BY_CHANNEL:
+        return os << "BY_CHANNEL";
+    case CacheQuantMode::BY_HIDDEN:
+        return os << "BY_HIDDEN";
+    default:
+        OPENVINO_THROW("Unsupported snippets mode value");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        mode = CacheQuantMode::AUTO;
+    } else if (str == "BY_CHANNEL") {
+        mode = CacheQuantMode::BY_CHANNEL;
+    } else if (str == "BY_HIDDEN") {
+        mode = CacheQuantMode::BY_HIDDEN;
+    } else {
+        OPENVINO_THROW("Unsupported cache quant mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Define cache quant mode.
+ * @param AUTO - default mode by primitive
+ * @param BY_CHANNEL - quant by channel
+ * @param BY_HIDDEN - quant by hidden
+ */
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Define cache quant mode.
+ * @param AUTO - default mode by primitive
+ * @param BY_CHANNEL - quant by channel
+ * @param BY_HIDDEN - quant by hidden
+ */
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
 
 }  // namespace ov::intel_cpu

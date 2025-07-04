@@ -63,7 +63,8 @@ public:
         return m_attrs;
     }
 
-    void set_attrs(Attributes attrs);
+    void set_attrs(Attributes&& attrs);
+    void set_attrs(const Attributes& attrs);
 
 private:
     Attributes m_attrs;
@@ -108,9 +109,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
-
-private:
-    bool evaluate_interpolate(TensorVector& outputs, const TensorVector& inputs) const;
 };
 }  // namespace v4
 
@@ -143,9 +141,8 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    bool has_evaluate() const override {
-        return false;
-    }
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
 };
 }  // namespace v11
 }  // namespace op
@@ -162,5 +159,6 @@ public:
         : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
+    ~AttributeAdapter() override;
 };
 }  // namespace ov

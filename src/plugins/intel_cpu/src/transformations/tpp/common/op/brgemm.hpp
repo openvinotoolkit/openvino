@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
 #include "modifiers.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/op/brgemm.hpp"
 
 namespace ov::intel_cpu::tpp::op {
@@ -39,11 +48,11 @@ public:
               float beta = 1);
     BrgemmTPP() = default;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    [[nodiscard]] std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    float get_beta() const {
+    [[nodiscard]] float get_beta() const {
         return m_beta;
     }
     void set_beta(float beta) {

@@ -4,7 +4,15 @@
 
 #include "ref_convert.hpp"
 
+#include <cassert>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/executors/convert.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -13,9 +21,9 @@ bool CommonConvertExecutor::isSupported(ov::element::Type srcPrc, ov::element::T
 }
 
 bool CommonConvertExecutor::init(const ConvertParams& convertParams,
-                                 const MemoryDescPtr& srcDesc,
-                                 const MemoryDescPtr& dstDesc,
-                                 const dnnl::primitive_attr& attr) {
+                                 [[maybe_unused]] const MemoryDescPtr& srcDesc,
+                                 [[maybe_unused]] const MemoryDescPtr& dstDesc,
+                                 [[maybe_unused]] const dnnl::primitive_attr& attr) {
     commonConvertParams = convertParams;
     return true;
 }

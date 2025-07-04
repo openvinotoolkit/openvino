@@ -100,7 +100,7 @@ protected:
         auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(convert_0, convert_1, matmul1_tran_0, matmul1_tran_1);
 
         ov::ParameterVector params{input0};
-        return std::make_shared<ov::Model>(ov::NodeVector{matmul_1}, params, "MatmulConversionsSameParent");
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_1}, params, "MatmulConversionsSameParent");
     }
 
     void SetUp() override {
@@ -248,7 +248,7 @@ protected:
         auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(convert_0, convert_1, matmul1_tran_0, matmul1_tran_1);
         auto matmul_0 = std::make_shared<ov::op::v0::MatMul>(convert_2, convert_0, matmul0_tran_0, matmul0_tran_1);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{matmul_1}, ov::ParameterVector{input0, input1}, "MatmulConversions");
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_1}, ov::ParameterVector{input0, input1}, "MatmulConversions");
     }
 
     void SetUp() override {
@@ -343,7 +343,7 @@ protected:
         auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(convert_1, convert_0, matmul1_tran_0, matmul1_tran_1);
         auto matmul_0 = std::make_shared<ov::op::v0::MatMul>(convert_2, convert_0, matmul0_tran_0, matmul0_tran_1);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{matmul_1}, ov::ParameterVector{input0, input1}, "MatmulConversionsOtherTypeSibling");
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_1}, ov::ParameterVector{input0, input1}, "MatmulConversionsOtherTypeSibling");
     }
 
     void SetUp() override {

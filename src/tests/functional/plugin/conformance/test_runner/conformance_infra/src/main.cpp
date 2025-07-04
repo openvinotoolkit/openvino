@@ -13,7 +13,7 @@
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #include "gflag_config.hpp"
 #include "conformance.hpp"
@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
     }
 
     ov::test::utils::is_print_rel_influence_coef = true;
-    ov::test::utils::disable_tests_skipping = true;
+    ov::test::utils::disable_tests_skipping = false;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
     ov::test::utils::OpSummary::setSaveReportWithUniqueName(FLAGS_report_unique_name);

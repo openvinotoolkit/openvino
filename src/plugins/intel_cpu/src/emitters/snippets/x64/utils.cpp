@@ -4,10 +4,27 @@
 
 #include "utils.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <unordered_set>
+#include <vector>
+
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/memory_access.hpp"
+#include "snippets/utils/utils.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 
@@ -20,7 +37,7 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
     };
     const auto& ma_op = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(port.get_expr()->get_node());
     OPENVINO_ASSERT(ma_op, "Expected MemoryAccess op!");
-    size_t offset = ov::snippets::utils::get_dynamic_value<size_t>();
+    auto offset = ov::snippets::utils::get_dynamic_value<size_t>();
     size_t id = SIZE_MAX;
     switch (port.get_type()) {
     case ov::snippets::lowered::ExpressionPort::Type::Input:

@@ -29,10 +29,10 @@ struct Context {
 
     using Axes = std::vector<std::size_t>;
     std::map<PPtr, Axes> closures_to_permute;
-    void permute(PPtr orig_param, const Axes& order);
+    void permute(const PPtr& orig_param, const Axes& order);
 
     std::set<PPtr> closures_to_f16;
-    void to_f16(PPtr orig_param);
+    void to_f16(const PPtr& orig_param);
 
     using O = ov::Output<ov::Node>;
     struct DQParMM {
@@ -50,14 +50,14 @@ struct Context {
         PPtr w, z, s;
     };
     std::map<PPtr, DQUnpack> params_to_unpack;
-    PPtr unpack(PPtr w, PPtr z, PPtr s, ov::element::Type type);
-    PPtr unpack(PPtr w, PPtr s, ov::element::Type type);
+    PPtr unpack(const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
+    PPtr unpack(const PPtr& w, const PPtr& s, ov::element::Type type);
 
     struct Gather {
         PPtr pnew, pold, pids;
     };
     std::optional<Gather> params_to_gather;
-    PPtr host_gather(PPtr w, PPtr ids);
+    PPtr host_gather(const PPtr& w, const PPtr& ids);
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -66,6 +66,12 @@ class DQMatMulCWi : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulCWi");
     explicit DQMatMulCWi(Context::Ref ctx);
+};
+
+class DQMatMulCWi_Transpose : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQMatMulCWi_Transpose");
+    explicit DQMatMulCWi_Transpose(Context::Ref ctx);
 };
 
 class DQMatMulGQi : public ov::pass::MatcherPass {
@@ -120,6 +126,12 @@ public:
     DQLiftGatherSymGQ();
 };
 
+class DQLiftGatherCW : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQLiftGatherCW");
+    DQLiftGatherCW();
+};
+
 // Head vocab unpacks
 
 class DQUnpackDictGatheru : public ov::pass::MatcherPass {
@@ -152,6 +164,12 @@ class DQUnpackDictMatMulCWu : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulCWu");
     DQUnpackDictMatMulCWu(Context::Ref ctx);
+};
+
+class DQUnpackDictMatMulCWf8 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictMatMulCWf8");
+    DQUnpackDictMatMulCWf8(Context::Ref ctx);
 };
 
 class DQUnpackDictMatMulGQi : public ov::pass::MatcherPass {
@@ -197,6 +215,9 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvToMatmul");
     ConvToMatmul(Context::Ref ctx);
 };
+
+// UntangleConst
+void untangleConst(std::shared_ptr<ov::Model> model);
 
 }  // namespace opt
 }  // namespace patterns

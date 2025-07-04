@@ -17,7 +17,7 @@ ReadValue
 
 *ReadValue*, *Assign*, and *Variable* define a coherent mechanism for reading, writing,
 and storing some memory buffer between inference calls. More details can be found on the
-:doc:`StateAPI <../../../../../../openvino-workflow/running-inference/stateful-models>` documentation page.
+:doc:`StateAPI <../../../../../../openvino-workflow/running-inference/inference-request/stateful-models>` documentation page.
 
 If the 1st input is provided and this is the first inference or reset has been called,
 *ReadValue* returns the value from the 1st input.

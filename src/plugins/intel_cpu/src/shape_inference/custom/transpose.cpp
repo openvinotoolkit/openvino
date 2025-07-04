@@ -4,7 +4,18 @@
 
 #include "transpose.hpp"
 
-#include "utils.hpp"
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -15,7 +26,7 @@ TransposeShapeInfer::TransposeShapeInfer(const size_t& out_rank, const std::vect
       m_needReverse(axes_vec.empty()) {}
 
 Result TransposeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                                  [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& shapeIn = input_shapes[0].get();
     if (m_needReverse) {
         for (size_t i = 0; i < m_out_rank; ++i) {

@@ -37,3 +37,5 @@ ov::Coordinate& ov::Coordinate::operator=(Coordinate&& v) noexcept {
     static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }
+
+ov::AttributeAdapter<ov::Coordinate>::~AttributeAdapter() = default;

@@ -5,20 +5,36 @@
 #include "bucketize.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <shape_inference/shape_inference_pass_through.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/bucketize.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool Bucketize::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
+        const auto bucketsize = ov::as_type_ptr<const ov::op::v3::Bucketize>(op);
         if (!bucketsize) {
-            errorMessage = "Only opset3 Bucketize operation is supported";
+            errorMessage = "Only v3 Bucketize operation is supported";
             return false;
         }
     } catch (...) {
@@ -34,9 +50,9 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto bucketsize = ov::as_type_ptr<const ov::opset3::Bucketize>(op);
+    const auto bucketsize = ov::as_type_ptr<const ov::op::v3::Bucketize>(op);
     if (bucketsize == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of Bucketize from opset3.");
+        THROW_CPU_NODE_ERR("is not an instance of v3 Bucketize.");
     }
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
@@ -73,17 +89,17 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
-                                          ov::element::Type precision2,
-                                          ov::element::Type precision3 = ov::element::dynamic,
-                                          ov::element::Type precision4 = ov::element::dynamic) {
+constexpr uint32_t getElementsMask(ov::element::Type precision1,
+                                   ov::element::Type precision2,
+                                   ov::element::Type precision3 = ov::element::dynamic,
+                                   ov::element::Type precision4 = ov::element::dynamic) {
     return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
            (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
            (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
            (static_cast<uint32_t>(ov::element::Type_t(precision4)) << 24);
 }
 
-void Bucketize::execute(const dnnl::stream& strm) {
+void Bucketize::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto precision_mask = getElementsMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
@@ -201,7 +217,7 @@ void Bucketize::prepareParams() {
 
     // update with_bins/num_values/num_bin_values
     auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
-    if (input_tensor_dims.size() < 1) {
+    if (input_tensor_dims.empty()) {
         THROW_CPU_NODE_ERR("has incorrect dimensions of the input.");
     }
     auto input_bin_dims = inputBinsMemPtr->getStaticDims();
@@ -216,7 +232,7 @@ void Bucketize::prepareParams() {
     num_values = std::accumulate(input_tensor_dims.begin(),
                                  input_tensor_dims.end(),
                                  static_cast<size_t>(1),
-                                 std::multiplies<size_t>());
+                                 std::multiplies<>());
 }
 
 bool Bucketize::neverExecute() const {
@@ -242,10 +258,10 @@ void Bucketize::bucketize() {
     parallel_for(num_values, [&](size_t ind) {
         T value = input_data[ind];
         if (with_right) {
-            auto low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(low - boundaries_data);
         } else {
-            auto up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(up - boundaries_data);
         }
     });

@@ -5,12 +5,11 @@
 #pragma once
 
 #include <cstddef>
-#include <limits>
 #include <ostream>
-#include <stdexcept>
 
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/interval.hpp"
 
 namespace ov::intel_cpu {
 
@@ -34,7 +33,7 @@ public:
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
-    StaticDimension(const Dimension&) {
+    StaticDimension(const Dimension& /*dim*/) {
         OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
     }
 
@@ -52,18 +51,18 @@ public:
         return false;
     }
 
-    value_type get_length() const;
-    value_type get_min_length() const;
-    value_type get_max_length() const;
+    [[nodiscard]] value_type get_length() const;
+    [[nodiscard]] value_type get_min_length() const;
+    [[nodiscard]] value_type get_max_length() const;
 
-    Interval& get_interval() const {
+    [[nodiscard]] static Interval& get_interval() {
         static Interval dummy{};
         OPENVINO_THROW("[shape infer] Shoudn't call get_interval() in StaticDimension.");
         return dummy;
     }
 
-    bool same_scheme(const StaticDimension& dim) const;
-    bool compatible(const StaticDimension& d) const;
+    [[nodiscard]] bool same_scheme(const StaticDimension& dim) const;
+    [[nodiscard]] bool compatible(const StaticDimension& d) const;
     static bool merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
     static bool broadcast_merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
 
@@ -74,8 +73,8 @@ public:
     StaticDimension& operator+=(const StaticDimension& dim);
     StaticDimension& operator*=(const StaticDimension& dim);
     StaticDimension& operator&=(const StaticDimension& dim);
-    StaticDimension operator/(const value_type divisor) const;
-    StaticDimension& operator/=(const value_type divisor);
+    StaticDimension operator/(value_type divisor) const;
+    StaticDimension& operator/=(value_type divisor);
 
     /// \brief Swap of dimensions
     friend void swap(StaticDimension& a, StaticDimension& b) noexcept {

@@ -3,13 +3,7 @@
 //
 #pragma once
 
-#include <array>
 #include <cstddef>
-#include <cstdint>
-#include <vector>
-
-#include "common.hpp"
-#include "openvino/core/type/element_type.hpp"
 
 #if defined(HAVE_SVE)
 #    include "arm_sve.h"
@@ -613,6 +607,102 @@ inline void transpose_16xK_kernel(TDST* dst, TSRC* src, size_t K, size_t dst_str
     }
 }
 
+inline void transpose_8x16_kernel(float16_t* dst, float16_t* src, size_t dst_stride, size_t src_stride) {
+    // load 8 rows of 16 elements
+    // a -> a0 a1 a2 a3 a4 a5 a6 a7 a8 ...
+    // b -> b0 b1 b2 b3 b4 b5 b6 b7 b8 ...
+    // c -> c0 c1 c2 c3 c4 c5 c6 c7 c8 ...
+    // d -> d0 d1 d2 d3 d4 d5 d6 d7 d8 ...
+    // ...
+    auto a = svld1_f16(svptrue_b16(), src);
+    auto b = svld1_f16(svptrue_b16(), src + 1 * src_stride);
+    auto c = svld1_f16(svptrue_b16(), src + 2 * src_stride);
+    auto d = svld1_f16(svptrue_b16(), src + 3 * src_stride);
+    auto e = svld1_f16(svptrue_b16(), src + 4 * src_stride);
+    auto f = svld1_f16(svptrue_b16(), src + 5 * src_stride);
+    auto g = svld1_f16(svptrue_b16(), src + 6 * src_stride);
+    auto h = svld1_f16(svptrue_b16(), src + 7 * src_stride);
+
+    // a -> a0 b0 | a2 b2 | a4 b4 | a6 b6 | a8 b8 ...
+    // b -> a1 b1 | a3 b3 | a5 b5 | a7 b7 | a9 b9 ...
+    // c -> c0 d0 | c2 d2 | c4 d6 | c6 d8 | c8 d8 ...
+    // d -> c1 d1 | c3 d3 | c5 d5 | c7 d7 | c9 d9 ...
+    // ...
+
+    auto ta = svtrn1_f16(a, b);
+    auto tb = svtrn2_f16(a, b);
+    auto tc = svtrn1_f16(c, d);
+    auto td = svtrn2_f16(c, d);
+    auto te = svtrn1_f16(e, f);
+    auto tf = svtrn2_f16(e, f);
+    auto tg = svtrn1_f16(g, h);
+    auto th = svtrn2_f16(g, h);
+
+    // a -> a0 b0 c0 d0 | a4 b4 c4 d6 | a8 b8 ...
+    // b -> a2 b2 c2 d2 | a6 b6 c6 d8 | c8 d8 ...
+    // c -> a1 b1 c1 d1 | a5 b5 c5 d5 | a9 b9 ...
+    // d -> a3 b3 c3 d3 | a7 b7 c7 d7 | c9 d9 ...
+    // ...
+
+    auto a1 = svtrn1_f32(svreinterpret_f32_f16(ta), svreinterpret_f32_f16(tc));
+    auto b1 = svtrn2_f32(svreinterpret_f32_f16(ta), svreinterpret_f32_f16(tc));
+    auto c1 = svtrn1_f32(svreinterpret_f32_f16(tb), svreinterpret_f32_f16(td));
+    auto d1 = svtrn2_f32(svreinterpret_f32_f16(tb), svreinterpret_f32_f16(td));
+    auto e1 = svtrn1_f32(svreinterpret_f32_f16(te), svreinterpret_f32_f16(tg));
+    auto f1 = svtrn2_f32(svreinterpret_f32_f16(te), svreinterpret_f32_f16(tg));
+    auto g1 = svtrn1_f32(svreinterpret_f32_f16(tf), svreinterpret_f32_f16(th));
+    auto h1 = svtrn2_f32(svreinterpret_f32_f16(tf), svreinterpret_f32_f16(th));
+
+    auto a2 = svtrn1_f64(svreinterpret_f64_f32(a1), svreinterpret_f64_f32(e1));
+    auto b2 = svtrn2_f64(svreinterpret_f64_f32(a1), svreinterpret_f64_f32(e1));
+    auto c2 = svtrn1_f64(svreinterpret_f64_f32(b1), svreinterpret_f64_f32(f1));
+    auto d2 = svtrn2_f64(svreinterpret_f64_f32(b1), svreinterpret_f64_f32(f1));
+    auto e2 = svtrn1_f64(svreinterpret_f64_f32(c1), svreinterpret_f64_f32(g1));
+    auto f2 = svtrn2_f64(svreinterpret_f64_f32(c1), svreinterpret_f64_f32(g1));
+    auto g2 = svtrn1_f64(svreinterpret_f64_f32(d1), svreinterpret_f64_f32(h1));
+    auto h2 = svtrn2_f64(svreinterpret_f64_f32(d1), svreinterpret_f64_f32(h1));
+
+    auto pgh = svnot_b_z(svptrue_b64(), svptrue_pat_b64(SV_VL2));
+    auto pgl = svptrue_pat_b64(SV_VL2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst), a2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst + dst_stride * 1), e2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst + dst_stride * 2), c2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst + dst_stride * 3), g2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst + dst_stride * 4), b2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst + dst_stride * 5), f2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst + dst_stride * 6), d2);
+    svst1_f64(pgl, reinterpret_cast<float64_t*>(dst + dst_stride * 7), h2);
+
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 8) - 2, a2);
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 9) - 2, e2);
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 10) - 2, c2);
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 11) - 2, g2);
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 12) - 2, b2);
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 13) - 2, f2);
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 14) - 2, d2);
+    svst1_f64(pgh, reinterpret_cast<float64_t*>(dst + dst_stride * 15) - 2, h2);
+}
+
+inline void transpose_16x16_kernel(ov::float16* dst, ov::float16* src, size_t dst_stride, size_t src_stride) {
+    // check for SVE256
+    if (svcnth() == 16) {
+        transpose_8x16_kernel(reinterpret_cast<float16_t*>(dst),
+                              reinterpret_cast<float16_t*>(src),
+                              dst_stride,
+                              src_stride);
+        transpose_8x16_kernel(reinterpret_cast<float16_t*>(dst + 8),
+                              reinterpret_cast<float16_t*>(src + 128),
+                              dst_stride,
+                              src_stride);
+    } else {
+        for (size_t i = 0; i < 16; i++) {
+            for (size_t j = 0; j < 16; j++) {
+                dst[i * dst_stride + j] = (src[i + j * src_stride]);
+            }
+        }
+    }
+}
+
 inline void transpose_8x8_kernel(float* src, size_t ld_src, float* dst, size_t ld_dst) {
     // load from src to registers
     // a: a0  a1  a2  a3  a4  a5  a6  a7
@@ -696,8 +786,8 @@ inline void transpose_8x8_kernel(float* src, size_t ld_src, float* dst, size_t l
     svst1_f32(svptrue_b8(), &dst[6 * ld_dst], tf);
     svst1_f32(svptrue_b8(), &dst[7 * ld_dst], th);
 }
-template <>
-inline void transpose_16x16_kernel<float, float>(float* dst, float* src, size_t dst_stride, size_t src_stride) {
+
+inline void transpose_16x16_kernel(float* dst, float* src, size_t dst_stride, size_t src_stride) {
     transpose_8x8_kernel(src, src_stride, dst, dst_stride);
     transpose_8x8_kernel(src + 8, src_stride, dst + 8 * dst_stride, dst_stride);
     transpose_8x8_kernel(src + 8 * src_stride, src_stride, dst + 8, dst_stride);

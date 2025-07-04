@@ -5,12 +5,12 @@
 #include "behavior/work_with_devices.hpp"
 
 #include "common/utils.hpp"
-#include "intel_npu/config/common.hpp"
+#include "intel_npu/config/options.hpp"
 
 namespace {
 
 const std::vector<ov::AnyMap> configs = {
-    {{ov::log::level(ov::log::Level::ERR)}},
+    {{ov::intel_npu::bypass_umd_caching(true)}},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,

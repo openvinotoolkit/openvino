@@ -4,12 +4,22 @@
 
 #include "fullyconnected.h"
 
+#include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
-#include <openvino/op/constant.hpp>
+#include <mutex>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "common/cpu_convert.h"
 #include "common/cpu_memcpy.h"
+#include "config.h"
+#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "executors/memory_arguments.hpp"
@@ -19,8 +29,16 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
@@ -33,13 +51,16 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "utils/precision_support.h"
+#endif
 
 using namespace dnnl;
 using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -49,7 +70,14 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
         return {Type_t::u8, Type_t::i8};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+    ov::element::TypeVector supportedDataTypes =
+        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1};
+    if (apply_fp8) {
+        supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
+    }
+    return supportedDataTypes;
+#elif defined(OV_CPU_WITH_KLEIDIAI)
+    return {Type_t::i8};
 #else
     return {};
 #endif
@@ -67,6 +95,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
 #if defined(OPENVINO_ARCH_X86_64)
     // @todo enable for bf16 as well
     // after EnforceInferencePrecision is replaced with ConvertPrecision
+    return {Type_t::f32};
+#elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
 #else
     return {};
@@ -104,11 +134,11 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
 // @todo replace 'inferencePrecision' check with 'fc->get_input_element_type(0) == ov::element::bf16'
 // after bf16 pipeline is moved to ConvertPrecision
-bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
-                                                    size_t IC,
-                                                    size_t OC,
-                                                    size_t G,
-                                                    ov::element::Type inferencePrecision) noexcept {
+bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
+                                                    [[maybe_unused]] size_t IC,
+                                                    [[maybe_unused]] size_t OC,
+                                                    [[maybe_unused]] size_t G,
+                                                    [[maybe_unused]] const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         std::string errorMessage;
@@ -121,7 +151,7 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
         }
 
         if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-            inferencePrecision == ov::element::bf16) {
+            config.inferencePrecision == ov::element::bf16) {
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
             // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
             // used since fallback one doesn't support weights decompression feature.
@@ -138,8 +168,28 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
         if (IC % G != 0 || IC / G < 4 || OC == 1) {
             return false;
         }
+    } catch (...) {
+        return false;
+    }
+    return true;
+#elif defined(OV_CPU_WITH_KLEIDIAI)
+    try {
+        std::string errorMessage;
+        if (!isSupportedOperation(op, errorMessage)) {
+            return false;
+        }
+        if (!hasIntDotProductSupport()) {
+            return false;
+        }
+        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
+            return false;
 
-        return true;
+        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC)
+            return false;
+
+        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+            return false;
     } catch (...) {
         return false;
     }
@@ -147,8 +197,11 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #else
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    return useMatmulPrim;
+    if (useMatmulPrim) {
+        return true;
+    }
 #endif
+    return false;
 }
 
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {
@@ -240,7 +293,10 @@ void FullyConnected::prepareParams() {
     needPrepareParamsForTensorParallel();
 
     executor->update(memory);
-    // @todo avoid updating implementation type in scope of every prepareParams call
+    // @todo avoid updating implementation type in scope of every prepareParams call.
+    // Currently the tests are implemented in such way that the actual used implementation type is changed
+    // based on a shape and the expected implementation type is determined by the last shape.
+    // I.e. for convolution it is different. The dymmy shape determines the expected implementation type.
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
 }
 
@@ -268,9 +324,9 @@ void FullyConnected::execTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
         // dst
         auto dst = getDstMemoryAtPort(0);
-        auto dst_ptr = static_cast<uint8_t*>(dst->getData());
+        auto* dst_ptr = static_cast<uint8_t*>(dst->getData());
 
-        auto& shape = dst->getShape();
+        const auto& shape = dst->getShape();
         auto dims = shape.getDims();
         auto prec = dst->getPrecision();
 
@@ -303,7 +359,7 @@ void FullyConnected::execTensorParallelSync() {
             int wait_size = 0;
             for (int idx = 0; idx < tp_cfg.w_size; idx++) {
                 if (wait_list[idx] > 0 && tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].flag) {
-                    auto new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
+                    auto* new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
                     const auto copySize = splited_dim_vec[idx] * prec.size();  // bytes of half selected dim.
                     const size_t unloop = 8;
                     size_t step = count / unloop;
@@ -354,7 +410,7 @@ void FullyConnected::execTensorParallelSync() {
     }
 }
 
-void FullyConnected::execute(const dnnl::stream& strm) {
+void FullyConnected::execute([[maybe_unused]] const dnnl::stream& strm) {
     initTensorParallelSync();
 
     executor->execute(memory);
@@ -411,6 +467,7 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
         impl_desc_type::shl,
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
+        impl_desc_type::brgconv_avx512_1x1,
         impl_desc_type::brgemm_avx512,
         impl_desc_type::brgemm_avx2,
         impl_desc_type::gemm_blas,
@@ -448,7 +505,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
                                           const float sparseWeiDecompressionRate) {
     const auto minSparseRate = sparseWeiDecompressionRate;
 
-    if (minSparseRate == 1.f) {
+    if (minSparseRate == 1.F) {
         return false;
     }
 
@@ -474,7 +531,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
         return false;
     }
 
-    const auto weightsData = weiMemory->getDataAs<const int8_t>();
+    const auto* const weightsData = weiMemory->getDataAs<const int8_t>();
     auto elementsCount = weiMemory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCount = 0;
     for (size_t i = 0; i < elementsCount; i++) {
@@ -511,7 +568,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
-    postOps = getPostOps(fusedWith);
+    attrs.postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();
     auto dstTypes = getOriginalOutputPrecisions();
@@ -545,15 +602,15 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     };
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
-    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, postOps, executionContext, descs);
-    const auto nodeDescriptors = factory->getProperMemoryDescriptors(descs);
+    factory = std::make_shared<ExecutorFactory<FCAttrs>>(attrs, executionContext, descs);
+    const std::vector<MemoryDescArgs> nodeDescriptorsList = factory->getProperMemoryDescriptors(descs);
+    const MemoryDescArgs& nodeDescriptors = nodeDescriptorsList.front();
 
     NodeConfig nodeConfig;
     nodeConfig.inConfs.resize(srcDescs.size());
-
     for (const auto& desc : nodeDescriptors) {
-        if (m_atoi.count(desc.first)) {
-            nodeConfig.inConfs[m_atoi[desc.first]] = desc.second;
+        if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
+            nodeConfig.inConfs[it->second] = desc.second;
         }
     }
 
@@ -596,24 +653,26 @@ void FullyConnected::needSplitMemoryForTensorParallel() {
         memory[ARG_DST] = getDstMemoryAtPort(0);
         tp_cfg.cached_dst = split_horizontal(context->getEngine(), dst, -1, tp_cfg.w_rank, tp_cfg.w_size, false);
 
-        memory[ARG_DST | ARG_ATTR_SCALES] =
-            split_horizontal(context->getEngine(), memory[ARG_DST | ARG_ATTR_SCALES], 0, tp_cfg.w_rank, tp_cfg.w_size);
+        if (auto it = memory.find(ARG_DST | ARG_ATTR_SCALES); it != memory.end()) {
+            it->second = split_horizontal(context->getEngine(), it->second, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        }
 
-        auto scale_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_SCALES]);
-        memory[ARG_WEI | ARG_ATTR_SCALES] =
-            attrs.weightsNonTransposed
-                ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {
+            auto scale_mem = std::const_pointer_cast<IMemory>(it->second);
+            it->second = attrs.weightsNonTransposed
+                             ? split_vertical(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                             : split_horizontal(context->getEngine(), scale_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        }
 
-        auto zeropoint_mem = std::const_pointer_cast<IMemory>(memory[ARG_WEI | ARG_ATTR_ZERO_POINTS]);
-        auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
-        if (element_num == 1) {
-            tp_cfg.cached_zeropoint = zeropoint_mem;
-        } else {
-            tp_cfg.cached_zeropoint =
-                attrs.weightsNonTransposed
-                    ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
-                    : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+        if (auto it = memory.find(ARG_WEI | ARG_ATTR_ZERO_POINTS); it != memory.end()) {
+            auto zeropoint_mem = std::const_pointer_cast<IMemory>(it->second);
+            auto element_num = zeropoint_mem->getSize() / zeropoint_mem->getPrecision().size();
+            if (element_num != 1) {
+                it->second =
+                    attrs.weightsNonTransposed
+                        ? split_vertical(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size)
+                        : split_horizontal(context->getEngine(), zeropoint_mem, 0, tp_cfg.w_rank, tp_cfg.w_size);
+            }
         }
     }
 }
@@ -624,9 +683,7 @@ void FullyConnected::needUpdateTensorParalelConfig() {
     // 2. last dim can be splited.
     if (tp_cfg.enable_tensor_parallel) {
         const auto& shape = getSrcMemoryAtPort(WEIGHTS)->getShape();
-        if (shape.isDynamic()) {
-            tp_cfg.enable_tensor_parallel = false;
-        } else if (shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
+        if (shape.isDynamic() || shape.getDims()[0] < static_cast<size_t>(tp_cfg.w_size)) {
             tp_cfg.enable_tensor_parallel = false;
         }
     }

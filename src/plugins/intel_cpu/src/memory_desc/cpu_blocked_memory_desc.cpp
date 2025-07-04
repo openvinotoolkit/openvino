@@ -4,7 +4,19 @@
 
 #include "cpu_blocked_memory_desc.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <numeric>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
 #include "dnnl_blocked_memory_desc.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -105,10 +117,10 @@ bool CpuBlockedMemoryDesc::isDefinedImp() const {
 
 bool CpuBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
     const MemoryDesc* pRhs = &rhs;
-    if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc);
     }
-    if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*dnnlBlkDesc);
     }
     return false;
@@ -124,10 +136,10 @@ bool CpuBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMas
 
 bool CpuBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
     const BlockedMemoryDesc* pRhs = &rhs;
-    if (auto cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* cpuBlkDesc = dynamic_cast<const CpuBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*cpuBlkDesc, cmpMask);
     }
-    if (auto dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
+    if (const auto* dnnlBlkDesc = dynamic_cast<const DnnlBlockedMemoryDesc*>(pRhs)) {
         return isCompatible(*dnnlBlkDesc, cmpMask);
     }
     return false;
@@ -206,7 +218,7 @@ size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
 
 size_t CpuBlockedMemoryDesc::getElementOffset(size_t elemNumber) const {
     // TODO [DS]: rewrite to support dynamic shapes
-    auto& dims = shape.getStaticDims();
+    const auto& dims = shape.getStaticDims();
     size_t n_dims = dims.size();
     VectorDims pos(n_dims);
     for (size_t rd = 1; rd <= n_dims; ++rd) {
@@ -356,7 +368,7 @@ size_t CpuBlockedMemoryDesc::getPaddedElementsCount() const {
         })) {
         OPENVINO_THROW("Can't compute padded elements count for non undefined blocked dims");
     }
-    return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<size_t>());
+    return std::accumulate(blockedDims.begin(), blockedDims.end(), size_t{1}, std::multiplies<>());
 }
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewPrecision(const ov::element::Type prec) const {

@@ -4,22 +4,45 @@
 
 #include "interaction.h"
 
-#include <chrono>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "common/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_convert.h"
-#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
+#include "utils/debug_capabilities.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
@@ -41,7 +64,7 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
         }
         vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / runtime_prc.size();
     }
-    virtual ~jit_move_scale_kernel() {}
+    ~jit_move_scale_kernel() override = default;
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -122,16 +145,16 @@ private:
     }
 #    undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst,
-                     const Xbyak::Reg64& reg_src,
-                     ov::element::Type src_prc,
-                     ov::element::Type dst_prc,
-                     const int& elt_num,
-                     bool fill) {
+    void load(const Vmm& vmm_dst,
+              const Xbyak::Reg64& reg_src,
+              ov::element::Type src_prc,
+              ov::element::Type dst_prc,
+              const int& elt_num,
+              bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(
-                new jit_load_emitter(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min"));
+            emitters[seed] =
+                std::make_unique<jit_load_emitter>(this, isa, src_prc, dst_prc, elt_num, src_prc, fill, "float_min");
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(reg_src.getIdx()), 0},
@@ -139,14 +162,14 @@ private:
                                   pool_aux_vmm_idxs,
                                   pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst,
-                      const Vmm& vmm_src,
-                      ov::element::Type src_prc,
-                      ov::element::Type dst_prc,
-                      const int& elt_num) {
+    void store(const Xbyak::Reg64& reg_dst,
+               const Vmm& vmm_src,
+               ov::element::Type src_prc,
+               ov::element::Type dst_prc,
+               const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
-            emitters[seed].reset(new jit_store_emitter(this, isa, src_prc, dst_prc, elt_num));
+            emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
         }
 
         emitters[seed]->emit_code({static_cast<size_t>(vmm_src.getIdx())},
@@ -241,10 +264,10 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 
 void Interaction::execRef(const dnnl::stream& strm) {
     using namespace dnnl;
-    uint8_t* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
+    auto* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inPtr = getSrcDataAtPortAs<const uint8_t>(n);
+        const auto* inPtr = getSrcDataAtPortAs<const uint8_t>(n);
         inputPtrs[n] = inPtr;
     }
     std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
@@ -261,17 +284,16 @@ void Interaction::execRef(const dnnl::stream& strm) {
         // in1 dense feature
         // in2 flatted interaction features
         if (moveFeatureKernel) {
-            jit_move_scale_call_args featArgs;
-            featArgs.p_in = inputPtrs[0] + start * featureSize * dataPrecision.size();
-            featArgs.p_out = outFeaturesPtr + start * outputFeaturesLen * outputDataType.size();
-            featArgs.p_scales = scales;
+            jit_move_scale_call_args featArgs{inputPtrs[0] + (start * featureSize * dataPrecision.size()),
+                                              outFeaturesPtr + (start * outputFeaturesLen * outputDataType.size()),
+                                              scales};
             (*moveFeatureKernel)(&featArgs);
         }
         if (moveInteractKernel) {
-            jit_move_scale_call_args interArgs;
-            interArgs.p_in = flatMemPtr->getData();
-            interArgs.p_out = outFeaturesPtr + (start * outputFeaturesLen + featureSize) * outputDataType.size();
-            interArgs.p_scales = scales;
+            jit_move_scale_call_args interArgs{
+                flatMemPtr->getData(),
+                outFeaturesPtr + ((start * outputFeaturesLen + featureSize) * outputDataType.size()),
+                scales};
             (*moveInteractKernel)(&interArgs);
         }
     }
@@ -330,14 +352,14 @@ void Interaction::prepareParams() {
 
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu_isa_t::avx512_core)) {
-        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(jcp));
-        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx512_core>(interJcp));
+        moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx512_core>>(jcp);
+        moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx512_core>>(interJcp);
     } else if (mayiuse(cpu_isa_t::avx2)) {
-        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(jcp));
-        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::avx2>(interJcp));
+        moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(jcp);
+        moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(interJcp);
     } else if (mayiuse(cpu_isa_t::sse41)) {
-        moveFeatureKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(jcp));
-        moveInteractKernel.reset(new jit_move_scale_kernel<cpu_isa_t::sse41>(interJcp));
+        moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(jcp);
+        moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(interJcp);
     }
 #endif  // OPENVINO_ARCH_X86_64
 
@@ -349,7 +371,7 @@ void Interaction::prepareParams() {
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {
-        auto pd = prim.get_primitive_desc();
+        const auto* pd = prim.get_primitive_desc();
         DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
     }
 #endif

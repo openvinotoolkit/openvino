@@ -11,7 +11,6 @@ Install OpenVINO™ Runtime on Linux From YUM Repository
    Note that the YUM distribution:
 
    * offers both C/C++ and Python APIs
-   * does not offer support for NPU inference
    * is dedicated to Linux users only
    * additionally includes code samples
 
@@ -25,25 +24,25 @@ Step 1: Set Up the Repository
 +++++++++++++++++++++++++++++
 
 
-1. Create a YUM repository file (``openvino-2025.repo``) in the ``/tmp`` directory as a normal user:
+1. Create a YUM repository file (``openvino.repo``) in the ``/tmp`` directory as a normal user:
 
    .. code-block:: sh
 
-      tee > /tmp/openvino-2025.repo << EOF
+      tee > /tmp/openvino.repo << EOF
       [OpenVINO]
-      name=Intel(R) Distribution of OpenVINO 2025
-      baseurl=https://yum.repos.intel.com/openvino/2025
+      name=Intel(R) Distribution of OpenVINO
+      baseurl=https://yum.repos.intel.com/openvino
       enabled=1
       gpgcheck=1
       repo_gpgcheck=1
       gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       EOF
 
-2. Move the new ``openvino-2025.repo`` file to the YUM configuration directory, i.e. ``/etc/yum.repos.d``:
+2. Move the new ``openvino.repo`` file to the YUM configuration directory, i.e. ``/etc/yum.repos.d``:
 
    .. code-block:: sh
 
-      sudo mv /tmp/openvino-2025.repo /etc/yum.repos.d
+      sudo mv /tmp/openvino.repo /etc/yum.repos.d
 
 3. Verify that the new repository is set up properly.
 
@@ -93,7 +92,7 @@ Install OpenVINO Runtime
       .. code-block:: sh
 
 
-         sudo yum install openvino-2025.0.0
+         sudo yum install openvino-2025.2.0
 
 
 
@@ -164,7 +163,7 @@ To uninstall OpenVINO Runtime via YUM, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo yum autoremove openvino-2025.0.0
+         sudo yum autoremove openvino-2025.2.0
 
 
 

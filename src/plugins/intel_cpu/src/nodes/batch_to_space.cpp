@@ -4,22 +4,38 @@
 
 #include "batch_to_space.h"
 
-#include <openvino/opsets/opset2.hpp>
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <vector>
 
-#include "dnnl_types.h"
-#include "nodes/common/blocked_desc_creator.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "selective_build.h"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/batch_to_space.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto batchToSpace = ov::as_type_ptr<const ov::opset2::BatchToSpace>(op);
+        const auto batchToSpace = ov::as_type_ptr<const ov::op::v1::BatchToSpace>(op);
         if (!batchToSpace) {
-            errorMessage = "Only opset2 BatchToSpace operation is supported";
+            errorMessage = "Only v1 BatchToSpace operation is supported";
             return false;
         }
     } catch (...) {
@@ -131,7 +147,7 @@ void BatchToSpace::batchToSpaceKernel() {
     auto outShape5D = getShape5D(outDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
+    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4U, 5U)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -142,7 +158,7 @@ void BatchToSpace::batchToSpaceKernel() {
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
 
-    const size_t blockSize = blocked ? dstDesc->getBlockDims().back() : 1lu;
+    const size_t blockSize = blocked ? dstDesc->getBlockDims().back() : 1LU;
     const size_t blockCountInput = srcDesc->getBlockDims()[1];
     const size_t blockCountOutput = dstDesc->getBlockDims()[1];
     const auto blockRemainder = inShape5D[1] % blockSize;
@@ -162,7 +178,8 @@ void BatchToSpace::batchToSpaceKernel() {
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         std::vector<size_t> indxStart(2, 0);
         std::vector<size_t> indxEnd(2, 0);
@@ -179,10 +196,10 @@ void BatchToSpace::batchToSpaceKernel() {
             bIdx /= blockShapeIn[dimsSize - 1];
             oAdd[3] = bIdx % blockShapeIn[dimsSize - 2] - cropsBeginIn[dimsSize - 2];
             bIdx /= blockShapeIn[dimsSize - 2];
-            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0lu;
+            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0LU;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - cropsBeginIn[1];
-            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
+            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4U, 5U)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }
@@ -196,8 +213,8 @@ void BatchToSpace::batchToSpaceKernel() {
             finish[3] = (outShape5D[3] + blockShape[3] - 1 - oAdd[3]) / blockShape[3];
             begin[4] = (blockShape[4] - 1 - oAdd[4]) / blockShape[4];
             finish[4] = (outShape5D[4] + blockShape[4] - 1 - oAdd[4]) / blockShape[4];
-            const int64_t addTmpOC = blocked ? 0lu : oAdd[1];
-            const int64_t addTmpOc = blocked ? oAdd[1] : 0lu;
+            const int64_t addTmpOC = blocked ? 0LU : oAdd[1];
+            const int64_t addTmpOc = blocked ? oAdd[1] : 0LU;
 
             const size_t firstI1 = i0 == 0 ? std::max(begin[1], indxStart[1]) : begin[1];
             const size_t lastI1 = i0 == indxEnd[0] ? std::min(indxEnd[1] + 1, finish[1]) : finish[1];
@@ -207,7 +224,7 @@ void BatchToSpace::batchToSpaceKernel() {
                 const int64_t tmpOC = i1 * blockShape[1] + addTmpOC;
                 const size_t srcIdx1 = srcIdx0 + i1 * inSpatialStep * blockSize;
                 const size_t dstIdx1 = dstIdx0 + tmpOC * outSpatialStep * blockSize;
-                const size_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0lu;
+                const size_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0LU;
                 for (size_t i2 = begin[2]; i2 < finish[2]; ++i2) {
                     const int64_t tmpOd = i2 * blockShape[2] + oAdd[2];
                     const size_t srcIdx2 = srcIdx1 + i2 * inShape5D[3] * inShape5D[4] * blockSize;
@@ -244,7 +261,7 @@ void BatchToSpace::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void BatchToSpace::execute(const dnnl::stream& strm) {
+void BatchToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
     switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
     case 1:
         batchToSpaceKernel<element_type_traits<ov::element::u8>::value_type>();

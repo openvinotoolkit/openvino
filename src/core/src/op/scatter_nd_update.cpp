@@ -226,4 +226,6 @@ OPENVINO_API EnumNames<op::v15::ScatterNDUpdate::Reduction>& EnumNames<op::v15::
                                                         {"max", op::v15::ScatterNDUpdate::Reduction::MAX}});
     return enum_names;
 }
+
+AttributeAdapter<op::v15::ScatterNDUpdate::Reduction>::~AttributeAdapter() = default;
 }  // namespace ov

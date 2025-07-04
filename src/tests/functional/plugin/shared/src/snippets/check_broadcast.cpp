@@ -7,6 +7,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "subgraph_converts.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {
@@ -83,9 +84,7 @@ void CheckBroadcast::SetUp() {
         inputDynamicShapes[1],
         input_type,
         test_case_params.broadcast);
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(CheckBroadcast, CompareWithRefImpl) {

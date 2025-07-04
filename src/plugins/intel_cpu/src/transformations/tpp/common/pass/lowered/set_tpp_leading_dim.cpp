@@ -4,9 +4,23 @@
 
 #include "set_tpp_leading_dim.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/op/brgemm.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
@@ -37,8 +51,9 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
             const auto& border_points = port.get_type() == ExpressionPort::Type::Input ? loop_info->get_input_ports()
                                                                                        : loop_info->get_output_ports();
             const auto& found = std::find_if(border_points.begin(), border_points.end(), pred);
-            if (found == border_points.end() || found->is_incremented())
+            if (found == border_points.end() || found->is_incremented()) {
                 return false;
+            }
         }
         return true;
     };
@@ -110,7 +125,7 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
         }
     };
     return layout.size() == 1 ? shape.back()
-                              : std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<size_t>());
+                              : std::accumulate(shape.cbegin() + dim() + 1, shape.cend(), 1, std::multiplies<>());
 }
 
 }  // namespace

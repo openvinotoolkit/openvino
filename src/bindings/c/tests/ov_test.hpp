@@ -9,6 +9,7 @@
 #include <fstream>
 #include <openvino/util/file_util.hpp>
 
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
 #include "test_model_repo.hpp"
@@ -31,6 +32,7 @@ public:
         TestDataHelpers::generate_test_model();
         xml_file_name = TestDataHelpers::get_model_xml_file_name();
         bin_file_name = TestDataHelpers::get_model_bin_file_name();
+        extension_file_path = get_extension_file_path();
     }
 
     void TearDown() override {
@@ -38,7 +40,11 @@ public:
     }
 
 public:
-    std::string xml_file_name, bin_file_name;
+    std::string xml_file_name, bin_file_name, extension_file_path;
+    inline std::string get_extension_file_path() {
+        return ov::util::make_plugin_library_name<char>(ov::test::utils::getExecutableDirectory(),
+                                                        std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
+    }
 };
 
 inline size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {

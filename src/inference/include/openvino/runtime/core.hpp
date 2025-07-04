@@ -108,7 +108,12 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
-        return read_model(model_path.string(), bin_path.string(), properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
+            return read_model(model_path.wstring(), bin_path.wstring(), properties);
+        } else {
+            // use string conversion as default
+            return read_model(model_path.string(), bin_path.string(), properties);
+        }
     }
     /// @}
 
@@ -140,7 +145,12 @@ public:
               class... Properties,
               std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
-        return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
+            return read_model(model_path.wstring(), bin_path.wstring(), std::forward<Properties>(properties)...);
+        } else {
+            // use string conversion as default
+            return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
+        }
     }
     /// @}
 
@@ -245,7 +255,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
-        return compile_model(model_path.string(), properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), properties);
+        else
+            return compile_model(model_path.string(), properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -276,7 +289,10 @@ public:
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, Properties&&... properties) {
-        return compile_model(model_path.string(), std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), std::forward<Properties>(properties)...);
+        else
+            return compile_model(model_path.string(), std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -308,7 +324,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        return compile_model(model_path.string(), device_name, properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), device_name, properties);
+        else
+            return compile_model(model_path.string(), device_name, properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -342,7 +361,10 @@ public:
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
-        return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), device_name, std::forward<Properties>(properties)...);
+        else
+            return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -431,7 +453,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void add_extension(const Path& model_path) {
-        add_extension(model_path.string());
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return add_extension(model_path.wstring());
+        else
+            return add_extension(model_path.string());
     }
     /// @}
 

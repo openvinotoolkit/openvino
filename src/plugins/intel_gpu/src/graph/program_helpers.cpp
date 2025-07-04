@@ -92,6 +92,36 @@ void onednn_add_fusing_helpers::for_eltwise(
     }
 }
 
+static bool is_direct_ancestor(const program_node& child, const program_node& target) {
+    // is_direct_ancestor function is added to detect pattern like below from get_add_fusing_type.
+    // It is necessary to use onednn sum post operation in such case for better performance.
+    // In such case, 'A' can have two connections.
+    //   ┌───────┐
+    //   │   A   │
+    //   └──┬──┬─┘
+    //      │  └────────────┐
+    //      │           ┌───┴───┐
+    //      │post_op    │   B   │
+    //      │           └───┬───┘
+    //      │  ┌────────────┘
+    //   ┌──┴──┴─┐
+    //   │   C   │
+    //   └───────┘
+    if (target.get_users().size() != 2)
+        return false;
+
+    // Limit the iteration depth to 5 for performance reason
+    auto iter = &child;
+    for (int i = 0; i < 5; i++) {
+        if (iter == &target)
+            return true;
+        if (iter->get_dependencies().size() == 0)
+            break;
+        iter = &iter->get_dependency(0);
+    }
+    return false;
+}
+
 add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
@@ -115,9 +145,10 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
             && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
             && p_layout.data_padding == d_layout.data_padding
-            && dep_node.get_users().size() == 1
+            && (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node))
             && !dep_node.is_constant()
             && !p_node.is_type<pooling>()
+            && !p_node.is_output()
             && !(dep_node.get_program().is_body_program() && dep_node.is_type<input_layout>())) {
             return add_fusing_type::sum;
         } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
@@ -128,5 +159,22 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
-
+int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
+    int32_t reused_mem_idx = -1;   // if -1, no reused input memory
+    if (node.get_preferred_impl_type() == impl_types::onednn) {
+        size_t eltw_dep = 0;
+        for (auto& fused_op : node.get_fused_primitives()) {
+            if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
+                // If it is first sum, reuse the buffer
+                auto fusing_type = get_add_fusing_type(node, fused_op);
+                if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
+                    continue;
+                if (!fused_op.has_outer_dep())
+                    continue;
+                reused_mem_idx = fused_op.outer_dep_start_idx;
+            }
+        }
+    }
+    return reused_mem_idx;
+}
 }  // namespace cldnn

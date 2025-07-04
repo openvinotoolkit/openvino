@@ -4,10 +4,19 @@
 
 #include "jit_emitter.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <unordered_set>
 #include <vector>
 
 #include "emitters/utils.hpp"
-#include "utils/general_utils.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl;
@@ -56,10 +65,10 @@ void jit_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 
 void jit_emitter::emit_data() const {
     h->align(64);
-    h->L(*l_table.get());
+    h->L(*l_table);
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
-    assert(sizeof(table_entry_val_t) == 4);
+    static_assert(sizeof(table_entry_val_t) == 4);
 
     // Run through the map and insert values stored there
     for (const auto& it : entry_map_) {
@@ -75,7 +84,8 @@ emitter_in_out_map jit_emitter::get_in_out_type() const {
     return in_out_type_;
 }
 
-std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {};
 }
 
@@ -83,11 +93,11 @@ size_t jit_emitter::get_aux_gprs_count() const {
     return 0;
 }
 
-size_t jit_emitter::get_max_vecs_count() const {
+size_t jit_emitter::get_max_vecs_count() {
     return 32;
 }
 
-int32_t jit_emitter::get_vec_length() const {
+int32_t jit_emitter::get_vec_length() {
     return 16;
 }
 

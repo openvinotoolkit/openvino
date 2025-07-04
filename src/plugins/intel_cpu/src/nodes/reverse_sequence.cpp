@@ -4,20 +4,36 @@
 
 #include "reverse_sequence.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/reverse_sequence.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 bool ReverseSequence::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
     try {
-        const auto revSeq = ov::as_type_ptr<const ov::opset1::ReverseSequence>(op);
+        const auto revSeq = ov::as_type_ptr<const ov::op::v0::ReverseSequence>(op);
         if (!revSeq) {
-            errorMessage = "Only opset1 ReverseSequence operation is supported";
+            errorMessage = "Only v0 ReverseSequence operation is supported";
             return false;
         }
     } catch (...) {
@@ -33,9 +49,9 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto revSeq = ov::as_type_ptr<const ov::opset1::ReverseSequence>(op);
+    const auto revSeq = ov::as_type_ptr<const ov::op::v0::ReverseSequence>(op);
     if (revSeq == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of ReverseSequence from opset1.");
+        THROW_CPU_NODE_ERR("is not an instance of v0 ReverseSequence.");
     }
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1) {
@@ -155,7 +171,10 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i, start = 0, end = 0, srcIdx = 0;
+        size_t i = 0;
+        size_t start = 0;
+        size_t end = 0;
+        size_t srcIdx = 0;
         VectorDims counters(srcDims.size(), 0);
         splitter(workAmountDst, nthr, ithr, start, end);
         for (int j = srcDims.size() - 1, i = start; j >= 0; --j) {
@@ -183,7 +202,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     });
 }
 
-void ReverseSequence::execute(const dnnl::stream& strm) {
+void ReverseSequence::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!execPtr) {
         THROW_CPU_NODE_ERR("has no compiled executor");
     }

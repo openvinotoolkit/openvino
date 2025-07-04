@@ -4,6 +4,22 @@
 
 #include "jit_horizon_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -43,23 +59,23 @@ void jit_horizon_emitter::emit_isa(const std::vector<size_t>& in, const std::vec
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
 
-    Vmm src_vmm = Vmm(in[0]);
-    Vmm dst_vmm = Vmm(out[0]);
-    Vmm aux_vmm = Vmm(aux_vec_idxs[0]);
+    auto src_vmm = Vmm(in[0]);
+    auto dst_vmm = Vmm(out[0]);
+    auto aux_vmm = Vmm(aux_vec_idxs[0]);
 
     if (in[0] != out[0]) {
         h->uni_vmovups(dst_vmm, src_vmm);
     }
     if (isa == dnnl::impl::cpu::x64::avx512_core) {
-        Xbyak::Zmm dst_zmm = Xbyak::Zmm(out[0]);
-        Xbyak::Zmm aux_zmm = Xbyak::Zmm(aux_vec_idxs[0]);
+        auto dst_zmm = Xbyak::Zmm(out[0]);
+        auto aux_zmm = Xbyak::Zmm(aux_vec_idxs[0]);
         h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0x4E);
         perform_op<Xbyak::Zmm>(dst_zmm, dst_zmm, aux_zmm);
         h->vshuff32x4(aux_zmm, dst_zmm, dst_zmm, 0xB1);
         perform_op<Xbyak::Zmm>(dst_zmm, dst_zmm, aux_zmm);
     } else if (isa == dnnl::impl::cpu::x64::avx2) {
-        Xbyak::Ymm dst_ymm = Xbyak::Ymm(out[0]);
-        Xbyak::Ymm aux_ymm = Xbyak::Ymm(aux_vec_idxs[0]);
+        auto dst_ymm = Xbyak::Ymm(out[0]);
+        auto aux_ymm = Xbyak::Ymm(aux_vec_idxs[0]);
         h->vperm2i128(aux_ymm, dst_ymm, dst_ymm, 0x01);
         perform_op<Xbyak::Ymm>(dst_ymm, dst_ymm, aux_ymm);
     }

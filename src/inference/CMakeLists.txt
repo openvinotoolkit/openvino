@@ -69,7 +69,8 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 ov_build_target_faster(${TARGET_NAME}_obj
-    UNITY PCH PRIVATE "src/precomp.hpp"
+    UNITY
+    PCH_HEADER "src/precomp.hpp"
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
@@ -127,10 +128,6 @@ endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
-
-if(WIN32)
-    set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
-endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS}
     openvino::runtime::dev openvino::pugixml)

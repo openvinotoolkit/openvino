@@ -10,6 +10,7 @@
 #include "core/null_node.hpp"
 #include "core/transform.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/util/file_util.hpp"
 
