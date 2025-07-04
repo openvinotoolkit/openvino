@@ -39,6 +39,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/graph_emitter.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -513,7 +514,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     }
 
     // @todo avoid extra step of creating config to get the brgconv availability
-    auto config = GraphEmitter<ConvAttrs>::createConfig(memory, attrs);
+    auto config = createConfig(memory, attrs);
     if (!DnnlConvolutionPrimitive::isBrgConvAvailable(config)) {
         DEBUG_LOG("Brgconv is not available. Skip extra attribute");
         return {legacyCompose};
