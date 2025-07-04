@@ -32,6 +32,9 @@ type OVAny = string | number | boolean;
  * It is recommended to have a single Core instance per application.
  */
 interface Core {
+  /**
+   * It constructs a new Core object.
+   */
   new(): Core;
   /**
    * Registers extensions to a Core object.
@@ -224,9 +227,9 @@ interface Core {
 
 interface Model {
   /**
- * It constructs a default Model object. Use {@link Core.readModel}
- * to read Model from supported file format.
- */
+   * It constructs a default Model object. Use {@link Core.readModel}
+   * to read Model from supported file format.
+   */
   new(): Model;
   /**
    * It returns a cloned model.
@@ -410,11 +413,16 @@ interface CompiledModel {
 
 /**
  * The {@link Tensor} is a lightweight class that represents data used for
- * inference. There are different ways to create a tensor. You can find them
- * in {@link TensorConstructor} section.
+ * inference.
+ *
+ * @remarks
+ * The tensor memory is shared with the TypedArray. That is,
+ * the responsibility for maintaining the reference to the TypedArray lies with
+ * the user. Any action performed on the TypedArray will be reflected in this
+ * tensor memory.
  */
 interface Tensor {
-    /**
+  /**
    * It constructs a tensor using the element type and shape. The new tensor
    * data will be allocated by default.
    * @param type The element type of the new tensor.
@@ -476,16 +484,6 @@ interface Tensor {
    */
   isContinuous(): boolean;
 }
-
-/**
- * This interface contains constructors of the {@link Tensor} class.
- *
- * @remarks
- * The tensor memory is shared with the TypedArray. That is,
- * the responsibility for maintaining the reference to the TypedArray lies with
- * the user. Any action performed on the TypedArray will be reflected in this
- * tensor memory.
- */
 
 /**
  * The {@link InferRequest} object is used to make predictions and can be run in
@@ -652,12 +650,10 @@ interface OutputInfo {
 }
 
 interface PrePostProcessor {
+  new (model: Model): PrePostProcessor;
   build(): PrePostProcessor;
   input(idxOrTensorName?: number | string): InputInfo;
   output(idxOrTensorName?: number | string): OutputInfo;
-}
-interface PrePostProcessorConstructor {
-  new (model: Model): PrePostProcessor;
 }
 
 interface PartialShape {
@@ -704,7 +700,7 @@ export interface NodeAddon {
 
   preprocess: {
     resizeAlgorithm: typeof resizeAlgorithm;
-    PrePostProcessor: PrePostProcessorConstructor;
+    PrePostProcessor: PrePostProcessor;
   };
 
   /**
@@ -726,5 +722,5 @@ export interface NodeAddon {
   resizeAlgorithm: typeof resizeAlgorithm;
 }
 
-export default // eslint-disable-next-line @typescript-eslint/no-var-requires
+export default // eslint-disable-next-line
 require('../bin/ov_node_addon.node') as NodeAddon;
