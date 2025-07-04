@@ -63,6 +63,16 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
 
+class SoftmaxSumFunction : public SnippetsFunctionBase {
+public:
+    explicit SoftmaxSumFunction(const std::vector<PartialShape>& inputShapes, int axis) : SnippetsFunctionBase(inputShapes), axis(axis) {
+        OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+    int axis;
+};
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
