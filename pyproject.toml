@@ -59,18 +59,32 @@ pillow = ">=6.2.0,<=11.2.1"
 defusedxml = ">=0.5.0,<=0.7.1"
 sympy = { version = ">=1.8.0,<=1.14.0", markers = "platform_machine == 'arm64'" }
 
+[tool.poetry.group.torch]
+optional = true
+
+[tool.poetry.group.torch.dependencies]
+torch = { version = ">=1.8.0,<=2.7.1", source = "pytorch-cpu" }
+torchvision = { version = "<=0.22.0", source = "pytorch-cpu" }
+
+[tool.poetry.group.tensorflow]
+optional = true
+
+[tool.poetry.group.tensorflow.dependencies]
+h5py = ">=2.10.0,<=3.14.0"
+tensorflow = ">=1.15.5,<=2.19.0"
+
 [tool.poetry.group.onnx]
 optional = true
 
 [tool.poetry.group.onnx.dependencies]
 docopt = "<=0.6.2"
-onnx = "<=1.17.0"
+onnx = "<=1.18.0"
 
 [tool.poetry.group.paddle]
 optional = true
 
 [tool.poetry.group.paddle.dependencies]
-paddlepaddle = "<=2.6.2"
+paddlepaddle = "<=3.1.0"
 
 [tool.poetry.group.build]
 optional = true
