@@ -13,8 +13,8 @@ OpenVINO™ Integrations
    :maxdepth: 1
    :hidden:
 
+   openvino-ecosystem/openvino-adoptions
    openvino-project/openvino-test-drive
-   OpenVINO Adoptions <openvino-ecosystem/openvino-adoptions>
 
 **Hugging Face Optimum-Intel**
 
