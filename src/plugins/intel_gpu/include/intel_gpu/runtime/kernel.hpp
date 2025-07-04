@@ -4,9 +4,6 @@
 
 #pragma once
 
-#include "kernel_args.hpp"
-#include "event.hpp"
-
 #include <memory>
 #include <vector>
 
@@ -19,7 +16,9 @@ public:
     using ptr = std::shared_ptr<kernel>;
     virtual std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const = 0;
     virtual ~kernel() = default;
-    virtual std::string get_id() const { return ""; }
+
+    virtual std::string get_id() const = 0;
+    virtual std::vector<uint8_t> get_binary() const = 0;
 };
 
 }  // namespace cldnn
