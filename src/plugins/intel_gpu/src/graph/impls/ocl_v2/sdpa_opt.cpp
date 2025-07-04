@@ -41,7 +41,9 @@ public:
     Stage::Ptr indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr regular_micro = make_stage<SDPAMicroGenerator>(prefill);
+#endif
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
@@ -56,17 +58,20 @@ public:
 
             add_stage(regular_finalization, params);
             add_stage(indirect_finalization, params);
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
             if (SDPAOpt::supports_micro_sdpa(params)) {
                 add_stage(regular_micro, params);
             }
+#endif
         } else {
             auto is_indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
             if (is_prefill_stage(params)) {
                 if (indirect) {
                     add_stage(indirect_multi_tokens, params);
+#ifdef ENABLE_ONEDNN_FOR_GPU
                 } else if (SDPAOpt::supports_micro_sdpa(params)) {
                     add_stage(regular_micro, params);
+#endif
                 } else {
                     add_stage(regular_multi_tokens, params);
                 }
@@ -79,8 +84,10 @@ public:
                     if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1) {
                         add_stage(is_indirect ? indirect_finalization : regular_finalization, params);
                     }
+#ifdef ENABLE_ONEDNN_FOR_GPU
                 } else {
                     add_stage(regular_micro, params);
+#endif
                 }
             }
         }
@@ -90,15 +97,16 @@ public:
         const auto& params = *instance.get_impl_params();
         bool is_prefill = is_prefill_stage(params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
+
+        update_rt_params(instance);
+#ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
         bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
         bool run_micro_sdpa = has_stage(regular_micro) && (is_prefill || !is_ARL_H) && !is_indirect;
-
-        update_rt_params(instance);
-
         if (run_micro_sdpa) {
             return execute_stage(events, instance, regular_micro);
         }
+#endif
         if (is_prefill) {
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }

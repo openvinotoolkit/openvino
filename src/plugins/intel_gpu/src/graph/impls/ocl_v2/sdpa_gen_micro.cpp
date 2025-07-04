@@ -858,9 +858,6 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
         sdpa_config.is_kv_compressed = false;
         sdpa_config.use_asymmetric_quantization = false;
 
-        // sdpa_config.paged_attention_aligned_seq_len = get_aligned_seq_len(impl_param, PagedAttentionStage::PREFILL);
-        // std::cout << "Get PagedAttention aligned seq len: " << sdpa_config.paged_attention_aligned_seq_len << std::endl;
-
         // PagedAttentionInputIdx::ALIBI
         const auto has_alibi = impl_param.get_input_layout(11).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
@@ -920,6 +917,11 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 
     return kd;
 }
+
+const bool kq_common_scales = false;
+const bool kq_common_zp = false;
+const bool vs_common_scales = false;
+const bool vs_common_zp = false;
 
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
     auto jit = SDPABase::get_jit_constants(params);
@@ -1308,10 +1310,6 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
             s_q.v.s32 = static_cast<uint32_t>(n_queries.get_length());
             scalars.push_back(s_q);
-
-            // std::cout << "s_d = " << s_d.v.s32 << ", s_k = " << s_k.v.s32 << ", s_q = " << s_q.v.s32 << std::endl;
-            // std::cout << "wgs.global = " << wgs.global[0] << ", " << wgs.global[1] << ", " << wgs.global[2] << std::endl;
-            // std::cout << "wgs.local = " << wgs.local[0] << ", " << wgs.local[1] << ", " << wgs.local[2] << std::endl;
         }
     }};
 }
@@ -1324,13 +1322,7 @@ size_t SDPAMicroGenerator::get_tile_qsize(const KernelData& kernel_data) {
     return wg_tile_q;
 }
 
-const bool kq_common_scales = false;
-const bool kq_common_zp = false;
-const bool vs_common_scales = false;
-const bool vs_common_zp = false;
-
 std::mutex SDPAMicroGenerator::m;
-
 void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                                            const sdpa_configuration& configuration,
                                            micro::Package& gemm_kq,

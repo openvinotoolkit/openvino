@@ -4,22 +4,22 @@
 
 #pragma once
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-#    include <mutex>
+#include <mutex>
 
-#    include "common_utils/jitter.hpp"
-#    include "intel_gpu/graph/kernel_impl_params.hpp"
-#    include "intel_gpu/primitives/paged_attention.hpp"
-#    include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
-#    include "micro_utils.hpp"
-#    include "ocl_v2/utils/jitter.hpp"
-#    include "scaled_dot_product_attention_inst.h"
-#    include "sdpa_base.hpp"
-#    include "utils/kernel_generator.hpp"
+#include "common_utils/jitter.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "micro_utils.hpp"
+#include "ocl_v2/utils/jitter.hpp"
+#include "scaled_dot_product_attention_inst.h"
+#include "sdpa_base.hpp"
+#include "utils/kernel_generator.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 class SDPAMicroGenerator : public SDPABase {
 public:
     explicit SDPAMicroGenerator(bool prefill) : SDPABase("sdpa_micro", prefill ? "_prefill" : "_generate", false), m_is_prefill(prefill) {}
@@ -60,6 +60,5 @@ private:
     static constexpr bool vs_common_scales = false;
     static constexpr bool vs_common_zp = false;
 };
-
-}  // namespace ov::intel_gpu::ocl
 #endif
+}  // namespace ov::intel_gpu::ocl
