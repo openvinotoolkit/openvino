@@ -30,7 +30,6 @@ namespace ov::intel_cpu {
 using namespace ov::threading;
 using namespace dnnl::impl::cpu::x64;
 
-
 Config::Config() {
 #ifdef CPU_DEBUG_CAPS
     disableFusion = applyDebugCapsProperties();
@@ -56,9 +55,8 @@ bool Config::applyDebugCapsProperties() {
     return false;
 }
 
-
 void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
-       if (!prop.empty()) {
+    if (!prop.empty()) {
         _config.clear();
     }
     const auto streamExecutorConfigKeys =
@@ -450,25 +448,32 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::internal::caching_with_mmap.name()) {
         } else if (key == "DISABLE_LAYER_FUSION") {
             try {
-                const std::string value = val.as<std::string>();
-                if (value == PluginConfigParams::YES) {
-                    disableFusion = true;
-                } else if (value == PluginConfigParams::NO) {
-                    disableFusion = false;
+                if (val.is<bool>()) {
+                    disableFusion = val.as<bool>();
+                    _config["DISABLE_LAYER_FUSION"] = disableFusion ? "YES" : "NO";
                 } else {
-                    OPENVINO_THROW("Wrong value ",
-                                   value,
-                                   " for property key DISABLE_LAYER_FUSION. Expected only YES/NO");
+                    const std::string value = val.as<std::string>();
+                    if (value == PluginConfigParams::YES)
+                        disableFusion = true;
+                    else if (value == PluginConfigParams::NO)
+                        disableFusion = false;
+                    else
+                        OPENVINO_THROW("Wrong value ",
+                                       value,
+                                       " for property key DISABLE_LAYER_FUSION. Expected YES/NO or bool");
+
+                    std::string value_upper = value;
+                    std::transform(value_upper.begin(), value_upper.end(), value_upper.begin(), ::toupper);
+                    _config["DISABLE_LAYER_FUSION"] = value_upper;
                 }
-                std::string value_upper = value;
-                std::transform(value_upper.begin(), value_upper.end(), value_upper.begin(), ::toupper);
-                _config["DISABLE_LAYER_FUSION"] = value_upper;
-            } catch (ov::Exception&) {
+            } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
-                               " for property key DISABLE_LAYER_FUSION. Expected only YES/NO");
+                               " for property key DISABLE_LAYER_FUSION. Expected YES/NO or bool");
             }
-        } else {
+        }
+
+        else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
     }
@@ -544,8 +549,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
 #endif
 
     this->modelType = modelType;
-        updateProperties();
-
+    updateProperties();
 }
 
 void Config::updateProperties() {
@@ -568,9 +572,8 @@ void Config::updateProperties() {
 
     _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
-     _config.insert({PluginConfigParams::DISABLE_LAYER_FUSION,
-                    disableFusion ? PluginConfigParams::YES : PluginConfigParams::NO});
-
+    _config.insert(
+        {PluginConfigParams::DISABLE_LAYER_FUSION, disableFusion ? PluginConfigParams::YES : PluginConfigParams::NO});
 }
 
 void Config::applyRtInfo(const std::shared_ptr<const ov::Model>& model) {

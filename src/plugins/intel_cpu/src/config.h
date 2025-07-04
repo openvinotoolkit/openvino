@@ -29,7 +29,6 @@ static constexpr const char* DISABLE_LAYER_FUSION = "DISABLE_LAYER_FUSION";
 namespace ov::intel_cpu {
 struct Config {
     Config();
-
     enum LPTransformsMode : uint8_t {
         Off,
         On,
@@ -145,8 +144,8 @@ struct Config {
 
 #ifdef CPU_DEBUG_CAPS
     DebugCapsConfig debugCaps;
-    bool applyDebugCapsProperties();
 #endif
+    bool applyDebugCapsProperties();  
 };
 
 }  // namespace ov::intel_cpu

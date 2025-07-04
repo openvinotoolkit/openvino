@@ -62,6 +62,7 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  * @endcode
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
+static constexpr Property<bool> disable_layer_fusion{"DISABLE_LAYER_FUSION"};
 
 }  // namespace intel_cpu
 }  // namespace ov

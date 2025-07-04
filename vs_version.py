@@ -1,40 +1,40 @@
-import os
-import re
+# import os
+# import re
 
-def fix_vs_version_rc_files(root_dir, version_str="1,0,0,19387"):
-    # الأنماط اللي عايزين نعدلها
-    fileversion_pattern = re.compile(r'FILEVERSION\s+[\d,]+')
-    productversion_pattern = re.compile(r'PRODUCTVERSION\s+[\d,]+')
+# def fix_vs_version_rc_files(root_dir, version_str="1,0,0,19387"):
+#     # الأنماط اللي عايزين نعدلها
+#     fileversion_pattern = re.compile(r'FILEVERSION\s+[\d,]+')
+#     productversion_pattern = re.compile(r'PRODUCTVERSION\s+[\d,]+')
 
-    for foldername, subfolders, filenames in os.walk(root_dir):
-        for filename in filenames:
-            if filename == "vs_version.rc":
-                filepath = os.path.join(foldername, filename)
-                try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
-                        lines = f.readlines()
+#     for foldername, subfolders, filenames in os.walk(root_dir):
+#         for filename in filenames:
+#             if filename == "vs_version.rc":
+#                 filepath = os.path.join(foldername, filename)
+#                 try:
+#                     with open(filepath, 'r', encoding='utf-8') as f:
+#                         lines = f.readlines()
 
-                    changed = False
-                    for i, line in enumerate(lines):
-                        if fileversion_pattern.match(line):
-                            lines[i] = f"FILEVERSION {version_str}\n"
-                            changed = True
-                        elif productversion_pattern.match(line):
-                            lines[i] = f"PRODUCTVERSION {version_str}\n"
-                            changed = True
+#                     changed = False
+#                     for i, line in enumerate(lines):
+#                         if fileversion_pattern.match(line):
+#                             lines[i] = f"FILEVERSION {version_str}\n"
+#                             changed = True
+#                         elif productversion_pattern.match(line):
+#                             lines[i] = f"PRODUCTVERSION {version_str}\n"
+#                             changed = True
 
-                    if changed:
-                        with open(filepath, 'w', encoding='utf-8') as f:
-                            f.writelines(lines)
-                        print(f"Fixed {filepath}")
+#                     if changed:
+#                         with open(filepath, 'w', encoding='utf-8') as f:
+#                             f.writelines(lines)
+#                         print(f"Fixed {filepath}")
 
-                except Exception as e:
-                    print(f"Failed to process {filepath}: {e}")
+#                 except Exception as e:
+#                     print(f"Failed to process {filepath}: {e}")
 
-if __name__ == "__main__":
-    import sys
-    root = sys.argv[1] if len(sys.argv) > 1 else "."
-    fix_vs_version_rc_files(root)
+# if __name__ == "__main__":
+#     import sys
+#     root = sys.argv[1] if len(sys.argv) > 1 else "."
+#     fix_vs_version_rc_files(root)
 
 # import os
 
@@ -147,4 +147,84 @@ if __name__ == "__main__":
 # if __name__ == "__main__":
 #     import sys
 #     root = sys.argv[1] if len(sys.argv) > 1 else "."
+# #     fix_vs_version_rc_files(root)
+# import os
+# import re
+
+# def fix_vs_version_rc_files(root_dir, version_str="1,0,0,19387"):
+#     fileversion_pattern  = re.compile(r'FILEVERSION\s+[\d,]+')
+#     productversion_pattern = re.compile(r'PRODUCTVERSION\s+[\d,]+')
+
+#     for foldername, _, filenames in os.walk(root_dir):
+#         for filename in filenames:
+#             if filename == "vs_version.rc":
+#                 filepath = os.path.join(foldername, filename)
+#                 try:
+#                     with open(filepath, 'r', encoding='utf-8') as f:
+#                         lines = f.readlines()
+
+#                     changed = False
+#                     for i, line in enumerate(lines):
+#                         if fileversion_pattern.match(line):
+#                             lines[i] = f"FILEVERSION {version_str}\n"
+#                             changed = True
+#                         elif productversion_pattern.match(line):
+#                             lines[i] = f"PRODUCTVERSION {version_str}\n"
+#                             changed = True
+
+#                     if changed:
+#                         with open(filepath, 'w', encoding='utf-8') as f:
+#                             f.writelines(lines)
+#                         print(f"✅ Fixed {filepath}")
+
+#                 except Exception as e:
+#                     print(f"❌ Failed to process {filepath}: {e}")
+
+# if __name__ == "__main__":
+#     import sys
+#     root = sys.argv[1] if len(sys.argv) > 1 else "."
 #     fix_vs_version_rc_files(root)
+import os
+import re
+
+def fix_vs_version_rc_files(root_dir, version_str="1,0,0,19387"):
+    fileversion_pattern  = re.compile(r'FILEVERSION\s+[\d,]+')
+    productversion_pattern = re.compile(r'PRODUCTVERSION\s+[\d,]+')
+
+    fixed_files_count = 0
+
+    for foldername, _, filenames in os.walk(root_dir):
+        for filename in filenames:
+            if filename == "vs_version.rc":
+                filepath = os.path.join(foldername, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+
+                    changed = False
+                    for i, line in enumerate(lines):
+                        if fileversion_pattern.match(line.strip()):
+                            lines[i] = f"FILEVERSION {version_str}\n"
+                            changed = True
+                        elif productversion_pattern.match(line.strip()):
+                            lines[i] = f"PRODUCTVERSION {version_str}\n"
+                            changed = True
+
+                    if changed:
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            f.writelines(lines)
+                        print(f"✅ Fixed {filepath}")
+                        fixed_files_count += 1
+
+                except Exception as e:
+                    print(f"❌ Failed to process {filepath}: {e}")
+
+    if fixed_files_count == 0:
+        print("No files were fixed.")
+
+if __name__ == "__main__":
+    import sys
+    # افتراضياً المسار داخل فولدر build بالمشروع، تقدر تغيره حسب مكانك
+    default_build_path = r"C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\build"
+    root = sys.argv[1] if len(sys.argv) > 1 else default_build_path
+    fix_vs_version_rc_files(root)

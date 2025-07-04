@@ -1,58 +1,81 @@
+
+# # from openvino.runtime import Core
+# # import openvino
+# # print(openvino.__file__)
+
+# # core = Core()
+# # model = core.read_model(r"C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\public\resnet-50-pytorch\FP16\resnet-50-pytorch.xml")
+# # compiled_model = core.compile_model(model=model, device_name="CPU", config={"DISABLE_LAYER_FUSION": "YES"})
+# # print("Model compiled with DISABLE_LAYER_FUSION") 
+# import numpy as np
+# import time
 # from openvino.runtime import Core
 
-# def test_disable_layer_fusion():
-#     core = Core()
+# model_path = r"C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\public\resnet-50-pytorch\FP16\resnet-50-pytorch.xml"
+# input_shape = (1, 3, 224, 224)  # شكل الإدخال المتوقع للـ ResNet-50
+# dummy_input = np.random.rand(*input_shape).astype(np.float32)
 
-#     config = {"DISABLE_LAYER_FUSION": "YES"}
-#     device = "CPU"
+# core = Core()
 
-#     core.set_property(device, config)
+# # ========== 1. WITH Layer Fusion ==========
+# start_compile = time.time()
+# model = core.read_model(model_path)
+# compiled_with_fusion = core.compile_model(model=model, device_name="CPU")  # بدون تعطيل
+# compile_time_fusion = time.time() - start_compile
 
-#     model_path = r"C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\public\resnet-50-pytorch\FP32\resnet-50-pytorch.xml"
-#     model = core.read_model(model_path)
+# input_tensor = compiled_with_fusion.input(0)
+# start_infer = time.time()
+# _ = compiled_with_fusion([dummy_input])
+# infer_time_fusion = time.time() - start_infer
 
-#     compiled_model = core.compile_model(model, device)
+# # ========== 2. WITHOUT Layer Fusion ==========
+# start_compile = time.time()
+# model = core.read_model(model_path)
+# compiled_without_fusion = core.compile_model(
+#     model=model,
+#     device_name="CPU",
+#     config={"DISABLE_LAYER_FUSION": "YES"}
+# )
+# compile_time_no_fusion = time.time() - start_compile
 
-#     print("Model compiled with DISABLE_LAYER_FUSION=YES")
+# input_tensor = compiled_without_fusion.input(0)
+# start_infer = time.time()
+# _ = compiled_without_fusion([dummy_input])
+# infer_time_no_fusion = time.time() - start_infer
 
-# if __name__ == "__main__":
-#     test_disable_layer_fusion()
+# # ========== مقارنة النتائج ==========
+# print("\n🔍 Comparison of Layer Fusion vs No Fusion:")
+# print(f"✅ Compile Time WITH Fusion     : {compile_time_fusion:.4f} seconds")
+# print(f"❌ Compile Time WITHOUT Fusion  : {compile_time_no_fusion:.4f} seconds")
+# print(f"✅ Inference Time WITH Fusion   : {infer_time_fusion:.4f} seconds")
+# print(f"❌ Inference Time WITHOUT Fusion: {infer_time_no_fusion:.4f} seconds")
 import time
-from openvino.runtime import Core
 import numpy as np
+from openvino.runtime import Core
+def benchmark(compiled_model, input_data, runs=100):
+    infer_request = compiled_model.create_infer_request()
+    times = []
 
-# مسار الموديل
-model_path = r"C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\public\resnet-50-pytorch\FP32\resnet-50-pytorch.xml"
+    for _ in range(runs):
+        start = time.time()
+        infer_request.infer({compiled_model.inputs[0]: input_data})
+        times.append(time.time() - start)
 
-# إنشاء الكور
+    return sum(times) / len(times)
 core = Core()
 
-# دالة لتشغيل inference مع أو بدون fusion
-def run_inference(disable_fusion: bool):
-    config = {"DISABLE_LAYER_FUSION": "YES" if disable_fusion else "NO"}
-    print(f"\n🔧 Running with config: {config}")
+model_path = r"C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\public\resnet-50-pytorch\FP16\resnet-50-pytorch.xml"
+model = core.read_model(model_path)
 
-    compiled_model = core.compile_model(model=model_path, device_name="CPU", config=config)
+# حمّلي نفس الموديل مرتين: مرّة مع ومرّة من غير Layer Fusion
+compiled_with_fusion = core.compile_model(model, "CPU")
+compiled_without_fusion = core.compile_model(model, "CPU", config={"DISABLE_LAYER_FUSION": "YES"})
 
-    input_layer = compiled_model.input(0)
-    dummy_input = np.random.randn(*input_layer.shape).astype(np.float32)
+# جهّزي dummy input بنفس شكل input الموديل
+input_shape = compiled_with_fusion.inputs[0].shape  # غالباً [1, 3, 224, 224]
+input_data = np.random.rand(*input_shape).astype(np.float32)
+avg_time_fusion = benchmark(compiled_with_fusion, input_data)
+avg_time_no_fusion = benchmark(compiled_without_fusion, input_data)
 
-    start = time.time()
-    compiled_model.infer_new_request({input_layer.any_name: dummy_input})
-    end = time.time()
-
-    return end - start
-
-# تشغيل التجربة مرتين
-time_with_fusion = run_inference(False)
-time_without_fusion = run_inference(True)
-
-# طباعة النتائج
-print(f"\n✅ وقت الـ inference مع الفيوجن مفعّل   : {time_with_fusion:.4f} ثانية")
-print(f"❌ وقت الـ inference مع تعطيل الفيوجن : {time_without_fusion:.4f} ثانية")
-print(f"📉 الفرق بينهم                         : {abs(time_with_fusion - time_without_fusion):.4f} ثانية")
-
-# معلومات إضافية
-print("\n🧠 معلومات عن المعالج:")
-print("FULL_DEVICE_NAME:", core.get_property("CPU", "FULL_DEVICE_NAME"))
-print("CACHE_DIR        :", core.get_property("CPU", "CACHE_DIR"))
+print(f"✅ Avg Inference Time WITH Fusion    : {avg_time_fusion:.6f} seconds")
+print(f"❌ Avg Inference Time WITHOUT Fusion : {avg_time_no_fusion:.6f} seconds")
