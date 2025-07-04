@@ -493,6 +493,28 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
                                                       context);
 }
 
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(ov::Tensor& model,
+                                                                    const ov::AnyMap& properties) const {
+    auto dev_name = get_fallback_device(get_device_from_config(properties));
+    auto device_config = construct_device_config(dev_name, m_configs, properties);
+    auto device_model = get_core()->import_model(model, dev_name, device_config);
+    auto remote_context = create_proxy_context(device_model, properties);
+
+    return std::make_shared<ov::proxy::CompiledModel>(device_model, shared_from_this(), remote_context);
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(ov::Tensor& model,
+                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                    const ov::AnyMap& properties) const {
+    auto ctx = ov::proxy::RemoteContext::get_hardware_context(context);
+    auto dev_name = ctx->get_device_name();
+    auto device_config = construct_device_config(dev_name, m_configs, properties);
+
+    return std::make_shared<ov::proxy::CompiledModel>(get_core()->import_model(model, ctx, device_config),
+                                                      shared_from_this(),
+                                                      context);
+}
+
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
     std::vector<std::string> devices;
     const auto all_devices = get_hidden_devices();

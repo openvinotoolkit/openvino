@@ -3,19 +3,19 @@
 //
 #pragma once
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <memory>
 #include <utility>
 
-#include "openvino/runtime/core.hpp"
-#include "openvino/runtime/iplugin.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/util/shared_object.hpp"
-#include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/shared_object.hpp"
 
 //  Based on: openvino/src/inference/tests/functional/caching_test.cpp
 
@@ -71,16 +71,17 @@ using MockInferRequest = testing::NiceMock<MockInferRequestBase>;
 
 class MockCompiledModelBase : public ov::ICompiledModel {
 public:
-    MockCompiledModelBase(
-            const std::shared_ptr<const ov::Model>& model, std::shared_ptr<ov::IPlugin> plugin,
-            const ov::AnyMap& config,
-            std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> infer_reqs_to_expectations);
+    MockCompiledModelBase(const std::shared_ptr<const ov::Model>& model,
+                          std::shared_ptr<ov::IPlugin> plugin,
+                          const ov::AnyMap& config,
+                          std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>>
+                              infer_reqs_to_expectations);
 
     // Methods from a base class ov::ICompiledModel
     MOCK_METHOD(const std::vector<ov::Output<const ov::Node>>&, outputs, (), (const, override));
     MOCK_METHOD(const std::vector<ov::Output<const ov::Node>>&, inputs, (), (const, override));
     MOCK_METHOD(std::shared_ptr<ov::IAsyncInferRequest>, create_infer_request, (), (const, override));
-    MOCK_METHOD(void, export_model, (std::ostream& model), (const, override));
+    MOCK_METHOD(void, export_model, (std::ostream & model), (const, override));
     MOCK_METHOD(std::shared_ptr<const ov::Model>, get_runtime_model, (), (const, override));
     MOCK_METHOD(void, set_property, (const ov::AnyMap& properties), (override));
     MOCK_METHOD(ov::Any, get_property, (const std::string& name), (const, override));
@@ -92,16 +93,18 @@ public:
 private:
     std::mutex m_mock_creation_mutex;
     int m_num_created_infer_requests{};
-    std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>> m_infer_reqs_to_expectations_ptr;
+    std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>>
+        m_infer_reqs_to_expectations_ptr;
 
     std::shared_ptr<const ov::Model> m_model;
     ov::AnyMap m_config;
 };
 
-template<typename DeviceType>
+template <typename DeviceType>
 class MockPluginBase : public ov::IPlugin {
 private:
     static constexpr const char* device_name = DeviceType::name;
+
 public:
     MockPluginBase();
 
@@ -120,10 +123,15 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context));
     MOCK_CONST_METHOD2_T(get_property, ov::Any(const std::string& name, const ov::AnyMap& arguments));
     MOCK_CONST_METHOD2_T(import_model,
-                         std::shared_ptr<ov::ICompiledModel>(std::istream& model,
-                                                             const ov::AnyMap& properties));
+                         std::shared_ptr<ov::ICompiledModel>(std::istream& model, const ov::AnyMap& properties));
+    MOCK_CONST_METHOD2_T(import_model,
+                         std::shared_ptr<ov::ICompiledModel>(ov::Tensor& model, const ov::AnyMap& properties));
     MOCK_CONST_METHOD3_T(import_model,
                          std::shared_ptr<ov::ICompiledModel>(std::istream& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties));
+    MOCK_CONST_METHOD3_T(import_model,
+                         std::shared_ptr<ov::ICompiledModel>(ov::Tensor& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties));
     MOCK_CONST_METHOD2_T(query_model,
@@ -131,13 +139,21 @@ public:
                                              const ov::AnyMap& properties));
 
     MOCK_METHOD(void, set_property, (const ov::AnyMap& properties), (override));
-    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, create_context, (const ov::AnyMap& remote_properties), (const, override));
-    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, get_default_context, (const ov::AnyMap& remote_properties), (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>,
+                create_context,
+                (const ov::AnyMap& remote_properties),
+                (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>,
+                get_default_context,
+                (const ov::AnyMap& remote_properties),
+                (const, override));
 
     // This must be called *before* the custom ON_CALL() statements.
     void create_implementation();
     void set_expectations_to_comp_models(int model_idx, std::function<void(MockCompiledModel&)> expectations);
-    void set_expectations_to_infer_reqs(int model_idx, int req_idx, std::function<void(MockInferRequest&)> expectations);
+    void set_expectations_to_infer_reqs(int model_idx,
+                                        int req_idx,
+                                        std::function<void(MockInferRequest&)> expectations);
 
     ~MockPluginBase() override;
 
@@ -147,7 +163,8 @@ private:
     int m_num_compiled_models{};
     // TODO: Make thread-safe and simplify.
     std::map<int, std::pair<std::function<void(MockCompiledModel&)>, bool>> m_models_to_expectations;
-    std::map<int, std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>>> m_models_to_reqs_to_expectations;
+    std::map<int, std::shared_ptr<std::map<int, std::pair<std::function<void(MockInferRequest&)>, bool>>>>
+        m_models_to_reqs_to_expectations;
 
     // Properties
     int32_t num_streams{0};
@@ -163,7 +180,7 @@ struct Cpu {
     static constexpr const char* name = "MockCPU";
     static constexpr int num_device_ids = 2;
 };
-} //namespace mocks
+}  // namespace mocks
 
 using MockNpuPlugin = testing::NiceMock<MockPluginBase<mocks::Npu>>;
 using MockCpuPlugin = testing::NiceMock<MockPluginBase<mocks::Cpu>>;

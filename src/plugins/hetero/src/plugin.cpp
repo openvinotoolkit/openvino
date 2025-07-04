@@ -136,6 +136,12 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     OPENVINO_NOT_IMPLEMENTED;
 }
 
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(ov::Tensor& model,
+                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                     const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
@@ -152,6 +158,11 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     auto config = Configuration{_properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);
     return compiled_model;
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(ov::Tensor& model,
+                                                                     const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_device(const std::string& device_priorities,

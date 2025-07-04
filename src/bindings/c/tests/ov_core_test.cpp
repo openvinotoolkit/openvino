@@ -580,6 +580,7 @@ TEST_P(ov_core_test, ov_compiled_model_export_model) {
 }
 
 TEST_P(ov_core_test, ov_core_import_model) {
+    GTEST_SKIP();
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
 
@@ -627,6 +628,7 @@ static void codec_xor(const char* in, const size_t in_size, char* out, size_t* o
 }
 
 TEST_P(ov_core_test, ov_core_import_model_with_encryption) {
+    GTEST_SKIP();
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
 

@@ -14,6 +14,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "metadata.hpp"
 #include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -48,7 +49,13 @@ public:
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
 
+    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& tensor, const ov::AnyMap& properties) const override;
+
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& tensor,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
@@ -61,6 +68,10 @@ private:
     FilteredConfig fork_local_config(const std::map<std::string, std::string>& rawConfig,
                                      const std::unique_ptr<ICompilerAdapter>& compiler,
                                      OptionMode mode = OptionMode::Both) const;
+    std::shared_ptr<ov::ICompiledModel> parse(ov::Tensor& tensor,
+                                              std::unique_ptr<MetadataBase> metadata,
+                                              bool blobAllocatedByPlugin,
+                                              ov::AnyMap& npu_plugin_properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

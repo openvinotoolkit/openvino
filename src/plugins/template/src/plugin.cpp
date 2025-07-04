@@ -202,6 +202,12 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
                                                                               const ov::AnyMap& properties) const {
     return import_model(model, {}, properties);
 }
+
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(ov::Tensor& model,
+                                                                              const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 // ! [plugin:import_model]
 
 // ! [plugin:import_model_with_remote]
@@ -264,6 +270,14 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
                                         loaded_from_cache);
     return compiled_model;
 }
+
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
+    ov::Tensor& model,
+    const ov::SoPtr<ov::IRemoteContext>& context,
+    const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 // ! [plugin:import_model_with_remote]
 
 // ! [plugin:query_model]
