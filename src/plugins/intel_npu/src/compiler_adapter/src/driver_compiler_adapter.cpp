@@ -163,11 +163,20 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                  ZE_MINOR_VERSION(graphExtVersion));
 }
 
+void printZeGraphCompilerVersionInfo(const ze_graph_compiler_version_info_t& info) {
+    std::cout << "---TEST ze_graph_compiler_version_info_t:" << std::endl;
+    std::cout << "  ---major: " << info.major << std::endl;
+    std::cout << "  ---minor: " << info.minor << std::endl;
+}
+
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compile");
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
+
+    printZeGraphCompilerVersionInfo(compilerVersion);
+
     const auto maxOpsetVersion = _compilerProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
