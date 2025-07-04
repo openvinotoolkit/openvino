@@ -960,8 +960,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             updated_params.output_layouts[i] = updated_layouts[i];
         }
 
-        bool mem_from_padded_pool = (_outputs[i] && _outputs[i]->is_mem_from_padded_pool());
-        if (can_reuse_buffer || mem_from_padded_pool) {
+        if (can_reuse_buffer) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
                                    << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
                                    << std::endl;
@@ -982,8 +981,9 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 GPU_DEBUG_TRACE_DETAIL << i << ". " << _impl_params->output_layouts[i].to_string() << std::endl;
                 set_flag(ExecutionFlags::SHAPE_CHANGED);
             } else {
+                bool from_memory_pool = (_outputs[i] && _outputs[i]->from_memory_pool);
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
-                _outputs[i]->mem_from_padded_pool(mem_from_padded_pool);
+                _outputs[i]->from_memory_pool = from_memory_pool;
             }
             // TODO: check need_reset_output_memory per output
             if (need_reset_output_memory() && !can_be_optimized()) {
@@ -1016,7 +1016,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
 
-            if (need_reset_output_memory() && !can_be_optimized() && _outputs[i]->is_mem_from_padded_pool()) {
+            if (need_reset_output_memory() && !can_be_optimized() &&
+                _outputs[i]->from_memory_pool && _outputs[i]->get_layout().data_padding) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
                 add_dep_event(_outputs[i]->fill(get_network().get_stream()));
             }
