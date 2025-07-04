@@ -14,6 +14,7 @@ OpenVINO™ Integrations
    :hidden:
 
    openvino-project/openvino-test-drive
+   OpenVINO Adoptions <openvino-ecosystem/openvino-adoptions>
 
 **Hugging Face Optimum-Intel**
 
@@ -199,11 +200,7 @@ OpenVINO™ Integrations
 
    .. code-block:: python
 
-      ...
       python aot_optimize_and_infer.py --export --suite timm --model vgg16 --input_shape "[1, 3, 224, 224]" --device CPU
-      ...
-
-
 
 
 
