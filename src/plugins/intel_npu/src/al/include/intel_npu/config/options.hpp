@@ -311,7 +311,7 @@ struct CACHE_MODE final : OptionBase<CACHE_MODE, ov::CacheMode> {
     }
 
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        return OptionMode::CompileTime;
     }
 
     static ov::CacheMode parse(std::string_view val) {
