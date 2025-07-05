@@ -77,7 +77,7 @@ public:
      *
      * This is why there is an additional parameter callNumber:
      * Compiler should somehow understand wich Init(or Main) to return
-     * Plugin does not know total numbers og Init schedules
+     * Plugin does not know total numbers of Init schedules
      */
     virtual NetworkDescription compileWS_v3(const std::shared_ptr<ov::Model>& model,
                                             const Config& config,
