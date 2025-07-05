@@ -124,10 +124,7 @@ class TestQuantizedConv1D(PytorchLayerTest):
             def forward(self, x):
                 if x.dim() == 2:
                     x = x.unsqueeze(0)  # Adds batch dimension
-
-                if self.conv.weight.dim() != 3:
-                    self.conv.weight = self.conv.weight.view(self.conv.out_channels, self.conv.in_channels, self.conv.kernel_size)
-                    
+         
                 x_quantized = torch.quantize_per_tensor(
                     x, scale=1.0, zero_point=0, dtype=torch.quint8)
                 y = self.conv(x_quantized)
