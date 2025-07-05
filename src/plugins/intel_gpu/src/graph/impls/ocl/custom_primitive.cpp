@@ -264,6 +264,13 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
                                                  gws,
                                                  lws);
 
+    if (gws.empty()) {
+        gws = primitive->gws;
+    }
+    if (lws.empty()) {
+        lws = primitive->lws;
+    }
+
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
