@@ -292,6 +292,8 @@ if(NOT TARGET openvino::pugixml)
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
         ov_developer_package_export_targets(TARGET openvino::pugixml)
+        # ov_developer_package_export_targets(TARGET openvino::pugixml
+        #     INSTALL_INCLUDE_DIRECTORIES thirdparty/pugixml/src)
         ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
@@ -304,7 +306,10 @@ endif()
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS OR ENABLE_INTEL_NPU_INTERNAL)
     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-    ov_developer_package_export_targets(TARGET gflags)
+    ov_developer_package_export_targets(
+        TARGET gflags
+        INSTALL_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/thirdparty/gflags/gflags/include/gflags"
+        INSTALL_DESTIONATION "developer_package/include/gflags")
 endif()
 
 #
