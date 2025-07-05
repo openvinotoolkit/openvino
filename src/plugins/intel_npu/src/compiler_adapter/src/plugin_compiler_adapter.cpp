@@ -146,7 +146,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     switch (config.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
         std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
-            _compiler->compileWS_v1(model, config);
+            _compiler->compileWsOneShot(model, config);
 
 #if 0  // TODO: it is not clear whether we should change the name
             OPENVINO_ASSERT(isMain(initMainNetworkDescriptions.back()->metadata.name),
@@ -164,7 +164,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         size_t i = 0;
 
         while (auto networkDescription =
-                   std::make_shared<NetworkDescription>(_compiler->compileWS_v3(targetModel, config, i++))) {
+                   std::make_shared<NetworkDescription>(_compiler->compileWsIterative(targetModel, config, i++))) {
             if (isInit(networkDescription->metadata.name)) {
                 initNetworkDescriptions.push_back(networkDescription);
                 targetModel = originalModel->clone();
