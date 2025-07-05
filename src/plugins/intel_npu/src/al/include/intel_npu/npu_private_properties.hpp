@@ -334,6 +334,7 @@ static constexpr ov::Property<BatchMode> batch_mode{"NPU_BATCH_MODE"};
  * Type: enum. Default is "ITERATIVE".
  *
  * The value stored in this entry indicates which implementation of the "weights separation" feature will be used.
+ * Note: NPU_COMPILER_TYPE = DRIVER & NPU_SEPARATE_WEIGHTS_VERSION = ONE_SHOT are not compatible.
  */
 static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_WEIGHTS_VERSION"};
 
