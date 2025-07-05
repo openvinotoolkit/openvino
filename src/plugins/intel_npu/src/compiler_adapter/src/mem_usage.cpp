@@ -1,13 +1,16 @@
-
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 #include "mem_usage.hpp"
 
 #if defined _WIN32
 
-#include <windows.h>
-#include <psapi.h>
-#include <cmath>
-#include <stdexcept>
+#    include <psapi.h>
+#    include <windows.h>
+
+#    include <cmath>
+#    include <stdexcept>
 
 int64_t intel_npu::get_peak_memory_usage() {
     PROCESS_MEMORY_COUNTERS mem_counters;
@@ -31,9 +34,9 @@ int64_t intel_npu::get_peak_memory_usage() {
 
 #else
 
-#include <fstream>
-#include <regex>
-#include <sstream>
+#    include <fstream>
+#    include <regex>
+#    include <sstream>
 
 int64_t intel_npu::get_peak_memory_usage() {
     std::size_t peak_mem_usage_kB = 0;

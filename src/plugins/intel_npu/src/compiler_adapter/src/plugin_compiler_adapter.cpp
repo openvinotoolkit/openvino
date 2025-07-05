@@ -141,7 +141,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         return starts_with(name, "main");
     };
 
-    std::cout << "SEPARATE_WEIGHTS_VERSION: " << config.get<SEPARATE_WEIGHTS_VERSION>() << std::endl;
+    _logger.info("SEPARATE_WEIGHTS_VERSION: ", config.get<SEPARATE_WEIGHTS_VERSION>());
 
     switch (config.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {

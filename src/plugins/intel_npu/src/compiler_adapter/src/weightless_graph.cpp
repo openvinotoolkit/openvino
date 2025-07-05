@@ -24,7 +24,8 @@ namespace {
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 
 std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_constants_in_topological_order(
-    const std::shared_ptr<const ov::Model>& model) {
+    const std::shared_ptr<const ov::Model>& model,
+    const Logger& logger) {
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
@@ -46,7 +47,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
             }
         }
     } else {
-        std::cout << "Weightless cache attribute was not found in the model." << std::endl;
+        logger.info("Weightless cache attribute was not found in the model.");
         size_t constantId = 0;
         for (auto&& node : model->get_ordered_ops()) {
             if (!ov::is_type<ov::op::v0::Constant>(node)) {
@@ -83,8 +84,11 @@ class Parallelizer {
     Task2Callable _task2;
 
 public:
-    Parallelizer(const std::shared_ptr<const ov::Model>& model, Task1Callable&& task1, Task2Callable&& task2)
-        : _modelConstants(get_all_constants_in_topological_order(model)),
+    Parallelizer(const std::shared_ptr<const ov::Model>& model,
+                 Task1Callable&& task1,
+                 Task2Callable&& task2,
+                 const Logger& logger)
+        : _modelConstants(get_all_constants_in_topological_order(model, logger)),
           _task1(std::forward<Task1Callable>(task1)),
           _task2(std::forward<Task2Callable>(task2)) {}
 
@@ -144,9 +148,8 @@ public:
 
 // c++17 deduction guide
 template <typename Task1Callable, typename Task2Callable>
-Parallelizer(const std::shared_ptr<const ov::Model>&,
-             Task1Callable&&,
-             Task2Callable&&) -> Parallelizer<Task1Callable, Task2Callable>;
+Parallelizer(const std::shared_ptr<const ov::Model>&, Task1Callable&&, Task2Callable&&, const Logger&)
+    -> Parallelizer<Task1Callable, Task2Callable>;
 
 void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& dst,
                     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& src) {
@@ -233,9 +236,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
             std::stringstream str;
             if (blobIndex == MAIN_SCHEDULE_INDEX) {
-                str << "Main blob size: " << blobSize << ", hash: " << std::hex << result;
+                str << "Main blob size " << blobSize << ", hash " << std::hex << result;
             } else {
-                str << "Init part " << blobIndex << " blob size: " << blobSize << ", hash: " << std::hex << result;
+                str << "Init part " << blobIndex << " blob size " << blobSize << ", hash " << std::hex << result;
             }
             _logger.info(str.str().c_str());
         }
@@ -259,11 +262,11 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
         initSizes.push_back(initBlobSize);
         ++blobIndex;
     }
-    
+
     std::stringstream str;
     str << "Blob size: " << totalBlobSize << ", hash: " << std::hex << totalResult;
     _logger.info(str.str().c_str());
-    
+
     _logger.info("Write blob to stream successfully.");
     return std::make_pair(totalBlobSize, initSizes);
 }
@@ -461,7 +464,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 }
 
 void WeightlessGraph::run_init_single_threaded() {
-    auto constants = get_all_constants_in_topological_order(_model);
+    auto constants = get_all_constants_in_topological_order(_model, _logger);
 
     for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
@@ -522,7 +525,8 @@ void WeightlessGraph::run_init_multi_threaded() {
             // TODO: pre-allocate those well in advance? (outside of this loop)
             merge_two_maps(_mainInputsViewTensors, data.outputs.tensorsMap);
             _mainInputsAllocatedTensors.push_back(data.outputs.hostTensor);
-        });
+        },
+        _logger);
 
     multiThreadedRunner.callForAllAndWait(_initsHandles.size());
     _model = nullptr;
