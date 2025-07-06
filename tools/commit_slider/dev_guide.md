@@ -1,6 +1,6 @@
 # How to customize CS for specific user case
 
-To face the user case we should answer several clear some aspects.
+To face the user case we should clarify some aspects.
 
 - Customization of existing Mode / creating a new one.
 - The way of linking/compilation of main app.
@@ -10,4 +10,4 @@ To face the user case we should answer several clear some aspects.
 - API design.
 
 Examples of solved problems:
-([Performance cross-checking](case_1.md))
+([Performance cross-checking](perf_cross_check.md))

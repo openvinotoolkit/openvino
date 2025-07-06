@@ -1,34 +1,42 @@
 # Case #1. Cross-checking of performance degradation.
+
+([Basic concepts.](README.md))
+
 #### Themes: Mode and Template customization, API design
   
 
-For 2 given versions, defined by commit hashes and 2 models we need to resolve which of two changes (ov or model) caused degradation. I.e. we need to differentiate 2 possible cases:
-model-caused
+For 2 given versions, defined by commit hashes and 2 models we need to resolve which of two changes (ov or model) caused degradation. In other words, we need to differentiate 2 possible cases:
+
+model-caused:
 |'Bad' model | model_1.xml| model_2.xml|
 | --------     | -------    | -------|
 | ov_version_1 | 100 % (ref)|50%     |
 | ov_version_2 | 98 %       |51%     |
+
 and ov - caused
+
 |'Bad' ov-version| model_1.xml| model_2.xml|
 | --------     | -------    | -------|
 | ov_version_1 | 100 % (ref)|98%     |
 | ov_version_2 | 48% %       |51%     |
 
-## Version 1. Reusing of existing classes
+In the next steps we will use progressively more advanced methods to solve given problem.
+
+## Version #1. Reusing of existing classes
 
 ### Traversal
-We need full bypass of commit set (pair of commits in the given case), ignoring the result of a specific commit.
+We need full bypass of commit set (pair of commits in the given case), independently on the result of a specific commit.
 
 It corresponds to the existing `brute_force` traversal.
 
 ### Mode
 
-On every commit we print several commands.
+On every commit we run several commands.
 
 For the first version, we also reuse the existing `Nop` (No Operation) mode with simple list of bash commands.
 
 ### Configuration
-The simplest configuration with default settings (openvino/, build/ and bit/intel64/Release/ paths correspondingly).
+The simplest configuration with default settings (openvino/, build/ and bin/intel64/Release/ paths correspondingly).
 ```
 We use explicitList instead of commit interval.
 {
@@ -44,7 +52,7 @@ We use explicitList instead of commit interval.
     "traversal" : "bruteForce"
 }
 ```
-Or more specified and extended:
+Or specified with custom paths:
 ```
 {
     "appCmd" : [
@@ -56,10 +64,10 @@ Or more specified and extended:
     "appPath": "<path_to_benchmark_app>",
     "gitPath" : "<path_to_git_repository>",
     "buildPath" : "<path_to_build_dir>",
-        "runConfig" : {
-            "commitList" : {
-                "explicitList" : [ "<start_commit>", "<end_commit>" ]
-            },
+    "runConfig" : {
+        "commitList" : {
+            "explicitList" : [ "<start_commit>", "<end_commit>" ]
+    },
     "mode" : "nop",
     "traversal" : "bruteForce"
 }
@@ -83,12 +91,15 @@ second model
 ```
 It faces given problem, but looks clumsy and verbose. We also need to interpret results ourselves.
 
-## Second Version: Specific Mode
+## Version #2: Specific Mode
 
 If there is no Mode which resolves commit with our task or we need more readable output and opportunity to handle every commit directly, we can implement custom Mode. We can also customize API.
 ### Mode
 ```
-# Mode suppose to be as much generic as possible and correspond all similar problems so not to be not connected with the separate user case, but as the example we provide simplified version.
+# Mode supposes to be as much generic as possible
+# and corresponds all similar problems,
+# and not connected with the separate user case,
+# but as the example we provide simplified version.
 class  CrossCheckMode(Mode):
     def  __init__(self, cfg):
         super().__init__(cfg)
@@ -101,7 +112,12 @@ def  checkCfg(self, cfg):
     super().checkCfg(cfg)
 
 def  getPseudoMetric(self, commit, cfg):
-    # main Mode method initially resolving two compared commits (for performance goals it is numeric metric, as soon as in some Modes 'metric' has non-numeric value, e.g. filename we got pseudometric), for noncomparative Modes it doesn't return any value, just run procedures for handling single commit.
+    # main Mode method initially resolving two compared
+    # commits (for performance goals it is numeric metric, as
+    # soon as in some Modes 'metric' has non-numeric value,
+    # e.g. filename we got pseudometric), for noncomparative
+    # Modes it doesn't return any value, just run procedures
+    # for handling single commit.
     commit = commit.replace('"', "")
     commitLogger = getCommitLogger(cfg, commit)
     self.commonLogger.info("New commit: {commit}".format(commit=commit))
@@ -120,7 +136,8 @@ def  getPseudoMetric(self, commit, cfg):
         self.outPattern, checkOut, flags=re.MULTILINE
     ).group(1)
 
-    # parsing of output and holding it with full commandline and specific model for the final result
+    # parsing of output and holding it with full commandline
+    # and specific model for the final result
     self.firstThroughput = foundThroughput
     self.firstModel = cfg['appCmd']
     fullOutput = checkOut
@@ -192,7 +209,7 @@ python3 commit_slider.py -cfg cfg.json
 ```
 We've got rid of full output and learned to provide only necessary information, but we still limited by verbose configuration-style API and still provide raw output information.
 
-## Third Version: Specific Template
+## Version #3: Specific Template
 ###  API design
 We want to provide for user 2 ways to set up command lines for comparation. ```'appCmd' : ['./benchmark_app --parameters_1', './benchmark_app --parameters_2']``` for detailed parameters and simplified ```'par_1' : 'parameter_1', 'par_2' : 'parameter_2'``` supposing that substitute the placeholder ```'appCmd' : 'prefix {actualPar} postfix'```. The example of this approach may be ```'par_1' : 'model_1.xml', 'par_2' : 'model_2.xml' : 'parameter_2', 'appCmd' : './benchmark_app -m {actualPar} -i input.png'```
   
@@ -255,7 +272,10 @@ def  generateFullConfig(cfg, customCfg):
 ```
 ---
 ### Configuration and CLI
-First API
+
+We designed two interfaces, depending on usercase
+
+API #1 (full command lines, so we can define parameters separately)
 ```
 "template" : {
     "name" : "bm_cc",
@@ -266,7 +286,7 @@ First API
     "appCmd" : ["{appCmd} -m first_model.xml", "{appCmd} -m second_model.xml"]
 }
 ```
-Second API
+API #2 (for unified parameters, only model changes)
 ```
 # Here we use default paths.
 "template" : {

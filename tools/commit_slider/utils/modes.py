@@ -42,9 +42,6 @@ class NopMode(Mode):
     def printResult(self):
         # if CS launched with template we use custom representation
         # if not, as default we print msg attribute
-        # from utils.templates.common_template import Template
-
-        # todo : get corresponding template
         print(self.msg)
         self.outLogger.info(self.msg)
 
