@@ -7,12 +7,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <queue>
 #include <set>
 #include <stack>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -167,10 +169,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters::LinearScanOptimized")
         // Optimized O(n log n) register assignment using priority queue
         // Priority queue to track active intervals by end time
-        std::priority_queue<std::pair<double, Reg>,
-                            std::vector<std::pair<double, Reg>>,
-                            std::greater<std::pair<double, Reg>>>
-            active;
+        std::priority_queue<std::pair<double, Reg>, std::vector<std::pair<double, Reg>>, std::greater<>> active;
 
         // uniquely defined register => reused reg (reduced subset enabled by reg by reusage)
         std::map<Reg, Reg> register_map;
@@ -194,7 +193,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             bank.pop();
 
             // Add current interval to active set - O(log k)
-            active.push({interval.second, register_map[unique_reg]});
+            active.emplace(interval.second, register_map[unique_reg]);
         }
         return register_map;
     };
