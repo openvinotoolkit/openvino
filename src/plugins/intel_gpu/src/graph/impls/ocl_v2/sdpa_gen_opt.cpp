@@ -49,6 +49,10 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         if (params.output_layouts.size() > 1) {
             jit.make("PAGED_ATTENTION_SCORES_OUTPUT", 1);
         }
+
+        if (desc->has_score_aggregation) {
+            jit.make("HAS_SCORE_AGGREGATION", 1);
+        }
     } else {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         const auto& k_layout = params.get_input_layout(1);

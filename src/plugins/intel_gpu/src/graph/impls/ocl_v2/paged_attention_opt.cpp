@@ -79,6 +79,20 @@ inline size_t get_element_size(ov::element::Type_t type) {
     }
 }
 
+static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
+    if (is_kv_compressed) {
+        const size_t optimal_scale_factor = 2;
+        if (kernel_type == SDPAStage::SINGLE_TOKEN ||
+            kernel_type == SDPAStage::MULTI_TOKENS) {
+            if (head_size * optimal_scale_factor <= info.max_work_group_size) {
+                return optimal_scale_factor;
+            }
+        }
+    }
+
+    return 1;
+}
+
 static size_t get_heads_per_wi(const size_t kv_group_size) {
     if (kv_group_size > 1) {
         std::vector<size_t> preferable_head_nums = {4, 3, 2};
@@ -274,6 +288,7 @@ public:
         bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed);
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
+        jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
 
         // if (desc->heads_num != desc->kv_heads_num) {
         //     jit.make("BROADCAST_GROUP_SIZE", desc->heads_num / desc->kv_heads_num);
@@ -324,11 +339,15 @@ public:
         return jit;
     }
 
-    static void add_intermediate_inputs(Arguments& args, bool has_scores_output, bool is_multi_token_kernel = false) {
+    static void add_intermediate_inputs(Arguments& args, bool has_scores_output, bool is_multi_token_kernel = false, bool has_score_aggregation = false) {
         uint32_t internal_buffers_num = 3;  // kv cache update buffers
         if (has_scores_output) {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // softmax_results
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // subsequent_offsets
+            if (has_score_aggregation) {
+                // Cumulative window size sum buffer
+                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // subsequent_offsets
+            }
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_buffers_num++});  // exp_sums
@@ -360,9 +379,7 @@ public:
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
 
-        jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::SINGLE_TOKEN));
-        // constexpr static std::array input_ids = {0, 3, 4, 5, 7, 8};
-        constexpr static std::array input_ids = {PagedAttentionInputIdx::QUERY,
+       constexpr static std::array input_ids = {PagedAttentionInputIdx::QUERY,
                                                  PagedAttentionInputIdx::KEY_CACHE,
                                                  PagedAttentionInputIdx::VALUE_CACHE,
                                                  PagedAttentionInputIdx::PAST_LENS,
@@ -413,7 +430,7 @@ public:
         }
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-        add_intermediate_inputs(args, has_scores_output);
+        add_intermediate_inputs(args, has_scores_output, false, desc->has_score_aggregation);
 
         return args;
     }
@@ -429,7 +446,7 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
 
-            auto sg_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN);
+            auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
             wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
             wgs.local = {1, 1, head_size * sg_scale};
         }};
@@ -466,7 +483,7 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
             const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-            auto sg_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN);
+            auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN, get_kv_compressed(params));
             // GQA
             auto kv_groups = heads_num / kv_group_size;
             auto gqa_heads_num = kv_groups * ceil_div(kv_group_size, get_heads_per_wi(kv_group_size));
@@ -489,20 +506,22 @@ public:
         jit.add(make_layout_jit_constants("INPUT3", params.input_layouts[5], in_offsets_map.at(5)));
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
 
-        const auto desc = params.typed_desc<paged_attention>();
-        jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::FINALIZATION));
+        // const auto desc = params.typed_desc<paged_attention>();
+        // auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::FINALIZATION, get_kv_compressed(params));
+        // jit.make("SG_SCALE_FACTOR", sg_scale);
 
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         Arguments args;
+        const auto desc = params.typed_desc<paged_attention>();
 
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});  // past_lens
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         const auto has_scores_output = params.output_layouts.size() > 1;
-        add_intermediate_inputs(args, has_scores_output);
+        add_intermediate_inputs(args, has_scores_output, false, desc->has_score_aggregation);
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // total_partitions_num
 
@@ -570,7 +589,12 @@ public:
         }
 
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-        jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::MULTI_TOKENS));
+        // jit.make("SG_SCALE_FACTOR",
+        //          get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params)));
+
+        // for (auto& item : jit) {
+        //     std::cout << "jit[" << item.name << "] = " << item.value << std::endl;
+        // }
 
         return jit;
     }
@@ -604,9 +628,7 @@ public:
         }
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-
-        add_intermediate_inputs(args, has_scores_output, true);
-
+        add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
         return args;
     }
 
@@ -642,21 +664,23 @@ public:
         jit.add(make_layout_jit_constants("INPUT6", params.input_layouts[6], in_offsets_map.at(6)));
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
 
-        const auto desc = params.typed_desc<paged_attention>();
-        jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::FINALIZATION));
+        // const auto desc = params.typed_desc<paged_attention>();
+        // jit.make("SG_SCALE_FACTOR",
+        //          get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::FINALIZATION, get_kv_compressed(params)));
 
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
         Arguments args;
+        const auto desc = params.typed_desc<paged_attention>();
 
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});           // past_lens
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         const auto has_scores_output = params.output_layouts.size() > 1;
-        add_intermediate_inputs(args, has_scores_output, true);
+        add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // total_partitions_num
 
@@ -712,7 +736,8 @@ public:
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});                                          // out scores
 
         const auto has_scores_output = params.output_layouts.size() > 1;
-        add_intermediate_inputs(args, has_scores_output);
+        const auto desc = params.typed_desc<paged_attention>();
+        add_intermediate_inputs(args, has_scores_output, false, desc->has_score_aggregation);
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // total_partitions_num
 
@@ -944,6 +969,7 @@ public:
         const auto has_alibi = params.get_input_layout(11).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         const auto has_scores_output = desc->has_scores_output();
+        const auto has_score_aggregation = desc->has_score_aggregation;
 
         Arguments args;
         if (params.is_dynamic()) {
@@ -970,11 +996,13 @@ public:
         if (has_scores_output) {
             // Intermediate buffers for PagedAttention scores calculation:
             // softmax_results, subsequence_offsets, exp_sums, max_logits, tmp_out
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7});
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); //softmax_results
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4}); //subsequence_offsets
+            if (has_score_aggregation)
+                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5}); // cumulative_score_aggregation_sum
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6}); // exp_sums
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7}); // max_logits
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 8}); // tmp_out
 
             // Scalar used for proper offset calculation of intermediate data buffers
             args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -1221,6 +1249,7 @@ public:
         }
 
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
+        params.get_stream().finish();
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1240,6 +1269,7 @@ public:
             } else {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
             }
+            params.get_stream().finish();
             if (num_of_partitions > 1) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization)};
             }
@@ -1333,8 +1363,30 @@ public:
         if (has_scores_output) {
             const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
             auto subsequences_number = past_lens.get_partial_shape()[0].get_length();
+
+            auto get_snap_kv_tokens = [&](bool has_score_aggregation) {
+                const auto& input_mem = params.memory_deps;
+                auto paged_attention_snap_kv_tokens = 0;
+                if (has_score_aggregation) {
+                    const auto score_aggregation = input_mem.at(PagedAttentionInputIdx::SCORE_AGGREGATION);
+                    mem_lock<int32_t, mem_lock_type::read> score_aggregation_mem_lock(score_aggregation, *params.strm);
+
+                    auto total_tokens_num = 0;
+                    for (size_t i = 0; i < score_aggregation_mem_lock.size(); i++) {
+                        total_tokens_num += score_aggregation_mem_lock[i];
+                    }
+                    paged_attention_snap_kv_tokens = total_tokens_num;
+                }
+                return paged_attention_snap_kv_tokens;
+            };
+
             auto rtp = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
-            auto tokens_number = desc->has_score_aggregation ? rtp->paged_attention_snap_kv_tokens : subsequences_number;
+            size_t snap_kv_tokens = 0;
+            if (rtp)
+                snap_kv_tokens = rtp->paged_attention_snap_kv_tokens;
+            else
+                snap_kv_tokens = get_snap_kv_tokens(desc->has_score_aggregation);
+            auto tokens_number = desc->has_score_aggregation ? snap_kv_tokens : subsequences_number;
             auto softmax_buf_elements_count = static_cast<int64_t>(tokens_number * desc->heads_num * num_of_partitions * partition_size);
 
             // Softmax intermediate output
