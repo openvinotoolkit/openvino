@@ -25,12 +25,14 @@ namespace test {
 namespace snippets {
 
 std::string BufferAllocationTest::getTestCaseName(testing::TestParamInfo<ov::test::snippets::BufferAllocationParams> obj) {
+    std::vector<ov::PartialShape> shapes;
     bool is_optimized, with_split_loops;
     size_t expected_size, expected_reg_group_count, expected_cluster_count;
 
-    std::tie(is_optimized, with_split_loops, expected_size, expected_reg_group_count, expected_cluster_count) = obj.param;
+    std::tie(shapes, is_optimized, with_split_loops, expected_size, expected_reg_group_count, expected_cluster_count) = obj.param;
 
     std::ostringstream result;
+    result << "Shapes=" << ov::test::utils::partialShape2str(shapes) << "_";
     result << "Opt=" << ov::test::utils::bool2str(is_optimized) << "_";
     result << "Split=" << ov::test::utils::bool2str(with_split_loops) << "_";
     result << "ExpBufferSize=" << expected_size << "_";
@@ -40,10 +42,11 @@ std::string BufferAllocationTest::getTestCaseName(testing::TestParamInfo<ov::tes
 }
 
 void BufferAllocationTest::SetUp() {
-    std::tie(m_is_buffer_optimized, m_with_split_loops, m_expected_size, m_expected_reg_group_count, m_expected_cluster_count) = this->GetParam();
+    std::tie(m_shapes, m_is_buffer_optimized, m_with_split_loops, m_expected_size,
+             m_expected_reg_group_count, m_expected_cluster_count) = this->GetParam();
 
-    const auto body = GetModel();
-    m_linear_ir = ov::snippets::lowered::LinearIR(body, std::make_shared<ov::snippets::IShapeInferSnippetsFactory>());
+    const auto body = GetModel(m_shapes);
+    m_linear_ir = ov::snippets::lowered::LinearIR(body, GetShapeInferFactory());
     m_linear_ir.set_loop_depth(m_loop_depth);
     // When Subgraph::control_flow_transformations become public method,
     // please use this method instead of ApplyTransformations
@@ -57,6 +60,14 @@ std::shared_ptr<ov::snippets::lowered::pass::PassConfig> BufferAllocationTest::G
     return config;
 }
 
+std::shared_ptr<ov::snippets::IShapeInferSnippetsFactory> BufferAllocationTest::GetShapeInferFactory() const {
+    return std::make_shared<ov::snippets::IShapeInferSnippetsFactory>();
+}
+
+void BufferAllocationTest::AddBackendSpecificPasses(ov::snippets::lowered::pass::PassPipeline& pipeline) {}
+
+void BufferAllocationTest::AddBackendSpecificPostSplitPasses(ov::snippets::lowered::pass::PassPipeline& pipeline) {}
+
 void BufferAllocationTest::MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor) {
     for (const auto& input : node->inputs())
         ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
@@ -66,12 +77,31 @@ void BufferAllocationTest::MarkOp(const std::shared_ptr<ov::Node>& node, const s
             output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, subtensor));
 }
 
+void BufferAllocationTest::MarkOp(const std::shared_ptr<ov::Node>& node,
+                                  const std::vector<std::vector<size_t>>& in_subtensors,
+                                  const std::vector<std::vector<size_t>>& out_subtensors) {
+    OPENVINO_ASSERT(in_subtensors.size() == node->inputs().size(), "Incorrect count of input subtensors");
+    OPENVINO_ASSERT(out_subtensors.size() == node->outputs().size(), "Incorrect count of output subtensors");
+    for (size_t i = 0; i < node->inputs().size(); ++i) {
+        const auto& input = node->input(i);
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+            input, std::make_shared<ov::snippets::lowered::PortDescriptor>(input, in_subtensors[i]));
+    }
+    for (size_t i = 0; i < node->outputs().size(); ++i) {
+        const auto& output = node->output(i);
+        ov::snippets::lowered::PortDescriptorUtils::set_port_descriptor_ptr(
+            output, std::make_shared<ov::snippets::lowered::PortDescriptor>(output, out_subtensors[i]));
+    }
+}
+
 void BufferAllocationTest::ApplyTransformations(const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& pass_config) {
     ov::snippets::lowered::pass::PassPipeline pipeline(pass_config);
     pipeline.register_pass<ov::snippets::lowered::pass::MarkLoops>(m_vector_size);
+    AddBackendSpecificPasses(pipeline);
     pipeline.register_pass<ov::snippets::lowered::pass::ReduceDecomposition>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
     pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
+    AddBackendSpecificPostSplitPasses(pipeline);
     pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>();
     pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
@@ -91,7 +121,7 @@ void BufferAllocationTest::Validate() {
     EXPECT_EQ(m_linear_ir.get_static_buffer_scratchpad_size(), m_expected_size);
 }
 
-std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel() const {
+std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel(const std::vector<ov::PartialShape>&) const {
     const auto subtensor_eltwise = std::vector<size_t>{1, m_vector_size};
     const auto subtensor_buffer = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
@@ -121,6 +151,7 @@ namespace BufferAllocationTest_Instances {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseNotOptimized, EltwiseBufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{}),
                                  ::testing::Values(false),
                                  ::testing::Values(false),  // in this test it doesn't make sense
                                  ::testing::Values(80000),  // Each Buffer has own allocated memory
@@ -130,6 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseNotOptimized, El
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseOptimized, EltwiseBufferAllocationTest,
                          ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{}),
                                  ::testing::Values(true),
                                  ::testing::Values(false),  // in this test it doesn't make sense
                                  ::testing::Values(40000),  // Two Buffer reuse memory
