@@ -219,22 +219,16 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             continue;
 
         auto& eltw_node = node->as<eltwise>();
-        auto get_eltw_const_dep_idx = [](typed_program_node<eltwise>& eltw_node) {
-            for (auto i = 0; i < static_cast<int32_t>(eltw_node.get_dependencies().size()); ++i) {
-                if (eltw_node.get_dependency(i).is_constant())
-                    return i;
-            }
-            return -1;
-        };
-        auto const_dep_idx = get_eltw_const_dep_idx(eltw_node);
-        auto non_const_dep_idx = 1 - const_dep_idx;
-
         bool is_bias_add = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
-                           eltw_node.get_dependencies().size() == 2 &&
-                           const_dep_idx >= 0 && const_dep_idx < 2;
+                           eltw_node.get_dependencies().size() == 2;
 
         if (!is_bias_add)
             continue;
+        if (!eltw_node.has_eltwise_const_dep_idx())
+            continue;
+
+        auto const_dep_idx = eltw_node.get_eltwise_const_dep_idx();
+        auto non_const_dep_idx = 1 - const_dep_idx;
 
         for (auto& dep : eltw_node.get_dependencies()) {
             auto& fused_prims = dep.first->get_fused_primitives();

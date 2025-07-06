@@ -469,4 +469,23 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
             break;
     }
 }
+
+bool eltwise_node::has_eltwise_const_dep_idx() {
+    for (auto& elt_node : get_dependencies()) {
+        if (elt_node.first->is_constant())
+            return true;
+    }
+
+    return false;
+}
+
+size_t eltwise_node::get_eltwise_const_dep_idx() {
+    for (size_t i = 0; i < get_dependencies().size(); ++i) {
+        if (get_dependency(i).is_constant())
+            return i;
+    }
+
+    OPENVINO_THROW(id() + " Requested eltwise mode does not have const dependency.");
+}
+
 }  // namespace cldnn

@@ -740,6 +740,42 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
+    const auto reorder_eltwise = [&p, &rf](typed_program_node<eltwise>& eltwise_node) {
+        auto elt_prim = eltwise_node.get_primitive();
+        auto align_dims = (int)eltwise_node.get_input_pshape(0).size() - (int)eltwise_node.get_input_pshape(1).size();
+        if (elt_prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
+            align_dims != 0) {
+            std::cout << ">>>> In reorder_inputs : " << eltwise_node.id() << " , align_dims : " << align_dims <<std::endl;
+            auto large_shape_idx = (align_dims > 0) ? 0 : 1;
+            auto small_shape_idx = 1 - large_shape_idx;
+            auto ref_pshape = eltwise_node.get_input_pshape(large_shape_idx);
+            auto small_pshape = eltwise_node.get_input_pshape(small_shape_idx);
+            std::cout << " -- small_shape_idx : " << small_shape_idx << ", ref_pshae : " << ref_pshape << std::endl;
+
+            if (eltwise_node.has_eltwise_const_dep_idx()) {
+                auto const_shape_idx = eltwise_node.get_eltwise_const_dep_idx();
+                OPENVINO_ASSERT(eltwise_node.get_input_pshape(const_shape_idx).size() == ref_pshape.size(),
+                                "Unexpected pshape size of NUMPY broadcast of eltwise " + eltwise_node.id());
+            }
+
+            auto& input = eltwise_node.get_dependency(small_shape_idx);
+            auto out_layout = eltwise_node.get_output_layout();
+
+            ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(ref_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
+            std::cout << " -- merge_into(small_pshape, ref_pshape) : " << small_pshape << std::endl;
+
+            auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
+            std::cout << "    -- " << small_pshape_layout << std::endl;
+            auto new_reorder = std::make_shared<reorder>(eltwise_node.id() + "_reorder_eltwise_broadcast", input.id(), out_layout);
+            auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
+            p.add_intermediate(new_reorder_node, eltwise_node, input);
+            new_reorder_node.set_output_layout(small_pshape_layout);
+
+            std::cout << "  -- reorder : " << new_reorder_node.get_output_layout() << std::endl;
+            std::cout << "---- " << eltwise_node.get_dependency(small_shape_idx).type()->to_string(eltwise_node.get_dependency(small_shape_idx)) << std::endl;
+        }
+    };
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
         if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
@@ -775,13 +811,14 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, eltwise>(
             *prim,
             reorder_input_detection_output,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
-            reorder_input_pooling);
+            reorder_input_pooling,
+            reorder_eltwise);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(
