@@ -129,8 +129,7 @@ public:
 };
 
 // Second test group inheriting from the first
-class DynamicBatchedTensorsRunTests : public BatchedTensorsRunTests {
-};
+using DynamicBatchedTensorsRunTests = BatchedTensorsRunTests;
 
 TEST_P(BatchedTensorsRunTests, SetInputRemoteTensorsMultipleInfer) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -464,20 +463,21 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer)
             }
         }
         req.infer();  // Adds '1' to each element
-        for (size_t i = 0; i < batch; i ++) {
+        for (size_t i = 0; i < batch; i++) {
             for (size_t j = 0; j < one_shape_size; ++j) {
-                auto expected =  testNum + 20 * (i + 1) + 1;
-                EXPECT_EQ(actual[i * one_shape_size + j], expected) << "Infer " << testNum << ": Expected=" << expected
-                                                << ", actual=" << actual[j] << " for index " << j << ", batch: " << i;
+                auto expected = testNum + 20 * (i + 1) + 1;
+                EXPECT_EQ(actual[i * one_shape_size + j], expected)
+                    << "Infer " << testNum << ": Expected=" << expected << ", actual=" << actual[j] << " for index "
+                    << j << ", batch: " << i;
             }
         }
     }
 }
 
-
-void executeMutlipleTensorsBatchInfer(ov::InferRequest req, size_t batch_value,
-                                       const Shape& non_batched_shape,
-                                       ov::RemoteContext &context) {
+void executeMutlipleTensorsBatchInfer(ov::InferRequest req,
+                                      size_t batch_value,
+                                      const Shape& non_batched_shape,
+                                      ov::RemoteContext& context) {
     auto non_batched_shape_size = ov::shape_size(non_batched_shape);
     std::vector<ov::Tensor> tensors;
     tensors.reserve(batch_value);
@@ -490,7 +490,8 @@ void executeMutlipleTensorsBatchInfer(ov::InferRequest req, size_t batch_value,
     req.set_tensors("tensor_input0", tensors);
 
     auto actual_tensor = req.get_tensor("tensor_output0");
-    ASSERT_EQ(actual_tensor.get_byte_size(), tensors.back().get_byte_size() * tensors.size() ) << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
+    ASSERT_EQ(actual_tensor.get_byte_size(), tensors.back().get_byte_size() * tensors.size())
+        << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
     auto* actual = actual_tensor.data<float>();
     for (auto testNum = 0; testNum < 1; testNum++) {
         for (size_t i = 0; i < batch_value; ++i) {
@@ -500,11 +501,12 @@ void executeMutlipleTensorsBatchInfer(ov::InferRequest req, size_t batch_value,
             }
         }
         req.infer();
-        for (size_t i = 0; i < batch_value; i ++) {
+        for (size_t i = 0; i < batch_value; i++) {
             for (size_t j = 0; j < non_batched_shape_size; ++j) {
-                auto expected =  testNum + 20 * (i + 1) + 1;
-                EXPECT_EQ(actual[i * non_batched_shape_size + j], expected) << "Infer " << testNum << ": Expected=" << expected
-                                                << ", actual=" << actual[j] << " for index " << j << ", batch: " << i;
+                auto expected = testNum + 20 * (i + 1) + 1;
+                EXPECT_EQ(actual[i * non_batched_shape_size + j], expected)
+                    << "Infer " << testNum << ": Expected=" << expected << ", actual=" << actual[j] << " for index "
+                    << j << ", batch: " << i;
             }
         }
     }
@@ -610,16 +612,18 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorSingleInf
         }
         req.infer();  // Adds '1' to each element
         for (size_t j = 0; j < tensor_shape_size; ++j) {
-            auto expected = testNum + 20 * ( j / one_shape_size + 1) + 1;
-            EXPECT_EQ(actual[j], expected) << "Infer " << testNum << ": Expected=" << expected
-                                            << ", actual=" << actual[j] << " for index " << j << ", batch: " << j / one_shape_size;
+            auto expected = testNum + 20 * (j / one_shape_size + 1) + 1;
+            EXPECT_EQ(actual[j], expected)
+                << "Infer " << testNum << ": Expected=" << expected << ", actual=" << actual[j] << " for index " << j
+                << ", batch: " << j / one_shape_size;
         }
     }
 }
 
-void executeContiguousTensorBatchInfer(ov::InferRequest req, size_t batch_value,
+void executeContiguousTensorBatchInfer(ov::InferRequest req,
+                                       size_t batch_value,
                                        const Shape& non_batched_shape,
-                                       ov::RemoteContext &context) {
+                                       ov::RemoteContext& context) {
     auto non_batched_shape_size = ov::shape_size(non_batched_shape);
     auto tensor_shape = non_batched_shape;
     tensor_shape[0] = batch_value;
@@ -631,7 +635,8 @@ void executeContiguousTensorBatchInfer(ov::InferRequest req, size_t batch_value,
 
     req.set_tensors("tensor_input0", tensors);
     auto actual_tensor = req.get_tensor("tensor_output0");
-    ASSERT_EQ(actual_tensor.get_byte_size(), tensors.back().get_byte_size()) << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
+    ASSERT_EQ(actual_tensor.get_byte_size(), tensors.back().get_byte_size())
+        << "\"tensor_output0\" must have the same size as \"tensor_input0\" for batch_value value:" << batch_value;
 
     auto* actual = actual_tensor.data<float>();
     auto* f = tensors.back().data<float>();
@@ -641,9 +646,10 @@ void executeContiguousTensorBatchInfer(ov::InferRequest req, size_t batch_value,
     req.infer();
     // check that we got valid inference results on each lines of N
     for (size_t j = 0; j < tensor_shape_size; ++j) {
-        auto expected = batch_value + 20 * ( j / non_batched_shape_size + 1) + 1;
+        auto expected = batch_value + 20 * (j / non_batched_shape_size + 1) + 1;
         EXPECT_EQ(actual[j], expected) << "Infer " << batch_value << ": Expected=" << expected
-                                       << ", actual=" << actual[j] << " for index " << j << ", batch: " << j / non_batched_shape_size;
+                                       << ", actual=" << actual[j] << " for index " << j
+                                       << ", batch: " << j / non_batched_shape_size;
     }
 }
 
@@ -672,7 +678,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBa
     ov::InferRequest req;
     req = execNet.create_infer_request();
     std::vector<ov::Tensor> tensors;
-    for (size_t tensor_batch = model_batch_bottom_bound; tensor_batch <= model_batch_upper_bound; tensor_batch++ ) {
+    for (size_t tensor_batch = model_batch_bottom_bound; tensor_batch <= model_batch_upper_bound; tensor_batch++) {
         // dynamically change N of contiduous memory tensor in [model_batch_bottom_bound..model_batch_upper_bound]
         // and check that the output tensor kept modified accordingly
         executeContiguousTensorBatchInfer(req, tensor_batch, one_shape, context);
@@ -704,7 +710,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBa
     ov::InferRequest req;
     req = execNet.create_infer_request();
     std::vector<ov::Tensor> tensors;
-    for (size_t tensor_batch = model_batch_upper_bound; tensor_batch >= model_batch_bottom_bound ; tensor_batch-- ) {
+    for (size_t tensor_batch = model_batch_upper_bound; tensor_batch >= model_batch_bottom_bound; tensor_batch--) {
         // dynamically change N of contiduous memory tensor in [model_batch_bottom_bound..model_batch_upper_bound]
         // and check that the output tensor kept modified accordingly
         executeContiguousTensorBatchInfer(req, tensor_batch, one_shape, context);
