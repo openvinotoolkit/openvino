@@ -741,16 +741,18 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
     };
 
     const auto reorder_eltwise = [&p, &rf](typed_program_node<eltwise>& eltwise_node) {
+        // Add reorder to align tensor size of eltwise inputs for NUMPY broadcasting
+        // Case for PDPD is not implemented
         auto elt_prim = eltwise_node.get_primitive();
         auto align_dims = (int)eltwise_node.get_input_pshape(0).size() - (int)eltwise_node.get_input_pshape(1).size();
         if (elt_prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
             align_dims != 0) {
-            std::cout << ">>>> In reorder_inputs : " << eltwise_node.id() << " , align_dims : " << align_dims <<std::endl;
+            // Eltwise input tensor can be smaller than perferred format by NUMPY broad casting.
+            // e.g. (?,3,?,?,2) (?,?,2)
             auto large_shape_idx = (align_dims > 0) ? 0 : 1;
             auto small_shape_idx = 1 - large_shape_idx;
             auto ref_pshape = eltwise_node.get_input_pshape(large_shape_idx);
             auto small_pshape = eltwise_node.get_input_pshape(small_shape_idx);
-            std::cout << " -- small_shape_idx : " << small_shape_idx << ", ref_pshae : " << ref_pshape << std::endl;
 
             if (eltwise_node.has_eltwise_const_dep_idx()) {
                 auto const_shape_idx = eltwise_node.get_eltwise_const_dep_idx();
@@ -762,17 +764,12 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             auto out_layout = eltwise_node.get_output_layout();
 
             ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(ref_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
-            std::cout << " -- merge_into(small_pshape, ref_pshape) : " << small_pshape << std::endl;
 
             auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
-            std::cout << "    -- " << small_pshape_layout << std::endl;
             auto new_reorder = std::make_shared<reorder>(eltwise_node.id() + "_reorder_eltwise_broadcast", input.id(), out_layout);
             auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
             p.add_intermediate(new_reorder_node, eltwise_node, input);
             new_reorder_node.set_output_layout(small_pshape_layout);
-
-            std::cout << "  -- reorder : " << new_reorder_node.get_output_layout() << std::endl;
-            std::cout << "---- " << eltwise_node.get_dependency(small_shape_idx).type()->to_string(eltwise_node.get_dependency(small_shape_idx)) << std::endl;
         }
     };
 
