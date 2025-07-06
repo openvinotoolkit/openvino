@@ -541,7 +541,7 @@
         "patchedFile": "tests_res/broken_comp_main.cpp",
         "testCfg": {
             "template": {
-                "name": "broken_compilation",
+                "name": "broken_comp",
                 "gitPath":"{gitPath}",
                 "buildPath":"{buildPath}",
                 "c": "{start}..{end}"
@@ -628,6 +628,21 @@
         "testCfg": {
             "template" : {
                 "name" : "bm_cc",
+                "gitPath":"{gitPath}",
+                "buildPath":"{buildPath}",
+                "appPath":"{buildPath}",
+                "c": "{start}..{end}",
+                "verboseOutput": false,
+                "appCmd" : ["{appCmd} -m first_model.xml", "{appCmd} -m second_model.xml"]
+            }
+        }
+    },
+    "CfgTableTemplate": {
+        "repoName": "tableTemplate",
+        "patchedFile": "tests_res/fbv_model_comp.cpp",
+        "testCfg": {
+            "template" : {
+                "name" : "model_comp_table",
                 "gitPath":"{gitPath}",
                 "buildPath":"{buildPath}",
                 "appPath":"{buildPath}",

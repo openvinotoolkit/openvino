@@ -83,7 +83,8 @@ class TestData():
         CrossCheckPerformance = 27,
         CrossCheckPerformanceSeparateMode = 28,
         CrossCheckPerformanceSeparateTemplate = 29,
-        CrossCheckPerformanceSeparateTemplateBadModel = 30
+        CrossCheckPerformanceSeparateTemplateBadModel = 30,
+        TableTemplate = 31
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -157,6 +158,20 @@ class CrossCheckPerformanceSeparateTemplate(TestData):
 
     def getTestName(self):
         return "CfgCrossCheckPerformanceSeparateTemplate"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+
+class TableTemplate(TestData):
+    def getTestCase():
+        return TestData.TestCase.TableTemplate
+
+    def getTestName(self):
+        return "CfgTableTemplate"
 
     def __init__(self):
         from test_util import requireBinarySearchData

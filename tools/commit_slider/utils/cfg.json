@@ -6,7 +6,8 @@
         "ac" : "AccuracyCheckerMode",
         "llmBench" : "LLMBenchMode",
         "nop" : "NopMode",
-        "crossCheck" : "CrossCheckMode"
+        "crossCheck" : "CrossCheckMode",
+        "mComp" : "ModelCompilationMode"
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",

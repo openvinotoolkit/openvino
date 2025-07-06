@@ -1,8 +1,11 @@
-from utils.templates.common_template import Template
+from utils.templates.common import CommonTemplate
 
-class BrokenCompilationTemplate(Template):
-    def getClassName():
-        return 'broken_compilation'
+class BrokenCompilationTemplate(CommonTemplate):
+    def getName():
+        return 'broken_comp'
+
+    def getBilletFileName():
+        return 'broken_compilation.json'
     
     def printResult(commitPath, outLogger, getCommitInfo):
         print("\n*****************<Commit slider output>*******************\n* Commit with broken compilation found:" + ' ' * 18 + '*')
@@ -28,7 +31,7 @@ class BrokenCompilationTemplate(Template):
                     outLogger.info(commitInfo)
         print('**********************************************************\n')
 
-    def generateBrokenCompTemplate(cfg, customCfg):
+    def generateFullConfig(cfg, customCfg):
         tmpJSON = cfg
         if '-v' in customCfg and customCfg['-v'] == 'false':
             tmpJSON['verboseOutput'] = False

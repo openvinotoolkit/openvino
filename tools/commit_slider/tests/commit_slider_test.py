@@ -18,7 +18,8 @@ from test_data import FirstBadVersionData, FirstValidVersionData,\
     MultiConfigData, ConfigMultiplicatorData, ConfigMultiplicatorWithKeyData, \
     AcModeDataBitwise, CompareBlobsData, CompareBlobsMulOutputData, CompareBlobsAutomatchData, \
     BrokenCompilationData, TemplateData, CrossCheckBadAppl, CrossCheckBadModel, CrossCheckPerformance, \
-    CrossCheckPerformanceSeparateMode, CrossCheckPerformanceSeparateTemplate, CrossCheckPerformanceSeparateTemplateBadModel
+    CrossCheckPerformanceSeparateMode, CrossCheckPerformanceSeparateTemplate, CrossCheckPerformanceSeparateTemplateBadModel, \
+    TableTemplate
 
 class CommitSliderTest(TestCase):
     @skip_commit_slider_devtest
@@ -37,7 +38,7 @@ class CommitSliderTest(TestCase):
         self.assertEqual(breakCommit, actualCommit)
 
     @skip_commit_slider_devtest
-    def teestBrokenCompTmplate(self):
+    def testBrokenCompTmplate(self):
         breakCommit, updatedData = getExpectedCommit(
             TemplateData())
         actualCommit, _ = getActualCommit(updatedData)
@@ -86,6 +87,14 @@ class CommitSliderTest(TestCase):
     def testCrossCheckPerformanceSeparateTemplate(self):
         updatedData = createRepoAndUpdateData(
             CrossCheckPerformanceSeparateTemplate())
+        res = runCSAndCheckPattern(updatedData, ["rootcause", "OV"])
+
+        self.assertTrue(res)
+
+    @skip_commit_slider_devtest
+    def testTableTemplate(self):
+        updatedData = createRepoAndUpdateData(
+            TableTemplate())
         res = runCSAndCheckPattern(updatedData, ["rootcause", "OV"])
 
         self.assertTrue(res)

@@ -1,14 +1,14 @@
 from utils.templates.common import CommonTemplate
 
-class BenchmarkCrossCheckTemplate(CommonTemplate):
+class ModelCompilationTableTemplate(CommonTemplate):
     def getName():
-        return 'bm_cc'
+        return 'model_comp_table'
 
     def getBilletFileName():
-        return 'benchmark_crosscheck.json'
+        return 'model_compilation_time_table.json'
     
     def printResult(commitPath, outLogger, getCommitInfo):
-        print("\n*****************<Commit slider output>*******************\nTable of throughputs:" + '\n\t\tm1\tm2')
+        print("\n*****************<Commit slider output>*******************\nTable of compilation time:" + '\n\t\tm1\tm2')
         for pathcommit in commitPath.getList():
             commitInfo = getCommitInfo(pathcommit)
             cHash = pathcommit.cHash
@@ -36,6 +36,8 @@ class BenchmarkCrossCheckTemplate(CommonTemplate):
         tmpJSON = cfg
         if '-v' in customCfg and customCfg['-v'] == 'false':
             tmpJSON['verboseOutput'] = False
+        else:
+            tmpJSON['verboseOutput'] = True
         if '-c' in customCfg:
             # WA: additional args are passed with '-' with standart argparser
             customCfg['c'] = customCfg['-c']

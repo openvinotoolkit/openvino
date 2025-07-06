@@ -240,11 +240,24 @@ class Mode(ABC):
         pass
 
     def printResult(self):
-        # if CS launched with template we use custom representation
-        # if not, as default we print simple list of break commits
-        from utils.templates.common_template import Template
-        tmpl = Template.getTemplateByCfg(self.cfg)
-        tmpl.printResult(self.commitPath, self.outLogger, self.getCommitInfo)
+        if not self.commitPath.metaInfo["preValidationPassed"]:
+            msg = "Preliminary check failed, reason: {}".format(
+                self.commitPath.metaInfo["reason"]
+            )
+            print(msg)
+            self.outLogger.info(msg)
+        elif not self.commitPath.metaInfo["postValidationPassed"]:
+            msg = "Output results invalid, reason: {}".format(
+                self.commitPath.metaInfo["reason"]
+            )
+            print(msg)
+            self.outLogger.info(msg)
+        else:
+            for pathcommit in self.commitPath.getList():
+                if pathcommit.state is not Mode.CommitPath.CommitState.DEFAULT:
+                    commitInfo = self.getCommitInfo(pathcommit)
+                    print(commitInfo)
+                    self.outLogger.info(commitInfo)
 
     def getCommitInfo(self, commit):
         # override if you need more details in output representation
