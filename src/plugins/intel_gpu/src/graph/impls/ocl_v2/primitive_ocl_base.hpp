@@ -234,8 +234,8 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
             GPU_DEBUG_TRACE_DETAIL << "\nExecute stage = " << stage.kernel->get_id() << '\n';
             GPU_DEBUG_TRACE_DETAIL << "Configured kernel arguments:" << params.arguments.size() << '\n';
             for (size_t i = 0; i < params.arguments.size(); i++) {
-                GPU_DEBUG_TRACE_DETAIL << "\t" << i << ": type = " << static_cast<size_t>(params.arguments[i].t)
-                                       << ", index = " << params.arguments[i].index << '\n';
+                GPU_DEBUG_TRACE_DETAIL << "\t" << i << ": type = " << static_cast<size_t>(params.arguments[i].t) << ", index = " << params.arguments[i].index
+                                       << '\n';
             }
             GPU_DEBUG_TRACE_DETAIL << "Memory buffers:"
                                    << "shape_info=" << args.shape_info << " "
