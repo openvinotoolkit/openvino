@@ -462,23 +462,38 @@ void primitive_inst::update_shape() {
     _impl_params->memory_deps = memory_deps;
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
-
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
+        auto& impl_layout = _impl_params->get_output_layout(idx);
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
-            auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, new_layout.data_padding);
+            auto data_padding = padding::max(impl_layout.data_padding, new_layout.data_padding);
             new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(idx), data_padding);
         }
 
-        if (_impl_params->get_output_layout(idx) != new_layout) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
+        if (impl_layout != new_layout) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << impl_layout.to_short_string()
                                     << " now: " << new_layout.to_short_string() << std::endl;
             set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
 
+        auto new_pshape = new_layout.get_partial_shape();
+        auto impl_pshape = impl_layout.get_partial_shape();
+        if (get_node().is_type<reorder>() && !get_node().is_output() && impl_pshape.size() != new_pshape.size()) {
+            auto user = get_node().get_users().front();
+            if (user->is_type<eltwise>() && user->as<eltwise>().get_primitive()->broadcast_spec == ov::op::AutoBroadcastType::NUMPY) {
+                std::cout << "!!!! primitive_inst::update_shape : " << _impl_params->desc->id << std::endl;
+                std::cout << "  -- original new shape : " << new_pshape << std::endl;
+                ov::PartialShape::broadcast_merge_into(new_pshape, std::vector<ov::Dimension>(impl_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
+                std::cout << "  -- modified new shape : " << new_pshape << std::endl;
+                auto aligned_layout = layout(new_pshape, new_layout.data_type, new_layout.format);
+                std::cout << id() << ": update shape: was: " << new_layout.to_short_string()
+                                        << " now: " << aligned_layout.to_short_string() << std::endl;
+            }
+        }
+
         _impl_params->output_layouts[idx].data_padding = new_layout.data_padding;
-        _impl_params->output_layouts[idx].set_partial_shape(new_layouts[idx].get_partial_shape());
-        _impl_params->output_layouts[idx].data_type = new_layouts[idx].data_type;
+        _impl_params->output_layouts[idx].set_partial_shape(new_pshape);
+        _impl_params->output_layouts[idx].data_type = new_layout.data_type;
     }
 
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
@@ -2976,7 +2991,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 5. Finally, if no impl found so far, we just enforce static impl compilation
     auto static_impl = find_impl(node, updated_params, shape_types::static_shape);
-    assert(static_impl != nullptr);
+    OPENVINO_ASSERT(static_impl != nullptr, "No static impl" + node->id());
     static_impl->set_node_params(*node);
     if (!inst.can_be_optimized()) {
         auto& kernels_cache = prog.get_kernels_cache();

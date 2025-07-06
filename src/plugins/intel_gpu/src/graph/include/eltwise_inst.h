@@ -35,6 +35,9 @@ public:
         return std::make_shared<EltwiseFuseParams>(typed_desc());
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
+    bool has_eltwise_const_dep_idx();
+    size_t get_eltwise_const_dep_idx();
 };
 
 using eltwise_node = typed_program_node<eltwise>;
