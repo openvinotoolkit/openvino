@@ -88,7 +88,7 @@ Pipeline::Pipeline(const Config& config,
     }
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _logger.debug("set args for command list number: %zu", i);
+        _logger.debug("Pipeline - set args for command list number: %zu", i);
         size_t io_index = 0;
         for (const auto& desc : graph->get_input_descriptors()) {
             if (isMainInputWeightsName(desc.info.name)) {
@@ -97,7 +97,7 @@ Pipeline::Pipeline(const Config& config,
             }
 
             if (io_index < input_tensors.size() && input_tensors.at(io_index).size() > 1) {
-                _logger.debug("set args for input index: %zu", io_index);
+                _logger.debug("Pipeline - set args for input index: %zu", io_index);
                 void* data = nullptr;
                 auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(i));
                 if (remote_tensor == nullptr) {
