@@ -70,10 +70,6 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             jit.make("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(k_head_size)));
         }
         // jit.make("NUM_KV_HEADS", -1);
-        bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
-        if (could_use_flashattn_v2) {
-            jit.make("IS_FLASHATTEN_V2", 1);
-        }
         if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {
             jit.make("LOAD_KEY_LEFTOVERS_IN_CALC_LOOP", 1);
         }
@@ -86,6 +82,10 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     jit.make("SEQ_LEN_PARTITION_SIZE", get_seq_len_partition_size(info, v_head_size, stage));
     jit.make("SG_SCALE_FACTOR", get_sg_number_scale_factor(info, v_head_size, stage));
 
+    bool could_use_flashattn_v2 = params.get_program().get_config().get_could_use_flashattn_v2();
+    if (could_use_flashattn_v2) {
+        jit.make("IS_FLASHATTEN_V2", 1);
+    }
     return jit;
 }
 

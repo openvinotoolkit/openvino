@@ -302,14 +302,13 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         jit.make("V_HEAD_SIZE", v_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_v_transpose_order)));
 
     } else if (params.is_type<paged_attention>()) {
-        // For micro kernel shared between SDPAs and Paged Attention
+        // For micro/sdpa kernel shared between SDPAs and Paged Attention
         auto desc = params.typed_desc<paged_attention>();
         jit.make("IS_CAUSAL", true);
         jit.make("K_HEAD_SIZE", desc->k_head_size);
         jit.make("V_HEAD_SIZE", desc->v_head_size);
         jit.make("NUM_HEADS", desc->heads_num);
         jit.make("KV_NUM_HEADS", desc->kv_heads_num);
-        // jit.make("IS_KV_COMPRESSED", 0);
 
         if (desc->scale_val.has_value()) {
             jit.make("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value());

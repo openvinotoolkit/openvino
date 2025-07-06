@@ -643,8 +643,9 @@ public:
             const size_t heads_num = desc->heads_num;
             const size_t head_size = desc->v_head_size;
 
-            wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions};
-            wgs.local = {1, 1, head_size};
+            auto sg_scale = get_pa_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, get_kv_compressed(params));
+            wgs.global = {total_tokens, heads_num, head_size * rtp->num_of_partitions * sg_scale};
+            wgs.local = {1, 1, head_size * sg_scale};
         }};
     }
 };
@@ -887,12 +888,9 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = make_base_jit_constants(params);
-
         const auto desc = params.typed_desc<paged_attention>();
-
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
 
-        // constexpr static std::array input_ids = {13+1, 14+1, 15+1};
         constexpr static std::array input_ids = {PagedAttentionInputIdx::ROTATED_BLOCK_INDICES,
                                                  PagedAttentionInputIdx::ROTATION_DELTAS,
                                                  PagedAttentionInputIdx::ROTATION_TRIG_LUT};
@@ -950,7 +948,7 @@ protected:
             auto& wgs = kd.params.workGroups;
 
             const auto desc = params.typed_desc<paged_attention>();
-            const auto& rotated_block_indices_input = params.input_layouts[13];
+            const auto& rotated_block_indices_input = params.input_layouts[PagedAttentionInputIdx::ROTATED_BLOCK_INDICES];
             auto heads_number = static_cast<size_t>(desc->kv_heads_num);
             auto blocks_to_rotate = static_cast<size_t>(rotated_block_indices_input.get_partial_shape()[0].get_length());
             const bool is_kv_compressed = get_kv_compressed(params);
@@ -994,15 +992,16 @@ public:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
 
         if (has_scores_output) {
+            uint32_t internal_index = 3;
             // Intermediate buffers for PagedAttention scores calculation:
             // softmax_results, subsequence_offsets, exp_sums, max_logits, tmp_out
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3}); //softmax_results
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4}); //subsequence_offsets
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++}); //softmax_results
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++}); //subsequence_offsets
             if (has_score_aggregation)
-                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5}); // cumulative_score_aggregation_sum
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6}); // exp_sums
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 7}); // max_logits
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 8}); // tmp_out
+                args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++}); // cumulative_score_aggregation_sum
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++}); // exp_sums
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++}); // max_logits
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++}); // tmp_out
 
             // Scalar used for proper offset calculation of intermediate data buffers
             args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -1020,7 +1019,6 @@ public:
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
 
-        // constexpr static std::array input_ids = {0, 1, 2, 6};
         constexpr static std::array input_ids = {PagedAttentionInputIdx::QUERY,
                                                  PagedAttentionInputIdx::KEY,
                                                  PagedAttentionInputIdx::VALUE,
@@ -1043,6 +1041,18 @@ public:
 
         jit.make("SDPA_STAGE_0", 1);
         jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", get_target_seq_len_block_size());
+        jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
+
+        // int64_t target_seq_len = 1;
+        // if (!params.is_dynamic()) {
+        //     target_seq_len = get_aligned_seq_len(params, PagedAttentionStage::PREFILL);
+        // }
+        // jit.make("TARGET_SEQ_LEN", target_seq_len);
+        jit.make("IS_KV_COMPRESSED", 0);
+
+        // for (auto& item : jit) {
+        //     std::cout << "jit[" << item.name << "] = " << item.value << std::endl;
+        // }
         return jit;
     }
 
@@ -1092,7 +1102,6 @@ public:
         const auto desc = params.typed_desc<paged_attention>();
         const bool has_scores_output = params.output_layouts.size() > 1;
         const bool has_rotated_blocks = desc->has_rotated_blocks;
-        // is_kv_compressed = get_kv_compressed(params);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         use_micro_sdpa = supports_micro_sdpa(params);
@@ -1245,22 +1254,21 @@ public:
 
         std::vector<event::ptr> res_event = events;
         if (has_rotated_blocks) {
-            res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
+            const auto& rotated_block_indices_input = params.get_input_layout(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES);
+            if (rotated_block_indices_input.get_partial_shape()[0].get_length() > 0) {
+                res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
+            }
         }
 
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
         params.get_stream().finish();
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
             } else {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
             }
-#else
-            res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
-#endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = get_partitioning_params(params, head_size, rt_params->stage).first;
