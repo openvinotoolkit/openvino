@@ -19,6 +19,7 @@
 #include "openvino/op/power.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
     MATCHER_SCOPE(FakeConvertDecomposition);
@@ -43,27 +44,16 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
             data = decomp_ops.make<ov::op::v0::Convert>(data, input_type);
         }
 
-        const auto shift = [&]() -> ov::Output<ov::Node> {
-            if (fake_convert->get_input_size() == 2) {
-                return {};
-            }
-            OPENVINO_ASSERT(fake_convert->get_input_size() == 3,
-                            "FakeConvert should have either 2 or 3 inputs, but got: ",
-                            fake_convert->get_input_size());
-            const auto shift = fake_convert->input_value(2);
-            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(shift.get_node_shared_ptr())) {
-                const auto values = constant->cast_vector<float>();
-                // Trivial shift can be skipped during decomposition
-                if (values[0] == 0.f && constant->get_all_data_elements_bitwise_identical()) {
-                    return {};
-                }
-            }
-            return shift;
-        }();
-
         std::shared_ptr<Node> result = decomp_ops.make<ov::op::v1::Multiply>(data, input_scale);
-        if (shift.get_node() != nullptr) {
-            result = decomp_ops.make<ov::op::v1::Subtract>(result, shift);
+        bool with_shift = fake_convert->get_input_size() == 3;
+        if (with_shift) {
+            const auto& shift_const = fake_convert->input_value(2);
+            auto input_shift = decomp_ops.make<ov::op::v1::Subtract>(result, shift_const);
+            if (ov::op::util::can_eliminate_eltwise_node(input_shift, shift_const, result)) {
+                with_shift = false;
+            } else {
+                result = input_shift;
+            }
         }
 
         // Align with clamp behavior of FakeConvert in ngraph reference
@@ -85,8 +75,8 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
         result = decomp_ops.make<ov::op::v0::Convert>(result, input_type);
         // Note: upconvert part is composed as Subtract->Multiply sequence
         // in order to match LPT dequantization operations representation
-        if (shift.get_node() != nullptr) {
-            const auto negative = decomp_ops.make<ov::op::v0::Negative>(shift);
+        if (with_shift) {
+            const auto negative = decomp_ops.make<ov::op::v0::Negative>(fake_convert->input_value(2));
             if (const auto constant = ov::util::get_constant_from_source(negative)) {
                 result = decomp_ops.make<ov::op::v1::Subtract>(result, constant);
             } else {
