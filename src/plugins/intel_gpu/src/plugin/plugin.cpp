@@ -372,6 +372,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
 }
 
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
+                                                         const ov::AnyMap& properties) const{
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const{
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_property");
 

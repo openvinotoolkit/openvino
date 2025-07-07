@@ -493,6 +493,18 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
                                                       context);
 }
 
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(ov::Tensor& model,
+                                                                    const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(ov::Tensor& model,
+                                                                    const ov::SoPtr<ov::IRemoteContext>& context,
+                                                                    const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
     std::vector<std::string> devices;
     const auto all_devices = get_hidden_devices();
