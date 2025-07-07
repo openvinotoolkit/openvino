@@ -913,7 +913,7 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
 }
 
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
-    assert(node.is_dynamic());
+    OPENVINO_ASSERT(node.is_dynamic());
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout();
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
