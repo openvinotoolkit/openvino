@@ -52,10 +52,10 @@ jobs:
       SOURCE_COMMAND: ${{ contains(inputs.runner, 'linux') && 'source' || '.' }}
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
     steps:
-      - name: Download OpenVINO artifacts (tarballs and wheels)
+      - name: Download OpenVINO artifacts (tarballs and tests)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: openvino_@(wheels|tests)
+          pattern: openvino_@(package|tests)
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
