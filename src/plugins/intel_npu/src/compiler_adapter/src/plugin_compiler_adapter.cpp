@@ -15,12 +15,12 @@
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "weightless_graph.hpp"
-#include "mem_usage.hpp"
 
 namespace {
 
