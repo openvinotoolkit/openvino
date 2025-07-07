@@ -19,7 +19,8 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
                            const uint32_t supportedOpset,
                            bool useWeightsMap)
     : _logger("IRSerializer", Logger::global().level()),
-      _supportedOpset(supportedOpset)， _use_weightsMap(useWeightsMap) {
+      _supportedOpset(supportedOpset),
+      _useWeightsMap(useWeightsMap) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     _model = std::const_pointer_cast<ov::Model>(origModel);
