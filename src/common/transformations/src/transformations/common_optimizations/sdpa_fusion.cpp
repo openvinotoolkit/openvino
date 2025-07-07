@@ -13,6 +13,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
@@ -31,6 +32,12 @@ std::vector<size_t> get_order(const ov::pass::pattern::PatternSymbolValue& any_l
                               const std::vector<ov::pass::pattern::PatternSymbolValue>& to_find) {
     std::vector<size_t> order;
     const auto& layout = any_layout_sym.g();
+
+    // the ranks have to be equal
+    if (layout.size() != to_find.size()) {
+        return {};
+    }
+
     std::set<size_t> already_matched;
 
     for (const auto& target_sym : to_find) {
@@ -128,38 +135,44 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
 
-        auto q_node = pm.at(q).get_node_shared_ptr();
-        auto k_node = pm.at(k).get_node_shared_ptr();
-        auto v_node = pm.at(v).get_node_shared_ptr();
+        auto q_node = pm.at(q);
+        auto k_node = pm.at(k);
+        auto v_node = pm.at(v);
         auto sdpa_node = pm.at(sdpa).get_node_shared_ptr();
         auto post_sdpa_node = pm.at(post_sdpa).get_node_shared_ptr();
 
+        const auto& sm = m.get_symbols();
+
+        auto symbols_to_find = sm.at("Batches").g();
+        auto d_sym = sm.at("D");
+        auto s_kv_sym = sm.at("S_kv");
+        symbols_to_find.push_back(s_kv_sym);
+        symbols_to_find.push_back(d_sym);
+
+        auto any_layout_sym = sm.at("AnyLayout");
+
+        // checks that AnyLayout contains everything from Batches, S_kv and D and returns order
+        auto order = get_order(any_layout_sym, symbols_to_find);
+        size_t idx = 0;
+        auto is_ascending_order = std::all_of(order.begin(), order.end(), [&idx](size_t x) {
+            return x == idx++;
+        });
         if (pm.count(opt_transpose_k)) {
             auto transpose = pm.at(opt_transpose_k).get_node_shared_ptr();
-            const auto& sm = m.get_symbols();
-
-            auto symbols_to_find = sm.at("Batches").g();
-            auto d_sym = sm.at("D");
-            auto s_kv_sym = sm.at("S_kv");
-            symbols_to_find.push_back(s_kv_sym);
-            symbols_to_find.push_back(d_sym);
-
-            auto any_layout_sym = sm.at("AnyLayout");
-
-            // checks that AnyLayout contains everything from Batches, S_kv and D and returns order
-            auto order = get_order(any_layout_sym, symbols_to_find);
             if (order.empty()) {
                 k_node = transpose;
             } else {
-                size_t idx = 0;
-                auto is_identity_order = std::all_of(order.begin(), order.end(), [&idx](size_t x) {
-                    return x == idx++;
-                });
-                if (!is_identity_order) {
+                if (!is_ascending_order) {
                     auto transpose_order = v0::Constant::create(ov::element::i64, {order.size()}, order);
                     k_node = std::make_shared<ov::op::v1::Transpose>(k_node, transpose_order);
-                    ov::copy_runtime_info(m.get_matched_nodes(), {transpose_order, k_node});
+                    ov::copy_runtime_info(m.get_matched_nodes(), {transpose_order, k_node.get_node_shared_ptr()});
                 }
+            }
+        } else {
+            if (!is_ascending_order) {
+                auto shape_of_v = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(v_node);
+                k_node = std::make_shared<ov::op::v1::Reshape>(k_node, shape_of_v, false);
+                ov::copy_runtime_info(m.get_matched_nodes(), {shape_of_v, k_node.get_node_shared_ptr()});
             }
         }
         auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
@@ -260,15 +273,15 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         bool mask_present = pm.count(mask);
         bool matmul_trasposes_k = pm.count(qk_transpose_b);
 
-        auto q_node = pm.at(q).get_node_shared_ptr();
-        auto k_node = pm.count(k) ? pm.at(k).get_node_shared_ptr() : pm.at(kT).get_node_shared_ptr();
-        auto v_node = pm.at(v).get_node_shared_ptr();
+        auto q_node = pm.at(q);
+        auto k_node = pm.count(k) ? pm.at(k) : pm.at(kT);
+        auto v_node = pm.at(v);
 
         if (mask_present && pm.at(mask).get_partial_shape().size() > 4) {
             return false;
         }
 
-        auto T = q_node->output(0).get_element_type();
+        auto T = q_node.get_element_type();
         ov::Output<ov::Node> scale_node;
         if (pm.count(attn_scale)) {
             scale_node = pm.at(attn_scale);
@@ -311,21 +324,33 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             if (!ov::PartialShape::broadcast_merge_into(qk_out_ps, mask_input_ps, AutoBroadcastType::NUMPY))
                 return false;
 
-            std::vector<int64_t> axes;
-            for (size_t i = 0; i < mask_input_ps.size(); ++i) {
-                if (mask_input_ps[i].is_static() && mask_input_ps[i].get_length() == 1) {
-                    axes.push_back(i);
-                } else {
-                    break;
+            if (mask_input_ps.size() < 2) {
+                // OpenVINO SDPA specification requires the attention mask to have rank >= 2.
+                auto diff = 2 - mask_input_ps.size();
+                std::vector<int64_t> axes(diff);
+                std::iota(axes.begin(), axes.end(), 0);
+                auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+                auto mask_unsqueeze = std::make_shared<v0::Unsqueeze>(mask_input, axes_const);
+                mask_unsqueeze->set_friendly_name(mask->get_friendly_name());
+                ov::copy_runtime_info(m.get_matched_nodes(), mask_unsqueeze);
+                mask_input = mask_unsqueeze;
+            } else {
+                std::vector<int64_t> axes;
+                // -2 because OpenVINO SDPA specification requires the attention mask to have rank >= 2.
+                for (size_t i = 0; i < (mask_input_ps.size() - 2); ++i) {
+                    if (mask_input_ps[i].is_static() && mask_input_ps[i].get_length() == 1) {
+                        axes.push_back(i);
+                    } else {
+                        break;
+                    }
                 }
-            }
-            if (!axes.empty()) {
-                auto mask_squeeze =
-                    std::make_shared<v0::Squeeze>(mask_input,
-                                                  v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes));
-                mask_squeeze->set_friendly_name(mask->get_friendly_name());
-                ov::copy_runtime_info(m.get_matched_nodes(), mask_squeeze);
-                mask_input = mask_squeeze;
+                if (!axes.empty()) {
+                    auto axes_const = v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+                    auto mask_squeeze = std::make_shared<v0::Squeeze>(mask_input, axes_const);
+                    mask_squeeze->set_friendly_name(mask->get_friendly_name());
+                    ov::copy_runtime_info(m.get_matched_nodes(), mask_squeeze);
+                    mask_input = mask_squeeze;
+                }
             }
         } else {
             mask_input = v0::Constant::create(T, ov::Shape{}, {0});

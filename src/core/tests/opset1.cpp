@@ -145,7 +145,7 @@ public:
     OPENVINO_OP("NewOp", 0);
 
     NewOp() = default;
-    void validate_and_infer_types() override{};
+    void validate_and_infer_types() override {};
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& /* new_args */) const override {
         return make_shared<NewOp>();

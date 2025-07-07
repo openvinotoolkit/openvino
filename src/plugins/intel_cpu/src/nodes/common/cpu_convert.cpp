@@ -4,22 +4,16 @@
 
 #include "cpu_convert.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <memory>
 #include <tuple>
 #include <type_traits>
 
 #include "cpu_memcpy.h"
 #include "cpu_memory.h"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "onednn/dnnl.h"
 #include "openvino/cc/selective_build.h"
 #include "openvino/core/except.hpp"
@@ -34,14 +28,21 @@
 #include "openvino/core/type/nf4.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+#    include <memory>
+
 #    include "cpu/x64/jit_avx512_core_fp8cvt.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #    include "nodes/kernels/x64/jit_kernel.hpp"
-#else
+#elif defined(OPENVINO_ARCH_ARM64)
 #    include "cpu_memory.h"
 #    include "openvino/core/type/element_type_traits.hpp"
-#    include "utils/general_utils.h"
 #endif
 
 namespace ov::intel_cpu {

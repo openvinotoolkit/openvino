@@ -29,13 +29,13 @@ ParamsKey ShuffleChannelsKernelRef::GetSupportedKey() const {
 
 bool ShuffleChannelsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SHUFFLE_CHANNELS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const shuffle_channels_params& params = static_cast<const shuffle_channels_params&>(p);
 
     if (params.inputs[0].Dimentions() > 4)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

@@ -24,7 +24,7 @@ class jit_dnnl_emitter : public jit_emitter {
 public:
     void emit_data() const override;
 
-    void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override{};
+    void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const override {};
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
