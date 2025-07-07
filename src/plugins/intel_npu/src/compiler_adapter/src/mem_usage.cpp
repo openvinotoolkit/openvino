@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
+
 #include "mem_usage.hpp"
 
 #if defined _WIN32
@@ -37,6 +39,8 @@ int64_t intel_npu::get_peak_memory_usage() {
 #    include <fstream>
 #    include <regex>
 #    include <sstream>
+
+// clang-format on
 
 int64_t intel_npu::get_peak_memory_usage() {
     std::size_t peak_mem_usage_kB = 0;
