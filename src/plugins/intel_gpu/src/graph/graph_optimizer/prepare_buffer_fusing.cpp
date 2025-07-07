@@ -384,9 +384,9 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
         (input_layout.spatial(0) - offsets.spatial[0] - output_layout.get_tensor().spatial[0]) != 0 ||
         (input_layout.spatial(1) - offsets.spatial[1] - output_layout.get_tensor().spatial[1]) != 0));
 
-    for (auto user : node.get_users()) {
-        if (user->is_type<gemm>() && user->get_dependency_index(node) < 2) {
-            if (is_input_lower_pad || is_input_upper_pad) {
+    if (is_input_lower_pad || is_input_upper_pad) {
+        for (auto user : node.get_users()) {
+            if (user->is_type<gemm>() && user->get_dependency_index(node) < 2) {
                 return false;
             }
         }
