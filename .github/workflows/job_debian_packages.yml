@@ -79,6 +79,7 @@ jobs:
           ~/openvino_cpp_samples_build/$path_by_arch/Release/hello_query_device
 
           # check integrity of OpenVINO Python API installation
+          apt-get install python3-pip -y
           python3 -m pip check
           python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
           python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
