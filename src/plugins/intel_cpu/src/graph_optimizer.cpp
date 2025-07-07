@@ -86,7 +86,6 @@ GraphOptimizer::GraphOptimizer() = default;
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph, bool disableFusion) {
     if (disableFusion) {
-        std::cout << "[OpenVINO CPU Plugin] Layer Fusion is DISABLED by config." << std::endl;
         OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "SkipFusions");
         graph.SortTopologically();
         graph.RemoveDroppedNodes();

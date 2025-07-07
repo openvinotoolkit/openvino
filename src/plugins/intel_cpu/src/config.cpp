@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <set>
@@ -24,7 +25,6 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
-
 namespace ov::intel_cpu {
 
 using namespace ov::threading;
@@ -46,6 +46,12 @@ Config::Config() {
 
 #endif
 bool Config::applyDebugCapsProperties() {
+    if (const char* env = std::getenv("DISABLE_LAYER_FUSION")) {
+        std::string val(env);
+        std::transform(val.begin(), val.end(), val.begin(), ::toupper);
+                std::cout << "[DEBUG] DISABLE_LAYER_FUSION env: " << val << std::endl; //////////////////////////////////////////////////////////////////////
+        return val == "YES" || val == "TRUE" || val == "1";
+    }
     auto it = _config.find("DISABLE_LAYER_FUSION");
     if (it != _config.end()) {
         std::string val = it->second;
