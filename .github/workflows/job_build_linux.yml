@@ -95,7 +95,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       INSTALL_DIR: ${{ github.workspace }}/openvino/openvino_install
-      INSTALL_DIR_JS: ${{ github.workspace }}/openvino/openvino/src/bindings/js/node/bin
+      INSTALL_DIR_JS: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
       INSTALL_TEST_DIR: ${{ github.workspace }}/openvino/tests_install
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
