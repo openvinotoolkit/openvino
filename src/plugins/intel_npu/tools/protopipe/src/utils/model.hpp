@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <vector>
+#include <set>
 #include <string>
 
 #include <openvino/openvino.hpp>
@@ -41,7 +41,7 @@ private:
     std::filesystem::path m_xmlPath;
     std::filesystem::path m_binPath;
 
-    static std::vector<std::filesystem::path> s_tempFiles;
+    static std::set<std::filesystem::path> s_tempFiles;
 };
 
 } // namespace utils

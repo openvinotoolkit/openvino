@@ -61,10 +61,12 @@ log_level: INFO
 - `iml` - **Optional**. Input model layout.
 - `oml` - **Optional**. Output model layout.
 - `reshape` - **Optional**. Set shape for input layers. For example, "input1: [1,3,224,224], input2: [1,4]" or "[1,3,224,224]" in case of one input layer.
+- `clamp_outputs` - **Optional**. Clamps all model outputs to the valid range for their precision. Requires `op` to be set for it to take effect.
 
 Examples:
 ```
 - { name: model.xml, ip: FP16, iml: NHWC, il: NCHW }
+- { name: model.xml, ip: U8, op: U8, clamp_outputs: true }
 - { name: model.xml, ip: { data: FP16 }, priority: HIGH }
 - { name: model.xml, device: NPU, config: { PERFORMANCE_HINT: THROUGHPUT } }
 ```

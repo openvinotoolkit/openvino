@@ -13,7 +13,7 @@
 
 namespace utils {
 
-std::vector<std::filesystem::path> ModelHelper::s_tempFiles;
+std::set<std::filesystem::path> ModelHelper::s_tempFiles;
 
 static int get_output_cv_type(const std::string& name, const LayerVariantAttr<int>& output_precision) {
     if (std::holds_alternative<int>(output_precision)) {
@@ -148,7 +148,7 @@ bool ModelHelper::saveTempModel() {
     }
     if (std::filesystem::exists(tmp_xml)) {
         m_xmlPath = tmp_xml;
-        s_tempFiles.push_back(tmp_xml);
+        s_tempFiles.insert(tmp_xml);
 
         return true;
     }

@@ -260,8 +260,6 @@ int main(int argc, char* argv[]) {
                 std::cout << "stream " << task.name() << ": " << task.result().str() << std::endl;
             }
             std::cout << "\n";
-
-            utils::cleanupTempFiles();
         }
         if (any_scenario_failed) {
             return EXIT_FAILURE;
@@ -275,5 +273,6 @@ int main(int argc, char* argv[]) {
         utils::cleanupTempFiles();
         throw;
     }
+    utils::cleanupTempFiles();
     return 0;
 }
