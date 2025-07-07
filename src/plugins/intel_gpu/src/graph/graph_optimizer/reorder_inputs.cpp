@@ -761,7 +761,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             }
 
             auto& input = eltwise_node.get_dependency(small_shape_idx);
-            auto out_layout = eltwise_node.get_output_layout();
+            auto& out_layout = eltwise_node.get_output_layout();
 
             ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(ref_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
 
