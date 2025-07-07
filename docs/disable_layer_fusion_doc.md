@@ -1,3 +1,23 @@
+# 🔧 Disable CPU Layer Fusion in OpenVINO (via Config or Env Var)
+
+Brief description of the feature or motivation...
+
+## 📚 Table of Contents
+
+- [✨ Feature](#-feature-disable-layer-fusion-via-config-or-env-var)
+- [✅ What's Included](#-whats-included)
+- [⚙️ How to Use](#️-how-to-use)
+  - [Option 1 – Runtime Config](#-option-1--runtime-config-recommended)
+  - [Option 2 – Environment Variable](#-option-2--environment-variable-now-functional)
+- [🧪 Validation Summary](#-validation-summary)
+- [🔍 Runtime Graph Observation](#-runtime-graph-observation)
+- [📉 Performance Impact Analysis](#-performance-impact-analysis)
+- [🚧 Future Work](#-future-work)
+
+## ✨ Feature: Disable Layer Fusion via Config or Env Var
+
+...
+
 ## ✨ Feature: Disable Layer Fusion (via Config or Env Var)
 
 This PR adds the ability to **disable CPU layer fusion in OpenVINO** via a **runtime config or environment variable**,
@@ -139,6 +159,18 @@ benchmark_app -m model.xml -d CPU -report_type detailed_counters
 - Useful for disabling internal CPU fusions for precise behavior
 
 ---
+
+### 📉 Performance Impact Analysis
+
+Disabling layer fusion in the OpenVINO CPU plugin allows deeper insight into model internals at the cost of runtime performance. Below is a summary comparing both configurations:
+
+| Metric                    | **Fusion Disabled (`YES`)** | **Fusion Enabled (`NO`)** |
+| ------------------------- | --------------------------- | ------------------------- |
+| Inference Time (avg)      | 🐢 \~0.0824 sec             | ⚡ \~0.0511 sec           |
+| Number of Execution Nodes | 🔼 \~210+ nodes             | 🔽 \~35 nodes             |
+| Observed Graph Complexity | High (detailed layers)      | Low (fused ops)           |
+| Kernel Launch Overhead    | Higher (many ops)           | Lower (fewer ops)         |
+| Use Case                  | Profiling, Debugging        | Production, Performance   |
 
 ### 🚧 Future Work
 
