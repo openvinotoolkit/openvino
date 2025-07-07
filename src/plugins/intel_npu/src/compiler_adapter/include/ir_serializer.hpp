@@ -22,22 +22,32 @@ class IRSerializer {
 public:
     IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
                  const uint32_t supportedOpset = 11,
-                 bool useWeightsMap = false);
+                 ov::pass::WeightsMapWrapper* weightsMapWrapper = nullptr);
 
     size_t getXmlSize() const {
-        return _xmlSize;
+        if (_weightsMapWrapper) {
+            // Use stingstream to get xml if we use weights map
+            return _xmlString.size() + 1;
+        } else {
+            // Use custom stream buffer to get xml size
+            return _xmlSize;
+        }
     }
 
     size_t getWeightsSize() const {
-        return _weightsSize;
+        if (_weightsMapWrapper) {
+            // Store pointer to buffer if we use weights map
+            return sizeof(void*);
+        } else {
+            // Store weights content to buffer
+            return _weightsSize;
+        }
     }
 
     /**
      * @brief Serialize OpenVINO model to target buffer
      */
-    void serializeModelToBuffer(uint8_t* xml,
-                                uint8_t* weights,
-                                ov::pass::WeightsMapWrapper* weightsMapWrapper = nullptr);
+    void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
 
 private:
     /**
@@ -57,7 +67,8 @@ private:
     uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
-    bool _useWeightsMap = false;  // Flag to use weights map for serialization
+    ov::pass::WeightsMapWrapper* _weightsMapWrapper = nullptr;
+    std::string _xmlString;
 };
 
 }  // namespace intel_npu::driver_compiler_utils
