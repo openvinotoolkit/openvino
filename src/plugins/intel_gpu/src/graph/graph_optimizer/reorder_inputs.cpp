@@ -744,7 +744,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         // Add reorder to align tensor size of eltwise inputs for NUMPY broadcasting
         // Case for PDPD is not implemented
         auto elt_prim = eltwise_node.get_primitive();
-        auto align_dims = (int)eltwise_node.get_input_pshape(0).size() - (int)eltwise_node.get_input_pshape(1).size();
+        auto align_dims = static_cast<int>(eltwise_node.get_input_pshape(0).size())
+                            - static_cast<int>(eltwise_node.get_input_pshape(1).size());
         if (elt_prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
             align_dims != 0) {
             // Eltwise input tensor can be smaller than perferred format by NUMPY broad casting.
