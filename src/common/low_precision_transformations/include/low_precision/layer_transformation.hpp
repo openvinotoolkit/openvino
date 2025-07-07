@@ -59,7 +59,7 @@ public:
                 element::i8, element::u8,
                 element::i16, element::u16,
                 element::i32, element::u32,
-                element::f8e4m3, element::f8e5m2
+                element::f8e4m3, element::f8e5m2,
         };
         return lowPrecision.find(precision) != lowPrecision.end();
     }
