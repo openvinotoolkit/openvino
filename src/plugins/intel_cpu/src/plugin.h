@@ -61,6 +61,7 @@ private:
 
     static void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model);
     static void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false);
+    void read_debug_env_flags();
     Config engConfig;
     /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */

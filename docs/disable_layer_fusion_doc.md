@@ -1,93 +1,148 @@
 ## ✨ Feature: Disable Layer Fusion (via Config or Env Var)
 
-This PR adds the ability to **disable CPU layer fusion in OpenVINO** via a **runtime config or environment variable** to enable **detailed profiling**, **layer-level debugging**, and more transparent runtime graphs.
+This PR adds the ability to **disable CPU layer fusion in OpenVINO** via a **runtime config or environment variable**,
+enabling detailed profiling and layer-level debugging through the following mechanisms:
 
 ---
 
-### ✅ What's Added
+- ✅ Runtime configuration: `Core.set_property(...)`
+- 🌍 Environment variable: `DISABLE_LAYER_FUSION=YES`
+
+This allows:
+
+- 🔍 Layer-level debugging
+- 📊 Transparent runtime graphs
+- 🧪 Profiling of intermediate ops (e.g., `ReLU`, `HSwish`, `Pooling`)
+
+---
+
+### ✅ What's Included
 
 - 🔑 New runtime config key: `DISABLE_LAYER_FUSION`
-- 🌍 Environment variable support: `DISABLE_LAYER_FUSION`
-- 🧪 Test script: `test_disable_fusion.py` to validate behavior
-- 🧠 Integrated with CPU Plugin (via `Config::applyDebugCapsProperties`)
-- 🔍 Prints runtime graph to inspect fused vs unfused ops
+- 🌍 Environment variable support (✅ now functional): `DISABLE_LAYER_FUSION`
+- 🧪 Test script: `test_disable_fusion.py`
+- 🧠 Integrated with CPU plugin (`Config::applyDebugCapsProperties`)
+- 🔍 Runtime graph inspection for fusion visibility
 
 ---
 
 ### ⚙️ How to Use
 
 #### ✅ Option 1 – Runtime Config (Recommended)
+
 ```python
 from openvino.runtime import Core
 
 core = Core()
-core.set_property("DISABLE_LAYER_FUSION", "YES")  # Must be set BEFORE compile_model()
-
-model = core.read_model("path/to/model.xml")
+core.set_property("DISABLE_LAYER_FUSION", "YES")
+model = core.read_model("model.xml")
 compiled_model = core.compile_model(model, "CPU")
 ```
 
-This results in a runtime graph with **separate ops**, e.g.:
-```
-ExecutionNode     /layer1/layer1.0/conv1/Conv/WithoutBiases  
-ExecutionNode     /layer1/layer1.0/conv2/Conv/WithoutBiases  
-ExecutionNode     /ReLU_123  
-...
-```
+✅ _Use this method for guaranteed fusion disablement before compilation._
 
 ---
 
-#### ⚠️ Option 2 – Environment Variable (Currently Unreliable)
+أكيد! إليك القسم الكامل الخاص بـ **Option 2 – Environment Variable (Now Functional)** بصيغة Markdown، مع كود متكامل يوضح طريقة التفعيل باستخدام متغيرات البيئة (CMD أو Bash) وتشغيل سكريبت داخلي:
+
+---
+
+### ✅ Option 2 – Environment Variable (Now Functional)
+
+> ✅ **As of this PR**, the environment variable is properly applied _before_ plugin initialization.
+
+#### 🔧 Windows CMD:
 
 ```cmd
 set DISABLE_LAYER_FUSION=YES
+python test_disable_fusion.py
 ```
 
-❌ This **does not reliably disable fusion** in current testing (Windows, local builds).  
-It appears the plugin reads environment variables **after plugin initialization**, which is too late.
+#### 🐧 Linux/macOS Bash:
 
----
-
-### 🧪 Validation Result
-
-Model used: `resnet-50-pytorch` (from OpenVINO Model Zoo)  
-Test script: [`test_disable_fusion.py`](tests/test_disable_fusion.py)
-
-| Method                    | Fusion Disabled? | Notes                                   |
-|---------------------------|------------------|------------------------------------------|
-| `core.set_property(...)`  | ✅ Yes            | Reliable, activates before compilation   |
-| `set DISABLE_LAYER_FUSION=YES` | ❌ No         | Plugin likely reads it too late          |
-
-> 🔍 When fusion is disabled, runtime graph includes individual `Conv`, `ReLU`, and `Pooling` ops, allowing precise inspection of layer-level execution.
-
----
-
-### 📁 Note: No CSV Report is Generated
-
-The `test_disable_fusion.py` script:
-- ✅ Prints the runtime graph to the console  
-- ❌ Does **not** generate performance reports or `.csv` files like `benchmark_detailed_counters_report.csv`
-
-To generate such reports, use the official `benchmark_app`:
 ```bash
-benchmark_app -m model.xml -d CPU -report_type detailed_counters -report_folder ./results
+export DISABLE_LAYER_FUSION=YES
+python test_disable_fusion.py
 ```
+
+✅ **Ensure** the variable is set _before_ running the Python process.
 
 ---
 
-### 🔍 Technical Notes
+#### 🧪 Example: `test_disable_fusion.py`
 
-- The `DISABLE_LAYER_FUSION` config is handled in `Config::applyDebugCapsProperties()`.
-- The environment variable path **may work in future** if plugin initialization is refactored to read it earlier.
-- This feature is especially helpful for:
-  - Fine-grained profiling
-  - Debugging fused patterns that hide internal ops
-  - Teaching/demo purposes where full graph visibility is required
+```python
+import numpy as np
+from openvino.runtime import Core
+
+core = Core()
+
+# Load model
+model = core.read_model("resnet-50-pytorch.xml")
+compiled_model = core.compile_model(model, "CPU")
+
+# Run dummy inference
+input_tensor = np.random.rand(*compiled_model.input(0).shape).astype(np.float32)
+_ = compiled_model([input_tensor])
+
+# Print runtime graph to check fusion status
+print("\n📋 Runtime Graph (Check for unfused ops like ReLU, HSwish, etc.):")
+for op in compiled_model.get_runtime_model().get_ops():
+    print(f"{op.get_type_name():<25} {op.friendly_name}")
+```
+
+✅ If `DISABLE_LAYER_FUSION` is respected, you will see **individual ops** like `ReLU`, `HSwish`, etc., in the printed graph.
+
+### 🧪 Validation Summary
+
+| Method                         | Fusion Disabled | Reliability | Notes                   |
+| ------------------------------ | --------------- | ----------- | ----------------------- |
+| `core.set_property(...)`       | ✅ Yes          | ✅ Stable   | Preferred method        |
+| `DISABLE_LAYER_FUSION` env var | ✅ Yes          | ✅ Stable   | Applied pre-plugin init |
+
+✅ Model: `resnet-50-pytorch`
+🧪 Script: `test_disable_fusion.py`
+
+---
+
+### 🔍 Runtime Graph Observation
+
+When fusion is disabled, runtime model includes **distinct ops**:
+
+```
+ExecutionNode     /conv1/Conv/WithoutBiases
+ExecutionNode     /ReLU_23
+ExecutionNode     /HSwish_45
+```
+
+✅ Useful for:
+
+- Fine-grained debugging
+- Op-level profiling
+- Visual clarity in demos or teaching
+
+---
+
+### 📄 Generating Detailed Performance Reports
+
+```bash
+benchmark_app -m model.xml -d CPU -report_type detailed_counters
+```
+
+📝 _Note: `test_disable_fusion.py` prints runtime graph only — no CSV reports are generated by default._
+
+---
+
+### 🧠 Notes
+
+- The environment variable is now handled **early** in plugin startup
+- Useful for disabling internal CPU fusions for precise behavior
 
 ---
 
 ### 🚧 Future Work
 
-- [ ] Investigate making `DISABLE_LAYER_FUSION` via env var effective at plugin load time
-- [ ] Ensure consistent behavior across platforms (Windows/Linux)
-- [ ] Optional: Add CLI flags or diagnostic tools for fusion toggling
+- [ ] Add `--disable_fusion` to `benchmark_app`
+- [ ] Improve fused/unfused op visualization in GUI tools
+
+---

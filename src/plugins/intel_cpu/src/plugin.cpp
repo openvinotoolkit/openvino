@@ -92,6 +92,7 @@ static std::string getDeviceFullName() {
 
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
+    read_debug_env_flags();
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
@@ -99,6 +100,13 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
+}
+
+void Plugin::read_debug_env_flags() {
+    const char* disable_fusion_env = std::getenv("DISABLE_LAYER_FUSION");
+    if (disable_fusion_env && std::string(disable_fusion_env) == "YES") {
+        engConfig.disableFusion = true;
+    }
 }
 
 Plugin::~Plugin() {
@@ -268,7 +276,7 @@ void Plugin::set_property(const ov::AnyMap& config) {
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
-        if (name == PluginConfigParams::DISABLE_LAYER_FUSION) {
+    if (name == PluginConfigParams::DISABLE_LAYER_FUSION) {
         return engConfig.disableFusion ? PluginConfigParams::YES : PluginConfigParams::NO;
     }
 
