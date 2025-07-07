@@ -8,8 +8,8 @@
 
 #if defined _WIN32
 
-#    include <psapi.h>
 #    include <windows.h>
+#    include <psapi.h>
 
 #    include <cmath>
 #    include <stdexcept>

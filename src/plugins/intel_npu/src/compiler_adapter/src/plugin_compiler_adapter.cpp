@@ -20,6 +20,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "weightless_graph.hpp"
+#include "mem_usage.hpp"
 
 namespace {
 
@@ -143,6 +144,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
     _logger.info("SEPARATE_WEIGHTS_VERSION: ", config.get<SEPARATE_WEIGHTS_VERSION>());
 
+    auto compile_model_mem_start = get_peak_memory_usage();
     switch (config.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
         std::vector<std::shared_ptr<NetworkDescription>> initMainNetworkDescriptions =
@@ -183,6 +185,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
                        config.get<SEPARATE_WEIGHTS_VERSION>());
         break;
     }
+
+    auto compile_model_mem_end = get_peak_memory_usage();
+
+    _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
+    _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
+    // Note: Following log is parsed by CI. Take care when modifying it.
+    _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
 
     _logger.debug("compile end");
 

@@ -343,9 +343,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     }
     auto compile_model_mem_end = get_peak_memory_usage();
 
-    _logger.info("Start of compilation memory usage: Peak ", compile_model_mem_start, " KB");
-    _logger.info("End of compilation memory usage: Peak ", compile_model_mem_end, " KB");
-    _logger.info("Compilation memory usage: Peak ", compile_model_mem_end - compile_model_mem_start, " KB");
+    _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
+    _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
+    // Note: Following log is parsed by CI. Take care when modifying it.
+    _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
 
     // If "WeightlessCacheAttribute" fields have not been added to the Constant nodes, then we have to fallback to the
     // approach that relies on running the common OV passes inside the plugin as well
