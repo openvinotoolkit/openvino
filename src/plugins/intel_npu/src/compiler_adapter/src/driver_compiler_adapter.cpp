@@ -11,7 +11,6 @@
 #include "graph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/passes.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -256,16 +255,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                                          const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "compileWS");
 
-    const ov::RTMap& runtimeInfoMap = model->get_rt_info();
-    const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
-    const bool weightlessCacheAttributeFound =
-        weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>();
-    if (weightlessCacheAttributeFound) {
-        storeWeightlessCacheAttribute(model);
-    }
+    storeWeightlessCacheAttribute(model);
 
     const ze_graph_compiler_version_info_t& compilerVersion = _compilerProperties.compilerVersion;
-
     if ((compilerVersion.major < 6) || (compilerVersion.major == 6 && compilerVersion.minor < 3)) {
         OPENVINO_THROW("Minimum compiler version required for weights separation: 6.3. Found: ",
                        compilerVersion.major,
@@ -348,19 +340,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     // Note: Following log is parsed by CI. Take care when modifying it.
     _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
 
-    // If "WeightlessCacheAttribute" fields have not been added to the Constant nodes, then we have to fallback to the
-    // approach that relies on running the common OV passes inside the plugin as well
-    std::shared_ptr<ov::Model> probablyModifiedModel = model;
-    if (!weightlessCacheAttributeFound) {
-        // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of the
-        // ov::Model object with the init inputs
-        probablyModifiedModel = runOVPasses(model);
-        _logger.warning(
-            "OV common model passes were applied inside the NPU plugin as part of the \"weights separation\" flow. "
-            "This "
-            "might lead to mismatches between weights and inputs depending on the version of the compiler.");
-    }
-
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
                                              /* blobAllocatedByPlugin = */ false,
@@ -370,7 +349,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
                                              initGraphHandles,
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
-                                             probablyModifiedModel,
+                                             model,
                                              config);
 }
 

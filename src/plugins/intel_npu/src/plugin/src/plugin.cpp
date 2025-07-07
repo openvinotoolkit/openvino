@@ -13,7 +13,6 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/passes.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -135,26 +134,23 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
 }
 
 /**
- * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. This is a useful information down
- * the line if using the "weights separation" flow.
+ * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
+ * thrown. The weights separation flow in its current state cannot work without this attribuite.
  */
-std::shared_ptr<ov::Model> store_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
-    auto clonedModel = model->clone();
-
-    for (auto&& ov_node : clonedModel->get_ordered_ops()) {
+void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov::Model>& model) {
+    for (const auto& ov_node : model->get_ordered_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(ov_node)) {
             continue;
         }
 
         if (auto it = ov_node->get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
             it != ov_node->get_rt_info().end()) {
-            clonedModel->set_rt_info(true, "any_weightless_cache_attribute_present");
-            return clonedModel;
+            return;
         }
     }
 
-    clonedModel->set_rt_info(false, "any_weightless_cache_attribute_present");
-    return clonedModel;
+    OPENVINO_THROW("No \"WeightlessCacheAttribute\" has been found in any of the model's Constant nodes. This "
+                   "attribute is required for running the \"weights separation\" flow.");
 }
 
 }  // namespace
@@ -581,7 +577,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
             graph = compiler->compile(model->clone(), localConfig);
         } else {
-            graph = compiler->compileWS(store_weightless_cache_attribute_occurrence(model), localConfig);
+            check_weightless_cache_attribute_occurrence(model);
+            graph = compiler->compileWS(model->clone(), localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
@@ -805,22 +802,7 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
             OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
         }
 
-        originalModel = store_weightless_cache_attribute_occurrence(originalModel);
-
-        // If "WeightlessCacheAttribute" fields have not been added to the Constant nodes, then we have to fallback to
-        // the approach that relies on running the common OV passes inside the plugin as well
-        const ov::RTMap& runtimeInfoMap = originalModel->get_rt_info();
-        const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
-        if (weightlessCacheAttributeMatch == runtimeInfoMap.end() ||
-            !weightlessCacheAttributeMatch->second.as<bool>()) {
-            // Temporary solution: OV passes are copied here in order to increase the chances of matching the weights of
-            // the ov::Model object with the init inputs
-            originalModel = runOVPasses(originalModel);
-            _logger.warning(
-                "OV common model passes were applied inside the NPU plugin as part of the \"weights separation\" flow. "
-                "This "
-                "might lead to mismatches between weights and inputs depending on the version of the compiler.");
-        }
+        check_weightless_cache_attribute_occurrence(originalModel);
     }
 
     auto graph = compiler->parse(std::move(tensorMain),

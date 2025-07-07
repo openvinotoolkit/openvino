@@ -29,31 +29,17 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
-    const ov::RTMap& runtimeInfoMap = model->get_rt_info();
-    const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
-    if (weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>()) {
-        for (auto&& node : model->get_ordered_ops()) {
-            if (!ov::is_type<ov::op::v0::Constant>(node)) {
-                continue;
-            }
-
-            auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
-            ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
-            const auto& weightlessCacheAttrIt =
-                runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
-                auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
-                constants[weightlessCacheAttr.bin_offset] = constantNode;
-            }
+    for (auto&& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Constant>(node)) {
+            continue;
         }
-    } else {
-        logger.info("Weightless cache attribute was not found in the model.");
-        size_t constantId = 0;
-        for (auto&& node : model->get_ordered_ops()) {
-            if (!ov::is_type<ov::op::v0::Constant>(node)) {
-                continue;
-            }
-            constants[constantId++] = std::static_pointer_cast<ov::op::v0::Constant>(node);
+
+        auto constantNode = std::static_pointer_cast<ov::op::v0::Constant>(node);
+        ov::RTMap& runtimeInfoMap = constantNode->get_rt_info();
+        const auto& weightlessCacheAttrIt = runtimeInfoMap.find(ov::WeightlessCacheAttribute::get_type_info_static());
+        if (weightlessCacheAttrIt != runtimeInfoMap.end()) {
+            auto& weightlessCacheAttr = weightlessCacheAttrIt->second.as<ov::WeightlessCacheAttribute>();
+            constants[weightlessCacheAttr.bin_offset] = constantNode;
         }
     }
 
@@ -370,11 +356,6 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
                                          ov::Shape({initInputsByteSize}),
                                          ov::intel_npu::TensorType::INPUT)};
 
-    const ov::RTMap& runtimeInfoMap = _model->get_rt_info();
-    const auto& weightlessCacheAttributeMatch = runtimeInfoMap.find("any_weightless_cache_attribute_present");
-    const bool foundWeightlessCacheAttribute =
-        weightlessCacheAttributeMatch != runtimeInfoMap.end() && weightlessCacheAttributeMatch->second.as<bool>();
-
     size_t offset = 0;
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
         auto currentInputBufferLocation =
@@ -392,31 +373,6 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
                         "metadata of the compiled model.");
 
         constant = constants.at(id);
-
-        if (!foundWeightlessCacheAttribute) {
-            // Asserts checking the metadata match
-            OPENVINO_ASSERT(constant->get_byte_size() == currentInputSize,
-                            "Byte size mismatch for ",
-                            descriptor.nameFromCompiler,
-                            ": ",
-                            constant->get_byte_size(),
-                            " vs. ",
-                            currentInputSize);
-            OPENVINO_ASSERT(constant->get_element_type().size() == descriptor.precision.size(),
-                            "Precision mismatch for ",
-                            descriptor.nameFromCompiler,
-                            ": ",
-                            constant->get_element_type().size(),
-                            " vs. ",
-                            descriptor.precision.size());
-            OPENVINO_ASSERT(constant->get_shape() == descriptor.shapeFromCompiler.to_shape(),
-                            "Shape mismatch for ",
-                            descriptor.nameFromCompiler,
-                            ": ",
-                            constant->get_shape(),
-                            " vs. ",
-                            descriptor.shapeFromCompiler.to_shape());
-        }
 
         std::memcpy(currentInputBufferLocation, constant->get_data_ptr(), currentInputSize);
 
