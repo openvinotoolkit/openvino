@@ -26,9 +26,11 @@ class RemoteContextManager;
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core,
-                  const std::string& alloc_device,
-                  const std::string& bank_name);
+    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
+        : m_core(core),
+          m_alloc_device(alloc_device),
+          m_bank_name(bank_name),
+          m_rcm(std::make_shared<RemoteContextManager>()) {}
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -57,7 +59,6 @@ private:
     struct DeviceBank {
         std::unordered_map<int64_t, StoredTensor> storage;
         std::unordered_map<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
-        mutable std::mutex mutex;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
@@ -68,12 +69,12 @@ private:
     // Used during deserialization
     void read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device);
 
-    mutable std::mutex m_mutex;
+    mutable std::recursive_mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
     int64_t uid_count = 0;
     std::string m_bank_name;
-    std::shared_ptr<RemoteContextManager> m_rcm = nullptr;
+    std::shared_ptr<RemoteContextManager> m_rcm;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,
