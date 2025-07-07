@@ -18,14 +18,14 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-using namespace dnnl::impl::cpu::x64;
-
 namespace ov::intel_cpu {
 
+using namespace dnnl::impl::cpu::x64;
+
 struct jit_matmul_small_config_params {
-    size_t M;
-    size_t K;
-    size_t N;
+    size_t M = 0UL;
+    size_t K = 0UL;
+    size_t N = 0UL;
 };
 
 struct jit_matmul_small_call_args {
@@ -39,18 +39,17 @@ struct jit_matmul_small_call_args {
 };
 
 struct jit_uni_matmul_small_kernel {
-    void (*ker_)(const jit_matmul_small_call_args*);
+    void (*ker_)(const jit_matmul_small_call_args*) = nullptr;
 
-    void operator()(const jit_matmul_small_call_args* args) {
+    void operator()(const jit_matmul_small_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
     explicit jit_uni_matmul_small_kernel(jit_matmul_small_config_params jcp, const dnnl_primitive_attr& attr)
-        : ker_(nullptr),
-          jcp_(jcp),
+        : jcp_(jcp),
           attr_(attr) {}
-    virtual ~jit_uni_matmul_small_kernel() {}
+    virtual ~jit_uni_matmul_small_kernel() = default;
 
     virtual void create_ker() = 0;
 
