@@ -259,6 +259,7 @@ jobs:
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
                 -DCPACK_GENERATOR=DEB \
+                -DPython3_EXECUTABLE=$(poetry env info --executable) \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package
         working-directory: ${{ env.OPENVINO_REPO }}
