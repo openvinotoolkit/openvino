@@ -4,12 +4,10 @@
 
 #include "roi_align.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>
 #include <cmath>
-#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -18,18 +16,13 @@
 #include <openvino/op/roi_align.hpp>
 #include <string>
 #include <tuple>
-#include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <utils/bfloat16.hpp>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -46,6 +39,18 @@
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <type_traits>
+#    include <unordered_map>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_emitter.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
