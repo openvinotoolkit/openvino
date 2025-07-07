@@ -3,6 +3,7 @@
 //
 
 #include "subgraph_simple.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
 #include <snippets/op/subgraph.hpp>
