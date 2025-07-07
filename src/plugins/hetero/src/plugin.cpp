@@ -38,6 +38,7 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo
     SubgraphsMappingInfo mapping_info;
     const std::string model_name = model->get_friendly_name();
     bool user_set_affinities = false;
+    std::shared_ptr<ov::Model> model_;
     // Get user defined affinity
     for (const auto& node : model->get_ordered_ops()) {
         const auto& rt_info = node->get_rt_info();
@@ -76,10 +77,10 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo
     }
 
     auto cloned_model = model->clone();
-    std::tie(query_model_result, mapping_info) = query_model_update(cloned_model, full_properties, true);
+    std::tie(query_model_result, mapping_info, model_) = query_model_update(cloned_model, full_properties, true);
 
     ov::hetero::op::DeviceSubgraphVector ordered_subgraphs;
-    for (const auto& op : cloned_model->get_ordered_ops()) {
+    for (const auto& op : model_->get_ordered_ops()) {
         if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
             ordered_subgraphs.push_back(subgraph);
         } else {
