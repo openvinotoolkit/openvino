@@ -740,7 +740,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
-    const auto reorder_eltwise = [&p, &rf](typed_program_node<eltwise>& eltwise_node) {
+    const auto reorder_eltwise = [&p](typed_program_node<eltwise>& eltwise_node) {
         // Add reorder to align tensor size of eltwise inputs for NUMPY broadcasting
         // Case for PDPD is not implemented
         auto elt_prim = eltwise_node.get_primitive();
