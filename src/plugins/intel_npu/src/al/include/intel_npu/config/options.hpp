@@ -786,6 +786,10 @@ struct TURBO final : OptionBase<TURBO, bool> {
         return true;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 21);
+    }
+
     static OptionMode mode() {
         return OptionMode::Both;
     }
