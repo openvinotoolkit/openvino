@@ -79,15 +79,15 @@ ParamsKey BeamTableUpdateKernelRef::GetSupportedKey() const {
 
 bool BeamTableUpdateKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::BEAM_TABLE_UPDATE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const beam_table_update_params&>(params);
     if (kernel_params.inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     if (kernel_params.outputs.size() != 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;
