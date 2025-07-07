@@ -7,7 +7,7 @@
 
 namespace kernel_selector {
 struct sparse_fill_empty_rows_params : public base_params {
-    sparse_fill_empty_rows_params() : base_params{KernelType::sparse_fill_empty_rows} {}
+    sparse_fill_empty_rows_params() : base_params{KernelType::SPARSE_FILL_EMPTY_ROWS} {}
 };
 
 class SparseFillEmptyRowsKernelRef : public KernelBaseOpenCL {

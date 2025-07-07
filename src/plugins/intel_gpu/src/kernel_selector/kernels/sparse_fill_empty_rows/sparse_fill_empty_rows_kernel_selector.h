@@ -6,14 +6,14 @@
 #include "kernel_selector.h"
 
 namespace kernel_selector {
-class roi_align_kernel_selector : public kernel_selector_base {
+class sparse_fill_empty_rows_kernel_selector : public kernel_selector_base {
 public:
-    static roi_align_kernel_selector& Instance() {
-        static roi_align_kernel_selector instance_;
+    static sparse_fill_empty_rows_kernel_selector& Instance() {
+        static sparse_fill_empty_rows_kernel_selector instance_;
         return instance_;
     }
 
-    roi_align_kernel_selector();
+    sparse_fill_empty_rows_kernel_selector();
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

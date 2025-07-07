@@ -4,22 +4,23 @@
 
 #pragma once
 #include "primitive.hpp"
+#include "intel_gpu/graph/serialization/utils.hpp"
 
 namespace cldnn {
 
-/// @brief SparseFillEmptyRows operation.
+/// @brief sparse_fill_empty_rows operation.
 /// @details Checks the specification for details.
-struct SparseFillEmptyRows : public primitive_base<SparseFillEmptyRows> {
-    CLDNN_DECLARE_PRIMITIVE(SparseFillEmptyRows)
+struct sparse_fill_empty_rows : public primitive_base<sparse_fill_empty_rows> {
+    CLDNN_DECLARE_PRIMITIVE(sparse_fill_empty_rows)
 
-    SparseFillEmptyRows() : primitive_base("", {}) {}
+    sparse_fill_empty_rows() : primitive_base("", {}) {}
 
-    /// @brief Constructs SparseFillEmptyRows primitive.
+    /// @brief Constructs sparse_fill_empty_rows primitive.
     /// @param id This primitive id.
     /// @param inputs List of input primitives (check specification for details).
-    SparseFillEmptyRows(const primitive_id& id,
+    sparse_fill_empty_rows(const primitive_id& id,
           const std::vector<input_info>& inputs)
-        : primitive_base(id, inputs) {}
+        : primitive_base(id, inputs, 3) {}
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -39,11 +40,11 @@ struct SparseFillEmptyRows : public primitive_base<SparseFillEmptyRows> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<SparseFillEmptyRows>::save(ob);
+        primitive_base<sparse_fill_empty_rows>::save(ob);
     }
 
     void load(BinaryInputBuffer& ib) override {
-        primitive_base<SparseFillEmptyRows>::load(ib);
+        primitive_base<sparse_fill_empty_rows>::load(ib);
     }
 };
 }  // namespace cldnn
