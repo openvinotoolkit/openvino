@@ -95,9 +95,24 @@ macro(ov_find_package_tbb)
             set(_ov_minimal_tbb_version 2017.0)
         endif()
 
+        set(_old_CMAKE_IGNORE_PATH "${CMAKE_IGNORE_PATH}")
         if(NOT ENABLE_SYSTEM_TBB)
             if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
                 set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+            endif()
+
+            # On macOS, try to detect Brew prefix to exclude it from TBB search
+            if(APPLE)
+                find_program(BREW_EXECUTABLE brew)
+                if(BREW_EXECUTABLE)
+                    execute_process(COMMAND "${BREW_EXECUTABLE}" --prefix
+                                    OUTPUT_VARIABLE BREW_PREFIX
+                                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                                    RESULT_VARIABLE BREW_RESULT)
+                    if(BREW_RESULT EQUAL 0 AND EXISTS "${BREW_PREFIX}")
+                        list(APPEND CMAKE_IGNORE_PATH "${BREW_PREFIX}")
+                    endif()
+                endif()
             endif()
 
             # Note, we explicitly:
@@ -115,6 +130,7 @@ macro(ov_find_package_tbb)
 
         find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
                      ${_find_package_no_args})
+        set(CMAKE_IGNORE_PATH "${_old_CMAKE_IGNORE_PATH}")
 
         if(NOT TBB_FOUND)
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache

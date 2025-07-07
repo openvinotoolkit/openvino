@@ -373,8 +373,8 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
         const auto& subm_idx_from = kvp.second.first;
         const auto& port_idx_from = kvp.second.second;
 
-        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> "
-                              << "Subgraph[" << subm_idx_to << "]/" << port_idx_to);
+        LOG_DEBUG("Subgraph[" << subm_idx_from << "]/" << port_idx_from << " --> " << "Subgraph[" << subm_idx_to << "]/"
+                              << port_idx_to);
         LOG_BLOCK();
 
         if (subm[subm_idx_from].replaced_by && subm[subm_idx_to].replaced_by) {
@@ -536,10 +536,10 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
             } else {
                 // Producer is a function - maybe the same as we're calling now.
                 // Take its tensor from the storage
-                auto i_tensor = m_funcall_result.at({prod_idx, prod_port});
+                const auto& i_tensor = m_funcall_result.at({prod_idx, prod_port});
                 if (!is_spatial) {
                     // Non-spatial case - again, set immediately
-                    m_subrequests[real_idx]->set_tensor(iport, m_funcall_result.at({prod_idx, prod_port}));
+                    m_subrequests[real_idx]->set_tensor(iport, i_tensor);
                 } else {
                     // Spatial case - defer
                     m_spatial_io[real_idx].inputs.at(i) = i_tensor;

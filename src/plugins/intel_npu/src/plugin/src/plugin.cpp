@@ -214,9 +214,9 @@ void Plugin::init_options() {
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
+    REGISTER_OPTION(TURBO);
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
-            REGISTER_OPTION(TURBO);
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
         // register backend options
@@ -353,7 +353,7 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     // if it exists in config = driver supports it
     // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
-    if (cfg.hasOpt(ov::intel_npu::turbo.name())) {
+    if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
     }
 }
@@ -390,17 +390,22 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
         });
     }
     // secondly, in the new config provided by user
+    std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
         if (!localConfig.hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            } else {
+                localConfig.addOrUpdateInternal(key, value);
             }
+        } else {
+            cfgs_to_set.emplace(key, value);
         }
     }
 
     // 3. If all good so far, update values
-    localConfig.update(rawConfig, mode);
+    localConfig.update(cfgs_to_set, mode);
     return localConfig;
 }
 

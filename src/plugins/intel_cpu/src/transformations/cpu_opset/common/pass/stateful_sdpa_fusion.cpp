@@ -42,9 +42,13 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
+#endif
+
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 

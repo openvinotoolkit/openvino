@@ -49,7 +49,9 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "utils/cpu_utils.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "utils/cpu_utils.hpp"
+#endif
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -1323,30 +1325,53 @@ void Node::cleanup() {
 }
 
 const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
-    static const std::vector<impl_desc_type> priorities {
+    static const std::vector<impl_desc_type> priorities{
         impl_desc_type::unknown,
-            // Undef impl type is used to express use-cases there real type is unkown during compilation
-            // Undef has higher priority than defined types in order to force primitive selection logic to make decision
-            // based on other properties
-            impl_desc_type::undef, impl_desc_type::brgconv_avx512_amx_1x1, impl_desc_type::brgconv_avx512_amx,
-            impl_desc_type::jit_avx512_amx_dw, impl_desc_type::jit_avx512_amx_1x1, impl_desc_type::jit_avx512_amx,
-            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
-            // impl_desc_type::brgconv_avx512_1x1,
-            // impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_uni_dw, impl_desc_type::jit_uni_1x1, impl_desc_type::jit_uni,
-            impl_desc_type::jit_avx512_dw, impl_desc_type::jit_avx512_1x1, impl_desc_type::jit_avx512,
-            impl_desc_type::jit_avx2_dw, impl_desc_type::jit_avx2_1x1, impl_desc_type::jit_avx2,
-            impl_desc_type::jit_avx_dw, impl_desc_type::jit_avx_1x1, impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw, impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
+        // Undef impl type is used to express use-cases there real type is unkown during compilation
+        // Undef has higher priority than defined types in order to force primitive selection logic to make decision
+        // based on other properties
+        impl_desc_type::undef,
+        impl_desc_type::brgconv_avx512_amx_1x1,
+        impl_desc_type::brgconv_avx512_amx,
+        impl_desc_type::jit_avx512_amx_dw,
+        impl_desc_type::jit_avx512_amx_1x1,
+        impl_desc_type::jit_avx512_amx,
+        // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+        // impl_desc_type::brgconv_avx512_1x1,
+        // impl_desc_type::brgconv_avx512,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
-            impl_desc_type::jit_asimd,
+        impl_desc_type::jit_asimd,
 #elif defined(OPENVINO_ARCH_RISCV64)
-            impl_desc_type::jit_gv,
+        impl_desc_type::jit_gv,
 #endif
-            impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
-            impl_desc_type::gemm_kleidiai, impl_desc_type::kleidiai, impl_desc_type::jit_gemm, impl_desc_type::ref_any,
-            impl_desc_type::ref,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
+        impl_desc_type::gemm_kleidiai,
+        impl_desc_type::kleidiai,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
     };
 
     return priorities;
@@ -1649,7 +1674,7 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ov::Node>& op, const Grap
     return newNode;
 }
 
-bool Node::canBePerformedAsScaleShift(const Node* parentNode) const {
+bool Node::canBePerformedAsScaleShift([[maybe_unused]] const Node* parentNode) const {
 #if defined(OPENVINO_ARCH_X86_64)
     OPENVINO_ASSERT(parentNode);
 
@@ -1706,6 +1731,7 @@ bool Node::canBePerformedAsScaleShift(const Node* parentNode) const {
             isBroadcastableToDataInput()) ||
            isConvertablePowerStatic();
 #else
+    (void)this;
     // TODO: provide correct list of operations for other backends
     return false;
 #endif
