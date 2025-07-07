@@ -38,7 +38,7 @@ using namespace std;
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
@@ -47,7 +47,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
         ElementType inType;
         InputShapes inputShapes;
-        std::tie(inType, inputShapes) = obj.param;
+        bool isSageAttn;
+        std::tie(inType, inputShapes, isSageAttn) = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -63,7 +64,8 @@ public:
             }
             result << ")_";
         }
-        result << "Prc=" << inType;
+        result << "Prc=" << inType << "_";
+        result << "isSageAttn=" << isSageAttn;
 
         return result.str();
     }
@@ -210,13 +212,18 @@ public:
     void SetUp() override {
         ElementType inType;
         InputShapes inputShapes;
-        std::tie(inType, inputShapes) = this->GetParam();
+        bool isSageAttn;
+
+        std::tie(inType, inputShapes, isSageAttn) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         if (inType == ElementType::bf16) {
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
             rel_threshold = 0.01f;
+        }
+        if (isSageAttn) {
+            configuration[ov::intel_cpu::enable_sage_attn.name()] = true;
         }
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
@@ -410,11 +417,18 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ElementType inType;
     InputShapes inputShapes;
-    std::tie(inType, inputShapes) = this->GetParam();
+    bool isSageAttn;
+    std::tie(inType, inputShapes, isSageAttn) = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function);
+    // reference model doesn't support sage attention
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
@@ -433,7 +447,8 @@ const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
-                                            ::testing::ValuesIn(inputShapeAndReorders)),
+                                            ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(false, true)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
@@ -626,11 +641,17 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ElementType inType;
     InputShapes inputShapes;
-    std::tie(inType, inputShapes) = this->GetParam();
+    bool isSageAttn;
+    std::tie(inType, inputShapes, isSageAttn) = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function);
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
@@ -650,7 +671,8 @@ const std::vector<InputShapes> inputShapes = {  // greedy search
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnVSMatmulTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
-                                            ::testing::ValuesIn(inputShapes)),
+                                            ::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(false, true)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
