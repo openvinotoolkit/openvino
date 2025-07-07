@@ -100,13 +100,20 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         original_ops.emplace(node->get_friendly_name());
     }
 
+    if (original_ops.find("value_cache.39") != original_ops.end()) {
+        std::cout << "value_cache.39\n";
+    }
+
+    if (original_ops.find("PagedAttentionExtension_22706") != original_ops.end()) {
+        std::cout << "PagedAttentionExtension_22706\n";
+    }
     auto transformed_model = model->clone();
     // Cleanup fused names if there are present in original model
-    ov::pass::Manager m;
-    m.register_pass<ov::pass::FusedNamesCleanup>();
-    m.run_passes(transformed_model);
+    // ov::pass::Manager m;
+    // m.register_pass<ov::pass::FusedNamesCleanup>();
+    // m.run_passes(transformed_model);
 
-    transform(transformed_model);
+    // transform(transformed_model);
     const auto& ops = transformed_model->get_ordered_ops();
 
     NameSet supported;
@@ -120,12 +127,24 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         return names;
     };
 
+    if (removed_nodes.find("value_cache.39") != removed_nodes.end()) {
+        std::cout << "removed_nodes value_cache.39\n";
+    }
+
+    if (removed_nodes.find("PagedAttentionExtension_22706") != removed_nodes.end()) {
+        std::cout << "removed_nodes PagedAttentionExtension_22706\n";
+    }
+
+
     // Collect all operation names even there are no such names in original model
     std::map<std::string, std::shared_ptr<ov::Node>> transformed_model_op_map;
     std::map<std::string, std::string> fused_model_op_map;
     for (const auto& op : ops) {
         auto names = get_names_set(op);
         for (auto& name : names) {
+            if (name == "PagedAttentionExtension_22706") {
+                std::cout << "PagedAttentionExtension_22706\n";
+            }
             if (name != op->get_friendly_name())
                 fused_model_op_map[name] = op->get_friendly_name();
         }
@@ -137,11 +156,34 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         transformed_model_op_map[op->get_friendly_name()] = op;
     }
 
+    if (supported.find("PagedAttentionExtension_22706") != supported.end()) {
+        std::cout << "supported1 PagedAttentionExtension_22706\n";
+    }
+
+    if (unsupported.find("value_cache.39") != unsupported.end()) {
+        std::cout << "unsupported value_cache.39\n";
+    }
+
+    if (unsupported.find("PagedAttentionExtension_22706") != unsupported.end()) {
+        std::cout << "unsupported PagedAttentionExtension_22706\n";
+    }
+
+
     // If operation was fused into several operations where one is supported
     // but another one is not supported remove it from supported
     for (auto&& name : unsupported) {
         supported.erase(name);
     }
+
+
+    if (supported.find("value_cache.39") != supported.end()) {
+        std::cout << "supported value_cache.39\n";
+    }
+
+    if (supported.find("PagedAttentionExtension_22706") != supported.end()) {
+        std::cout << "supported PagedAttentionExtension_22706\n";
+    }
+
 
     auto copy_set = [](NameSet& source, NameSet& dest) {
         dest.clear();
@@ -255,6 +297,15 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             }
         }
     }
+
+    if (supported.find("value_cache.39") != supported.end()) {
+        std::cout << "supported1 value_cache.39\n";
+    }
+
+    if (supported.find("PagedAttentionExtension_22706") != supported.end()) {
+        std::cout << "supported3 PagedAttentionExtension_22706\n";
+    }
+
 
     size_t total_ops_size = 0;
     for (auto&& op : ops) {
@@ -480,6 +531,15 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             res.insert(name);
         }
     }
+
+    if (res.find("value_cache.39") != res.end()) {
+        std::cout << "res value_cache.39\n";
+    }
+
+    if (res.find("PagedAttentionExtension_22706") != res.end()) {
+        std::cout << "res PagedAttentionExtension_22706\n";
+    }
+
     // Remove parameters (or parameter/constant + convert) which has no supported consumers
     // and results (or result + convert) which has no supported source node
     for (auto& op : model->get_ordered_ops()) {
@@ -500,10 +560,29 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
+    if (res.find("value_cache.39") != res.end()) {
+        std::cout << "res1 value_cache.39\n";
+    }
+
+    if (res.find("PagedAttentionExtension_22706") != res.end()) {
+        std::cout << "res1 PagedAttentionExtension_22706\n";
+    }
+    
     for (auto& param : model->get_parameters()) {
+        if (param->get_friendly_name() == "value_cache.39") {
+            std::cout << "value_cache.39\n";
+        }
         if (has_all_consumers_unsupported(res, param)) {
             res.erase(param->get_friendly_name());
         }
+    }
+
+    if (res.find("value_cache.39") != res.end()) {
+        std::cout << "res2 value_cache.39\n";
+    }
+
+    if (res.find("PagedAttentionExtension_22706") != res.end()) {
+        std::cout << "res2 PagedAttentionExtension_22706\n";
     }
 
     for (auto& result : model->get_results()) {
@@ -512,5 +591,18 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
+    if (res.find("value_cache.39") != res.end()) {
+        std::cout << "res3 value_cache.39\n";
+    }
+
+    if (res.find("PagedAttentionExtension_22706") != res.end()) {
+        std::cout << "res3 PagedAttentionExtension_22706\n";
+    }
+
+    if (res.find("value_cache.39") != res.end()) {
+        std::cout << "value_cache.39\n";
+    }
+
+    std::cout << "res size: " << res.size() << std::endl;
     return res;
 }

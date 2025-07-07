@@ -539,6 +539,7 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
                     devices.emplace(default_device);
                     debug_supported_ops.insert({node->get_friendly_name(), default_device});
                 } else if (!user_set_affinities) {
+                    std::cout << "Hetero device used default fallback policy, but some layers " << node->get_friendly_name() << std::endl;
                     OPENVINO_THROW("Hetero device used default fallback policy, but some layers eg: \n(Name:",
                                    node->get_friendly_name(),
                                    ", Type: ",
