@@ -43,7 +43,7 @@ void regclass_frontend_Place(py::module m) {
 
                 :return: A vector of strings each representing a name that identifies this place in the graph.
                          Can be empty if there are no names associated with this place or name cannot be attached.
-                :rtype: List[str]
+                :rtype: list[str]
              )");
 
     place.def("is_equal",
@@ -102,7 +102,7 @@ void regclass_frontend_Place(py::module m) {
                     May not be set if node has only one output port.
                 :type output_port_index: int
                 :return: A list with all operation node references that consumes data from this place
-                :rtype: List[openvino.frontend.Place]
+                :rtype: list[openvino.frontend.Place]
              )");
 
     place.def(
@@ -244,7 +244,7 @@ void regclass_frontend_Place(py::module m) {
                 Returns all input ports that consume data flows through this place.
 
                 :return: Input ports that consume data flows through this place.
-                :rtype: List[openvino.frontend.Place]
+                :rtype: list[openvino.frontend.Place]
              )");
 
     place.def(

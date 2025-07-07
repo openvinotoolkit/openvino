@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Optional, Union
 
 import numpy as np
 from functools import partial
@@ -226,7 +226,7 @@ def embedding_segments_sum(
 def extract_image_patches(
     image: NodeInput,
     sizes: TensorShape,
-    strides: List[int],
+    strides: list[int],
     rates: TensorShape,
     auto_pad: str,
     name: Optional[str] = None,
@@ -256,9 +256,9 @@ def gru_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: Optional[List[str]] = None,
-    activations_alpha: Optional[List[float]] = None,
-    activations_beta: Optional[List[float]] = None,
+    activations: Optional[list[str]] = None,
+    activations_alpha: Optional[list[float]] = None,
+    activations_beta: Optional[list[float]] = None,
     clip: float = 0.0,
     linear_before_reset: bool = False,
     name: Optional[str] = None,
@@ -396,9 +396,9 @@ def rnn_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: List[str],
-    activations_alpha: List[float],
-    activations_beta: List[float],
+    activations: list[str],
+    activations_alpha: list[float],
+    activations_beta: list[float],
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:

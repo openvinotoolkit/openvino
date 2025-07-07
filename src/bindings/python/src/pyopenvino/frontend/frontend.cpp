@@ -197,7 +197,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 used in order to extend capabilities of Frontend.
 
                 :param extension: Provided extension objects.
-                :type extension: List[Extension]
+                :type extension: list[Extension]
             )");
 
     fem.def(

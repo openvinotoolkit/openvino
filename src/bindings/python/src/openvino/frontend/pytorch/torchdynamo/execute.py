@@ -23,7 +23,7 @@ from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
 from openvino import Core, Type, PartialShape
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_aot_autograd
 
-from typing import Callable, Optional, Any
+from typing import Optional, Any
 
 from torch.fx.experimental.proxy_tensor import make_fx, wrapper_and_args_for_make_fx
 

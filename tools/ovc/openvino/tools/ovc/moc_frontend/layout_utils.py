@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable
+from collections.abc import Callable
 
 from openvino import PartialShape  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error

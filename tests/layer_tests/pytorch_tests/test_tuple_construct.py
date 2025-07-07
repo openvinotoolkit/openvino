@@ -97,11 +97,10 @@ class TestTupleUnpackParameterSingle(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import Tuple
 
         class model(torch.nn.Module):
 
-            def forward(self, x: Tuple[torch.Tensor, torch.Tensor]):
+            def forward(self, x: tuple[torch.Tensor, torch.Tensor]):
                 x1, x2 = x
                 return x1, x2
 
@@ -124,11 +123,10 @@ class TestTupleUnpackParameterSingleMixed(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import Tuple
 
         class model(torch.nn.Module):
 
-            def forward(self, y1, x: Tuple[torch.Tensor, torch.Tensor], y2):
+            def forward(self, y1, x: tuple[torch.Tensor, torch.Tensor], y2):
                 x1, x2 = x
                 return x1, x2, y1, y2
 
@@ -147,11 +145,10 @@ class TestTupleUnpackParameterNested(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import Tuple
 
         class model(torch.nn.Module):
 
-            def forward(self, x: Tuple[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]):
+            def forward(self, x: tuple[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]):
                 x1, x2 = x
                 y1, y2 = x1
                 y3, y4 = x2
@@ -172,11 +169,10 @@ class TestTupleUnpackParameterMultiple(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import Tuple
 
         class model(torch.nn.Module):
 
-            def forward(self, x: Tuple[torch.Tensor, torch.Tensor], y: Tuple[torch.Tensor, torch.Tensor]):
+            def forward(self, x: tuple[torch.Tensor, torch.Tensor], y: tuple[torch.Tensor, torch.Tensor]):
                 z1, z2 = x
                 z3, z4 = y
                 return z1, z2, z3, z4
@@ -194,13 +190,12 @@ class TestTupleIndex(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import Tuple
 
         class model(torch.nn.Module):
             def forward(self, x):
                 return self.some_func((x, x))
 
-            def some_func(self, x: Tuple[torch.Tensor, torch.Tensor]):
+            def some_func(self, x: tuple[torch.Tensor, torch.Tensor]):
                 return x[1] * 2, x[0] * 3
 
         return model(), None, "prim::TupleIndex"
@@ -217,13 +212,12 @@ class TestTcOutsideTuInsideIfBody(PytorchLayerTest):
 
     def create_model(self):
         import torch
-        from typing import Tuple
 
         class model(torch.nn.Module):
             def forward(self, x, y):
                 return self.some_func((x, y))
 
-            def some_func(self, x: Tuple[torch.Tensor, torch.Tensor]):
+            def some_func(self, x: tuple[torch.Tensor, torch.Tensor]):
                 if x[0].numel() > 10:
                     n, m = x
                     return n * m

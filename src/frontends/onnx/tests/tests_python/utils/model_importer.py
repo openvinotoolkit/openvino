@@ -8,25 +8,20 @@ import onnx.backend.test
 import unittest
 import dataclasses
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
+from collections.abc import Callable, Sequence
 from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
 from onnx.backend.test.runner import TestItem
 from pathlib import Path
+from re import Pattern
 from tests.tests_python.utils.onnx_helpers import import_onnx_model
 from typing import (
     Any,
-    Dict,
-    List,
     Optional,
-    Pattern,
-    Set,
     Text,
-    Type,
     Union,
-    Callable,
-    Sequence,
 )
 
 # add post-processing function as part of test data
@@ -38,17 +33,17 @@ ExtOnnxTestCase = dataclasses.make_dataclass(cls_name="TestCaseExt",
 class ModelImportRunner(onnx.backend.test.BackendTest):
     def __init__(
         self,
-        backend: Type[Backend],
-        models: List[Dict[str, Path]],
+        backend: type[Backend],
+        models: list[dict[str, Path]],
         parent_module: Optional[str] = None,
         data_root: Optional[Path] = "",
     ) -> None:
         self.backend = backend
         self._parent_module = parent_module
-        self._include_patterns = set()  # type: Set[Pattern[Text]]
-        self._exclude_patterns = set()  # type: Set[Pattern[Text]]
-        self._test_items = defaultdict(dict)  # type: Dict[Text, Dict[Text, TestItem]]
-        self._xfail_patterns = set()  # type: Set[Pattern[Text]]
+        self._include_patterns = set()  # type: set[Pattern[Text]]
+        self._exclude_patterns = set()  # type: set[Pattern[Text]]
+        self._test_items = defaultdict(dict)  # type: dict[Text, dict[Text, TestItem]]
+        self._xfail_patterns = set()  # type: set[Pattern[Text]]
 
         strings = [str(data_root), ".onnx", "/", "\\", "-"]
         for model in models:
@@ -145,7 +140,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     def _add_model_import_test(self, model_test: ExtOnnxTestCase) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
-        model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
+        model_marker = [None]  # type: list[Optional[Union[ModelProto, NodeProto]]]
 
         def run_import(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
@@ -157,7 +152,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
     def _add_model_execution_test(self, model_test: ExtOnnxTestCase) -> None:
         # model is loaded at runtime, note sometimes it could even
         # never loaded if the test skipped
-        model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
+        model_marker = [None]  # type: list[Optional[Union[ModelProto, NodeProto]]]
 
         def run_execution(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)

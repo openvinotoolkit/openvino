@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Callable, List, Optional
+from typing import Optional
+from collections.abc import Callable
 from openvino import Op, Type, Shape, Tensor, PartialShape
 
 
@@ -19,14 +20,14 @@ class PostponedConstant(Op):
             self.friendly_name = name
         self.constructor_validate_and_infer_types()
 
-    def evaluate(self, outputs: List[Tensor], _: List[Tensor]) -> bool:  # type: ignore
+    def evaluate(self, outputs: list[Tensor], _: list[Tensor]) -> bool:  # type: ignore
         self.m_maker(outputs[0])
         return True
 
     def validate_and_infer_types(self) -> None:
         self.set_output_type(0, self.m_element_type, PartialShape(self.m_shape))
 
-    def clone_with_new_inputs(self, new_inputs: List[Tensor]) -> Op:
+    def clone_with_new_inputs(self, new_inputs: list[Tensor]) -> Op:
         return PostponedConstant(self.m_element_type, self.m_shape, self.m_maker, self.friendly_name)
 
     def has_evaluate(self) -> bool:

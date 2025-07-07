@@ -10,7 +10,7 @@ import numpy as np
 import sys
 from openvino import PartialShape, Dimension, Type
 from packaging.version import parse, Version
-from typing import List, Dict, Union
+from typing import Union
 
 
 # TODO: reuse this method in ovc and remove duplication
@@ -292,7 +292,7 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
 
         input_needs_packing = True
 
-    def are_shapes_defined(shape: Union[List, Dict]):
+    def are_shapes_defined(shape: Union[list, dict]):
         if shape is None:
             return False
         assert hasattr(shape, '__len__')

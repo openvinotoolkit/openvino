@@ -38,8 +38,8 @@ void regclass_Core(py::module m) {
         R"(
             Sets properties.
 
-            :param properties: Dict of pairs: (property name, property value).
-            :type properties: typing.Dict[str, typing.Any]
+            :param properties: dict of pairs: (property name, property value).
+            :type properties: dict[str, typing.Any]
         )");
 
     // Overload for single tuple
@@ -53,8 +53,8 @@ void regclass_Core(py::module m) {
         R"(
             Sets properties for the device.
 
-            :param property: Tuple of (property name, matching property value).
-            :type property: typing.Tuple[str, typing.Any]
+            :param property: tuple of (property name, matching property value).
+            :type property: tuple[str, typing.Any]
         )");
 
     cls.def(
@@ -69,8 +69,8 @@ void regclass_Core(py::module m) {
 
             :param device_name: Name of the device.
             :type device_name: str
-            :param properties: Dict of pairs: (property name, property value).
-            :type properties: typing.Dict[str, typing.Any]
+            :param properties: dict of pairs: (property name, property value).
+            :type properties: dict[str, typing.Any]
         )");
 
     // Overload for single tuple
@@ -87,8 +87,8 @@ void regclass_Core(py::module m) {
 
             :param device_name: Name of the device.
             :type device_name: str
-            :param property: Tuple of (property name, matching property value).
-            :type property: typing.Tuple[str, typing.Any]
+            :param property: tuple of (property name, matching property value).
+            :type property: tuple[str, typing.Any]
         )");
 
     cls.def(
@@ -174,7 +174,7 @@ void regclass_Core(py::module m) {
             :param device_name: Name of the device which will load the model.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -200,7 +200,7 @@ void regclass_Core(py::module m) {
             :param model: Model acquired from read_model function.
             :type model: openvino.Model
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -231,7 +231,7 @@ void regclass_Core(py::module m) {
             :param device_name: Name of the device to load the model to.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -304,7 +304,7 @@ void regclass_Core(py::module m) {
             :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
             :type model_path: typing.Union[str, pathlib.Path]
             :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -332,7 +332,7 @@ void regclass_Core(py::module m) {
             :param context: RemoteContext instance.
             :type context: openvino.RemoteContext
             :param properties: dict of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: A compiled model.
             :rtype: openvino.CompiledModel
         )");
@@ -352,7 +352,7 @@ void regclass_Core(py::module m) {
             :param device_name: Name of a device to create a new shared context on.
             :type device_name: str
             :param properties: dict of device-specific shared context remote properties.
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: Remote context instance.
             :rtype: openvino.RemoteContext
         )");
@@ -381,7 +381,7 @@ void regclass_Core(py::module m) {
                 :param device_name: Device name to identify a plugin.
                 :type device_name: str
                 :return: Plugin version information.
-                :rtype: typing.Dict[str, openvino.Version]
+                :rtype: dict[str, openvino.Version]
             )");
 
     cls.def(
@@ -444,7 +444,7 @@ void regclass_Core(py::module m) {
                             For TFLite format (*.tflite) weights parameter is not used.
             :type weights: str
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-            :type config: typing.Dict[str, typing.Any], optional
+            :type config: dict[str, typing.Any], optional
             :return: A model.
             :rtype: openvino.Model
         )");
@@ -527,7 +527,7 @@ void regclass_Core(py::module m) {
                             For TFLite format (*.tflite) weights parameter is not used.
             :type weights: typing.Union[pathlib.Path, io.BytesIO]
             :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-            :type config: typing.Dict[str, typing.Any], optional
+            :type config: dict[str, typing.Any], optional
             :return: A model.
             :rtype: openvino.Model
         )");
@@ -578,7 +578,7 @@ void regclass_Core(py::module m) {
                                 Note: if device_name is not used to compile the original model, an exception is thrown.
             :type device_name: str
             :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
-            :type properties: typing.Dict[str, typing.Any], optional
+            :type properties: dict[str, typing.Any], optional
             :return: A compiled model.
             :rtype: openvino.CompiledModel
 
@@ -638,7 +638,7 @@ void regclass_Core(py::module m) {
                 :param device_name: A device name to register plugin for.
                 :type device_name: str
                 :param config: Plugin default configuration
-                :type config: typing.Dict[str, typing.Any], optional
+                :type config: dict[str, typing.Any], optional
             )");
 
     cls.def("register_plugins",
@@ -687,9 +687,9 @@ void regclass_Core(py::module m) {
             :param device_name: A name of a device to query.
             :type device_name: str
             :param properties: Optional dict of pairs: (property name, property value)
-            :type properties: typing.Dict[str, typing.Any]
+            :type properties: dict[str, typing.Any]
             :return: Pairs a operation name -> a device name supporting this operation.
-            :rtype: typing.Dict[str, str]
+            :rtype: dict[str, str]
         )");
 
     cls.def("add_extension",
@@ -719,8 +719,8 @@ void regclass_Core(py::module m) {
         R"(
             Registers extensions to a Core object.
 
-            :param extensions: List of Extension objects.
-            :type extensions: typing.List[openvino.Extension]
+            :param extensions: list of Extension objects.
+            :type extensions: list[openvino.Extension]
         )");
 
     cls.def(
@@ -733,7 +733,7 @@ void regclass_Core(py::module m) {
             Registers custom Op to a Core object.
 
             :param custom_op: type of custom Op
-            :type custom_op: typing.Type[openvino.Op]
+            :type custom_op: type[openvino.Op]
         )");
 
     cls.def("get_available_devices",
@@ -748,7 +748,7 @@ void regclass_Core(py::module m) {
                     If there more than one device of specific type, they are enumerated with .# suffix.
                     Such enumerated device can later be used as a device name in all Core methods like:
                     compile_model, query_model, set_property and so on.
-                :rtype: typing.List[str]
+                :rtype: list[str]
             )");
 
     cls.def_property_readonly("available_devices",
@@ -763,7 +763,7 @@ void regclass_Core(py::module m) {
                                         If there more than one device of specific type, they are enumerated with .# suffix.
                                         Such enumerated device can later be used as a device name in all Core methods like:
                                         compile_model, query_model, set_property and so on.
-                                    :rtype: typing.List[str]
+                                    :rtype: list[str]
                                 )");
 
     cls.def("__repr__", [](const ov::Core& self) {

@@ -5,7 +5,7 @@
 """Functions related to converting between Python and numpy types and openvino types."""
 
 import logging
-from typing import List, Union, Optional
+from typing import Union, Optional
 
 import numpy as np
 
@@ -15,7 +15,7 @@ from openvino.op import Constant
 
 log = logging.getLogger(__name__)
 
-TensorShape = List[int]
+TensorShape = list[int]
 NumericData = Union[int, float, np.ndarray]
 NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
@@ -170,6 +170,6 @@ def as_node(input_value: NodeInput, name: Optional[str] = None) -> Union[Node, O
     return make_constant_node(input_value, name=name)
 
 
-def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> List[Node]:
+def as_nodes(*input_values: NodeInput, name: Optional[str] = None) -> list[Node]:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     return [as_node(input_value, name=name) for input_value in input_values]

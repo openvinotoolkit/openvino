@@ -31,8 +31,8 @@ void def_type_dependent_functions<ov::Node>(
                R"(
             Set tensor names associated with this output.
 
-            :param names: Set of tensor names.
-            :type names: Set[str]
+            :param names: set of tensor names.
+            :type names: set[str]
             )");
     output.def("add_names",
                &ov::Output<ov::Node>::add_names,
@@ -40,8 +40,8 @@ void def_type_dependent_functions<ov::Node>(
                R"(
             Add tensor names associated with this output.
 
-            :param names: Set of tensor names.
-            :type names: Set[str]
+            :param names: set of tensor names.
+            :type names: set[str]
             )");
     output.def("remove_target_input",
                &ov::Output<ov::Node>::remove_target_input,

@@ -4,7 +4,7 @@
 
 
 from functools import singledispatchmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 from pathlib import Path
 
 from openvino._pyopenvino import NodeFactory as _NodeFactory
@@ -29,8 +29,8 @@ class NodeFactory(object):
     def create(
         self,
         op_type_name: str,
-        arguments: Optional[List[Union[Node, Output]]] = None,
-        attributes: Optional[Dict[str, Any]] = None,
+        arguments: Optional[list[Union[Node, Output]]] = None,
+        attributes: Optional[dict[str, Any]] = None,
     ) -> Node:
         """Create node object from provided description.
 
@@ -60,7 +60,7 @@ class NodeFactory(object):
         return node
 
     @singledispatchmethod
-    def add_extension(self, extension: Union[Path, str, Extension, List[Extension]]) -> None:
+    def add_extension(self, extension: Union[Path, str, Extension, list[Extension]]) -> None:
         raise TypeError(f"Unknown argument type: {type(extension)}")
 
     @add_extension.register(Path)
@@ -91,7 +91,7 @@ class NodeFactory(object):
 
     @add_extension.register(Extension)
     @add_extension.register(list)
-    def _(self, extension: Union[Extension, List[Extension]]) -> None:
+    def _(self, extension: Union[Extension, list[Extension]]) -> None:
         """Add custom operations from extension library.
 
         Extends operation types available for creation by operations
@@ -116,7 +116,7 @@ class NodeFactory(object):
         self.factory.add_extension(extension)
 
     @staticmethod
-    def _arguments_as_outputs(arguments: List[Union[Node, Output]]) -> List[Output]:
+    def _arguments_as_outputs(arguments: list[Union[Node, Output]]) -> list[Output]:
         outputs = []
         for argument in arguments:
             if issubclass(type(argument), Output):

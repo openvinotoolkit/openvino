@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Optional, Union
 
 import numpy as np
 from functools import partial
@@ -114,7 +114,7 @@ def mvn(
 
 
 @nameable_op
-def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> Node:
+def reorg_yolo(input: Node, stride: list[int], name: Optional[str] = None) -> Node:
     """Return a node which produces the ReorgYolo operation.
 
     :param input:   Input data.

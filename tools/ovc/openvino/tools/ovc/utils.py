@@ -7,7 +7,8 @@ import numpy as np
 import os
 import sys
 from openvino.tools.ovc.error import Error
-from typing import Iterable, Union
+from collections.abc import Iterable
+from typing import Union
 
 try:
     import openvino_telemetry as tm

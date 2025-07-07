@@ -39,7 +39,7 @@ void regmodule_experimental(py::module m) {
                     :param output: Node output pointing to the tensor for estimation.
                     :type output: openvino.Output
                     :return: Tensors representing the lower and upper bound value estimations.
-                    :rtype: Tuple[openvino.Tensor, openvino.Tensor]
+                    :rtype: tuple[openvino.Tensor, openvino.Tensor]
                 )");
     m_dev.def("set_element_type",
               &ov::descriptor::set_element_type,
