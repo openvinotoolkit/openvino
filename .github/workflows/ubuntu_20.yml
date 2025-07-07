@@ -143,7 +143,7 @@ jobs:
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   iGPU:
