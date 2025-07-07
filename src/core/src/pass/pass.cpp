@@ -51,6 +51,6 @@ void ov::pass::PassBase::set_callback(const param_callback& callback) {
     m_pass_config->set_callback(callback);
 }
 
-// The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
+// The symbols are requiered to be in cpp file to address RTTI issue on Android LLVM
 
 ov::pass::ModelPass::~ModelPass() = default;

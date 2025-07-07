@@ -4,68 +4,78 @@
 
 #include "snippets/pass/tokenization.hpp"
 
+#include <cstdint>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/fc_tokenization.hpp"
+#include "snippets/pass/gated_mlp_tokenization.hpp"
 #include "snippets/pass/gn_tokenization.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/mlp_seq_tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
-void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {
+void SetSnippetsNodeType(const std::shared_ptr<Node>& node, SnippetsNodeType nodeType) {
     auto& rt = node->get_rt_info();
     rt["SnippetsNodeType"] = nodeType;
 }
 
-void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph> &node, SnippetsSubgraphType nodeType) {
+void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>& node, SnippetsSubgraphType nodeType) {
     if (node) {
-        auto &rt = node->get_rt_info();
+        auto& rt = node->get_rt_info();
         rt["SnippetsSubgraphType"] = nodeType;
     }
 }
 
-SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
+SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>& node) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
-    auto& rt = node->get_rt_info();
+    const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("SnippetsNodeType");
-    if (rinfo == rt.end())
+    if (rinfo == rt.end()) {
         return SnippetsNodeType::NotSet;
+    }
     return rinfo->second.as<SnippetsNodeType>();
 }
 
-SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph> &node) {
+SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph>& node) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsSubgraphType")
-    if (!node)
+    if (!node) {
         return SnippetsSubgraphType::NotSet;
-    auto &rt = node->get_rt_info();
+    }
+    const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("SnippetsSubgraphType");
-    if (rinfo == rt.end())
+    if (rinfo == rt.end()) {
         return SnippetsSubgraphType::NotSet;
+    }
     return rinfo->second.as<SnippetsSubgraphType>();
 }
 
-void SetTopologicalOrder(const std::shared_ptr<Node> &node, int64_t order) {
+void SetTopologicalOrder(const std::shared_ptr<Node>& node, int64_t order) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
     auto& rt = node->get_rt_info();
     rt["TopologicalOrder"] = order;
 }
 
-int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
-    auto& rt = node->get_rt_info();
+int64_t GetTopologicalOrder(const std::shared_ptr<const Node>& node) {
+    const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("TopologicalOrder");
-    if (rinfo == rt.end())
+    if (rinfo == rt.end()) {
         OPENVINO_THROW("Topological order is required, but not set.");
+    }
     return rinfo->second.as<int64_t>();
 }
 
-bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
+bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model>& m) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
     int64_t order = 0;
     // Todo: We don't really have to set order for every node, just for subgraph parents and children would be enough
@@ -74,7 +84,6 @@ bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
     }
     return true;
 }
-
 
 bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SnippetsTokenization);
@@ -87,6 +96,7 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // 1. They have higher priority than other tokenization passes
     // 2. They change the nodes after the matched root node
     manager.register_pass<TokenizeMHASnippets>(m_config);
+    manager.register_pass<TokenizeGatedMLPSnippets>(m_config);
     manager.register_pass<TokenizeMLPSeqSnippets>(m_config);
 
     auto tokenization_passes = manager.register_pass<ov::pass::GraphRewrite>();
@@ -102,6 +112,4 @@ bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return false;
 }
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::pass

@@ -4,19 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
-#include "snippets/lowered/loop_manager.hpp"
-
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InsertLoadStore
- * @brief The pass inserts Load and Store expressions in Linear IR after Parameters, Buffers and before Results, Buffers accordingly.
- *        Note: The pass should be called after FuseLoops and InsertBuffers passes to have all possible data expressions.
+ * @brief The pass inserts Load and Store expressions in Linear IR after Parameters, Buffers and before Results, Buffers
+ * accordingly. Note: The pass should be called after FuseLoops and InsertBuffers passes to have all possible data
+ * expressions.
  * @param m_vector_size - the count of elements for loading/storing
  * @ingroup snippets
  */
@@ -34,7 +35,4 @@ private:
     size_t m_vector_size;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

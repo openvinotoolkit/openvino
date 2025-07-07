@@ -4,41 +4,45 @@
 
 #include "llm_mlp.h"
 
-#include <oneapi/dnnl/dnnl_types.h>
-
-#include <algorithm>
-#include <atomic>
-#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu_memory.h"
 #include "dnnl_scratch_pad.h"
 #include "graph_context.h"
-#include "memory_desc/blocked_memory_desc.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "utils/debug_capabilities.h"
-#include "utils/plain_tensor.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <oneapi/dnnl/dnnl_types.h>
+
+#    include <algorithm>
+#    include <atomic>
+#    include <cstddef>
+#    include <type_traits>
+#    include <utility>
+
+#    include "cpu_memory.h"
+#    include "memory_desc/blocked_memory_desc.h"
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#    include "openvino/core/parallel.hpp"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#    include "utils/plain_tensor.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "kernels/x64/mlp_kernel.hpp"
@@ -202,7 +206,7 @@ public:
 
     WeightBuffer wbuffer;
 
-    GateUpCombine* jit_gateup;
+    GateUpCombine* jit_gateup = nullptr;
 
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
@@ -516,8 +520,13 @@ private:
 #else
 template <typename T>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
-    Executor(LLMMLP*, const LLMMLPNode::Config&, const DnnlScratchPadPtr&) {}
-    void execute() {}
+    Executor(LLMMLP* node, const LLMMLPNode::Config& config, const DnnlScratchPadPtr& scratchPad) {
+        (void)node;
+        (void)config;
+        (void)scratchPad;
+    }
+
+    void execute() override {}
 };
 #endif
 
@@ -620,9 +629,9 @@ void LLMMLP::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
-bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                  std::string& errorMessage,
-                                  uint64_t fcDynamicQuantizationGroupSize) noexcept {
+bool LLMMLP::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                  [[maybe_unused]] std::string& errorMessage,
+                                  [[maybe_unused]] uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);

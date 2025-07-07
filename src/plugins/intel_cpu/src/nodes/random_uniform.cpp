@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -22,10 +21,8 @@
 
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/x64/random_uniform.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -37,7 +34,15 @@
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "kernels/x64/random_uniform.hpp"
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -503,21 +508,19 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
     for (size_t i = 0LU; i < el_to_copy; i++) {
-        out_val.u32 = 0x3f800000 | (in[i] & 0x7fffffU);
-        out[i] = (out_val.f32 - 1.F) * range + min;
+        uint32_t bits = 0x3f800000 | (in[i] & 0x7fffffU);
+        float f = ov::intel_cpu::bit_cast<float>(bits);
+        out[i] = (f - 1.F) * range + min;
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 range, float16* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3c00 | (x_uint16 & 0x03ffU);
-        out[i] = (out_val.f16 - static_cast<float16>(1)) * range + min;
+        uint16_t bits = 0x3c00 | (x_uint16 & 0x03ffU);
+        float16 f = ov::intel_cpu::bit_cast<float16>(bits);
+        out[i] = (f - static_cast<float16>(1)) * range + min;
     }
 }
 
@@ -526,12 +529,11 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
                                       bfloat16 range,
                                       bfloat16* out,
                                       size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3f80 | (x_uint16 & 0x7fU);
-        out[i] = (out_val.bf16 - static_cast<bfloat16>(1)) * range + min;
+        uint16_t bits = 0x3f80 | (x_uint16 & 0x7fU);
+        bfloat16 f = ov::intel_cpu::bit_cast<bfloat16>(bits);
+        out[i] = (f - static_cast<bfloat16>(1)) * range + min;
     }
 }
 

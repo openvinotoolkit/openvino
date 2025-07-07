@@ -81,6 +81,14 @@ template <>
 std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
                                                                          const size_t idx);
 
+template <>
+ov::PartialShape js_to_cpp<ov::PartialShape>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
+std::unordered_map<std::string, ov::PartialShape> js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(
+    const Napi::Env& env,
+    const Napi::Value& value);
+
 /**
  * @brief  Template function to convert C++ data types into Javascript data types
  * @tparam TargetType Destinated Javascript data type.

@@ -15,7 +15,7 @@
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
-#include "emitters/snippets/repacked_input.hpp"
+#include "emitters/snippets/input_repacker.hpp"
 #include "executors/subgraph.hpp"
 #include "graph_context.h"
 #include "node.h"
@@ -32,16 +32,14 @@
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Subgraph : public Node {
 public:
     Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Subgraph() override = default;
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     ov::element::Type getRuntimePrecision() const override;
@@ -65,7 +63,6 @@ private:
     void initStartOffsets();
     void initPluginBlockedShapes() const;
     void optimizeIR();
-    void prepareWeights();
 
     snippets::op::Subgraph::BlockedShapeVector getSnippetsBlockedShapes() const;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> getIOPrecisions() const;
@@ -92,21 +89,20 @@ private:
     std::shared_ptr<SubgraphAttrs> subgraph_attrs;
 
     // Index of Paramater -> Index of broadcastable dimension from end
-    std::map<size_t, size_t> broadcastable_inputs = {};
+    std::map<size_t, size_t> broadcastable_inputs;
 
     size_t input_num = 0;
     size_t output_num = 0;
 
-    std::vector<MemoryPtr> srcMemPtrs = {};
-    std::vector<MemoryPtr> dstMemPtrs = {};
+    std::vector<MemoryPtr> srcMemPtrs;
+    std::vector<MemoryPtr> dstMemPtrs;
 
-    std::vector<ptrdiff_t> start_offset_in = {};
-    std::vector<ptrdiff_t> start_offset_out = {};
+    std::vector<ptrdiff_t> start_offset_in;
+    std::vector<ptrdiff_t> start_offset_out;
 
-    RepackedInputConfig repacked_constant_input_config = {};
     // Ptr indices which are not processed by the snippets kernel
     // and used directly in the specific emitters (e.g. jit_brgemm_emitter)
-    std::set<size_t> external_ptrs_idces = {};
+    std::set<size_t> external_ptrs_idces;
 
     bool is_dynamic = false;
     // Input shapes that are used in PrepareParams and ShapeInfer to avoid frequent memory allocation
@@ -115,6 +111,4 @@ private:
     std::shared_ptr<SubgraphBaseExecutor> execPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

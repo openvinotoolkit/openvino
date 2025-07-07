@@ -16,11 +16,9 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
-#include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -29,6 +27,8 @@
 #include "utils/general_utils.h"
 #ifdef OPENVINO_ARCH_X86_64
 #    include "kernels/x64/rms_kernel.hpp"
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#    include "openvino/core/parallel.hpp"
 #endif
 
 #include <string>
@@ -86,10 +86,7 @@ static void execJitKernel(const std::shared_ptr<kernel::JitKernelBase>& ker,
                           const uint8_t* src,
                           uint8_t* dst,
                           const float* scale) {
-    kernel::jit_rms_call_args call_args;
-    call_args.src = src;
-    call_args.dst = dst;
-    call_args.scale = scale;
+    kernel::jit_rms_call_args call_args{src, scale, dst};
     (*ker)(&call_args);
 }
 

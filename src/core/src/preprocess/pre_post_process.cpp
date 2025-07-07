@@ -85,7 +85,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
     REGISTER_PASS(manager, MarkGatherSubgraph, element::TypeVector{element::f8e4m3}, element::TypeVector{element::u4});
     REGISTER_PASS(manager,
                   MarkDequantization,
-                  TypeVector{i32, u32, i16, u16, i8, u8, i4, u4, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
+                  TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, u3, u2, u1, nf4, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
     REGISTER_PASS(manager, DisableShapeOfConstantFolding, false);
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     // Mark quantized and f16/bf16 compressed constants to prevent CF for them,

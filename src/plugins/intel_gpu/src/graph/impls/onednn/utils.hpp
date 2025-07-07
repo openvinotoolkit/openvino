@@ -35,9 +35,20 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
+
+enum class mem_flags : uint32_t {
+    None         = 0,
+    flatten      = 1 << 0,
+    use_strides  = 1 << 1,
+    need_blocked = 1 << 2,
+};
+
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,
-                        dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef,
-                        bool flatten = false, bool use_strides = false);
+                        dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef, mem_flags flags = mem_flags::None);
+std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
+                                                                 cldnn::layout weights_layout,
+                                                                 cldnn::layout output_layout,
+                                                                 dnnl::memory::format_tag target_fmt = dnnl::memory::format_tag::undef);
 dnnl::algorithm convert_activation_func(cldnn::activation_func func);
 std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc);
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped = false);

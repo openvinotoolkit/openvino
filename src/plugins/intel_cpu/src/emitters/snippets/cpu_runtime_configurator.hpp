@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "cache/multi_cache.h"
+#include "emitters/snippets/input_repacker.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "emitters/snippets/repacked_input.hpp"
 #include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/runtime_configurator.hpp"
@@ -27,15 +27,15 @@ public:
     std::string to_string() const override;
 #endif
 
-    enum class RepackingImplType {
+    enum class RepackingImplType : uint8_t {
         NONE,         // no kernel-outside repacking
         IN_PARALLEL,  // should be executed in parallel_nt by each thread
         SEPARATE,     // should be separathy from kernel executed
     };
     RepackingImplType repacking_impl_type = RepackingImplType::NONE;
 
-    RepackedInputConfig repacked_input_config = {};
-    std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    InputRepackerMap input_repackers;
+    std::vector<jit_snippets_call_args::loop_args_t> loop_args;
 };
 
 class CPURuntimeConfigurator : public ov::snippets::RuntimeConfigurator {

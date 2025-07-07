@@ -18,7 +18,7 @@ namespace npuw {
 namespace patterns {
 namespace opt {
 
-void Context::permute(PPtr orig_param, const Context::Axes& order) {
+void Context::permute(const PPtr& orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
 
     const auto& orig_shape = orig_param->get_shape();
@@ -30,7 +30,7 @@ void Context::permute(PPtr orig_param, const Context::Axes& order) {
     orig_param->validate_and_infer_types();
 }
 
-void Context::to_f16(PPtr orig_param) {
+void Context::to_f16(const PPtr& orig_param) {
     closures_to_f16.insert(orig_param);
 
     orig_param->set_element_type(ov::element::f16);
@@ -45,7 +45,7 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
     // Sanity check dimensions - all dims other tham dim must match
     std::size_t sum = 0u;
     const auto& first = v.front();
-    const auto first_shape = first->get_shape();
+    const auto& first_shape = first->get_shape();
     for (auto&& p : v) {
         const auto& this_shape = p->get_shape();
         NPUW_ASSERT(first_shape.size() == this_shape.size());
@@ -66,7 +66,10 @@ Context::PPtr Context::concat(ov::ParameterVector&& v, std::size_t dim) {
     return new_param;
 }
 
-Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr z, Context::PPtr s, ov::element::Type type) {
+Context::PPtr Context::unpack(const Context::PPtr& w,
+                              const Context::PPtr& z,
+                              const Context::PPtr& s,
+                              ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& s_shape = s->get_shape();
 
@@ -86,7 +89,7 @@ Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr z, Context::PPtr s,
     return new_param;
 }
 
-Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr s, ov::element::Type type) {
+Context::PPtr Context::unpack(const Context::PPtr& w, const Context::PPtr& s, ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& s_shape = s->get_shape();
 
@@ -106,7 +109,7 @@ Context::PPtr Context::unpack(Context::PPtr w, Context::PPtr s, ov::element::Typ
     return new_param;
 }
 
-Context::PPtr Context::host_gather(Context::PPtr w, Context::PPtr ids) {
+Context::PPtr Context::host_gather(const Context::PPtr& w, const Context::PPtr& ids) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
 
@@ -883,9 +886,15 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
         }
 
         if (!matmul->get_transpose_a() && !matmul->get_transpose_b()) {
-            ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 2, Context::DQParMM{w_param, s_param, matmul});
+            ctx.get().register_parallel_matmul(
+                node_to_output.at(qmmi),
+                2,
+                Context::DQParMM{std::move(w_param), std::move(s_param), std::move(matmul)});
         } else if (!matmul->get_transpose_a() && matmul->get_transpose_b()) {
-            ctx.get().register_parallel_matmul(node_to_output.at(qmmi), 0, Context::DQParMM{w_param, s_param, matmul});
+            ctx.get().register_parallel_matmul(
+                node_to_output.at(qmmi),
+                0,
+                Context::DQParMM{std::move(w_param), std::move(s_param), std::move(matmul)});
         }
         return false;  // no change here
     };
@@ -1847,6 +1856,10 @@ ConvToMatmul::ConvToMatmul(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(transpose_out, "ConvToMatmul"), std::move(callback));
 }
 
+struct Untangled_Const {
+    static constexpr const char* name = "NPUW::Untangled_Const";
+};
+
 void untangleConst(std::shared_ptr<ov::Model> model) {
     // Duplicate small Constants which are consumed by multiple operators
     // to simplify match bank validation in the future
@@ -1854,6 +1867,7 @@ void untangleConst(std::shared_ptr<ov::Model> model) {
         if (!ov::op::util::is_constant(ov_node)) {
             continue;
         }
+
         const auto readers = ov_node->output(0).get_target_inputs();
         if (readers.size() <= 1) {
             continue;
@@ -1861,13 +1875,16 @@ void untangleConst(std::shared_ptr<ov::Model> model) {
         auto this_const = std::static_pointer_cast<ov::op::v0::Constant>(ov_node);
         auto this_type = this_const->get_element_type();
         auto this_shape = ov_node->output(0).get_shape();
-        if (this_type == ov::element::i64 && this_shape.size() == 0) {
+
+        const bool is_single = (this_shape.size() == 0u) || (this_shape.size() == 1u && this_shape[0] == 1);
+        if (this_type == ov::element::i64 && is_single) {
             // Keep the first reader with the original const, but redirect
             // all others to use their individual instance
             auto this_val = this_const->get_tensor_view();
             auto it = readers.begin();
             while (++it != readers.end()) {
                 auto new_const = std::make_shared<ov::op::v0::Constant>(this_val);
+                new_const->set_friendly_name(util::Unique<Untangled_Const>::name());
                 it->replace_source_output(new_const);
             }
         }
