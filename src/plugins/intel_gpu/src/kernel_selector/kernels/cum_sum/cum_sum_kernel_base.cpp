@@ -105,16 +105,16 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params) const {
 
 bool CumSumKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CUM_SUM) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto& params = static_cast<const cum_sum_params&>(p);
     if (GetCumSumAxisIndex(params) == -1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.inputs.size() > 1 && params.inputs[1].GetDType() != Datatype::INT32 &&
         params.inputs[1].GetDType() != Datatype::UINT32)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
