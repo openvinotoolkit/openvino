@@ -374,7 +374,9 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     const auto src_type = src->get_element_type();
     const auto dst_type = dst->get_element_type();
     NPUW_ASSERT(idx->get_element_type() == ov::element::i64);
-    NPUW_ASSERT(src_type != ov::element::u4 && src_type != ov::element::i4);
+    NPUW_ASSERT(src_type == ov::element::f16 || src_type == ov::element::f32 || src_type == ov::element::f8e4m3 ||
+                src_type == ov::element::f8e5m2 || src_type == ov::element::f8e8m0 || src_type == ov::element::i8 ||
+                src_type == ov::element::u8);
     NPUW_ASSERT(src_type == dst_type);
 
     const auto& idx_shape = idx->get_shape();

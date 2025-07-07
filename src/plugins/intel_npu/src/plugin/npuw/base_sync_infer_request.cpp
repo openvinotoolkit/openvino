@@ -471,23 +471,34 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
     }
 
     // Run host-side quantized gather, if required
+    handle_quant_host_gather(idx, request);
+
+    LOG_DEBUG("Done");
+}
+
+void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+
     if (comp_model_desc.quant_unpack_gather.dst_idx != -1) {
-        NPUW_ASSERT(comp_model_desc.quant_unpack_gather.idx_idx != -1 && comp_model_desc.quant_unpack_gather.src_w_idx != -1);
+        NPUW_ASSERT(comp_model_desc.quant_unpack_gather.idx_idx != -1 &&
+                    comp_model_desc.quant_unpack_gather.src_w_idx != -1);
 
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.idx_idx];
-        const auto lookup = request->get_tensor(lport);
+        const auto& lookup = request->get_tensor(lport);
 
         const auto& gport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.dst_idx];
-        const auto gather = request->get_tensor(gport);
+        const auto& gather = request->get_tensor(gport);
 
         const auto& wport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_w_idx];
         const auto& vocabw = request->get_tensor(wport);
 
         auto ids_shape = lookup->get_shape();
-        auto w_shape = vocabw->get_shape();
 
-        ov::Tensor gatherw(vocabw->get_element_type(),
-                           ov::Shape{1, ids_shape[1], w_shape.size() == 3 ? w_shape[1] * w_shape[2] : w_shape[1]});
+        auto get_gathered_shape = [&ids_shape](const ov::Shape& shape) {
+            return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
+        };
+
+        ov::Tensor gatherw(vocabw->get_element_type(), get_gathered_shape(vocabw->get_shape()));
         // Gather weight
         ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(gatherw));
 
@@ -499,13 +510,8 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_s_idx];
             const auto& vocabs = request->get_tensor(sport);
 
-            auto z_shape = vocabz->get_shape();
-            auto s_shape = vocabs->get_shape();
-
-            ov::Tensor gatherz(vocabz->get_element_type(),
-                               ov::Shape{1, ids_shape[1], z_shape.size() == 3 ? z_shape[1] * z_shape[2] : z_shape[1]});
-            ov::Tensor gathers(vocabs->get_element_type(),
-                               ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]});
+            ov::Tensor gatherz(vocabz->get_element_type(), get_gathered_shape(vocabz->get_shape()));
+            ov::Tensor gathers(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
             // Gather first
             ov::npuw::util::gather(vocabz, lookup, ov::get_tensor_impl(gatherz));
             ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(gathers));
@@ -519,9 +525,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             const auto& sport = comp_model_desc.compiled_model->inputs()[comp_model_desc.quant_unpack_gather.src_s_idx];
             const auto& vocabs = request->get_tensor(sport);
 
-            auto s_shape = vocabs->get_shape();
-            ov::Tensor gathers(vocabs->get_element_type(),
-                               ov::Shape{1, ids_shape[1], s_shape.size() == 3 ? s_shape[1] * s_shape[2] : s_shape[1]});
+            ov::Tensor gathers(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
             // Gather first
             ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(gathers));
 
@@ -532,8 +536,6 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             ov::npuw::util::unpack(ov::get_tensor_impl(gatherw), gather);
         }
     }
-
-    LOG_DEBUG("Done");
 }
 
 void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr request) {
