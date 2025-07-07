@@ -29,6 +29,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "lowered/pass/buffer_allocation.hpp"
 
 
 namespace ov {
@@ -55,8 +56,6 @@ protected:
                        const std::vector<std::vector<size_t>>& out_subtensors) {
         BufferAllocationTest::MarkOp(node, in_subtensors, out_subtensors);
     }
-
-    virtual std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const = 0;
 };
 
 class MHAFP32BufferAllocationTest : public BufferAllocationCPUTest {
