@@ -145,7 +145,7 @@ bool DetectionOutputKernelRef::Validate(const Params& p) const {
     const bool bSupportedBatch = batches <= params.engineInfo.maxWorkGroupSize;
 
     if (!bSupportedBatch) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
