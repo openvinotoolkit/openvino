@@ -554,7 +554,7 @@ inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
     }
 }
 
-void transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
@@ -570,7 +570,7 @@ void transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, si
             unpack_64_i4(packed, unpacked);
             // Write transposed block
             if ((IN_COLS % 2 != 0) && (r % 2 != 0) && (c == 0)) {
-                for (int k = 0; k < 63; ++k) {
+                for (size_t k = 0; k < PACK - 1; ++k) {
                     size_t dst_offet = (c + k) * IN_ROWS + r;
                     size_t dst_byte = dst_offet / 2;
                     if (dst_offet % 2 == 0) {
@@ -581,7 +581,7 @@ void transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, si
                 }
                 c--;
             } else {
-                for (int k = 0; k < 64; ++k) {
+                for (size_t k = 0; k < PACK; ++k) {
                     size_t dst_offet = (c + k) * IN_ROWS + r;
                     size_t dst_byte = dst_offet / 2;
                     if (dst_offet % 2 == 0) {
@@ -609,7 +609,7 @@ void transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, si
     });
 }
 
-void transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
     const float* src = static_cast<const float*>(t.data());
     float* dst = static_cast<float*>(tnew.data());
 
@@ -676,7 +676,11 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     return tnew;
 }
 
-void permute021_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::permute021_i4_avx2(const ov::Tensor& t,
+                                        ov::Tensor& tnew,
+                                        size_t IN_PLAS,
+                                        size_t IN_ROWS,
+                                        size_t IN_COLS) {
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
@@ -692,7 +696,7 @@ void permute021_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
                 alignas(32) uint8_t unpacked[64];
                 unpack_64_i4(packed, unpacked);
                 if ((IN_COLS % 2 != 0) && ((p * IN_ROWS + r) % 2 != 0) && (c == 0)) {
-                    for (int k = 0; k < PACK - 1; ++k) {
+                    for (size_t k = 0; k < PACK - 1; ++k) {
                         size_t dst_offset = dst_base + (c + k) * IN_ROWS;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
@@ -703,7 +707,7 @@ void permute021_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
                     }
                     c--;
                 } else {
-                    for (int k = 0; k < PACK; ++k) {
+                    for (size_t k = 0; k < PACK; ++k) {
                         size_t dst_offset = dst_base + (c + k) * IN_ROWS;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
@@ -730,7 +734,11 @@ void permute021_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
     });
 }
 
-void permute021_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::permute021_f32_avx2(const ov::Tensor& t,
+                                         ov::Tensor& tnew,
+                                         size_t IN_PLAS,
+                                         size_t IN_ROWS,
+                                         size_t IN_COLS) {
     const float* src = static_cast<const float*>(t.data());
     float* dst = static_cast<float*>(tnew.data());
 
@@ -754,7 +762,11 @@ void permute021_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, 
     });
 }
 
-void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::permute102_i4_avx2(const ov::Tensor& t,
+                                        ov::Tensor& tnew,
+                                        size_t IN_PLAS,
+                                        size_t IN_ROWS,
+                                        size_t IN_COLS) {
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
@@ -774,7 +786,7 @@ void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
                 // dst[r, p, c~c+63]
                 size_t dst_base = r * IN_PLAS * IN_COLS + p * IN_COLS + c;
                 if ((IN_COLS % 2 != 0) && ((p * IN_ROWS + r) % 2 != 0) && (c == 0)) {
-                    for (int k = 0; k < PACK - 1; ++k) {
+                    for (size_t k = 0; k < PACK - 1; ++k) {
                         size_t dst_offset = dst_base + k;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
@@ -785,7 +797,7 @@ void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
                     }
                     c--;
                 } else {
-                    for (int k = 0; k < PACK; ++k) {
+                    for (size_t k = 0; k < PACK; ++k) {
                         size_t dst_offset = dst_base + k;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
@@ -814,7 +826,11 @@ void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, s
     });
 }
 
-void permute102_f16_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::permute102_f16_avx2(const ov::Tensor& t,
+                                         ov::Tensor& tnew,
+                                         size_t IN_PLAS,
+                                         size_t IN_ROWS,
+                                         size_t IN_COLS) {
     const uint16_t* src = static_cast<const uint16_t*>(t.data());
     uint16_t* dst = static_cast<uint16_t*>(tnew.data());
 
@@ -896,7 +912,7 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
     }
 }
 
-void avx2_memcpy(uint8_t* dst, const uint8_t* src, size_t len) {
+void ov::npuw::util::avx2_memcpy(uint8_t* dst, const uint8_t* src, size_t len) {
     size_t i = 0;
     for (; i + 31 < len; i += 32) {
         __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + i));
