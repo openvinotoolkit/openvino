@@ -3,24 +3,28 @@
 //
 #include "softmax.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
-#include <vector>
 
-#include "common/c_types_map.hpp"
-#include "common/utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/bfloat16.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <memory>
+#    include <vector>
+
+#    include "common/c_types_map.hpp"
+#    include "common/utils.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
