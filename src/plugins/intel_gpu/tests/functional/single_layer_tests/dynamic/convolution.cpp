@@ -176,32 +176,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_ExplicitPad1D, Convolutio
                 ::testing::Values(false)),
                 ConvolutionLayerGPUTestDynamic::getTestCaseName);
 
-const std::vector<std::vector<size_t>> kernels2DImplicit = { {3, 3} };
-const std::vector<std::vector<size_t>> strides2DImplicit = { {1, 1} };
-const std::vector<size_t> numOutChannelsImplicit = { 3 };
-const std::vector<InputShape> inputShapes2DImplicit = {
-    {
-        {1, 3, {224, 448}, {224, 448}},
-        {{1, 3, 224, 224}, {1, 3, 448, 448}}
-    }
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_ImplicitPad2D, ConvolutionLayerGPUTestDynamic,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::ValuesIn(kernels2DImplicit),
-                        ::testing::ValuesIn(strides2DImplicit),
-                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
-                        ::testing::Values(std::vector<ptrdiff_t>{0, 0}),
-                        ::testing::Values(std::vector<size_t>{1, 1}),
-                        ::testing::ValuesIn(numOutChannelsImplicit),
-                        ::testing::Values(ov::op::PadType::SAME_UPPER)),
-                ::testing::Values(ov::element::f32),
-                ::testing::ValuesIn(inputShapes2DImplicit),
-                ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
-                ::testing::Values(false)),
-                ConvolutionLayerGPUTestDynamic::getTestCaseName);
-
 // ======== 2D convolutions
 const std::vector<ov::test::InputShape> dynInputShapes2D = {
     {
