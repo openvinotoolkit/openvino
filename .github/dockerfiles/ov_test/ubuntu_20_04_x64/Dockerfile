@@ -26,8 +26,6 @@ RUN apt-get update && \
         pigz \
         # Samples
         clang \
-        # python prerequisites
-        libcairo2-dev \ 
         # Python
         python3.9-dev \
         python3.9-venv \

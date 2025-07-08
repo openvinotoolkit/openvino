@@ -87,10 +87,9 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.8
-RUN ln -sfv $(which python3.11) /usr/local/bin/python && \
-    ln -sfv $(which python3.11) /usr/local/bin/python3
-RUN ln -sfv $(which pip3.11) /usr/local/bin/pip && \
-    ln -sfv $(which pip3.11) /usr/local/bin/pip3
+# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
