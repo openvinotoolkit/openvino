@@ -4,13 +4,27 @@
 
 #pragma once
 
-#include "common/dnnl_executor.h"
-#include "executors/deconv_list.hpp"
-#include "node.h"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "common/dnnl_executor.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/executors/deconv.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+
+namespace ov::intel_cpu::node {
 
 class Deconvolution : public Node {
 public:
@@ -84,8 +98,8 @@ private:
     size_t IC = 0;
     size_t OC = 0;
     std::vector<int32_t> lastOutputSpatialDims;
-    VectorDims dnnlCompatibleWeiDims{};
-    VectorDims expectedBiasDims{};
+    VectorDims dnnlCompatibleWeiDims;
+    VectorDims expectedBiasDims;
 
     bool useACL = false;
     DeconvAttrs deconvAttrs;
@@ -113,6 +127,4 @@ private:
     bool isConstOutShape = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

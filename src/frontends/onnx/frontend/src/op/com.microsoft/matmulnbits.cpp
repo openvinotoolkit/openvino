@@ -45,7 +45,14 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         4);  // required, in docs: number of bits used for weight quantization (default 4)
 
     const uint64_t n_blocks_per_col = (K + block_size - 1) / block_size;
-    const auto blob_size = static_cast<int64_t>(ceil(block_size * bits / 8));
+    const auto blob_size = (block_size * bits + 7) / 8;
+
+    const uint64_t expected_b_size = N * n_blocks_per_col * blob_size;
+    const auto& b_shape = b_quantized.get_partial_shape();
+    uint64_t actual_b_size = 1;
+    for (const auto& d : b_shape) {
+        actual_b_size *= d.get_length();
+    }
 
     CHECK_VALID_NODE(node, n_blocks_per_col > 0, "Wrong blocks count: ", n_blocks_per_col);
     CHECK_VALID_NODE(node, blob_size > 0, "Wrong blob size: ", blob_size);
@@ -53,10 +60,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node,
                      ov::as_type<v0::Constant>(b_quantized.get_node()) != nullptr,
                      "MatMulNBits limitation: accepting only a constant as a B input");
-    CHECK_VALID_NODE(node,
-                     b_quantized.get_partial_shape().rank() == 3,
-                     "Expected rank of quantized weights is 3 [N][n_blocks_per_col][blob_size], got: ",
-                     b_quantized.get_partial_shape().rank());
+    CHECK_VALID_NODE(
+        node,
+        b_shape.is_static() && actual_b_size == expected_b_size,
+        "Expected input B shape is static and compatible with shape [N][n_blocks_per_col][blob_size], got: ",
+        b_shape);
     CHECK_VALID_NODE(node,
                      a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32 ||
                          a.get_element_type() == ov::element::dynamic,
@@ -108,6 +116,10 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          "], got: ",
                          bias.get_partial_shape());
     }
+    const auto zero = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
+    const auto one = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+    const auto elements = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(K));
+    const auto axis = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
 
     ov::Output<ov::Node> mm_output;
     {
@@ -116,6 +128,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         ov::Output<ov::Node> casted_b;
         ov::Shape casted_b_shape;
         ov::Output<ov::Node> default_zp;
+        ov::element::Type zp_element_type;
         // Casting/converting data of source constant.
         // For further calculations (sub and/or multiply) we need to reshape
         // b -> [N][n_blocks_per_col][block_size]
@@ -126,6 +139,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                        static_cast<size_t>(blob_size * 4)};
             casted_b = std::make_shared<v0::Constant>(ov::element::u2, casted_b_shape, b_const->get_data_ptr());
             default_zp = std::make_shared<v0::Constant>(ov::element::u2, Shape{1}, 2);
+            zp_element_type = ov::element::u2;
             break;
         case 4:
             casted_b_shape = ov::Shape{static_cast<size_t>(N),
@@ -133,6 +147,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                        static_cast<size_t>(blob_size * 2)};
             casted_b = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, b_const->get_data_ptr());
             default_zp = std::make_shared<v0::Constant>(ov::element::u4, Shape{1}, 8);
+            zp_element_type = ov::element::u4;
             break;
         case 8:
             casted_b_shape = ov::Shape{static_cast<size_t>(N),
@@ -140,22 +155,73 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                        static_cast<size_t>(blob_size)};
             casted_b = std::make_shared<v0::Constant>(ov::element::u8, casted_b_shape, b_const->get_data_ptr());
             default_zp = std::make_shared<v0::Constant>(ov::element::u8, Shape{1}, 128);
+            zp_element_type = ov::element::u8;
             break;
         default:
             FRONT_END_THROW("Unsupported bits count");
             break;
         }
 
+        ov::Output<ov::Node> converted_zero_points;
         if (!zero_points.get_node_shared_ptr()) {
-            zero_points = default_zp;
+            converted_zero_points = std::make_shared<v0::Convert>(default_zp, a.get_element_type());
         } else {
             // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.MatMulNBits
             // according to the link, zero point are:
             // Constrain quantized zero point types to uint8/int32/float16/float.
-            // Input zero_points is stored as uint8_t or same as type(A). It has the same packing method as input B
-            zero_points =
-                op::util::reshape(zero_points,
-                                  ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
+            // If zero_points has same type as A
+            //   it's not packed and has the same shape as Scales. [N * n_blocks_per_col]
+            // If zero_points is stored as uint8_t.
+            //   It has the same packing method as input B. [N * CeilDiv(n_blocks_per_col * bits, 8)]
+            //
+            // no matter which package method, the outputs of this section will be
+            //   {A type, [N, n_blocks_per_col, 1]}
+            CHECK_VALID_NODE(node,
+                             ov::as_type<v0::Constant>(zero_points.get_node()) != nullptr,
+                             "MatMulNBits limitation: accepting only a constant as a zero_points");
+
+            const auto zero_points_const = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
+            if (zero_points.get_element_type() == a.get_element_type()) {
+                const uint64_t expected_zp_size = N * n_blocks_per_col * 1;
+                const auto& zp_shape = zero_points.get_partial_shape();
+                uint64_t actual_zp_size = 1;
+                for (const auto& d : zp_shape) {
+                    actual_zp_size *= d.get_length();
+                }
+                CHECK_VALID_NODE(node,
+                                 zp_shape.is_static() && actual_zp_size == expected_zp_size,
+                                 "Expected input Zero Point shape is static and compatible with shape "
+                                 "[N][n_blocks_per_col][1], got: ",
+                                 zp_shape);
+
+                ov::Shape casted_zp_shape = ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
+                converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
+                                                                       casted_zp_shape,
+                                                                       zero_points_const->get_data_ptr());
+            } else if (zero_points.get_element_type() == ov::element::u8) {
+                // for alignment, n_blocks_per_col might not aligned to num_per_byte
+                uint64_t num_per_byte = 8 / bits;
+                uint64_t num_byte = (n_blocks_per_col + (num_per_byte - 1)) / num_per_byte;
+                uint64_t num_elements_aligned = num_byte * num_per_byte;
+                ov::Shape casted_zp_shape =
+                    ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
+                auto casted_zp_org =
+                    std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
+                converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
+                if (n_blocks_per_col != num_elements_aligned) {
+                    // if not align
+                    // for example, n_blocks_per_col is 13, bits is 2, num_per_byte is 4, it will packed into 4 bytes
+                    // need to make a constant: uint2, {N, 16}
+                    // then slice to: uint2, {N, 13}
+                    const auto num_elements = std::make_shared<v0::Constant>(ov::element::i32,
+                                                                             Shape{1},
+                                                                             static_cast<int32_t>(n_blocks_per_col));
+                    converted_zero_points =
+                        std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
+                }
+            } else {
+                FRONT_END_THROW("Unexpected zero point type");
+            }
         }
 
         // Possible issue with slice implementation, had to move convertion before slice, instead of slicing uint4
@@ -170,7 +236,6 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
         // convert b to fp16
         auto converted_b = std::make_shared<v0::Convert>(casted_b, a.get_element_type());
-        auto converted_zero_points = std::make_shared<v0::Convert>(zero_points, a.get_element_type());
 
         // sub and scale
         const auto sub_b = std::make_shared<v1::Subtract>(converted_b, converted_zero_points);
@@ -188,10 +253,6 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         // to produce b = [N, K]
         const bool slice_needed = (K % block_size != 0);
         if (slice_needed) {
-            const auto zero = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
-            const auto one = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
-            const auto elements = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(K));
-            const auto axis = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
             b = std::make_shared<v8::Slice>(reshaped_b, zero, elements, one, axis);
         } else {
             b = reshaped_b;

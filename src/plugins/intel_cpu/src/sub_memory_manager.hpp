@@ -5,12 +5,8 @@
 #pragma once
 
 #include <cassert>
-#include <memory>
 #include <mutex>
-#include <string>
 #include <vector>
-
-#include "cpu_memory.h"
 
 namespace ov::intel_cpu {
 class SubMemoryManager {

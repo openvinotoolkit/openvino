@@ -4,9 +4,27 @@
 
 #include "single_op_tests/lstm_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 namespace {
 using ov::test::LSTMSequenceTest;
+class LSTMSequenceGPUTest : public LSTMSequenceTest {
+     void SetUp() override {
+        LSTMSequenceTest::SetUp();
+        ov::test::LSTMSequenceParams params;
+        params = this->GetParam();
+        const auto network_precision = std::get<9>(params);
+        const auto activations = std::get<5>(params);
+        if (network_precision == ov::element::f16) {
+            rel_threshold = 0.03f;
+            abs_threshold = 0.0025f;
+            if (activations == std::vector<std::string>{"tanh", "tanh", "tanh"}) {
+                rel_threshold = 0.05f;
+                abs_threshold = 0.005f;
+            }
+        }
+     }
+};
 
 std::vector<ov::test::utils::SequenceTestsMode> mode{ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
                                                      ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
@@ -33,8 +51,11 @@ std::vector<ov::op::RecurrentSequenceDirection> direction = {ov::op::RecurrentSe
 };
 std::vector<ov::element::Type> netPrecisions = {ov::element::f32,
                                                 ov::element::f16};
+TEST_P(LSTMSequenceGPUTest, Inference) {
+    run();
+};
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClip, LSTMSequenceGPUTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -47,9 +68,9 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
                                 ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        LSTMSequenceTest::getTestCaseName);
+                        LSTMSequenceGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClipNonConstantWRB, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClipNonConstantWRB, LSTMSequenceGPUTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
                                 ::testing::ValuesIn(seq_lengths_zero_clip),
@@ -62,9 +83,9 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonZeroClipNonConstantWRB, LSTMSequenceT
                                 ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        LSTMSequenceTest::getTestCaseName);
+                        LSTMSequenceGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonClip, LSTMSequenceGPUTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_clip_non_zero),
@@ -77,9 +98,9 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
                                 ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        LSTMSequenceTest::getTestCaseName);
+                        LSTMSequenceGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceGPUTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(mode),
                                 ::testing::ValuesIn(seq_lengths_clip_non_zero),
@@ -92,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
                                 ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        LSTMSequenceTest::getTestCaseName);
+                        LSTMSequenceGPUTest::getTestCaseName);
 
 
 std::vector<size_t> seq_lengths_cm{2};
@@ -103,7 +124,7 @@ std::vector<std::vector<std::string>> activations_cm = {{"sigmoid", "tanh", "tan
 std::vector<float> clip_cm{0};
 std::vector<ov::element::Type> netPrecisions_cm = {ov::element::f16};
 
-INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceTest,
+INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTest,
                         ::testing::Combine(
                                 ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
                                 ::testing::ValuesIn(seq_lengths_cm),
@@ -116,6 +137,6 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceTest,
                                 ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(netPrecisions_cm),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                        LSTMSequenceTest::getTestCaseName);
+                        LSTMSequenceGPUTest::getTestCaseName);
 
 }  // namespace

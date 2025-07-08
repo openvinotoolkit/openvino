@@ -4,14 +4,32 @@
 
 #include "graph_dumper.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <iomanip>
+#include <ios>
+#include <iostream>
 #include <map>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "dnnl_debug.h"
+#include "cpu_types.h"
+#include "node.h"
+#include "nodes/scaled_attn.h"
+#include "onednn/dnnl.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -105,6 +123,13 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
     serialization_info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
 
     serialization_info[ov::exec_model_info::RUNTIME_PRECISION] = node->getRuntimePrecision().get_type_name();
+    // record kv cache precision for ScaledDotProductAttention node
+    if (node->getType() == Type::ScaledDotProductAttention) {
+        auto* sdpa_node = dynamic_cast<ov::intel_cpu::node::ScaledDotProductAttention*>(node.get());
+        if (sdpa_node) {
+            serialization_info["kv_cache_precision"] = sdpa_node->getKVCachePrecision().get_type_name();
+        }
+    }
 
     return serialization_info;
 }
@@ -141,8 +166,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
     };
 
     auto create_ngraph_node = [&](const NodePtr& node) {
-        bool is_input = false, is_output = false, should_be_hold = false;
-        size_t input_index = -1, output_index = -1;
+        bool is_input = false;
+        bool is_output = false;
+        bool should_be_hold = false;
+        size_t input_index = -1;
+        size_t output_index = -1;
         for (auto&& kvp : graph.inputNodesMap) {
             if (kvp.second == node) {
                 is_input = true;
@@ -168,7 +196,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
         auto meta_data = extract_node_metadata(node);
         std::shared_ptr<ov::Node> return_node;
         if (is_input) {
-            auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
+            const auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
             auto param = std::make_shared<ov::op::v0::Parameter>(desc.getPrecision(), desc.getShape().toPartialShape());
             return_node = param;
             paramsMap[input_index] = param;
@@ -182,7 +210,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
                 node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
-                auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
+                const auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
                 return_node->set_output_type(port, desc.getPrecision(), desc.getShape().toPartialShape());
             }
         }
@@ -201,7 +229,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
     ov::NodeVector nodes;
     nodes.reserve(graph.graphNodes.size());
-    for (auto& node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
+    for (const auto& node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
         nodes.emplace_back(create_ngraph_node(node));
         node2layer[node] = nodes.back();
     }
@@ -253,14 +281,14 @@ void serializeToXML(const Graph& graph, const std::string& path) {
 void serializeToCout(const Graph& graph) {
     for (const auto& node : graph.GetNodes()) {
         std::cout << "name: " << node->getName() << " [ ";
-        auto nodeDesc = node->getSelectedPrimitiveDescriptor();
+        auto* nodeDesc = node->getSelectedPrimitiveDescriptor();
         if (nodeDesc) {
-            auto& inConfs = nodeDesc->getConfig().inConfs;
+            const auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
                 std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << inConfs.front().getMemDesc()->serializeFormat() << "; ";
             }
-            auto& outConfs = nodeDesc->getConfig().outConfs;
+            const auto& outConfs = nodeDesc->getConfig().outConfs;
             if (!outConfs.empty()) {
                 std::cout << "out: " << outConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << outConfs.front().getMemDesc()->serializeFormat();
@@ -279,7 +307,7 @@ void summary_perf(const Graph& graph) {
     std::map<NodePtr, double> perf_by_node;
     double total_avg = 0;
     uint64_t total = 0;
-    for (auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
+    for (const auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
         double avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
 
@@ -306,7 +334,7 @@ void summary_perf(const Graph& graph) {
     std::cout << "======= ENABLE_DEBUG_CAPS:OV_CPU_SUMMARY_PERF ======" << '\n';
     std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph))
               << '\n';
-    std::cout << "     Total(us): " << (uint64_t)(total) << '\n';
+    std::cout << "     Total(us): " << total << '\n';
     std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << '\n';
     {
         std::cout << " perf_by_type:" << '\n';
@@ -402,13 +430,12 @@ void average_counters(const Graph& graph) {
         const auto realTime = cpuTime;
 
         file << node->getName() << ";" << status << ";" << node->getTypeStr() << ";"
-             << node->getPrimitiveDescriptorType() << ";" << realTime << ";" << cpuTime << ";"
-             << "\n";
+             << node->getPrimitiveDescriptorType() << ";" << realTime << ";" << cpuTime << ";" << "\n";
 
         return avg;
     };
 
-    for (auto& node : graph.GetNodes()) {
+    for (const auto& node : graph.GetNodes()) {
         if (node->isConstant()) {
             continue;
         }
@@ -418,8 +445,7 @@ void average_counters(const Graph& graph) {
 
     const auto totalMs = toMs(total);
 
-    file << "Total;;;;" << totalMs << ";" << totalMs << ";"
-         << "\n";
+    file << "Total;;;;" << totalMs << ";" << totalMs << ";\n";
 
     file.close();
 }

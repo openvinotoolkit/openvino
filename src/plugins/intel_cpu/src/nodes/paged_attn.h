@@ -4,15 +4,19 @@
 
 #pragma once
 
-#include "kernels/scaled_attn/executor_pa.hpp"
-#include "memory_state.h"
-#include "node.h"
-#include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "utils/plain_tensor.hpp"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "config.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+
+namespace ov::intel_cpu::node {
 
 class PagedAttention : public Node {
 public:
@@ -46,9 +50,7 @@ public:
     void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    static bool isQuantByChannel(const Config::CacheQuantMode mode,
-                                 const ov::element::Type precision,
-                                 const bool isKey) noexcept;
+    static bool isQuantByChannel(Config::CacheQuantMode mode, ov::element::Type precision, bool isKey);
 
 private:
     ov::element::Type getRuntimePrecision() const override;
@@ -61,6 +63,4 @@ private:
     bool m_hasScore = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

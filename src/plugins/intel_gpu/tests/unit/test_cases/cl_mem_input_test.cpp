@@ -15,7 +15,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 TEST(cl_mem_check, check_write_access_type) {
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     ASSERT_TRUE(!devices.empty());
     cldnn::device::ptr device = devices.begin()->second;
@@ -50,7 +50,7 @@ TEST(cl_mem_check, check_write_access_type) {
 }
 
 TEST(cl_mem_check, check_read_access_type) {
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     ASSERT_TRUE(!devices.empty());
     cldnn::device::ptr device = devices.begin()->second;

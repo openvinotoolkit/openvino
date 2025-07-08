@@ -4,15 +4,19 @@
 
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/itt.hpp"
 
-
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMapper& loop_id_map) {
     std::pair<std::vector<size_t>, std::vector<size_t>> previous_loop_ids;
@@ -24,8 +28,9 @@ void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMa
         }
 
         auto expr_loop_ids = expr->get_loop_ids();
-        if (expr_loop_ids.empty())
+        if (expr_loop_ids.empty()) {
             continue;
+        }
         if (expr_loop_ids == previous_loop_ids.first) {
             expr->set_loop_ids(previous_loop_ids.second);
             continue;
@@ -33,7 +38,8 @@ void NormalizeLoopIDs::update_linear_ir(lowered::LinearIR& linear_ir, const IDMa
 
         previous_loop_ids.first = expr_loop_ids;
         std::for_each(expr_loop_ids.begin(), expr_loop_ids.end(), [&loop_id_map](size_t& id) {
-            OPENVINO_ASSERT(loop_id_map.count(id) > 0, "Expression is marked by LoopID that has not been found in the map!");
+            OPENVINO_ASSERT(loop_id_map.count(id) > 0,
+                            "Expression is marked by LoopID that has not been found in the map!");
             id = loop_id_map.at(id);
         });
         expr->set_loop_ids(expr_loop_ids);
@@ -55,14 +61,16 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
                 loop_id_map[old_id] = new_id;
                 continue;
             }
-            OPENVINO_ASSERT(m_has_specific_loops, "NormalizeLoopIDs failed: LinearIR contains unified loops with the same IDs!");
+            OPENVINO_ASSERT(m_has_specific_loops,
+                            "NormalizeLoopIDs failed: LinearIR contains unified loops with the same IDs!");
         }
     }
 
     // Secondly, we blend `LoopInfo` in the LoopManager::m_map by new Loop IDs
     const auto updated = linear_ir.get_loop_manager()->reorder_identifiers(loop_id_map);
-    if (!updated)
+    if (!updated) {
         return false;
+    }
 
     // Thirdly, we should update expressions in LinearIR
     update_linear_ir(linear_ir, loop_id_map);
@@ -70,7 +78,4 @@ bool NormalizeLoopIDs::run(lowered::LinearIR& linear_ir) {
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

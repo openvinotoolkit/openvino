@@ -4,24 +4,44 @@
 
 #include "matmul.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
 #include <memory>
-#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include "common/cpu_memcpy.h"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_shape.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "dnnl_postops_composer_legacy.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/common/dnnl_executor.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/matmul.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 using namespace dnnl;
 
@@ -85,9 +105,9 @@ bool MatMul::canBeExecutedInInt8() const {
 
 bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto matMul = ov::as_type_ptr<const ov::opset1::MatMul>(op);
+        const auto matMul = ov::as_type_ptr<const ov::op::v0::MatMul>(op);
         if (!matMul) {
-            errorMessage = "Only opset1 MatMul operation is supported";
+            errorMessage = "Only v0 MatMul operation is supported";
             return false;
         }
 
@@ -112,22 +132,21 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, MMShapeInferFactory(op)),
-      withBiases(false) {
+    : Node(op, context, MMShapeInferFactory(op)) {
     std::string errorMessage;
 
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto matMul = ov::as_type_ptr<const ov::opset1::MatMul>(op);
+    const auto matMul = ov::as_type_ptr<const ov::op::v0::MatMul>(op);
 
     if (!matMul) {
         OPENVINO_THROW_NOT_IMPLEMENTED("Operation with name ",
                                        op->get_friendly_name(),
                                        ":",
                                        op->get_type_name(),
-                                       " is not an instance of MatMul from opset1");
+                                       " is not an instance of MatMul from v0");
     }
 
     transposeIn[0] = matMul->get_transpose_a();
@@ -485,7 +504,8 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     }
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
-        std::vector<PortConfig> inConfs, outConfs;
+        std::vector<PortConfig> inConfs;
+        std::vector<PortConfig> outConfs;
         const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {
@@ -555,7 +575,7 @@ MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-    }                                  // bias
+    }  // bias
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
@@ -693,7 +713,7 @@ void MatMul::prepareParams() {
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }

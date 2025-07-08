@@ -4,12 +4,18 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
+#include <functional>
 #include <utility>
+#include <vector>
 
 #include "executor.hpp"
-#include "executor_config.hpp"
 #include "executor_implementation.hpp"
 #include "nodes/executors/graph_emitter.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -30,8 +36,6 @@ public:
         : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
-          m_implementationRequiresFallback(
-              cacheFallbackStatus(m_suitableImplementations, GraphEmitter<Attrs>::createConfig(memory, m_attrs))),
           m_executors(m_suitableImplementations.size()) {
         const size_t implId = select(memory, 0);
         m_executors[implId] = create(implId, memory);
@@ -67,22 +71,6 @@ public:
     }
 
 private:
-    /**
-     * @brief Returns a fallback status for each suitable implementation.
-     */
-    static std::vector<bool> cacheFallbackStatus(const std::vector<ExecutorImplementationRef>& suitableImplementations,
-                                                 const executor::Config<Attrs>& config) {
-        std::vector<bool> implementationRequiresFallback(suitableImplementations.size());
-        std::transform(suitableImplementations.begin(),
-                       suitableImplementations.end(),
-                       implementationRequiresFallback.begin(),
-                       [&config](const ExecutorImplementationRef& impl) {
-                           return impl.get().requiresFallback(config).has_value();
-                       });
-
-        return implementationRequiresFallback;
-    }
-
     [[nodiscard]] size_t select(const MemoryArgs& memory, const size_t startIdx) const {
         OPENVINO_ASSERT(startIdx < m_suitableImplementations.size(),
                         "Failed to find an implementation since start indx: ",
@@ -107,27 +95,13 @@ private:
     ExecutorPtr create(const size_t implId, const MemoryArgs& memory) {
         assert(implId < m_executors.size() && implId < m_suitableImplementations.size());
 
-        auto createWithFallback = [this](const size_t implId, const MemoryArgs& memory) {
-            const auto& impl = m_suitableImplementations[implId].get();
-
-            if (m_implementationRequiresFallback[implId]) {
-                auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
-                if (auto fallbackConfig = impl.requiresFallback(config)) {
-                    return GraphEmitter<Attrs>::fallback(config, *fallbackConfig, memory, m_context, impl.name());
-                }
-            }
-
-            return impl.create(m_attrs, memory, m_context);
-        };
-
-        return createWithFallback(implId, memory);
+        const auto& impl = m_suitableImplementations[implId].get();
+        return impl.create(m_attrs, memory, m_context);
     }
 
     Attrs m_attrs;
     const ExecutorContext::CPtr m_context;
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
-    // stores fallback status to avoid performing the check for every make() call
-    std::vector<bool> m_implementationRequiresFallback;
     // executors cache
     std::vector<ExecutorPtr> m_executors;
     size_t m_implId;

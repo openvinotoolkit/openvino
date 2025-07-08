@@ -38,7 +38,7 @@ const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
  * @details Using an "ov::Model" object to create the "CompiledModel" is the preferred way of using the OV API.
- * This path allows making use of the already written funtions/attributes for handling the I/O infromation.
+ * This path allows making use of the already written functions/attributes for handling the I/O information.
  *
  * Note that a stored compiled model does not hold the original IR model within it. The only related information
  * which may be extracted is the original model's "parameter"/"result" nodes. Thus, we need to build a dummy model
@@ -116,7 +116,7 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
     }
 }
 
-static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig base_conf, const ov::AnyMap& local_conf) {
+static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& base_conf, const ov::AnyMap& local_conf) {
     // first look if provided config changes compiler type
     auto it = local_conf.find(std::string(COMPILER_TYPE::key()));
     if (it != local_conf.end()) {
@@ -175,7 +175,7 @@ void Plugin::init_options() {
         auto dummyopt = details::makeOptionModel<OPT_TYPE>(); \
         std::string o_name = dummyopt.key().data();           \
         _options->add<OPT_TYPE>();                            \
-        _globalConfig.enable(o_name, false);                  \
+        _globalConfig.enable(std::move(o_name), false);       \
     } while (0)
 
     REGISTER_OPTION(LOG_LEVEL);
@@ -195,7 +195,6 @@ void Plugin::init_options() {
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
     REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
-    REGISTER_OPTION(DPU_GROUPS);
     REGISTER_OPTION(COMPILATION_MODE);
     REGISTER_OPTION(COMPILER_TYPE);
     REGISTER_OPTION(PLATFORM);
@@ -215,9 +214,9 @@ void Plugin::init_options() {
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
+    REGISTER_OPTION(TURBO);
     if (_backend) {
         if (_backend->isCommandQueueExtSupported()) {
-            REGISTER_OPTION(TURBO);
             REGISTER_OPTION(WORKLOAD_TYPE);
         }
         // register backend options
@@ -229,6 +228,48 @@ void Plugin::init_options() {
 
     // filter out unsupported options
     filter_config_by_compiler_support(_globalConfig);
+
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need to enable those for OV Core to query.
+    // Note: do this last to not filter them out.
+    // register npuw caching properties
+    REGISTER_OPTION(NPU_USE_NPUW);
+    REGISTER_OPTION(NPUW_DEVICES);
+    REGISTER_OPTION(NPUW_SUBMODEL_DEVICE);
+    REGISTER_OPTION(NPUW_WEIGHTS_BANK);
+    REGISTER_OPTION(NPUW_WEIGHTS_BANK_ALLOC);
+    REGISTER_OPTION(NPUW_ONLINE_PIPELINE);
+    REGISTER_OPTION(NPUW_ONLINE_AVOID);
+    REGISTER_OPTION(NPUW_ONLINE_ISOLATE);
+    REGISTER_OPTION(NPUW_ONLINE_NO_FOLD);
+    REGISTER_OPTION(NPUW_ONLINE_MIN_SIZE);
+    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCKS);
+    REGISTER_OPTION(NPUW_ONLINE_KEEP_BLOCK_SIZE);
+    REGISTER_OPTION(NPUW_FOLD);
+    REGISTER_OPTION(NPUW_CWAI);
+    REGISTER_OPTION(NPUW_DQ);
+    REGISTER_OPTION(NPUW_DQ_FULL);
+    REGISTER_OPTION(NPUW_PMM);
+    REGISTER_OPTION(NPUW_SLICE_OUT);
+    REGISTER_OPTION(NPUW_SPATIAL);
+    REGISTER_OPTION(NPUW_SPATIAL_NWAY);
+    REGISTER_OPTION(NPUW_SPATIAL_DYN);
+    REGISTER_OPTION(NPUW_F16IC);
+    REGISTER_OPTION(NPUW_HOST_GATHER);
+    REGISTER_OPTION(NPUW_DCOFF_TYPE);
+    REGISTER_OPTION(NPUW_DCOFF_SCALE);
+    REGISTER_OPTION(NPUW_FUNCALL_FOR_ALL);
+    REGISTER_OPTION(NPUW_FUNCALL_ASYNC);
+    REGISTER_OPTION(NPUW_UNFOLD_IREQS);
+    REGISTER_OPTION(NPUW_LLM);
+    REGISTER_OPTION(NPUW_LLM_BATCH_DIM);
+    REGISTER_OPTION(NPUW_LLM_SEQ_LEN_DIM);
+    REGISTER_OPTION(NPUW_LLM_MAX_PROMPT_LEN);
+    REGISTER_OPTION(NPUW_LLM_MIN_RESPONSE_LEN);
+    REGISTER_OPTION(NPUW_LLM_OPTIMIZE_V_TENSORS);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_HINT);
+    REGISTER_OPTION(NPUW_LLM_PREFILL_CONFIG);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_HINT);
+    REGISTER_OPTION(NPUW_LLM_GENERATE_CONFIG);
 }
 
 void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
@@ -312,7 +353,7 @@ void Plugin::filter_config_by_compiler_support(FilteredConfig& cfg) const {
     // if it exists in config = driver supports it
     // if compiler->is_option_suported is false = compiler doesn't support it and gets marked disabled by default logic
     // however, if driver supports it, we still need it (and will skip giving it to compiler) = force-enable
-    if (cfg.hasOpt(ov::intel_npu::turbo.name())) {
+    if (_backend && _backend->isCommandQueueExtSupported()) {
         cfg.enable(ov::intel_npu::turbo.name(), true);
     }
 }
@@ -349,17 +390,22 @@ FilteredConfig Plugin::fork_local_config(const std::map<std::string, std::string
         });
     }
     // secondly, in the new config provided by user
+    std::map<std::string, std::string> cfgs_to_set;
     for (const auto& [key, value] : rawConfig) {
         if (!localConfig.hasOpt(key)) {
             // not a known config key
             if (!compiler->is_option_supported(key)) {
                 OPENVINO_THROW("[ NOT_FOUND ] Option '", key, "' is not supported for current configuration");
+            } else {
+                localConfig.addOrUpdateInternal(key, value);
             }
+        } else {
+            cfgs_to_set.emplace(key, value);
         }
     }
 
     // 3. If all good so far, update values
-    localConfig.update(rawConfig, mode);
+    localConfig.update(cfgs_to_set, mode);
     return localConfig;
 }
 
@@ -534,36 +580,29 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
     ov::AnyMap npu_plugin_properties = properties;
     ov::Tensor tensor;
-    bool blobAllocatedByPlugin = false;
+    bool tensorFromProperty = false;
+
+    std::istream stream{origStream.rdbuf()};
+    ov::SharedStreamBuffer buffer{nullptr, 0};  // used only if blob is given by tensor, but it is not OV cached blob
 
     // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
     // list of properties
     if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
         blob_it != npu_plugin_properties.end()) {
-        auto compiledBlob = blob_it->second.as<ov::Tensor>();
+        tensor = blob_it->second.as<ov::Tensor>();
+        tensorFromProperty = true;
         if (auto loadedFromCache = npu_plugin_properties.find(ov::loaded_from_cache.name());
             loadedFromCache != npu_plugin_properties.end() && loadedFromCache->second.as<bool>() != false) {
             tensor = ov::Tensor(
-                compiledBlob,
+                tensor,
                 ov::Coordinate{static_cast<size_t>(origStream.tellg())},
-                ov::Coordinate{compiledBlob.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
+                ov::Coordinate{tensor.get_byte_size()});  // ROI tensor to skip OV header in case of cached blob
         } else {
-            tensor = compiledBlob;
+            buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
+            stream.rdbuf(&buffer);
         }
         npu_plugin_properties.erase(blob_it);
-    } else {  // fallback creating plugin handled buffer for blob
-        size_t streamSize = MetadataBase::getFileSize(origStream);
-        tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
-        blobAllocatedByPlugin = true;
-        origStream.read(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
-        if (!origStream) {
-            OPENVINO_THROW("Failed to read data from stream!");
-        }
     }
-
-    ov::SharedStreamBuffer buffer =
-        ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
-    std::istream stream{&buffer};
 
     // If was exported via NPUW
     auto stream_start_pos = stream.tellg();
@@ -619,16 +658,26 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
 
     try {
         const bool skipCompatibility = localConfig.get<DISABLE_VERSION_CHECK>();
+        size_t blobSize = MetadataBase::getFileSize(stream);
         if (!skipCompatibility) {
             auto storedMeta = read_metadata_from(stream);
             if (!storedMeta->is_compatible()) {
                 OPENVINO_THROW("Incompatible blob version!");
             }
+            blobSize = storedMeta->get_blob_size();
+        }
+        if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
+            if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+                OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+            }
+            stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
+        } else {
             tensor = ov::Tensor(tensor,
                                 ov::Coordinate{0},
-                                ov::Coordinate{storedMeta->get_blob_size()});  // ROI tensor to skip NPU plugin metadata
+                                ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
         }
-        auto graph = compiler->parse(std::move(tensor), blobAllocatedByPlugin, localConfig);
+        auto graph = compiler->parse(std::move(tensor), !tensorFromProperty, localConfig);
         graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
 
         const std::shared_ptr<ov::Model> modelDummy =
