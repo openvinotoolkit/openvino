@@ -135,8 +135,6 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-ov_disable_sdl_flags_for_sources(SOURCES "src/runtime/tensor.cpp")
-
 ov_build_target_faster(openvino_core_obj
     UNITY
     PCH_HEADER "src/precomp.hpp"

@@ -140,8 +140,6 @@ endif()
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-ov_disable_sdl_flags_for_sources(SOURCES "src/dev/make_tensor.cpp")
-
 # LTO
 
 set_target_properties(${TARGET_NAME}_obj
