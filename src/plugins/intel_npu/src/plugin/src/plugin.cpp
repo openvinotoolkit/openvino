@@ -135,9 +135,7 @@ public:
     CustomNpuAllocator(const size_t align_size) : _align_size(align_size) {}
 
     void* allocate(const size_t bytes, const size_t /*alignment*/) {
-        // allocated size shall be multiple of _align_size as well
-        size_t size = (bytes + _align_size - 1) & ~(_align_size - 1);
-        return ::operator new(size, std::align_val_t(_align_size));
+        return ::operator new(bytes, std::align_val_t(_align_size));
     }
 
     void deallocate(void* handle, const size_t /*bytes*/, const size_t /*alignment*/) noexcept {

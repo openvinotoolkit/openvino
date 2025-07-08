@@ -214,9 +214,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
-                                                                blob.get_byte_size(),
-                                                                blobAllocatedByPlugin);
+    ze_graph_handle_t graphHandle =
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");

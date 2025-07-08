@@ -8,6 +8,9 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
+namespace {
+constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
+}
 namespace intel_npu {
 
 Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
@@ -55,6 +58,14 @@ size_t Graph::export_blob(std::ostream& stream) const {
     }
     stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
 
+    auto size = (blobSize + STANDARD_PAGE_SIZE - 1) & ~(STANDARD_PAGE_SIZE - 1);
+    auto sizeToWrite = size - blobSize;
+    if (sizeToWrite) {
+        auto extraMemoryToWrite = ::operator new(sizeToWrite);
+        stream.write(reinterpret_cast<const char*>(extraMemoryToWrite), static_cast<std::streamsize>(sizeToWrite));
+        ::operator delete(extraMemoryToWrite);
+    }
+
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
         return 0;
@@ -71,7 +82,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return blobSize;
+    return size;
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
