@@ -719,5 +719,5 @@ export interface NodeAddon {
   element: typeof element;
 }
 
-export default // eslint-disable-next-line @typescript-eslint/no-var-requires
+export default
 require('../bin/ov_node_addon.node') as NodeAddon;

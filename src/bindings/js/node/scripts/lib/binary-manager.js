@@ -77,7 +77,7 @@ class BinaryManager {
       if (options.ignoreIfExists) {
         console.warn(
           `Directory '${destinationPath}' already exists. Skipping `
-          + 'runtime downloading because "ignoreIfExists" flag is passed.'
+          + 'runtime downloading because "ignoreIfExists" flag is passed.',
         );
 
         return;
@@ -93,7 +93,7 @@ class BinaryManager {
     if (process.env.npm_package_resolved.startsWith('file:')) {
       const binDir = path.join(
         path.dirname(process.env.npm_package_resolved),
-        'bin'
+        'bin',
       ).replace('file:', '');
       if (existsSync(path.join(binDir, 'libopenvino.so')) ||
         existsSync(path.join(binDir, 'openvino.dll'))) {
@@ -113,7 +113,7 @@ class BinaryManager {
 
     try {
       tempDirectoryPath = await fs.mkdtemp(
-        path.join(os.tmpdir(), 'temp-ov-runtime-archive-')
+        path.join(os.tmpdir(), 'temp-ov-runtime-archive-'),
       );
 
       const filename = path.basename(archiveUrl);

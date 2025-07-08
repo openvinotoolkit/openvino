@@ -24,7 +24,7 @@ describe('ov.CompiledModel tests', () => {
     compiledModel = core.compileModelSync(
       testModelFP32.xml,
       'BATCH:CPU',
-      properties
+      properties,
     );
   });
 

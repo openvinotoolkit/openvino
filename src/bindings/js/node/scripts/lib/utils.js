@@ -25,7 +25,7 @@ async function removeDirectory(path) {
   try {
     console.log(`Removing ${path}`);
     await fs.rm(path, { recursive: true });
-  } catch (error) {
+  } catch(error) {
     if (error.code !== codeENOENT) throw error;
 
     console.warn(`Path: ${path} doesn't exist`);
@@ -43,8 +43,9 @@ async function removeDirectory(path) {
 async function checkIfPathExists(path) {
   try {
     await fs.access(path);
+
     return true;
-  } catch (error) {
+  } catch(error) {
     if (error.code === codeENOENT) {
       return false;
     }

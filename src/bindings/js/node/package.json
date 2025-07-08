@@ -30,10 +30,11 @@
     "@types/node": "^22.13.4",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
-    "eslint": "^8.49.0",
+    "eslint": "^9.0.0",
     "mocha": "^10.6.0",
     "random-bigint": "^0.0.1",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "typescript-eslint": "^8.36.0"
   },
   "engines": {
     "node": ">=21.0.0"

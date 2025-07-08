@@ -86,7 +86,7 @@ function sleep(ms) {
 function lengthFromShape(shape) {
   return shape.reduce(
     (accumulator, currentValue) => accumulator * currentValue,
-    1
+    1,
   );
 }
 

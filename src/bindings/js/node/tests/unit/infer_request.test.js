@@ -54,7 +54,7 @@ describe('ov.InferRequest tests', () => {
         assert.deepStrictEqual(Object.keys(result), ['fc_out']);
         assert.deepStrictEqual(
           result['fc_out'].data.length,
-          lengthFromShape(testModelFP32.outputShape)
+          lengthFromShape(testModelFP32.outputShape),
         );
       });
     });
@@ -338,7 +338,7 @@ describe('ov.InferRequest tests with missing outputs names', () => {
     const weights = await fs.readFile(modelV3Small.bin);
     modelData = modelData.replace(
       'names="MobilenetV3/Predictions/Softmax:0"',
-      ''
+      '',
     );
     const model = await core.readModel(Buffer.from(modelData, 'utf8'), weights);
 

@@ -30,7 +30,7 @@ describe('E2E testing for OpenVINO as an Electron dependency.', function() {
   });
 
   it('should run electron package and verify output', (done) => {
-    exec(`cd demo-electron-app-project && npm start`, (error, stdout) => {
+    exec('cd demo-electron-app-project && npm start', (error, stdout) => {
       if (error) {
         console.error(`exec error: ${error}`);
 

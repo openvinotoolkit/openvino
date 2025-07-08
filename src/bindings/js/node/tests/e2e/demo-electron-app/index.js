@@ -11,7 +11,6 @@ async function main() {
 
   try {
     console.log('Creating OpenVINO Runtime Core');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const core = new ov.Core();
     console.log('Created OpenVINO Runtime Core');
 
@@ -30,7 +29,7 @@ async function main() {
 
     const result = await inferRequest.inferAsync([tensor]);
     console.log('Infer request result:', result);
-  } catch (error) {
+  } catch(error) {
     console.error('Error:', error);
     app.exit(1);
   }
