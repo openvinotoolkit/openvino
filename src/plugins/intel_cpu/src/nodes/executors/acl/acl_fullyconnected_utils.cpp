@@ -391,7 +391,8 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
         arm_compute::WeightsInfo(false, 1, 1, icTotal, false, arm_compute::WeightFormat::ANY));
 }
 
-ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLTensors& /*aclMemoryTensors*/) {
+ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(
+    [[maybe_unused]] const ACLTensors& aclMemoryTensors) {
     return std::make_unique<arm_compute::NEFullyConnectedLayer>();
 }
 

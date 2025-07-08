@@ -116,7 +116,7 @@ void GemmCopyBKaiKernelExecutor::update_kernel(const GemmCopyBKernelKaiConfig& c
 }
 
 void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                                               const ov::snippets::lowered::LinearIRCPtr& /*linear_ir*/,
+                                               [[maybe_unused]] const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                GemmCopyBKernelKaiConfig& config) const {
     const auto& in0_shape = snippets::utils::get_planar_vdims(expr->get_input_port(0));
     int64_t N = *in0_shape.rbegin();

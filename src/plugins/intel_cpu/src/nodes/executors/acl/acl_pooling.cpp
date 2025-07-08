@@ -251,7 +251,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
 
 void AclPoolingExecutor::exec(const std::vector<MemoryCPtr>& src,
                               const std::vector<MemoryPtr>& dst,
-                              std::unordered_map<int, MemoryPtr> /*postOpsArgs*/) {
+                              [[maybe_unused]] std::unordered_map<int, MemoryPtr> postOpsArgs) {
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
     if (dst.size() > 1u) {

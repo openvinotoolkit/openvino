@@ -579,7 +579,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
     // attention_mask [B, 1, q_len, kv_len]
     // alibi
     // output_emb    [B, L1, H*S]
-    void operator()(const dnnl::stream& /*strm*/,
+    void operator()([[maybe_unused]] const dnnl::stream& strm,
                     PlainTensor& query,
                     PlainTensor& present_key,
                     PlainTensor& present_value,

@@ -34,7 +34,7 @@ bool GemmKernelKaiConfig::operator==(const GemmKernelKaiConfig& rhs) const {
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
     : snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernel>(std::move(config)) {}
 
-void GemmKaiKernelExecutor::update_kernel(const GemmKernelKaiConfig& /*config*/,
+void GemmKaiKernelExecutor::update_kernel([[maybe_unused]] const GemmKernelKaiConfig& config,
                                           std::shared_ptr<GemmCompiledKernel>& kernel) const {
     if (kernel == nullptr) {
         // universal kernel could be used in any config and shape, as excuted peice by peice as binary call.

@@ -56,7 +56,7 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
 }
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& /*node*/) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     // Note: Brgemm currently supports only fp32 on arm
     return {{element::f32}};
 }
