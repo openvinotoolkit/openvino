@@ -4,15 +4,31 @@
 
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 
+#include <algorithm>
+#include <memory>
 #include <openvino/opsets/opset1.hpp>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
 
@@ -37,27 +53,31 @@ ov::snippets::pass::ExtractPairsAfterMatmul::ExtractPairsAfterMatmul() {
         const auto& matmul = pattern_map.at(matmul_m);
         const auto matmul_node = ov::as_type_ptr<opset1::MatMul>(matmul.get_node_shared_ptr());
         if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(matmul_node) ||
-            transformation_callback(matmul_node))
+            transformation_callback(matmul_node)) {
             return false;
+        }
 
         const auto& reshape_2 = pattern_map.at(reshape_2_m);
         const auto& matmul_shape = matmul.get_shape();
         const auto& output_shape = reshape_2.get_shape();
-        if (matmul_shape != output_shape)
+        if (matmul_shape != output_shape) {
             return false;
+        }
 
         const auto add_1 = pattern_map.at(add_1_m).get_node_shared_ptr();
         const auto add_2 = pattern_map.at(add_2_m).get_node_shared_ptr();
         const auto& bcast_type = add_1->get_autob();
-        if (bcast_type != ov::op::AutoBroadcastType::NUMPY || bcast_type != add_2->get_autob())
+        if (bcast_type != ov::op::AutoBroadcastType::NUMPY || bcast_type != add_2->get_autob()) {
             return false;
+        }
 
         const auto& sparse_input_1 = pattern_map.at(sparse_input_1_m);
         const auto& sparse_input_2 = pattern_map.at(sparse_input_2_m);
         auto broadcasted_shape = sparse_input_1.get_partial_shape();
         ov::PartialShape::broadcast_merge_into(broadcasted_shape, sparse_input_2.get_partial_shape(), bcast_type);
-        if (ov::shape_size(matmul_shape) != ov::shape_size(broadcasted_shape.to_shape()))
+        if (ov::shape_size(matmul_shape) != ov::shape_size(broadcasted_shape.to_shape())) {
             return false;
+        }
 
         const auto extracted_add = std::make_shared<ov::opset1::Add>(sparse_input_1, sparse_input_2);
         const auto target_shape = ov::opset1::Constant::create(ov::element::i32, {matmul_shape.size()}, matmul_shape);
@@ -83,7 +103,7 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
             return false;
         }
         auto out_shape = out.get_shape();
-        if (out_shape.size() < 1 || out_shape[0] != 1) {
+        if (out_shape.empty() || out_shape[0] != 1) {
             return false;
         }
         out_shape.erase(out_shape.begin());
@@ -100,7 +120,7 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
             return false;
         }
         const auto& out_shape = out.get_shape();
-        return ((out_shape.size() > 0) && (out_shape[0] == 1));
+        return (!out_shape.empty() && out_shape[0] == 1);
     };
     // reshape_2_m delete leading dimension of 1.
     auto rank_reduction_reshape = [&](const ov::Output<ov::Node>& out) {
@@ -112,7 +132,7 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
             return false;
         }
         auto in_shape = in_shape_partial.to_shape();
-        if (in_shape.size() < 1 || in_shape[0] != 1) {
+        if (in_shape.empty() || in_shape[0] != 1) {
             return false;
         }
         in_shape.erase(in_shape.begin());
@@ -138,11 +158,12 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         const auto& matmul = pattern_map.at(matmul_m);
         const auto matmul_node = ov::as_type_ptr<opset1::MatMul>(matmul.get_node_shared_ptr());
         if (!ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(matmul_node) ||
-            transformation_callback(matmul_node))
+            transformation_callback(matmul_node)) {
             return false;
+        }
         const auto& eltwise_2 = pattern_map.at(eltwise_2_m).get_node_shared_ptr();
         const auto& shapes = ov::util::get_node_input_partial_shapes(*eltwise_2);
-        OPENVINO_ASSERT(shapes.size() > 0, "Eltwise node should has at least one input.");
+        OPENVINO_ASSERT(!shapes.empty(), "Eltwise node should has at least one input.");
         auto equal_rank = [&](const PartialShape& p) {
             return p.size() == shapes[0].size();
         };

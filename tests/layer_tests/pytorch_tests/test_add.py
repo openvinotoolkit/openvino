@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest, skip_check
 
 
 @pytest.mark.parametrize('alpha', (-0.5, 0, 0.5, 1, 2))
@@ -41,7 +41,7 @@ class TestAdd(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.parametrize("op_type", ["add", skip_if_export("add_")])
+    @pytest.mark.parametrize("op_type", ["add", skip_check("add_")])
     def test_add(self, ie_device, precision, ir_version, alpha, input_shape_rhs, op_type):
         self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
         self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
