@@ -765,7 +765,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
             auto& input = eltwise_node.get_dependency(small_shape_idx);
             if (input.get_output_layout().format != out_layout.format) {
-                GPU_DEBUG_TRACE_DETAIL << "Add reorder for" << eltwise_node.id() << " align tensor size. input " << input.get_output_layout().format.to_string() << " output " << out_layout.format.to_string() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "Add reorder for" << eltwise_node.id() << " align tensor size. input " <<
+                                        input.get_output_layout().format.to_string() << " output " << out_layout.format.to_string() << std::endl;
                 auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
                 auto new_reorder = std::make_shared<reorder>(eltwise_node.id() + "_reorder_eltwise_broadcast", input.id(), out_layout);
                 auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
