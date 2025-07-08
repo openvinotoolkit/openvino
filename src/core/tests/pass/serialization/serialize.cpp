@@ -190,11 +190,15 @@ TEST_P(SerializationTest, SerializeWithMap) {
         ov::pass::Serialize(xmlStringStream, &weightsMapWrapper).run_on_model(m);
         std::cout << __func__ << ":" << __LINE__ << std::endl;
         // Read model with the xml and weights map
-        std::vector<uint8_t> weightsMapWrapperPtrData(sizeof(void*));
-        void* weightsMapWrapperPtr = &weightsMapWrapper;
-        std::memcpy(weightsMapWrapperPtrData.data(), &weightsMapWrapperPtr, sizeof(void*));
+        std::vector<uint8_t> weightsMapPtrData(sizeof(void*));
+        void* weightsMapPtr = weightsMapWrapper.get();
+        std::memcpy(weightsMapPtrData.data(), &weightsMapPtr, sizeof(void*));
+        std::cout << "weightsMap:" << weightsMapPtr << std::endl;
+        std::cout << "weightsMapWrapperPtrData size: " << weightsMapPtrData.size() << std::endl;
+        std::cout << "weightsMapWrapperPtrData data: " << reinterpret_cast<void*>(weightsMapPtrData.data())
+                  << std::endl;
         ov::Tensor weightsTensor =
-            ov::Tensor(ov::element::u8, {sizeof(void*)}, reinterpret_cast<uint8_t*>(weightsMapWrapperPtrData.data()));
+            ov::Tensor(ov::element::u8, {sizeof(void*)}, reinterpret_cast<uint8_t*>(weightsMapPtrData.data()));
         std::cout << __func__ << ":" << __LINE__ << std::endl;
         ov::Core core;
         auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);

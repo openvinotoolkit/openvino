@@ -426,10 +426,11 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     std::cout << __func__ << ":" << __LINE__ << std::endl;
                     if (m_weights && m_weights->size() == sizeof(void*)) {
                         std::cout << __func__ << ":" << __LINE__ << std::endl;
-                        ov::pass::WeightsMapWrapper* weightsMapWrapper;
-                        std::cout << "ptr " << m_weights->get_ptr() << " size " << m_weights->size() << std::endl;
-                        memcpy(&weightsMapWrapper, m_weights->get_ptr(), sizeof(void*));
-                        m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapWrapper->get());
+                        void* weightsMapPtr = nullptr;
+                        std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
+                                  << std::endl;
+                        memcpy(&weightsMapPtr, m_weights->get_ptr(), sizeof(void*));
+                        m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapPtr);
                         // print pointer value of m_weights_map for debugging
                         std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
                     } else {
@@ -523,10 +524,11 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     std::cout << __func__ << ":" << __LINE__ << std::endl;
                     if (m_weights && m_weights->size() == sizeof(void*)) {
                         std::cout << __func__ << ":" << __LINE__ << std::endl;
-                        ov::pass::WeightsMapWrapper* weightsMapWrapper;
-                        std::cout << "ptr " << m_weights->get_ptr() << " size " << m_weights->size() << std::endl;
-                        memcpy(&weightsMapWrapper, m_weights->get_ptr(), sizeof(void*));
-                        m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapWrapper->get());
+                        void* weightsMapPtr = nullptr;
+                        std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
+                                  << std::endl;
+                        memcpy(&weightsMapPtr, m_weights->get_ptr(), sizeof(void*));
+                        m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapPtr);
                         // print pointer value of m_weights_map for debugging
                         std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
                     } else {

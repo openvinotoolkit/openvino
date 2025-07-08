@@ -34,8 +34,6 @@ public:
 
     void add_weights(int64_t offset, const WeightsVariant& weights) {
         m_offsetConstMap[offset] = weights;
-        std::pair<int64_t, WeightsVariant> pair(offset, weights);
-        m_offsetConstMapVector.push_back(pair);
     }
 
     bool get_weights(int64_t offset, WeightsVariant& weights) const {
@@ -54,13 +52,11 @@ public:
     }
 
     size_t size() {
-        return sizeof(m_offsetConstMapVector) +
-               sizeof(std::pair<int64_t, WeightsVariant>) * m_offsetConstMapVector.capacity();
+        return m_offsetConstMap.size();
     }
 
 private:
     std::unordered_map<int64_t, WeightsVariant> m_offsetConstMap;
-    std::vector<std::pair<int64_t, WeightsVariant>> m_offsetConstMapVector;
 };
 
 }  // namespace pass

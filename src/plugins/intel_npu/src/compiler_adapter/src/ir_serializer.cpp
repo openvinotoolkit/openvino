@@ -116,7 +116,10 @@ void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     if (_weightsMapWrapper) {
         strcpy(reinterpret_cast<char*>(xml), _xmlString.c_str());
         xml[_xmlString.size()] = '\0';  // Null-terminate the string
-        memcpy(weights, &_weightsMapWrapper, sizeof(void*));
+        void* weightsPtr = _weightsMapWrapper->get();
+        memcpy(weights, &weightsPtr, sizeof(void*));
+        std::cout << "serializeModelToBuffer: weightsMapPtr: " << weightsPtr << std::endl;
+        std::cout << "weights: " << reinterpret_cast<void*>(weights) << std::endl;
     } else {
         writer_streambuf xmlStreamBuf(xml);
         writer_streambuf weightsStreamBuf(weights);
