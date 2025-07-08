@@ -138,6 +138,12 @@ static inline bool is_terminal_output() {
                 }                                                                                                 \
             }                                                                                                     \
         } while (0)
+
+#    define OPENVINO_LOG_MATCHING_NO_MATCHER(...)                                                                    \
+        do {                                                                                                         \
+            ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG_EMPTY), __VA_ARGS__, OPENVINO_RESET); \
+        } while (0)
+
 #else
 #    define OPENVINO_ERR(...) \
         do {                  \
@@ -153,6 +159,9 @@ static inline bool is_terminal_output() {
         } while (0)
 #    define OPENVINO_LOG_MATCHING(matcher_ptr, ...) \
         do {                                        \
+        } while (0)
+#    define OPENVINO_LOG_MATCHING_NO_MATCHER(...) \
+        do {                                      \
         } while (0)
 #endif
 
