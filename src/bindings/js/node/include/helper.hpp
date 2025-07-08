@@ -119,6 +119,12 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
  */
 Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model);
 
+/**
+ * @brief Creates JavaScript Node and wraps ov::Node inside of it.
+ * @return Javascript Node as Napi::Object. (Not NodeWrap object)
+ */
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Node> node);
+
 template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value);
 
