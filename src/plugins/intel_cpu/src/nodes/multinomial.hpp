@@ -60,7 +60,7 @@ private:
     bool m_const_inputs[3] = {false, false, false};
     bool m_const_batch = false;
     bool m_provided_random_samples = false;
-    VectorDims m_output_shape = {};
+    VectorDims m_output_shape;
 
     /// General algorithm variables
     ov::element::Type m_probs_precision;

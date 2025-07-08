@@ -163,11 +163,12 @@ void Multinomial::prepareParams() {
                                ". Only 1D tensors are allowed.");
         }
 
-        if (random_samples_shape[0] != m_output_elements_count)
+        if (random_samples_shape[0] != m_output_elements_count) {
             THROW_CPU_NODE_ERR(
                 "has incompatible 'random_samples' shape ",
                 PartialShape(random_samples_shape),
                 ". The total elements of this input should be equal to the total number of elements in the output.");
+        }
     }
 }
 
@@ -248,12 +249,12 @@ void Multinomial::execute_convert_type() {
     if (!m_provided_random_samples) {
         std::mt19937 gen;
         if (m_global_seed == 0 && m_op_seed == 0) {
-            gen.seed(std::time(NULL));
+            gen.seed(std::time(nullptr));
         } else {
             std::seed_seq seed{m_global_seed, m_op_seed};
             gen.seed(seed);
         }
-        const auto gen_max = static_cast<float>(gen.max());
+        const auto gen_max = static_cast<float>(std::mt19937::max());
         std::generate(m_random_samples.begin(), m_random_samples.end(), [&]() {
             return static_cast<P>(static_cast<float>(gen()) / gen_max);
         });
