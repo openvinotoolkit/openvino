@@ -14,6 +14,7 @@
 
 #include "common/dnnl_executor.h"
 #include "cpu_types.h"
+#include "executors/matmul.hpp"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -63,7 +64,7 @@ protected:
     AttrPtr initPrimitiveAttr(const VectorDims& dims);
 
 private:
-    using executorPtr = std::shared_ptr<DnnlExecutorLegacy>;
+    using executorPtr = std::shared_ptr<IMatmulExecutor>;
     executorPtr execPtr = nullptr;
     dnnl::memory::desc getBiasDescFrom(const DnnlMemoryDescCPtr& outMemDesc);
     [[nodiscard]] std::pair<Shape, Shape> makeDummyInputShapes(const Shape& in0,
