@@ -742,9 +742,9 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
     const auto reorder_eltwise = [&p](typed_program_node<eltwise>& eltwise_node) {
         // Add reorder to align tensor size of eltwise inputs for NUMPY broadcasting
-        // Case for PDPD is not implemented
-        auto elt_prim = eltwise_node.get_primitive();
-        if (eltwise_node.need_input_tensors_size_align()) {
+        // This manual alignment of tensor size does not need if format is simple or compatible
+        auto& out_layout = eltwise_node.get_output_layout();
+        if (eltwise_node.need_input_tensors_size_align() && !format::is_simple_data_format(out_layout.format)) {
             // Eltwise input tensor can be smaller than perferred format by NUMPY broad casting.
             // e.g. (?,3,?,?,2) (?,?,2)
             auto& pshape_a = eltwise_node.get_input_pshape(0);
@@ -761,16 +761,17 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                                 "Unexpected pshape size of NUMPY broadcast of eltwise " + eltwise_node.id());
             }
 
-            auto& input = eltwise_node.get_dependency(small_shape_idx);
-            auto& out_layout = eltwise_node.get_output_layout();
-
             ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(ref_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
 
-            auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
-            auto new_reorder = std::make_shared<reorder>(eltwise_node.id() + "_reorder_eltwise_broadcast", input.id(), out_layout);
-            auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
-            p.add_intermediate(new_reorder_node, eltwise_node, input);
-            new_reorder_node.set_output_layout(small_pshape_layout);
+            auto& input = eltwise_node.get_dependency(small_shape_idx);
+            if (input.get_output_layout().format != out_layout.format) {
+                GPU_DEBUG_TRACE_DETAIL << "Add reorder for" << eltwise_node.id() << " align tensor size. input " << input.get_output_layout().format.to_string() << " output " << out_layout.format.to_string() << std::endl;
+                auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
+                auto new_reorder = std::make_shared<reorder>(eltwise_node.id() + "_reorder_eltwise_broadcast", input.id(), out_layout);
+                auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
+                p.add_intermediate(new_reorder_node, eltwise_node, input);
+                new_reorder_node.set_output_layout(small_pshape_layout);
+            }
         }
     };
 
