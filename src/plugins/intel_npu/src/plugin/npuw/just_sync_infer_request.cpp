@@ -361,9 +361,9 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
     m_port_to_tensor.at(port).tensor = tensor;
 
     // Check if setting output tensor
-    for (const auto& output : m_npuw_model->outputs()) {
-        if (output == port) {
-            const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(port.get_index());
+    for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
+        if (m_npuw_model->outputs()[i] == port) {
+            const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
             auto funcall_result_iter = m_funcall_result.find(from_submodel);
             // This is a tricky case:
             // 1) We already allocated an output tensor in m_funcall_result via FMM
