@@ -138,7 +138,7 @@ struct CPUStreamsExecutor::Impl {
                     CpuSet mask;
                     int ncpus = 0;
                     std::tie(mask, ncpus) = get_process_mask();
-                    CpuSet setMask = get_pecore_mask(ncpus);
+                    CpuSet setMask = get_pecore_mask(stream_processors[0], ncpus);
                     if (nullptr != mask) {
                         _proc_observer.reset(new ProcObserver{*_taskArena, std::move(setMask), std::move(mask), ncpus});
                         _proc_observer->observe(true);
