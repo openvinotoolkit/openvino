@@ -3627,6 +3627,11 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
     for (auto& node : optimizedNodes) {
         node->initOptimalPrimitiveDescriptor();
     }
+    // Only resolve edge conflicts if nodes were actually optimized
+    // to avoid unnecessary overhead when no tail nodes precision changes occurred
+    if (!optimizedNodes.empty()) {
+        graph.ResolveEdgeConflicts();
+    }
 }
 
 }  // namespace ov::intel_cpu
