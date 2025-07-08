@@ -378,7 +378,9 @@ void primitive_inst::update_shape() {
                 break;
             }
         }
-        if (!subgraph_input_changed) {
+        if (subgraph_input_changed) {
+            set_flag(ExecutionFlags::SHAPE_CHANGED);
+        } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             unset_flag(ExecutionFlags::SHAPE_CHANGED);
             return;
