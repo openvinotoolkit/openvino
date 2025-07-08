@@ -5,16 +5,22 @@
 #include "shl_eltwise.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <functional>
+#include <utility>
 #include <vector>
 
 #include "cpu_types.h"
 #include "csinn/csi_nn.h"
-#include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/eltwise_config.hpp"
-#include "openvino/core/type/element_type.hpp"
+#include "csinn_data_structure.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/eltwise_config.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/shl/shl.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shl_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -113,10 +119,10 @@ bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
     return true;
 }
 
-ShlEltwiseExecutor::ShlEltwiseExecutor(const EltwiseAttrs& attrs,
+ShlEltwiseExecutor::ShlEltwiseExecutor(EltwiseAttrs attrs,
                                        [[maybe_unused]] const MemoryArgs& memory,
                                        [[maybe_unused]] const ExecutorContext::CPtr& context)
-    : shlEltwiseAttrs(attrs) {}
+    : shlEltwiseAttrs(std::move(attrs)) {}
 
 bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const std::vector<MemoryDescPtr>& dstDescs) {
     const auto& postOps = shlEltwiseAttrs.postOps;

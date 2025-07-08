@@ -4,8 +4,13 @@
 
 #pragma once
 
-#include "acl_utils.hpp"
-#include "arm_compute/runtime/NEON/NEFunctions.h"
+#include <arm_compute/runtime/IFunction.h>
+#include <arm_compute/runtime/Tensor.h>
+
+#include <memory>
+#include <vector>
+
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -15,7 +20,7 @@ namespace ov::intel_cpu {
 
 class AclEltwiseExecutor : public Executor {
 public:
-    AclEltwiseExecutor(const EltwiseAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
+    AclEltwiseExecutor(EltwiseAttrs attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
     static bool supports(const EltwiseConfig& config);
 
     bool update(const MemoryArgs& memory) override;
