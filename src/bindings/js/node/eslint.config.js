@@ -1,6 +1,6 @@
 const pluginJs = require('@eslint/js');
 const globals = require('globals');
-const tseslint = require('typescript-eslint');
+const tseslint = require('@typescript-eslint/parser');
 const { defineConfig } = require('eslint/config');
 
 const customRules = {
@@ -41,7 +41,7 @@ module.exports = defineConfig([
     files: ['**/*.{js,mjs,cjs,ts}'],
     languageOptions: {
       globals: globals.node,
-      parser: tseslint.parser,
+      parser: tseslint,
     },
     rules: customRules,
   },
