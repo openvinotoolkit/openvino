@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "single_op_tests/mat_mul.hpp"
+#include "internal_properties.hpp"
 
 namespace {
 using ov::test::MatMulLayerTest;
@@ -31,6 +32,14 @@ std::vector<std::vector<ov::Shape>> input_shapes_no_transpose_static {
     { {1, 5}, {5} },
     { {5}, {5, 1} },
     { {5}, {5} },
+    { {1, 128, 1, 1}, {1, 128, 1, 1} },
+    { {1, 128, 1, 1}, {1, 128, 1, 2} },
+    { {1, 16, 1, 2}, {1, 16, 2, 1} },
+    { {1, 16, 1, 2}, {1, 16, 2, 2} },
+    { {2, 2, 2, 1}, {2, 2, 1, 1} },
+    { {2, 2, 2, 1}, {2, 2, 1, 2} },
+    { {8, 2, 2}, {8, 2, 1} },
+    { {2, 2}, {2, 2} },
 };
 
 std::vector<std::vector<ov::Shape>> input_shapes_first_transpose_static {
@@ -97,6 +106,54 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMul_BothTranspose, MatMulLayerTest,
                 ::testing::ValuesIn(secondary_input_types),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
+        MatMulLayerTest::getTestCaseName);
+
+std::map<std::string, std::string> model_distribution_config = {
+    {ov::hint::model_distribution_policy.name(), "TENSOR_PARALLEL"},
+    {ov::intel_cpu::enable_tensor_parallel.name(), "true"},
+    {ov::num_streams.name(), "1"},
+    {ov::inference_num_threads.name(), "1"}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Model_Distribution_MatMul_NoTranspose, MatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_no_transpose_static)),
+                ::testing::Values(std::make_pair(false, false)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(model_distribution_config)),
+        MatMulLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Model_Distribution_MatMul_FirstTranspose, MatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_first_transpose_static)),
+                ::testing::Values(std::make_pair(true, false)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(model_distribution_config)),
+        MatMulLayerTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_Model_Distribution_MatMul_SecondTranspose, MatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_second_transpose_static)),
+                ::testing::Values(std::make_pair(false, true)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(model_distribution_config)),
+        MatMulLayerTest::getTestCaseName);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_Model_Distribution_MatMul_BothTranspose, MatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_both_transpose_static)),
+                ::testing::Values(std::make_pair(true, true)),
+                ::testing::ValuesIn(model_types),
+                ::testing::ValuesIn(secondary_input_types),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(model_distribution_config)),
         MatMulLayerTest::getTestCaseName);
 
 } // namespace

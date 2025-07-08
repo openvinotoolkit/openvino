@@ -121,6 +121,13 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
     #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (0), (y), (0));
 #endif
 #endif
+#if HAS_SCALE_INPUT
+#if HAS_ATTN_MASK_INPUT
+#define SCALE_TYPE INPUT4_TYPE
+#else
+#define SCALE_TYPE INPUT3_TYPE
+#endif
+#endif
 
 KERNEL(sdpa_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -131,7 +138,7 @@ KERNEL(sdpa_ref)(
     const __global INPUT3_TYPE* attn_mask,
 #endif
 #if HAS_SCALE_INPUT
-    const __global INPUT4_TYPE* scale,
+    const __global SCALE_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED

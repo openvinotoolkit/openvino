@@ -866,17 +866,17 @@ TEST(constant, uint1_write_then_cast_custom_type) {
 TEST(constant, uint2_string) {
     const auto shape = Shape{4};
 
-    op::v0::Constant c(element::u2, shape, vector<string>{"3", "0", "1", "2"});
+    op::v0::Constant c(element::u2, shape, vector<string>{"2", "1", "0", "3"});
     auto v = c.cast_vector<uint8_t>();
 
     ASSERT_EQ(v.size(), shape_size(shape));
-    EXPECT_THAT(v, ElementsAre(3, 0, 1, 2));
+    EXPECT_THAT(v, ElementsAre(2, 1, 0, 3));
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0b11000110);
 
-    EXPECT_EQ(c.convert_value_to_string(1), "0");
-    EXPECT_THAT(c.get_value_strings(), ElementsAre("3", "0", "1", "2"));
+    EXPECT_EQ(c.convert_value_to_string(1), "1");
+    EXPECT_THAT(c.get_value_strings(), ElementsAre("2", "1", "0", "3"));
     EXPECT_THROW(c.get_strides(), Exception);
 }
 
@@ -891,7 +891,7 @@ TEST(constant, uint2_string_broadcast) {
 
     const auto p = c.get_data_ptr<uint8_t>();
     EXPECT_EQ(p[0], 0b01010101);
-    EXPECT_EQ(p[1] & 0b11000000, 0b01000000);
+    EXPECT_EQ(p[1], 0b00000001);
 }
 
 TEST(constant, uint2_vector_less_than_single_byte) {
@@ -905,7 +905,7 @@ TEST(constant, uint2_vector_less_than_single_byte) {
     EXPECT_THAT(v, ElementsAre(2, 3, 1));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0] & 0b11111100, 0b10110100);
+    EXPECT_EQ(p[0], 0b00011110);
 }
 
 TEST(constant, uint2_vector_bigger_than_single_byte) {
@@ -919,20 +919,27 @@ TEST(constant, uint2_vector_bigger_than_single_byte) {
     EXPECT_THAT(v, ElementsAre(2, 3, 1, 0, 1, 2, 0));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0b10110100);
-    EXPECT_EQ(p[1] & 0b11111100, 0b01100000);
+    EXPECT_EQ(p[0], 0b00011110);
+    EXPECT_EQ(p[1], 0b00001001);
 }
 
 TEST(constant, uint2_vector_broadcast) {
-    const auto shape = Shape{3};
-    op::v0::Constant c(element::u2, shape, vector<int8_t>{2});
+    const auto shape = Shape{5};
+    // Use dynamic allocation to check not used bits have deterministic value
+    auto constant = std::make_shared<ov::op::v0::Constant>(element::u2, shape, vector<int8_t>{2});
+    const auto& c = *constant;
 
     auto v = c.cast_vector<uint8_t>();
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_THAT(v, Each(2));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0] & 0b11111100, 0b10101000);
+    EXPECT_EQ(p[0], 0b10101010);
+    EXPECT_EQ(p[1], 0b00000010);
+
+    const auto gv = c.get_vector<uint8_t>();
+    EXPECT_EQ(gv[0], 0b10101010);
+    EXPECT_EQ(gv[1], 0b00000010);
 }
 
 TEST(constant, uint2_write_then_cast_custom_type) {

@@ -2,7 +2,8 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Callable, Optional, Type, Union
+from typing import Optional, Union
+from collections.abc import Callable
 import torch
 
 
@@ -14,7 +15,7 @@ class ModuleExtension:
     """
 
     def __init__(self,
-                 module: Union[str, torch.nn.Module, Type[torch.nn.Module]],
+                 module: Union[str, torch.nn.Module, type[torch.nn.Module]],
                  target_op: str,
                  evaluate: Optional[Callable] = None,
                  convert: Optional[Callable] = None,

@@ -2,8 +2,6 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import List
-
 import numpy as np
 from openvino.op import Parameter, Constant
 from openvino.opset13 import add, multiply
@@ -37,7 +35,7 @@ def make_model(add_consts, mul_consts):
     return ov.Model([mul1], [parameter1])
 
 
-def get_constants(model, request, tmp_path) -> List[Constant]:
+def get_constants(model, request, tmp_path) -> list[Constant]:
     model_fname, _ = create_filenames_for_ir(request.node.name, tmp_path)
     ov.save_model(model, model_fname)
     core = ov.Core()
