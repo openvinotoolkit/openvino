@@ -249,9 +249,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         }
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
-        // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
-        //        taking into account kvcache dimension.
-        fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+        // TODO: Verification of removing of that line:
+        //fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                  ? 3u
