@@ -59,7 +59,9 @@ void CompareBuffers(const memory::ptr& output, const memory::ptr& expectedOutput
     case data_types::f32:
         helpers::CompareTypedBuffers<float>(output, expectedOutput, stream);
         break;
-
+    case data_types::i64:
+        helpers::CompareTypedBuffers<int64_t>(output, expectedOutput, stream);
+        break;
     default:
         GTEST_FAIL() << "Unsupported data type: " << type;
         break;
@@ -110,15 +112,26 @@ public:
         SparseFillEmptyRowsInferenceParams ret;
         const auto indicesRows = testParam.indicesData.size() / 2;
 
+        ret.indices = helpers::AllocateTensor<int64_t>(
+            {static_cast<ov::Dimension::value_type>(indicesRows), 2},
+            helpers::ConverFloatVector<int64_t>(testParam.indicesData));
         ret.values = helpers::AllocateTensor<T>(
             ov::PartialShape({static_cast<ov::Dimension::value_type>(testParam.valuesData.size())}),
             helpers::ConverFloatVector<T>(testParam.valuesData));
         ret.denseShape = helpers::AllocateTensor<int64_t>(
             {2}, helpers::ConverFloatVector<int64_t>(testParam.denseShapeData));
-        ret.indices = helpers::AllocateTensor<int64_t>(
-            {static_cast<ov::Dimension::value_type>(indicesRows), 2},
-            helpers::ConverFloatVector<int64_t>(testParam.indicesData));
         ret.defaultValue = helpers::AllocateTensor<T>({}, {42.0f});
+
+        // Match output types as well
+        ret.expectedIndicesOutput = helpers::AllocateTensor<int64_t>(
+            {static_cast<ov::Dimension::value_type>(testParam.expectedIndicesOutput.size() / 2), 2},
+            helpers::ConverFloatVector<int64_t>(testParam.expectedIndicesOutput));
+        ret.expectedValuesOutput = helpers::AllocateTensor<T>(
+            ov::PartialShape({static_cast<ov::Dimension::value_type>(testParam.expectedValuesOutput.size())}),
+            helpers::ConverFloatVector<T>(testParam.expectedValuesOutput));
+        ret.expectedEmptyRowIndicatorOutput = helpers::AllocateTensor<int64_t>(
+            ov::PartialShape({static_cast<ov::Dimension::value_type>(testParam.expectedEmptyRowIndicatorOutput.size())}),
+            helpers::ConverFloatVector<int64_t>(testParam.expectedEmptyRowIndicatorOutput));
 
         return ret;
     }
@@ -127,9 +140,9 @@ public:
         auto stream = get_test_stream_ptr(get_test_default_config(engine_));
 
         topology topology;
+        topology.add(input_layout("indices", params.indices->get_layout()));
         topology.add(input_layout("values", params.values->get_layout()));
         topology.add(input_layout("denseShape", params.denseShape->get_layout()));
-        topology.add(input_layout("indices", params.indices->get_layout()));
         topology.add(input_layout("default_value", params.defaultValue->get_layout()));
         std::vector<input_info> inputs = {
             input_info("values"),
@@ -141,9 +154,9 @@ public:
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
 
+        network->set_input_data("indices", params.indices);
         network->set_input_data("values", params.values);
         network->set_input_data("denseShape", params.denseShape);
-        network->set_input_data("indices", params.indices);
         network->set_input_data("default_value", params.defaultValue);
         auto outputs = network->execute();
         auto output = outputs.at("sparse_fill_empty_rows").get_memory();

@@ -31,7 +31,6 @@ ParamsKey SparseFillEmptyRowsKernelRef::GetSupportedKey() const {
 }
 
 namespace {
-
 SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_rows_params& params) {
     SparseFillEmptyRowsKernelRef::DispatchData dispatchData;
     //dispatchData.gws[0] = params.outputs[0].LogicalSize();
@@ -43,7 +42,6 @@ SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_ro
 
     return dispatchData;
 }
-
 } // anonymous namespace
 
 KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) const {
@@ -61,7 +59,13 @@ KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) c
         params.engineInfo,
         kernelName,
         jit,
-        entry_point);
+        entry_point,
+        EXE_MODE_DEFAULT,  // exeMode
+        false,             // weights
+        false,             // bias
+        4,                 // number_of_inputs
+        0,                 // number_of_inputs_for_fused_prims
+        3);                // number_of_outputs
     return {kernel_data};
 }
 
@@ -76,6 +80,9 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
 
     const sparse_fill_empty_rows_params &params = static_cast<const sparse_fill_empty_rows_params&>(p);
     if (params.inputs.size() != 4)
+        return false;
+
+    if (params.outputs.size() != 3)
         return false;
 
     return true;
