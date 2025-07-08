@@ -17,6 +17,8 @@
 #include <unordered_map>
 #include <utility>
 
+#include "dnnl_extension_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/kernels/x64/jit_matmul_small.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -26,25 +28,26 @@ using namespace dnnl::impl;
 
 namespace ov::intel_cpu {
 
-MatMulSmallExecutor::MatMulSmallExecutor(MatMulSmallAttrs attrs) : matmulAttrs(std::move(attrs)) {
+MatMulSmallExecutor::MatMulSmallExecutor(MatMulSmallAttrs attrs) : m_matmul_attrs(std::move(attrs)) {
     auto jcp = jit_matmul_small_config_params();
-    jcp.M = matmulAttrs.M;
-    jcp.N = matmulAttrs.N;
-    jcp.K = matmulAttrs.K;
+    jcp.M = m_matmul_attrs.M;
+    jcp.N = m_matmul_attrs.N;
+    jcp.K = m_matmul_attrs.K;
     if (mayiuse(cpu::x64::avx512_core)) {
-        matmul_kernel =
-            std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::avx512_core>>(jcp, *matmulAttrs.attr.get());
+        m_matmul_kernel =
+            std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::avx512_core>>(jcp, *m_matmul_attrs.attr.get());
     } else if (mayiuse(cpu::x64::avx2)) {
-        matmul_kernel = std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::avx2>>(jcp, *matmulAttrs.attr.get());
+        m_matmul_kernel =
+            std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::avx2>>(jcp, *m_matmul_attrs.attr.get());
     } else if (mayiuse(cpu::x64::sse41)) {
-        matmul_kernel =
-            std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::sse41>>(jcp, *matmulAttrs.attr.get());
+        m_matmul_kernel =
+            std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::sse41>>(jcp, *m_matmul_attrs.attr.get());
     } else {
         OPENVINO_THROW("Can't create jit jit_uni_matmul_small_kernel_f32 kernel");
     }
 
-    if (matmul_kernel) {
-        matmul_kernel->create_ker();
+    if (m_matmul_kernel) {
+        m_matmul_kernel->create_ker();
     }
 }
 
@@ -54,7 +57,7 @@ void MatMulSmallExecutor::exec(const std::unordered_map<int, dnnl::memory>& prim
     const auto& in2 = primArgs.at(DNNL_ARG_WEIGHTS_0);
     const auto& out = primArgs.at(DNNL_ARG_DST);
     // prepare_binary_args
-    if (!(*matmulAttrs.attr.get()).post_ops_.entry_.empty()) {
+    if (!(*m_matmul_attrs.attr.get()).post_ops_.entry_.empty()) {
         prepare_binary_args(primArgs);
     }
     const auto& src_shape = in1.get_desc().get_dims();
@@ -84,7 +87,7 @@ void MatMulSmallExecutor::exec(const std::unordered_map<int, dnnl::memory>& prim
         args.oc_off = start % static_cast<size_t>(OC);
         args.oc = OC;
         args.post_op_data = reinterpret_cast<void*>(m_post_ops_args.data());
-        (*matmul_kernel)(&args);
+        (*m_matmul_kernel)(&args);
     });
 }
 
@@ -93,7 +96,7 @@ void MatMulSmallExecutor::exec(const std::unordered_map<int, dnnl::memory>& prim
 void MatMulSmallExecutor::prepare_binary_args(const std::unordered_map<int, dnnl::memory>& primArgs) {
     std::unordered_map<int, dnnl::memory> c_args = primArgs;
     m_post_ops_args.clear();
-    const auto& attr = *matmulAttrs.attr.get();
+    const auto& attr = *m_matmul_attrs.attr.get();
     const auto& post_ops = attr.post_ops_;
     m_post_ops_args.reserve(post_ops.entry_.size());
     unsigned idx = 0;
@@ -104,6 +107,12 @@ void MatMulSmallExecutor::prepare_binary_args(const std::unordered_map<int, dnnl
         }
         ++idx;
     }
+}
+
+DnnlMemoryDescPtr MatMulSmallExecutor::getScratchPadDesc() const {
+    dnnl::memory::dims dims;
+    dnnl::memory::desc zero_md{dims, dnnl::memory::data_type::u8, dnnl::memory::format_tag::undef};
+    return DnnlExtensionUtils::makeDescriptor(zero_md);
 }
 
 }  // namespace ov::intel_cpu

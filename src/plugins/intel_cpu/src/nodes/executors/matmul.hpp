@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/dnnl_executor.h"
 
 namespace ov::intel_cpu {
@@ -14,6 +15,7 @@ namespace ov::intel_cpu {
 class IMatmulExecutor {
 public:
     virtual void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) = 0;
+    [[nodiscard]] virtual DnnlMemoryDescPtr getScratchPadDesc() const = 0;
     virtual ~IMatmulExecutor() = default;
 };
 
@@ -23,8 +25,8 @@ public:
     void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) override {
         m_executor.exec(primArgs, strm);
     }
-    const DnnlExecutorLegacy& get_dnnl_executor() {
-        return m_executor;
+    DnnlMemoryDescPtr getScratchPadDesc() const override {
+        return m_executor.getScratchPadDesc();
     }
 
 private:

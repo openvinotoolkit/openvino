@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl.hpp>
+
 #include "nodes/executors/matmul.hpp"
 #include "nodes/kernels/x64/jit_matmul_small.hpp"
 
@@ -20,13 +22,14 @@ class MatMulSmallExecutor : public IMatmulExecutor {
 public:
     MatMulSmallExecutor(MatMulSmallAttrs attrs);
     void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) override;
+    [[nodiscard]] DnnlMemoryDescPtr getScratchPadDesc() const override;
 
 private:
     // set post_ops_args based on primArgs and post_ops
     void prepare_binary_args(const std::unordered_map<int, dnnl::memory>& primArgs);
 
-    MatMulSmallAttrs matmulAttrs;
-    std::shared_ptr<jit_uni_matmul_small_kernel> matmul_kernel;
+    MatMulSmallAttrs m_matmul_attrs;
+    std::shared_ptr<jit_uni_matmul_small_kernel> m_matmul_kernel;
     std::vector<const void*> m_post_ops_args;
 };
 

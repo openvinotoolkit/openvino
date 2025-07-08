@@ -32,7 +32,6 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "node.h"
-#include "nodes/common/dnnl_executor.h"
 #include "nodes/executors/matmul.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
@@ -668,7 +667,7 @@ void MatMul::prepareParams() {
 
     auto builder = [&engine](const MatMulKey& key) -> executorPtr {
 #ifdef OPENVINO_ARCH_X86_64
-        auto can_optimize = [&key]() -> bool {
+        const bool can_optimize = [&key]() -> bool {
             const auto& prec_in0 = key.inp0->getDataType();
             const auto& prec_in1 = key.inp1->getDataType();
             const auto& prec_out = key.out->getDataType();
@@ -697,8 +696,8 @@ void MatMul::prepareParams() {
             }
             return (shape_src[src_rank - 1] <= 2) && (shape_src[src_rank - 2] <= 2) && (shape_wei[wei_rank - 1] <= 2) &&
                    (shape_wei[wei_rank - 2] <= 2);
-        };
-        if (can_optimize()) {
+        }();
+        if (can_optimize) {
             MatMulSmallAttrs matmul_attr;
             const auto& shape_in0 = key.inp0->getShape().getStaticDims();
             const auto& shape_in1 = key.inp1->getShape().getStaticDims();
@@ -709,7 +708,6 @@ void MatMul::prepareParams() {
             return std::make_shared<MatMulSmallExecutor>(matmul_attr);
         }
 #endif
-
         dnnl::matmul::primitive_desc prim_desc;
 
         if (key.bias) {
@@ -749,6 +747,9 @@ void MatMul::prepareParams() {
         OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
+    auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+
+    primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->getPrimitive();
     primArgs[DNNL_ARG_SRC_0] = src0MemPtr->getPrimitive();
     primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST] = dstMemPtr->getPrimitive();
@@ -757,16 +758,6 @@ void MatMul::prepareParams() {
     }
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
-
-    const auto& dnnl_mm_executor = dynamic_cast<DnnlMatmulExecutor*>(execPtr.get());
-    if (dnnl_mm_executor) {
-        auto schratchpadMem = getScratchPadMem(dnnl_mm_executor->get_dnnl_executor().getScratchPadDesc());
-        primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->getPrimitive();
-#ifdef CPU_DEBUG_CAPS
-        const auto* pd = dnnl_mm_executor->get_dnnl_executor().getPrimitiveDesc();
-        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-#endif
-    }
 }
 
 void MatMul::execute(const dnnl::stream& strm) {
