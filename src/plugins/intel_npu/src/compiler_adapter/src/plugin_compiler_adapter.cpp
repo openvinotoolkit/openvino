@@ -25,9 +25,9 @@ namespace {
 std::shared_ptr<void> loadLibrary(const std::string& libpath) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     return ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
-#else
+#    else
     return ov::util::load_shared_object(libpath.c_str());
-#endif
+#    endif
 }
 
 std::shared_ptr<intel_npu::ICompiler> getCompiler(std::shared_ptr<void> so) {
