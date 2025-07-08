@@ -31,7 +31,7 @@ static std::shared_ptr<ov::Node> create_bias_op(const std::shared_ptr<ov::Node>&
                                                 size_t num_out_channels,
                                                 const std::vector<float>& biases_weights) {
     std::shared_ptr<ov::op::v0::Constant> biases_weights_node;
-    const size_t rank = in->get_output_partial_shape(0).rank().get_length();
+    const auto rank = in->get_output_partial_shape(0).size();
     ov::Shape bias_shape(rank, 1);
     bias_shape[channel_id] = num_out_channels;
     if (!biases_weights.empty()) {
@@ -86,8 +86,7 @@ std::shared_ptr<ov::Node> make_convolution(const ov::Output<Node>& in,
     auto filter_weights_shape = get_filter_weights_shape(in.get_partial_shape(), filter_size, num_out_channels);
 
     static const auto defaultWeightsData = ov::test::utils::InputGenerateData{1, 9};
-    auto tensor =
-        create_and_fill_tensor(type, filter_weights_shape, input_data.has_value() ? *input_data : defaultWeightsData);
+    auto tensor = create_and_fill_tensor(type, filter_weights_shape, input_data.value_or(defaultWeightsData));
     auto filter_weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
 
     return make_convolution(in,

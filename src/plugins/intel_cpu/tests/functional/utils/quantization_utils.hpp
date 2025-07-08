@@ -4,19 +4,26 @@
 
 #pragma once
 
+#include <ostream>
 #include <unordered_map>
-#include "openvino/op/util/attr_types.hpp"
 
 namespace CPUTestUtils {
 
 struct QuantizationData {
+    QuantizationData(float il, float ih, float ol, float oh, int levels)
+        : il(il),
+          ih(ih),
+          ol(ol),
+          oh(oh),
+          levels(levels) {}
+
+    QuantizationData(float il, float ih, int levels) : il(il), ih(ih), ol(il), oh(ih), levels(levels) {}
+
     float il;
     float ih;
     float ol;
     float oh;
-    int levels = -1;  // -1 means that levels are not defined
-    bool isPerChannel = false;
-    ov::op::AutoBroadcastSpec auto_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY);
+    int levels;
 };
 
 struct QuantizationInfo {
@@ -29,8 +36,7 @@ struct QuantizationInfo {
 };
 
 inline std::ostream& operator<<(std::ostream& os, const QuantizationData& qdata) {
-    os << qdata.il << "_" << qdata.ih << "_" << qdata.ol << "_" << qdata.oh << "_levels=" << qdata.levels
-       << "_perChannel=" << std::boolalpha << qdata.isPerChannel;
+    os << qdata.il << "_" << qdata.ih << "_" << qdata.ol << "_" << qdata.oh << "_levels=" << qdata.levels;
     return os;
 }
 
