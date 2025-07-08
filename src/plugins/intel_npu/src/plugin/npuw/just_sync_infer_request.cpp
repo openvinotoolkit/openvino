@@ -353,7 +353,8 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     }
 }
 
-void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
+                                            const ov::SoPtr<ov::ITensor>& tensor) {
     // Check that it's I/O
     NPUW_ASSERT(m_port_to_tensor.at(port).persistent);
 
