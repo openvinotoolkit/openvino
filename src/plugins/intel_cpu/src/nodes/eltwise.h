@@ -60,13 +60,13 @@ public:
     ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const {
-        return m_attrs.alpha;
+        return m_attrs.data.alpha;
     }
     float getBeta() const {
-        return m_attrs.beta;
+        return m_attrs.data.beta;
     }
     float getGamma() const {
-        return m_attrs.gamma;
+        return m_attrs.data.gamma;
     }
     const std::vector<float>& getScales() const {
         return m_attrs.scales;
@@ -76,7 +76,7 @@ public:
     }
 
     dnnl::algorithm getOneDnnAlgorithm() const {
-        return m_attrs.onednnAlgorithm;
+        return m_attrs.data.onednnAlgorithm;
     }
 
     bool isWithBroadcast();

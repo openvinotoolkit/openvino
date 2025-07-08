@@ -9,11 +9,12 @@
 #include <functional>
 #include <vector>
 
-#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "csinn/csi_nn.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/eltwise_config.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "shl_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -36,8 +37,8 @@ static bool isEltwiseAlgorithmSupported(Algorithm algorithm) {
 
 bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
     const auto& eltwiseAttrs = config.attrs;
-    if (!isEltwiseAlgorithmSupported(eltwiseAttrs.algorithm)) {
-        DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
+    if (!isEltwiseAlgorithmSupported(eltwiseAttrs.data.algo)) {
+        DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.data.algo), " is not supported");
         return false;
     }
 
@@ -85,7 +86,7 @@ bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
 
     for (const auto& srcDesc : srcDescs) {
         csinn_layout_enum supportedLayout = getShlDataLayoutByMemoryDesc(srcDesc);
-        switch (eltwiseAttrs.algorithm) {
+        switch (eltwiseAttrs.data.algo) {
         case Algorithm::EltwisePrelu:
             // SHL PRelu op only supports these two kinds of layout
             if (!(supportedLayout == csinn_layout_enum::CSINN_LAYOUT_NC1HWC0 ||
@@ -113,14 +114,13 @@ bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
 }
 
 ShlEltwiseExecutor::ShlEltwiseExecutor(const EltwiseAttrs& attrs,
-                                       const MemoryArgs& memory,
-                                       const ExecutorContext::CPtr& context)
+                                       [[maybe_unused]] const MemoryArgs& memory,
+                                       [[maybe_unused]] const ExecutorContext::CPtr& context)
     : shlEltwiseAttrs(attrs) {}
 
-bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs,
-                              const std::vector<MemoryDescPtr>& dstDescs) {
+bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const std::vector<MemoryDescPtr>& dstDescs) {
     const auto& postOps = shlEltwiseAttrs.postOps;
-    
+
     if (!postOps.empty()) {
         return false;
     }
@@ -143,7 +143,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs,
 
     std::function<int()> initFunc = nullptr;
     enum csinn_api_enum shl_api = CSINN_RVV;
-    switch (shlEltwiseAttrs.algorithm) {
+    switch (shlEltwiseAttrs.data.algo) {
     case Algorithm::EltwiseAdd:
         params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
         initFunc = [&]() {
@@ -246,7 +246,10 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs,
         };
         break;
     case Algorithm::EltwiseClamp:
-        params = ov::intel_cpu::make_unique<ShlClipParams>(sess, shl_api, shlEltwiseAttrs.alpha, shlEltwiseAttrs.beta);
+        params = ov::intel_cpu::make_unique<ShlClipParams>(sess,
+                                                           shl_api,
+                                                           shlEltwiseAttrs.data.alpha,
+                                                           shlEltwiseAttrs.data.beta);
         initFunc = [&]() {
             return csinn_clip_init(srcTensors[0].get(),
                                    dstTensors[0].get(),
@@ -257,7 +260,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs,
         };
         break;
     case Algorithm::EltwiseRelu:
-        if (shlEltwiseAttrs.alpha == 0) {
+        if (shlEltwiseAttrs.data.alpha == 0) {
             params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api);
             initFunc = [&]() {
                 return csinn_relu_init(srcTensors[0].get(),
@@ -270,7 +273,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs,
                                   static_cast<csinn_relu_params*>(params->get()));
             };
         } else {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, shlEltwiseAttrs.alpha);
+            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, shlEltwiseAttrs.data.alpha);
             initFunc = [&]() {
                 return csinn_leaky_relu_init(srcTensors[0].get(),
                                              dstTensors[0].get(),
@@ -300,7 +303,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs,
         break;
     default:
         OPENVINO_THROW("Unsupported operation type for SHL Eltwise executor: ",
-                       static_cast<int>(shlEltwiseAttrs.algorithm));
+                       static_cast<int>(shlEltwiseAttrs.data.algo));
     }
 
     return initFunc != nullptr && initFunc() == CSINN_TRUE;

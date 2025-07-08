@@ -45,13 +45,7 @@ inline std::ostream& operator<<(std::ostream& os, const EltwiseData& eltwiseData
 }
 
 struct EltwiseAttrs {
-    // @todo use EltwiseData instead
-    Algorithm algorithm = Algorithm::Default;
-    dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
-
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    EltwiseData data;
 
     std::vector<ptrdiff_t> start_offset_in;
     ptrdiff_t start_offset_out = 0;
@@ -62,7 +56,7 @@ struct EltwiseAttrs {
     std::vector<float> shifts;
 
     // For fused operations
-    std::vector<EltwiseData> eltwiseData;
+    std::vector<EltwiseData> fusedEltwiseData;
     std::vector<Type> opsList;
 
     bool specialConvolutionAddFusing = false;
