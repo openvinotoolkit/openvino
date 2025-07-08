@@ -1,26 +1,3 @@
-<?xml version="1.0"?>
-<net name="Model0" version="11">
-	<layers>
-		<layer id="0" name="Constant_1" type="Const" version="opset1">
-			<data element_type="string" shape="2, 3" offset="0" size="60" />
-			<output>
-				<port id="0" precision="STRING">
-					<dim>2</dim>
-					<dim>3</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="Result_2" type="Result" version="opset1">
-			<input>
-				<port id="0" precision="STRING">
-					<dim>2</dim>
-					<dim>3</dim>
-				</port>
-			</input>
-		</layer>
-	</layers>
-	<edges>
-		<edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
-	</edges>
-	<rt_info />
-</net>
+version https://git-lfs.github.com/spec/v1
+oid sha256:58c47fa44af062911aa1a63e7c48ca8ff838af73bd8f0429cbd1c1094bb53248
+size 643

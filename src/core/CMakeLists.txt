@@ -150,4 +150,4 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL}
         FILES_MATCHING
             PATTERN "*.hpp"
-            PATTERN "*.h")
+            PATTERN "*.h")  

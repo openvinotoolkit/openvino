@@ -1,22 +1,3 @@
-<attributes>
-    <processes>
-        <value>1</value>
-        <value>2</value>
-        <value>8</value>
-    </processes>
-    <threads>
-        <value>1</value>
-        <value>2</value>
-    </threads>
-    <iterations>
-        <value>1000</value>
-    </iterations>
-    <devices>
-        <value>CPU</value>
-        <value>GPU</value>
-    </devices>
-    <models>
-        <model name="alexnet" precision="FP32" source="omz" />
-        <model name="mobilenet-ssd" precision="FP32" source="omz" />
-    </models>
-</attributes>
+version https://git-lfs.github.com/spec/v1
+oid sha256:037afe26ccce0f2d5d5bc22c33ef1697016a75e461d695e22e12620fb5ee8a72
+size 541

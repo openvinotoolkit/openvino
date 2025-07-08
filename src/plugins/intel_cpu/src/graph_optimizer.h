@@ -14,7 +14,7 @@ class GraphOptimizer {
 public:
     GraphOptimizer();
 
-    static void ApplyCommonGraphOptimizations(Graph& graph);
+    static void ApplyCommonGraphOptimizations(Graph& graph, bool disableFusion);
     static void ApplyImplSpecificGraphOptimizations(Graph& graph);
     static void ShareReorders(Graph& graph);
 
