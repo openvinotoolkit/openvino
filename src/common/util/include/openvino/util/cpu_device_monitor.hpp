@@ -15,7 +15,6 @@ class CPUDeviceMonitor : public IDeviceMonitor {
     // The user only needs to call the get_utilization() method to get the performance data.
 public:
     CPUDeviceMonitor();
-    virtual ~CPUDeviceMonitor() = default;
     std::map<std::string, float> get_utilization() override;
 
 private:

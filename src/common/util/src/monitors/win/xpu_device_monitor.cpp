@@ -17,6 +17,7 @@
 #include <windows.h>
 
 #include <chrono>
+#include <filesystem>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -48,31 +49,36 @@ public:
         for (std::size_t i = 0; i < device_luid_low.length(); i += 2) {
             luid_win.insert(0, device_luid_low.substr(i, 2));
         }
-        std::transform(luid_win.begin(), luid_win.end(), luid_win.begin(), ::toupper);
-        std::string full_3d_counter_path =
-            std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_3D)\\Utilization Percentage");
-        std::string full_compute_counter_path =
-            std::string("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_compute)\\Utilization Percentage");
-        std::wstring full_3d_counter_path_w = ov::util::string_to_wstring(full_3d_counter_path);
-        std::wstring full_compute_counter_path_w = ov::util::string_to_wstring(full_compute_counter_path);
+        std::transform(luid_win.begin(), luid_win.end(), luid_win.begin(), [](unsigned char c) {
+            return std::toupper(c);
+        });
+        std::filesystem::path full_3d_counter_path =
+            std::filesystem::path("\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_3D)\\Utilization Percentage");
+        std::filesystem::path full_compute_counter_path = std::filesystem::path(
+            "\\GPU Engine(*_luid_*" + luid_win + "_phys*engtype_compute)\\Utilization Percentage");
         m_core_time_counters[m_luid][RENDER_ENGINE_COUNTER_INDEX] =
-            add_counter(expand_wild_card_path(full_3d_counter_path_w.c_str()));
+            add_counter(expand_wild_card_path(full_3d_counter_path));
         m_core_time_counters[m_luid][COMPUTE_ENGINE_COUNTER_INDEX] =
-            add_counter(expand_wild_card_path(full_compute_counter_path_w.c_str()));
+            add_counter(expand_wild_card_path(full_compute_counter_path));
         m_query.pdh_collect_query_data();
     }
 
-    std::vector<std::wstring> expand_wild_card_path(LPCWSTR wild_card_path) {
+    std::vector<std::filesystem::path> expand_wild_card_path(const std::filesystem::path& wild_card_path) {
         DWORD path_list_length = 0;
         DWORD path_list_length_buf_len;
-        std::vector<std::wstring> path_list;
-        auto ret = m_query.pdh_expand_wild_card_pathW(NULL, wild_card_path, NULL, &path_list_length, 0);
+        std::vector<std::filesystem::path> path_list;
+        auto ret =
+            m_query.pdh_expand_wild_card_pathW(std::filesystem::path{}, wild_card_path, NULL, &path_list_length, 0);
         if (!ret) {
             return path_list;
         }
         path_list_length_buf_len = path_list_length + 100;
         PZZWSTR expanded_path_list = (PZZWSTR)malloc(path_list_length_buf_len * sizeof(WCHAR));
-        ret = m_query.pdh_expand_wild_card_pathW(NULL, wild_card_path, expanded_path_list, &path_list_length, 0);
+        ret = m_query.pdh_expand_wild_card_pathW(std::filesystem::path{},
+                                                 wild_card_path,
+                                                 expanded_path_list,
+                                                 &path_list_length,
+                                                 0);
         if (!ret) {
             free(expanded_path_list);
             return path_list;
@@ -90,11 +96,11 @@ public:
         return path_list;
     }
 
-    std::vector<PDH_HCOUNTER> add_counter(std::vector<std::wstring> path_list) {
+    std::vector<PDH_HCOUNTER> add_counter(const std::vector<std::filesystem::path>& path_list) {
         std::vector<PDH_HCOUNTER> counter_list;
-        for (std::wstring path : path_list) {
+        for (const auto& path : path_list) {
             PDH_HCOUNTER counter;
-            auto ret = m_query.pdh_add_counterW(path.c_str(), NULL, &counter);
+            auto ret = m_query.pdh_add_counterW(path, NULL, &counter);
             if (!ret) {
                 return counter_list;
             }
@@ -147,16 +153,13 @@ private:
     std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> m_core_time_counters;
     std::chrono::time_point<std::chrono::system_clock> m_last_time_stamp = std::chrono::system_clock::now();
     std::string m_luid;
-    int m_monitor_duration = 500;
+    const int m_monitor_duration = 500;
 };
 
-XPUDeviceMonitor::XPUDeviceMonitor(const std::string& device_luid)
-    : IDeviceMonitor("XPU"),
-      m_device_luid(device_luid) {}
+XPUDeviceMonitor::XPUDeviceMonitor(const std::string& device_luid) : IDeviceMonitor("XPU"), m_device_luid(device_luid) {
+    m_perf_impl = std::make_shared<PerformanceImpl>(m_device_luid);
+}
 std::map<std::string, float> XPUDeviceMonitor::get_utilization() {
-    if (!m_perf_impl) {
-        m_perf_impl = std::make_shared<PerformanceImpl>(m_device_luid);
-    }
     return m_perf_impl->get_utilization();
 }
 }  // namespace util

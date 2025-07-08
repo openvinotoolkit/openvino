@@ -7,15 +7,19 @@
 #define NOMINMAX
 #include <pdh.h>
 #include <PdhMsg.h>
+
+#include <filesystem>
 class QueryWrapper {
 public:
     QueryWrapper();
     ~QueryWrapper();
     QueryWrapper(const QueryWrapper&) = delete;
     QueryWrapper& operator=(const QueryWrapper&) = delete;
-    bool pdh_add_counterW(LPCWSTR sz_full_counter_path, DWORD_PTR dw_user_data, PDH_HCOUNTER* ph_counter);
-    bool pdh_expand_wild_card_pathW(LPCWSTR sz_data_source,
-                                    LPCWSTR sz_wild_card_path,
+    bool pdh_add_counterW(const std::filesystem::path& sz_full_counter_path,
+                          DWORD_PTR dw_user_data,
+                          PDH_HCOUNTER* ph_counter);
+    bool pdh_expand_wild_card_pathW(const std::filesystem::path& sz_data_source,
+                                    const std::filesystem::path& sz_wild_card_path,
                                     PZZWSTR msz_expanded_path_list,
                                     LPDWORD pcch_path_list_length,
                                     DWORD dw_flags);

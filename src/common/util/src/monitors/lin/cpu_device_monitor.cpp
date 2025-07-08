@@ -17,10 +17,10 @@ public:
     }
 };
 
-CPUDeviceMonitor::CPUDeviceMonitor() : IDeviceMonitor("CPU") {}
+CPUDeviceMonitor::CPUDeviceMonitor() : IDeviceMonitor("CPU") {
+    m_perf_impl = std::make_shared<PerformanceImpl>();
+}
 std::map<std::string, float> CPUDeviceMonitor::get_utilization() {
-    if (!m_perf_impl)
-        m_perf_impl = std::make_shared<PerformanceImpl>();
     return m_perf_impl->get_utilization();
 }
 }  // namespace util

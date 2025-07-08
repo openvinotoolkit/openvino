@@ -643,16 +643,15 @@ std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceIn
         return default_valid_devices.empty() ? (valid_filtered_devices.empty() ? valid_devices : valid_filtered_devices)
                                              : default_valid_devices;
     }
-    // sort validDevices
-    valid_devices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
+    auto compare_by_priority = [](const DeviceInformation& a, const DeviceInformation& b) {
         return a.device_priority < b.device_priority;
-    });
+    };
+    // sort validDevices
+    valid_devices.sort(compare_by_priority);
     if (valid_filtered_devices.empty())
         return valid_devices;
 
-    valid_filtered_devices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
-        return a.device_priority < b.device_priority;
-    });
+    valid_filtered_devices.sort(compare_by_priority);
     return valid_filtered_devices;
 }
 

@@ -13,14 +13,12 @@ if (WIN32)
     # Remove linux specific files
     file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/*.hpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/lin/*.cpp)
     list(REMOVE_ITEM LIBRARY_SRC ${LIN_FILES})
 else()
     # Remove windows specific files
     file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp
-                                ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.hpp
                                 ${CMAKE_CURRENT_SOURCE_DIR}/src/monitors/win/*.cpp)
     list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
 endif()

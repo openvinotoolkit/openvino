@@ -32,14 +32,19 @@ QueryWrapper::~QueryWrapper() {
     }
 }
 
-bool QueryWrapper::pdh_add_counterW(LPCWSTR sz_full_counter_path, DWORD_PTR dw_user_data, PDH_HCOUNTER* ph_counter) {
+bool QueryWrapper::pdh_add_counterW(const std::filesystem::path& sz_full_counter_path,
+                                    DWORD_PTR dw_user_data,
+                                    PDH_HCOUNTER* ph_counter) {
     if (!h_pdh) {
         return false;
     }
     using pdh_add_counter_w_fn = PDH_STATUS (*)(PDH_HQUERY, LPCWSTR, DWORD_PTR, PDH_HCOUNTER*);
     auto p_pdh_add_counter_w = reinterpret_cast<pdh_add_counter_w_fn>(GetProcAddress(h_pdh, "PdhAddCounterW"));
     if (p_pdh_add_counter_w) {
-        auto status = p_pdh_add_counter_w(query, sz_full_counter_path, dw_user_data, ph_counter);
+        auto status = p_pdh_add_counter_w(query,
+                                          sz_full_counter_path.empty() ? NULL : sz_full_counter_path.wstring().c_str(),
+                                          dw_user_data,
+                                          ph_counter);
         if (status != ERROR_SUCCESS)
             throw std::runtime_error("pPdhAddCounterW() failed. Error status: " + std::to_string(status));
         return true;
@@ -47,8 +52,8 @@ bool QueryWrapper::pdh_add_counterW(LPCWSTR sz_full_counter_path, DWORD_PTR dw_u
     return false;
 }
 
-bool QueryWrapper::pdh_expand_wild_card_pathW(LPCWSTR sz_data_source,
-                                              LPCWSTR sz_wild_card_path,
+bool QueryWrapper::pdh_expand_wild_card_pathW(const std::filesystem::path& sz_data_source,
+                                              const std::filesystem::path& sz_wild_card_path,
                                               PZZWSTR msz_expanded_path_list,
                                               LPDWORD pcch_path_list_length,
                                               DWORD dw_flags) {
@@ -59,11 +64,12 @@ bool QueryWrapper::pdh_expand_wild_card_pathW(LPCWSTR sz_data_source,
     auto p_pdh_expand_wild_card_pathw =
         reinterpret_cast<pdh_expand_wild_card_path_w_fn>(GetProcAddress(h_pdh, "PdhExpandWildCardPathW"));
     if (p_pdh_expand_wild_card_pathw) {
-        auto status = p_pdh_expand_wild_card_pathw(sz_data_source,
-                                                   sz_wild_card_path,
-                                                   msz_expanded_path_list,
-                                                   pcch_path_list_length,
-                                                   dw_flags);
+        auto status =
+            p_pdh_expand_wild_card_pathw(sz_data_source.empty() ? NULL : sz_data_source.wstring().c_str(),
+                                         sz_wild_card_path.empty() ? NULL : sz_wild_card_path.wstring().c_str(),
+                                         msz_expanded_path_list,
+                                         pcch_path_list_length,
+                                         dw_flags);
         if (status != ERROR_SUCCESS && status != PDH_MORE_DATA)
             throw std::runtime_error("PPdhExpandWildCardPathW() failed. Error status: " + std::to_string(status));
         return true;

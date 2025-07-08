@@ -17,7 +17,6 @@ class XPUDeviceMonitor : public IDeviceMonitor {
     // The user only needs to call the get_utilization() method to get the performance data.
 public:
     XPUDeviceMonitor(const std::string& device_luid);
-    virtual ~XPUDeviceMonitor() = default;
     std::map<std::string, float> get_utilization() override;
 
 private:
