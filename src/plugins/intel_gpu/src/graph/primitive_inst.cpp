@@ -981,9 +981,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                 GPU_DEBUG_TRACE_DETAIL << i << ". " << _impl_params->output_layouts[i].to_string() << std::endl;
                 set_flag(ExecutionFlags::SHAPE_CHANGED);
             } else {
-                bool from_memory_pool = (_outputs[i] && _outputs[i]->from_memory_pool);
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
-                _outputs[i]->from_memory_pool = from_memory_pool;
             }
             // TODO: check need_reset_output_memory per output
             if (need_reset_output_memory() && !can_be_optimized()) {
