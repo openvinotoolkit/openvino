@@ -407,6 +407,7 @@ protected:
                 case onednn_post_op_type::binary_mul:
                 case onednn_post_op_type::binary_max:
                 case onednn_post_op_type::binary_min:
+                case onednn_post_op_type::binary_div:
                 {
                     auto binary_op_mem = instance.fused_memory(memory_offset);
                     dnnl::algorithm alg;
