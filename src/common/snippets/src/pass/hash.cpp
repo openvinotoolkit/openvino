@@ -273,18 +273,19 @@ public:
     }
 };
 
-std::unordered_map<ov::Node*, int> create_layer_ids(const ov::Model& model) {
+std::unordered_map<ov::Node*, int> create_layer_ids(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
     std::unordered_map<ov::Node*, int> layer_ids;
     int id = 0;
-    for (const auto& node : model.get_ordered_ops()) {
+    for (const auto& node : ordered_ops) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
 }
 
-std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids, const ov::Model& model) {
+std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& layer_ids,
+                                      const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
     std::vector<Edge> edges;
-    for (const auto& node : model.get_ordered_ops()) {
+    for (const auto& node : ordered_ops) {
         if (ov::op::util::is_parameter(node)) {
             continue;
         }
@@ -333,12 +334,11 @@ void hash_rt_info(uint64_t& hash, const ov::Any& data) {
 void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
     hash = hash_combine(hash, AttrType::layers);
 
-    const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(model);
+    auto ordered_ops = model.get_ordered_ops();
+    const std::unordered_map<ov::Node*, int> layer_ids = create_layer_ids(ordered_ops);
     std::unordered_set<std::string> unique_names;
 
-    auto sorted_ops = model.get_ordered_ops();
-
-    for (const auto& n : sorted_ops) {
+    for (const auto& n : ordered_ops) {
         ov::Node* node = n.get();
         const std::string& node_type_name{node->get_type_name()};
 
@@ -406,7 +406,7 @@ void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
         rt_info::NodeAuxRTInfoHasher{hash}.serialize(node->get_rt_info());
     }
     // <edges>
-    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, model);
+    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, ordered_ops);
     hash = hash_combine(hash, AttrType::edges);
     for (const auto& e : edge_mapping) {
         hash = hash_combine(hash, AttrType::edge);
