@@ -1108,6 +1108,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
             case onednn_post_op_type::binary_mul:
             case onednn_post_op_type::binary_max:
             case onednn_post_op_type::binary_min:
+            case onednn_post_op_type::binary_div:
             {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
