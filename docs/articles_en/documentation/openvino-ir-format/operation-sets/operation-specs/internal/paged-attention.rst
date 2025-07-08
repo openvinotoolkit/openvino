@@ -1,4 +1,3 @@
-
 .. {#openvino_docs_ops_internal_PagedAttention}
 
 PagedAttention
@@ -44,14 +43,14 @@ At the core, attention is computed as:
 
 .. code-block:: python
 
-    def insert_into_cache(key_cache, value_cache, key, value, block_indices, block_starts, block_size):
+    def insert_into_cache(key_cache, value_cache, key, value, block_indices, subsequence_begins, block_size):
         """
         Insert new key/value tensors into cache blocks.
         Assumes all block_indices have already been allocated and are valid.
         """
         token_idx = 0
-        for seq_id, block_begin in enumerate(block_starts[:-1]):
-            seq_token_count = block_starts[seq_id + 1] - block_begin
+        for seq_id, block_begin in enumerate(subsequence_begins[:-1]):
+            seq_token_count = subsequence_begins[seq_id + 1] - block_begin
             # Blocks assigned to this sequence
             assigned_blocks = block_indices[block_begin : block_begin + (seq_token_count + block_size - 1) // block_size]
 
@@ -66,22 +65,25 @@ At the core, attention is computed as:
 
 **Inputs**
 
-1. **query** – `[batch_size_in_tokens, num_heads * head_size]`, type *T*
-2. **key** – `[batch_size_in_tokens, num_kv_heads * head_size]`, type *T*
-3. **value** – `[batch_size_in_tokens, num_kv_heads * head_size]`, type *T*
-4. **key_cache** – `[num_blocks, num_kv_heads, block_size, head_size]`, type *T*
-5. **value_cache** – same shape and type as key_cache
-6. **past_lens** – `[batch_size_in_sequences]`, type `int32`
-7. **subsequence_begins** – `[batch_size_in_sequences + 1]`, type `int32`
-8. **block_indices** – `[num_blocks]`, type `int32`
-9. **block_indices_begins** – `[batch_size_in_sequences + 1]`, type `int32`
-10. **scale** – scalar, type *T* (optional)
-11. **sliding_window** – scalar, type `int32` (optional)
-12. **alibi_slopes** – `[num_kv_heads]`, type *T* (optional)
-13. **rotated_block_indices** – `[num_rotated_blocks]`, type `int32` (optional)
-14. **rotation_deltas** – `[num_rotated_blocks, BLOCK_SIZE || 1]`, type `int32` (optional)
-15. **rotation_trig_lut** – `[M, head_size]`, type *T* (optional)
-16. **score_aggregation_window** – [], type `int32` (optional)
+> Here is a brief description of each input parameter:
+
+1. **query** – Query tensor `[batch_size_in_tokens, num_heads * head_size]`, type *T*.  
+   `batch_size_in_tokens` is the total number of tokens across all sequences in the current batch.
+2. **key** – Key tensor `[batch_size_in_tokens, num_kv_heads * head_size]`, type *T*
+3. **value** – Value tensor `[batch_size_in_tokens, num_kv_heads * head_size]`, type *T*
+4. **key_cache** – Key cache `[num_blocks, num_kv_heads, block_size, head_size]`, type *T*.
+5. **value_cache** – Same shape and type as key_cache
+6. **past_lens** – `[batch_size_in_sequences]`, type `int32`. Number of previously cached tokens per sequence.
+7. **subsequence_begins** – `[batch_size_in_sequences + 1]`, type `int32`. Offsets marking start of each sequence's tokens.
+8. **block_indices** – `[num_blocks]`, type `int32`. Maps tokens to cache blocks.
+9. **block_indices_begins** – `[batch_size_in_sequences + 1]`, type `int32`. Start indices of block mapping per sequence.
+10. **scale** – scalar, type *T* (optional). Scaling factor for attention.
+11. **sliding_window** – scalar, type `int32` (optional). Limits context size per sequence.
+12. **alibi_slopes** – `[num_kv_heads]`, type *T* (optional). ALiBi bias slopes per head.
+13. **rotated_block_indices** – `[num_rotated_blocks]`, type `int32` (optional). Used for rotary position embedding.
+14. **rotation_deltas** – `[num_rotated_blocks, BLOCK_SIZE || 1]`, type `int32` (optional). Position shift values.
+15. **rotation_trig_lut** – `[M, head_size]`, type *T* (optional). Lookup table for sinusoidal rotary embedding.
+16. **score_aggregation_window** – scalar, type `int32` (optional). Window size for attention score aggregation.
 
 ---
 
@@ -94,7 +96,7 @@ At the core, attention is computed as:
 
 **Types**
 
-* *T*: any floating point type (e.g., `f16`, `f32`)
+* *T*: any floating point type (e.g., `f16`, `f32`, `bf16`)
 
 ---
 
