@@ -113,6 +113,8 @@ private:
     std::vector<uint32_t> _initsCommandQueueOrdinals;
     std::vector<std::unique_ptr<CommandList>> _initsCommandLists;
     std::vector<std::unique_ptr<Fence>> _initsFences;
+    std::shared_ptr<CommandQueue> _initsCommandQueue;
+    uint32_t _initsCommandQueueGroupOrdinal = 0;
 
     /**
      * @brief Tensors holding the L0 buffers corresponding to the inputs of the main schedule.

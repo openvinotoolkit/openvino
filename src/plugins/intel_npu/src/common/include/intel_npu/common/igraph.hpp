@@ -48,7 +48,7 @@ public:
     const std::shared_ptr<CommandQueue>& get_command_queue() const;
     uint32_t get_command_queue_group_ordinal() const;
 
-    virtual void set_workload_type(const ov::WorkloadType workloadType) const;
+    void set_workload_type(const ov::WorkloadType workloadType) const;
 
     std::mutex& get_mutex();
 

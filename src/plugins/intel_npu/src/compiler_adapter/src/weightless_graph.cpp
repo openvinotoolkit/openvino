@@ -301,11 +301,6 @@ void WeightlessGraph::initialize(const Config& config) {
         initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                                           ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-        uint32_t command_queue_options = 0;
-        if (config.has<TURBO>() && config.get<TURBO>()) {
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-        }
-
         _zeGraphExt->initializeGraph(initHandle, initCommandQueueOrdinal);
         _logger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
@@ -315,7 +310,34 @@ void WeightlessGraph::initialize(const Config& config) {
         release_init_blob(initIndex, config);
     }
 
-    create_command_queue(config);
+    // Create a single command queue for all weights initialization schedules
+    _initsCommandQueueGroupOrdinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+
+    _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                        _initsCommandQueueGroupOrdinal,
+                                                        commandQueueOptions);
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        switch (config.get<WORKLOAD_TYPE>()) {
+        case ov::WorkloadType::DEFAULT:
+            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT);
+            break;
+        case ov::WorkloadType::EFFICIENT:
+            _initsCommandQueue->setWorkloadType(ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND);
+            break;
+        default:
+            OPENVINO_THROW("Unknown value for WorkloadType!");
+        }
+    }
 
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
@@ -329,6 +351,7 @@ void WeightlessGraph::initialize(const Config& config) {
     _initsCommandLists.clear();
     _initsFences.clear();
     _initsMetadata.clear();
+    _initsCommandQueue.reset();
 
     // The main schedule is initialized after the weights initialization ones in order to save some memory
     Graph::initialize(config);
@@ -499,7 +522,7 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
 
     _initsCommandLists.at(initIndex) =
         std::make_unique<CommandList>(_zeroInitStruct, _initsCommandQueueOrdinals.at(initIndex));
-    _initsFences.at(initIndex) = std::make_unique<Fence>(_command_queue);
+    _initsFences.at(initIndex) = std::make_unique<Fence>(_initsCommandQueue);
 
     size_t io_index = 0;
     for (const auto& desc : _initsInputDescriptors.at(initIndex)) {
@@ -523,7 +546,7 @@ void WeightlessGraph::run_pipeline(const size_t initIndex) {
     _logger.debug("Init Pipeline - push() started");
     _initsCommandLists.at(initIndex)->close();
 
-    _command_queue->executeCommandList(*_initsCommandLists.at(initIndex), *_initsFences.at(initIndex));
+    _initsCommandQueue->executeCommandList(*_initsCommandLists.at(initIndex), *_initsFences.at(initIndex));
     _logger.debug("Init Pipeline - push() completed");
 
     _logger.debug("Init Pipeline - pull() started");

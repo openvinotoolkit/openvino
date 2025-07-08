@@ -42,8 +42,6 @@ public:
 protected:
     bool release_blob(const Config& config);
 
-    void create_command_queue(const Config& config);
-
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;

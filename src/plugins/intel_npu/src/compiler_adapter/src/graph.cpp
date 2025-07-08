@@ -127,10 +127,32 @@ void Graph::initialize(const Config& config) {
     _input_descriptors.shrink_to_fit();
     _output_descriptors.shrink_to_fit();
 
-    // This condition is met only if the current object is not of type "WeightlessGraph". If it is, then the command
-    // queue has already been created within WeightlessGraph::initialize().
-    if (_command_queue == nullptr) {
-        create_command_queue(config);
+    _command_queue_group_ordinal =
+        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+
+    uint32_t command_queue_options = 0;
+
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
+            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+        }
+    }
+
+    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
+        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
+        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+
+    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                    _command_queue_group_ordinal,
+                                                    command_queue_options);
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
     _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
@@ -173,36 +195,6 @@ bool Graph::release_blob(const Config& config) {
 
     return true;
 };
-
-void Graph::create_command_queue(const Config& config) {
-    _command_queue_group_ordinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
-    uint32_t command_queue_options = 0;
-
-    if (config.has<TURBO>() && config.get<TURBO>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-        }
-    }
-
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
-        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
-    }
-
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    _command_queue_group_ordinal,
-                                                    command_queue_options);
-
-    if (config.has<WORKLOAD_TYPE>()) {
-        set_workload_type(config.get<WORKLOAD_TYPE>());
-    }
-}
 
 Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
