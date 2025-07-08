@@ -25,5 +25,6 @@ module.exports = {
     'keyword-spacing': ['error', { overrides: { catch: { after: false } } }],
     'prefer-destructuring': ["error", { "object": true, "array": false }],
     '@typescript-eslint/no-var-requires': 0,
+    "@typescript-eslint/no-misused-new": "off",
   }
 };
