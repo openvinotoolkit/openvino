@@ -292,7 +292,7 @@ if(NOT TARGET openvino::pugixml)
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         add_library(openvino::pugixml ALIAS pugixml-static)
         ov_developer_package_export_targets(TARGET openvino::pugixml
-            INSTALL_INCLUDE_DIRECTORIES thirdparty/pugixml/src)
+            INSTALL_INCLUDE_DIRECTORIES thirdparty/pugixml/src/pugixml.hpp)
         ov_install_static_lib(pugixml-static ${OV_CPACK_COMP_CORE})
     endfunction()
 
