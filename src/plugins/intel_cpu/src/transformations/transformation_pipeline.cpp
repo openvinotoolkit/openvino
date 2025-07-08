@@ -138,6 +138,7 @@
 #include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/low_precision.hpp"
+#include "low_precision/move_fake_convert_up_through_kv_cache_concat.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
@@ -597,6 +598,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         }
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::low_precision::MoveFakeConvertUpThroughKVCacheConcat);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
