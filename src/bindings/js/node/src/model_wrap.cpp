@@ -23,6 +23,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("input", &ModelWrap::get_input),
                         InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
                         InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
+                        InstanceMethod("getOps", &ModelWrap::get_ops),
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
@@ -269,6 +270,25 @@ Napi::Value ModelWrap::reshape(const Napi::CallbackInfo& info) {
             OPENVINO_THROW("'reshape'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
         return info.This();
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (!ov::js::validate(info, allowed_signatures)) {
+            OPENVINO_THROW("'getOps'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        } else {
+            auto modelOps = _model->get_ops();
+            Napi::Array outputs = Napi::Array::New(info.Env(), modelOps.size());
+            uint32_t index = 0;
+            for (auto& op : modelOps)
+                outputs[index++] = cpp_to_js(info.Env(), op);
+            return outputs;
+        }
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();

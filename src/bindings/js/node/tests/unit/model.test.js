@@ -279,4 +279,28 @@ describe("ov.Model tests", () => {
       }
     });
   });
+
+  describe('Model.getOps()', () => {
+    it('should return objects of type Node', () => {
+      const modelOps = model.getOps();
+      assert.ok(modelOps[0] instanceof ov.Node);
+    });
+
+    it('should return node names expected in the calling model', () => {
+      const model = core.readModelSync(addModel.xml);
+      const modelOps = model.getOps();
+      const nodeNames = ['Parameter_7674', 'Parameter_7672', 'Result_7678', 'Add_7676'];
+      assert.deepStrictEqual(modelOps.length, nodeNames.length);
+      for (const [index, node] of nodeNames.entries()) {
+        assert.deepStrictEqual(modelOps[index].getName(), node);
+      }
+    });
+
+    it('should not accept any arguments', () => {
+      assert.throws(
+        () => model.getOps('Unexpected argument').then(),
+        /'getOps' method called with incorrect parameters./,
+      );
+    });
+  });
 });

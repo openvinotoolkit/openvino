@@ -7,6 +7,7 @@
 #include "node/include/addon.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/partial_shape_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
@@ -44,6 +45,9 @@ const char* get_attr_type<int>();
 
 template <>
 const char* get_attr_type<ModelWrap>();
+
+template <>
+const char* get_attr_type<NodeWrap>();
 
 template <>
 const char* get_attr_type<TensorWrap>();
