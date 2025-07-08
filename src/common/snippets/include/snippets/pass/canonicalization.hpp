@@ -4,14 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
-#include "transformations_visibility.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface Canonicalization
@@ -20,7 +22,7 @@ namespace pass {
  *  - layouts mismatch (only planar + blocked is supported), planar shapes are postpended with 1
  *  @ingroup snippets
  */
-class Canonicalization: public ov::pass::ModelPass {
+class Canonicalization : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::Canonicalization");
     using BlockedShapeVector = op::Subgraph::BlockedShapeVector;
@@ -34,6 +36,4 @@ private:
     bool m_has_dynamic_inputs = false;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

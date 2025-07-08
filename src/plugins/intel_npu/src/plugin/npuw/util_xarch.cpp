@@ -250,7 +250,7 @@ void ov::npuw::util::XARCH::unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
 
     auto unpack_body = [pSrc, pDst](size_t index, size_t stride) {
         size_t halfStride = stride >> 1;
-        int8_t const* pSrcLocal = pSrc + halfStride * index;
+        const int8_t* pSrcLocal = pSrc + halfStride * index;
         int8_t* pDstLocal = pDst + stride * index;
 
         for (size_t j = 0; j < stride; j += 64) {
@@ -314,7 +314,7 @@ void ov::npuw::util::XARCH::unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
     }
     UNPACK_SAVE_TICK();
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -356,7 +356,7 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     // bool tailOnly = total < 64;
 
     auto unpack_body = [pSrc, pDst](size_t index) {
-        int8_t const* pSrcLocal = pSrc + 32 * index;
+        const int8_t* pSrcLocal = pSrc + 32 * index;
         int16_t* pDstLocal = pDst + 64 * index;
 
         __m256i inv = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
@@ -454,7 +454,7 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -510,8 +510,8 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        int8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        const int8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -611,7 +611,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -724,7 +724,7 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -788,7 +788,7 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 64;  // note pDst is int16_t
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -853,8 +853,8 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        uint8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        const uint8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -880,7 +880,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
 
                 // loading 256 bit u4 into unalligned memory , so 64 elements
                 // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests
-                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<__m256i const*>(pSrcLocal));
+                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
 
                 // unpacking with interleaving
                 __m256i vht = _mm256_and_si256(xmmData, himask);
@@ -930,7 +930,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }                     // for(index)
+            }  // for(index)
             pSclLocal += scale_elem_type.size();
         }  // for(sindex)
     };
@@ -969,7 +969,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1032,9 +1032,9 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
         // number of vectorized operations per scale
         size_t elementsPerScaleVectorized = elementsPerScale / 64;
 
-        uint8_t const* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
-        int8_t const* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
-        uint8_t const* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride / 2;
+        const uint8_t* pSrcLocal = pSrc + 32 * elementsPerScaleVectorized * sindex * stride;
+        const int8_t* pSclLocal = pScl + scale_elem_type.size() * sindex * stride;
+        const uint8_t* pZerLocal = pZer + zerop_elem_type.size() * sindex * stride / 2;
         int16_t* pDstLocal = const_cast<int16_t*>(pDst) + 64 * elementsPerScaleVectorized * sindex * stride;
 
         // if it is last iteration current stride can be smaller - lets check that
@@ -1061,7 +1061,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
 
                 // loading 256 bit u4 into unalligned memory , so 64 elements
                 // cannot use aligned version here like _mm256_load_si256 - segfault even on unit tests
-                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<__m256i const*>(pSrcLocal));
+                __m256i xmmData = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrcLocal));
 
                 // unpacking with interleaving
                 __m256i vht = _mm256_and_si256(xmmData, himask);
@@ -1111,7 +1111,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }                     // for(index)
+            }  // for(index)
             pSclLocal += scale_elem_type.size();
             if (sindex % 2 == 1) {
                 pZerLocal += zerop_elem_type.size();
@@ -1153,7 +1153,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1254,7 +1254,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
         }
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1302,7 +1302,7 @@ void ov::npuw::util::XARCH::unpack_i8f16(const ov::SoPtr<ov::ITensor>& from,
         pDst += 8;
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1344,7 +1344,7 @@ void ov::npuw::util::XARCH::unpack_i8f16_scale(const ov::SoPtr<ov::ITensor>& fro
         pScl += scale_elem_type.size();
     }  // sindex
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1398,7 +1398,7 @@ void ov::npuw::util::XARCH::unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
         pZrp++;
     }  // sindex
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
 
@@ -1423,7 +1423,7 @@ ov::Tensor ov::npuw::util::XARCH::to_f16(const ov::Tensor& t) {
         pdst += (8 * 2);  // offset in bytes
     }
 #else
-    OPENVINO_THROW("AVX2 support is neccessary but it's not enabled!");
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
     return tnew;
 }

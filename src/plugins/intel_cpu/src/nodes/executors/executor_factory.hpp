@@ -4,21 +4,24 @@
 
 #pragma once
 
+#include <algorithm>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "executor.hpp"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
-#include "nodes/executors/graph_emitter.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/printers.hpp"
 #include "nodes/executors/variable_executor.hpp"
 #include "openvino/core/except.hpp"
-#include "post_ops.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
@@ -32,7 +35,7 @@ public:
                     const MemoryDescArgs& descriptors,
                     const MemoryFormatFilter& memoryFormatFilter = {},
                     const std::string& implementationPriority = {})
-        : m_attrs(attrs),
+        : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
           m_suitableImplementations(filter(m_attrs, descriptors, memoryFormatFilter, implementationPriority)) {
         OPENVINO_ASSERT(!m_suitableImplementations.empty(), "No suitable implementations found");
@@ -42,16 +45,12 @@ public:
      * @brief Retrieves the proper memory descriptors based on the provided memory descriptors.
      *
      * Examines the given executor configuration and determines the appropriate
-     * memory descriptors to be used. Checks for fallback configurations if necessary and
-     * returns the corresponding memory descriptors.
+     * memory descriptors to be used.
      *
      * @param descriptors memory descriptors.
      * @return MemoryDescArgs The list of proper memory descriptors based on the configuration.
      * @todo Create proper memory descriptors for all the implementations
      *       to fully enable graph's layout propagation functionality
-     *
-     * @note The main use case is to avoid a fallback during the creation of an executor
-     *       by passing proper memory descriptors to the make() method
      */
     [[nodiscard]] std::vector<MemoryDescArgs> getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
@@ -60,14 +59,15 @@ public:
 
         auto getProperMemoryDescArgs = [](const ExecutorImplementationRef& impl,
                                           const executor::Config<Attrs>& config) {
-            if (auto fallbackConfig = impl.get().requiresFallback(config)) {
-                return fallbackConfig->descs;
+            if (auto optimalConfig = impl.get().createOptimalConfig(config)) {
+                return optimalConfig->descs;
             }
 
             return config.descs;
         };
 
         std::vector<MemoryDescArgs> memoryDescArgs;
+        memoryDescArgs.reserve(m_suitableImplementations.size());
         for (const auto& impl : m_suitableImplementations) {
             memoryDescArgs.emplace_back(getProperMemoryDescArgs(impl, config));
         }
@@ -87,20 +87,19 @@ public:
      * @return A shared pointer to the created Executor.
      */
     ExecutorPtr make(const MemoryArgs& memory) {
+        auto config = createConfig(memory, m_attrs);
+        const bool configMatched = std::all_of(m_suitableImplementations.begin(),
+                                               m_suitableImplementations.end(),
+                                               [&config](const ExecutorImplementationRef& impl) {
+                                                   return !impl.get().createOptimalConfig(config).has_value();
+                                               });
+        OPENVINO_ASSERT(
+            configMatched,
+            "Failed to create executor since the provided memory arguments do not match the expected configuration");
+
         // only single executor is available
         if (m_suitableImplementations.size() == 1) {
-            auto config = GraphEmitter<Attrs>::createConfig(memory, m_attrs);
-
             const auto& theOnlyImplementation = m_suitableImplementations.front().get();
-
-            if (const auto fallbackConfig = theOnlyImplementation.requiresFallback(config)) {
-                return GraphEmitter<Attrs>::fallback(config,
-                                                     *fallbackConfig,
-                                                     memory,
-                                                     m_context,
-                                                     theOnlyImplementation.name());
-            }
-
             return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 

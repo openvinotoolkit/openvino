@@ -185,8 +185,13 @@ op::Predicate all_of(const std::vector<std::function<bool(Output<Node>)>>& predi
 }
 
 namespace {
-#define ACCESSOR(type) \
-    void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { match(name, {adapter.get()}); };
+
+#define ACCESSOR(type)                                                                \
+    void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { \
+        if (m_expected_attrs.count(name) != 0) {                                      \
+            match(name, {adapter.get()});                                             \
+        }                                                                             \
+    };
 
 #define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
 
@@ -214,10 +219,10 @@ public:
     ACCESSOR_V(double)
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+        OPENVINO_ASSERT(m_expected_attrs.count(name) == 0, "Can not compare void");
     };
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
+        OPENVINO_ASSERT(m_expected_attrs.count(name) == 0, "Can not compare void*");
     };
     void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
@@ -328,15 +333,12 @@ std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_notation(
 
     std::vector<std::string> parsed;
     size_t pos = 0, pos_next;
-    std::string token;
     while ((pos_next = s.find(',', pos)) != std::string::npos) {
-        token = s.substr(pos, pos_next - pos);
-        parsed.push_back(token);
+        parsed.push_back(s.substr(pos, pos_next - pos));
         pos = pos_next + 1;
     }
     // collect whole string if no delimiter is found
-    token = s.substr(pos, pos_next);
-    parsed.push_back(token);
+    parsed.push_back(s.substr(pos, pos_next));
 
     std::vector<std::pair<int64_t, std::string>> idx_to_name;
 
@@ -350,7 +352,8 @@ std::pair<std::vector<std::pair<int64_t, std::string>>, int64_t> parse_notation(
             idx_to_name.emplace_back(i, dimension);
             continue;
         }
-        idx_to_name.emplace_back((ellipsis_visited ? i - static_cast<int64_t>(parsed.size()) : i), dimension);
+        auto to_implace = ellipsis_visited ? i - static_cast<int64_t>(parsed.size()) : i;
+        idx_to_name.emplace_back(to_implace, dimension);
     }
     return {idx_to_name, (ellipsis_visited ? -2 : idx_to_name.size())};
 }

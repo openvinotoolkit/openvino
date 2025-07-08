@@ -4,22 +4,23 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "shared_test_classes/subgraph/group_normalization_fusion.hpp"
 #include "transformations/common_optimizations/group_normalization_fusion.hpp"
 
 using namespace testing;
 
 namespace ov {
 namespace test {
-
-void core_configuration(SubgraphBaseTest* test) {}
 
 using GroupNormalizationFusionTransformationTestValues =
     std::tuple<PartialShape,   // (partial) shape of input/output tensor (all dims except channel can be dynamic)
@@ -31,6 +32,92 @@ using GroupNormalizationFusionTransformationTestValues =
                double,         // epsilon
                element::Type,  // input/output tensor element type
                bool>;          // whether it's a positive test that should run reference model or a negative test
+
+using GroupNormalizationFusionTestBaseValues =
+    std::tuple<PartialShape,  // (partial) shape of input/output tensor (all dims except channel can be dynamic)
+               Shape,         // shape of optional instance norm gamma tensor (or empty shape if not used)
+               Shape,         // shape of optional instance norm beta tensor (or empty shape if not used)
+               Shape,         // shape of group norm gamma tensor
+               Shape,         // shape of group norm beta tensor
+               int64_t,       // number of groups
+               double>;       // epsilon
+
+class GroupNormalizationFusionTestBase {
+protected:
+    element::Type elem_type;
+    int64_t num_channels;
+    bool instance_norm_gamma_present;
+    bool instance_norm_beta_present;
+
+    std::shared_ptr<op::v0::Constant> instance_norm_gamma_const;
+    std::shared_ptr<op::v0::Constant> instance_norm_beta_const;
+    std::shared_ptr<op::v0::Constant> group_norm_gamma_const;
+    std::shared_ptr<op::v0::Constant> group_norm_beta_const;
+
+    PartialShape data_shape;
+    Shape instance_norm_gamma_shape;
+    Shape instance_norm_beta_shape;
+    Shape group_norm_gamma_shape;
+    Shape group_norm_beta_shape;
+    int64_t num_groups;
+    double epsilon;
+
+    virtual void read_test_parameters() = 0;
+
+    void generate_weights_init_values() {
+        if (instance_norm_gamma_present) {
+            auto instanceNormGammaTensor = utils::create_and_fill_tensor(elem_type,
+                                                                         instance_norm_gamma_shape,
+                                                                         utils::InputGenerateData(1, 10, 1, 2));
+            instance_norm_gamma_const = std::make_shared<op::v0::Constant>(instanceNormGammaTensor);
+        }
+        if (instance_norm_beta_present) {
+            auto instanceNormBetaTensor = utils::create_and_fill_tensor(elem_type,
+                                                                        instance_norm_beta_shape,
+                                                                        utils::InputGenerateData(1, 10, 1, 3));
+            instance_norm_beta_const = std::make_shared<op::v0::Constant>(instanceNormBetaTensor);
+        }
+
+        auto groupNormGammaTensor =
+            utils::create_and_fill_tensor(elem_type, group_norm_gamma_shape, utils::InputGenerateData(1, 10, 1, 1));
+        group_norm_gamma_const = std::make_shared<op::v0::Constant>(groupNormGammaTensor);
+
+        auto groupNormBetaTensor =
+            utils::create_and_fill_tensor(elem_type, group_norm_beta_shape, utils::InputGenerateData(1, 10, 1, 11));
+        group_norm_beta_const = std::make_shared<op::v0::Constant>(groupNormBetaTensor);
+    }
+
+    std::shared_ptr<Model> create_model() {
+        auto input = std::make_shared<op::v0::Parameter>(elem_type, data_shape);
+        auto pre_mvn_shape_const = op::v0::Constant::create<long long>(element::i64, Shape{3}, {0, num_groups, -1});
+        auto pre_mvn_reshape = std::make_shared<op::v1::Reshape>(input, pre_mvn_shape_const, true);
+
+        auto mvn_axes_const = op::v0::Constant::create<long long>(element::i64, Shape{1}, {2});
+        auto mvn = std::make_shared<op::v6::MVN>(pre_mvn_reshape,
+                                                 mvn_axes_const,
+                                                 true,
+                                                 static_cast<float>(epsilon),
+                                                 op::MVNEpsMode::INSIDE_SQRT);
+
+        std::shared_ptr<Node> opt_instance_norm_gamma_multiply = mvn;
+        if (instance_norm_gamma_present)
+            opt_instance_norm_gamma_multiply = std::make_shared<op::v1::Multiply>(mvn, instance_norm_gamma_const);
+
+        std::shared_ptr<Node> opt_instance_norm_beta_add = opt_instance_norm_gamma_multiply;
+        if (instance_norm_beta_present)
+            opt_instance_norm_beta_add =
+                std::make_shared<op::v1::Add>(opt_instance_norm_gamma_multiply, instance_norm_beta_const);
+
+        auto post_instance_norm_shape = std::make_shared<op::v0::ShapeOf>(input);
+        auto post_instance_norm_reshape =
+            std::make_shared<op::v1::Reshape>(opt_instance_norm_beta_add, post_instance_norm_shape, true);
+        auto group_norm_gamma_multiply =
+            std::make_shared<op::v1::Multiply>(post_instance_norm_reshape, group_norm_gamma_const);
+        auto group_norm_beta_add = std::make_shared<op::v1::Add>(group_norm_gamma_multiply, group_norm_beta_const);
+
+        return std::make_shared<Model>(OutputVector{group_norm_beta_add}, ParameterVector{input});
+    }
+};
 
 class GroupNormalizationFusionTransformationTestsF
     : public GroupNormalizationFusionTestBase,
@@ -281,6 +368,17 @@ std::vector<GroupNormalizationFusionTestBaseValues> invalid_vals = {
 using GroupNormalizationFusionTransformationTestAdditionalValues =
     std::tuple<element::Type,  // input/output tensor element type
                bool>;          // whether it's a positive test that should run reference model or a negative test
+
+template <typename... T_old_vals, typename... T_added_vals>
+std::vector<std::tuple<T_old_vals..., T_added_vals...>> expand_vals(std::vector<std::tuple<T_old_vals...>> old_vals,
+                                                                    std::tuple<T_added_vals...> added_vals) {
+    std::vector<std::tuple<T_old_vals..., T_added_vals...>> res;
+    for (const std::tuple<T_old_vals...>& t : old_vals) {
+        auto new_tuple = std::tuple_cat(t, added_vals);
+        res.push_back(new_tuple);
+    }
+    return res;
+}
 
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationFusionTransformationPositiveTests_f32,

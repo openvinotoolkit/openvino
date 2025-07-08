@@ -60,3 +60,7 @@ std::ostream& ov::pass::pattern::op::WrapType::write_type_description(std::ostre
     out << (m_wrapped_types.size() > 1 ? ">" : "");
     return out;
 }
+
+std::shared_ptr<ov::Node> ov::pass::pattern::wrap_const() {
+    return ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+}

@@ -4,17 +4,21 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
+#include <new>
+#include <ostream>
+#include <string>
 #include <vector>
 
-#include "cpu_shape.h"
-#include "internal_properties.hpp"
+#include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Node;
 class Edge;
@@ -26,7 +30,7 @@ class Edge {
 public:
     Edge(const std::shared_ptr<Node>& parent, const std::shared_ptr<Node>& child, int pr_port = 0, int ch_port = 0);
 
-    enum class Status {
+    enum class Status : uint8_t {
         Uninitialized,   // base edge is unknown yet
         NeedAllocation,  // edge is the base edge
         NotAllocated,    // edge references another edge
@@ -34,11 +38,11 @@ public:
         Validated        // edge is validated
     };
 
-    enum class ReorderStatus { Regular = 0, Optimized = 1, No = 2 };
+    enum class ReorderStatus : uint8_t { Regular = 0, Optimized = 1, No = 2 };
 
-    enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
+    enum LOOK : uint8_t { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN };
 
-    inline Status getStatus() const noexcept {
+    [[nodiscard]] Status getStatus() const noexcept {
         return status;
     }
 
@@ -58,7 +62,7 @@ public:
     }
 
     void changeStatus(Status state);
-    bool inPlace(LOOK look = LOOK_BOTH) const;
+    [[nodiscard]] bool inPlace(LOOK look = LOOK_BOTH) const;
 
     void init();
     void allocate(const void* mem_ptr = nullptr);
@@ -67,34 +71,34 @@ public:
     void reuse(MemoryPtr ptr);
     void validate();
 
-    const std::shared_ptr<Node> getParent() const;
-    const std::shared_ptr<Node> getChild() const;
+    [[nodiscard]] std::shared_ptr<Node> getParent() const;
+    [[nodiscard]] std::shared_ptr<Node> getChild() const;
 
     const IMemory& getMemory();
-    MemoryPtr getMemoryPtr() const;
+    [[nodiscard]] MemoryPtr getMemoryPtr() const;
 
     ReorderStatus needReorder();
-    std::shared_ptr<Node> modifiedInPlace() const;
-    bool isDropped() const;
-    bool isUseExternalMemory() const;
+    [[nodiscard]] std::shared_ptr<Node> modifiedInPlace() const;
+    [[nodiscard]] bool isDropped() const;
+    [[nodiscard]] bool isUseExternalMemory() const;
 
-    int getInputNum() const;
-    int getOutputNum() const;
+    [[nodiscard]] int getInputNum() const;
+    [[nodiscard]] int getOutputNum() const;
 
     void setChildPort(const size_t port) {
         child_port = port;
     }
 
     void sharedMemFrom(const EdgePtr& edge);
-    EdgePtr getSharedEdge() const;
-    EdgePtr getSharedEdge(std::nothrow_t) const;
+    [[nodiscard]] EdgePtr getSharedEdge() const;
+    [[nodiscard]] EdgePtr getSharedEdge(std::nothrow_t nothrow_tag) const;
 
-    bool hasDefinedMaxSize() const {
+    [[nodiscard]] bool hasDefinedMaxSize() const {
         return getOriginalDesc().hasDefinedMaxSize();
     }
 
-    std::string hash() const;
-    const MemoryDesc& getOriginalDesc() const;
+    [[nodiscard]] std::string hash() const;
+    [[nodiscard]] const MemoryDesc& getOriginalDesc() const;
 
 private:
     std::weak_ptr<Node> parent;
@@ -107,10 +111,10 @@ private:
     MemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
-    const MemoryDesc& getInputDesc() const;
-    const MemoryDesc& getOutputDesc() const;
-    PortDescBaseCPtr getInputPortDesc() const;
-    PortDescBaseCPtr getOutputPortDesc() const;
+    [[nodiscard]] const MemoryDesc& getInputDesc() const;
+    [[nodiscard]] const MemoryDesc& getOutputDesc() const;
+    [[nodiscard]] PortDescBaseCPtr getInputPortDesc() const;
+    [[nodiscard]] PortDescBaseCPtr getOutputPortDesc() const;
 
     bool enforceReorder();
 
@@ -124,5 +128,4 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const Edge& edge);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

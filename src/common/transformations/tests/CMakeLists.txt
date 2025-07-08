@@ -17,9 +17,10 @@ ov_add_test_target(
         func_test_utils
         openvino::offline_transformations
         openvino::reference
-        sharedTestClasses
         ov_lpt_models
     ADD_CLANG_FORMAT
     LABELS
         OV UNIT TRANSFORMATIONS
 )
+
+ov_build_target_faster(${TARGET_NAME} PCH)

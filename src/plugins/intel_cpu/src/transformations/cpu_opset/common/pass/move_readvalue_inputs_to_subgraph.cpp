@@ -4,22 +4,27 @@
 
 #include "move_readvalue_inputs_to_subgraph.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <memory>
 #include <unordered_set>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset6_decl.hpp"
-#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
-#include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "transformations/cpu_opset/common/op/submodel.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/utils/gen_pattern.hpp"
-#include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
     MATCHER_SCOPE(MoveReadValueInputsToSubgraph);
@@ -29,8 +34,8 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto readvalue = as_type_ptr<ov::opset6::ReadValue>(pattern_map.at(readvalue_pattern).get_node_shared_ptr());
-        if (!readvalue || readvalue->get_input_size() != 1u) {
+        auto readvalue = as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(readvalue_pattern).get_node_shared_ptr());
+        if (!readvalue || readvalue->get_input_size() != 1U) {
             return false;
         }
 

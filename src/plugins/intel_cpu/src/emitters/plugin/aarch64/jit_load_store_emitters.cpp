@@ -4,8 +4,16 @@
 
 #include "jit_load_store_emitters.hpp"
 
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 #include "cpu/aarch64/cpu_isa_traits.hpp"
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 

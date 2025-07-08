@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
-#include "dnnl_types.h"
 #include "openvino/core/visibility.hpp"
 
 namespace ov::intel_cpu {
@@ -19,8 +20,8 @@ namespace ov::intel_cpu {
 #    define SNIPPETS_MAX_DATA_PTR_COUNT 11
 #endif
 
-#define GET_OFF(field)           offsetof(jit_snippets_call_args, field)
-#define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
+#define GET_OFF(field)           offsetof(ov::intel_cpu::jit_snippets_call_args, field)
+#define GET_OFF_LOOP_ARGS(field) offsetof(ov::intel_cpu::jit_snippets_call_args::loop_args_t, field)
 
 struct amx_tile_config_t {
     dnnl_dim_t M = 0;
@@ -35,6 +36,7 @@ struct jit_snippets_call_args {
     ~jit_snippets_call_args();
 
     void register_loops(const std::vector<loop_args_t>& loops);
+    void init_external_ptrs(size_t size);
 
     const void* src_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
     void* dst_ptrs[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
@@ -45,7 +47,10 @@ struct jit_snippets_call_args {
     // for all non-static data members. So we can keep them public or friend all control-flow emitters
     loop_args_t* loop_args = nullptr;
     amx_tile_config_t amx_tile_config;
-    size_t buffer_offsets[SNIPPETS_MAX_DATA_PTR_COUNT] = {};
+    // Issue: 168073
+    // TODO: decrease max array size
+    size_t buffer_offsets[24] = {};
+    const void** external_ptrs = nullptr;
 };
 
 struct jit_snippets_call_args::loop_args_t {
@@ -59,7 +64,7 @@ struct jit_snippets_call_args::loop_args_t {
     loop_args_t& operator=(loop_args_t other);
     friend void swap(loop_args_t& first, loop_args_t& second) noexcept;
 
-    void init_pointers_and_copy_data(const int64_t num_elements,
+    void init_pointers_and_copy_data(int64_t num_elements,
                                      const int64_t* ptr_increments,
                                      const int64_t* finalization_offsets);
 
@@ -70,8 +75,8 @@ struct jit_snippets_call_args::loop_args_t {
 };
 
 struct jit_snippets_compile_args {
-    std::vector<std::vector<size_t>> data_offsets = {};
-    std::vector<size_t> exec_domain = {};
+    std::vector<std::vector<size_t>> data_offsets;
+    std::vector<size_t> exec_domain;
 };
 
 }  // namespace ov::intel_cpu

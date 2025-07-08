@@ -8,6 +8,7 @@
 
 #include "dict_attribute_visitor.hpp"
 #include "pyopenvino/graph/node_output.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -30,8 +31,8 @@ void def_type_dependent_functions<ov::Node>(
                R"(
             Set tensor names associated with this output.
 
-            :param names: Set of tensor names.
-            :type names: Set[str]
+            :param names: set of tensor names.
+            :type names: set[str]
             )");
     output.def("add_names",
                &ov::Output<ov::Node>::add_names,
@@ -39,8 +40,8 @@ void def_type_dependent_functions<ov::Node>(
                R"(
             Add tensor names associated with this output.
 
-            :param names: Set of tensor names.
-            :type names: Set[str]
+            :param names: set of tensor names.
+            :type names: set[str]
             )");
     output.def("remove_target_input",
                &ov::Output<ov::Node>::remove_target_input,
@@ -60,4 +61,19 @@ void def_type_dependent_functions<ov::Node>(
                 :param replacement: The node that is a replacement.
                 :type replacement: openvino.Output
                )");
+    output.def(
+        "set_rt_info",
+        [](ov::Output<ov::Node>& self, const py::object& value, const py::str& key) -> void {
+            self.get_rt_info()[key.cast<std::string>()] = Common::utils::py_object_to_any(value);
+        },
+        py::arg("value"),
+        py::arg("key"),
+        R"(
+                Add a value to the runtime info.
+
+                :param value: Value for the runtime info.
+                :type value: Any
+                :param key: String that defines a key in the runtime info dictionary.
+                :type key: str
+             )");
 }
