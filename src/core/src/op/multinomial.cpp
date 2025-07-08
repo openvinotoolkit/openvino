@@ -93,17 +93,17 @@ std::shared_ptr<Node> op::v13::Multinomial::clone_with_new_inputs(const OutputVe
                                                       m_global_seed,
                                                       m_op_seed,
                                                       m_alignment);
-    } 
+    }
     // else if (new_args.size() == 3) {
     return std::make_shared<op::v13::Multinomial>(new_args.at(0),
-                                                    new_args.at(1),
-                                                    new_args.at(2),
-                                                    m_convert_type,
-                                                    m_with_replacement,
-                                                    m_log_probs,
-                                                    m_global_seed,
-                                                    m_op_seed,
-                                                    m_alignment);
+                                                  new_args.at(1),
+                                                  new_args.at(2),
+                                                  m_convert_type,
+                                                  m_with_replacement,
+                                                  m_log_probs,
+                                                  m_global_seed,
+                                                  m_op_seed,
+                                                  m_alignment);
 }
 
 ov::element::Type_t op::v13::Multinomial::get_convert_type() const {
@@ -167,11 +167,11 @@ void input_types(const Node* op) {
         op->get_input_element_type(1).is_integral_number() || op->get_input_element_type(1).is_dynamic(),
         "Expected integer type as element type for the 'num_samples' input.");
 
-    NODE_VALIDATION_CHECK(
-        op,
-        op->get_input_size() == 2 || (op->get_input_size() == 3 && op->get_input_element_type(2).is_real() ||
-                                      op->get_input_element_type(2).is_dynamic()),
-        "Expected floating point type as element type for the 'random_samples' input.");
+    NODE_VALIDATION_CHECK(op,
+                          op->get_input_size() == 2 ||
+                              (op->get_input_size() == 3 &&
+                               (op->get_input_element_type(2).is_real() || op->get_input_element_type(2).is_dynamic())),
+                          "Expected floating point type as element type for the 'random_samples' input.");
 }
 }  // namespace validate
 }  // namespace multinomial
