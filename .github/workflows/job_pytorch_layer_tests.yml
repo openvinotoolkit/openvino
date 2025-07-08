@@ -64,9 +64,9 @@ jobs:
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
-      - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+      - name: Setup Variables
+        run: |
+          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
@@ -79,7 +79,7 @@ jobs:
 
       - name: Extract OpenVINO artifacts (Windows)
         if: runner.os == 'Windows'
-        run: Expand-Archive openvino_tests.zip
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python ${{ inputs.python-version }}

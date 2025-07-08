@@ -49,6 +49,15 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
     steps:
+      - name: Fetch custom actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+          
       - name: Download OpenVINO artifacts (tarballs and wheels)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -71,7 +80,7 @@ jobs:
 
       - name: Extract OpenVINO artifacts (Windows)
         if: ${{ runner.os == 'Windows' }}
-        run: Expand-Archive openvino_tests.zip
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python ${{ inputs.python-version }}

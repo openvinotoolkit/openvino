@@ -79,7 +79,7 @@ jobs:
 
       - name: Extract OpenVINO artifacts (Windows)
         if: runner.os == 'Windows'
-        run: Expand-Archive openvino_tests.zip
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python ${{ inputs.python-version }}

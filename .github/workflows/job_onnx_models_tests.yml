@@ -37,7 +37,6 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       ONNX_MODELS_PATH: ${{ github.workspace }}/onnx_test_models
       # instead of using static MODELS_SHARE_PATH
@@ -93,7 +92,7 @@ jobs:
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
         with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
       - name: Install ONNX Models tests requirements
