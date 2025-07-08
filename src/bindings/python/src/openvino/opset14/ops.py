@@ -5,7 +5,7 @@
 """Factory functions for ops added to openvino opset14."""
 from functools import partial
 
-from typing import Union, Optional, List
+from typing import Union, Optional
 
 from openvino import Node, Type
 from openvino.utils.node_factory import _get_node_factory
@@ -74,10 +74,10 @@ def inverse(
 @nameable_op
 def max_pool(
     data: NodeInput,
-    strides: List[int],
-    dilations: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
+    strides: list[int],
+    dilations: list[int],
+    pads_begin: list[int],
+    pads_end: list[int],
     kernel_shape: TensorShape,
     rounding_type: str = "floor",
     auto_pad: Optional[str] = None,
@@ -129,7 +129,7 @@ def max_pool(
 @nameable_op
 def avg_pool(
     data_batch: NodeInput,
-    strides: List[int],
+    strides: list[int],
     pads_begin: TensorShape,
     pads_end: TensorShape,
     kernel_shape: TensorShape,

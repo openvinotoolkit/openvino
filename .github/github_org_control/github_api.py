@@ -9,9 +9,9 @@ GitHub API for controlling organization
 
 import re
 import sys
-import time
-import typing
+import time 
 from pathlib import Path
+from collections.abc import Iterable
 
 from github import Github, GithubException, RateLimitExceededException, IncompletableObject
 from github.PaginatedList import PaginatedList
@@ -317,7 +317,7 @@ class GithubOrgApi:
 
     def invite_users(self, users):
         """Invites users to GitHub organization and prints status"""
-        if not isinstance(users, typing.Iterable):
+        if not isinstance(users, Iterable):
             users = [users]
         print(f"\nInvite {len(users)} users:")
 
@@ -341,7 +341,7 @@ class GithubOrgApi:
 
     def remove_users(self, users):
         """Removes users from GitHub organization"""
-        if not isinstance(users, typing.Iterable):
+        if not isinstance(users, Iterable):
             users = [users]
         print(f"\nRemove {len(users)} users:")
 
