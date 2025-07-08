@@ -22,6 +22,7 @@ static const char UNKNOWN_STR[] = "unknown";
 namespace BindingTypename {
 static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
+static const char NODE[] = "Node";
 static const char TENSOR[] = "Tensor";
 static const char OUTPUT[] = "Output<ov::Node>";
 static const char PARTIALSHAPE[] = "PartialShape";
@@ -105,6 +106,11 @@ const char* get_attr_type<int>() {
 template <>
 const char* get_attr_type<ModelWrap>() {
     return BindingTypename::MODEL;
+}
+
+template <>
+const char* get_attr_type<NodeWrap>() {
+    return BindingTypename::NODE;
 }
 
 template <>
