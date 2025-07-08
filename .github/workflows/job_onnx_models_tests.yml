@@ -72,7 +72,7 @@ jobs:
         
       - name: Setup Variables
         run: |
-          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }} >> "$GITHUB_ENV"
+          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "MODELS_SHARE_PATH=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
 
       # Issue 148922

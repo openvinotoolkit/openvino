@@ -57,13 +57,9 @@ jobs:
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
-      - name: Setup HuggingFace Cache Directory (Linux)
-        if: runner.os != 'Windows'
-        run: echo "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_LIN }} >> "$GITHUB_ENV"
-
-      - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_WIN }}"
+      - name: Setup Variables
+        run: |
+          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages and tests
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
