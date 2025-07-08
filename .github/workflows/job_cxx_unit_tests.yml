@@ -101,6 +101,71 @@ jobs:
       #
       # Tests
       #
+      
+      - name: Check that all filters have at least one test in the suite
+        shell: bash
+        run: |
+          declare -A binaries_and_filters=(
+              ["ov_core_unit_tests"]="-*IE_GPU*"
+              ["ov_inference_functional_tests"]=""
+              ["ov_inference_unit_tests"]=""
+              ["ov_lp_transformations_tests"]=""
+              ["ov_conditional_compilation_tests"]=""
+              ["ov_ir_frontend_tests"]=""
+              ["paddle_tests"]=""
+              ["ov_onnx_frontend_tests"]="-*IE_GPU*"
+              ["ov_tensorflow_common_tests"]=""
+              ["ov_tensorflow_frontend_tests"]=""
+              ["ov_tensorflow_lite_frontend_tests"]=""
+              ["ov_transformations_tests"]=""
+              ["ov_util_tests"]=""
+              ["ov_snippets_func_tests"]=""
+              ["ov_cpu_unit_tests"]=""
+              ["ov_cpu_unit_tests_vectorized"]=""
+              ["ov_npu_unit_tests"]=""
+              ["ov_subgraphs_dumper_tests"]=""
+              ["ov_op_conformance_tests"]="*OpImpl*"
+              ["ov_auto_unit_tests"]=""
+              ["ov_auto_func_tests"]=""
+              ["ov_template_func_tests"]="*smoke*"
+              ["ov_util_tests"]=""
+              ["ov_capi_test"]=""
+              ["ov_auto_batch_unit_tests"]=""
+              ["ov_auto_batch_func_tests"]="*smoke*"
+              ["ov_proxy_plugin_tests"]=""
+              ["ov_hetero_unit_tests"]=""
+              ["ov_hetero_func_tests"]="*smoke*"
+              ["ov_hetero_func_tests"]="-*nightly*"
+          )
+
+          should_fail=0
+
+          for binary in "${!binaries_and_filters[@]}"; do
+              filter="${binaries_and_filters[$binary]}"
+              
+              if [[ -z "$filter" ]]; then
+                # No filter
+                test_count=$(./"$binary" --gtest_list_tests | grep -c '^  ')
+              elif [[ "$filter" == -* ]]; then
+                # Negative filter: exclude tests matching the filter
+                test_count=$(./"$binary" --gtest_list_tests | grep -v "${filter:1}" | grep -c '^  ')
+              else
+                # Positive filter: include only tests matching the filter
+                test_count=$(./"$binary" --gtest_list_tests | grep "${filter}" | grep -c '^  ')
+              fi
+
+              if [ "$test_count" -eq 0 ]; then
+                echo "No tests to execute for $binary with filter $filter"
+                should_fail=1
+              else
+                echo "$test_count tests to execute for $binary with filter $filter"
+              fi
+          done
+
+          if [[ $should_fail -eq 1 ]]; then
+            echo "Some binary(s) has no tests to execute, check the logs above"
+            exit 1
+          fi
 
       - name: OpenVINO Core Unit Tests
         if: ${{ fromJSON(inputs.affected-components).Core.test && inputs.os != 'debian_10' }} # Ticket: 153150
@@ -124,7 +189,6 @@ jobs:
         if: fromJSON(inputs.affected-components).LP_transformations.test
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-
           ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
@@ -215,7 +279,7 @@ jobs:
       - name: Template OpImpl tests
         run: |
           ${{ env.SETUPVARS_COMMAND }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpImplTests.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpImplTests.xml
 
       - name: AUTO unit tests
         if: fromJSON(inputs.affected-components).AUTO.test
