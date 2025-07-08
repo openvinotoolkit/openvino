@@ -4,8 +4,16 @@
 
 #include "insert_gemm_copy_buffers.hpp"
 
+#include <iterator>
+#include <memory>
+
 #include "expressions/gemm_copy_b_buffer_expressions.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/buffer.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"

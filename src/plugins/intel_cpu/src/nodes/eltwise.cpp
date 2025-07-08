@@ -134,6 +134,10 @@
 #    include "nodes/executors/shl/shl_eltwise.hpp"
 #endif
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_eltwise.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 
@@ -738,7 +742,7 @@ public:
         }
 #elif defined(OPENVINO_ARCH_ARM64)
         if (mayiuse(aarch64::asimd)) {
-            _pKernel.reset(new jit_uni_eltwise_generic<aarch64::asimd>(jep, eltwise_data, ops_list, post_ops));
+            _pKernel = std::make_unique<jit_uni_eltwise_generic<aarch64::asimd>>(jep, eltwise_data, ops_list, post_ops);
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
@@ -1654,8 +1658,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        for (size_t i = 0; i < inputPrecisions.size(); i++) {
-            inputPrecisions[i] = filterPrecision(inputPrecisions[i], forcedPrec);
+        for (auto& inputPrecision : inputPrecisions) {
+            inputPrecision = filterPrecision(inputPrecision, forcedPrec);
         }
         outputPrecision = filterPrecision(outputPrecision, forcedPrec);
     } else {
@@ -1905,8 +1909,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty() && useAcl;
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 #endif
 
 #if defined(OV_CPU_WITH_SHL)

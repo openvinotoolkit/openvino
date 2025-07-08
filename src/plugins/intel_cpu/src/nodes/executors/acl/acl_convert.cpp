@@ -4,7 +4,25 @@
 
 #include "acl_convert.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/NEON/functions/NECast.h>
+#include <arm_compute/runtime/NEON/functions/NECopy.h>
+
+#include <cassert>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/convert.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 

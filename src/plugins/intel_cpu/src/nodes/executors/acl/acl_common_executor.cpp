@@ -4,7 +4,17 @@
 
 #include "acl_common_executor.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/runtime/Tensor.h>
+
+#include <array>
+#include <memory>
+#include <unordered_map>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -67,7 +77,7 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
     ACLShapes aclMemoryShapes;
     ACLTypes aclDataType{};
     ACLLayouts aclDataLayout{};
-    for (auto& cpu_mem_ptr : memory) {
+    for (const auto& cpu_mem_ptr : memory) {
         if (cpu_mem_ptr.second->getSize() == 0) {
             continue;
         }
@@ -112,7 +122,7 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
 
 void ACLCommonExecutor::execute(const MemoryArgs& memory) {
     // TODO: Move import_memory() to update() function - CVS-145871
-    for (auto& cpu_mem_ptr : memory) {
+    for (const auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         if (aclTensorAttrs.memoryUsageIndicator[index]) {
             aclMemoryTensors[index]->allocator()->import_memory(memory.at(cpu_mem_ptr.first)->getData());

@@ -4,8 +4,13 @@
 
 #include "acl_utils.hpp"
 
+#include <arm_compute/function_info/ActivationLayerInfo.h>
+
+#include <functional>
+
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
 #include "support/Mutex.h"
-#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 

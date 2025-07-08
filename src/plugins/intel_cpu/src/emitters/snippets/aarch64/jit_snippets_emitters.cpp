@@ -4,6 +4,8 @@
 
 #include "jit_snippets_emitters.hpp"
 
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+
 #include <common/utils.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cstddef>

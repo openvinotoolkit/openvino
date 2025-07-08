@@ -4,7 +4,23 @@
 
 #include "acl_transpose.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/runtime/NEON/functions/NEPermute.h>
+
+#include <algorithm>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/transpose.hpp"
+#include "utils/debug_capabilities.h"
 
 bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposeParams& transposeParams,
                                                const std::vector<MemoryDescPtr>& srcDescs,

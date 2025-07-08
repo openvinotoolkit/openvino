@@ -29,7 +29,7 @@ using ACLTensors = std::array<std::shared_ptr<arm_compute::Tensor>, ACLArgs::COU
 struct ACLTensorAttrs {
     bool hasLayoutTypeNHWC = false;
     size_t maxDimsShape = arm_compute::MAX_DIMS;
-    std::array<bool, ACLArgs::COUNT_OF_ARGS> memoryUsageIndicator;
+    std::array<bool, ACLArgs::COUNT_OF_ARGS> memoryUsageIndicator{};
 };
 
 class ACLCommonExecutor : public Executor {

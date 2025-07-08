@@ -4,6 +4,29 @@
 
 #include "acl_reduce.hpp"
 
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/IFunction.h>
+#include <arm_compute/runtime/NEON/functions/NEReduceMean.h>
+#include <arm_compute/runtime/NEON/functions/NEReductionOperation.h>
+
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/reduce.hpp"
+#include "openvino/core/except.hpp"
+#include "utils/debug_capabilities.h"
+
 namespace ov::intel_cpu {
 
 using namespace arm_compute;
@@ -125,7 +148,7 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 
 void AclReduceExecutor::exec(const std::vector<MemoryCPtr>& src,
                              const std::vector<MemoryPtr>& dst,
-                             const void* post_ops_data_) {
+                             [[maybe_unused]] const void* post_ops_data_) {
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
 

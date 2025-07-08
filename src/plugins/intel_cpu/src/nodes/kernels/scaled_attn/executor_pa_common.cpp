@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#if !defined(XBYAK_RISCV_V)
+#if !defined(XBYAK_RISCV_V) && !defined(OPENVINO_ARCH_AARCH64)
 #    include "executor_pa_common.hpp"
 #endif
 

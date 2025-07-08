@@ -18,6 +18,8 @@
 #    include "nodes/executors/x64/jit_transpose.hpp"
 #elif defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
 #    include "nodes/executors/mlas/mlas_transpose.hpp"
+#elif defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_transpose.hpp"
 #endif
 #include "openvino/core/except.hpp"
 

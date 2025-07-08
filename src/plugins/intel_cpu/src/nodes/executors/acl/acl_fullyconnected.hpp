@@ -24,7 +24,7 @@ public:
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
     arm_compute::TensorInfo weiTensorInfo;

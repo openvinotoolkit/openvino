@@ -2088,11 +2088,10 @@ void MVN::initSupportedPrimitiveDescriptors() {
     pushDesc(LayoutType::nspc, undef, true);
     pushDesc(LayoutType::ncsp, undef, true);
     canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-    if (canUseAclExecutor)
+    if (canUseAclExecutor) {
         return;
-    else
-        // Reference MVN implementation does not support fp16, so set fp32 explicitly
-        inputPrecision = outputPrecision = ov::element::f32;
+    }  // Reference MVN implementation does not support fp16, so set fp32 explicitly
+    inputPrecision = outputPrecision = ov::element::f32;
 #endif  // OV_CPU_WITH_ACL
 
     impl_desc_type impl_type = [&]() {

@@ -52,6 +52,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "openvino/core/shape.hpp"
 #    include "utils/precision_support.h"
 #endif
 
@@ -181,15 +182,18 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         if (!hasIntDotProductSupport()) {
             return false;
         }
-        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
+        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX) {
             return false;
+        }
 
-        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC)
+        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC) {
             return false;
+        }
 
         if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined) {
             return false;
+        }
     } catch (...) {
         return false;
     }

@@ -2290,8 +2290,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         pushDesc(LayoutType::nspc, undef, true, true);
         pushDesc(LayoutType::ncsp, undef, true, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-        if (canUseAclExecutor)
+        if (canUseAclExecutor) {
             return;
+        }
         // fallback to f32 if ref is used
         inputPrecision = outputPrecision = ov::element::f32;
 #endif
@@ -2327,8 +2328,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         pushDesc(LayoutType::nspc, undef, false, true);
         pushDesc(LayoutType::ncsp, undef, false, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
-        if (canUseAclExecutor)
+        if (canUseAclExecutor) {
             return;
+        }
         // fallback to f32 if ref is used
         inputPrecision = outputPrecision = ov::element::f32;
 #endif

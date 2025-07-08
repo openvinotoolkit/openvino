@@ -5,7 +5,6 @@
 
 #include <climits>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -43,7 +42,14 @@
 #include "transformations/snippets/common/shape_inference.hpp"
 #include "utils/general_utils.h"
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "emitters/snippets/x64/cpu_generator.hpp"
+#    include "executors/x64/subgraph.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#    include <cpu/aarch64/cpu_isa_traits.hpp>
+
 #    include "cache/cache_entry.h"
 #    include "emitters/snippets/aarch64/cpu_generator.hpp"
 #    include "executors/aarch64/subgraph.hpp"
@@ -56,11 +62,11 @@
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
-#elif !defined(OPENVINO_ARCH_RISCV64)
+#endif
+
+#if !defined(OPENVINO_ARCH_RISCV64)
 #    include "cache/cache_entry.h"
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
-#    include "emitters/snippets/x64/cpu_generator.hpp"
-#    include "executors/x64/subgraph.hpp"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
