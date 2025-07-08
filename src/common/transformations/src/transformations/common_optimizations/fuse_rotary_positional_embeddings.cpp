@@ -432,17 +432,15 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
 ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
-    auto data = makePattern(ov::Rank(4));
-    auto ndims = ov::gen_pattern::Symbol("ndims");
-
-    auto varsplit = makePattern<opset1::VariadicSplit>({data, 3, {ndims, ov::gen_pattern::Symbol("end")}});
+    auto data = pattern::any_input(pattern::rank_equals(4));
+    auto varsplit = pattern::wrap_type<opset1::VariadicSplit>({data, 3, {"ndims", "?"}});
     varsplit->set_output_size(2);
 
-    auto x = GenSlice(data, 0, ndims, 1, 3);
-    auto y = GenSlice(data, ndims, int32_max, 1, 3);
-    auto x_emb = makePattern<op::internal::RoPE>({x | varsplit->output(0), {}, {}}) |
-                 makePattern<op::internal::RoPE>({x | varsplit->output(0), {}, {}, {}});
-    auto result = makePattern<opset1::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
+    auto x = NewGenSlice(data, 0, "ndims", 1, 3);
+    auto y = NewGenSlice(data, "ndims", int32_max, 1, 3);
+    auto x_emb = pattern::wrap_type<op::internal::RoPE>({x | varsplit->output(0), pattern::wrap_const(), pattern::wrap_const()}) |
+                 pattern::wrap_type<op::internal::RoPE>({x | varsplit->output(0), pattern::wrap_const(), pattern::wrap_const(), pattern::wrap_const()});
+    auto result = pattern::wrap_type<opset1::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -452,18 +450,18 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         if (!rope_node)
             return false;
 
-        PatternValidator validator(m);
-        if (!validator) {
+        auto symbols = m.get_symbols();
+        auto ndims = symbols["ndims"];
+        if (!ndims.is_static() && !ndims.is_integer())
             return false;
-        }
-        auto ndims = validator["ndims"];
 
         const auto& config = rope_node->get_config();
-        if (config.rotary_ndims != ndims)
+        if (config.rotary_ndims != static_cast<size_t>(ndims.i()))
             return false;
 
         // remove slice & concat
-        rope_node->set_argument(0, pattern_map.at(data));
+        // rope_node->set_argument(0, pattern_map.at(data));
+        rope_node->input(0).replace_source_output(pattern_map.at(data));
         rope_node->set_friendly_name(root->get_friendly_name());
         ov::copy_runtime_info({rope_node, pattern_map.at(result).get_node_shared_ptr()}, rope_node);
         ov::replace_node(root, rope_node);
