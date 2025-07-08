@@ -291,6 +291,8 @@ public:
         return m_outputNodesMemBlocks;
     }
 
+    friend class GraphOptimizer;
+
 protected:
     void ForgetGraphData() {
         status = Status::NotReady;
