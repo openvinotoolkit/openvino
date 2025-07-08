@@ -757,7 +757,8 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
             if (eltwise_node.has_eltwise_const_dep_idx()) {
                 auto const_shape_idx = eltwise_node.get_eltwise_const_dep_idx();
-                OPENVINO_ASSERT(eltwise_node.get_input_pshape(const_shape_idx).size() == ref_pshape.size(),
+                auto const_pshape_size = eltwise_node.get_input_pshape(const_shape_idx).size();
+                OPENVINO_ASSERT(const_pshape_size == ref_pshape.size() || const_pshape_size == 1,
                                 "Unexpected pshape size of NUMPY broadcast of eltwise " + eltwise_node.id());
             }
 
