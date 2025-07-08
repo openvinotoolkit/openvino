@@ -433,6 +433,7 @@ struct layout {
                 seed = hash_combine(seed, bs.first);
                 seed = hash_combine(seed, bs.second);
             }
+            seed = hash_combine(seed, bytes_count());
         }
         return seed;
     }

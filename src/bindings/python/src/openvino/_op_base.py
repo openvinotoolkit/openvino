@@ -2,14 +2,14 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Union, Optional, Tuple, List
+from typing import Union, Optional
 
 from openvino._pyopenvino import Op as OpBase
 from openvino._pyopenvino import Node, Output
 
 
 class Op(OpBase):
-    def __init__(self, py_obj: "Op", inputs: Optional[Union[List[Union[Node, Output]], Tuple[Union[Node, Output, List[Union[Node, Output]]]]]] = None) -> None:
+    def __init__(self, py_obj: "Op", inputs: Optional[Union[list[Union[Node, Output]], tuple[Union[Node, Output, list[Union[Node, Output]]]]]] = None) -> None:
         super().__init__(py_obj)
         self._update_type_info()
         if isinstance(inputs, tuple):
