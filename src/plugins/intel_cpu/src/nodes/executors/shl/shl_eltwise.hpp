@@ -4,6 +4,8 @@
 #pragma once
 
 #include <functional>
+#include <memory>
+#include <vector>
 
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/eltwise_config.hpp"
@@ -16,9 +18,7 @@ namespace ov::intel_cpu {
 
 class ShlEltwiseExecutor : public Executor {
 public:
-    explicit ShlEltwiseExecutor(const EltwiseAttrs& attrs,
-                                const MemoryArgs& memory,
-                                const ExecutorContext::CPtr& context);
+    explicit ShlEltwiseExecutor(EltwiseAttrs attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
     static bool supports(const EltwiseConfig& config);
 
     bool update(const MemoryArgs& memory) override;

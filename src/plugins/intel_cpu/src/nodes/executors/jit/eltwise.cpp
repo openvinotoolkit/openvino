@@ -37,9 +37,11 @@ using namespace dnnl::impl::cpu::x64;
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
+#    include <any>
 #    include <cpu/aarch64/cpu_isa_traits.hpp>
 
 #    include "nodes/kernels/aarch64/jit_uni_eltwise_generic.hpp"
+#    include "post_ops.hpp"
 using namespace ov::intel_cpu::aarch64;
 using namespace dnnl::impl::cpu::aarch64;
 #endif
@@ -414,27 +416,27 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
         return false;
     }
 
-    std::set<ov::element::Type> supported_input_precisions = std::set<ov::element::Type>{ov::element::f16,
-                                                                                         ov::element::f32,
-                                                                                         ov::element::i32,
-                                                                                         ov::element::i8,
-                                                                                         ov::element::u8};
+    std::vector<ov::element::Type> supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16,
+                                                                                               ov::element::f32,
+                                                                                               ov::element::i32,
+                                                                                               ov::element::i8,
+                                                                                               ov::element::u8};
 
-    std::set<ov::element::Type> supported_output_precisions = supported_input_precisions;
+    std::vector<ov::element::Type> supported_output_precisions = supported_input_precisions;
     if (one_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
-        supported_input_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
+        supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16, ov::element::f32};
     }
 
     const auto& postOps = attrs.postOps;
     if (!postOps.empty()) {
         // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
-        if (const auto scaleShiftPostOp = std::any_cast<ScaleShiftPostOp>(&postOps.back())) {
+        if (const auto* const scaleShiftPostOp = std::any_cast<ScaleShiftPostOp>(&postOps.back())) {
             if (scaleShiftPostOp->type() == ScaleShiftPostOp::Type::divide) {
-                supported_input_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
+                supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16, ov::element::f32};
             }
-        } else if (const auto activationPostOp = std::any_cast<ActivationPostOp>(&postOps.back())) {
+        } else if (const auto* const activationPostOp = std::any_cast<ActivationPostOp>(&postOps.back())) {
             if (activationPostOp->type() == ActivationPostOp::Type::floor) {
-                supported_input_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
+                supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16, ov::element::f32};
             }
         }
     } else {
@@ -467,10 +469,10 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
         return false;
     }
 
-    const std::set<ov::element::Type> supported_input_precisions = {ov::element::f32,
-                                                                    ov::element::i32,
-                                                                    ov::element::i8,
-                                                                    ov::element::u8};
+    const std::vector<ov::element::Type> supported_input_precisions = {ov::element::f32,
+                                                                       ov::element::i32,
+                                                                       ov::element::i8,
+                                                                       ov::element::u8};
     const auto& supported_output_precisions = supported_input_precisions;
 #endif
 
@@ -480,7 +482,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
         if (std::any_of(input_precisions.begin(),
                         input_precisions.end(),
                         [&supported_input_precisions](const ov::element::Type& precision) {
-                            return supported_input_precisions.find(precision) == supported_input_precisions.end();
+                            return !contains(supported_input_precisions, precision);
                         })) {
             return false;
         }
@@ -488,7 +490,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
         if (std::any_of(output_precisions.begin(),
                         output_precisions.end(),
                         [&supported_output_precisions](const ov::element::Type& precision) {
-                            return supported_output_precisions.find(precision) == supported_output_precisions.end();
+                            return !contains(supported_output_precisions, precision);
                         })) {
             return false;
         }

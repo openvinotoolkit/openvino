@@ -24,20 +24,17 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "acl_utils.hpp"
-#include "cpu_memory.h"
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "nodes/executors/memory_arguments.hpp"
 #include "utils/debug_capabilities.h"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -203,10 +200,10 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
     return true;
 }
 
-AclEltwiseExecutor::AclEltwiseExecutor(const EltwiseAttrs& attrs,
+AclEltwiseExecutor::AclEltwiseExecutor(EltwiseAttrs attrs,
                                        [[maybe_unused]] const MemoryArgs& memory,
                                        [[maybe_unused]] const ExecutorContext::CPtr& context)
-    : aclEltwiseAttrs(attrs) {}
+    : aclEltwiseAttrs(std::move(attrs)) {}
 
 bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const std::vector<MemoryDescPtr>& dstDescs) {
     auto postOps = aclEltwiseAttrs.postOps;
@@ -542,11 +539,11 @@ void AclEltwiseExecutor::execute(const MemoryArgs& memory) {
 
     ifunc->run();
 
-    for (size_t i = 0; i < srcTensors.size(); i++) {
-        srcTensors[i].allocator()->free();
+    for (auto& srcTensor : srcTensors) {
+        srcTensor.allocator()->free();
     }
-    for (size_t i = 0; i < dstTensors.size(); i++) {
-        dstTensors[i].allocator()->free();
+    for (auto& dstTensor : dstTensors) {
+        dstTensor.allocator()->free();
     }
 }
 
