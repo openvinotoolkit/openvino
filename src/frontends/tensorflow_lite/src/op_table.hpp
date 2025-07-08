@@ -29,6 +29,7 @@ TFL_OP_CONVERTER(avg_pool_2d);
 TFL_OP_CONVERTER(complex_abs);
 TFL_OP_CONVERTER(concatenation);
 TFL_OP_CONVERTER(conv2d);
+TFL_OP_CONVERTER(conv3d);
 TFL_OP_CONVERTER(depthwise_conv2d);
 TFL_OP_CONVERTER(dequantize);
 TFL_OP_CONVERTER(fully_connected);
