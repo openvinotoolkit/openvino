@@ -30,8 +30,8 @@ public:
      * details)
      * @param op_seed Second seed value (counter) of the random number generation algorithm. (See RandomUniform for
      * details)
-     * @param alignment Selects which framework's algoritm should be used to generate the random samples. (See RandomUniform for
-     * details)
+     * @param alignment Selects which framework's algoritm should be used to generate the random samples. (See
+     * RandomUniform for details)
      */
     Multinomial(const Output<Node>& input,
                 const Output<Node>& num_samples,
@@ -59,8 +59,8 @@ public:
      * details)
      * @param op_seed Second seed value (counter) of the random number generation algorithm. (See RandomUniform for
      * details)
-     * @param alignment Selects which framework's algoritm should be used to generate the random samples. (See RandomUniform for
-     * details)
+     * @param alignment Selects which framework's algoritm should be used to generate the random samples. (See
+     * RandomUniform for details)
      */
     Multinomial(const Output<Node>& input,
                 const Output<Node>& num_samples,
@@ -82,7 +82,6 @@ public:
     uint64_t get_global_seed() const;
     uint64_t get_op_seed() const;
     op::PhiloxAlignment get_alignment() const;
-
 
     void set_convert_type(const ov::element::Type_t convert_type);
     void set_with_replacement(const bool with_replacement);

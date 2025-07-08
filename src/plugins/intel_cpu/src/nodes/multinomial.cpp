@@ -105,7 +105,8 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
 }
 
 bool Multinomial::needShapeInfer() const {
-    return !(m_const_batch && m_const_inputs[NUM_SAMPLES_PORT] && (!m_provided_random_samples || m_const_inputs[RANDOM_SAMPLES_PORT]));
+    return !(m_const_batch && m_const_inputs[NUM_SAMPLES_PORT] &&
+             (!m_provided_random_samples || m_const_inputs[RANDOM_SAMPLES_PORT]));
 }
 
 bool Multinomial::needPrepareParams() const {
@@ -172,12 +173,13 @@ void Multinomial::prepareParams() {
 
 bool Multinomial::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(PROBS_PORT) ||
-           getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(NUM_SAMPLES_PORT) || 
+           getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(NUM_SAMPLES_PORT) ||
            (m_provided_random_samples && getSelectedPrimitiveDescriptor()->hasZeroInputDimsAtPort(RANDOM_SAMPLES_PORT));
 }
 
 bool Multinomial::isExecutable() const {
-    return !isInputTensorAtPortEmpty(PROBS_PORT) && !isInputTensorAtPortEmpty(NUM_SAMPLES_PORT) && (!m_provided_random_samples || !isInputTensorAtPortEmpty(RANDOM_SAMPLES_PORT));
+    return !isInputTensorAtPortEmpty(PROBS_PORT) && !isInputTensorAtPortEmpty(NUM_SAMPLES_PORT) &&
+           (!m_provided_random_samples || !isInputTensorAtPortEmpty(RANDOM_SAMPLES_PORT));
 }
 
 bool Multinomial::created() const {
