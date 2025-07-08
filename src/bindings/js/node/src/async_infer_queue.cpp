@@ -58,12 +58,10 @@ AsyncInferQueue::~AsyncInferQueue() {
 void AsyncInferQueue::release() {
     if (m_tsfn) {
         const auto status = m_tsfn.Release();
-        if (status == napi_invalid_arg) {
-            OPENVINO_THROW("Failed to release AsyncInferQueue resources. "
-                           "ThreadSafeFunction is already released or not initialized.");
-        } else if (status != napi_ok) {
-            OPENVINO_THROW("Failed to release AsyncInferQueue resources.");
-        }
+        OPENVINO_ASSERT(status != napi_invalid_arg,
+                        "Failed to release AsyncInferQueue resources. "
+                        "ThreadSafeFunction is already released or not initialized.");
+        OPENVINO_ASSERT(status == napi_ok, "Failed to release AsyncInferQueue resources.");
     }
 }
 
@@ -126,11 +124,8 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         }
                         // Start async inference on the next request or add idle handle to queue
                         if (std::lock_guard<std::mutex> lock(m_mutex); m_awaiting_requests.size() > 0) {
-                            auto& request = m_awaiting_requests.front();
-                            start_async_impl(static_cast<int>(handle),
-                                             std::get<0>(request).Value(),
-                                             std::get<1>(request).Value(),
-                                             std::get<2>(request));
+                            const auto& [infer_data, user_data, promise] = m_awaiting_requests.front();
+                            start_async_impl(static_cast<int>(handle), infer_data.Value(), user_data.Value(), promise);
                             m_awaiting_requests.pop();
                         } else {
                             m_idle_handles.push(handle);
