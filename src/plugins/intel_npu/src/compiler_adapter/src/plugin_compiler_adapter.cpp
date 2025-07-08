@@ -132,7 +132,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
     ze_graph_handle_t graphHandle = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
+        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
+                                                  blob.get_byte_size(),
+                                                  blobAllocatedByPlugin);
     }
 
     return std::make_shared<Graph>(_zeGraphExt,

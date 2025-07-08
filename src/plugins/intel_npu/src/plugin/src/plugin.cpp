@@ -130,18 +130,22 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
     return base_conf.get<COMPILER_TYPE>();
 }
 
-struct CustomNpuAllocator : public ov::Allocator {
+struct CustomNpuAllocator {
 public:
     CustomNpuAllocator(const size_t align_size) : _align_size(align_size) {}
 
     void* allocate(const size_t bytes, const size_t /*alignment*/) {
         // allocated size shall be multiple of _align_size as well
         size_t size = (bytes + _align_size - 1) & ~(_align_size - 1);
-        return Allocator::allocate(size, _align_size);
+        return ::operator new(size, std::align_val_t(_align_size));
     }
 
-    void deallocate(void* handle, const size_t bytes, const size_t /*alignment*/) noexcept {
-        return Allocator::deallocate(handle, bytes, _align_size);
+    void deallocate(void* handle, const size_t /*bytes*/, const size_t /*alignment*/) noexcept {
+        ::operator delete(handle, std::align_val_t(_align_size));
+    }
+
+    bool is_equal(const CustomNpuAllocator&) const {
+        return true;
     }
 
 private:
@@ -688,7 +692,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             blobSize = storedMeta->get_blob_size();
         }
         if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize}, CustomNpuAllocator{STANDARD_PAGE_SIZE});
+            ov::Allocator customAllocator{CustomNpuAllocator{STANDARD_PAGE_SIZE}};
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }

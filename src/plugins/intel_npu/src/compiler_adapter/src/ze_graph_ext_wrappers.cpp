@@ -316,7 +316,9 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
     return graphHandle;
 }
 
-ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, size_t blobSize) const {
+ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData,
+                                                     size_t blobSize,
+                                                     const bool blobAllocatedByPlugin) const {
     ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
@@ -335,6 +337,12 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, si
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _zeroInitStruct->getGraphDdiTable());
     } else {
         uint32_t flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
+
+
+        // TODO: Workaround for making the size aligned for now
+        if (blobAllocatedByPlugin) {
+            blobSize = (blobSize + 4096 - 1) & ~(4096 - 1);
+        }
 
         ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                                   nullptr,
