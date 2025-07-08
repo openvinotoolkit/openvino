@@ -438,8 +438,10 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
     auto x = NewGenSlice(data, 0, "ndims", 1, 3);
     auto y = NewGenSlice(data, "ndims", int32_max, 1, 3);
-    auto x_emb = pattern::wrap_type<op::internal::RoPE>({x | varsplit->output(0), pattern::wrap_const(), pattern::wrap_const()}) |
-                 pattern::wrap_type<op::internal::RoPE>({x | varsplit->output(0), pattern::wrap_const(), pattern::wrap_const(), pattern::wrap_const()});
+    auto x_emb = pattern::wrap_type<op::internal::RoPE>(
+        {x | varsplit->output(0), pattern::wrap_const(), pattern::wrap_const()}) |
+    pattern::wrap_type<op::internal::RoPE>(
+        {x | varsplit->output(0), pattern::wrap_const(), pattern::wrap_const(), pattern::wrap_const()});
     auto result = pattern::wrap_type<opset1::Concat>({x_emb, y | varsplit->output(1)}, {{"axis", -1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -452,7 +454,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
         auto symbols = m.get_symbols();
         auto ndims = symbols["ndims"];
-        if (!ndims.is_static() && !ndims.is_integer())
+        if (!ndims.is_static() || !ndims.is_integer())
             return false;
 
         const auto& config = rope_node->get_config();
