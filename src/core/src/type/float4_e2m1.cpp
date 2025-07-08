@@ -85,10 +85,10 @@ uint8_t f32_to_f4e2m1_bits(const float value) {
             // Restore the hidden 1 in target mantissa for subnormal calculation
             fractional = f_m_hidden_one_mask | (input & f32_m_mask) << (f32_e_size - f4e2m1_e_size - 4U);
             // Will any bits be shifted off?
-            int32_t shift = (1U << (1 - target_f_biased_exp));
+            int32_t shift = target_f_biased_exp < -(f4e2m1_e_max) ? 0 : (1U << (1 - target_f_biased_exp));
             uint32_t sticky = (fractional & (shift - 1)) ? 1 : 0;
 
-            fractional = fractional >> (1 - target_f_biased_exp);
+            fractional = ((1 + target_f_biased_exp) > f4e2m1_e_max - 1) ? 0 : fractional >> (1 - target_f_biased_exp);
             fractional |= sticky;
             // apply rounding
             if (((fractional & round_half) == round_odd) || ((fractional & round_norm) != 0)) {
@@ -102,7 +102,7 @@ uint8_t f32_to_f4e2m1_bits(const float value) {
 }
 }  // namespace
 
-float4_e2m1::float4_e2m1(const float value) : m_value(f32_to_f4e2m1_bits(value)) {};
+float4_e2m1::float4_e2m1(const float value) : m_value(f32_to_f4e2m1_bits(value)){};
 
 float4_e2m1::operator float() const {
     return f4e2m1_to_f32_lut[m_value];

@@ -5,18 +5,13 @@
 #pragma once
 
 #include <cpu_shape.h>
+#include <onednn/dnnl.h>
 
-#include <cstddef>
 #include <memory>
 #include <mutex>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_common.hpp>
-#include <string>
-#include <type_traits>
 #include <unordered_set>
 #include <utility>
 
-#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/type/element_type.hpp"
@@ -31,7 +26,8 @@
  *
  */
 
-namespace ov::intel_cpu {
+namespace ov {
+namespace intel_cpu {
 
 class Memory;
 class ProxyMemoryBlock;
@@ -49,7 +45,7 @@ public:
      * @brief Accessor to underlying memory buffer
      * @return A pointer to underlying memory
      */
-    [[nodiscard]] virtual void* getRawPtr() const noexcept = 0;
+    virtual void* getRawPtr() const noexcept = 0;
 
     /**
      * @brief Allows to set externally allocated memory buffer. In that case, the object has no control over the
@@ -70,7 +66,7 @@ public:
      * @brief Check if the object has control over underlying memory buffer
      * @return status whether the object has control over underlying memory buffer
      */
-    [[nodiscard]] virtual bool hasExtBuffer() const noexcept = 0;
+    virtual bool hasExtBuffer() const noexcept = 0;
 };
 
 /**
@@ -79,12 +75,11 @@ public:
 class MemoryBlockWithReuse : public IMemoryBlock {
 public:
     MemoryBlockWithReuse(int numa_node = -1) : m_data(nullptr, release), numa_node(numa_node) {}
-    [[nodiscard]] void* getRawPtr() const noexcept override;
+    void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
-    [[nodiscard]] bool hasExtBuffer() const noexcept override;
+    bool hasExtBuffer() const noexcept override;
     void free();
-    [[nodiscard]] size_t size() const;  // in bytes
 
 private:
     bool m_useExternalStorage = false;
@@ -108,16 +103,17 @@ public:
 class DnnlMemoryBlock : public IMemoryBlockObserver {
 public:
     explicit DnnlMemoryBlock(std::unique_ptr<IMemoryBlock> memBlock) : m_pMemBlock(std::move(memBlock)) {}
-    [[nodiscard]] void* getRawPtr() const noexcept override;
+    void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
-    [[nodiscard]] bool hasExtBuffer() const noexcept override;
+    bool hasExtBuffer() const noexcept override;
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
 private:
     void notifyUpdate();
 
+private:
     std::unordered_set<Memory*> m_setMemPtrs;
     std::unique_ptr<IMemoryBlock> m_pMemBlock;
 };
@@ -152,7 +148,7 @@ public:
         }
     }
 
-    [[nodiscard]] MemoryBlockPtr get() const {
+    MemoryBlockPtr get() const {
         return m_pMemBlock;
     }
 
@@ -169,13 +165,13 @@ class IMemory {
 public:
     virtual ~IMemory() = default;
 
-    [[nodiscard]] virtual const MemoryDesc& getDesc() const = 0;
-    [[nodiscard]] virtual MemoryDescPtr getDescPtr() const = 0;
+    virtual const MemoryDesc& getDesc() const = 0;
+    virtual MemoryDescPtr getDescPtr() const = 0;
 
-    [[nodiscard]] virtual void* getData() const = 0;  // pointer to the actual memory
+    virtual void* getData() const = 0;  // pointer to the actual memory
 
-    template <typename T, typename datatype = std::decay_t<T>>
-    [[nodiscard]] T* getDataAs() const {
+    template <typename T, typename datatype = typename std::decay<T>::type>
+    T* getDataAs() const {
         /** @todo enabling this check requires all the nodes to follow this requirement
          * OPENVINO_ASSERT(element::from<datatype>() == getPrecision(),
          * "Memory data element type ", getPrecision(), " is not representable as ", element::from<datatype>());
@@ -183,9 +179,9 @@ public:
         return static_cast<T*>(getData());
     }
 
-    [[nodiscard]] virtual size_t getSize() const = 0;  // in bytes
-    [[nodiscard]] virtual const Shape& getShape() const = 0;
-    [[nodiscard]] virtual const VectorDims& getStaticDims() const = 0;
+    virtual size_t getSize() const = 0;  // in bytes
+    virtual const Shape& getShape() const = 0;
+    virtual const VectorDims& getStaticDims() const = 0;
 
     // Redefines descriptor. The memory descriptor will be replaced with the new one.
     // Memory will not be reallocated according to the dynamic memory block policy
@@ -194,11 +190,11 @@ public:
 
     virtual void load(const IMemory& src, bool ftz, bool bf16saturation) const = 0;
 
-    [[nodiscard]] virtual MemoryBlockPtr getMemoryBlock() const = 0;
+    virtual MemoryBlockPtr getMemoryBlock() const = 0;
 
     virtual void nullify() = 0;
 
-    [[nodiscard]] bool isDefined() const noexcept {
+    bool isDefined() const noexcept {
         if (auto desc = getDescPtr()) {
             return desc->isDefined();
         }
@@ -206,20 +202,20 @@ public:
     }
 
     // oneDNN specifics for backward compatibility
-    [[nodiscard]] virtual dnnl::memory getPrimitive() const = 0;
+    virtual dnnl::memory getPrimitive() const = 0;
 
-    [[nodiscard]] ov::element::Type getPrecision() const {
+    ov::element::Type getPrecision() const {
         return getDesc().getPrecision();
     }
 
-    [[nodiscard]] dnnl::memory::data_type getDataType() const {
+    dnnl::memory::data_type getDataType() const {
         return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }
 
     template <typename T,
-              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
-              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
-    [[nodiscard]] std::shared_ptr<T> getDescWithType() const;
+              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
+              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+    std::shared_ptr<T> getDescWithType() const;
 };
 
 class StaticMemory final : public IMemory {
@@ -228,10 +224,10 @@ public:
     public:
         explicit StaticMemoryBlock(size_t size);
         StaticMemoryBlock(void* data, size_t size);
-        [[nodiscard]] void* getRawPtr() const noexcept override;
+        void* getRawPtr() const noexcept override;
         void setExtBuff(void* ptr, size_t size) override;
         bool resize(size_t size) override;
-        [[nodiscard]] bool hasExtBuffer() const noexcept override;
+        bool hasExtBuffer() const noexcept override;
         void registerMemory(Memory* memPtr) override;
         void unregisterMemory(Memory* memPtr) override;
 
@@ -242,6 +238,7 @@ public:
 
     using MemBlockPtr = std::shared_ptr<StaticMemoryBlock>;
 
+public:
     StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
     StaticMemory(dnnl::engine eng, const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
@@ -251,24 +248,24 @@ public:
     StaticMemory(Memory&&) = delete;
     StaticMemory& operator=(StaticMemory&&) = delete;
 
-    [[nodiscard]] const MemoryDesc& getDesc() const override;
-    [[nodiscard]] MemoryDescPtr getDescPtr() const override;
+    const MemoryDesc& getDesc() const override;
+    MemoryDescPtr getDescPtr() const override;
 
-    [[nodiscard]] void* getData() const override;  // pointer to the actual memory
+    void* getData() const override;  // pointer to the actual memory
 
-    [[nodiscard]] size_t getSize() const override;  // in bytes
-    [[nodiscard]] const Shape& getShape() const override;
-    [[nodiscard]] const VectorDims& getStaticDims() const override;
+    size_t getSize() const override;  // in bytes
+    const Shape& getShape() const override;
+    const VectorDims& getStaticDims() const override;
 
     // Always throws since a static memory descriptor should not be modified
     void redefineDesc(MemoryDescPtr desc) override;
 
     void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
 
-    [[nodiscard]] MemoryBlockPtr getMemoryBlock() const override;
+    MemoryBlockPtr getMemoryBlock() const override;
 
     // oneDNN specifics for backward compatibility
-    [[nodiscard]] dnnl::memory getPrimitive() const override;
+    dnnl::memory getPrimitive() const override;
 
     void nullify() override;
 
@@ -333,11 +330,13 @@ private:
     friend DnnlMemoryBlock;
     friend ProxyMemoryBlock;
 
+private:
     void update();
 
     void create(const MemoryDesc& desc, const void* data = nullptr, bool pads_zeroing = true);
     void create(MemoryDescPtr desc, const void* data = nullptr, bool pads_zeroing = true);
 
+private:
     dnnl::engine m_eng;
     MemoryDescPtr m_pMemDesc;
     DnnlMemBlockHandle m_blockHandle;
@@ -368,13 +367,13 @@ public:
 
     class StringMemoryBlock {
     public:
-        StringMemoryBlock() : m_data(nullptr, release) {};
-        [[nodiscard]] OvString* getStringPtr() const noexcept;
+        StringMemoryBlock() : m_data(nullptr, release) {}
+        OvString* getStringPtr() const noexcept;
         void setExtBuff(OvString* ptr, size_t size);
-        [[nodiscard]] size_t getStrLen() const noexcept;
-        [[nodiscard]] void* getRawPtr() const noexcept;
+        size_t getStrLen() const noexcept;
+        void* getRawPtr() const noexcept;
         bool resize(size_t size /* string elements number */);
-        [[nodiscard]] bool hasExtBuffer() const noexcept;
+        bool hasExtBuffer() const noexcept;
 
     private:
         bool m_use_external_storage = false;
@@ -400,23 +399,23 @@ public:
     StringMemory(dnnl::engine engine, const MemoryDesc& desc, StringMemoryBlockPtr block)
         : StringMemory(std::move(engine), desc.clone(), std::move(block)) {}
 
-    [[nodiscard]] const MemoryDesc& getDesc() const override {
+    const MemoryDesc& getDesc() const override {
         return *m_mem_desc;
     }
 
-    [[nodiscard]] MemoryDescPtr getDescPtr() const override {
+    MemoryDescPtr getDescPtr() const override {
         return m_mem_desc;
     }
 
-    [[nodiscard]] void* getData() const override;
+    void* getData() const override;
 
-    [[nodiscard]] size_t getSize() const override;  // In bytes
+    size_t getSize() const override;  // In bytes
 
-    [[nodiscard]] const Shape& getShape() const override {
+    const Shape& getShape() const override {
         return m_mem_desc->getShape();
     }
 
-    [[nodiscard]] const VectorDims& getStaticDims() const override {
+    const VectorDims& getStaticDims() const override {
         return m_mem_desc->getShape().getStaticDims();
     }
 
@@ -424,13 +423,13 @@ public:
 
     void load(const IMemory& src, bool ftz, bool bf16saturation) const override;
 
-    [[nodiscard]] MemoryBlockPtr getMemoryBlock() const override;
+    MemoryBlockPtr getMemoryBlock() const override;
 
-    [[nodiscard]] StringMemoryBlockPtr getStringMemoryBlockPtr() const {
+    StringMemoryBlockPtr getStringMemoryBlockPtr() const {
         return m_memoryBlock;
     }
 
-    [[nodiscard]] dnnl::memory getPrimitive() const override;
+    dnnl::memory getPrimitive() const override;
 
     void nullify() override;
 
@@ -444,7 +443,7 @@ using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
 using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
-bool mbind_move(void* data, size_t size, int targetNode);
+bool mbind_move(void* data, size_t size, int numaNodeID);
 bool mbind_move(const MemoryCPtr& mem, int numaNodeID);
 bool mbind_move(const dnnl::memory& mem, int numaNodeID);
 
@@ -461,4 +460,5 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
                          int w_size,
                          bool need_fill = true);
 
-}  // namespace ov::intel_cpu
+}  // namespace intel_cpu
+}  // namespace ov
