@@ -12,12 +12,12 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/multinomial.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/utils/utils.hpp"
@@ -51,7 +51,6 @@ ov::pass::MultinomialRandomUniformFusion::MultinomialRandomUniformFusion() {
 
         auto new_shape = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
         auto total_nr_of_samples_1d = std::make_shared<ov::op::v1::Reshape>(total_nr_of_samples, new_shape, false);
-
 
         // Insert RandomUniform
         auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(
