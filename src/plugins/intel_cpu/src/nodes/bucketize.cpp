@@ -89,10 +89,10 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-inline constexpr uint32_t getElementsMask(ov::element::Type precision1,
-                                          ov::element::Type precision2,
-                                          ov::element::Type precision3 = ov::element::dynamic,
-                                          ov::element::Type precision4 = ov::element::dynamic) {
+constexpr uint32_t getElementsMask(ov::element::Type precision1,
+                                   ov::element::Type precision2,
+                                   ov::element::Type precision3 = ov::element::dynamic,
+                                   ov::element::Type precision4 = ov::element::dynamic) {
     return static_cast<uint32_t>(ov::element::Type_t(precision1)) |
            (static_cast<uint32_t>(ov::element::Type_t(precision2)) << 8) |
            (static_cast<uint32_t>(ov::element::Type_t(precision3)) << 16) |
@@ -258,10 +258,10 @@ void Bucketize::bucketize() {
     parallel_for(num_values, [&](size_t ind) {
         T value = input_data[ind];
         if (with_right) {
-            auto low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(low - boundaries_data);
         } else {
-            auto up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
+            const auto* up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
             output_data[ind] = static_cast<T_IND>(up - boundaries_data);
         }
     });

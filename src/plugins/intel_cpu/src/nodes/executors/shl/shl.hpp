@@ -3,13 +3,12 @@
 //
 #pragma once
 
-#include "shl_utils.hpp"
+#include <memory>
+
 #include "csinn/csinn_data_structure.h"
 #include "csinn/csinn_runtime.h"
-
 #include "memory_desc/cpu_memory_desc.h"
-
-#include <memory>
+#include "shl_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -22,9 +21,11 @@ public:
     ShlStructure() = default;
     ShlStructure(const ShlStructure<T, traits>&) = default;
     ShlStructure(ShlStructure<T, traits>&&) noexcept = default;
-    explicit ShlStructure(T t) { reset(t); }
+    explicit ShlStructure(T t) {
+        reset(t);
+    }
 
-    ShlStructure<T, traits> &operator=(const ShlStructure<T, traits>&) = default;
+    ShlStructure<T, traits>& operator=(const ShlStructure<T, traits>&) = default;
     ShlStructure<T, traits>& operator=(ShlStructure<T, traits>&&) noexcept = default;
 
     void reset(T t) {
@@ -45,10 +46,10 @@ public:
         return get(true) != nullptr;
     }
 
-    bool operator==(const ShlStructure<T, traits> &other) const {
+    bool operator==(const ShlStructure<T, traits>& other) const {
         return other.m_ptr.get() == m_ptr.get();
     }
-    bool operator!=(const ShlStructure &other) const {
+    bool operator!=(const ShlStructure& other) const {
         return !(*this == other);
     }
 
@@ -56,8 +57,12 @@ private:
     std::shared_ptr<std::remove_pointer_t<T>> m_ptr = nullptr;
 
 protected:
-    bool operator==(const T other) const { return other == m_ptr.get(); }
-    bool operator!=(const T other) const { return !(*this == other); }
+    bool operator==(const T other) const {
+        return other == m_ptr.get();
+    }
+    bool operator!=(const T other) const {
+        return !(*this == other);
+    }
 };
 
 template <>
@@ -95,7 +100,11 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         reset(tensor);
     }
 
-    ShlTensor(const ShlSession& session, csinn_dtype_enum data_type, csinn_layout_enum layout, const VectorDims& shape = {}, void* data = nullptr)
+    ShlTensor(const ShlSession& session,
+              csinn_dtype_enum data_type,
+              csinn_layout_enum layout,
+              const VectorDims& shape = {},
+              void* data = nullptr)
         : ShlTensor(session) {
         setPrecision(data_type);
         setLayout(layout);
@@ -250,7 +259,8 @@ struct ShlReluParams : public ShlParams<csinn_relu_params*> {
         params->n = alpha;
     }
 
-    ShlReluParams(const ShlSession& session, csinn_api_enum api, float alpha) : ShlParams<csinn_relu_params*>(session, api) {
+    ShlReluParams(const ShlSession& session, csinn_api_enum api, float alpha)
+        : ShlParams<csinn_relu_params*>(session, api) {
         auto params = static_cast<csinn_relu_params*>(this->get());
         params->n = alpha;
     }
@@ -287,7 +297,8 @@ struct ShlClipParams : public ShlParams<csinn_clip_params*> {
         params->max_value = max;
     }
 
-    ShlClipParams(const ShlSession& session, csinn_api_enum api, float min, float max) : ShlParams<csinn_clip_params*>(session, api) {
+    ShlClipParams(const ShlSession& session, csinn_api_enum api, float min, float max)
+        : ShlParams<csinn_clip_params*>(session, api) {
         auto params = static_cast<csinn_clip_params*>(this->get());
         params->min_value = min;
         params->max_value = max;

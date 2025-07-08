@@ -97,7 +97,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
-    auto& ov_version = ov::get_openvino_version();
+    const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
 }
@@ -113,9 +113,9 @@ static bool streamsSet(const ov::AnyMap& config) {
     return config.find(ov::num_streams.name()) != config.end();
 }
 
-void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
+void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) {
     int streams_set = config.streams;
-    int streams;
+    int streams = 0;
     if (config.streamsChanged) {
         streams = streams_set;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
@@ -126,18 +126,18 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
         streams = streams_set == 1 ? 0 : streams_set;
     }
 
-    if (!((0 == streams_set) && config.streamsChanged)) {
+    if ((0 != streams_set) || !config.streamsChanged) {
         get_num_streams(streams, model, config);
     } else {
         config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
     }
 }
 
-void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) {
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
-        int cache_model_prefer;
+        int cache_model_prefer = 0;
         const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
         const auto it_model_prefer = hints_config.find(model_prefer_name);
         if (it_model_prefer != hints_config.end()) {
@@ -337,7 +337,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             res = false;
         } else {
             ov::AnyMap input_map = it->second.as<ov::AnyMap>();
-            for (auto& item : m_compiled_model_runtime_properties) {
+            for (const auto& item : m_compiled_model_runtime_properties) {
                 auto it = input_map.find(item.first);
                 if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                     res = false;

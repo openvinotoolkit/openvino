@@ -72,14 +72,14 @@ void ShapeOf::initOptimalPrimitiveDescriptor() {
     // Mimic the parent node memory desc to avoid extra reorder
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
-    auto parentPd = parent->getSelectedPrimitiveDescriptor();
+    auto* parentPd = parent->getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(parentPd,
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     const auto& parentConfig = parentPd->getConfig();
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 

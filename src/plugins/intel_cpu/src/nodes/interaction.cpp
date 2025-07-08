@@ -140,12 +140,12 @@ private:
     }
 #    undef GET_OFF
 
-    inline void load(const Vmm& vmm_dst,
-                     const Xbyak::Reg64& reg_src,
-                     ov::element::Type src_prc,
-                     ov::element::Type dst_prc,
-                     const int& elt_num,
-                     bool fill) {
+    void load(const Vmm& vmm_dst,
+              const Xbyak::Reg64& reg_src,
+              ov::element::Type src_prc,
+              ov::element::Type dst_prc,
+              const int& elt_num,
+              bool fill) {
         const auto seed = load_emitter_params(src_prc, dst_prc, elt_num, fill, "float_min").hash();
         if (!emitters[seed]) {
             emitters[seed] =
@@ -157,11 +157,11 @@ private:
                                   pool_aux_vmm_idxs,
                                   pool_aux_gpr_idxs);
     }
-    inline void store(const Xbyak::Reg64& reg_dst,
-                      const Vmm& vmm_src,
-                      ov::element::Type src_prc,
-                      ov::element::Type dst_prc,
-                      const int& elt_num) {
+    void store(const Xbyak::Reg64& reg_dst,
+               const Vmm& vmm_src,
+               ov::element::Type src_prc,
+               ov::element::Type dst_prc,
+               const int& elt_num) {
         const auto seed = store_emitter_params(src_prc, dst_prc, elt_num).hash();
         if (!emitters[seed]) {
             emitters[seed] = std::make_unique<jit_store_emitter>(this, isa, src_prc, dst_prc, elt_num);
@@ -262,7 +262,7 @@ void Interaction::execRef(const dnnl::stream& strm) {
     auto* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inPtr = getSrcDataAtPortAs<const uint8_t>(n);
+        const auto* inPtr = getSrcDataAtPortAs<const uint8_t>(n);
         inputPtrs[n] = inPtr;
     }
     std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
@@ -279,17 +279,16 @@ void Interaction::execRef(const dnnl::stream& strm) {
         // in1 dense feature
         // in2 flatted interaction features
         if (moveFeatureKernel) {
-            jit_move_scale_call_args featArgs;
-            featArgs.p_in = inputPtrs[0] + start * featureSize * dataPrecision.size();
-            featArgs.p_out = outFeaturesPtr + start * outputFeaturesLen * outputDataType.size();
-            featArgs.p_scales = scales;
+            jit_move_scale_call_args featArgs{inputPtrs[0] + (start * featureSize * dataPrecision.size()),
+                                              outFeaturesPtr + (start * outputFeaturesLen * outputDataType.size()),
+                                              scales};
             (*moveFeatureKernel)(&featArgs);
         }
         if (moveInteractKernel) {
-            jit_move_scale_call_args interArgs;
-            interArgs.p_in = flatMemPtr->getData();
-            interArgs.p_out = outFeaturesPtr + (start * outputFeaturesLen + featureSize) * outputDataType.size();
-            interArgs.p_scales = scales;
+            jit_move_scale_call_args interArgs{
+                flatMemPtr->getData(),
+                outFeaturesPtr + ((start * outputFeaturesLen + featureSize) * outputDataType.size()),
+                scales};
             (*moveInteractKernel)(&interArgs);
         }
     }
@@ -367,7 +366,7 @@ void Interaction::prepareParams() {
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {
-        auto pd = prim.get_primitive_desc();
+        const auto* pd = prim.get_primitive_desc();
         DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
     }
 #endif

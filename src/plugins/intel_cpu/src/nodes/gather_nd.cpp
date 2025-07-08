@@ -149,7 +149,9 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
                                      static_cast<size_t>(1),
                                      std::multiplies<>())),
       idxBatchStride(cycles * sliceRank),
-      dstBatchStride(cycles * dataLength) {
+      dstBatchStride(cycles * dataLength),
+      batchDims(attrs.batchDims),
+      srcDims(attrs.srcDims) {
     srcShifts.resize(attrs.sliceRank, 0);
     for (size_t i = 0; i < attrs.sliceRank; i++) {
         srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * (dataLength > 1 ? dataSize : 1);
@@ -200,7 +202,8 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -215,9 +218,10 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
 
         for (size_t b = bStart; b < batchSize; b++) {
             for (size_t j = cStart; j < cycles; j++) {
-                size_t dataIdx = 0lu;
+                size_t dataIdx = 0LU;
                 for (size_t i = 0; i < sliceRank; i++) {
-                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i);
+                    dataIdx += srcShifts[i] * index;
                 }
                 cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataLength);
                 shiftedDstData += dataLength;
@@ -241,7 +245,8 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
     auto* dstData = dstMemPtr->getDataAs<dataType>();
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -256,9 +261,10 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
 
         for (size_t b = bStart; b < batchSize; b++) {
             for (size_t j = cStart; j < cycles; j++) {
-                size_t dataIdx = 0lu;
-                for (size_t i = 0lu; i < sliceRank; i++) {
-                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                size_t dataIdx = 0LU;
+                for (size_t i = 0LU; i < sliceRank; i++) {
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i);
+                    dataIdx += srcShifts[i] * index;
                 }
                 shiftedDstData[0] = shiftedSrcData[dataIdx];
                 shiftedDstData++;
@@ -267,10 +273,18 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
                     return;
                 }
             }
-            cStart = 0lu;
+            cStart = 0LU;
             shiftedSrcData += srcBatchStride;
         }
     });
+}
+
+int32_t GatherND::GatherNDExecutor::HandleNegativeIndices(const int32_t* indices, size_t idx) const {
+    int32_t index = indices[idx];
+    if (index < 0) {
+        index += srcDims[idx + batchDims];
+    }
+    return index;
 }
 
 void GatherND::executeDynamicImpl(const dnnl::stream& strm) {

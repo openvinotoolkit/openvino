@@ -405,12 +405,10 @@ void Graph::Activate() {
 void Graph::Configure([[maybe_unused]] bool optimize) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
-    GraphOptimizer optimizer;
-
     SortTopologically();
     InitNodes();
 
-    optimizer.ApplyCommonGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyCommonGraphOptimizations(*this);
 
     SortTopologically();
 
@@ -422,14 +420,14 @@ void Graph::Configure([[maybe_unused]] bool optimize) {
 
     ResolveEdgeConflicts();
 
-    optimizer.ShareReorders(*this);
+    ov::intel_cpu::GraphOptimizer::ShareReorders(*this);
     RemoveDroppedNodes();
 
     SortTopologically();
 
     ResolveComplexInplaceConflicts();
 
-    optimizer.ApplyImplSpecificGraphOptimizations(*this);
+    ov::intel_cpu::GraphOptimizer::ApplyImplSpecificGraphOptimizations(*this);
 
     SortTopologically();
 
@@ -834,7 +832,7 @@ static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
         baseEdge->allocate(proxyMemBlock);
 
         int count = 0;
-        for (auto& output : outputNodes) {
+        for (const auto& output : outputNodes) {
             if (output.second == child) {
                 outputMemBlocks[output.first] = proxyMemBlock;
                 count++;
@@ -960,13 +958,13 @@ int Graph::RegisterToAllocationContext(int offset, AllocationContext& context) {
 }
 
 static void InitEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges) {
+    for (const auto& edge : edges) {
         edge->init();
     }
 }
 
 static void ValidateEdgeStatus(const std::vector<EdgePtr>& edges) {
-    for (auto& edge : edges) {
+    for (const auto& edge : edges) {
         edge->validate();
     }
 }
@@ -1007,7 +1005,7 @@ static EdgeClusters FormEdgeClusters(const std::vector<EdgePtr>& graphEdges) {
         return clusterIdx;
     };
 
-    for (auto& edge : graphEdges) {
+    for (const auto& edge : graphEdges) {
         [[maybe_unused]] const auto clusterIdx = addToCluster(edge);
         DEBUG_LOG("Added edge: ", *edge, " to cluster: ", clusterIdx);
     }
@@ -1065,9 +1063,11 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
                             MemoryRegion::AllocType::UNKNOWN};
 
         int64_t boxSize = 0;
-        bool isConst = false, isOutput = false, isInput = false;
+        bool isConst = false;
+        bool isOutput = false;
+        bool isInput = false;
 
-        for (auto& edge : clusters[i]) {
+        for (const auto& edge : clusters[i]) {
             const auto& parent = edge->getParent();
             const auto& child = edge->getChild();
 
@@ -1135,11 +1135,7 @@ static size_t SkipAllocatedClusters(EdgeClusters& clusters) {
     auto notAllocatedPartitionEnd = std::partition(clusters.begin(), clusters.end(), [](const EdgeCluster& cluster) {
         const auto& baseEdge = cluster.at(0);
 
-        if (baseEdge->getStatus() == Edge::Status::Allocated) {
-            return false;
-        }
-
-        return true;
+        return baseEdge->getStatus() != Edge::Status::Allocated;
     });
 
     return std::distance(clusters.begin(), notAllocatedPartitionEnd);
@@ -1423,7 +1419,7 @@ public:
         m_completion.store(true, std::memory_order_release);
     }
 
-    void updateDynParams(size_t node_indx, size_t /*unused*/) {
+    void updateDynParams(size_t node_indx, [[maybe_unused]] size_t stop_indx) {
         size_t local_counter = node_indx;
         while (true) {
             const bool completion = m_completion.load(std::memory_order_acquire);
@@ -1457,12 +1453,12 @@ public:
           m_wait(wait),
           m_node_indx(node_indx),
           m_stop_indx(stop_indx) {}
-    task* execute(tbb::detail::d1::execution_data&) override {
+    task* execute([[maybe_unused]] tbb::detail::d1::execution_data& data) override {
         m_body(m_node_indx, m_stop_indx);
         m_wait.release();
         return nullptr;
     }
-    task* cancel(tbb::detail::d1::execution_data&) override {
+    task* cancel([[maybe_unused]] tbb::detail::d1::execution_data& data) override {
         m_wait.release();
         return nullptr;
     }
@@ -1957,8 +1953,8 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
     // Due to the specificity of GraphOptimizer::MergeTransposeAndReorder() that isOptimized flag uses, we shouldn't
     // do these checks.
     if (!isOptimized) {
-        reorder->getParentEdgeAt(0)->getOriginalDesc();
-        reorder->getChildEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getParentEdgeAt(0)->getOriginalDesc();
+        std::ignore = reorder->getChildEdgeAt(0)->getOriginalDesc();
     }
 
     return reorder;

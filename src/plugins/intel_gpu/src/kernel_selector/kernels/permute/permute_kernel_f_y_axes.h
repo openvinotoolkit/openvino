@@ -23,7 +23,7 @@ protected:
     JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const override;
     CommonDispatchData SetDefault(const permute_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {FusedOpType::ACTIVATION, FusedOpType::QUANTIZE, FusedOpType::ELTWISE};
+        return {FusedOpType::REORDER, FusedOpType::ACTIVATION, FusedOpType::QUANTIZE, FusedOpType::ELTWISE};
     }
 };
 }  // namespace kernel_selector

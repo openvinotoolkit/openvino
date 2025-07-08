@@ -35,8 +35,7 @@ namespace ov::intel_cpu::node {
 
 If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, [[maybe_unused]] const dnnl::engine& eng)
     : srcMemPtr(std::move(from)),
-      dstMemPtrs(std::move(to)),
-      size(0) {
+      dstMemPtrs(std::move(to)) {
     if (srcMemPtr->getDesc().isDefined()) {
         size = srcMemPtr->getShape().getElementsCount();
     }
@@ -248,7 +247,7 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     }
 }
 
-std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) const {
+std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
     std::deque<MemoryPtr> memories;
     for (const auto& edge : node->getChildEdgesAtPort(port)) {
         memories.push_back(edge->getMemoryPtr());

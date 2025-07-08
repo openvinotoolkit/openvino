@@ -26,25 +26,22 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-enum class EltwiseImplType { reference = 0, optimized = 1, optimizedShapeAgnostic = 2 };
+enum class EltwiseImplType : uint8_t { reference = 0, optimized = 1, optimizedShapeAgnostic = 2 };
 class Eltwise : public Node {
 public:
     class IEltwiseExecutor {
     public:
         IEltwiseExecutor() = default;
         virtual void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) = 0;
-        virtual size_t getBatchDimIdx() const = 0;
-        virtual const VectorDims& getOutDims() const = 0;
+        [[nodiscard]] virtual size_t getBatchDimIdx() const = 0;
+        [[nodiscard]] virtual const VectorDims& getOutDims() const = 0;
         virtual ~IEltwiseExecutor() = default;
     };
 
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
-public:
     Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override;
@@ -53,17 +50,17 @@ public:
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
-    bool canFuseConvert(const NodePtr& convertNode) const;
+    bool canFuseConvert(const NodePtr& convertNode);
     bool canFuseParent(const NodePtr& parentNode) const;
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::unordered_map<int, MemoryPtr>& postOpsMem,
-                       const int channelAxis) override;
+                       int channelAxis) override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::vector<const void*>& postOpsMem,
-                       const int channelAxis) override;
+                       int channelAxis) override;
     bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
@@ -102,7 +99,7 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    enum BroadcastingPolicy {
+    enum BroadcastingPolicy : uint8_t {
         PerChannel,
         PerTensor,
         Undefined,
@@ -116,7 +113,7 @@ public:
 
 private:
     executorPtr execPtr = nullptr;
-    BroadcastingPolicy broadcastingPolicy;
+    BroadcastingPolicy broadcastingPolicy = Undefined;
 
     dnnl::algorithm onednnAlgorithm = dnnl::algorithm::undef;
 
@@ -124,14 +121,14 @@ private:
     std::vector<bool> broadcastPolicy;
     bool specialConvolutionAddFusing = false;
     size_t inputNum = 0;
-    std::vector<ptrdiff_t> start_offset_in = {};
+    std::vector<ptrdiff_t> start_offset_in;
     ptrdiff_t start_offset_out = 0;
 
     std::vector<ov::element::Type> inpPrc;
     ov::element::Type outPrc;
 
     // blocked dims for which kernel compiled and params prepared
-    std::vector<VectorDims> currentInBlkDims = {};
+    std::vector<VectorDims> currentInBlkDims;
 
     // shape agnostic kernel
     struct {
@@ -144,16 +141,16 @@ private:
     float beta = 0;
     float gamma = 0;
 
-    std::vector<float> scales = {};
-    std::vector<float> shifts = {};
+    std::vector<float> scales;
+    std::vector<float> shifts;
     MemoryPtr scalesMemory;
     MemoryPtr shiftsMemory;
 
-    std::vector<float> depthwiseData = {};
+    std::vector<float> depthwiseData;
     MemoryPtr depthwiseMemory;
     size_t depthwiseDataSize = 0;
 
-    std::vector<MemoryPtr> memPtrs = {};
+    std::vector<MemoryPtr> memPtrs;
     std::vector<const void*> fqDataPtrs;
 
     using Initializer = std::function<void(const std::shared_ptr<ov::Node>&, Eltwise& node)>;
@@ -167,16 +164,14 @@ private:
     void appendPostOpsImpl(dnnl::post_ops& ops,
                            const VectorDims& postOpDims,
                            std::vector<T>& postOpsMem,
-                           const int channelAxis = 1);
+                           int channelAxis = 1);
 
     void appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
-    void appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem);
+    static void appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<const void*>& postOpsMem);
 
     bool canUseEltwiseExecPtr = false;
     EltwiseAttrs eltwiseAttrs;
     std::shared_ptr<EltwiseExecutor> eltwiseExecPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

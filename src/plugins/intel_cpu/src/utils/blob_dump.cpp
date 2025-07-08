@@ -96,7 +96,7 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER& header) {
     return DnnlBlockedMemoryDesc{prc, Shape(dims)};
 }
 
-void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data) const {
+void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data) {
     const auto& desc = memory->getDesc();
     size_t data_size = desc.getShape().getElementsCount();
     const auto size = data_size * desc.getPrecision().size();
@@ -115,7 +115,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t
     case ov::element::f32:
     case ov::element::i32: {
         auto* pln_blob_ptr = reinterpret_cast<int32_t*>(data.data());
-        auto* blob_ptr = reinterpret_cast<const int32_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const int32_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
         }
@@ -123,7 +123,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t
     }
     case ov::element::bf16: {
         auto* pln_blob_ptr = reinterpret_cast<int16_t*>(data.data());
-        auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
         }
@@ -131,7 +131,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t
     }
     case ov::element::f16: {
         auto* pln_blob_ptr = reinterpret_cast<float16*>(data.data());
-        auto* blob_ptr = reinterpret_cast<const float16*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const float16*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
         }
@@ -140,7 +140,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t
     case ov::element::i8:
     case ov::element::u8: {
         auto* pln_blob_ptr = reinterpret_cast<int8_t*>(data.data());
-        auto* blob_ptr = reinterpret_cast<const int8_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const int8_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             pln_blob_ptr[i] = blob_ptr[desc.getElementOffset(i)];
         }
@@ -191,21 +191,21 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
 
     switch (desc.getPrecision()) {
     case ov::element::f32: {
-        auto* blob_ptr = reinterpret_cast<const float*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const float*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::i32: {
-        auto* blob_ptr = reinterpret_cast<const int32_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const int32_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::bf16: {
-        auto* blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             auto fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
             stream << fn << '\n';
@@ -213,63 +213,63 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
         break;
     }
     case ov::element::f16: {
-        auto* blob_ptr = reinterpret_cast<const float16*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const float16*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::i8: {
-        auto* blob_ptr = reinterpret_cast<const int8_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const int8_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << '\n';
         }
         break;
     }
     case ov::element::u8: {
-        auto* blob_ptr = reinterpret_cast<const uint8_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const uint8_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << static_cast<int>(blob_ptr[desc.getElementOffset(i)]) << '\n';
         }
         break;
     }
     case ov::element::i64: {
-        auto* blob_ptr = reinterpret_cast<const int64_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const int64_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::u32: {
-        auto* blob_ptr = reinterpret_cast<const uint32_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const uint32_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::u16: {
-        auto* blob_ptr = reinterpret_cast<const uint16_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const uint16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::i16: {
-        auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const int16_t*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
         break;
     }
     case ov::element::boolean: {
-        auto* blob_ptr = reinterpret_cast<const bool*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const bool*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << (blob_ptr[desc.getElementOffset(i)] ? 1 : 0) << '\n';
         }
         break;
     }
     case ov::element::string: {
-        auto* blob_ptr = reinterpret_cast<const std::string*>(ptr);
+        const auto* blob_ptr = reinterpret_cast<const std::string*>(ptr);
         for (size_t i = 0; i < data_size; i++) {
             stream << blob_ptr[desc.getElementOffset(i)] << '\n';
         }
@@ -282,13 +282,13 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
 }
 
 BlobDumper BlobDumper::read(std::istream& stream) {
-    IEB_HEADER header;
+    IEB_HEADER header{};
     stream.read(reinterpret_cast<char*>(&header), sizeof(header));
 
     const auto desc = parse_header(header);
 
     BlobDumper res(desc);
-    stream.seekg(header.data_offset, stream.beg);
+    stream.seekg(header.data_offset, std::istream::beg);
     stream.read(reinterpret_cast<char*>(res.getDataPtr()), header.data_size);
 
     return res;

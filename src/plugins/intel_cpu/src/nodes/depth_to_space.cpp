@@ -170,10 +170,10 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
         };
 
         supportedTypes.push_back(LayoutType::nspc);
-        if (canUseBlocked(8lu)) {
+        if (canUseBlocked(8LU)) {
             supportedTypes.push_back(LayoutType::nCsp8c);
         }
-        if (canUseBlocked(16lu)) {
+        if (canUseBlocked(16LU)) {
             supportedTypes.push_back(LayoutType::nCsp16c);
         }
     }
@@ -204,10 +204,15 @@ void DepthToSpace::createPrimitive() {
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
     attrs.nSpatialDims = memoryDesc.getShape().getRank() - 2;
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
-                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
-                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
-                                                                      : LayoutType::ncsp;
+    if (memoryDesc.hasLayoutType(LayoutType::nCsp16c)) {
+        attrs.layoutType = LayoutType::nCsp16c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nCsp8c)) {
+        attrs.layoutType = LayoutType::nCsp8c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nspc)) {
+        attrs.layoutType = LayoutType::nspc;
+    } else {
+        attrs.layoutType = LayoutType::ncsp;
+    }
 
     if (inputShapesDefined()) {
         if (needPrepareParams()) {
@@ -275,7 +280,8 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
         };
 
     if (isBlocked) {
-        size_t orderShiftForBlocks, orderShiftForDims;
+        size_t orderShiftForBlocks = 0;
+        size_t orderShiftForDims = 0;
         if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = 1;
             orderShiftForDims = attrs.nSpatialDims + 2;
@@ -327,7 +333,7 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
+void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB) {
     if (!permuteKernel) {
         OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
     }
