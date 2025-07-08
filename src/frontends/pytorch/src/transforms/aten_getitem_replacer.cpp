@@ -41,12 +41,11 @@ namespace pass {
 using namespace ov::op;
 
 AtenGetItemReplacer::AtenGetItemReplacer() {
-    auto getitem = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto getitem_pattern =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"aten::__getitem__"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto getitem = cast_fw_node(m.get_match_root(), "aten::__getitem__");
-        if (!getitem)
-            return false;
+        auto getitem = m.get_match_root();
 
         ov::pass::NodeRegistry rg;
         const auto& input_node = getitem->input_value(0).get_node_shared_ptr();
@@ -177,7 +176,8 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(getitem, "ov::frontend::pytorch::pass::AtenGetItemReplacer");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(getitem_pattern,
+                                                          "ov::frontend::pytorch::pass::AtenGetItemReplacer");
     this->register_matcher(m, callback);
 };
 

@@ -429,6 +429,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::value_cache_quant_mode.name(),
                                ". Expected AUTO/BY_CHANNEL/BY_HIDDEN");
             }
+        } else if (key == ov::intel_cpu::enable_tensor_parallel.name()) {
+            try {
+                enableTensorParallel = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::intel_cpu::enable_tensor_parallel.name(),
+                               ". Expected only true/false.");
+            }
         } else if (key == ov::cache_encryption_callbacks.name()) {
             try {
                 const auto& encryption_callbacks = val.as<EncryptionCallbacks>();

@@ -298,14 +298,14 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
 
 bool ScatterUpdateKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType:: SCATTER_UPDATE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const scatter_update_params& params = static_cast<const scatter_update_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

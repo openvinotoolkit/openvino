@@ -92,6 +92,15 @@ std::shared_ptr<ov::Model> TransposeSoftmaxEltwiseFunction::initOriginal() const
                                        "softmax_transpose");
 }
 
+std::shared_ptr<ov::Model> SoftmaxSumFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto softmax1 = std::make_shared<ov::op::v8::Softmax>(data0, axis);
+    auto softmax2 = std::make_shared<ov::op::v8::Softmax>(data1, axis);
+    auto add = std::make_shared<ov::op::v1::Add>(softmax1, softmax2);
+    return std::make_shared<ov::Model>(OutputVector{add}, ParameterVector{data0, data1});
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

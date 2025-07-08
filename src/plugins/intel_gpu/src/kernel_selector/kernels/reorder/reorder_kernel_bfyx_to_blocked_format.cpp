@@ -240,7 +240,7 @@ KernelsData ReorderKernel_bfyx_to_blocked_format::GetKernelsData(const Params& p
 
 bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p) const {
     if (!ReorderKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const reorder_params& params = static_cast<const reorder_params&>(p);
@@ -248,7 +248,7 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p) const {
     const auto& output = params.outputs[0];
 
     if (input.GetDims().size() != output.GetDims().size()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // padding is not supported
@@ -258,7 +258,7 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p) const {
         input.W().pad.before != 0 || input.W().pad.after != 0 ||
         input.Feature().pad.before != 0 || input.Feature().pad.after != 0 ||
         input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (output.X().pad.before != 0 || output.X().pad.after != 0 ||
@@ -267,7 +267,7 @@ bool ReorderKernel_bfyx_to_blocked_format::Validate(const Params& p) const {
         output.W().pad.before != 0 || output.W().pad.after != 0 ||
         output.Feature().pad.before != 0 || output.Feature().pad.after != 0 ||
         output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

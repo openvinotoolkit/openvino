@@ -222,7 +222,8 @@ public:
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream &&
-                _thread_preferred_core_type == config._thread_preferred_core_type) {
+                _thread_preferred_core_type == config._thread_preferred_core_type &&
+                _rank == config._rank) {
                 return true;
             } else {
                 return false;
