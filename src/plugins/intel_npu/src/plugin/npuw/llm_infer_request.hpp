@@ -32,9 +32,21 @@ public:
 
 private:
     void prepare_for_new_conversation();
+
+    void clear_chunk_prefill_kv_cache();
+
+    void populate_chunk_prefill_attention_mask(ov::SoPtr<ov::ITensor> attention_mask,
+                                              int64_t max_prompt_size,
+                                              int64_t prefilled_prompts,
+                                              int64_t current_prompts_len);
+
     void init_tensor(const ov::Output<const ov::Node>& port);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
+                       ov::SoPtr<ov::ITensor> attention_mask,
+                       ov::SoPtr<ov::ITensor> position_ids);
+
+    void infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids);
 
@@ -47,6 +59,7 @@ private:
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
     bool m_need_copy_kvcache = false;
+    bool m_copy_kv_cache_from_chunk_prefill = false;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
@@ -55,6 +68,8 @@ private:
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
+
+    int64_t m_tokens_in_input;
 };
 
 }  // namespace npuw

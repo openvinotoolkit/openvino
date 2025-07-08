@@ -441,6 +441,14 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
 
 /**
  * @brief
+ * Type: uint64_t.
+ * Prompt chunk size for chunk prefill. Chunk prefill feature is disabled in case the value is -1;
+ * Default value: -1.
+ */
+static constexpr ov::Property<std::size_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
+
+/**
+ * @brief
  * FIXME: Should be removed.
  * Type: bool.
  * Tell NPUW to apply values transpose optimization for the model.
