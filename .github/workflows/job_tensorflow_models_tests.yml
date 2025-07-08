@@ -75,14 +75,14 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python 3.11
-        uses: ./openvino/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: '3.11'
           should-setup-pip-paths: 'false'
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
 
       - name: Install OpenVINO Python wheels
-        uses: ./openvino/.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino openvino_tokenizers'
