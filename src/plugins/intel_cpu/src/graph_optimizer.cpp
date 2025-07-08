@@ -19,6 +19,8 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -31,6 +33,7 @@
 #include "node.h"
 #include "nodes/bin_conv.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/concat.h"
 #include "nodes/conv.h"
 #include "nodes/deconv.h"
 #include "nodes/eltwise.h"
@@ -226,6 +229,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
 
 void GraphOptimizer::ApplyImplSpecificGraphOptimizations(Graph& graph) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "GraphOptimizer::ApplyImplSpecificGraphOptimizations");
+
+    TailNodesPrecisionOptimize(graph);
+    graph.RemoveDroppedNodes();
 
     DropDoubleReorders(graph);
     graph.RemoveDroppedNodes();
@@ -3383,6 +3389,243 @@ void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
             graph.RemoveEdge(edge);
             graph.CreateEdge(memInputSingle, child, 0, outputNum);
         }
+    }
+}
+
+void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
+    const auto inferPrec = graph.getConfig().inferencePrecision;
+    if (inferPrec != ov::element::f16) {
+        return;
+    }
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return;  // precision of configured by ov::pass::ConvertPrecision
+#endif
+    const std::vector<NodePtr> outputNodes = [&] {
+        std::vector<NodePtr> nodes;
+        for (size_t i = 0; i < graph.outputsNumber(); ++i) {
+            auto node = graph.getOutputNodeByIndex(i);
+            if (node) {
+                nodes.push_back(node);
+            }
+        }
+        return nodes;
+    }();
+
+    std::function<void(const NodePtr&, std::unordered_map<NodePtr, bool>&)> searchForTailNodes;
+    searchForTailNodes = [&](const NodePtr& node, std::unordered_map<NodePtr, bool>& tailNodes) -> void {
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            const auto& parent = node->getParentEdgeAt(i)->getParent();
+            if (one_of(parent->getType(),
+                       Type::Convolution,
+                       Type::FullyConnected,
+                       Type::RNNCell,
+                       Type::RNNSeq,
+                       Type::MatMul,
+                       Type::ROIPooling,
+                       Type::Interpolate,
+                       Type::PagedAttention,
+                       Type::QKVProjection,
+                       Type::LLMMLP,
+                       Type::Pooling)) {
+                continue;
+            }
+            const auto res = tailNodes.insert({parent, false});
+            if (res.second) {
+                searchForTailNodes(parent, tailNodes);
+            }
+        }
+    };
+
+    std::unordered_map<NodePtr, bool> tailNodesMap;
+    std::unordered_set<ov::element::Type_t> outputPrecisions;
+    for (const auto& output : outputNodes) {
+        if (output->getOriginalInputPrecisionAtPort(0) == inferPrec) {
+            continue;
+        }
+        outputPrecisions.insert(output->getOriginalInputPrecisionAtPort(0));
+        searchForTailNodes(output, tailNodesMap);
+    }
+    if (outputPrecisions.empty()) {
+        return;
+    }
+
+    const std::vector<Type> kStartTypes = {Type::Eltwise, Type::MVN};
+    const std::vector<Type> kPathTypes = {Type::Reshape, Type::Concatenation, Type::Split};
+
+    std::function<bool(const NodePtr&)> suitableForTailOptimization;
+    suitableForTailOptimization = [&](const NodePtr& node) -> bool {
+        const NodePtr& cur = node;
+        std::unordered_set<NodePtr> visited;
+        while (cur) {
+            if (visited.count(cur)) {
+                break;
+            }
+            visited.insert(cur);
+
+            size_t parentNum = cur->getParentEdges().size();
+            if (parentNum == 0) {
+                return false;
+            }
+            bool allParentSuitable = true;
+            for (size_t i = 0; i < parentNum; ++i) {
+                auto parent = cur->getParentEdgeAt(i)->getParent();
+                if (!parent) {
+                    return false;
+                }
+                if ((std::find(kStartTypes.begin(), kStartTypes.end(), parent->getType()) != kStartTypes.end()) &&
+                    tailNodesMap.count(parent) != 0u) {
+                    continue;
+                }
+                if ((std::find(kPathTypes.begin(), kPathTypes.end(), parent->getType()) != kPathTypes.end()) &&
+                    tailNodesMap.count(parent) != 0u) {
+                    if (!parent->isInPlace()) {
+                        return false;
+                    }
+                    if (!suitableForTailOptimization(parent)) {
+                        allParentSuitable = false;
+                        break;
+                    }
+                } else {
+                    // all parents must be suitable for tail optimization,otherwise convert maybe move to parent node
+                    // path
+                    return false;
+                }
+            }
+            return allParentSuitable;
+        }
+        return false;
+    };
+
+    std::function<void(const NodePtr&, const ov::element::Type_t&)> resetTailPrecision;
+    resetTailPrecision = [&](const NodePtr& node, const ov::element::Type_t& outputPrecision) -> void {
+        for (size_t i = 0; i < node->getParentEdges().size(); ++i) {
+            auto parent = node->getParentEdgeAt(i)->getParent();
+            if (!parent) {
+                continue;
+            }
+            OPENVINO_ASSERT(tailNodesMap.count(parent),
+                            "resetTailPrecision: node ",
+                            parent->getName(),
+                            " with type ",
+                            NameFromType(parent->getType()),
+                            " is not in suitableForTailOptimization set");
+            if (tailNodesMap[parent]) {
+                continue;
+            }
+            tailNodesMap[parent] = true;
+            if (std::find(kStartTypes.begin(), kStartTypes.end(), parent->getType()) != kStartTypes.end()) {
+                for (size_t j = 0; j < parent->getOriginalOutputsNumber(); ++j) {
+                    parent->setOriginalOutputPrecisionAtPort(j, outputPrecision);
+                }
+            } else {
+                for (size_t j = 0; j < parent->getOriginalInputsNumber(); ++j) {
+                    parent->setOriginalInputPrecisionAtPort(j, outputPrecision);
+                }
+                for (size_t j = 0; j < parent->getOriginalOutputsNumber(); ++j) {
+                    parent->setOriginalOutputPrecisionAtPort(j, outputPrecision);
+                }
+                resetTailPrecision(parent, outputPrecision);
+            }
+        }
+    };
+    std::vector<NodePtr> optimizedNodes;
+    std::vector<NodePtr> concatConvertfusedNodes;
+
+    std::function<void(const NodePtr&)> tailNodesPrecisionOptimizeMain;
+    tailNodesPrecisionOptimizeMain = [&](const NodePtr& node) -> void {
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            bool concatConvertfuse = false;
+            const auto& parent = node->getParentEdgeAt(i)->getParent();
+            if (!tailNodesMap.count(parent)) {
+                continue;
+            }
+            if (one_of(parent->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
+                continue;
+            }
+            if (parent->keepOrigPrecision()) {
+                continue;
+            }
+            if ((parent->getType() == Type::Convert) && (parent->getOriginalInputPrecisionAtPort(0) == inferPrec) &&
+                outputPrecisions.count(parent->getOriginalOutputPrecisionAtPort(0)) != 0u) {
+                bool suitableCase = false;
+                auto outprecision = parent->getOriginalOutputPrecisionAtPort(0);
+                NodePtr concatConvertfusedNode;
+                for (size_t i = 0; i < parent->getParentEdges().size(); ++i) {
+                    auto p = parent->getParentEdgeAt(i)->getParent();
+                    if (!p) {
+                        continue;
+                    }
+                    if ((std::find(kPathTypes.begin(), kPathTypes.end(), p->getType()) != kPathTypes.end()) &&
+                        tailNodesMap.count(parent) != 0u) {
+                        if (!p->isInPlace()) {
+                            // if FuseConvert method implement, we can fuse the following convert into this node
+                            auto* concat = dynamic_cast<node::Concat*>(p.get());
+                            if (concat && (outprecision == ov::element::f32) && concat->supportConvertFusion()) {
+                                concatConvertfuse = true;
+                                concatConvertfusedNode = p;
+                            }
+                            suitableCase = false;
+                            break;
+                        }
+                        if (suitableForTailOptimization(p)) {
+                            suitableCase = true;
+                            continue;
+                        }
+                    } else if (std::find(kStartTypes.begin(), kStartTypes.end(), p->getType()) != kStartTypes.end()) {
+                        suitableCase = true;
+                        continue;
+                    }
+                }
+                if (concatConvertfuse) {
+                    for (size_t j = 0; j < concatConvertfusedNode->getOriginalOutputsNumber(); ++j) {
+                        concatConvertfusedNode->setOriginalOutputPrecisionAtPort(j, outprecision);
+                    }
+                    concatConvertfusedNodes.push_back(concatConvertfusedNode);
+                    graph.DropNode(parent);
+                }
+                if (suitableCase) {
+                    resetTailPrecision(parent, outprecision);
+                    graph.DropNode(parent);
+                }
+                continue;
+            }
+            tailNodesPrecisionOptimizeMain(parent);
+        }
+    };
+
+    for (const auto& output : outputNodes) {
+        if (output->getOriginalInputPrecisionAtPort(0) == inferPrec) {
+            continue;
+        }
+        tailNodesPrecisionOptimizeMain(output);
+    }
+
+    for (const auto& [node, optimized] : tailNodesMap) {
+        if (optimized) {
+            optimizedNodes.push_back(node);
+        }
+    }
+
+    optimizedNodes.insert(optimizedNodes.end(), concatConvertfusedNodes.begin(), concatConvertfusedNodes.end());
+
+    for (auto& node : optimizedNodes) {
+        node->init();
+    }
+    for (auto& node : optimizedNodes) {
+        node->getSupportedDescriptors();
+        // Clear existing primitive descriptors to reinitialize them
+        node->supportedPrimitiveDescriptors.clear();
+        node->initSupportedPrimitiveDescriptors();
+        node->filterSupportedPrimitiveDescriptors();
+    }
+    for (auto& node : optimizedNodes) {
+        node->selectOptimalPrimitiveDescriptor();
+    }
+    for (auto& node : optimizedNodes) {
+        node->resolveInPlaceDirection();
+    }
+    for (auto& node : optimizedNodes) {
+        node->initOptimalPrimitiveDescriptor();
     }
 }
 
