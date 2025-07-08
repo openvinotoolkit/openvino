@@ -15,6 +15,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/weights_map.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "utils.hpp"
@@ -71,11 +72,7 @@ public:
           m_opsets(opsets),
           m_extensions(extensions),
           m_variables(variables),
-          m_version(version) {
-        memcpy(&m_weights_map, weights->get_ptr(), sizeof(void*));
-        // print pointer value of m_weights_map for debugging
-        std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
-    }
+          m_version(version) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override {
         std::string val;

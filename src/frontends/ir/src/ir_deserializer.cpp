@@ -422,8 +422,22 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     return;
                 ov::element::Type el_type = ov::element::Type(el_type_str);
                 std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
-                if (!m_weights_map)
-                    OPENVINO_THROW("Empty weights data in map!");
+                if (!m_weights_map) {
+                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                    if (m_weights && m_weights->size() == sizeof(void*)) {
+                        std::cout << __func__ << ":" << __LINE__ << std::endl;
+                        ov::pass::WeightsMapWrapper* weightsMapWrapper;
+                        std::cout << "ptr " << m_weights->get_ptr() << " size " << m_weights->size() << std::endl;
+                        memcpy(&weightsMapWrapper, m_weights->get_ptr(), sizeof(void*));
+                        m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapWrapper->get());
+                        // print pointer value of m_weights_map for debugging
+                        std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
+                    } else {
+                        OPENVINO_THROW("Empty weights data in map!");
+                    }
+                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                }
+
                 ov::pass::WeightsVariant weightsVariant;
                 if (!m_weights_map->get_weights(key, weightsVariant))
                     OPENVINO_THROW("Incorrect weights in map!");
@@ -499,13 +513,27 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 size_t key = static_cast<size_t>(pugixml::get_uint64_attr(dn, "key"));
                 size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
                 size_t type = static_cast<size_t>(pugixml::get_uint64_attr(dn, "type"));
+                std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
                 if (!getStrAttribute(dn, "element_type", el_type_str))
                     return;
                 if (!getParameters<int64_t>(dn, "shape", shape))
                     return;
 
-                if (!m_weights_map)
-                    OPENVINO_THROW("Empty weights data in map!");
+                if (!m_weights_map) {
+                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                    if (m_weights && m_weights->size() == sizeof(void*)) {
+                        std::cout << __func__ << ":" << __LINE__ << std::endl;
+                        ov::pass::WeightsMapWrapper* weightsMapWrapper;
+                        std::cout << "ptr " << m_weights->get_ptr() << " size " << m_weights->size() << std::endl;
+                        memcpy(&weightsMapWrapper, m_weights->get_ptr(), sizeof(void*));
+                        m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapWrapper->get());
+                        // print pointer value of m_weights_map for debugging
+                        std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
+                    } else {
+                        OPENVINO_THROW("Empty weights data in map!");
+                    }
+                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                }
                 ov::pass::WeightsVariant weightsVariant;
                 if (!m_weights_map->get_weights(key, weightsVariant))
                     OPENVINO_THROW("Incorrect weights in map!");

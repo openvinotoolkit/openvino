@@ -1426,6 +1426,7 @@ pass::Serialize::Serialize(std::ostream& xmlFile,
       m_weightsMapWrapper(weightsMapWrapper),
       m_version{version} {
     WeightsMap* weightsMap = new ov::pass::WeightsMap();
+    std::cout << "weightsMap pointer: " << weightsMap << std::endl;
     m_weightsMapWrapper->set(reinterpret_cast<void*>(weightsMap));
 }
 
