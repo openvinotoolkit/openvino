@@ -13,6 +13,10 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multinomial.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
@@ -36,9 +40,22 @@ ov::pass::MultinomialRandomUniformFusion::MultinomialRandomUniformFusion() {
             return false;
         }
 
+        // Compute the nr of samples to generate (batches * outputs per batch)
+        auto probs_shape = std::make_shared<ov::op::v3::ShapeOf>(multinomial->input_value(0));
+
+        auto zero_index = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto axis = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+        auto probs_batch = std::make_shared<ov::op::v1::Gather>(probs_shape, zero_index, axis);
+
+        auto total_nr_of_samples = std::make_shared<ov::op::v1::Multiply>(probs_batch, multinomial->input_value(1));
+
+        auto new_shape = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+        auto total_nr_of_samples_1d = std::make_shared<ov::op::v1::Reshape>(total_nr_of_samples, new_shape, false);
+
+
         // Insert RandomUniform
-        auto random_samples = std::make_shared<ov::op::v8::RandomUniform>(
-            multinomial->input_value(1),
+        auto random_uniform = std::make_shared<ov::op::v8::RandomUniform>(
+            total_nr_of_samples_1d,
             ov::op::v0::Constant::create(multinomial->get_input_element_type(0), ov::Shape{}, {0}),
             ov::op::v0::Constant::create(multinomial->get_input_element_type(0), ov::Shape{}, {1}),
             multinomial->get_input_element_type(0),
@@ -48,7 +65,7 @@ ov::pass::MultinomialRandomUniformFusion::MultinomialRandomUniformFusion() {
 
         auto new_multinomial = std::make_shared<ov::op::v13::Multinomial>(multinomial->input_value(0),
                                                                           multinomial->input_value(1),
-                                                                          random_samples,
+                                                                          random_uniform,
                                                                           multinomial->get_convert_type(),
                                                                           multinomial->get_with_replacement(),
                                                                           multinomial->get_log_probs(),
@@ -57,7 +74,7 @@ ov::pass::MultinomialRandomUniformFusion::MultinomialRandomUniformFusion() {
                                                                           multinomial->get_alignment());
 
         new_multinomial->set_friendly_name(multinomial->get_friendly_name());
-        ov::copy_runtime_info(multinomial, {random_samples, new_multinomial});
+        ov::copy_runtime_info(multinomial, {random_uniform, new_multinomial});
         ov::replace_node(multinomial, new_multinomial);
 
         return true;
