@@ -85,7 +85,8 @@ struct argument_desc {
         ACTIVATIONS_ZERO_POINTS,
         COMPENSATION,
         INPUT_OF_FUSED_PRIMITIVE,
-        SHAPE_INFO
+        SHAPE_INFO,
+        LOCAL_MEMORY_SIZE
     };
 
     Types t;
