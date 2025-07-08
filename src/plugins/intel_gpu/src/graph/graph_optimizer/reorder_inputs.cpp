@@ -744,13 +744,12 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         // Add reorder to align tensor size of eltwise inputs for NUMPY broadcasting
         // Case for PDPD is not implemented
         auto elt_prim = eltwise_node.get_primitive();
-        auto align_dims = static_cast<int>(eltwise_node.get_input_pshape(0).size())
-                            - static_cast<int>(eltwise_node.get_input_pshape(1).size());
-        if (elt_prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
-            align_dims != 0) {
+        if (eltwise_node.need_input_tensors_size_align()) {
             // Eltwise input tensor can be smaller than perferred format by NUMPY broad casting.
             // e.g. (?,3,?,?,2) (?,?,2)
-            auto large_shape_idx = (align_dims > 0) ? 0 : 1;
+            auto& pshape_a = eltwise_node.get_input_pshape(0);
+            auto& pshape_b = eltwise_node.get_input_pshape(1);
+            auto large_shape_idx = (pshape_a.size() > pshape_b.size()) ? 0 : 1;
             auto small_shape_idx = 1 - large_shape_idx;
             auto ref_pshape = eltwise_node.get_input_pshape(large_shape_idx);
             auto small_pshape = eltwise_node.get_input_pshape(small_shape_idx);
@@ -758,7 +757,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             if (eltwise_node.has_eltwise_const_dep_idx()) {
                 auto const_shape_idx = eltwise_node.get_eltwise_const_dep_idx();
                 auto const_pshape_size = eltwise_node.get_input_pshape(const_shape_idx).size();
-                OPENVINO_ASSERT(const_pshape_size == ref_pshape.size() || const_pshape_size == 1,
+                OPENVINO_ASSERT(const_pshape_size == ref_pshape.size() || const_pshape_size <= 1,
                                 "Unexpected pshape size of NUMPY broadcast of eltwise " + eltwise_node.id());
             }
 

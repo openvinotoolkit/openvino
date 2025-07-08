@@ -36,8 +36,9 @@ public:
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
-    bool has_eltwise_const_dep_idx();
-    size_t get_eltwise_const_dep_idx();
+    bool need_input_tensors_size_align() const;
+    bool has_eltwise_const_dep_idx() const;
+    size_t get_eltwise_const_dep_idx() const;
 };
 
 using eltwise_node = typed_program_node<eltwise>;

@@ -479,12 +479,13 @@ void primitive_inst::update_shape() {
         // Update shape to get proper tensor size of eltwise inputs for NUMPY broadcasting
         auto new_pshape = new_layout.get_partial_shape();
         auto impl_pshape = impl_layout.get_partial_shape();
-        if (get_node().is_type<reorder>() && !get_node().is_output() && impl_pshape.size() != new_pshape.size()) {
+        if (get_node().is_type<reorder>() && !get_node().is_output() && !format::is_simple_data_format(new_layout.format) &&
+            impl_pshape.size() != new_pshape.size()) {
             auto user = get_node().get_users().front();
             if (user->is_type<eltwise>() && user->as<eltwise>().get_primitive()->broadcast_spec == ov::op::AutoBroadcastType::NUMPY) {
                 ov::PartialShape::broadcast_merge_into(new_pshape, std::vector<ov::Dimension>(impl_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
                 auto aligned_layout = layout(new_pshape, new_layout.data_type, new_layout.format);
-                GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << new_layout.to_short_string()
+                GPU_DEBUG_TRACE_DETAIL << id() << ": Update shape for align tensor : was: " << new_layout.to_short_string()
                                         << " now: " << aligned_layout.to_short_string() << std::endl;
             }
         }
