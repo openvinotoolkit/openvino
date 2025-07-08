@@ -1,6 +1,6 @@
 const pluginJs = require('@eslint/js');
 const globals = require('globals');
-const tseslint = require('@typescript-eslint/parser');
+const tseslint = require('typescript-eslint');
 const { defineConfig } = require('eslint/config');
 
 const customRules = {
@@ -29,11 +29,13 @@ const customRules = {
   'keyword-spacing': ['error', { overrides: { catch: { after: false } } }],
   'prefer-destructuring': ['error', { object: true, array: false }],
   'no-explicit-any': 0,
-  'no-unused-vars': 0,
+  'no-unused-vars': 0, // addon.ts interfaces
+  '@typescript-eslint/no-require-imports': 0,
 };
 
 module.exports = defineConfig([
   pluginJs.configs.recommended,
+  tseslint.configs.recommended,
   {
     ignores: ['types/', 'dist/'],
   },
@@ -41,7 +43,7 @@ module.exports = defineConfig([
     files: ['**/*.{js,mjs,cjs,ts}'],
     languageOptions: {
       globals: globals.node,
-      parser: tseslint,
+      parser: tseslint.parser,
     },
     rules: customRules,
   },

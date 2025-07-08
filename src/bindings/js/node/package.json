@@ -34,7 +34,7 @@
     "mocha": "^11.7.1",
     "random-bigint": "^0.0.1",
     "typescript": "^5.0.4",
-    "@typescript-eslint/parser": "^8.36.0"
+    "typescript-eslint": "^8.36.0"
   },
   "engines": {
     "node": ">=21.0.0"
