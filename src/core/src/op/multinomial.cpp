@@ -93,17 +93,17 @@ std::shared_ptr<Node> op::v13::Multinomial::clone_with_new_inputs(const OutputVe
                                                       m_global_seed,
                                                       m_op_seed,
                                                       m_alignment);
-    } else if (new_args.size() == 3) {
-        return std::make_shared<op::v13::Multinomial>(new_args.at(0),
-                                                      new_args.at(1),
-                                                      new_args.at(2),
-                                                      m_convert_type,
-                                                      m_with_replacement,
-                                                      m_log_probs,
-                                                      m_global_seed,
-                                                      m_op_seed,
-                                                      m_alignment);
-    }
+    } 
+    // else if (new_args.size() == 3) {
+    return std::make_shared<op::v13::Multinomial>(new_args.at(0),
+                                                    new_args.at(1),
+                                                    new_args.at(2),
+                                                    m_convert_type,
+                                                    m_with_replacement,
+                                                    m_log_probs,
+                                                    m_global_seed,
+                                                    m_op_seed,
+                                                    m_alignment);
 }
 
 ov::element::Type_t op::v13::Multinomial::get_convert_type() const {
