@@ -58,7 +58,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // CONCAT_EMBEDDINGS
         {"CONCATENATION", DEQUANTIZE_INPUTS(concatenation)},
         {"CONV_2D", DEQUANTIZE_INPUTS(conv2d)},
-        // CONV_3D
+        {"CONV_3D", DEQUANTIZE_INPUTS(conv3d)},
         // CONV_3D_TRANSPOSE
         {"COS", translate_unary<opset10::Cos>},
         {"CUMSUM", translate_cumsum_op},
