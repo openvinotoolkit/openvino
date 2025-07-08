@@ -4,12 +4,8 @@
 
 #include "insert_requantize.hpp"
 
-#include "openvino/core/graph_util.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -41,8 +37,7 @@ InsertRequantize::InsertRequantize(size_t input_id, const QuantizationData& qinf
             ov::op::v0::Constant::create(ov::element::f32, Shape{}, {qinfo.ih}),
             ov::op::v0::Constant::create(ov::element::f32, Shape{}, {qinfo.ol}),
             ov::op::v0::Constant::create(ov::element::f32, Shape{}, {qinfo.oh}),
-            qinfo.levels,
-            qinfo.auto_broadcast);
+            qinfo.levels);
 
         auto shuffle_channels = std::make_shared<ov::op::v0::ShuffleChannels>(fq);
         fq->set_friendly_name(shuffle_channels->get_friendly_name() + "/FQ");

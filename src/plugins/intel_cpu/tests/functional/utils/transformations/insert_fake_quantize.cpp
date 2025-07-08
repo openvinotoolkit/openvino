@@ -22,11 +22,8 @@ using namespace ov;
 
 InsertFakeQuantize::InsertFakeQuantize(size_t input_id, const QuantizationData& qinfo) {
     // more operation can be covered if necessery
-    auto ops_m = std::make_shared<pass::pattern::op::Or>(
-        OutputVector{ov::pass::pattern::wrap_type<ov::op::v1::Convolution>(
-                         {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()}),
-                     ov::pass::pattern::wrap_type<ov::op::v0::MatMul>(
-                         {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()})});
+    auto ops_m = ov::pass::pattern::wrap_type<ov::op::v1::Convolution, ov::op::v0::MatMul>(
+        {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -44,8 +41,7 @@ InsertFakeQuantize::InsertFakeQuantize(size_t input_id, const QuantizationData& 
             ov::op::v0::Constant::create(ov::element::f32, Shape{}, {qinfo.ih}),
             ov::op::v0::Constant::create(ov::element::f32, Shape{}, {qinfo.ol}),
             ov::op::v0::Constant::create(ov::element::f32, Shape{}, {qinfo.oh}),
-            qinfo.levels,
-            qinfo.auto_broadcast);
+            qinfo.levels);
 
         fq->set_friendly_name(input.get_node_shared_ptr()->get_friendly_name() + "/FQ");
 
