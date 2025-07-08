@@ -44,6 +44,7 @@
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
+#include "transformations/utils/utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
@@ -81,48 +82,21 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto concat_k = makePattern<ov::op::v0::Concat>({gather_input_k, cur_k}, {{"axis", axis_seq_len}});
     auto concat_v = makePattern<ov::op::v0::Concat>({gather_input_v, cur_v}, {{"axis", axis_seq_len}});
 
-    std::shared_ptr<Node> reshape_k;
-    std::shared_ptr<Node> reshape_v;
-    std::shared_ptr<Node> unsqueeze_k;
-    std::shared_ptr<Node> unsqueeze_v;
-    std::shared_ptr<Node> computed_bcst_k;
-    std::shared_ptr<Node> computed_bcst_v;
-    std::shared_ptr<Node> multiply_k;
-    std::shared_ptr<Node> multiply_v;
-    std::shared_ptr<Node> mq_reshape_k;
-    std::shared_ptr<Node> mq_reshape_v;
-    std::shared_ptr<Node> computed_bcst3_k;
-    std::shared_ptr<Node> computed_bcst3_v;
-    auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
-        auto reshape_kv = makePattern<ov::op::v1::Reshape>({kv, any_input()});
-        auto unsqueeze_kv = makePattern<ov::op::v0::Unsqueeze>({kv, any_input()});
+    auto k_mq_result = ov::op::util::match_multi_query_bcst(concat_k);
+    auto mq_reshape_k = std::get<0>(k_mq_result);
+    auto reshape_k = std::get<1>(k_mq_result);
+    auto unsqueeze_k = std::get<2>(k_mq_result);
+    auto computed_bcst_k = std::get<3>(k_mq_result);
+    auto multiply_k = std::get<4>(k_mq_result);
+    auto computed_bcst3_k = std::get<5>(k_mq_result);
 
-        auto check_one = [](const Output<Node>& output) -> bool {
-            auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
-            const auto& bcst_arg = node->cast_vector<float>();
-            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0F;
-            });
-        };
-        auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
-
-        auto computed_bcst =
-            makePattern<ov::op::v1::Broadcast>({wrap_type<ov::op::v0::Constant>(check_one), any_input(), any_input()},
-                                               {{"mode", "numpy"}});
-
-        auto multiply_kv =
-            makePattern<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-        auto computed_bcst3 =
-            makePattern<ov::op::v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
-
-        auto result = makePattern<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
-        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
-    };
-
-    std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) =
-        multi_query_bcst(concat_k);
-    std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) =
-        multi_query_bcst(concat_v);
+    auto v_mq_result = ov::op::util::match_multi_query_bcst(concat_v);
+    auto mq_reshape_v = std::get<0>(v_mq_result);
+    auto reshape_v = std::get<1>(v_mq_result);
+    auto unsqueeze_v = std::get<2>(v_mq_result);
+    auto computed_bcst_v = std::get<3>(v_mq_result);
+    auto multiply_v = std::get<4>(v_mq_result);
+    auto computed_bcst3_v = std::get<5>(v_mq_result);
     auto present_k = concat_k | mq_reshape_k;
     auto present_v = concat_v | mq_reshape_v;
 
