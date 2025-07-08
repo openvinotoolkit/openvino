@@ -102,6 +102,14 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& processMask);
  */
 bool pin_current_thread_to_socket(int socket);
 
-CpuSet get_pecore_mask(int ncpus);
+/**
+ * @brief      Get mask of P cores and E cores
+ * @ingroup    ov_dev_api_threading
+ *
+ * @param[in]  processors  The ids of processors
+ * @param[in]  ncpus  The number of cpus
+ * @return     cpu mask
+ */
+CpuSet get_pecore_mask(std::vector<int> processors, int ncpus);
 }  // namespace threading
 }  // namespace ov

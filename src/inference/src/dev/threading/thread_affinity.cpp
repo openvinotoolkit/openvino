@@ -111,14 +111,12 @@ bool pin_current_thread_to_socket(int socket) {
     return res;
 }
 
-CpuSet get_pecore_mask(int ncpus) {
-    auto proc_type_table = get_org_proc_type_table();
-    int pecores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+CpuSet get_pecore_mask(std::vector<int> processors, int ncpus) {
     CpuSet targetMask{CPU_ALLOC(ncpus)};
     const size_t size = CPU_ALLOC_SIZE(ncpus);
     CPU_ZERO_S(size, targetMask.get());
 
-    for (size_t i = 0; i < pecores; i++) {
+    for (int i : processors) {
         CPU_SET_S(i, size, targetMask.get());
     }
     return targetMask;
@@ -161,12 +159,13 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
 bool pin_current_thread_to_socket(int socket) {
     return false;
 }
-CpuSet get_pecore_mask(int ncpus) {
-    auto proc_type_table = get_org_proc_type_table();
-    int pecores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-    DWORD_PTR pe_mask = (DWORD_PTR(1) << pecores) - 1;
-    CpuSet mask = std::make_unique<cpu_set_t>(pe_mask);
-    return mask;
+CpuSet get_pecore_mask(std::vector<int> processors, int ncpus) {
+    DWORD_PTR pe_mask = DWORD_PTR(0);
+    for (int i : processors) {
+        pe_mask += (DWORD_PTR(1) << i);
+    }
+    CpuSet targetMask = std::make_unique<cpu_set_t>(pe_mask);
+    return targetMask;
 }
 #else   // no threads pinning/binding on MacOS
 std::tuple<CpuSet, int> get_process_mask() {
@@ -187,7 +186,7 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
 bool pin_current_thread_to_socket(int socket) {
     return false;
 }
-CpuSet get_pecore_mask(int ncpus) {
+CpuSet get_pecore_mask(std::vector<int> processors, int ncpus) {
     return nullptr;
 }
 #endif  // !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
