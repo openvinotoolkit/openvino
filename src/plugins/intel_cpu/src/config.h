@@ -100,6 +100,7 @@ struct Config {
     bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
+    bool enableTensorParallel = false;
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;
