@@ -249,8 +249,8 @@ jobs:
         env:
           OS: ${{ inputs.os }}
         run: |
-          eval $(poetry env activate)
-          poetry env info
+          # Use system python
+          poetry env use python3 && eval $(poetry env activate) && poetry env info
           # Ubuntu 24 does not allow using the system Python directly so
           # we have to use Python from the virtual environment created in Docker
           cmake -UPython* -U_Python* -UPYTHON* \
@@ -302,7 +302,8 @@ jobs:
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
-          eval $(poetry env activate)
+          # Use system python
+          poetry env use python3 && eval $(poetry env activate) && poetry env info
           cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
