@@ -5,8 +5,11 @@
 
 #include <functional>
 
-#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/eltwise_config.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "shl.hpp"
 
 namespace ov::intel_cpu {

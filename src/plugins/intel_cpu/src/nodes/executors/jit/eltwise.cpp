@@ -394,7 +394,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
         return false;
     }
 
-    const auto algorithm = attrs.algorithm;
+    const auto algorithm = attrs.data.algo;
     if (one_of(algorithm,
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseLeftShift,
@@ -562,7 +562,6 @@ std::shared_ptr<EltwiseJitExecutor> EltwiseJitExecutor::create(const MemoryArgs&
                                                                const ExecutorContext::CPtr& context,
                                                                const EltwiseShapeAgnosticData& shapeAgnosticData,
                                                                const EltwiseImplType implType) {
-    // EltwiseData thisOp{attrs.algorithm, attrs.onednnAlgorithm, attrs.alpha, attrs.beta, attrs.gamma};
     auto outBlockingDesc = memory.at(ARG_DST)->getDescWithType<BlockedMemoryDesc>();
     const auto& outOrder = outBlockingDesc->getOrder();
     std::vector<ov::element::Type> inpPrc(inDims.size());

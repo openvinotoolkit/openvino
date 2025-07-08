@@ -396,7 +396,7 @@ public:
     }
 
     static bool isSupportedConfiguration(const EltwiseConfig& config) {
-        const auto algorithm = config.attrs.algorithm;
+        const auto algorithm = config.attrs.data.algo;
         return one_of(algorithm,
                       Algorithm::EltwiseBitwiseAnd,
                       Algorithm::EltwiseBitwiseNot,

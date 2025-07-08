@@ -101,7 +101,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
 
     const auto eltwiseAttrs = config.attrs;
 
-    switch (eltwiseAttrs.algorithm) {
+    switch (eltwiseAttrs.data.algo) {
     case Algorithm::EltwiseSqrt:
     case Algorithm::EltwiseDivide:
     case Algorithm::EltwiseRelu:
@@ -118,7 +118,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
     case Algorithm::EltwiseHswish:
         if (!(checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
               checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
-            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
+            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
@@ -128,7 +128,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
         if (!(checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
               checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
               checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
-            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
+            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
@@ -139,7 +139,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
               checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
               checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
               checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
-            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
+            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
@@ -150,7 +150,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
               checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
               checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
               checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
-            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
+            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
@@ -162,7 +162,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
               checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
               checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
               checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
-            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
+            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
@@ -177,13 +177,13 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
               checkPrecision({ov::element::i16, ov::element::i16}, ov::element::u8) ||
               checkPrecision({ov::element::i32, ov::element::i32}, ov::element::u8) ||
               checkPrecision({ov::element::f16, ov::element::f16}, ov::element::u8) ||
-              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::u8))) {
-            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
+              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+            log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
     default:
-        DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
+        DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.data.algo), " is not supported");
         return false;
     }
 
@@ -265,7 +265,7 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
     }
 
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
-    switch (aclEltwiseAttrs.algorithm) {
+    switch (aclEltwiseAttrs.data.algo) {
     case Algorithm::EltwiseAdd:
         if (!NEArithmeticAddition::validate(srcTensorsInfo.data(),
                                             &srcTensorsInfo[1],
@@ -472,20 +472,20 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
     case Algorithm::EltwiseHswish:
         if (!NEActivationLayer::validate(srcTensorsInfo.data(),
                                          dstTensorsInfo.data(),
-                                         getActivationLayerInfo(aclEltwiseAttrs.algorithm,
-                                                                aclEltwiseAttrs.alpha,
-                                                                aclEltwiseAttrs.beta,
-                                                                aclEltwiseAttrs.gamma))) {
+                                         getActivationLayerInfo(aclEltwiseAttrs.data.algo,
+                                                                aclEltwiseAttrs.data.alpha,
+                                                                aclEltwiseAttrs.data.beta,
+                                                                aclEltwiseAttrs.data.gamma))) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEActivationLayer>();
             acl_op->configure(srcTensors.data(),
                               dstTensors.data(),
-                              getActivationLayerInfo(aclEltwiseAttrs.algorithm,
-                                                     aclEltwiseAttrs.alpha,
-                                                     aclEltwiseAttrs.beta,
-                                                     aclEltwiseAttrs.gamma));
+                              getActivationLayerInfo(aclEltwiseAttrs.data.algo,
+                                                     aclEltwiseAttrs.data.alpha,
+                                                     aclEltwiseAttrs.data.beta,
+                                                     aclEltwiseAttrs.data.gamma));
             return acl_op;
         };
         break;
@@ -501,7 +501,7 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         break;
     default:
         OPENVINO_THROW("Unsupported operation type for ACL Eltwise executor: ",
-                       static_cast<int>(aclEltwiseAttrs.algorithm));
+                       static_cast<int>(aclEltwiseAttrs.data.algo));
     }
 
     configureThreadSafe([&] {

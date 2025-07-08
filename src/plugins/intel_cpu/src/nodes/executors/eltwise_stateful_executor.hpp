@@ -90,11 +90,10 @@ public:
         }
         m_outPrc = memory.at(ARG_DST)->getDesc().getPrecision();
         // insert ourselfs first
-        m_shapeAgnosticData.eltwise_data.push_back(
-            {m_attrs.algorithm, m_attrs.onednnAlgorithm, m_attrs.alpha, m_attrs.beta, m_attrs.gamma});
+        m_shapeAgnosticData.eltwise_data.push_back(m_attrs.data);
         m_shapeAgnosticData.ops_list.push_back(Type::Eltwise);
 
-        // fill shape agnostic data
+        // fill shape agnostic data from postOps (only non-eltwise operations)
         for (const auto& po : m_attrs.postOps) {
             ov::intel_cpu::Type type = po.type() == typeid(FakeQuantizePostOp) ? Type::FakeQuantize : Type::Eltwise;
             m_shapeAgnosticData.ops_list.push_back(type);

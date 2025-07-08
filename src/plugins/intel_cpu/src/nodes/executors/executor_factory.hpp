@@ -94,6 +94,11 @@ public:
             auto config = createConfig(memory, m_attrs);
             if (!impl.get().createOptimalConfig(config).has_value()) {
                 implementations.push_back(impl);
+
+                if (impl.get().shapeAgnostic() &&
+                    impl.get().type() != ExecutorType::Acl) {  // @todo fix acl_eltwise precision mapping)
+                    break;  // there is no way an implementation with a lower priority will be chosen
+                }
             }
         }
 

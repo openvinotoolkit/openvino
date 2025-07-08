@@ -8,6 +8,8 @@
 #include "arm_compute/runtime/NEON/NEFunctions.h"
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 
