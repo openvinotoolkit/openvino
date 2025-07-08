@@ -38,6 +38,10 @@ private:
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids);
 
+    void infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
+                       ov::SoPtr<ov::ITensor> attention_mask,
+                       ov::SoPtr<ov::ITensor> position_ids);
+
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids);

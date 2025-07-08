@@ -12,6 +12,17 @@
 #include "util_xarch.hpp"
 
 namespace {
+void print_shape(const ov::Shape& shape) {
+    std::cout << "Shape: [";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        std::cout << shape[i];
+        if (i < shape.size() - 1) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << "]" << std::endl;
+}
+
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
@@ -186,6 +197,109 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 }
 
+void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
+                                              ov::SoPtr<ov::ITensor> attention_mask,
+                                              ov::SoPtr<ov::ITensor> position_ids) {
+    auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+
+    auto chunk_prefill_input_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+    auto chunk_prompt_len = chunk_prefill_input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+
+    auto chunk_prefill_attn_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
+    auto chunk_prefill_pos_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
+
+    int64_t left_prompts = input_prompt_len;
+    size_t prefilled_bytes = 0;
+    size_t prefilled_prompts = 0;
+
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    while (left_prompts > 0) {
+        // std::cout << "Prefilled: " << prefilled_prompts << " Left: " << left_prompts << std::endl;
+        // std::cout << "Prefilled bytes: " << prefilled_bytes << " Left: " << input_ids->get_byte_size() - prefilled_bytes << std::endl;
+        // NB: input_ids can be either fp32(VLM) or i64(LLM)
+        std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
+                    std::min(chunk_prefill_input_ids->get_byte_size(), input_ids->get_byte_size() - prefilled_bytes),
+                    reinterpret_cast<uint8_t*>(chunk_prefill_input_ids->data()));
+
+        std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, chunk_prefill_attn_mask->data<int64_t>());
+
+        std::copy_n(position_ids->data<int64_t>() + prefilled_prompts, std::min(chunk_prefill_pos_ids->get_size(),
+            position_ids->get_size() - prefilled_prompts), chunk_prefill_pos_ids->data<int64_t>());
+
+        m_prefill_request->infer();
+
+        // chunk_prefill_input_ids->get_byte_size() has been pre-filled
+        prefilled_bytes += chunk_prefill_input_ids->get_byte_size();
+        left_prompts -= chunk_prompt_len;
+        prefilled_prompts += chunk_prompt_len;
+
+        kvcache_desc.num_stored_tokens += static_cast<uint32_t>(chunk_prompt_len);
+
+        // std::cout << "Done" << std::endl;
+
+        if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
+            std::cout << "KV-Cache is full" << std::endl;
+            return;
+        }
+
+        if (left_prompts <= 0) {
+            std::cout << "left_prompts is less than 0, no need to copy KV-Cache" << std::endl;
+            break;
+        }
+
+        std::cout << "Write KV-cache for the new token to the correct input position for next iteration." << std::endl;
+
+        const std::size_t kStartOutputKVCacheLayers = 1u;
+        const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
+        for (std::size_t i = 0; i < prefill_compiled->outputs().size() - 1; ++i) {
+            const auto& output_name = prefill_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+            const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+            if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
+                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+                std::cout << "Input name " << input_name << " doesn't contain kv cache. Skipping." << std::endl;
+                continue;
+            }
+
+            auto kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                    ? 3u
+                                    : kvcache_desc.dim;
+            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor,
+                                                    kv_dim,
+                                                    kvcache_desc.num_stored_tokens - static_cast<uint32_t>(chunk_prompt_len),
+                                                    kvcache_desc.num_stored_tokens);
+            auto kvcache_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+            auto kvcache_out_slice = make_tensor_slice(kvcache_out_tensor,
+                                                    kv_dim,
+                                                    kvcache_desc.num_stored_tokens - static_cast<uint32_t>(chunk_prompt_len),
+                                                    kvcache_desc.num_stored_tokens);
+
+            std::cout << "kv_dim: " << kv_dim << std::endl;
+            std::cout << "kvcache_in_slice: " << std::endl;
+            print_shape(kvcache_in_slice->get_shape());
+            std::cout << "kvcache_out_tensor: " << std::endl;
+            print_shape(kvcache_out_tensor->get_shape());
+            std::cout << "kvcache_out_slice: " << std::endl;
+            print_shape(kvcache_out_slice->get_shape());
+
+            if (kv_dim == 3u) {
+                // ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_slice, kvcache_in_slice);
+                copy_columns_by_row_chunks(kvcache_out_slice, kvcache_in_slice);
+            } else if (kv_dim == 2u) {
+                copy_by_planes(kvcache_out_slice, kvcache_in_slice);
+            } else {
+                kvcache_out_slice->copy_to(kvcache_in_slice._ptr);
+            }
+        }
+    }
+
+    m_need_copy_kvcache = true;
+
+    m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
+}
+
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> attention_mask,
                                               ov::SoPtr<ov::ITensor> position_ids) {
@@ -195,6 +309,16 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     prepare_for_new_conversation();
 
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+
+    auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    auto chunk_prompt_len = padded_input->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    if (input_prompt_len > chunk_prompt_len) {
+        std::cout << "let's got to chunk prefill:" << std::endl;
+        std::cout << "input_prompt_len: " << input_prompt_len << std::endl;
+        std::cout << "chunk_prompt_len: " << chunk_prompt_len << std::endl;
+        return infer_prefill_in_chunk(input_ids, attention_mask, position_ids);
+    }
+    
     // NB: padded_input can be either fp32(VLM) or i64(LLM)
     std::copy_n(
         reinterpret_cast<uint8_t*>(input_ids->data()),
@@ -212,6 +336,13 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     std::copy_n(position_ids->data<int64_t>(),
                 position_ids->get_size(),
                 padded_position_ids->data<int64_t>() + padded_position_ids->get_size() - position_ids->get_size());
+
+    std::cout << "padded_input: " << std::endl;
+    print_shape(padded_input->get_shape());
+    std::cout << "padded_attention_mask: " << std::endl;
+    print_shape(padded_attention_mask->get_shape());
+    std::cout << "position_ids: " << std::endl;
+    print_shape(position_ids->get_shape());
 
     m_prefill_request->infer();
 
@@ -355,6 +486,16 @@ void ov::npuw::LLMInferRequest::infer() {
     // NB: Check the sequence length provided for input_ids
     // in order to distinguish prefill / generate stages
     if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] != 1) {
+        auto input_ids_shape = input_ids->get_shape();
+        auto attention_mask_shape = attention_mask->get_shape();
+        auto position_ids_shape = position_ids->get_shape();
+
+        std::cout << "input_ids: " << std::endl;
+        print_shape(input_ids_shape);
+        std::cout << "attention_mask: " << std::endl;
+        print_shape(attention_mask_shape);
+        std::cout << "position_ids: " << std::endl;
+        print_shape(position_ids_shape);
         infer_prefill(input_ids, attention_mask, position_ids);
     } else {
         infer_generate(input_ids, attention_mask, position_ids);
