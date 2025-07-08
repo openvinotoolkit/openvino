@@ -33,6 +33,10 @@ type OVAny = string | number | boolean;
  */
 interface Core {
   /**
+   * It constructs a new Core object.
+   */
+  new(): Core;
+  /**
    * Registers extensions to a Core object.
    * @param libraryPath Path to the library with ov::Extension.
    */
@@ -220,14 +224,13 @@ interface Core {
     properties?: Record<string, OVAny>,
   ): { [key: string]: string };
 }
-interface CoreConstructor {
-  new (): Core;
-}
 
-/**
- * A user-defined model read by {@link Core.readModel}.
- */
 interface Model {
+  /**
+   * It constructs a default Model object. Use {@link Core.readModel}
+   * to read Model from supported file format.
+   */
+  new(): Model;
   /**
    * It returns a cloned model.
    */
@@ -336,6 +339,11 @@ interface Model {
  * then mapping to compute kernels.
  */
 interface CompiledModel {
+  /**
+   * It constructs a default CompiledModel object. Use {@link Core.compileModel}
+   * or {@link Core.importModel} to get model compiled for a specific device.
+   */
+  new(): CompiledModel;
   /** It gets all inputs of a compiled model. */
   inputs: Output[];
   /** It gets all outputs of a compiled model. */
@@ -405,10 +413,41 @@ interface CompiledModel {
 
 /**
  * The {@link Tensor} is a lightweight class that represents data used for
- * inference. There are different ways to create a tensor. You can find them
- * in {@link TensorConstructor} section.
+ * inference.
+ *
+ * @remarks
+ * The tensor memory is shared with the TypedArray. That is,
+ * the responsibility for maintaining the reference to the TypedArray lies with
+ * the user. Any action performed on the TypedArray will be reflected in this
+ * tensor memory.
  */
 interface Tensor {
+  /**
+   * It constructs a tensor using the element type and shape. The new tensor
+   * data will be allocated by default.
+   * @param type The element type of the new tensor.
+   * @param shape The shape of the new tensor.
+   */
+  new (type: element | elementTypeString, shape: number[]): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The new tensor
+   * wraps allocated host memory.
+   * @param type The element type of the new tensor.
+   * @param shape The shape of the new tensor.
+   * @param tensorData A subclass of TypedArray that will be wrapped
+   * by a {@link Tensor}.
+   */
+  new (
+    type: element | elementTypeString,
+    shape: number[],
+    tensorData: SupportedTypedArray,
+  ): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The strings from
+   * the array are used to fill the new tensor. Each element of a string tensor
+   * is a string of arbitrary length, including an empty string.
+   */
+  new (tensorData: string[]): Tensor;
   /**
    * This property provides access to the tensor's data.
    *
@@ -447,50 +486,16 @@ interface Tensor {
 }
 
 /**
- * This interface contains constructors of the {@link Tensor} class.
- *
- * @remarks
- * The tensor memory is shared with the TypedArray. That is,
- * the responsibility for maintaining the reference to the TypedArray lies with
- * the user. Any action performed on the TypedArray will be reflected in this
- * tensor memory.
- */
-interface TensorConstructor {
-  /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * data will be allocated by default.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   */
-  new (type: element | elementTypeString, shape: number[]): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * wraps allocated host memory.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   * @param tensorData A subclass of TypedArray that will be wrapped
-   * by a {@link Tensor}.
-   */
-  new (
-    type: element | elementTypeString,
-    shape: number[],
-    tensorData: SupportedTypedArray,
-  ): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The strings from
-   * the array are used to fill the new tensor. Each element of a string tensor
-   * is a string of arbitrary length, including an empty string.
-   */
-  new (tensorData: string[]): Tensor;
-}
-
-/**
- * The {@link InferRequest} object is created using
- * {@link CompiledModel.createInferRequest} method and is specific for a given
- * deployed model. It is used to make predictions and can be run in
+ * The {@link InferRequest} object is used to make predictions and can be run in
  * asynchronous or synchronous manners.
  */
 interface InferRequest {
+  /**
+   * It constructs a default InferRequest object.
+   * Use {@link CompiledModel.createInferRequest}
+   * to get InferRequest object specific for a given deployed model.
+   */
+  new(): InferRequest;
   /**
    * It infers specified input(s) in the synchronous mode.
    * @remarks
@@ -607,6 +612,7 @@ interface InferRequest {
 type Dimension = number | [number, number];
 
 interface Output {
+  new(): Output;
   anyName: string;
   shape: number[];
   toString(): string;
@@ -644,32 +650,33 @@ interface OutputInfo {
 }
 
 interface PrePostProcessor {
+  new (model: Model): PrePostProcessor;
   build(): PrePostProcessor;
   input(idxOrTensorName?: number | string): InputInfo;
   output(idxOrTensorName?: number | string): OutputInfo;
 }
-interface PrePostProcessorConstructor {
-  new (model: Model): PrePostProcessor;
-}
 
 interface PartialShape {
+  /**
+   * It constructs a PartialShape by passed string.
+   * Omit parameter to create empty shape.
+   * @param [shape] String representation of the shape.
+   */
+  new (shape?: string): PartialShape;
   isStatic(): boolean;
   isDynamic(): boolean;
   toString(): string;
   getDimensions(): Dimension[];
 }
 
-/**
+interface AsyncInferQueue {
+  /**
  * Creates AsyncInferQueue.
  * @param compiledModel The compiledModel that will be used
  * to create InferRequests in the pool.
  * @param jobs Number of InferRequest objects in the pool.
  */
-interface AsyncInferQueueConstructor {
   new(compiledModel: CompiledModel, jobs: number): AsyncInferQueue;
-}
-
-interface AsyncInferQueue {
   /**
    * Sets unified callback on all InferRequests from queue's pool.
    * Signature of such function should have two arguments, where
@@ -702,18 +709,6 @@ interface AsyncInferQueue {
   release(): void;
 }
 
-/**
- * This interface contains constructor of the {@link PartialShape} class.
- */
-interface PartialShapeConstructor {
-  /**
-   * It constructs a PartialShape by passed string.
-   * Omit parameter to create empty shape.
-   * @param [shape] String representation of the shape.
-   */
-  new (shape?: string): PartialShape;
-}
-
 declare enum element {
   u8,
   u32,
@@ -735,14 +730,18 @@ declare enum resizeAlgorithm {
 }
 
 export interface NodeAddon {
-  Core: CoreConstructor;
-  Tensor: TensorConstructor;
-  PartialShape: PartialShapeConstructor;
-  AsyncInferQueue: AsyncInferQueueConstructor;
+  Core: Core;
+  Model: Model;
+  CompiledModel: CompiledModel;
+  Tensor: Tensor;
+  InferRequest: InferRequest;
+  Output: Output;
+  PartialShape: PartialShape;
+  AsyncInferQueue: AsyncInferQueue;
 
   preprocess: {
     resizeAlgorithm: typeof resizeAlgorithm;
-    PrePostProcessor: PrePostProcessorConstructor;
+    PrePostProcessor: PrePostProcessor;
   };
 
   /**
@@ -761,7 +760,8 @@ export interface NodeAddon {
   saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
 
   element: typeof element;
+  resizeAlgorithm: typeof resizeAlgorithm;
 }
 
-export default // eslint-disable-next-line @typescript-eslint/no-var-requires
+export default // eslint-disable-next-line
 require('../bin/ov_node_addon.node') as NodeAddon;

@@ -91,7 +91,7 @@ KernelsPriority Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetKernelsPrio
 
 bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     KernelData kd = KernelData::Default<convolution_params>(params);
@@ -100,26 +100,26 @@ bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& pa
     if ((newParams.filterSize.x != newParams.filterSize.y) ||
         newParams.filterSize.x != 3) {
         // Fitler size needs to be 3x3
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (newParams.stride.x != newParams.stride.y) {
         // Strides must be equal
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     if (newParams.outputs[0].X().v != newParams.outputs[0].Y().v) {
         // W and H must be equal
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (newParams.outputs[0].Feature().v % 16 != 0) {
         // output feature size must be divided by 16
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (newParams.outputs[0].Batch().v % 16 != 0) {
         // batch size must be divided by 16
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // check that all fused ops except eltwise have only feature or scalar inputs
@@ -128,7 +128,7 @@ bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& pa
             continue;
         for (auto& input : fo.tensors) {
             if (input.X().v != 1 || input.Y().v != 1 || input.Batch().v != 1)
-                return false;
+                DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }
 
