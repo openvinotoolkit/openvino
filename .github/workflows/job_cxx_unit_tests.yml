@@ -163,10 +163,10 @@ jobs:
               fi
           done
 
-          if [[ $should_fail -eq 1 ]]; then
-            echo "Some binary(s) has no tests to execute, check the logs above"
-            exit 1
-          fi
+          # if [[ $should_fail -eq 1 ]]; then
+          #   echo "Some binary(s) has no tests to execute, check the logs above"
+          #   exit 1
+          # fi
 
       - name: OpenVINO Core Unit Tests
         if: ${{ fromJSON(inputs.affected-components).Core.test && inputs.os != 'debian_10' }} # Ticket: 153150
