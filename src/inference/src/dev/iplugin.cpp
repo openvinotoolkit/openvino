@@ -100,20 +100,13 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         original_ops.emplace(node->get_friendly_name());
     }
 
-    if (original_ops.find("value_cache.39") != original_ops.end()) {
-        std::cout << "value_cache.39\n";
-    }
-
-    if (original_ops.find("PagedAttentionExtension_22706") != original_ops.end()) {
-        std::cout << "PagedAttentionExtension_22706\n";
-    }
     auto transformed_model = model->clone();
     // Cleanup fused names if there are present in original model
-    // ov::pass::Manager m;
-    // m.register_pass<ov::pass::FusedNamesCleanup>();
-    // m.run_passes(transformed_model);
+    ov::pass::Manager m;
+    m.register_pass<ov::pass::FusedNamesCleanup>();
+    m.run_passes(transformed_model);
 
-    // transform(transformed_model);
+    transform(transformed_model);
     const auto& ops = transformed_model->get_ordered_ops();
 
     NameSet supported;
@@ -123,18 +116,9 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     auto get_names_set = [](const NodePtr& op) -> NameSet {
         auto fused_names = ov::getFusedNamesVector(op);
         NameSet names(fused_names.begin(), fused_names.end());
-        names.insert(op->get_friendly_name());
+        names.insert(op->get_friendly_name()); 
         return names;
     };
-
-    if (removed_nodes.find("value_cache.39") != removed_nodes.end()) {
-        std::cout << "removed_nodes value_cache.39\n";
-    }
-
-    if (removed_nodes.find("PagedAttentionExtension_22706") != removed_nodes.end()) {
-        std::cout << "removed_nodes PagedAttentionExtension_22706\n";
-    }
-
 
     // Collect all operation names even there are no such names in original model
     std::map<std::string, std::shared_ptr<ov::Node>> transformed_model_op_map;

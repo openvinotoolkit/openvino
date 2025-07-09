@@ -200,6 +200,21 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::col
     return result;
 }
 void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
+    auto is_constant_input = [](const std::shared_ptr<ov::Node>& node) -> bool {
+        if (ov::op::util::is_constant(node)) return true;
+        if (ov::is_type<ov::op::v0::Convert>(node)) {
+            // Check all inputs of Convert are from constants
+            for (const auto& input : node->inputs()) {
+                const auto& source_node = input.get_source_output().get_node_shared_ptr();
+                if (!ov::op::util::is_constant(source_node)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    };
+
     // Sort subgraph inputs by order
     InputVector ordered_subgraph_inputs;
     for (auto& op : _ordered_ops) {
@@ -214,7 +229,7 @@ void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
     for (const auto& input : ordered_subgraph_inputs) {
         if (!is_graph_input_node(input.get_node())) {
             auto input_source_output = input.get_source_output();
-            if (!ov::op::util::is_constant(input_source_output.get_node())) {
+            if (!is_constant_input(input_source_output.get_node_shared_ptr())) {
                 ordered_subgraph_outputs.push_back(input_source_output);
             }
         }
@@ -539,7 +554,6 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
                     devices.emplace(default_device);
                     debug_supported_ops.insert({node->get_friendly_name(), default_device});
                 } else if (!user_set_affinities) {
-                    std::cout << "Hetero device used default fallback policy, but some layers " << node->get_friendly_name() << std::endl;
                     OPENVINO_THROW("Hetero device used default fallback policy, but some layers eg: \n(Name:",
                                    node->get_friendly_name(),
                                    ", Type: ",
