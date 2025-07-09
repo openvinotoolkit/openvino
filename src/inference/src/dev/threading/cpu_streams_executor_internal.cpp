@@ -77,8 +77,7 @@ void get_cur_stream_info(const int stream_id,
             stream_type = STREAM_WITH_NUMA_ID;
         }
         if ((stream_type == STREAM_WITHOUT_PARAM || stream_type == STREAM_WITH_CORE_TYPE) &&
-            proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
-            proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
+            proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
             pin_pecores = true;
         }
     }
