@@ -42,11 +42,11 @@ public:
             weights = it->second;
             return true;
         } else {
-            std::cout << "Weights not found for the given offset" << std::endl;
-            for (const auto& pair : m_offsetConstMap) {
-                std::cout << "key: " << pair.first << " ";  // pair.first 是键
-            }
-            std::cout << std::endl << "all key dumped!" << std::endl;
+            // std::cout << "Weights not found for the given offset" << std::endl;
+            // for (const auto& pair : m_offsetConstMap) {
+            //     std::cout << "key: " << pair.first << " ";  // pair.first 是键
+            // }
+            // std::cout << std::endl << "all key dumped!" << std::endl;
             return false;
         }
     }
