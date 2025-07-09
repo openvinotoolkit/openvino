@@ -842,11 +842,10 @@ Example:
 
     <!-- E#116761 -->
     <skip_config>
-        <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER</message>
+        <message>OVClassQueryModel tests do not work with COMPILER_TYPE=DRIVER and PV driver</message>
         <filters>
-            <filter>.*OVClassQueryModelTest.QueryModelHETEROWithDeviceIDNoThrow.*</filter>
-            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*</filter>
-            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithBigDeviceIDThrows.*_driverVersion=1688.*</filter>
+            <filter>.*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*_driverVersion=1688.*</filter>
         </filters>
     </skip_config>
 

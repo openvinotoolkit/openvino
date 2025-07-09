@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 
 #include "openvino/op/relu.hpp"

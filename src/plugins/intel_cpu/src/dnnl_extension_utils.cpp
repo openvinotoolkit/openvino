@@ -29,7 +29,9 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "utils/general_utils.h"
+#if defined(OV_CPU_WITH_ACL) || defined(OPENVINO_ARCH_X86_64)
+#    include "utils/general_utils.h"
+#endif
 
 using namespace dnnl;
 
@@ -269,7 +271,7 @@ const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
     return pd->info();
 }
 
-bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
+bool DnnlExtensionUtils::isUnarySupportedAsPostOp([[maybe_unused]] Algorithm alg) {
 #if defined(OV_CPU_WITH_ACL)
     return one_of(alg,
                   Algorithm::EltwiseRelu,
