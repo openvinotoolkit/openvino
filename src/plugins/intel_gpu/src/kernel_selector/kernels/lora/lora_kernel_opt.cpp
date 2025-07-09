@@ -10,9 +10,11 @@ namespace kernel_selector {
 namespace {
 
 enum KernelsTypes {
-    FIRST_TOKEN_A_SMALL = 0,
+    FIRST_TOKEN_A_REF = 0,
+    FIRST_TOKEN_A_SMALL,
     FIRST_TOKEN_A_MEDIUM,
     FIRST_TOKEN_A_LARGE,
+    FIRST_TOKEN_B_REF,
     FIRST_TOKEN_B_MEDIUM,
     FIRST_TOKEN_B_LARGE,
     SECOND_TOKEN_A,
@@ -28,12 +30,16 @@ constexpr size_t gemm_a_sg_bk = 32;
 static std::string GetKernelName(std::string base_name, size_t kernel_idx, const lora_params& params) {
     std::string kernel_name = base_name;
 
-    if (kernel_idx == KernelsTypes::FIRST_TOKEN_A_SMALL) {
+    if (kernel_idx == KernelsTypes::FIRST_TOKEN_A_REF) {
+        kernel_name += "_first_token_a_ref";
+    } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_A_SMALL) {
         kernel_name += "_first_token_a_small";
     } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_A_MEDIUM) {
         kernel_name += "_first_token_a_medium";
     } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_A_LARGE) {
         kernel_name += "_first_token_a_large";
+    } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_B_REF) {
+        kernel_name += "_first_token_b_ref";
     } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_B_MEDIUM) {
         kernel_name += "_first_token_b_medium";
     } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_B_LARGE) {
@@ -95,6 +101,10 @@ LoRAKernelOpt::LoRATuningData LoRAKernelOpt::GetTuningParams(const lora_params& 
     tuning_data.max_gemma_sgk = in_dtype == Datatype::F16 ? 64 : 32;
 
     switch (kernel_idx) {
+    case KernelsTypes::FIRST_TOKEN_A_REF:
+        tuning_data.regM = 1;
+        tuning_data.regN = 2;
+        break;
     case KernelsTypes::FIRST_TOKEN_A_SMALL:
         tuning_data.regM = 4;
         tuning_data.regN = 1;
@@ -106,6 +116,12 @@ LoRAKernelOpt::LoRATuningData LoRAKernelOpt::GetTuningParams(const lora_params& 
     case KernelsTypes::FIRST_TOKEN_A_LARGE:
         tuning_data.regM = 16;
         tuning_data.regN = 2;
+        break;
+    case KernelsTypes::FIRST_TOKEN_B_REF:
+        tuning_data.regM = 1;
+        tuning_data.regN = 2;
+        tuning_data.sgM = 8;
+        tuning_data.sgN = 4;
         break;
     case KernelsTypes::FIRST_TOKEN_B_MEDIUM:
         tuning_data.regM = 8;
@@ -147,12 +163,21 @@ std::pair<size_t, size_t> LoRAKernelOpt::GetSuitableKernels(const lora_params& p
         size_t batch = lora_input.Batch().v * lora_input.Feature().v;
         size_t lora_rank = params.inputs[3].Feature().v;
 
+        auto is_valid_reg_m = [&](size_t kernel_idx) {
+            const auto& tuning_params = GetTuningParams(params, kernel_idx);
+            return tuning_params.regM <= batch;
+        };
+
         if (lora_rank == 128 || lora_rank == 256) {
             suitable_kernels.first = KernelsTypes::FIRST_TOKEN_A_LARGE;
         } else if (lora_rank == 64) {
             suitable_kernels.first = KernelsTypes::FIRST_TOKEN_A_MEDIUM;
         } else {
             suitable_kernels.first = KernelsTypes::FIRST_TOKEN_A_SMALL;
+        }
+
+        if (!is_valid_reg_m(suitable_kernels.first)) {
+            suitable_kernels.first = KernelsTypes::FIRST_TOKEN_A_REF;
         }
 
         if (batch < 256) {
@@ -165,6 +190,10 @@ std::pair<size_t, size_t> LoRAKernelOpt::GetSuitableKernels(const lora_params& p
             }
         } else {
             suitable_kernels.second = KernelsTypes::FIRST_TOKEN_B_LARGE;
+        }
+
+        if (!is_valid_reg_m(suitable_kernels.second)) {
+            suitable_kernels.second = KernelsTypes::FIRST_TOKEN_B_REF;
         }
     } else {
         suitable_kernels = { KernelsTypes::SECOND_TOKEN_A, KernelsTypes::SECOND_TOKEN_B };
@@ -345,8 +374,7 @@ JitConstants LoRAKernelOpt::GetJitConstants(const lora_params& params, size_t ke
 
     if (kernel_idx <= KernelsTypes::FIRST_TOKEN_A_LARGE) {
         jit.AddConstant(MakeJitConstant("FIRST_TOKEN_A", 1));
-    } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_B_MEDIUM ||
-               kernel_idx == KernelsTypes::FIRST_TOKEN_B_LARGE) {
+    } else if (kernel_idx <= KernelsTypes::FIRST_TOKEN_B_LARGE) {
         jit.AddConstant(MakeJitConstant("FIRST_TOKEN_B", 1));
     } else if (kernel_idx == KernelsTypes::SECOND_TOKEN_A) {
         jit.AddConstant(MakeJitConstant("SECOND_TOKEN_A", 1));
@@ -389,7 +417,7 @@ JitConstants LoRAKernelOpt::GetJitConstants(const lora_params& params, size_t ke
         jit.AddConstant(MakeJitConstant("MAIN_MATMUL_CODE", GenerateMatMulCode(tuning_params.regM, tuning_params.regN, in_dtype, true)));
 
         jit.AddConstant(MakeJitConstant("MULTIPLY_AND_STORE_CODE", GenerateStoreResultCode(tuning_params.regM, tuning_params.regN, in_dtype, true)));
-    } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_B_MEDIUM || kernel_idx == KernelsTypes::FIRST_TOKEN_B_LARGE) {
+    } else if (kernel_idx <= KernelsTypes::FIRST_TOKEN_B_LARGE) {
         jit.AddConstant(MakeJitConstant("REG_M", tuning_params.regM));
         jit.AddConstant(MakeJitConstant("REG_N", tuning_params.regN));
 
@@ -510,8 +538,7 @@ KernelsData LoRAKernelOpt::GetKernelsData(const Params& params) const {
                 size_t default_bytes_count = 1;
                 kd.internalBuffers.push_back(default_bytes_count);
             }
-        } else if (kernel_idx == KernelsTypes::FIRST_TOKEN_B_MEDIUM ||
-                   kernel_idx == KernelsTypes::FIRST_TOKEN_B_LARGE) {
+        } else if (kernel_idx <= KernelsTypes::FIRST_TOKEN_B_LARGE) {
             FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                              "", false, false, 2, 0, 1, prim_params.is_shape_agnostic);
             args.clear();
