@@ -189,7 +189,7 @@ description = "Extensible memoizing collections and decorators"
 optional = false
 python-versions = ">=3.7"
 groups = ["dev", "tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "cachetools-5.5.2-py3-none-any.whl", hash = "sha256:d26a22bcc62eb95c3beabd9f1ee5e820d3d2704fe2967cbe350e20c8ffcd3f0a"},
     {file = "cachetools-5.5.2.tar.gz", hash = "sha256:1a661caa9175d26759571b2e19580f9d6393969e5dfca11fdb1f947a23e640d4"},
@@ -202,7 +202,7 @@ description = "Extensible memoizing collections and decorators"
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
-markers = "platform_system != \"Windows\" or python_version == \"3.13\""
+markers = "python_version >= \"3.12\" or platform_system != \"Windows\""
 files = [
     {file = "cachetools-6.1.0-py3-none-any.whl", hash = "sha256:1c7bb3cf9193deaf3508b7c5f2a79986c13ea38965c5adcff1f84519cf39163e"},
     {file = "cachetools-6.1.0.tar.gz", hash = "sha256:b4c4f404392848db3ce7aac34950d17be4d864da4b8b66911008e430bc544587"},
@@ -219,7 +219,7 @@ files = [
     {file = "certifi-2025.6.15-py3-none-any.whl", hash = "sha256:2e0c7ce7cb5d8f8634ca55d2ba7e6ec2689a2fd6537d8dec1296a477a4910057"},
     {file = "certifi-2025.6.15.tar.gz", hash = "sha256:d747aa5a8b9bbbb1bb8c22bb13e22bd1f18e9796defa16bab421f7f7a317323b"},
 ]
-markers = {tensorflow = "python_version < \"3.13\" or platform_system != \"Windows\""}
+markers = {tensorflow = "python_version <= \"3.11\" or platform_system != \"Windows\""}
 
 [[package]]
 name = "cfgv"
@@ -346,7 +346,7 @@ files = [
     {file = "charset_normalizer-3.4.2-py3-none-any.whl", hash = "sha256:7f56930ab0abd1c45cd15be65cc741c28b1c9a34876ce8c17a2fa107810c0af0"},
     {file = "charset_normalizer-3.4.2.tar.gz", hash = "sha256:5baececa9ecba31eff645232d59845c07aa030f0c81ee70184a90d35099a0e63"},
 ]
-markers = {tensorflow = "python_version < \"3.13\" or platform_system != \"Windows\""}
+markers = {tensorflow = "python_version <= \"3.11\" or platform_system != \"Windows\""}
 
 [[package]]
 name = "click"
@@ -355,7 +355,7 @@ description = "Composable command line interface toolkit"
 optional = false
 python-versions = ">=3.7"
 groups = ["linters"]
-markers = "python_version == \"3.9\""
+markers = "platform_system == \"Windows\" and python_version < \"3.11\" or python_version == \"3.9\""
 files = [
     {file = "click-8.1.8-py3-none-any.whl", hash = "sha256:63c132bbbed01578a06712a2d1f497bb62d9c1c0d329b7903a866228027263b2"},
     {file = "click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a"},
@@ -371,7 +371,7 @@ description = "Composable command line interface toolkit"
 optional = false
 python-versions = ">=3.10"
 groups = ["linters"]
-markers = "python_version >= \"3.10\""
+markers = "python_version >= \"3.10\" and (python_version >= \"3.11\" or platform_system != \"Windows\")"
 files = [
     {file = "click-8.2.1-py3-none-any.whl", hash = "sha256:61a3265b914e850b85317d0b3109c7f8cd35a670f963866005d6ef1d5175a12b"},
     {file = "click-8.2.1.tar.gz", hash = "sha256:27c491cc05d968d271d5a1db13e3b5a184636d9d930f148c50b038f0d0646202"},
@@ -886,7 +886,7 @@ description = "The FlatBuffers serialization format for Python"
 optional = false
 python-versions = "*"
 groups = ["tensorflow"]
-markers = "python_version < \"3.13\" or platform_system != \"Windows\""
+markers = "python_version <= \"3.11\" or platform_system != \"Windows\""
 files = [
     {file = "flatbuffers-25.2.10-py2.py3-none-any.whl", hash = "sha256:ebba5f4d5ea615af3f7fd70fc310636fbb2bbd1f566ac0a23d98dd412de50051"},
     {file = "flatbuffers-25.2.10.tar.gz", hash = "sha256:97e451377a41262f8d9bd4295cc836133415cc03d8cb966410a4af92eb00d26e"},
@@ -951,7 +951,7 @@ description = "Python AST that abstracts the underlying Python version"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 groups = ["tensorflow"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "gast-0.3.3-py2.py3-none-any.whl", hash = "sha256:8f46f5be57ae6889a4e16e2ca113b1703ef17f2b0abceb83793eaba9e1351a45"},
     {file = "gast-0.3.3.tar.gz", hash = "sha256:b881ef288a49aa81440d2c5eb8aeefd4c2bb8993d5f50edae7413a85bfdb3b57"},
@@ -964,7 +964,7 @@ description = "Python AST that abstracts the underlying Python version"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "gast-0.4.0-py3-none-any.whl", hash = "sha256:b7adcdd5adbebf1adf17378da5ba3f543684dbec47b1cda1f3997e573cd542c4"},
     {file = "gast-0.4.0.tar.gz", hash = "sha256:40feb7b8b8434785585ab224d1568b857edb18297e5a3047f1ba012bc83b42c1"},
@@ -990,7 +990,7 @@ description = "Google Authentication Library"
 optional = false
 python-versions = ">=3.7"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "google_auth-2.40.3-py2.py3-none-any.whl", hash = "sha256:1370d4593e86213563547f97a92752fc658456fe4514c809544f330fed45a7ca"},
     {file = "google_auth-2.40.3.tar.gz", hash = "sha256:500c3a29adedeb36ea9cf24b8d10858e152f2412e3ca37829b3fa18e33d63b77"},
@@ -1018,7 +1018,7 @@ description = "Google Authentication Library"
 optional = false
 python-versions = ">=3.6"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "google-auth-oauthlib-0.4.6.tar.gz", hash = "sha256:a90a072f6993f2c327067bf65270046384cda5a8ecb20b94ea9a687f1f233a7a"},
     {file = "google_auth_oauthlib-0.4.6-py2.py3-none-any.whl", hash = "sha256:3f2a6e802eebbb6fb736a370fbf3b055edcb6b52878bf2f26330b5e041316c73"},
@@ -1130,7 +1130,7 @@ description = "Read and write HDF5 files from Python"
 optional = false
 python-versions = "*"
 groups = ["tensorflow"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "h5py-2.10.0-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:ecf4d0b56ee394a0984de15bceeb97cbe1fe485f1ac205121293fc44dcf3f31f"},
     {file = "h5py-2.10.0-cp27-cp27m-manylinux1_i686.whl", hash = "sha256:86868dc07b9cc8cb7627372a2e6636cdc7a53b7e2854ad020c9e9d8a4d3fd0f5"},
@@ -1174,7 +1174,7 @@ description = "Read and write HDF5 files from Python"
 optional = false
 python-versions = ">=3.9"
 groups = ["tensorflow"]
-markers = "python_version < \"3.13\" or platform_system != \"Windows\""
+markers = "python_version <= \"3.11\" or platform_system != \"Windows\""
 files = [
     {file = "h5py-3.14.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:24df6b2622f426857bda88683b16630014588a0e4155cba44e872eb011c4eaed"},
     {file = "h5py-3.14.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:6ff2389961ee5872de697054dd5a033b04284afc3fb52dc51d94561ece2c10c6"},
@@ -1341,7 +1341,7 @@ files = [
     {file = "idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3"},
     {file = "idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9"},
 ]
-markers = {tensorflow = "python_version < \"3.13\" or platform_system != \"Windows\""}
+markers = {tensorflow = "python_version <= \"3.11\" or platform_system != \"Windows\""}
 
 [package.extras]
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
@@ -1424,7 +1424,7 @@ description = "Deep learning for humans."
 optional = false
 python-versions = ">=3.7"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "keras-2.11.0-py2.py3-none-any.whl", hash = "sha256:38c6fff0ea9a8b06a2717736565c92a73c8cd9b1c239e7125ccb188b7848f65e"},
 ]
@@ -1459,7 +1459,7 @@ description = "Easy data preprocessing and data augmentation for deep learning m
 optional = false
 python-versions = "*"
 groups = ["tensorflow"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "Keras_Preprocessing-1.1.2-py2.py3-none-any.whl", hash = "sha256:7b82029b130ff61cc99b55f3bd27427df4838576838c5b2f65940e4fcec99a7b"},
     {file = "Keras_Preprocessing-1.1.2.tar.gz", hash = "sha256:add82567c50c8bc648c14195bf544a5ce7c1f76761536956c3d2978970179ef3"},
@@ -1481,7 +1481,7 @@ description = "Clang Python Bindings, mirrored from the official LLVM repo: http
 optional = false
 python-versions = "*"
 groups = ["tensorflow"]
-markers = "python_version < \"3.13\" or platform_system != \"Windows\""
+markers = "python_version <= \"3.11\" or platform_system != \"Windows\""
 files = [
     {file = "libclang-18.1.1-1-py2.py3-none-macosx_11_0_arm64.whl", hash = "sha256:0b2e143f0fac830156feb56f9231ff8338c20aecfe72b4ffe96f19e5a1dbb69a"},
     {file = "libclang-18.1.1-py2.py3-none-macosx_10_9_x86_64.whl", hash = "sha256:6f14c3f194704e5d09769108f03185fce7acaf1d1ae4bbb2f30a72c2400cb7c5"},
@@ -1911,7 +1911,7 @@ description = "Python package for creating and manipulating graphs and networks"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "torch"]
-markers = "python_version == \"3.9\""
+markers = "platform_system == \"Windows\" and python_version < \"3.11\" or python_version == \"3.9\""
 files = [
     {file = "networkx-3.2.1-py3-none-any.whl", hash = "sha256:f18c69adc97877c42332c170849c96cefa91881c99a7cb3e95b7c659ebdc1ec2"},
     {file = "networkx-3.2.1.tar.gz", hash = "sha256:9f1bb5cf3409bf324e0a722c20bdb4c20ee39bf1c30ce8ae499c8502b0b5e0c6"},
@@ -1931,7 +1931,7 @@ description = "Python package for creating and manipulating graphs and networks"
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "torch"]
-markers = "python_version == \"3.10\""
+markers = "platform_system != \"Windows\" and python_version == \"3.10\""
 files = [
     {file = "networkx-3.4.2-py3-none-any.whl", hash = "sha256:df5d4365b724cf81b8c6a7312509d0c22386097011ad1abe274afd5e9d3bbc5f"},
     {file = "networkx-3.4.2.tar.gz", hash = "sha256:307c3669428c5362aab27c8a1260aa8f47c4e91d3891f48be0141738d8d053e1"},
@@ -1986,7 +1986,7 @@ description = "NumPy is the fundamental package for array computing with Python.
 optional = false
 python-versions = ">=3.5"
 groups = ["main", "onnx", "paddle", "tensorflow", "tests", "torch"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "numpy-1.18.5-cp35-cp35m-macosx_10_9_intel.whl", hash = "sha256:e91d31b34fc7c2c8f756b4e902f901f856ae53a93399368d9a0dc7be17ed2ca0"},
     {file = "numpy-1.18.5-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:7d42ab8cedd175b5ebcb39b5208b25ba104842489ed59fbb29356f671ac93583"},
@@ -2018,7 +2018,7 @@ description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "onnx", "paddle", "tensorflow", "tests", "torch"]
-markers = "python_version == \"3.9\""
+markers = "platform_system == \"Windows\" and python_version < \"3.11\" or python_version == \"3.9\""
 files = [
     {file = "numpy-2.0.2-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:51129a29dbe56f9ca83438b706e2e69a39892b5eda6cedcb6b0c9fdc9b0d3ece"},
     {file = "numpy-2.0.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:f15975dfec0cf2239224d80e32c3170b1d168335eaedee69da84fbe9f1f9cd04"},
@@ -2140,7 +2140,7 @@ description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "onnx", "paddle", "tensorflow", "tests", "torch"]
-markers = "python_version >= \"3.10\" and python_version <= \"3.12\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version == \"3.11\""
 files = [
     {file = "numpy-2.2.6-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b412caa66f72040e6d268491a59f2c43bf03eb6c96dd8f0307829feb7fa2b6fb"},
     {file = "numpy-2.2.6-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8e41fd67c52b86603a91c1a505ebaef50b3314de0213461c7a6e99c9a3beff90"},
@@ -2206,7 +2206,7 @@ description = "A generic, spec-compliant, thorough implementation of the OAuth r
 optional = false
 python-versions = ">=3.8"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1"},
     {file = "oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9"},
@@ -2224,7 +2224,7 @@ description = "Open Neural Network Exchange"
 optional = false
 python-versions = "*"
 groups = ["onnx"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "onnx-1.12.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:bdbd2578424c70836f4d0f9dda16c21868ddb07cc8192f9e8a176908b43d694b"},
     {file = "onnx-1.12.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:213e73610173f6b2e99f99a4b0636f80b379c417312079d603806e48ada4ca8b"},
@@ -2264,7 +2264,7 @@ description = "Open Neural Network Exchange"
 optional = false
 python-versions = ">=3.8"
 groups = ["onnx"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "onnx-1.15.0-cp310-cp310-macosx_10_12_universal2.whl", hash = "sha256:51cacb6aafba308aaf462252ced562111f6991cdc7bc57a6c554c3519453a8ff"},
     {file = "onnx-1.15.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:0aee26b6f7f7da7e840de75ad9195a77a147d0662c94eaa6483be13ba468ffc1"},
@@ -2531,8 +2531,8 @@ numpy = ">=1.13"
 opt-einsum = "3.3.0"
 Pillow = "*"
 protobuf = [
-    {version = ">=3.20.2", markers = "platform_system != \"Windows\""},
     {version = ">=3.1.0,<=3.20.2", markers = "platform_system == \"Windows\""},
+    {version = ">=3.20.2", markers = "platform_system != \"Windows\""},
 ]
 
 [[package]]
@@ -2723,7 +2723,7 @@ description = "Protocol Buffers"
 optional = false
 python-versions = ">=3.5"
 groups = ["dev", "onnx", "paddle", "tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "protobuf-3.19.6-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:010be24d5a44be7b0613750ab40bc8b8cedc796db468eae6c779b395f50d1fa1"},
     {file = "protobuf-3.19.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:11478547958c2dfea921920617eb457bc26867b0d1aa065ab05f35080c5d9eb6"},
@@ -2759,7 +2759,7 @@ description = "Protocol Buffers"
 optional = false
 python-versions = ">=3.7"
 groups = ["dev", "onnx", "paddle", "tensorflow"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "protobuf-3.20.2-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:09e25909c4297d71d97612f04f41cea8fa8510096864f2835ad2f3b3df5a5559"},
     {file = "protobuf-3.20.2-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:e8fbc522303e09036c752a0afcc5c0603e917222d8bedc02813fd73b4b4ed804"},
@@ -2827,7 +2827,7 @@ description = "Pure-Python implementation of ASN.1 types and DER/BER/CER codecs 
 optional = false
 python-versions = ">=3.8"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "pyasn1-0.6.1-py3-none-any.whl", hash = "sha256:0d632f46f2ba09143da3a8afe9e33fb6f92fa2320ab7e886e2d0f7672af84629"},
     {file = "pyasn1-0.6.1.tar.gz", hash = "sha256:6f580d2bdd84365380830acf45550f2511469f673cb4a5ae3857a3170128b034"},
@@ -2840,7 +2840,7 @@ description = "A collection of ASN.1-based protocols modules"
 optional = false
 python-versions = ">=3.8"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a"},
     {file = "pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6"},
@@ -3331,7 +3331,7 @@ files = [
     {file = "requests-2.32.4-py3-none-any.whl", hash = "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c"},
     {file = "requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"},
 ]
-markers = {tensorflow = "python_version < \"3.13\" or platform_system != \"Windows\""}
+markers = {tensorflow = "python_version <= \"3.11\" or platform_system != \"Windows\""}
 
 [package.dependencies]
 certifi = ">=2017.4.17"
@@ -3350,7 +3350,7 @@ description = "OAuthlib authentication support for Requests."
 optional = false
 python-versions = ">=3.4"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "requests-oauthlib-2.0.0.tar.gz", hash = "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9"},
     {file = "requests_oauthlib-2.0.0-py2.py3-none-any.whl", hash = "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36"},
@@ -3419,7 +3419,7 @@ description = "Pure-Python RSA implementation"
 optional = false
 python-versions = "<4,>=3.6"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "rsa-4.9.1-py3-none-any.whl", hash = "sha256:68635866661c6836b8d39430f97a996acbd61bfa49406748ea243539fe239762"},
     {file = "rsa-4.9.1.tar.gz", hash = "sha256:e7bdbfdb5497da4c07dfd35530e1a902659db6ff241e39d9953cad06ebd0ae75"},
@@ -3565,7 +3565,7 @@ description = "TensorBoard lets you watch Tensors Flow"
 optional = false
 python-versions = ">=3.7"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "tensorboard-2.11.2-py3-none-any.whl", hash = "sha256:cbaa2210c375f3af1509f8571360a19ccc3ded1d9641533414874b5deca47e89"},
 ]
@@ -3592,7 +3592,7 @@ description = "TensorBoard lets you watch Tensors Flow"
 optional = false
 python-versions = ">=3.9"
 groups = ["tensorflow"]
-markers = "platform_system != \"Windows\" or python_version == \"3.13\""
+markers = "python_version >= \"3.12\" or platform_system != \"Windows\""
 files = [
     {file = "tensorboard-2.19.0-py3-none-any.whl", hash = "sha256:5e71b98663a641a7ce8a6e70b0be8e1a4c0c45d48760b076383ac4755c35b9a0"},
 ]
@@ -3616,7 +3616,7 @@ description = "Fast data loading for TensorBoard"
 optional = false
 python-versions = ">=3.6"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "tensorboard_data_server-0.6.1-py3-none-any.whl", hash = "sha256:809fe9887682d35c1f7d1f54f0f40f98bb1f771b14265b453ca051e2ce58fca7"},
     {file = "tensorboard_data_server-0.6.1-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:fa8cef9be4fcae2f2363c88176638baf2da19c5ec90addb49b1cde05c95c88ee"},
@@ -3630,7 +3630,7 @@ description = "Fast data loading for TensorBoard"
 optional = false
 python-versions = ">=3.7"
 groups = ["tensorflow"]
-markers = "platform_system != \"Windows\" or python_version == \"3.13\""
+markers = "python_version >= \"3.12\" or platform_system != \"Windows\""
 files = [
     {file = "tensorboard_data_server-0.7.2-py3-none-any.whl", hash = "sha256:7e0610d205889588983836ec05dc098e80f97b7e7bbff7e994ebb78f578d0ddb"},
     {file = "tensorboard_data_server-0.7.2-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:9fe5d24221b29625dbc7328b0436ca7fc1c23de4acf4d272f1180856e32f9f60"},
@@ -3644,7 +3644,7 @@ description = "What-If Tool TensorBoard plugin."
 optional = false
 python-versions = "*"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "tensorboard_plugin_wit-1.8.1-py3-none-any.whl", hash = "sha256:ff26bdd583d155aa951ee3b152b3d0cffae8005dc697f72b44a8e8c2a77a8cbe"},
 ]
@@ -3656,7 +3656,7 @@ description = "TensorFlow is an open source machine learning framework for every
 optional = false
 python-versions = "*"
 groups = ["tensorflow"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "tensorflow-2.3.4-cp36-cp36m-macosx_10_11_x86_64.whl", hash = "sha256:8e5cb20ad3cbb30a603eb27ec3e1baee9bc4fc8360f8ce2b8ebc9ee1d2592cfb"},
     {file = "tensorflow-2.3.4-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:b6d068cbdf53809688d8eff3fb5bea030f350ff7f507035832a743b4efa4094b"},
@@ -3694,7 +3694,7 @@ description = "TensorFlow is an open source machine learning framework for every
 optional = false
 python-versions = ">=3.7"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "tensorflow-2.11.1-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:ac0e46c5de7985def49e4f688a0ca4180949a4d5dc62b89e9c6640db3c3982ba"},
     {file = "tensorflow-2.11.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:45b1669c523fa6dc240688bffe79f08dfbb76bf5e23a7fe10e722ba658637a44"},
@@ -3794,7 +3794,7 @@ description = "TensorFlow Estimator."
 optional = false
 python-versions = "*"
 groups = ["tensorflow"]
-markers = "python_version == \"3.13\" and platform_system == \"Windows\""
+markers = "platform_system == \"Windows\" and python_version >= \"3.12\""
 files = [
     {file = "tensorflow_estimator-2.3.0-py2.py3-none-any.whl", hash = "sha256:b75e034300ccb169403cf2695adf3368da68863aeb0c14c3760064c713d5c486"},
 ]
@@ -3806,7 +3806,7 @@ description = "TensorFlow Estimator."
 optional = false
 python-versions = ">=3.7"
 groups = ["tensorflow"]
-markers = "platform_system == \"Windows\" and python_version < \"3.13\""
+markers = "platform_system == \"Windows\" and python_version <= \"3.11\""
 files = [
     {file = "tensorflow_estimator-2.11.0-py2.py3-none-any.whl", hash = "sha256:ea3b64acfff3d9a244f06178c9bdedcbdd3f125b67d0888dba8229498d06468b"},
 ]
@@ -3818,7 +3818,7 @@ description = "TensorFlow IO"
 optional = false
 python-versions = "<3.13,>=3.7"
 groups = ["tensorflow"]
-markers = "python_version < \"3.13\" and (python_version <= \"3.11\" or platform_system == \"Windows\")"
+markers = "python_version <= \"3.11\""
 files = [
     {file = "tensorflow_io_gcs_filesystem-0.37.1-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:249c12b830165841411ba71e08215d0e94277a49c551e6dd5d72aab54fe5491b"},
     {file = "tensorflow_io_gcs_filesystem-0.37.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:257aab23470a0796978efc9c2bcf8b0bc80f22e6298612a4c0a50d3f4e88060c"},
@@ -4270,7 +4270,7 @@ files = [
     {file = "typing_extensions-4.14.1-py3-none-any.whl", hash = "sha256:d1e1e3b58374dc93031d6eda2420a48ea44a36c2b4766a4fdeb3710755731d76"},
     {file = "typing_extensions-4.14.1.tar.gz", hash = "sha256:38b39f4aeeab64884ce9f74c94263ef78f3c22467c8724005483154c26648d36"},
 ]
-markers = {dev = "python_version < \"3.11\"", onnx = "python_version < \"3.13\" or platform_system != \"Windows\"", paddle = "python_version < \"3.13\"", tensorflow = "python_version < \"3.13\" or platform_system != \"Windows\""}
+markers = {dev = "python_version < \"3.11\"", onnx = "python_version <= \"3.11\" or platform_system != \"Windows\"", paddle = "python_version < \"3.13\"", tensorflow = "python_version <= \"3.11\" or platform_system != \"Windows\""}
 
 [[package]]
 name = "unittest-xml-reporting"
@@ -4298,7 +4298,7 @@ files = [
     {file = "urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"},
     {file = "urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760"},
 ]
-markers = {tensorflow = "python_version < \"3.13\" or platform_system != \"Windows\""}
+markers = {tensorflow = "python_version <= \"3.11\" or platform_system != \"Windows\""}
 
 [package.extras]
 brotli = ["brotli (>=1.0.9) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=0.8.0) ; platform_python_implementation != \"CPython\""]
@@ -4476,4 +4476,4 @@ preprocess = ["networkx", "pillow", "torch", "torchvision"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<3.14"
-content-hash = "cf9104f033893d3ab2b082dc90bc9dcb0786d2cf9f4024d549c6fe0c4560732a"
+content-hash = "a0326d3426fed12a36fefc60465e8435ddec599818bc41c155caaaecd94d81e1"
