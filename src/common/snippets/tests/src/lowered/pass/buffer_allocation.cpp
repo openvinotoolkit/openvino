@@ -120,12 +120,13 @@ void BufferAllocationTest::Validate() {
     EXPECT_EQ(m_linear_ir.get_static_buffer_scratchpad_size(), m_expected_size);
 }
 
-std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel(const std::vector<ov::PartialShape>&) const {
+std::shared_ptr<ov::Model> EltwiseBufferAllocationTest::GetModel(const std::vector<ov::PartialShape>& shapes) const {
     const auto subtensor_eltwise = std::vector<size_t>{1, m_vector_size};
     const auto subtensor_buffer = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
-    const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));
-    const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 3, 100, 100}));
+    const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[0]);
+    const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shapes[0]);
+
     const auto add = std::make_shared<ov::op::v1::Add>(parameter0, parameter1);
     const auto buffer0 = std::make_shared<ov::snippets::op::Buffer>(add);
     const auto relu = std::make_shared<ov::op::v0::Relu>(buffer0);
