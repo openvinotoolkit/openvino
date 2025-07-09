@@ -23,12 +23,12 @@ void get_cur_stream_info(const int stream_id,
                          int& numa_node_id,
                          int& socket_id,
                          int& max_threads_per_core,
-                         bool& pin_processors) {
+                         bool& pin_pecores) {
     int stream_total = 0;
     size_t stream_info_id = 0;
     bool pinning = cpu_pinning;
     bool ecore_used = false;
-    pin_processors = false;
+    pin_pecores = false;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total += std::abs(streams_info_table[i][NUMBER_OF_STREAMS]);
         if (stream_id < stream_total) {
@@ -76,8 +76,10 @@ void get_cur_stream_info(const int stream_id,
         } else if (proc_type_table.size() > 1 && numa_node_id >= 0) {
             stream_type = STREAM_WITH_NUMA_ID;
         }
-        if (stream_type == STREAM_WITHOUT_PARAM && proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
-            pin_processors = true;
+        if ((stream_type == STREAM_WITHOUT_PARAM || stream_type == STREAM_WITH_CORE_TYPE) &&
+            proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
+            proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
+            pin_pecores = true;
         }
     }
 }
