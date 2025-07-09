@@ -36,8 +36,7 @@ protected:
     virtual std::shared_ptr<ov::Model> GetModel(const std::vector<ov::PartialShape>& shapes) const = 0;
     virtual std::shared_ptr<ov::snippets::lowered::pass::PassConfig> GetPassConfig();
     virtual std::shared_ptr<ov::snippets::IShapeInferSnippetsFactory> GetShapeInferFactory() const;
-    virtual void AddBackendSpecificPasses(ov::snippets::lowered::pass::PassPipeline& pipeline);
-    virtual void AddBackendSpecificPostSplitPasses(ov::snippets::lowered::pass::PassPipeline& pipeline);
+    virtual std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered> getBackendSpecificPasses();
 
     static void MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor);
     static void MarkOp(const std::shared_ptr<ov::Node>& node,

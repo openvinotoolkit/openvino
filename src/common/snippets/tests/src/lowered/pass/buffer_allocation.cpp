@@ -6,7 +6,9 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/pass/positioned_pass.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
@@ -48,8 +50,6 @@ void BufferAllocationTest::SetUp() {
     const auto body = GetModel(m_shapes);
     m_linear_ir = ov::snippets::lowered::LinearIR(body, GetShapeInferFactory());
     m_linear_ir.set_loop_depth(m_loop_depth);
-    // When Subgraph::control_flow_transformations become public method,
-    // please use this method instead of ApplyTransformations
     ApplyTransformations(GetPassConfig());
 }
 
@@ -63,10 +63,6 @@ std::shared_ptr<ov::snippets::lowered::pass::PassConfig> BufferAllocationTest::G
 std::shared_ptr<ov::snippets::IShapeInferSnippetsFactory> BufferAllocationTest::GetShapeInferFactory() const {
     return std::make_shared<ov::snippets::IShapeInferSnippetsFactory>();
 }
-
-void BufferAllocationTest::AddBackendSpecificPasses(ov::snippets::lowered::pass::PassPipeline& pipeline) {}
-
-void BufferAllocationTest::AddBackendSpecificPostSplitPasses(ov::snippets::lowered::pass::PassPipeline& pipeline) {}
 
 void BufferAllocationTest::MarkOp(const std::shared_ptr<ov::Node>& node, const std::vector<size_t>& subtensor) {
     for (const auto& input : node->inputs())
@@ -97,17 +93,20 @@ void BufferAllocationTest::MarkOp(const std::shared_ptr<ov::Node>& node,
 void BufferAllocationTest::ApplyTransformations(const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& pass_config) {
     ov::snippets::lowered::pass::PassPipeline pipeline(pass_config);
     pipeline.register_pass<ov::snippets::lowered::pass::MarkLoops>(m_vector_size);
-    AddBackendSpecificPasses(pipeline);
     pipeline.register_pass<ov::snippets::lowered::pass::ReduceDecomposition>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::FuseLoops>();
     pipeline.register_pass<ov::snippets::lowered::pass::SplitLoops>();
-    AddBackendSpecificPostSplitPasses(pipeline);
     pipeline.register_pass<ov::snippets::lowered::pass::InsertBuffers>();
     pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(m_vector_size);
     pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
     pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
     pipeline.register_pass<ov::snippets::lowered::pass::AllocateBuffers>(m_is_buffer_optimized);
+    pipeline.register_positioned_passes(getBackendSpecificPasses());
     pipeline.run(m_linear_ir);
+}
+std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>
+BufferAllocationTest::getBackendSpecificPasses() {
+    return {};
 }
 
 void BufferAllocationTest::Validate() {
@@ -151,7 +150,7 @@ namespace BufferAllocationTest_Instances {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseNotOptimized, EltwiseBufferAllocationTest,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 3, 100, 100}}),
                                  ::testing::Values(false),
                                  ::testing::Values(false),  // in this test it doesn't make sense
                                  ::testing::Values(80000),  // Each Buffer has own allocated memory
@@ -161,7 +160,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseNotOptimized, El
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_EltwiseOptimized, EltwiseBufferAllocationTest,
                          ::testing::Combine(
-                                 ::testing::Values(std::vector<ov::PartialShape>{}),
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 3, 100, 100}}),
                                  ::testing::Values(true),
                                  ::testing::Values(false),  // in this test it doesn't make sense
                                  ::testing::Values(40000),  // Two Buffer reuse memory

@@ -43,12 +43,22 @@ protected:
         return std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>();
     }
 
-    void AddBackendSpecificPasses(ov::snippets::lowered::pass::PassPipeline& pipeline) override {
-        pipeline.register_pass<ov::intel_cpu::pass::BrgemmCPUBlocking>();
-    }
+    std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered> getBackendSpecificPasses() override {
+        std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered> backend_passes;
 
-    void AddBackendSpecificPostSplitPasses(ov::snippets::lowered::pass::PassPipeline& pipeline) override {
-        pipeline.register_pass<ov::intel_cpu::pass::InsertBrgemmCopyBuffers>();
+        // Add BrgemmCPUBlocking after MarkLoops
+        backend_passes.emplace_back(
+            ov::snippets::pass::PassPosition(ov::snippets::pass::PassPosition::Place::After,
+                                             ov::snippets::lowered::pass::MarkLoops::get_type_info_static()),
+            std::make_shared<ov::intel_cpu::pass::BrgemmCPUBlocking>());
+
+        // Add InsertBrgemmCopyBuffers after SplitLoops
+        backend_passes.emplace_back(
+            ov::snippets::pass::PassPosition(ov::snippets::pass::PassPosition::Place::After,
+                                             ov::snippets::lowered::pass::SplitLoops::get_type_info_static()),
+            std::make_shared<ov::intel_cpu::pass::InsertBrgemmCopyBuffers>());
+
+        return backend_passes;
     }
 
     static void MarkOp(const std::shared_ptr<ov::Node>& node,
