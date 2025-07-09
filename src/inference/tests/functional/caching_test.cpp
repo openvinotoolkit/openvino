@@ -552,6 +552,8 @@ TEST_P(CachingTest, TestLoad_by_device_name) {
 
 TEST_P(CachingTest, TestLoadCustomImportExport) {
     const char customData[] = {1, 2, 3, 4, 5};
+    size_t customDataSize = sizeof(customData);
+
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
@@ -561,9 +563,8 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
 
     ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _))
         .WillByDefault(Invoke([&](ov::Tensor& s, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&) {
-            size_t customDataSize = sizeof(customData);
+            char a[sizeof(customData)];
             OPENVINO_ASSERT(customDataSize <= s.get_byte_size());
-            char a[customDataSize];
             std::memcpy(a, s.data(), customDataSize);
             EXPECT_EQ(memcmp(a, customData, customDataSize), 0);
             auto name = getline_from_buffer(s.data<const char>(), s.get_byte_size(), customDataSize);
@@ -573,9 +574,8 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
         }));
 
     ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& s, const ov::AnyMap&) {
-        size_t customDataSize = sizeof(customData);
+        char a[sizeof(customData)];
         OPENVINO_ASSERT(customDataSize <= s.get_byte_size());
-        char a[customDataSize];
         std::memcpy(a, s.data(), customDataSize);
         EXPECT_EQ(memcmp(a, customData, customDataSize), 0);
         auto name = getline_from_buffer(s.data<const char>(), s.get_byte_size(), customDataSize);
