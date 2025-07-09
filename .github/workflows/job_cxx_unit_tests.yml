@@ -161,6 +161,7 @@ jobs:
               else
                 echo "$test_count tests to execute for $binary with filter $filter"
               fi
+              sleep 5
           done
 
           # if [[ $should_fail -eq 1 ]]; then
