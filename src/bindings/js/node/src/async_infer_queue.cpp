@@ -49,7 +49,6 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
     }
 }
 
-
 void AsyncInferQueue::release() {
     if (m_tsfn) {
         const auto status = m_tsfn.Release();
@@ -120,7 +119,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         // Start async inference on the next request or add idle handle to queue
                         if (std::lock_guard<std::mutex> lock(m_mutex); m_awaiting_requests.size() > 0) {
                             const auto& [infer_data, user_data, promise] = m_awaiting_requests.front();
-                            start_async_impl(static_cast<int>(handle), infer_data.Value(), user_data.Value(), promise);
+                            start_async_impl(handle, infer_data.Value(), user_data.Value(), promise);
                             m_awaiting_requests.pop();
                         } else {
                             m_idle_handles.push(handle);
@@ -138,7 +137,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
     }
 }
 
-void AsyncInferQueue::start_async_impl(const int handle,
+void AsyncInferQueue::start_async_impl(const size_t handle,
                                        Napi::Object infer_data,
                                        Napi::Object user_data,
                                        Napi::Promise::Deferred deferred) {
