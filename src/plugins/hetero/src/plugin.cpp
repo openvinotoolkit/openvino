@@ -31,7 +31,7 @@ ov::hetero::Plugin::Plugin() {
 }
 
 std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo>> ov::hetero::Plugin::split_graph(
-    const std::shared_ptr<ov::Model>& model,
+    std::shared_ptr<ov::Model>& model,
     Configuration config) const {
     std::vector<ov::hetero::SubmodelInfo> submodels;
     ov::SupportedOpsMap query_model_result;
@@ -76,8 +76,8 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo
         full_properties[device] = props;
     }
 
-    auto cloned_model = model->clone();
-    std::tie(query_model_result, mapping_info, model_) = query_model_update(cloned_model, full_properties, true);
+    // auto cloned_model = model->clone();
+    std::tie(query_model_result, mapping_info, model_) = query_model_update(model, full_properties, true);
 
     ov::hetero::op::DeviceSubgraphVector ordered_subgraphs;
     for (const auto& op : model_->get_ordered_ops()) {

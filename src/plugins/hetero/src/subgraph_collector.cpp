@@ -611,24 +611,42 @@ std::pair<ov::hetero::SubgraphsVector, ov::hetero::SubgraphsMappingInfo> ov::het
 void ov::hetero::fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& model) {
     for (auto& op : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
-            std::vector<std::shared_ptr<ov::Node>> reshape_nodes;
             for (size_t i = 0; i < 3; i++) {
                 auto input_node = op->get_input_node_shared_ptr(i);
-                auto input_value = input_node->input_value(0);
-                const auto& shape = input_value.get_partial_shape();
-                if (shape.rank().is_dynamic() || shape[2].is_dynamic() || shape[3].is_dynamic()) {
-                    continue;
-                }
-                std::vector<int64_t> new_shape_values = {
-                    -1,
-                    static_cast<int>(shape[2].get_length() * shape[3].get_length())};
-                auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
-                                                                          ov::Shape{new_shape_values.size()},
-                                                                          new_shape_values.data());
+                
+                auto is_all_output_shape_dynamic = [](const std::shared_ptr<ov::Node>& node) {
+                    auto& shape = node->get_output_partial_shape(0);
+                    if (shape.is_dynamic() && shape.rank().is_static()) {
+                        return std::all_of(shape.begin(), shape.end(), [](const Dimension& d) {
+                            return d.is_dynamic();
+                        });
+                    }
+                    return false;
+                };
+                if (is_all_output_shape_dynamic(input_node)) {
+                    auto input_value = input_node->input_value(0);
+                    const auto& shape = input_value.get_partial_shape();
+                    if (is_all_output_shape_dynamic(input_value.get_node_shared_ptr())) {
+                        continue;
+                    }
 
-                auto new_reshape = std::make_shared<ov::op::v1::Reshape>(input_value, shape_const, false);
-                new_reshape->set_friendly_name(input_node->get_friendly_name());
-                ov::replace_node(input_node, new_reshape);
+                    int64_t flattened = 1;
+                    for (size_t j = 0; j <= shape.size(); ++j) {
+                        if (shape[j].is_static()) {
+                            flattened *= shape[j].get_length();
+                        }
+                    }
+                    std::vector<int64_t> new_shape_values = {
+                        -1,
+                        static_cast<int>(flattened)};
+                    auto shape_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64,
+                                                                              ov::Shape{new_shape_values.size()},
+                                                                              new_shape_values.data());
+    
+                    auto new_reshape = std::make_shared<ov::op::v1::Reshape>(input_value, shape_const, false);
+                    new_reshape->set_friendly_name(input_node->get_friendly_name());
+                    ov::replace_node(input_node, new_reshape);
+                }
             }
         }
     }

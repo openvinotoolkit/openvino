@@ -71,7 +71,7 @@ private:
         bool allow_exception = false) const;
 
     std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<SubmodelInfo>> split_graph(
-        const std::shared_ptr<ov::Model>& model,
+        std::shared_ptr<ov::Model>& model,
         Configuration config) const;
 
     Configuration m_cfg;
