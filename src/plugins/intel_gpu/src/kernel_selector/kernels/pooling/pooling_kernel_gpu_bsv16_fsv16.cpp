@@ -70,7 +70,7 @@ KernelsPriority PoolingKernel_bsv16_fsv16::GetKernelsPriority(const Params& /*pa
 
 bool PoolingKernel_bsv16_fsv16::Validate(const Params& p) const {
     if (!PoolingKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const pooling_params&>(p);
@@ -79,15 +79,15 @@ bool PoolingKernel_bsv16_fsv16::Validate(const Params& p) const {
     const auto& output = params.outputs[0];
 
     if (output.Batch().v % batch_block_size != 0 || output.Feature().v % feature_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (input.Batch().v % batch_block_size != 0 || input.Feature().v % feature_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0 ||
         input.Batch().pad.before % batch_block_size != 0 || output.Batch().pad.before % batch_block_size != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

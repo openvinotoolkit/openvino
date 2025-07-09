@@ -61,7 +61,7 @@ KernelsPriority SoftmaxKernel_fb::GetKernelsPriority(const Params& /*params*/) c
 
 bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params) const {
     if (!SoftmaxKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& softmax_params = static_cast<const kernel_selector::softmax_params&>(params);
@@ -72,7 +72,7 @@ bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params) const {
 
     size_t data_sets_count = softmax_params.inputs[0].Batch().v;
     if (data_sets_count > max_lws) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& input = softmax_params.inputs[0];
@@ -84,7 +84,7 @@ bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params) const {
         case SoftmaxDim::FEATURE:
             return input.X().v == 1 && input.Y().v == 1;
         default:
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 }
 

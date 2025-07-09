@@ -103,20 +103,20 @@ ParamsKey KVCacheUpdateKernelRef::GetSupportedKey() const {
 
 bool KVCacheUpdateKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::PA_KV_CACHE_UPDATE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& kernel_params = dynamic_cast<const kv_cache_update_params&>(params);
     if (kernel_params.inputs.size() != 6)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (kernel_params.outputs.size() != 2)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (!kernel_params.conf.is_paged_attention)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (kernel_params.conf.paged_attention_block_size != static_cast<int64_t>(paged_attention_block_size))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

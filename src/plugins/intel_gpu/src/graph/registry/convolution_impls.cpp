@@ -23,7 +23,9 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<convo
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ConvolutionImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ConvolutionImplementationManager, shape_types::dynamic_shape,
             [](const cldnn::program_node& node){
-                return !node.can_use(impl_types::onednn);
+                if (node.can_use(impl_types::onednn))
+                    return false;
+                return node.as<convolution>().use_explicit_padding();
         })
     };
 
