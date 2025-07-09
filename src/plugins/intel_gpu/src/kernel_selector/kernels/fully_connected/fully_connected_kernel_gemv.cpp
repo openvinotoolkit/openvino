@@ -48,7 +48,7 @@ DeviceFeaturesKey FullyConnected_GEMV::get_required_device_features_key(const Pa
 
 bool FullyConnected_GEMV::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
     const auto& input = fc_params.inputs[0];
@@ -56,23 +56,23 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
     const auto& weights = fc_params.weights;
 
     if (!fc_params.compressed) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     const size_t scale_group_size = weights.IFM().v / fc_params.decompression_scale.Feature().v;
     if (scale_group_size == 0 || scale_group_size % 16 != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Data type re-check: only support f16:int4:f16
     if (input.GetDType() != Datatype::F16 || output.GetDType() != Datatype::F16 ||
         (weights.GetDType() != WeightsType::INT4 && weights.GetDType() != WeightsType::UINT4)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Only support vector data as input, the data size should be aligned by 16 elements
     auto input_size = get_input_bf_size(fc_params);
     if (input_size.first > 1 || input_size.second == 0 || input_size.second % 16 != 0 || weights.IFM().v % 16 != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto wl = weights.GetLayout();
@@ -80,31 +80,31 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
 
     auto& fc_input = fc_params.inputs[0];
     if (is_swiglu_fused(fc_params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (input_size.first != 0 && fc_input.is_dynamic()) {
         if (input_size.first != 1) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         if (!(wl == WeightsLayout::os_is_yx_osv32_isv2 && wo % 32 == 0) &&
             !(wl == WeightsLayout::os_is_yx_osv64_isv2 && wo % 64 == 0) &&
             !(wl == WeightsLayout::os_iyx_osv16 && wo % 16 == 0)) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }
 
     if (input.GetLayout() == DataLayout::bfyx) {
         // Padding on input is not supported.
         if (input.X().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (input.Y().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

@@ -99,7 +99,7 @@ KernelsPriority ConvolutionKernel_yxfb_yxio_b16::GetKernelsPriority(const Params
 
 bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
@@ -112,7 +112,7 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
         (filter_ofm_num > 0) && (batch_size > 0) && (params.outputs[0].Feature().v == filter_ofm_num * filter_groups_num);
 
     if (!bInputValidated) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.inputs[0].GetDType() == Datatype::F16) {
@@ -127,11 +127,11 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p) const {
             0;  // Batch size dividable by minimum number of batches processed when smallest local work size is used.
 
         if (!bFilterOK || !bBatchOK) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     } else {
         if ((filter_ofm_num * batch_size) % min_lws != 0 || batch_size < 32) {  // TODO: check why it's not supported
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

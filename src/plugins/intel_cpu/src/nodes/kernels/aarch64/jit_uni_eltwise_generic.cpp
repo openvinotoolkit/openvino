@@ -4,6 +4,11 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
@@ -387,10 +392,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                 fcvtl(data.s4, data.h4);
                 break;
             }
-            case ov::element::i32: {
-                scvtf(data.s, data.s);
-                break;
-            }
+            case ov::element::i32:
             case ov::element::i8: {
                 scvtf(data.s, data.s);
                 break;
