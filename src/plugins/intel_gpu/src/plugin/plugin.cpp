@@ -93,8 +93,8 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
     
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node)) {
-            auto& rtInfo = node->get_rt_info();
-            const auto element_type = node->get_element_type();
+            const auto& rtInfo = node->get_rt_info();
+            const auto& element_type = node->get_element_type();
 
             // offset and size are used as dummy. Offset behaves as a unique key for each constant.
             rtInfo[type_info] = ov::WeightlessCacheAttribute(1, offset, element_type);
@@ -208,7 +208,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
     ov::CacheMode cache_mode = config.get_cache_mode();
-    const std::string_view& weights_path = config.get_weights_path();
+    const auto& weights_path = config.get_weights_path();
 
     // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
     if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && weights_path.empty()) {
@@ -392,10 +392,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         const std::string& weights_path = config.get_weights_path();
 
         if (!ov::util::validate_weights_path(weights_path)) {
-            auto orig_model = config.get_model();
-
             // This is non IR case, e.g. onnxruntime
-            if (orig_model != nullptr) {
+            if (auto orig_model = config.get_model(); orig_model != nullptr) {
                 set_weightless_cache_attributes(orig_model);
             }
         } else {
