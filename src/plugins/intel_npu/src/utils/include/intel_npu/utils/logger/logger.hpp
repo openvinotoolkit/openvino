@@ -56,9 +56,6 @@ public:
 
     bool isActive(ov::log::Level msgLevel) const;
 
-    static std::ostream& getBaseStream();
-    static std::ostream& getLevelStream(ov::log::Level msgLevel);
-
     template <typename... Args>
     void error(const char* format, Args&&... args) const {
         addEntryPacked(ov::log::Level::ERR, format, std::forward<Args>(args)...);

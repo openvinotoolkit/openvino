@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -37,14 +38,16 @@ void dump_failure(const std::shared_ptr<ov::Model>& model, const std::string& de
 }  // namespace npuw
 }  // namespace ov
 
-#define LOG_IMPL(str, level, levelstr)                                        \
+#define LOG_IMPL(msg, level, levelstr)                                        \
     do {                                                                      \
         if (ov::npuw::get_log_level() >= ov::npuw::LogLevel::level) {         \
-            std::cout << "[ NPUW:" levelstr " ] ";                            \
+            std::stringstream log_stream;                                     \
+            log_stream << "[ NPUW:" levelstr " ] ";                           \
             const int this_level = ov::npuw::__logging_indent__::__level__(); \
             for (int i = 0; i < this_level; i++)                              \
-                std::cout << "    ";                                          \
-            std::cout << str << std::endl;                                    \
+                log_stream << "    ";                                         \
+            log_stream << msg;                                                \
+            ov::util::log_message(log_stream.str());                          \
         }                                                                     \
     } while (0)
 
