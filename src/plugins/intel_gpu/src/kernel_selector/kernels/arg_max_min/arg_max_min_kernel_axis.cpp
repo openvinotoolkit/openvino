@@ -86,14 +86,14 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
 
 bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
     if (!ArgMaxMinKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
 
     if (params.inputs.size() > 1) {
         if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

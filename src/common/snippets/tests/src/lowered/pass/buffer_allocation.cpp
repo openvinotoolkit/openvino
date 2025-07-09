@@ -4,8 +4,8 @@
 
 #include "lowered/pass/buffer_allocation.hpp"
 
-#include "openvino/opsets/opset.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/op/buffer.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
 #include "snippets/lowered/pass/init_loops.hpp"

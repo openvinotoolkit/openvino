@@ -77,7 +77,7 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
        [Xm0 Xm1 ... Xmn]]      [Xm0 Xm1 ... Xmn]]
     */
 
-    const auto src_shape = src->get_shape();
+    const auto& src_shape = src->get_shape();
 
     OPENVINO_ASSERT(src_shape.size() == 4u);
     OPENVINO_ASSERT(src_shape == dst->get_shape());
@@ -115,6 +115,44 @@ std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov
         return std::nullopt;
     }
     return std::make_optional(*it);
+}
+
+void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const ov::SoPtr<ov::ITensor>& position_ids) {
+    // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH, SEQ_LEN]
+    // The first dimension (3) represents the three components of position encoding: time, height, and width
+    // enabling alignment across multimodal inputs like text, audio, and video
+    auto padded_shape = padded_position_ids->get_shape();
+    auto position_shape = position_ids->get_shape();
+
+    OPENVINO_ASSERT(position_shape.size() <= 3);
+
+    size_t diff_dim = 0;
+    for (size_t i = 0; i < padded_shape.size(); ++i) {
+        if (padded_shape[i] != position_shape[i]) {
+            diff_dim = i;
+            break;
+        }
+    }
+
+    size_t keep_elements = padded_shape[diff_dim] - position_shape[diff_dim];
+
+    size_t batch_size = 1;
+    for (size_t i = 0; i < padded_shape.size(); ++i) {
+        if (i != diff_dim) {
+            batch_size *= padded_shape[i];
+        }
+    }
+
+    int64_t* padded_data = padded_position_ids->data<int64_t>();
+    const int64_t* position_data = position_ids->data<int64_t>();
+
+    for (size_t batch = 0; batch < batch_size; ++batch) {
+        size_t padded_offset = batch * padded_shape[diff_dim];
+        size_t position_offset = batch * position_shape[diff_dim];
+        std::copy_n(position_data + position_offset,
+                    position_shape[diff_dim],
+                    padded_data + padded_offset + keep_elements);
+    }
 }
 
 constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
@@ -208,10 +246,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() - attention_mask->get_size());
 
     auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
-
-    std::copy_n(position_ids->data<int64_t>(),
-                position_ids->get_size(),
-                padded_position_ids->data<int64_t>() + padded_position_ids->get_size() - position_ids->get_size());
+    pad_position_ids(padded_position_ids, position_ids);
 
     m_prefill_request->infer();
 

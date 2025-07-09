@@ -42,20 +42,20 @@ FullyConnected_bs_f_bsv16_af8::DispatchData FullyConnected_bs_f_bsv16_af8::SetDe
 
 bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p) const {
     if (!FullyConnectedBlockKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const bool bProperBatch = params.inputs[0].Batch().v == 16;
 
     if (!params.bias.empty()) {
         if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

@@ -221,24 +221,24 @@ ParamsKey PagedAttentionSDPAKernelOpt::GetSupportedKey() const {
 
 bool PagedAttentionSDPAKernelOpt::Validate(const Params& p) const {
     if (p.GetType() != KernelType::PA_SDPA)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const pa_sdpa_params&>(p);
     if (!params.conf.is_paged_attention)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (seq_len_partition_size % params.conf.paged_attention_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.k_head_size % subgroup_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.v_head_size % subgroup_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto subgroups_per_wg = params.conf.v_head_size / subgroup_size;
     if (subgroups_per_wg > subgroup_size)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

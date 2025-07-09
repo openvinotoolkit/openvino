@@ -27,7 +27,8 @@ namespace pass {
 using namespace ov::op;
 
 MinMaxPrimListConstructReplacer::MinMaxPrimListConstructReplacer() {
-    const auto& op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    const auto& op =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"prim::min", "prim::max"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         bool is_min = false;

@@ -186,6 +186,8 @@ class TestUpsample3D(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_upsample3d(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device,
                    precision, ir_version, trace_model=True, **{"custom_eps": 1e-3})

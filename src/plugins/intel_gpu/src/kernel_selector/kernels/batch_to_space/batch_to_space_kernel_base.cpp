@@ -10,17 +10,17 @@ namespace kernel_selector {
 
 bool BatchToSpaceKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::BATCH_TO_SPACE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const batch_to_space_params& params = static_cast<const batch_to_space_params&>(p);
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.inputs[0].Dimentions() > 6)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

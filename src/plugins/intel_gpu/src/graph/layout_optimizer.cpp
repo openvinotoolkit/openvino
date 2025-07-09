@@ -932,6 +932,42 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
     return false;
 }
 
+void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
+    OPENVINO_ASSERT(node.is_dynamic());
+    auto input_layout = node.get_input_layout(0);
+    auto output_layout = node.get_output_layout();
+    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
+    bool is_fp16_input = input_layout.data_type == data_types::f16;
+    if (i8_u8_input) {
+        node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
+        bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+        if (i8_u8_output) {
+            node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
+        } else {
+            node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+        }
+        // shallow channel
+        if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
+            node.set_preferred_input_fmt(0, cldnn::format::byxf);
+        }
+        if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
+            node.set_preferred_output_fmt(0, cldnn::format::byxf);
+        }
+    } else if (is_fp16_input) {
+        if (input_layout.get_partial_shape().size() <= 4)
+            node.set_preferred_output_fmt(0, format::b_fs_yx_fsv16);
+        else if (input_layout.get_partial_shape().size() == 5)
+            node.set_preferred_output_fmt(0, format::b_fs_zyx_fsv16);
+        else
+            OPENVINO_ASSERT(false, "Unsupported input layout partial shape size ", input_layout.get_partial_shape().size());
+        // Use planar format for dynamic convolution with small input channel(IC <= 3)
+        if (input_layout.get_partial_shape()[1].is_static() &&
+            (input_layout.get_partial_shape()[1].get_length() <= 4 || output_layout.get_partial_shape()[1].get_length() <= 4)) {
+            node.set_preferred_output_fmt(0, format::get_default_format(input_layout.get_partial_shape().size()));
+        }
+    }
+}
+
 format layout_optimizer::get_expected_format(convolution_node const& node) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
@@ -951,13 +987,6 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     if (node.is_dynamic() && output_layout.get_partial_shape().size() == 4 && node.use_explicit_padding() && !i8_u8_input &&
         !(use_onednn_impls && onednn_valid_post_ops && !node.has_padded_dependency())) {
         return format::bfyx;
-    }
-
-    // Use planar format for dynamic convolution with small input channel(IC <= 3)
-    if (node.is_dynamic() && use_onednn_impls && onednn_valid_post_ops &&
-        input_layout.get_partial_shape()[1].is_static() &&
-        (input_layout.get_partial_shape()[1].get_length() <= 4 || output_layout.get_partial_shape()[1].get_length() <= 4)) {
-        return format::get_default_format(input_layout.get_partial_shape().size());
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
@@ -1216,15 +1245,15 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 node.set_preferred_input_fmt(i, fmt);
             } else if (in_lay_rank != out_lay_rank) {
                 auto fmt = get_preferred_format(node.get_dependency(i));
-                // Check if selected format can be adjusted to the required input rank
-                // If no, use default fotmat instead
+                // Check if selected format can be adjusted to the required input and output rank.
+                // If no, use default format instead.
+                // There are many primitives such as reshape, gather, eltwise, etc., which have different input and output ranks.
+                // Input fmt should be selected by considering the ranks of both input and output.
+                // For example, when input fmt is 4-rank block format and output rank is 6 or higher,
+                // input fmt should be selected as a default format. (blocked format, ranks higher than 6 are not supported.)
                 try {
-                    // 7-dimention and 8-dimention only support plain format
-                    if (in_lay_rank >= 7 || out_lay_rank >= 7) {
-                        fmt = format::get_default_format(in_lay_rank);
-                    } else {
-                        format::adjust_to_rank(fmt, in_lay_rank);
-                    }
+                    format::adjust_to_rank(fmt, in_lay_rank);
+                    format::adjust_to_rank(fmt, out_lay_rank);
                 } catch (ov::Exception&) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
@@ -1243,6 +1272,10 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
         expected = get_expected_format(node.as<convolution>());
+        // Set expected input and output preferred format for onednn convolution in dynamic.
+        // This is a temporal implementation because we are guessing required format for OneDNN conv. In the end, we should use byxf format.
+        if (node.is_dynamic() && use_onednn_impls)
+            set_onednn_dyn_conv_preferred_format(node.as<convolution>());
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {

@@ -4,20 +4,22 @@
 
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 
+#include <algorithm>
+#include <iterator>
+
+#include "openvino/core/type.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MoveResultOutOfLoop")
-    if (linear_ir.empty())
+    if (linear_ir.empty()) {
         return false;
+    }
 
     bool modified = false;
     const auto loop_manager = linear_ir.get_loop_manager();
@@ -66,7 +68,4 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

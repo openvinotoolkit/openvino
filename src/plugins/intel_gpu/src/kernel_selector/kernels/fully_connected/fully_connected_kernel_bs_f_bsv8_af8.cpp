@@ -53,16 +53,16 @@ static bool check_output_layout(const DataTensor& t) {
 
 bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p) const {
     if (!FullyConnectedBlockKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!IsSIMDSizeSupported(p.engineInfo, 8))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const bool bProperBatch = params.inputs[0].Batch().v >= 8 && params.inputs[0].Batch().v % 8 == 0;
@@ -70,12 +70,12 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p) const {
     const bool bProperOutput = check_output_layout(params.outputs[0]);
 
     if (!bProperBatch || !bProperFeature || !bProperOutput) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!params.bias.empty()) {
         if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

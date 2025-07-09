@@ -28,12 +28,12 @@ KernelsData GridSampleKernelBase::GetKernelsData(const Params& params) const {
 
 bool GridSampleKernelBase::Validate(const Params& params) const {
     if (params.GetType() != KernelType::GRID_SAMPLE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const grid_sample_params&>(params);
     if (kernel_params.inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

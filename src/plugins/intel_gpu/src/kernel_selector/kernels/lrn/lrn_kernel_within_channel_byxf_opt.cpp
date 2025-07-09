@@ -74,11 +74,11 @@ LRNKernelWithinChannelByxfOpt::Parent::DispatchData LRNKernelWithinChannelByxfOp
 
 bool LRNKernelWithinChannelByxfOpt::Validate(const Params& p) const {
     if (!LRNKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const lrn_params& params = static_cast<const lrn_params&>(p);
     if (params.inputs[0].Feature().v % 8 != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     return true;
 }

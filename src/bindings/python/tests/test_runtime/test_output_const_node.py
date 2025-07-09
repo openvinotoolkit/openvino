@@ -108,6 +108,10 @@ def test_const_get_rf_info(device):
     rt_info = output_node.get_rt_info()
     assert isinstance(rt_info, RTMap)
 
+    # ConstOutput ~ Output<const Node>. RTMap is not modifiable.
+    with pytest.raises(AttributeError, match="openvino._pyopenvino.ConstOutput' object has no attribute 'set_rt_info"):
+        output_node.set_rt_info("test_value", "test_key")
+
 
 def test_const_output_runtime_info(device):
     core = Core()
@@ -127,6 +131,11 @@ def test_update_rt_info(device):
     for key, value in output_node.get_rt_info().items():
         assert key == "test12345"
         assert isinstance(value, OVAny)
+
+    output_node.rt_info["test_key"] = "test_value"
+    assert output_node.rt_info["test_key"] == "test_value"
+    output_node.set_rt_info("test_value2", "test_key2")
+    assert output_node.get_rt_info()["test_key2"] == "test_value2"
 
 
 def test_operations():

@@ -97,7 +97,7 @@ KernelsPriority ConvolutionKernel_Winograd_2x3_s1::GetKernelsPriority(const Para
 
 bool ConvolutionKernel_Winograd_2x3_s1::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
@@ -107,7 +107,7 @@ bool ConvolutionKernel_Winograd_2x3_s1::Validate(const Params& p) const {
     const bool bFilter3x3 = (cp.filterSize.x == 3 && cp.filterSize.y == 3);
 
     if (!bStrideOK || !bDilationOK || !bFilter3x3) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

@@ -83,7 +83,7 @@ DeviceFeaturesKey ConcatenationKernel_b_fs_yx_fsv16::get_required_device_feature
 
 bool ConcatenationKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     if (!ConcatenationKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
@@ -92,12 +92,12 @@ bool ConcatenationKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     auto same_layout = params.inputs[0].GetLayout();
     for (const auto& lt : params.inputs) {
         if (lt.GetLayout() != same_layout) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 
     if (params.axis != ConcatAxis::FEATURE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

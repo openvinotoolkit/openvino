@@ -4,36 +4,61 @@
 
 #include "snippets/lowered/expression_factory.hpp"
 
-#include "snippets/snippets_isa.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/perf_count.hpp"
+#include "snippets/op/reg_spill.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+
+namespace ov::snippets::lowered {
 
 template <>
 std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>& n,
                                                      const std::vector<PortConnectorPtr>& inputs) {
     if (const auto par = ov::as_type_ptr<ov::op::v0::Parameter>(n)) {
         return create(par, inputs, m_shape_infer_factory);
-    } else if (const auto res = ov::as_type_ptr<ov::op::v0::Result>(n)) {
-        return create(res, inputs, m_shape_infer_factory);
-    } else if (const auto loop_begin = ov::as_type_ptr<op::LoopBegin>(n)) {
-        return create(loop_begin, inputs, m_shape_infer_factory);
-    } else if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(n)) {
-        return create(loop_end, inputs, m_shape_infer_factory);
-    } else if (const auto spill_begin = ov::as_type_ptr<op::RegSpillBegin>(n)) {
-        return create(spill_begin, inputs, m_shape_infer_factory);
-    } else if (const auto spill_end = ov::as_type_ptr<op::RegSpillEnd>(n)) {
-        return create(spill_end, inputs, m_shape_infer_factory);
-    } else if (const auto buffer = ov::as_type_ptr<op::Buffer>(n)) {
-        return create<BufferExpression>(buffer, inputs, m_shape_infer_factory);
-#ifdef SNIPPETS_DEBUG_CAPS
-    } else if (const auto perf_counter = ov::as_type_ptr<op::PerfCountBeginBase>(n)) {
-        return create(perf_counter, inputs, m_shape_infer_factory);
-    } else if (const auto perf_counter = ov::as_type_ptr<op::PerfCountEndBase>(n)) {
-        return create(perf_counter, inputs, m_shape_infer_factory);
-#endif
     }
+    if (const auto res = ov::as_type_ptr<ov::op::v0::Result>(n)) {
+        return create(res, inputs, m_shape_infer_factory);
+    }
+    if (const auto loop_begin = ov::as_type_ptr<op::LoopBegin>(n)) {
+        return create(loop_begin, inputs, m_shape_infer_factory);
+    }
+    if (const auto loop_end = ov::as_type_ptr<op::LoopEnd>(n)) {
+        return create(loop_end, inputs, m_shape_infer_factory);
+    }
+    if (const auto spill_begin = ov::as_type_ptr<op::RegSpillBegin>(n)) {
+        return create(spill_begin, inputs, m_shape_infer_factory);
+    }
+    if (const auto spill_end = ov::as_type_ptr<op::RegSpillEnd>(n)) {
+        return create(spill_end, inputs, m_shape_infer_factory);
+    }
+    if (const auto buffer = ov::as_type_ptr<op::Buffer>(n)) {
+        return create<BufferExpression>(buffer, inputs, m_shape_infer_factory);
+    }
+#ifdef SNIPPETS_DEBUG_CAPS
+    if (const auto perf_counter = ov::as_type_ptr<op::PerfCountBeginBase>(n)) {
+        return create(perf_counter, inputs, m_shape_infer_factory);
+    }
+    if (const auto perf_counter = ov::as_type_ptr<op::PerfCountEndBase>(n)) {
+        return create(perf_counter, inputs, m_shape_infer_factory);
+    }
+#endif
     return create(n, inputs, m_shape_infer_factory);
 }
 
@@ -128,8 +153,9 @@ ExpressionPtr ExpressionFactory::create(const std::shared_ptr<op::RegSpillBegin>
     OPENVINO_ASSERT(inputs.empty(), "RegSpillBegin expression expects no inputs");
     const auto num_to_spill = n->get_regs_to_spill().size();
     expr->m_output_port_descriptors.resize(num_to_spill, nullptr);
-    for (size_t i = 0; i < num_to_spill; i++)
+    for (size_t i = 0; i < num_to_spill; i++) {
         expr->m_output_port_descriptors[i] = std::make_shared<PortDescriptor>();
+    }
     expr->m_output_port_connectors.resize(num_to_spill, nullptr);
     for (size_t i = 0; i < num_to_spill; i++) {
         const auto source = expr->get_output_port(i);
@@ -179,6 +205,4 @@ ExpressionPtr ExpressionFactory::create_without_connections(
 }
 #endif
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

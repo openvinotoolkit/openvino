@@ -4,12 +4,11 @@
 
 #pragma once
 
+#include "openvino/core/rtti.hpp"
 #include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface ValidateExpandedLoops
@@ -27,7 +26,4 @@ private:
     static void validate_loop_expressions(const LinearIR& linear_ir);
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

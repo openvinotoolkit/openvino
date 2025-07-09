@@ -4,8 +4,6 @@
 
 #include "reduce.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -28,14 +26,9 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
@@ -67,7 +60,19 @@
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#endif
+
 #if defined(OV_CPU_WITH_ACL)
+#    include "cpu_memory.h"
+#    include "nodes/executors/executor.hpp"
 #    include "nodes/executors/reduce_list.hpp"
 #endif
 
@@ -2204,12 +2209,14 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         if (useAclExecutor) {
 #if defined(OV_CPU_WITH_ACL)
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            srcMemoryDescs.reserve(config.inConfs.size());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            dstMemoryDescs.reserve(config.outConfs.size());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory =
@@ -2218,7 +2225,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                                                         dstMemoryDescs,
                                                         std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
-                supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type, factory);
             }
 #endif
         } else {
@@ -2235,16 +2242,18 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         reduceAttrs.keepDims = keep_dims;
         reduceAttrs.axes = raw_axes;
         for (auto& axis : reduceAttrs.axes) {
-            if (axis < 0)
+            if (axis < 0) {
                 axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+            }
         }
         pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
     }
 
-    if (canUseAclExecutor)
+    if (canUseAclExecutor) {
         return;
+    }
 #endif
 
     if (jit_mode) {
@@ -2304,7 +2313,7 @@ void Reduce::prepareParams() {
         std::vector<MemoryDescPtr> dstMemoryDescs;
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         if (!empty_input) {
             aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs,
                                                                                                  srcMemoryDescs,
@@ -2335,7 +2344,7 @@ void Reduce::prepareParams() {
     apply_post_kernel = true;
     apply_division = false;
 
-    auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
+    auto builder = [&]([[maybe_unused]] const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
@@ -2464,7 +2473,8 @@ void Reduce::createPrimitive() {
     }
 }
 
-void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel, const jit_reduce_config_params& jcp) {
+void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel,
+                                  [[maybe_unused]] const jit_reduce_config_params& jcp) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>>(jcp);
@@ -2519,7 +2529,7 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
         std::vector<MemoryPtr> dstMemory;
         dstMemory.push_back(getDstMemoryAtPort(0));
 
-        aclExecPtr->exec(srcMemory, dstMemory, postOpsDataPtrs.data());
+        aclExecPtr->exec(srcMemory, dstMemory, reinterpret_cast<const void*>(postOpsDataPtrs.data()));
 #endif
     } else {
         if (layout == ReduceLayoutType::reduce_ncsp) {

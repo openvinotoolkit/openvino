@@ -165,7 +165,7 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsPriority(const Pa
 
 bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
@@ -184,7 +184,7 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p) const {
                           (!output.Feature().pad.is_dynamic && output.Feature().pad.before % tuning_data.feature_block_size != 0);
 
     if  (bOutputSizes || bFilterSize || bStride || bPadding) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

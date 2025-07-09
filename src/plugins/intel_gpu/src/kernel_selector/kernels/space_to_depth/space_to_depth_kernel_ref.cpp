@@ -31,17 +31,17 @@ ParamsKey SpaceToDepthKernelRef::GetSupportedKey() const {
 
 bool SpaceToDepthKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SPACE_TO_DEPTH) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const space_to_depth_params& params = static_cast<const space_to_depth_params&>(p);
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.inputs[0].Dimentions() > 5)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

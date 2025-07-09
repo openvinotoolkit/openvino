@@ -5,9 +5,8 @@
 import numpy as np
 
 from functools import singledispatchmethod
-from collections.abc import Mapping
-from typing import Dict, Set, Tuple, Union, Iterator, Optional
-from typing import KeysView, ItemsView, ValuesView
+from collections.abc import Iterator, Mapping, KeysView, ItemsView, ValuesView
+from typing import Union, Optional
 
 from openvino._pyopenvino import Tensor, ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase
@@ -67,9 +66,9 @@ class OVDict(Mapping):
         # or alternatively:
         out1, out2, out3, _ = request.infer(inputs).to_tuple()
     """
-    def __init__(self, _dict: Dict[ConstOutput, np.ndarray]) -> None:
+    def __init__(self, _dict: dict[ConstOutput, np.ndarray]) -> None:
         self._dict = _dict
-        self._names: Optional[Dict[ConstOutput, Set[str]]] = None
+        self._names: Optional[dict[ConstOutput, set[str]]] = None
 
     def __iter__(self) -> Iterator:
         return self._dict.__iter__()
@@ -80,7 +79,7 @@ class OVDict(Mapping):
     def __repr__(self) -> str:
         return self._dict.__repr__()
 
-    def __get_names(self) -> Dict[ConstOutput, Set[str]]:
+    def __get_names(self) -> dict[ConstOutput, set[str]]:
         """Return names of every output key.
 
         Insert empty set if key has no name.
@@ -126,7 +125,7 @@ class OVDict(Mapping):
     def items(self) -> ItemsView[ConstOutput, np.ndarray]:
         return self._dict.items()
 
-    def names(self) -> Tuple[Set[str], ...]:
+    def names(self) -> tuple[set[str], ...]:
         """Return names of every output key.
 
         Insert empty set if key has no name.
@@ -135,7 +134,7 @@ class OVDict(Mapping):
             self._names = self.__get_names()
         return tuple(self._names.values())
 
-    def to_dict(self) -> Dict[ConstOutput, np.ndarray]:
+    def to_dict(self) -> dict[ConstOutput, np.ndarray]:
         """Return underlaying native dictionary.
 
         Function performs shallow copy, thus any modifications to

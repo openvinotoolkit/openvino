@@ -5,11 +5,8 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "snippets/op/brgemm.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface MatMulToBrgemm
@@ -22,6 +19,4 @@ public:
     MatMulToBrgemm();
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

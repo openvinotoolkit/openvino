@@ -97,9 +97,7 @@ std::string ov::OpSet::to_upper_name(const std::string& name) {
 
 const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_available_opsets() {
 #define _OPENVINO_REG_OPSET(OPSET) \
-    {                              \
-#        OPSET, ov::get_##OPSET    \
-    }
+    { #OPSET, ov::get_##OPSET }
     const static std::map<std::string, std::function<const ov::OpSet&()>> opset_map = {_OPENVINO_REG_OPSET(opset1),
                                                                                        _OPENVINO_REG_OPSET(opset2),
                                                                                        _OPENVINO_REG_OPSET(opset3),

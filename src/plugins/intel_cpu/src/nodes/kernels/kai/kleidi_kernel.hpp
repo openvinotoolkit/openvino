@@ -49,7 +49,7 @@ KleidiGemm::KleidiGemm(size_t _M, size_t _N, size_t _K, size_t _lda, size_t _ldb
       nr(ukernel.get_nr()),
       kr(ukernel.get_kr()),
       sr(ukernel.get_sr()),
-      packedRHSsize(kai_get_rhs_packed_size_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(_N, _K)){};
+      packedRHSsize(kai_get_rhs_packed_size_rhs_pack_kxn_f16p16x1biasf16_f16_f16_neon(_N, _K)) {};
 
 const size_t KleidiGemm::get_packed_rhs_size() const {
     return packedRHSsize;

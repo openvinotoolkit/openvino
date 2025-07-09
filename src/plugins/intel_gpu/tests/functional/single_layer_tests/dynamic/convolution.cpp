@@ -182,6 +182,10 @@ const std::vector<ov::test::InputShape> dynInputShapes2D = {
         {1, 10, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
         {{1, 10, 20, 20}, {1, 10, 30, 30}, {1, 10, 40, 20}}
     },
+    {
+        {1, 3, {224, 448}, {224, 448}},
+        {{1, 3, 224, 224}, {1, 3, 448, 448}}
+    }
 };
 
 // Specific range causes output static shapeS
@@ -219,7 +223,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymAutoPad, Conv
                         ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(10),
                         ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
-                ::testing::Values(ov::element::f16),
+                ::testing::ValuesIn({ov::element::f16, ov::element::f32}),
                 ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),

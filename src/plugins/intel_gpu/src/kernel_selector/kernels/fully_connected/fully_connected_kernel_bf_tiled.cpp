@@ -284,7 +284,7 @@ DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(cons
 
 bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
@@ -296,36 +296,36 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
     // but we need to ensure that batch pitch preserves alignment.
     if (input.GetDType() == Datatype::F16) {
         if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_shape_agnostic))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         // for 3d case we have to check feature alignment as well
         if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && (input.Feature().v > 1 || fc_params.is_shape_agnostic))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Dynamic kernel doesn't support dynamic weights yet
     if (fc_params.is_shape_agnostic && input.is_dynamic()) {
         if (get_input_bf_size(fc_params).second == 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (input.GetLayout() == DataLayout::bfyx) {
         // Padding on input is not supported.
         // TODO: Enable by mirroring the padding in weights.
         if (input.X().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (input.Y().pad.Total() != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
         if (input.X().v > 1)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto wt = weights.GetDType();
     if ((wt == WeightsType::UINT4 || wt == WeightsType::INT4) && (weights.IFM().v % 2 != 0 || weights.OFM().v % 2 != 0)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

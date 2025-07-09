@@ -191,15 +191,15 @@ ParamsKey UniqueCountKernelRef::GetSupportedKey() const {
 
 bool UniqueCountKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::UNIQUE_COUNT) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const unique_count_params&>(params);
     if (kernel_params.inputs.size() != 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     if (kernel_params.outputs.size() != 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;
@@ -297,15 +297,15 @@ ParamsKey UniqueGatherKernelRef::GetSupportedKey() const {
 
 bool UniqueGatherKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::UNIQUE_GATHER) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const unique_gather_params&>(params);
     if (kernel_params.inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     if (kernel_params.outputs.size() != 4) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

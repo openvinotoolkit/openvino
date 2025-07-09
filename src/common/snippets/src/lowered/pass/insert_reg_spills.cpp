@@ -4,16 +4,24 @@
 
 #include "snippets/lowered/pass/insert_reg_spills.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/op/brgemm.hpp"
-#include "snippets/op/reg_spill.hpp"
-#include "snippets/utils/utils.hpp"
+#include <algorithm>
+#include <iterator>
+#include <memory>
+#include <set>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/reg_spill.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 bool InsertRegSpills::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertRegSpills")
@@ -21,8 +29,9 @@ bool InsertRegSpills::run(LinearIR& linear_ir) {
     bool modified = false;
     for (auto it = linear_ir.begin(); it != linear_ir.end(); it++) {
         const auto& expr = *it;
-        if (!m_needs_reg_spill(expr))
+        if (!m_needs_reg_spill(expr)) {
             continue;
+        }
         auto start_it = std::prev(it);
         auto stop_it = std::next(it);
         while (ov::is_type<snippets::op::LoopBegin>(start_it->get()->get_node()) &&
@@ -47,10 +56,12 @@ bool InsertRegSpills::run(LinearIR& linear_ir) {
         // we also need to keep kernel regs alive (actually only abi_param_1 is used in emitters, but save all for
         // consistency)
         for (const auto& r :
-             m_reg_manager.get_kernel_call_regs(snippets::op::Kernel::make_kernel(linear_ir.is_dynamic())))
+             m_reg_manager.get_kernel_call_regs(snippets::op::Kernel::make_kernel(linear_ir.is_dynamic()))) {
             regs_to_spill.erase(r);
-        if (regs_to_spill.empty())
+        }
+        if (regs_to_spill.empty()) {
             continue;
+        }
         // All spilled regs are not live anymore => update live_regs for affected expressions
         for (auto affected_it = start_it; affected_it != stop_it; affected_it++) {
             const auto& affected_expr = *affected_it;
@@ -96,7 +107,4 @@ bool InsertRegSpills::run(LinearIR& linear_ir) {
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

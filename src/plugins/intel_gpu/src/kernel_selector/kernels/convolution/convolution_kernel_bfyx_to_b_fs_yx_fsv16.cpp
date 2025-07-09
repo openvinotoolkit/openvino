@@ -98,7 +98,7 @@ KernelsPriority ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsPriority(const Par
 
 bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
@@ -108,12 +108,12 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
 
     // Up to 4 input features allowed
     if (input.Feature().v > 4) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

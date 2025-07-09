@@ -52,21 +52,21 @@ DeviceFeaturesKey ConvolutionKernel_mmad_b_fs_yx_fsv32::get_required_device_feat
 
 bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
         && !params.HasCompensation()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!IsSIMDSizeSupported(params.engineInfo, 8))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.groups > 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

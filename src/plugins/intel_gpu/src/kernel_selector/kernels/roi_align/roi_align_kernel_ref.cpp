@@ -65,12 +65,12 @@ float ROIAlignKernelRef::GetKernelsPriority(const Params &params) const {
 
 bool ROIAlignKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::ROI_ALIGN) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const roi_align_params &params = static_cast<const roi_align_params&>(p);
     if (params.inputs.size() != 3)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

@@ -45,17 +45,17 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetSupportedKey() const {
 
 bool ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
     if (params.inputs[0].Feature().v != params.groups || params.outputs[0].Feature().v != params.groups)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
         && !params.HasCompensation()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

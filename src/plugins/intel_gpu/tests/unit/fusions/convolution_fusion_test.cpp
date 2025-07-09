@@ -4374,4 +4374,28 @@ INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_replace_full_tensor_sum
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 2, 3 },
 }));
 
+class conv_elt_fp16_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_elt_fp16_onednn, basic_activation_eltwise_div) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p), 1.0f)),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        activation("activation", input_info("conv_prim"), "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", input_info("activation"), input_info("eltwise_data"), eltwise_mode::div),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 0.002f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp16_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
+}));
+
 #endif  // ENABLE_ONEDNN_FOR_GPU

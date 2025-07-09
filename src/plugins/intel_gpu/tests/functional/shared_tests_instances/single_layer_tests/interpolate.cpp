@@ -202,6 +202,10 @@ const auto interpolate5dCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(default5dAxes),
         ::testing::ValuesIn(default5dScales));
 
+TEST_P(GPUInterpolateLayerTest, Inference) {
+    run();
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
         ::testing::ValuesIn(netPrecisions),

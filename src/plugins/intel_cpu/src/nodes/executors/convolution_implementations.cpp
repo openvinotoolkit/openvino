@@ -7,14 +7,10 @@
 #include <optional>
 #include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
-#include "nodes/executors/debug_messages.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
@@ -23,9 +19,19 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "post_ops.hpp"
 #include "utils/arch_macros.h"
 #include "utils/general_utils.h"
+
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "nodes/executors/debug_messages.hpp"
+#    include "nodes/executors/executor.hpp"
+#    include "post_ops.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -55,9 +61,9 @@ static const TypeMapping dnnlConvTypeMapping {
     // @todo explicitly cover configuration limitations for oneDNN on ARM
 };
 // clang-format on
-struct RequiresFallbackDefault {
+struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
-        return requiresFallbackCommon(config, dnnlConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
+        return createOptimalConfigCommon(config, dnnlConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
     }
 
     LayoutConfig layoutConfig;
@@ -126,7 +132,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return true;
             },
-            RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -146,7 +152,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return IC == 1 && groupOC == 1;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -169,7 +175,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return IC < 4 && groupOC != 1;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -187,7 +193,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return IC < 4 && groupOC != 1;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -210,7 +216,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return IC > 4;
             },
-            RequiresFallbackDefault{{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
+            CreateOptimalConfigDefault{{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -228,7 +234,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return IC > 4;
             },
-            RequiresFallbackDefault{{LayoutType::nCsp8c, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
+            CreateOptimalConfigDefault{{LayoutType::nCsp8c, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -247,7 +253,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return true;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -264,7 +270,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return !one_of(srcType(config), ov::element::bf16, ov::element::f16) && DnnlConvolutionPrimitive::isNspcAvailable(config);
             },
-            RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -279,7 +285,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return true;
             },
-            RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )

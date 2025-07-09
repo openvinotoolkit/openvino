@@ -227,9 +227,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     for (const auto& consumer : consumers) {
         const auto& type_info = consumer.get_node()->get_type_info();
         if (cldnn::one_of(type_info, target_consumers)) {
-            if (cldnn::one_of(type_info, convolutions) && consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                return false;
-            }
             return true;
         }
     }
@@ -242,9 +239,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
         for (const auto& child_consumer : child_consumers) {
             const auto& type_info = child_consumer.get_node()->get_type_info();
             if (cldnn::one_of(type_info, target_consumers)) {
-                if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                    return false;
-                }
                 return true;
             }
         }
@@ -259,9 +253,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
-                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    }
                     return true;
                 }
                 if (are_multiply_from_decompression(child_consumer)) {
@@ -279,9 +270,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
-                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    }
                     return true;
                 } else if (are_converts_from_decompression(child_consumers)) {
                     return true;
@@ -1166,8 +1154,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
-            // Disabled until an optimized kernel for horizontal LoRA fusing appears
-            // manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+            if (config.get_enable_lora_operation()) {
+                manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+            }
 
             // Temporary disabling for BMG due to regression
             if (device_info.arch != cldnn::gpu_arch::xe2 && !config.get_enable_lora_operation()) {

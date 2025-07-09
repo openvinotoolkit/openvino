@@ -36,7 +36,7 @@ KernelsPriority MulticlassNmsKernelRef::GetKernelsPriority(const Params&) const 
 
 bool MulticlassNmsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::MULTICLASS_NMS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

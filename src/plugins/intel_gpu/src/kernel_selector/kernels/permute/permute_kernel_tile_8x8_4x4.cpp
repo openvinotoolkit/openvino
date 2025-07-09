@@ -268,12 +268,12 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
 }
 
 bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) return false;
+    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
     if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
@@ -289,7 +289,7 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     };
 
     if (!is_rotating_except_batch(params.order)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     std::function<bool(const permute_params&)> has_fused_op = [] (const permute_params& params) {
@@ -303,7 +303,7 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     };
 
     if (has_fused_op(params) && params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

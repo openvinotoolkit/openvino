@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "openvino/op/transpose.hpp"
-#include "openvino/pass/matcher_pass.hpp"
-#include "snippets/lowered/port_descriptor.hpp"
+#include <cstdint>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace pass {
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+
+namespace ov::snippets::pass {
 
 /**
  * @interface FuseTransposeBrgemm
@@ -29,6 +30,4 @@ public:
     static bool is_supported_transpose_order(const std::vector<int32_t>& order);
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

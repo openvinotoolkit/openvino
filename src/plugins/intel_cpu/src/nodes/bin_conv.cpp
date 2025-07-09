@@ -4,8 +4,6 @@
 
 #include "bin_conv.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <cassert>
 #include <common/c_types_map.hpp>
 #include <common/nstl.hpp>
@@ -20,9 +18,6 @@
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
@@ -45,6 +40,14 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#endif
 
 // WA for xbyak.h
 #ifdef _WIN32

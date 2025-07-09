@@ -97,17 +97,17 @@ KernelsPriority EltwiseKernel_blocked_opt::GetKernelsPriority(const Params& /*pa
 // Protected
 bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     if (!EltwiseKernelBase::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& ewParams = static_cast<const eltwise_params&>(params);
     if (IsUnsupportedModeForVecCode(ewParams))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         if ((SelectVecSizeFromFormat(ewParams.inputs[i]) == 1) &&
             !IsBroadcastingPossibleInput(ewParams.inputs[i], ewParams.outputs[0])) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
     }
 
@@ -116,7 +116,7 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     const auto& output = ewParams.outputs[0];
     // Check that padding before features doesn't mis-align the blocks
     if (input0.Feature().pad.before % vec_size != 0 || output.Feature().pad.before % vec_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     auto compareTensors = [](const DataTensor& input0, const DataTensor& input1) -> bool {
         // Check all parameters except DataType
@@ -139,9 +139,9 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
     for (size_t i = 1; i < ewParams.inputs.size(); i++) {
         const auto& input = ewParams.inputs[i];
         if (input.LogicalSize() == input0.LogicalSize() && !(compareTensors(input, input0)))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         if (input.Feature().pad.before % vec_size != 0) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         if (input.GetLayout() == DataLayout::bfyx) {
             bool is_valid = input.LogicalSize() == 1;           // Scalar value broadcast
@@ -150,7 +150,7 @@ bool EltwiseKernel_blocked_opt::Validate(const Params& params) const {
                         input.LogicalSize() == output.Feature().v &&
                         GetInnerBatchBlockSize(input) == 1;
             if (!is_valid) {
-                return false;
+                DO_NOT_USE_THIS_KERNEL(params.layerID);
             }
         }
     }

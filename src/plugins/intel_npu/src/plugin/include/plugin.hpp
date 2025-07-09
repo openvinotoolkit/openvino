@@ -29,7 +29,7 @@ public:
 
     Plugin& operator=(const Plugin&) = delete;
 
-    virtual ~Plugin() = default;
+    ~Plugin() = default;
 
     void set_property(const ov::AnyMap& properties) override;
 

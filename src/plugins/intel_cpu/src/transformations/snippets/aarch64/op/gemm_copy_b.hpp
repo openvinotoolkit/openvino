@@ -39,7 +39,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     class ShapeInfer : public snippets::IShapeInferSnippets {
-        std::vector<size_t> m_layout{};
+        std::vector<size_t> m_layout;
 
     public:
         explicit ShapeInfer(const std::shared_ptr<ov::Node>& n);
@@ -48,6 +48,6 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input = {});
-    void validate_element_type(const ov::element::Type& element_type);
+    static void validate_element_type(const ov::element::Type& element_type);
 };
 }  // namespace ov::intel_cpu::aarch64

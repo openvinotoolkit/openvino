@@ -5,11 +5,8 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface BroadcastToMoveBroadcast
@@ -23,6 +20,4 @@ public:
     BroadcastToMoveBroadcast();
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

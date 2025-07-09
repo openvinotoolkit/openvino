@@ -5,13 +5,16 @@
 #pragma once
 
 #include <memory>
+#include <set>
+#include <vector>
 
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/pass.hpp"
-#include "snippets/generator.hpp"
+#include "snippets/target_machine.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @class PropagatePrecision
@@ -42,6 +45,4 @@ private:
     const std::shared_ptr<const TargetMachine> target_machine;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

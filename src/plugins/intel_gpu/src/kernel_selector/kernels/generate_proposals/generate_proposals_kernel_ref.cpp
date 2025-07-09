@@ -33,7 +33,7 @@ KernelsPriority GenerateProposalsRef::GetKernelsPriority(const Params&) const {
 
 bool GenerateProposalsRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::GENERATE_PROPOSALS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

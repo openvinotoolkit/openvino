@@ -16,7 +16,6 @@ set(OPTIONAL_FUNC_TESTS_LIBS "")
 
 set(SKIP_CONFIG "npu_skip_func_tests.xml")
 set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_CONFIG})
-set(LEGACY_SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests.xml)
 
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include")
@@ -79,12 +78,6 @@ install(
 
 install(
   FILES ${SKIP_CONFIG_PATH}
-  DESTINATION tests
-  COMPONENT tests
-  EXCLUDE_FROM_ALL)
-
-install(
-  FILES ${LEGACY_SKIP_CONFIG_PATH}
   DESTINATION tests
   COMPONENT tests
   EXCLUDE_FROM_ALL)

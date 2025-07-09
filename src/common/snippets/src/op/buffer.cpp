@@ -4,12 +4,25 @@
 
 #include "snippets/op/buffer.hpp"
 
-#include "snippets/itt.hpp"
-#include "snippets/utils/utils.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
+
+namespace ov::snippets::op {
 
 Buffer::Buffer(const ov::Output<ov::Node>& arg) : Buffer(ov::OutputVector{arg}) {}
 
@@ -17,8 +30,7 @@ Buffer::Buffer(const OutputVector& arguments) : Op(arguments), m_impl(std::make_
     constructor_validate_and_infer_types();
 }
 Buffer::Buffer(const ov::Shape& shape, ov::element::Type element_type)
-    : Op(),
-      m_impl(std::make_shared<NewMemoryImpl>(shape, element_type)) {
+    : m_impl(std::make_shared<NewMemoryImpl>(shape, element_type)) {
     constructor_validate_and_infer_types();
 }
 Buffer::Buffer(const OutputVector& arguments, std::shared_ptr<BaseImpl> impl) : Op(arguments), m_impl(std::move(impl)) {
@@ -100,7 +112,7 @@ bool Buffer::NewMemoryImpl::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(ov::Shape shape) : m_shape(std::move(shape)) {}
+Buffer::NewMemoryImpl::ShapeInfer::ShapeInfer(const ov::Shape& shape) : m_shape(shape) {}
 
 Buffer::NewMemoryImpl::ShapeInfer::Result Buffer::NewMemoryImpl::ShapeInfer::infer(
     const std::vector<VectorDimsRef>& input_shapes) {
@@ -108,6 +120,4 @@ Buffer::NewMemoryImpl::ShapeInfer::Result Buffer::NewMemoryImpl::ShapeInfer::inf
     return {{m_shape}, ShapeInferStatus::success};
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

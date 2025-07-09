@@ -59,16 +59,16 @@ bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
     const reduce_params& params = static_cast<const reduce_params&>(p);
 
     if (params.inputs.size() != 1 || params.outputs.size() != 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (!params.inputs[0].SimpleLayout() || !params.outputs[0].SimpleLayout())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.inputs[0].LogicalSize() < params.engineInfo.maxWorkGroupSize)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.outputs[0].LogicalSize() != 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     std::set<ReduceMode> supported_modes = {
         ReduceMode::SUM,
@@ -79,7 +79,7 @@ bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
     };
 
     if (supported_modes.find(params.reduceMode) == supported_modes.end())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto& in_dims = params.inputs[0].GetDims();
     auto& out_dims = params.outputs[0].GetDims();
@@ -91,7 +91,7 @@ bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
         }) > 0;
 
     if (has_padding)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include <memory>
+#include <set>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface TokenizeSnippets
@@ -40,11 +43,9 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeSnippets");
     explicit TokenizeSnippets(const SnippetsTokenization::Config& config);
 
-    static bool AppropriateForSubgraph(const std::shared_ptr<const Node>&);
+    static bool AppropriateForSubgraph(const std::shared_ptr<const Node>& node);
 
     static const std::set<ov::element::Type>& get_supported_element_types();
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

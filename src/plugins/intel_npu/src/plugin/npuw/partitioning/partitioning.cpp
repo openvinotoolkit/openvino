@@ -438,7 +438,7 @@ void Partitioner::identifySubgraphs() {
         // plan was done. E.g., new slices or converts may be added on inputs/
         // outputs. Add a special handling for this case.
         std::unordered_set<NodeSPtr> extra_params;
-        auto parameter_as_is = [&input_mapping](NodeSPtr orig_node) {
+        auto parameter_as_is = [&input_mapping](const NodeSPtr& orig_node) {
             auto it = input_mapping.find(orig_node);
             if (it != input_mapping.end()) {
                 return it->second;
@@ -573,8 +573,8 @@ void Partitioner::identifySubgraphs() {
                         input_desc.replace_source_output(new_src);
                     }
                 }  // if (is..)
-            }      // for (inputs)
-        }          // for (input_layers)
+            }  // for (inputs)
+        }  // for (input_layers)
         // Transform the accumulated parameters to the subgraph model's input parameter vector
         // Also track the connectivity
         LOG_VERB("Populating _parameters...");
@@ -748,7 +748,7 @@ void Partitioner::identifySubgraphs() {
                         result_cache[output_desc] = LinkPtrFrom{this_group_idx, new_result};
 
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
-                        group.sg._results.push_back(new_result);
+                        group.sg._results.push_back(std::move(new_result));
                     }
                 }
             }  // for (outputs)
@@ -932,9 +932,9 @@ void Partitioner::propagate(const std::string& func_name,
                     suitable_bank_iter->insert(this_layer_name);
                     layer_to_prototype[this_layer_name] = this_writer_proto;
                 }  // if(iter==end)
-            }      // test(node_ptr)
-        }          // for(ordered_ops)
-    }              // for(each)
+            }  // test(node_ptr)
+        }  // for(ordered_ops)
+    }  // for(each)
 }  // propagate
 
 void Partitioner::propagateSlices(const std::string& func_name) {
@@ -1273,7 +1273,7 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
     for (auto&& op_node : model_group.front()->get_ordered_ops()) {
         for (auto&& iport : op_node->inputs()) {
             auto node = iport.get_source_output().get_node_shared_ptr();
-            auto shape = node->output(0).get_shape();
+            const auto& shape = node->output(0).get_shape();
             if (ov::npuw::partitioning::traits::is_tiny_scalar(node)) {
                 LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
                                     << ": It is safe to keep this bank in function");
@@ -1630,8 +1630,8 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                                                 << iport.second);
                 function._param_mapping[iport] = existing_param_idx;
             }  // if(Const|Parameter)
-        }      // for(inputs)
-    }          // for(nodes)
+        }  // for(inputs)
+    }  // for(nodes)
     funcall._closure.resize(funcall._lazy_closure.size());
     funcall._is_lazy_unpack.resize(funcall._lazy_closure.size(), false);
     function._num_params_total = new_param_idx;
@@ -1786,7 +1786,7 @@ void Partitioner::matchRepeatedSubgraphs(const std::string& func_name) {
                         LazyTensor(std::static_pointer_cast<ov::op::v0::Constant>(input_node));  // (t)/1/c
                 }
             }  // for (inputs)
-        }      // for(nodes)
+        }  // for(nodes)
 
         // Write down the funcall to the list of subgraphs
         std::swap(funcall, this_sg);
@@ -2322,7 +2322,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             }
             gid++;
         }  // for(ens.groups)
-    }      // if(fcew.enabled)
+    }  // if(fcew.enabled)
 
     Partitioning P;
     P.total_gflops = ens.gflops;

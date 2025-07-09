@@ -4,8 +4,27 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "cpu_types.h"
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
+#include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "selective_build.h"
+#include "utils/general_utils.h"
+#include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu {
 namespace riscv64 {
@@ -275,10 +294,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx,
         }
 
         update_vlen(gpr_work_amount, exec_sew, exec_lmul);
-        if (src_prc.is_signed())
+        if (src_prc.is_signed()) {
             vsext_vf4(src_vec(vec_idx), aux_vec());
-        else
+        } else {
             vzext_vf4(src_vec(vec_idx), aux_vec());
+        }
         break;
     }
     default: {
@@ -286,11 +306,13 @@ void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx,
     }
     }
 
-    if (one_of(dst_prc, ov::element::f32) && one_of(src_prc, ov::element::i8, ov::element::u8, ov::element::i32))
+    if (one_of(dst_prc, ov::element::f32) && one_of(src_prc, ov::element::i8, ov::element::u8, ov::element::i32)) {
         vfcvt_f_x_v(src_vec(vec_idx), src_vec(vec_idx));  // int32 -> fp32
+    }
 
-    if (one_of(dst_prc, ov::element::i32) && one_of(src_prc, ov::element::f16, ov::element::f32))
+    if (one_of(dst_prc, ov::element::i32) && one_of(src_prc, ov::element::f16, ov::element::f32)) {
         vfcvt_x_f_v(src_vec(vec_idx), src_vec(vec_idx));  // fp32 -> int32
+    }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -300,11 +322,13 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
     OPENVINO_ASSERT(src_prc.size() == sew2bytes(exec_sew), "Incompatible execution SEW and src SEW");
     OPENVINO_ASSERT(one_of(src_prc, ov::element::f32, ov::element::i32), "Unsupported src prc");
 
-    if (one_of(src_prc, ov::element::f32) && one_of(dst_prc, ov::element::i8, ov::element::u8, ov::element::i32))
+    if (one_of(src_prc, ov::element::f32) && one_of(dst_prc, ov::element::i8, ov::element::u8, ov::element::i32)) {
         vfcvt_x_f_v(dst_vec(), dst_vec());  // fp32 -> int32
+    }
 
-    if (one_of(src_prc, ov::element::i32) && one_of(dst_prc, ov::element::f16, ov::element::f32))
+    if (one_of(src_prc, ov::element::i32) && one_of(dst_prc, ov::element::f16, ov::element::f32)) {
         vfcvt_f_x_v(dst_vec(), dst_vec());  // int32 -> fp32
+    }
 
     switch (dst_prc) {
     case ov::element::f32:
@@ -341,11 +365,13 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::compute_exec_lmul(const ov::element::Type& exec_prc) const {
     // TODO: Support any LMUL values
-    if (!eltwise_emitter->is_lmul_supported())
+    if (!eltwise_emitter->is_lmul_supported()) {
         return LMUL::m1;
+    }
     for (const auto& post_op_emitter : post_op_emitters) {
-        if (!post_op_emitter->is_lmul_supported())
+        if (!post_op_emitter->is_lmul_supported()) {
             return LMUL::m1;
+        }
     }
     return get_max_lmul(exec_prc);
 }
@@ -369,12 +395,15 @@ Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::
     const auto needed_vec_count = input_count + output_count + max_aux_vec_count + 1;  // 1 - mask vec register
     const auto mul = static_cast<size_t>(vec_count / needed_vec_count);
     OPENVINO_ASSERT(mul != 0, "Incorrect configuration!");
-    if (mul < 2)
+    if (mul < 2) {
         return LMUL::m1;
-    if (mul < 4)
+    }
+    if (mul < 4) {
         return LMUL::m2;
-    if (mul < 8)
+    }
+    if (mul < 8) {
         return LMUL::m4;
+    }
     return LMUL::m8;
 }
 
@@ -442,6 +471,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
+              OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
               OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
@@ -548,9 +578,9 @@ template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::emit_data() const {
     OPENVINO_ASSERT(eltwise_emitter, "Eltwise emitter is missed for data emission!");
     eltwise_emitter->emit_data();
-    for (size_t i = 0; i < post_op_emitters.size(); i++) {
-        OPENVINO_ASSERT(post_op_emitters[i], "Post-op emitter is missed for data emission!");
-        post_op_emitters[i]->emit_data();
+    for (const auto& emitter : post_op_emitters) {
+        OPENVINO_ASSERT(emitter, "Post-op emitter is missed for data emission!");
+        emitter->emit_data();
     }
 }
 
@@ -584,6 +614,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
+              OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
               OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),

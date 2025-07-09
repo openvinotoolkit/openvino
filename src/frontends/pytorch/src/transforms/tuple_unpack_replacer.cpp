@@ -22,12 +22,11 @@ namespace pass {
 using namespace ov::op;
 
 PrimTupleUnpackReplacer::PrimTupleUnpackReplacer() {
-    auto tuple_unpack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto tuple_unpack =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"prim::TupleUnpack"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto tuple_unpack = cast_fw_node(m.get_match_root(), "prim::TupleUnpack");
-        if (!tuple_unpack)
-            return false;
+        auto tuple_unpack = m.get_match_root();
         OutputVector outputs;
         auto input_node = tuple_unpack->get_input_node_shared_ptr(0);
         if (cast_fw_node(input_node, "prim::TupleConstruct")) {
