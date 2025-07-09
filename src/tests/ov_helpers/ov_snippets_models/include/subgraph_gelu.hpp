@@ -12,8 +12,7 @@ namespace snippets {
 class CodegenGeluFunction : public SnippetsFunctionBase {
 public:
     CodegenGeluFunction(const std::vector<ov::PartialShape>& inputShapes,
-                        ov::element::Type_t precision = ov::element::f32,
-                        bool useSubgraph = false);
+                        ov::element::Type_t precision = ov::element::f32);
 
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;

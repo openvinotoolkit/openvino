@@ -40,14 +40,12 @@ namespace snippets {
 
     // Gelu from bert-large-uncased-whole-word-masking-squad-fp32-onnx-0001
     void CodegenGelu::SetUp() {
-        InputShape inputShape0, inputShape1;
-        ov::element::Type_t netPrecision;
-        bool useSubgraph;
-        std::tie(netPrecision, inputShape0, inputShape1, useSubgraph, targetDevice) = this->GetParam();
+        auto [netPrecision, inputShape0, inputShape1, useSubgraph, targetDeviceValue] = this->GetParam();
+        targetDevice = targetDeviceValue;
 
         init_input_shapes({inputShape0, inputShape1});
 
-        auto f = ov::test::snippets::CodegenGeluFunction(inputDynamicShapes, netPrecision, useSubgraph);
+        auto f = ov::test::snippets::CodegenGeluFunction(inputDynamicShapes, netPrecision);
         function = f.getOriginal();
 
         setInferenceType(netPrecision);

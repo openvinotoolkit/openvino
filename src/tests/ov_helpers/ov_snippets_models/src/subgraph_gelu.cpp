@@ -15,9 +15,8 @@ namespace test {
 namespace snippets {
 
 CodegenGeluFunction::CodegenGeluFunction(const std::vector<ov::PartialShape>& inputShapes,
-                                         ov::element::Type_t precision,
-                                         bool useSubgraph)
-    : SnippetsFunctionBase(inputShapes, precision), m_use_subgraph(useSubgraph) {
+                                         ov::element::Type_t precision)
+    : SnippetsFunctionBase(inputShapes, precision) {
     OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
 }
 
@@ -29,10 +28,6 @@ std::shared_ptr<ov::Model> CodegenGeluFunction::initOriginal() const {
     auto result = std::make_shared<ov::op::v0::Result>(gelu);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input0, input1});
 
-    if (m_use_subgraph) {
-        ov::pass::InitNodeInfo().run_on_model(model);
-        ov::pass::ConstantFolding().run_on_model(model);
-    }
     return model;
 }
 

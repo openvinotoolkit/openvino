@@ -21,7 +21,6 @@ namespace snippets {
 void MoveBroadcastTests::SetUp() {
     TransformationTestsF::SetUp();
     manager.register_pass<::snippets::pass::InsertMoveBroadcast>();
-    disable_rt_info_check();
 }
 
 TEST_F(MoveBroadcastTests, InsertBroadcastMove) {

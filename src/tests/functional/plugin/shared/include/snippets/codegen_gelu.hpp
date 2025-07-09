@@ -5,7 +5,6 @@
 #pragma once
 
 #include "shared_test_classes/base/snippets_test_utils.hpp"
-#include "subgraph_gelu.hpp"
 
 namespace ov {
 namespace test {
