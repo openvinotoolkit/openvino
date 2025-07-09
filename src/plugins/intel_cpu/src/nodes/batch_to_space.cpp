@@ -147,7 +147,7 @@ void BatchToSpace::batchToSpaceKernel() {
     auto outShape5D = getShape5D(outDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
+    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4U, 5U)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -158,7 +158,7 @@ void BatchToSpace::batchToSpaceKernel() {
 
     auto dstDesc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
 
-    const size_t blockSize = blocked ? dstDesc->getBlockDims().back() : 1lu;
+    const size_t blockSize = blocked ? dstDesc->getBlockDims().back() : 1LU;
     const size_t blockCountInput = srcDesc->getBlockDims()[1];
     const size_t blockCountOutput = dstDesc->getBlockDims()[1];
     const auto blockRemainder = inShape5D[1] % blockSize;
@@ -178,7 +178,8 @@ void BatchToSpace::batchToSpaceKernel() {
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
         std::vector<size_t> indxStart(2, 0);
         std::vector<size_t> indxEnd(2, 0);
@@ -195,10 +196,10 @@ void BatchToSpace::batchToSpaceKernel() {
             bIdx /= blockShapeIn[dimsSize - 1];
             oAdd[3] = bIdx % blockShapeIn[dimsSize - 2] - cropsBeginIn[dimsSize - 2];
             bIdx /= blockShapeIn[dimsSize - 2];
-            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0lu;
+            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0LU;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - cropsBeginIn[1];
-            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
+            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4U, 5U)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }
@@ -212,8 +213,8 @@ void BatchToSpace::batchToSpaceKernel() {
             finish[3] = (outShape5D[3] + blockShape[3] - 1 - oAdd[3]) / blockShape[3];
             begin[4] = (blockShape[4] - 1 - oAdd[4]) / blockShape[4];
             finish[4] = (outShape5D[4] + blockShape[4] - 1 - oAdd[4]) / blockShape[4];
-            const int64_t addTmpOC = blocked ? 0lu : oAdd[1];
-            const int64_t addTmpOc = blocked ? oAdd[1] : 0lu;
+            const int64_t addTmpOC = blocked ? 0LU : oAdd[1];
+            const int64_t addTmpOc = blocked ? oAdd[1] : 0LU;
 
             const size_t firstI1 = i0 == 0 ? std::max(begin[1], indxStart[1]) : begin[1];
             const size_t lastI1 = i0 == indxEnd[0] ? std::min(indxEnd[1] + 1, finish[1]) : finish[1];
@@ -223,7 +224,7 @@ void BatchToSpace::batchToSpaceKernel() {
                 const int64_t tmpOC = i1 * blockShape[1] + addTmpOC;
                 const size_t srcIdx1 = srcIdx0 + i1 * inSpatialStep * blockSize;
                 const size_t dstIdx1 = dstIdx0 + tmpOC * outSpatialStep * blockSize;
-                const size_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0lu;
+                const size_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0LU;
                 for (size_t i2 = begin[2]; i2 < finish[2]; ++i2) {
                     const int64_t tmpOd = i2 * blockShape[2] + oAdd[2];
                     const size_t srcIdx2 = srcIdx1 + i2 * inShape5D[3] * inShape5D[4] * blockSize;

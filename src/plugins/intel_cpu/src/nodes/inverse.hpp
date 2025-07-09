@@ -8,7 +8,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "graph_context.h"
 #include "node.h"
@@ -59,9 +58,9 @@ private:
                           std::vector<float>& L,
                           std::vector<float>& U,
                           std::vector<size_t>& P,
-                          size_t b);
+                          size_t b) const;
 
-    void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b);
+    void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b) const;
 };
 
 }  // namespace ov::intel_cpu::node

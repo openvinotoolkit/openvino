@@ -9,7 +9,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -19,7 +18,7 @@
 
 namespace ov::intel_cpu::node {
 
-enum class MulticlassNmsSortResultType {
+enum class MulticlassNmsSortResultType : uint8_t {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
     SCORE,    // sort selected boxes by score (descending) in each batch element
     NONE      // do not guarantee the order in each batch element
@@ -29,7 +28,7 @@ class MultiClassNms : public Node {
 public:
     MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
@@ -101,12 +100,12 @@ private:
 
     std::vector<filteredBoxes> m_filtBoxes;  // rois after nms for each class in each image
 
-    void checkPrecision(const ov::element::Type prec,
+    void checkPrecision(ov::element::Type prec,
                         const std::vector<ov::element::Type>& precList,
                         const std::string& name,
                         const std::string& type);
 
-    float intersectionOverUnion(const float* boxesI, const float* boxesJ, const bool normalized);
+    static float intersectionOverUnion(const float* boxesI, const float* boxesJ, bool normalized);
 
     void nmsWithEta(const float* boxes,
                     const float* scores,
@@ -114,7 +113,7 @@ private:
                     const VectorDims& boxesStrides,
                     const VectorDims& scoresStrides,
                     const VectorDims& roisnumStrides,
-                    const bool shared);
+                    bool shared);
 
     void nmsWithoutEta(const float* boxes,
                        const float* scores,
@@ -122,16 +121,16 @@ private:
                        const VectorDims& boxesStrides,
                        const VectorDims& scoresStrides,
                        const VectorDims& roisnumStrides,
-                       const bool shared);
+                       bool shared);
 
-    const float* slice_class(const int batch_idx,
-                             const int class_idx,
-                             const float* dataPtr,
-                             const VectorDims& dataStrides,
-                             const bool is_boxes,
-                             const int* roisnum,
-                             const VectorDims& roisnumStrides,
-                             const bool shared);
+    static const float* slice_class(int batch_idx,
+                                    int class_idx,
+                                    const float* dataPtr,
+                                    const VectorDims& dataStrides,
+                                    bool is_boxes,
+                                    const int* roisnum,
+                                    const VectorDims& roisnumStrides,
+                                    bool shared);
 };
 
 }  // namespace ov::intel_cpu::node

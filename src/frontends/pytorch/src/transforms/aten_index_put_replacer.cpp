@@ -46,13 +46,11 @@ Output<Node> generate_zeros_with_convertlike(ov::pass::NodeRegistry& rg,
 }  // namespace
 
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
-    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
+        fw_node_predicate({"aten::index_put_", "aten.index_put.default"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto index_op = cast_fw_node(m.get_match_root(), {"aten::index_put_", "aten.index_put.default"});
-        if (!index_op) {
-            return false;
-        }
+        auto index_op = m.get_match_root();
 
         NodeVector rt_copy_from;
         ov::pass::NodeRegistry rg;
@@ -120,6 +118,18 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
                 dims_with_value_idx.push_back(idx);
                 indices_inputs_without_nones.push_back(indices_inputs[idx]);
             }
+        }
+
+        // In some exported graphs, when index_put_ is used with None indices, shape of values
+        // might be missing the first dimension of 1. For example, a value shape can be provided
+        // as (x,y,z) instead of (1,x,y,z). Both cases are valid for aten.index_put_.default.
+        auto input_rank = input.get_partial_shape().rank();
+        auto values_rank = values.get_partial_shape().rank();
+        if (static_cast<int64_t>(dims_with_none_idx.size()) > 0 && input_rank.is_static() && values_rank.is_static() &&
+            input_rank.get_length() > 1 && input_rank.get_length() == values_rank.get_length() + 1 &&
+            static_cast<int64_t>(dims_with_none_idx.size()) == indices_list_len - 1 &&
+            !(is_none_node(indices_inputs[indices_list_len - 1]))) {
+            values = rg.make<v0::Unsqueeze>(values, const_0);
         }
 
         std::vector<int64_t> perm_vector_before;

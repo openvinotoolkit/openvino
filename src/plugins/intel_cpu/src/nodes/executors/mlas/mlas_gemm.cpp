@@ -106,7 +106,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memor
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
-      M(0),
+
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
       K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 
@@ -120,10 +120,10 @@ bool MlasGemmExecutor::update(const MemoryArgs& memory) {
 }
 
 void MlasGemmExecutor::execute(const MemoryArgs& memory) {
-    const auto srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
-    const auto weiRawMemPtr = packedWeights->getDataAs<float>();
-    const auto dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
-    const auto biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
+    auto* const srcRawMemPtr = memory.at(ARG_SRC)->getDataAs<float>();
+    auto* const weiRawMemPtr = packedWeights->getDataAs<float>();
+    auto* const dstRawMemPtr = memory.at(ARG_DST)->getDataAs<float>();
+    auto* const biasRawMemPtr = memory.at(ARG_BIAS)->getDataAs<float>();
 
     const auto lda = K;
     const auto ldb = K;
@@ -134,12 +134,12 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
                        M,
                        N,
                        K,
-                       1.0f,
+                       1.0F,
                        srcRawMemPtr,
                        lda,
                        weiRawMemPtr,
                        ldb,
-                       0.0f,
+                       0.0F,
                        dstRawMemPtr,
                        ldc,
                        biasRawMemPtr);

@@ -51,7 +51,7 @@ void llm_mlp_quantize_to_i8(T* psrc,
 
     for (int y = 0; y < rows; y++, psrc += src_stride, pdst += dst_stride) {
         int x = 0;
-        float f_min, f_max;
+        float f_min = NAN, f_max = NAN;
 #if defined(HAVE_AVX512F)
         auto v_max = mm512_uni_loadu_ps(psrc + 0);
         auto v_min = mm512_uni_loadu_ps(psrc + 0);
@@ -74,7 +74,8 @@ void llm_mlp_quantize_to_i8(T* psrc,
         // (q - z) * s = f
         //  (-128 - z) * s = f_min;
         //  ( 127 - z) * s = f_max;
-        float scale, zp;
+        float scale = NAN;
+        float zp = NAN;
         if (f_max == f_min || std::isnan(f_max) || std::isnan(f_min)) {
             // special case
             p_zp[y] = 0;
@@ -91,11 +92,11 @@ void llm_mlp_quantize_to_i8(T* psrc,
             continue;
         }
         if (asym) {
-            scale = (f_max - f_min) / 255.0f;
+            scale = (f_max - f_min) / 255.0F;
             zp = 127 - (f_max / scale);
         } else {
             auto fx = std::max(std::abs(f_max), std::abs(f_min));
-            scale = fx / 127.0f;
+            scale = fx / 127.0F;
             zp = 0;
         }
         p_zp[y] = zp;
@@ -144,14 +145,14 @@ void llm_mlp_quantize_f16_i8(ov::float16* psrc,
 
 void llm_mlp_dequantize_i32_f32(int Batch,
                                 int OC,
-                                int32_t* src,
+                                const int32_t* src,
                                 int stride_src,
                                 float* dst,
                                 int stride_dst,
-                                float* p_src_scale_per_row,
-                                float* p_src_zp_per_row,
-                                float* p_wsum_per_oc,
-                                float* p_wscale_per_oc,
+                                const float* p_src_scale_per_row,
+                                const float* p_src_zp_per_row,
+                                const float* p_wsum_per_oc,
+                                const float* p_wscale_per_oc,
                                 bool asym) {
     for (int b = 0; b < Batch; b++, src += stride_src, dst += stride_dst) {
         float s1 = p_src_scale_per_row[b];

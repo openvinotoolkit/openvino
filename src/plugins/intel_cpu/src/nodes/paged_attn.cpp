@@ -16,7 +16,6 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/scaled_attn/executor_pa.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
@@ -30,8 +29,13 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-using namespace ov::Extensions::Cpu;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#    include "kernels/scaled_attn/executor_pa.hpp"
+
 using namespace ov::Extensions::Cpu::XARCH;
+#endif
+
+using namespace ov::Extensions::Cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
@@ -74,7 +78,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     auto rtPrecision = getRuntimePrecision();
 
     NodeConfig config;
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto orgInputNumber = getOriginalInputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
@@ -242,7 +246,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (m_hasScore) {
         size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
-        auto pastLens = inputs[5]->getDataAs<const int32_t>();
+        const auto* pastLens = inputs[5]->getDataAs<const int32_t>();
         for (size_t i = 0; i < pastLensDims[0]; i++) {
             len += pastLens[i];
         }

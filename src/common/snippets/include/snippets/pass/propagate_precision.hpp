@@ -5,19 +5,23 @@
 #pragma once
 
 #include <memory>
-#include "openvino/pass/pass.hpp"
-#include "snippets/generator.hpp"
+#include <set>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace pass {
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/pass.hpp"
+#include "snippets/target_machine.hpp"
+
+namespace ov::snippets::pass {
 
 /**
  * @class PropagatePrecision
  * @ingroup snippets
  * @brief PropagatePrecision transformation propagate precision from parameters to results.
  */
-class PropagatePrecision: public ov::pass::ModelPass {
+class PropagatePrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::PropagatePrecision");
     PropagatePrecision(const std::shared_ptr<const TargetMachine>& target_machine);
@@ -41,6 +45,4 @@ private:
     const std::shared_ptr<const TargetMachine> target_machine;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

@@ -97,7 +97,7 @@ function(cross_compiled_file TARGET)
         message(FATAL_ERROR "Missed arguments in 'cross_compiled_file'")
     endif()
 
-    ## format: ARCH1 ARCH2 <src1> ARCH3 <src2> ...
+    ## X_ARCH list format: ARCH1 ARCH2 <src1> ARCH3 <src2> ...
     foreach(_it IN LISTS X_ARCH)
         if(_it IN_LIST _AVAILABLE_ARCHS_LIST)
             ## that is arch ID
@@ -113,7 +113,7 @@ function(cross_compiled_file TARGET)
             _remove_source_from_target(${TARGET} ${_src_name})
 
             if(_CUR_ARCH_SET)
-                _clone_source_to_target(${TARGET} ${_src_name} "${_CUR_ARCH_SET}")
+                _clone_source_to_target_with_archs(${TARGET} ${_src_name} "${_CUR_ARCH_SET}")
                 unset(_CUR_ARCH_SET)
             endif()
         endif()
@@ -125,10 +125,10 @@ endfunction()
 
 ##########################################
 #
-#  Add source multiple time per each element in ARCH_SET.
+#  Add source to the TARGET per each element in ARCH_SET.
 #  Also provide corresponding arch specific flags and defines.
 #
-function(_clone_source_to_target TARGET SOURCE ARCH_SET)
+function(_clone_source_to_target_with_archs TARGET SOURCE ARCH_SET)
     foreach(_arch ${ARCH_SET})
         set(_arch_dir cross-compiled/${_arch})
 
@@ -158,6 +158,9 @@ function(_clone_source_to_target TARGET SOURCE ARCH_SET)
         ## To make `#include "some.hpp"` valid
         set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY INCLUDE_DIRECTORIES
                 "${CMAKE_CURRENT_SOURCE_DIR}/${ARCH_INCLUDE_DIR}")
+
+        ## disable pch for the source due to incompatibility with cross compilation
+        set_property(SOURCE ${ARCH_SOURCE} PROPERTY SKIP_PRECOMPILE_HEADERS ON)
 
         list(APPEND _ARCH_SOURCES ${ARCH_SOURCE})
     endforeach()

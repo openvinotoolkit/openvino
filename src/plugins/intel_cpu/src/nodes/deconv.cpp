@@ -57,16 +57,13 @@
 #include "utils/general_utils.h"
 
 #if defined(OV_CPU_WITH_ACL)
-#    include "executors/acl/acl_utils.hpp"
+#    include "nodes/executors/acl/acl_deconv.hpp"
 #    include "utils/debug_capabilities.h"
 #endif
 
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
-
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/group_conv.hpp"
 
 using namespace dnnl;
 
@@ -354,7 +351,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent()) == nullptr) {
         return false;
     }
-    if (!one_of(getInputShapeAtPort(0).getRank(), 3ul, 4ul, 5ul)) {
+    if (!one_of(getInputShapeAtPort(0).getRank(), 3UL, 4UL, 5UL)) {
         return false;
     }
 
@@ -387,9 +384,15 @@ bool Deconvolution::canBeExecutedInInt8() const {
     }
 
     // not supported in oneDNN
-    int channelBlock = impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) ? 16
-                       : impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)      ? 8
-                                                                            : 4;
+    int channelBlock = [&]() {
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
+            return 16;
+        }
+        if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
+            return 8;
+        }
+        return 4;
+    }();
     if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0)) {
         return false;
     }
@@ -591,7 +594,8 @@ void Deconvolution::getSupportedDescriptors() {
     if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges");
     }
-    VectorDims inDims, outDims;
+    VectorDims inDims;
+    VectorDims outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     inShape = Shape(inDims);
     outShape = Shape(outDims);
@@ -602,7 +606,7 @@ void Deconvolution::getSupportedDescriptors() {
     config.inConfs.resize(getParentEdges().size());
     config.outConfs.resize(getOriginalOutputsNumber());
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto checkDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) -> bool {
         NodeConfig config;
         config.inConfs.resize(getParentEdges().size());
@@ -637,8 +641,9 @@ void Deconvolution::getSupportedDescriptors() {
         return AclDeconvExecutorBuilder::customIsSupported(deconvAttrs, srcMemoryDescs, dstMemoryDescs);
     };
     useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
-    if (useACL)
+    if (useACL) {
         return;
+    }
 #endif
     dnnlCompatibleWeiDims = getWeightDims();
     // Construct the ONEDNN deconv OP weight shape.
@@ -651,9 +656,15 @@ void Deconvolution::getSupportedDescriptors() {
 
     if (isInt8) {
         const auto& rank = getInputShapeAtPort(0).getRank();
-        auto format = rank == 5   ? dnnl::memory::format_tag::ndhwc
-                      : rank == 4 ? dnnl::memory::format_tag::nhwc
-                                  : dnnl::memory::format_tag::nwc;
+        dnnl::memory::format_tag format = [&]() {
+            if (rank == 5) {
+                return dnnl::memory::format_tag::ndhwc;
+            }
+            if (rank == 4) {
+                return dnnl::memory::format_tag::nhwc;
+            }
+            return dnnl::memory::format_tag::nwc;
+        }();
         MemoryDescPtr in_candidate =
             std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
         MemoryDescPtr out_candidate =
@@ -868,25 +879,50 @@ Node::AttrPtr Deconvolution::initPrimitiveAttr() {
 }
 
 const std::vector<impl_desc_type>& Deconvolution::getDefaultImplPriority() {
-    static const std::vector<impl_desc_type> priorities {
+    static const std::vector<impl_desc_type> priorities{
         impl_desc_type::unknown,
-            // Undef impl type is used to express use-cases there real type is unkown during compilation
-            // Undef has higher priority than defined types in order to force primitive selection logic to make decision
-            // based on other properties
-            impl_desc_type::undef, impl_desc_type::brgconv_avx512_amx_1x1, impl_desc_type::brgconv_avx512_amx,
-            impl_desc_type::jit_avx512_amx_dw, impl_desc_type::jit_avx512_amx_1x1, impl_desc_type::jit_avx512_amx,
-            impl_desc_type::brgconv_avx512_1x1, impl_desc_type::brgconv_avx512, impl_desc_type::jit_avx512_dw,
-            impl_desc_type::jit_avx512_1x1, impl_desc_type::jit_avx512, impl_desc_type::brgconv_avx2_1x1,
-            impl_desc_type::brgconv_avx2, impl_desc_type::jit_uni_dw, impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni, impl_desc_type::jit_avx2_dw, impl_desc_type::jit_avx2_1x1,
-            impl_desc_type::jit_avx2, impl_desc_type::jit_avx_dw, impl_desc_type::jit_avx_1x1, impl_desc_type::jit_avx,
-            impl_desc_type::jit_sse42_dw, impl_desc_type::jit_sse42_1x1, impl_desc_type::jit_sse42,
+        // Undef impl type is used to express use-cases there real type is unkown during compilation
+        // Undef has higher priority than defined types in order to force primitive selection logic to make decision
+        // based on other properties
+        impl_desc_type::undef,
+        impl_desc_type::brgconv_avx512_amx_1x1,
+        impl_desc_type::brgconv_avx512_amx,
+        impl_desc_type::jit_avx512_amx_dw,
+        impl_desc_type::jit_avx512_amx_1x1,
+        impl_desc_type::jit_avx512_amx,
+        impl_desc_type::brgconv_avx512_1x1,
+        impl_desc_type::brgconv_avx512,
+        impl_desc_type::jit_avx512_dw,
+        impl_desc_type::jit_avx512_1x1,
+        impl_desc_type::jit_avx512,
+        impl_desc_type::brgconv_avx2_1x1,
+        impl_desc_type::brgconv_avx2,
+        impl_desc_type::jit_uni_dw,
+        impl_desc_type::jit_uni_1x1,
+        impl_desc_type::jit_uni,
+        impl_desc_type::jit_avx2_dw,
+        impl_desc_type::jit_avx2_1x1,
+        impl_desc_type::jit_avx2,
+        impl_desc_type::jit_avx_dw,
+        impl_desc_type::jit_avx_1x1,
+        impl_desc_type::jit_avx,
+        impl_desc_type::jit_sse42_dw,
+        impl_desc_type::jit_sse42_1x1,
+        impl_desc_type::jit_sse42,
 #if defined(OPENVINO_ARCH_ARM64)
-            impl_desc_type::jit_asimd,
+        impl_desc_type::jit_asimd,
 #endif
-            impl_desc_type::gemm_any, impl_desc_type::gemm_blas, impl_desc_type::gemm_avx512, impl_desc_type::gemm_avx2,
-            impl_desc_type::gemm_avx, impl_desc_type::gemm_sse42, impl_desc_type::gemm_acl, impl_desc_type::acl,
-            impl_desc_type::jit_gemm, impl_desc_type::ref_any, impl_desc_type::ref,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_sse42,
+        impl_desc_type::gemm_acl,
+        impl_desc_type::acl,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref_any,
+        impl_desc_type::ref,
     };
 
     if (!asymmetricPaddingAnd1x1) {
@@ -943,7 +979,7 @@ void Deconvolution::prepareParams() {
     if (!wghMemPtr || !wghMemPtr->isDefined()) {
         THROW_CPU_NODE_ERR("Weight memory is undefined.");
     }
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
@@ -1145,7 +1181,7 @@ void Deconvolution::prepareParams() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
+    const auto* pd = execPtr->getPrimitiveDesc();
     DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
@@ -1290,13 +1326,14 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    VectorDims inDims, outDims;
+    VectorDims inDims;
+    VectorDims outDims;
     std::tie(inDims, outDims) = makeDummyInOutShape();
     auto tmpInShape = Shape(inDims);
     auto tmpOutShape = Shape(outDims);
     initPaddingR(tmpInShape, tmpOutShape);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) {
         NodeConfig config;
         config.inConfs.resize(getParentEdges().size());

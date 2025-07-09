@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface TokenizeMLPSeqSnippets
@@ -26,7 +29,7 @@ namespace pass {
  *             ...
  * @ingroup snippets
  */
-class TokenizeMLPSeqSnippets: public ov::pass::MatcherPass {
+class TokenizeMLPSeqSnippets : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::TokenizeMLPSeqSnippets");
     TokenizeMLPSeqSnippets(const SnippetsTokenization::Config& config);
@@ -40,6 +43,4 @@ private:
     static const size_t m_rank;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

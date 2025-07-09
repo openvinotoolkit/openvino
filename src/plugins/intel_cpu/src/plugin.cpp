@@ -20,6 +20,7 @@
 #include "cpu/x64/xbyak/xbyak_util.h"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
+#include "internal_properties.hpp"
 #include "itt.h"
 #include "node.h"
 #include "openvino/core/except.hpp"
@@ -96,7 +97,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
         dnnl::impl::cpu::x64::cpu();
     });
-    auto& ov_version = ov::get_openvino_version();
+    const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
 }
@@ -112,9 +113,9 @@ static bool streamsSet(const ov::AnyMap& config) {
     return config.find(ov::num_streams.name()) != config.end();
 }
 
-void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
+void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) {
     int streams_set = config.streams;
-    int streams;
+    int streams = 0;
     if (config.streamsChanged) {
         streams = streams_set;
     } else if (config.hintPerfMode == ov::hint::PerformanceMode::LATENCY) {
@@ -125,18 +126,18 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
         streams = streams_set == 1 ? 0 : streams_set;
     }
 
-    if (!((0 == streams_set) && config.streamsChanged)) {
+    if ((0 != streams_set) || !config.streamsChanged) {
         get_num_streams(streams, model, config);
     } else {
         config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor", streams};
     }
 }
 
-void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) {
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
-        int cache_model_prefer;
+        int cache_model_prefer = 0;
         const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
         const auto it_model_prefer = hints_config.find(model_prefer_name);
         if (it_model_prefer != hints_config.end()) {
@@ -336,7 +337,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             res = false;
         } else {
             ov::AnyMap input_map = it->second.as<ov::AnyMap>();
-            for (auto& item : m_compiled_model_runtime_properties) {
+            for (const auto& item : m_compiled_model_runtime_properties) {
                 auto it = input_map.find(item.first);
                 if (it == input_map.end() || it->second.as<std::string>() != item.second.as<std::string>()) {
                     res = false;
@@ -416,6 +417,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RW_property(ov::intel_cpu::denormals_optimization.name()),
             RW_property(ov::log::level.name()),
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
             RW_property(ov::key_cache_precision.name()),
@@ -433,17 +435,15 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     }
 
     if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type {
+        return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
-                ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
-                ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-                ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-                ov::PropertyName {
-                ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
-            }
-        };
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
+                             ov::PropertyMutability::RO}};
     }
     if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
@@ -489,6 +489,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             engConfig.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        return static_cast<decltype(ov::intel_cpu::enable_tensor_parallel)::value_type>(engConfig.enableTensorParallel);
     }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};

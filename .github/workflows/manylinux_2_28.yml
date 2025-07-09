@@ -152,12 +152,7 @@ jobs:
                          -DENABLE_NCC_STYLE=OFF \
                          -DENABLE_TESTS=ON \
                          -DCMAKE_VERBOSE_MAKEFILE=ON \
-                         -DENABLE_OV_TF_FRONTEND=OFF \
-                         -DENABLE_OV_TF_LITE_FRONTEND=OFF \
-                         -DENABLE_OV_PADDLE_FRONTEND=OFF \
-                         -DENABLE_OV_PYTORCH_FRONTEND=ON \
                          -DENABLE_OV_JAX_FRONTEND=OFF \
-                         -DENABLE_OV_ONNX_FRONTEND=ON \
                          -DENABLE_PYTHON=ON \
                          -DENABLE_WHEEL=ON \
                          -S ${{ env.OPENVINO_REPO }} \
@@ -255,7 +250,7 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ matrix.image }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ matrix.image }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
 

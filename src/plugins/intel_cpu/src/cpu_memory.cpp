@@ -58,17 +58,15 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 namespace {
 inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool ftz, bool bf16saturation) {
     auto* u32data = reinterpret_cast<uint32_t*>(data);
-    auto* floatdata = reinterpret_cast<float*>(data);
+    auto* floatdata = data;
     if (ftz && bf16saturation) {
         for (size_t i = 0; i < size; ++i) {
             if ((u32data[i] & (0xFF << 23)) == 0) {
                 u32data[i] = 0;
             } else if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     } else if (ftz) {
@@ -80,11 +78,9 @@ inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool 
     } else if (bf16saturation) {
         for (size_t i = 0; i < size; ++i) {
             if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     }
@@ -238,7 +234,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
         m_prim = dnnl::memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
         //
         // ========================
-        auto data = m_memObjPtr->getDataNoThrow();
+        auto* data = m_memObjPtr->getDataNoThrow();
         if (data != nullptr) {
             m_prim.set_data_handle(data);
         }
@@ -292,7 +288,7 @@ bool MemoryBlockWithReuse::hasExtBuffer() const noexcept {
 
 void MemoryBlockWithReuse::free() {
     m_data = decltype(m_data)(nullptr, release);
-    m_memUpperBound = 0ul;
+    m_memUpperBound = 0UL;
     m_useExternalStorage = false;
 }
 
@@ -324,7 +320,7 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     const auto string_size = m_mem_desc->getShape().getElementsCount();
 
     if (data != nullptr) {
-        auto not_const_data = const_cast<void*>(data);
+        auto* not_const_data = const_cast<void*>(data);
         m_memoryBlock->setExtBuff(reinterpret_cast<OvString*>(not_const_data), string_size);
     } else {
         m_memoryBlock->resize(string_size);
@@ -357,7 +353,7 @@ void StringMemory::redefineDesc(MemoryDescPtr desc) {
 }
 
 void StringMemory::nullify() {
-    auto data_ptr = m_memoryBlock->getStringPtr();
+    auto* data_ptr = m_memoryBlock->getStringPtr();
     if (data_ptr != nullptr) {
         std::fill(data_ptr, data_ptr + m_memoryBlock->getStrLen(), OvString());
     }
@@ -396,7 +392,7 @@ bool StringMemory::StringMemoryBlock::resize(size_t size) {
             OPENVINO_THROW("Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
         }
         auto ptr_size = static_cast<ptrdiff_t>(size);  // WA for warning alloc-size-larger-than
-        auto ptr = new OvString[ptr_size];
+        auto* ptr = new OvString[ptr_size];
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
@@ -460,7 +456,7 @@ void DnnlMemoryBlock::unregisterMemory(Memory* memPtr) {
 }
 
 void DnnlMemoryBlock::notifyUpdate() {
-    for (auto& item : m_setMemPtrs) {
+    for (const auto& item : m_setMemPtrs) {
         if (item) {
             item->update();
         }
@@ -627,7 +623,7 @@ bool mbind_move(void* data, size_t size, int targetNode) {
         mask = -1;
         flags = 0;
     } else {
-        mask = 1ul << realNode;
+        mask = 1UL << realNode;
         flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
     }
 
@@ -715,7 +711,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         return ptr;
     }
 
-    auto srcPtr = static_cast<uint8_t*>(src->getData());
+    auto* srcPtr = static_cast<uint8_t*>(src->getData());
     if (prec == ov::element::u4 || prec == ov::element::i4) {
         stride /= 2;
     }
@@ -770,8 +766,8 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         return ptr;
     }
     // copy
-    auto srcPtr = static_cast<uint8_t*>(src->getData());
-    auto dstPtr = static_cast<uint8_t*>(ptr->getData());
+    auto* srcPtr = static_cast<uint8_t*>(src->getData());
+    auto* dstPtr = static_cast<uint8_t*>(ptr->getData());
     // selected dim bytes
     auto channel_size = dims[dim] * element_size;
     // total bytes

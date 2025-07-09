@@ -52,6 +52,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "openvino/core/shape.hpp"
 #    include "utils/precision_support.h"
 #endif
 
@@ -60,7 +61,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool apply_fp8) {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -134,11 +135,11 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
 // @todo replace 'inferencePrecision' check with 'fc->get_input_element_type(0) == ov::element::bf16'
 // after bf16 pipeline is moved to ConvertPrecision
-bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
-                                                    size_t IC,
-                                                    size_t OC,
-                                                    size_t G,
-                                                    const Config& config) noexcept {
+bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
+                                                    [[maybe_unused]] size_t IC,
+                                                    [[maybe_unused]] size_t OC,
+                                                    [[maybe_unused]] size_t G,
+                                                    [[maybe_unused]] const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         std::string errorMessage;
@@ -181,15 +182,18 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
         if (!hasIntDotProductSupport()) {
             return false;
         }
-        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
+        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX) {
             return false;
+        }
 
-        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC)
+        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC) {
             return false;
+        }
 
         if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined) {
             return false;
+        }
     } catch (...) {
         return false;
     }
@@ -197,8 +201,9 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #else
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    if (useMatmulPrim)
+    if (useMatmulPrim) {
         return true;
+    }
 #endif
     return false;
 }
@@ -323,9 +328,9 @@ void FullyConnected::execTensorParallelSync() {
     if (tp_cfg.enable_tensor_parallel) {
         // dst
         auto dst = getDstMemoryAtPort(0);
-        auto dst_ptr = static_cast<uint8_t*>(dst->getData());
+        auto* dst_ptr = static_cast<uint8_t*>(dst->getData());
 
-        auto& shape = dst->getShape();
+        const auto& shape = dst->getShape();
         auto dims = shape.getDims();
         auto prec = dst->getPrecision();
 
@@ -358,7 +363,7 @@ void FullyConnected::execTensorParallelSync() {
             int wait_size = 0;
             for (int idx = 0; idx < tp_cfg.w_size; idx++) {
                 if (wait_list[idx] > 0 && tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].flag) {
-                    auto new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
+                    auto* new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
                     const auto copySize = splited_dim_vec[idx] * prec.size();  // bytes of half selected dim.
                     const size_t unloop = 8;
                     size_t step = count / unloop;
@@ -504,7 +509,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
                                           const float sparseWeiDecompressionRate) {
     const auto minSparseRate = sparseWeiDecompressionRate;
 
-    if (minSparseRate == 1.f) {
+    if (minSparseRate == 1.F) {
         return false;
     }
 
@@ -530,7 +535,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
         return false;
     }
 
-    const auto weightsData = weiMemory->getDataAs<const int8_t>();
+    const auto* const weightsData = weiMemory->getDataAs<const int8_t>();
     auto elementsCount = weiMemory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
     size_t zerosCount = 0;
     for (size_t i = 0; i < elementsCount; i++) {

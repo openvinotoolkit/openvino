@@ -89,10 +89,7 @@ bool Reshape::needShapeInfer() const {
             return true;
         }
     }
-    if (inputShapesModified()) {
-        return true;
-    }
-    return false;
+    return inputShapesModified();
 }
 
 void Reshape::getSupportedDescriptors() {
@@ -128,7 +125,7 @@ void Reshape::initSupportedPrimitiveDescriptors() {
 
     NodeConfig config;
     config.inConfs.resize(getParentEdges().size());
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         config.inConfs[i].inPlace(0 == i && canBeInPlace ? 0 : -1);
         config.inConfs[i].constant(false);
@@ -150,8 +147,8 @@ void Reshape::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
 
-    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->getData());
-    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->getData());
+    auto* srcPtr = static_cast<uint8_t*>(srcMemPtr->getData());
+    auto* dstPtr = static_cast<uint8_t*>(dstMemPtr->getData());
 
     if (dstPtr != srcPtr) {
         cpu_memcpy(dstPtr, srcPtr, dstMemPtr->getSize());
@@ -160,8 +157,8 @@ void Reshape::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 bool Reshape::neverExecute() const {
     bool inPlaceEnabled = false;
-    if (auto prim_desc = getSelectedPrimitiveDescriptor()) {
-        auto& config = prim_desc->getConfig();
+    if (const auto* prim_desc = getSelectedPrimitiveDescriptor()) {
+        const auto& config = prim_desc->getConfig();
         if (config.inConfs[0].inPlace() >= 0 || config.outConfs[0].inPlace() >= 0) {
             inPlaceEnabled = true;
         }

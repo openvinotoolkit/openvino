@@ -281,7 +281,7 @@ class ShapeInferBase : public IStaticShapeInfer {
 public:
     using iface_type = IStaticShapeInfer;
 
-    ShapeInferBase(std::shared_ptr<ov::Node> node) : m_input_ranks{}, m_node{std::move(node)} {
+    ShapeInferBase(std::shared_ptr<ov::Node> node) : m_node{std::move(node)} {
         static_assert(std::is_same_v<int64_t, Dimension::value_type>, "Rank type not match to input_ranks type.");
         for (size_t i = 0; i < m_node->get_input_size(); ++i) {
             const auto& shape = m_node->get_input_partial_shape(i);
@@ -291,7 +291,7 @@ public:
     }
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor&) override {
+                                                  const ov::ITensorAccessor& /*tensor_accessor*/) override {
         NODE_VALIDATION_CHECK(m_node.get(), !input_shapes.empty(), "Incorrect number of input shapes");
         return {std::vector<StaticShape>{input_shapes[0]}};
     }
@@ -351,7 +351,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor&) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {op::copy_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -364,7 +364,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor&) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {op::eltwise_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -378,14 +378,14 @@ public:
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
                                                   const ov::ITensorAccessor& tensor_accessor) override {
-        const auto op = m_node.get();
+        auto* const op = m_node.get();
 
         std::shared_ptr<ov::Node> local_op;
         ov::OutputVector new_inputs;
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
                 new_inputs.emplace_back(std::make_shared<ov::op::v0::Constant>(t));
-            } else if (auto c = ov::as_type<const op::v0::Constant>(op->get_input_node_ptr(i))) {
+            } else if (const auto* c = ov::as_type<const op::v0::Constant>(op->get_input_node_ptr(i))) {
                 new_inputs.emplace_back(c->clone_with_new_inputs(ov::OutputVector{}));
             } else {
                 new_inputs.emplace_back(std::make_shared<op::v0::Parameter>(op->get_input_element_type(i),
@@ -443,7 +443,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor&) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes)};
     }
 };
@@ -451,10 +451,7 @@ public:
 /** @brief Base shape inference object implementing the IStaticShapeInfer with padding support. */
 class ShapeInferPaddingBase : public ShapeInferBase {
 public:
-    ShapeInferPaddingBase(std::shared_ptr<ov::Node> node)
-        : ShapeInferBase(std::move(node)),
-          m_pads_begin{},
-          m_pads_end{} {}
+    ShapeInferPaddingBase(std::shared_ptr<ov::Node> node) : ShapeInferBase(std::move(node)) {}
 
     const ov::CoordinateDiff& get_pads_begin() override {
         return m_pads_begin;
@@ -501,7 +498,7 @@ public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor&) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end)};
     }
 };
@@ -564,8 +561,7 @@ std::shared_ptr<typename TShapeInfer::iface_type> make_shape_infer(std::shared_p
 using ShapeInferKey = ov::NodeTypeInfo;
 
 // Helper macros to make map entries
-#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...) \
-    { OP::get_type_info_static(), make_shape_infer<__VA_ARGS__> }
+#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...)                  {OP::get_type_info_static(), make_shape_infer<__VA_ARGS__>}
 #define OV_OP_SHAPE_INFER_MASK_REG(OP, SHAPE_INFER, MASK)   _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER, OP, MASK)
 #define OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(OP, SHAPE_INFER) _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER)
 

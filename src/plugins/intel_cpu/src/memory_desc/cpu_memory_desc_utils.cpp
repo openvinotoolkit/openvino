@@ -33,7 +33,7 @@ namespace ov::intel_cpu {
 
 DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
-        const auto cpuDesc = desc->as<CpuBlockedMemoryDesc>();
+        auto* const cpuDesc = desc->as<CpuBlockedMemoryDesc>();
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(),
                                                                                 cpuDesc->getShape(),
                                                                                 cpuDesc->getBlockDims(),
@@ -56,7 +56,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
         return {*desc.as<DnnlBlockedMemoryDesc>()};
     }
     if (MemoryDescType::Blocked == desc.getType()) {
-        const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
+        const auto* const cpuDesc = desc.as<CpuBlockedMemoryDesc>();
         return {cpuDesc->getPrecision(),
                 cpuDesc->getShape(),
                 cpuDesc->getBlockDims(),

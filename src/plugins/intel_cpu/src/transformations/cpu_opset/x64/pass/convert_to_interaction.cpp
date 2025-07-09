@@ -81,7 +81,7 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }
@@ -118,7 +118,7 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
         auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_to_output.at(fq_m).get_node_shared_ptr());
         OPENVINO_ASSERT(fq_node != nullptr, "FakeQuantize node is not found");
         std::vector<float> fq_scale;
-        fq_scale = simplifyToScale(fq_node, 0.001f);
+        fq_scale = simplifyToScale(fq_node, 0.001F);
         if (fq_scale.empty()) {
             return false;
         }
@@ -192,7 +192,7 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }

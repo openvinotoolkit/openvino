@@ -83,14 +83,14 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         THROW_CPU_NODE_ERR("has unsupported 'axis' attribute: ", oneHot->get_axis());
     }
 
-    if (!(((1 + srcDims.size()) == dstDims.size()) ||
-          (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))) {
+    if (((1 + srcDims.size()) != dstDims.size()) &&
+        (!depthNode || srcDims.size() != 1 || dstDims.size() != 1 || dstDims[0] != depth || srcDims[0] != 1)) {
         THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
     }
 }
 
 bool OneHot::needShapeInfer() const {
-    const auto depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
+    auto* const depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
     if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;

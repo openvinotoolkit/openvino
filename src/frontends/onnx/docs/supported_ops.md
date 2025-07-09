@@ -298,10 +298,10 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |RemovePadding                                           |                        |1                               |                                |
 |com.microsoft           |RestorePadding                                          |                        |1                               |                                |
 |com.microsoft           |Rfft                                                    |                        |1                               |                                |
-|com.microsoft           |RotaryEmbedding                                         |                        |1                               |                                |
+|com.microsoft           |RotaryEmbedding                                         |1                       |1                               |                                |
 |com.microsoft           |SampleOp                                                |                        |1                               |                                |
 |com.microsoft           |Sampling                                                |                        |1                               |                                |
-|com.microsoft           |SimplifiedLayerNormalization                            |                        |1                               |                                |
+|com.microsoft           |SimplifiedLayerNormalization                            |1                       |1                               |                                |
 |com.microsoft           |SkipGroupNorm                                           |                        |1                               |                                |
 |com.microsoft           |SkipLayerNormalization                                  |1                       |1                               |                                |
 |com.microsoft           |SkipSimplifiedLayerNormalization                        |1                       |1                               |                                |
