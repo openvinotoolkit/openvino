@@ -536,6 +536,16 @@ void Concat::initOptimalPrimitiveDescriptor() {
         dstOffset.resize(getParentEdges().size());
         inputStrides.resize(getParentEdges().size());
         srcPtrs.resize(getParentEdges().size());
+    } else if (doFuseConvert) {
+        supportFuseConvert = false;
+        doFuseConvert = false;
+        auto config = selected_pd->getConfig();
+        // if !canExecRef, disable fuse convert
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
+            config.outConfs[i].setMemDesc(
+                getConsistentOutputDesc(config, i)->getMemDesc()->cloneWithNewPrecision(inputPrecision));
+        }
+        initDescriptor(config);
     }
     // check if selected Tensor descriptor has nspc layout and concat axis is C
     canOptimizeNspc =
