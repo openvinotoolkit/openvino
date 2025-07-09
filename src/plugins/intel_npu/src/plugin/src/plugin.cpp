@@ -15,6 +15,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "metadata.hpp"
 #include "npuw/compiled_model.hpp"
@@ -35,8 +36,6 @@ namespace {
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
-
-constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -690,7 +689,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             blobSize = storedMeta->get_blob_size();
         }
         if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
-            ov::Allocator customAllocator{CustomNpuAllocator{STANDARD_PAGE_SIZE}};
+            ov::Allocator customAllocator{CustomNpuAllocator{utils::STANDARD_PAGE_SIZE}};
             tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");

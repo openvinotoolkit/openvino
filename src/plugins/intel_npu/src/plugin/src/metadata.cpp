@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
@@ -45,6 +46,10 @@ void OpenvinoVersion::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_patch), sizeof(_patch));
 }
 
+size_t OpenvinoVersion::get_openvino_version_size() const {
+    return sizeof(_major) + sizeof(_minor) + sizeof(_patch);
+}
+
 Metadata<METADATA_VERSION_2_0>::Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
     : MetadataBase{METADATA_VERSION_2_0},
       _ovVersion{ovVersion.value_or(CURRENT_OPENVINO_VERSION)},
@@ -57,6 +62,14 @@ void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
 void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_version), sizeof(_version));
     _ovVersion.write(stream);
+
+    auto metadataSize = get_medata_size() + _ovVersion.get_openvino_version_size();
+    auto size = (metadataSize + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+    auto sizeToWrite = size - metadataSize;
+    if (sizeToWrite) {
+        std::fill_n(std::ostream_iterator<char>(stream), sizeToWrite, 0);
+    }
+
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
@@ -163,6 +176,10 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
 
 uint64_t Metadata<METADATA_VERSION_2_0>::get_blob_size() const {
     return _blobDataSize;
+}
+
+size_t Metadata<METADATA_VERSION_2_0>::get_medata_size() const {
+    return sizeof(_version) + sizeof(_blobDataSize) + MAGIC_BYTES.size();
 }
 
 }  // namespace intel_npu
