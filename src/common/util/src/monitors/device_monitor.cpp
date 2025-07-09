@@ -16,9 +16,9 @@ namespace util {
 std::map<std::string, float> get_device_utilization(const std::string& device_id) {
     try {
         if (device_id.empty())
-            ov::util::CPUDeviceMonitor().get_utilization();
+            return ov::util::CPUDeviceMonitor().get_utilization();
         else
-            ov::util::XPUDeviceMonitor(device_id).get_utilization();
+            return ov::util::XPUDeviceMonitor(device_id).get_utilization();
     } catch (...) {
         // Handle exceptions and return an empty map
         return {};
