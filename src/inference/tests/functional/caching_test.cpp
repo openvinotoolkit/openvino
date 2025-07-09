@@ -141,22 +141,24 @@ inline std::string getline_from_buffer(const char* buffer, size_t size, size_t& 
     }
 
     // Skip leading delimiters
-    while (pos < size && buffer[pos] == delim) ++pos;
-    if (pos >= size) return {};
+    while (pos < size && buffer[pos] == delim)
+        ++pos;
+    if (pos >= size)
+        return {};
 
     const char* start = buffer + pos;
     const char* end = buffer + size;
     const char* newline = std::find(start, end, delim);
-    
+
     size_t line_length = (newline == end) ? (end - start) : (newline - start);
     std::string line(start, line_length);
-    
+
     // Update position (skip the delimiter if found)
     pos += line_length + (newline != end ? 1 : 0);
-    
+
     return line;
 }
-}
+}  // namespace
 
 class CachingTest : public ::testing::TestWithParam<std::tuple<TestParam, std::string>> {
 public:
@@ -370,27 +372,29 @@ private:
                     return create_mock_compiled_model(m_models[name], mockPlugin);
                 }));
 
-        ON_CALL(plugin, import_model(A<std::istream&>(), _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
-            if (m_checkConfigCb) {
-                m_checkConfigCb(config);
-            }
-            std::string name;
-            istr >> name;
-            char space;
-            istr.read(&space, 1);
-            std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return create_mock_compiled_model(m_models[name], mockPlugin);
-        }));
+        ON_CALL(plugin, import_model(A<std::istream&>(), _))
+            .WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+                if (m_checkConfigCb) {
+                    m_checkConfigCb(config);
+                }
+                std::string name;
+                istr >> name;
+                char space;
+                istr.read(&space, 1);
+                std::lock_guard<std::mutex> lock(mock_creation_mutex);
+                return create_mock_compiled_model(m_models[name], mockPlugin);
+            }));
 
-        ON_CALL(plugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-            if (m_checkConfigCb) {
-                m_checkConfigCb(config);
-            }
-            size_t pos = 0;
-            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-            std::lock_guard<std::mutex> lock(mock_creation_mutex);
-            return create_mock_compiled_model(m_models[name], mockPlugin);
-        }));
+        ON_CALL(plugin, import_model(A<ov::Tensor&>(), _))
+            .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+                if (m_checkConfigCb) {
+                    m_checkConfigCb(config);
+                }
+                size_t pos = 0;
+                auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+                std::lock_guard<std::mutex> lock(mock_creation_mutex);
+                return create_mock_compiled_model(m_models[name], mockPlugin);
+            }));
 
         ON_CALL(plugin, import_model(A<ov::Tensor&>(), _, _))
             .WillByDefault(
@@ -2547,15 +2551,16 @@ TEST_P(CachingTest, Load_threads) {
 }
 
 TEST_P(CachingTest, Load_mmap) {
-    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        size_t pos = 0;
-        auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
 
     ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
@@ -2576,10 +2581,10 @@ TEST_P(CachingTest, Load_mmap) {
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
     testLoad([&](ov::Core& core) {
         core.set_property({{ov::cache_dir.name(), m_cacheDir}});
         m_testFunction(core);
@@ -2589,15 +2594,16 @@ TEST_P(CachingTest, Load_mmap) {
 }
 
 TEST_P(CachingTest, Load_mmap_is_disabled) {
-    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        size_t pos = 0;
-        auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
 
     ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
@@ -2618,10 +2624,10 @@ TEST_P(CachingTest, Load_mmap_is_disabled) {
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
     testLoad([&](ov::Core& core) {
         core.set_property({{ov::cache_dir.name(), m_cacheDir}});
         core.set_property({ov::enable_mmap(false)});
@@ -2632,15 +2638,16 @@ TEST_P(CachingTest, Load_mmap_is_disabled) {
 }
 
 TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin) {
-    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        size_t pos = 0;
-        auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
 
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
@@ -2656,10 +2663,10 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin) {
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
     testLoad([&](ov::Core& core) {
         core.set_property({{ov::cache_dir.name(), m_cacheDir}});
         core.set_property({ov::enable_mmap(true)});
@@ -2670,15 +2677,16 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin) {
 }
 
 TEST_P(CachingTest, Load_mmap_is_disabled_local_cfg) {
-    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        size_t pos = 0;
-        auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
 
     ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
@@ -2699,10 +2707,10 @@ TEST_P(CachingTest, Load_mmap_is_disabled_local_cfg) {
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
     testLoad([&](ov::Core& core) {
         const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, {ov::enable_mmap(false)}};
         m_testFunctionWithCfg(core, config);
@@ -2712,15 +2720,16 @@ TEST_P(CachingTest, Load_mmap_is_disabled_local_cfg) {
 }
 
 TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
-    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        size_t pos = 0;
-        auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
 
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
@@ -2736,10 +2745,10 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
     testLoad([&](ov::Core& core) {
         const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}, {ov::enable_mmap(false)}};
         m_testFunctionWithCfg(core, config);
@@ -2749,19 +2758,20 @@ TEST_P(CachingTest, Load_mmap_is_not_supported_by_plugin_local_cfg) {
 }
 
 TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_not_supported) {
-    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
-        EXPECT_EQ(config.count(ov::hint::model.name()), 0);
-        EXPECT_EQ(config.count(ov::weights_path.name()), 0);
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
+            EXPECT_EQ(config.count(ov::hint::model.name()), 0);
+            EXPECT_EQ(config.count(ov::weights_path.name()), 0);
 
-        size_t pos = 0;
-        auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
@@ -2775,10 +2785,10 @@ TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_not_supp
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
     testLoad([&](ov::Core& core) {
         const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}};
         m_testFunctionWithCfg(core, config);
@@ -2798,19 +2808,20 @@ TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_are_supp
                 ov::weights_path.name(),
             };
         }));
-    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
-        EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
-        EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
+            EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
+            EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
 
-        size_t pos = 0;
-        auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+            size_t pos = 0;
+            auto name = getline_from_buffer(itensor.data<const char>(), itensor.get_byte_size(), pos);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
@@ -2824,10 +2835,10 @@ TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_are_supp
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
-        EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
     testLoad([&](ov::Core& core) {
         const auto config = ov::AnyMap{{ov::cache_dir(m_cacheDir)}};
         m_testFunctionWithCfg(core, config);
@@ -2845,15 +2856,16 @@ TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported
                                                  ov::weights_path.name(),
                                                  ov::hint::model.name()};
         }));
-    ON_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
-        if (m_checkConfigCb) {
-            m_checkConfigCb(config);
-        }
-        EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
-        EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
-        EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
-        return nullptr;
-    }));
+    ON_CALL(*mockPlugin, import_model(A<std::istream&>(), _))
+        .WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+            if (m_checkConfigCb) {
+                m_checkConfigCb(config);
+            }
+            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
+            EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
+            EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
+            return nullptr;
+        }));
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());

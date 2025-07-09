@@ -592,9 +592,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tenso
         decript_from_string = true;
     }
 
-    std::shared_ptr<ov::AlignedBuffer> model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
-                                                                       model_tensor.get_byte_size(),
-                                                                       model_tensor);
+    std::shared_ptr<ov::AlignedBuffer> model_buffer =
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
+                                                       model_tensor.get_byte_size(),
+                                                       model_tensor);
 
     ModelDeserializer deserializer(
         model_buffer,
@@ -607,7 +608,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tenso
     return deserialize_model(deserializer, config);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer, const ov::AnyMap& config) const{
+std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer,
+                                                              const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 

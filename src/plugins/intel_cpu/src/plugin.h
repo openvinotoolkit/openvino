@@ -64,7 +64,8 @@ public:
     std::shared_ptr<ov::threading::MessageManager> m_msg_manager;
 
 private:
-    std::shared_ptr<ov::ICompiledModel> deserialize_model(ModelDeserializer& deserializer, const ov::AnyMap& config) const;
+    std::shared_ptr<ov::ICompiledModel> deserialize_model(ModelDeserializer& deserializer,
+                                                          const ov::AnyMap& config) const;
 
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 

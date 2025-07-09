@@ -1523,7 +1523,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 ov::CompiledBlobHeader header;
                 size_t compiled_blob_offset = 0;
                 try {
-                    header.read_from_buffer(static_cast<const char*>(compiled_blob.data()), compiled_blob.get_byte_size(), compiled_blob_offset);
+                    header.read_from_buffer(static_cast<const char*>(compiled_blob.data()),
+                                            compiled_blob.get_byte_size(),
+                                            compiled_blob_offset);
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                         // Original file is changed, don't use cache
                         OPENVINO_THROW("Original model file is changed");
@@ -1577,8 +1579,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     }
                 }
 
-                ov::Tensor compiled_blob_without_header{compiled_blob, {compiled_blob_offset}, {compiled_blob.get_size()}};
-                
+                ov::Tensor compiled_blob_without_header{compiled_blob,
+                                                        {compiled_blob_offset},
+                                                        {compiled_blob.get_size()}};
+
                 compiled_model = context ? plugin.import_model(compiled_blob_without_header, context, update_config)
                                          : plugin.import_model(compiled_blob_without_header, update_config);
             });

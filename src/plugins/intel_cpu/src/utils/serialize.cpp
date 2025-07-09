@@ -34,7 +34,7 @@ ModelSerializer::ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn)
               root.append_child("outputs");
               xml_doc.save(stream);
           },
-          std::move(encrypt_fn)){};
+          std::move(encrypt_fn)) {};
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
