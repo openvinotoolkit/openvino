@@ -259,9 +259,8 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
         ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
-        m_input_tensors.push_back(allocated);
         m_input_allocated.insert(allocated->data());
-        m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
+        m_port_to_tensor[port] = TensorStorage{allocated, true};
     }  // for(inputs)
 
     // Preallocate output tensors
@@ -276,7 +275,6 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
         LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
 
         auto tensor = alloc_global_out(i);
-        m_output_tensors.push_back(tensor);
         m_port_to_tensor[port] = TensorStorage{tensor, true};
     }
 }
