@@ -5,11 +5,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image to use for the job'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
@@ -72,7 +72,14 @@ jobs:
     name: Build
     timeout-minutes: 150
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: >-
+        -e SCCACHE_AZURE_BLOB_CONTAINER
+        -e SCCACHE_AZURE_CONNECTION_STRING
     defaults:
       run:
         shell: bash
@@ -83,20 +90,19 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
-      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
       SCCACHE_LOG: warn
-      GITHUB_WORKSPACE: /__w/openvino/openvino
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_DIR_JS: /__w/openvino/openvino/openvino/src/bindings/js/node/bin
-      INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
-      INSTALL_WHEELS_DIR: /__w/openvino/openvino/install/wheels
-      DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
-      BUILD_DIR: /__w/openvino/openvino/openvino_build
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
+      INSTALL_DIR: ${{ github.workspace }}/openvino/openvino_install
+      INSTALL_DIR_JS: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
+      INSTALL_TEST_DIR: ${{ github.workspace }}/openvino/tests_install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
+      DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
+      BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
       ARTIFACTS_SHARE: "/mount/build-artifacts"
-      MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
+      MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}_release
     steps:
       - name: Clone OpenVINO (with trace)
@@ -121,7 +127,7 @@ jobs:
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
-        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_20_04' }} # GPU tests are enabled only on U20
+        if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_22_04' }} # GPU tests are enabled only on U22
         working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
         run: |
           git fetch origin
@@ -221,7 +227,7 @@ jobs:
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
             if [[ "${OS}" == 'debian_10' ]]; then
               echo "Adding ARM specific CMake options"
-              CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=/__w/openvino/openvino/openvino/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
+              CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
             fi
             
             cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}

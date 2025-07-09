@@ -4,12 +4,18 @@
 
 #include "adjust_gemm_copy_b_loop_ports.hpp"
 
+#include <cstdint>
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
-#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 
 namespace ov::intel_cpu {
 

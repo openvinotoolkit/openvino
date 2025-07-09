@@ -21,6 +21,8 @@ jobs:
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
         shell: bash
@@ -37,10 +39,6 @@ jobs:
         with:
           name: openvino_debian_packages
           path: ${{ env.DEBIAN_PACKAGES_DIR }}
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: echo "DEBIAN_PACKAGES_DIR=$GITHUB_WORKSPACE/packages" >> "$GITHUB_ENV"
 
       - name: Install debian packages & check conflicts
         run: |

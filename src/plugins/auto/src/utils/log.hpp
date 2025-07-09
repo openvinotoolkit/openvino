@@ -18,6 +18,7 @@
 #include "singleton.hpp"
 #include "time_utils.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/core/log_util.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -127,7 +128,7 @@ inline void Log::set_log_level(ov::log::Level loglevel_) {
 }
 
 inline void Log::print(std::stringstream& stream) {
-    std::cout << stream.str() << std::endl << std::flush;
+    util::log_message(stream.str());
 }
 
 inline void Log::checkFormat(const char* fmt) {

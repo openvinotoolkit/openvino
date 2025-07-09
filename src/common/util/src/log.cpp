@@ -12,21 +12,15 @@
 
 #include "openvino/util/file_util.hpp"
 
-void ov::util::default_logger_handler_func(const std::string& s) {
-    std::cout << s << std::endl;
-}
+namespace ov::util {
 
-ov::util::LogHelper::LogHelper(LOG_TYPE type,
-                               const char* file,
-                               int line,
-                               std::function<void(const std::string&)> handler_func)
-    : m_handler_func(std::move(handler_func)) {
+LogHelper::LogHelper(LOG_TYPE type, const char* file, int line) {
     switch (type) {
     case LOG_TYPE::_LOG_TYPE_ERROR:
-        m_stream << "[ERR] ";
+        m_stream << "[ERROR] ";
         break;
     case LOG_TYPE::_LOG_TYPE_WARNING:
-        m_stream << "[WARN] ";
+        m_stream << "[WARNING] ";
         break;
     case LOG_TYPE::_LOG_TYPE_INFO:
         m_stream << "[INFO] ";
@@ -52,16 +46,14 @@ ov::util::LogHelper::LogHelper(LOG_TYPE type,
         }
 
         m_stream << util::trim_file_name(file);
-        m_stream << " " << line;
+        m_stream << ":" << line;
         m_stream << "\t";
     }
 }
 
-ov::util::LogHelper::~LogHelper() {
-#ifdef ENABLE_OPENVINO_DEBUG
-    if (m_handler_func) {
-        m_handler_func(m_stream.str());
-    }
-    // Logger::log_item(m_stream.str());
-#endif
+void log_message(std::string_view);
+
+LogHelper::~LogHelper() {
+    log_message(m_stream.str());
 }
+}  // namespace ov::util
