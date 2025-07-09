@@ -61,26 +61,12 @@ protected:
         auto desc = params.typed_desc<vl_sdpa>();
         const auto query_shape = transpose_pshape(params.get_input_layout(0).get_partial_shape(), desc->input_q_transpose_order);
         const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
-        // const auto output_shape = transpose_pshape(params.get_output_layout(0).get_partial_shape(), desc->output_transpose_order);
-
-        // std::cout << "----------------- VLSDPA::get_jit_constants -----------------" << std::endl;
-        // std::cout << "----------------- input_q_transpose_order: " << desc->input_q_transpose_order <<
-        // "," << params.get_input_layout(0).get_partial_shape() << "->" << query_shape << std::endl;
-        // std::cout << "----------------- input_k_transpose_order: " << desc->input_k_transpose_order <<
-        // "," << params.get_input_layout(1).get_partial_shape() << "->" << key_shape<< std::endl;
-        // std::cout << "----------------- output_transpose_order: " << desc->output_transpose_order <<
-        // "," << params.get_output_layout(0).get_partial_shape() << "->" << output_shape<< std::endl;
 
         const size_t head_size = key_shape[query_shape.size()-1].get_length();
         const size_t num_q_heads = query_shape[query_shape.size()-3].get_length();
         const size_t num_kv_heads = key_shape[key_shape.size()-3].get_length();
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(head_size));
 
-        // std::cout << "========== KERNEL_NAME(" << get_entry_point(params) << ") head_size=" << head_size <<
-        //  ", num_q_heads=" << num_q_heads << ", num_kv_heads=" << num_kv_heads <<
-        //  ", scale_factor=" << scale_factor << std::endl;
-
-        // TODO: jit for transpose
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("CMFLA_NUM_HEADS", num_q_heads),
@@ -94,8 +80,6 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
-
-        // std::cout << "----------------- VLSDPA::get_arguments_desc -----------------" << std::endl;
 
         for (uint32_t i = 0; i < params.input_layouts.size() - 1; i++) { // inputs: q, k, v
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
@@ -128,20 +112,12 @@ protected:
                 }
                 return transposed_pshape;
             };
-            // const auto& out_shape = transpose_pshape(params.output_layouts[0].get_shape(), desc->output_transpose_order);
             const auto query_shape = transpose_pshape(params.get_input_layout(0).get_shape(), desc->input_q_transpose_order);
-
-            // std::cout << "----------------- VLSDPA::get_dispatch_data_func -----------------" << std::endl;
-            // std::cout << "----------------- output_transpose_order: " << desc->output_transpose_order <<
-            // "," << params.output_layouts[0].get_shape() << "->" << out_shape << std::endl;
-            // std::cout << "----------------- input_k_transpose_order: " << desc->input_q_transpose_order <<
-            // "," << params.input_layouts[0].get_shape() << "->" << query_shape << std::endl;
-
             const size_t num_q_heads = query_shape[query_shape.size()-3];  // TODO: make it to be configuration of primitive_inst
 
             auto& instance = reinterpret_cast<typed_primitive_inst<cldnn::vl_sdpa>&>(*rt_params->instance);
-            const auto& cu_seqlens = vl_sdpa_inst::get_mask_seqlens_from_memory2(instance.cu_seqlens_memory_ptr(), params.get_stream());
-            // std::cout << "------------------------- " << desc->id << ", cu_seqlens=" << cu_seqlens << std::endl;
+            const auto& cu_seqlens = vl_sdpa_inst::get_mask_seqlens_from_memory(instance.cu_seqlens_memory_ptr(), params.get_stream());
+
             size_t max_seq_len = 0;
             for (size_t i = 1; i < cu_seqlens.size(); i++) {
                 auto start_idx = cu_seqlens[i - 1];
@@ -179,9 +155,6 @@ protected:
             auto& wgs = kd.params.workGroups;
             wgs.global = {num_q_heads, wg_count * wg_size};
             wgs.local = {1, wg_size};
-
-            // std::cout << "========== WGS=" << wgs.global << ", LGS=" << wgs.local <<
-            //  ", wg_count=" << wg_count << ", max_seq_len=" << max_seq_len << ", need_wg_mapping=" << need_wg_mapping << ", num_q_heads" << num_q_heads << std::endl;
 
             std::vector<int32_t> scalars {need_wg_mapping};
             kd.params.scalars.clear();
