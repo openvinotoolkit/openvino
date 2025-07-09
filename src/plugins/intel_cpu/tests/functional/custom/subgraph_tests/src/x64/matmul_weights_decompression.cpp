@@ -40,6 +40,15 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_basic = {
     {{{}, {{1, 11, 154}}}, {154, 77}, 154ul},
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
 };
+const std::vector<MatMulDecompressionShapeParams> input_shapes_basic_u2 = {
+    {{{}, {{1, 8, 16}}}, {16, 2}},
+    {{{}, {{1, 4, 16}}}, {16, 2}},
+    {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
+    {{{}, {{1, 4, 16}}}, {1, 16, 32}},
+    {{{}, {{5, 40, 496}}}, {1, 496, 240}},
+    {{{}, {{1, 4, 48}}}, {48, 256}},
+    {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
+};
 const std::vector<MatMulDecompressionShapeParams> input_shapes_amx = {
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
     {{{}, {{1, 4, 32}}}, {32, 256}},
@@ -60,6 +69,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::Values(DecompressionType::full),
+                                            // todo: zero points converted to fp32 for reshape == true case
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_u2,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic_u2),
+                                            ::testing::Values(ov::element::u2),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::scalar),
+                                            ::testing::Values(DecompressionType::scalar),
                                             // todo: zero points converted to fp32 for reshape == true case
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
@@ -230,6 +255,13 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_basic_dyn_quant =
     {{{}, {{1, 1, 640}}}, {640, 90}},
 };
 
+const std::vector<MatMulDecompressionShapeParams> input_shapes_basic_dyn_quant_u2 = {
+    {{{}, {{1, 8, 16}}}, {16, 2}},
+    {{{}, {{1, 4, 16}}}, {16, 2}},
+    {{{}, {{1, 1, 128}}}, {128, 32}},
+    {{{}, {{1, 1, 640}}}, {640, 90}},
+};
+
 const std::vector<ov::test::ElementType> weights_precisions_dyn_quant = {ov::element::u8, ov::element::u4};
 const std::vector<fusingSpecificParams> fusing_params_dyn_quant{
     emptyFusingSpec,
@@ -255,6 +287,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_gro
                                             ::testing::Values(true),
                                             ::testing::Values(DecompressionType::full),
                                             ::testing::ValuesIn(decompression_subtract_type),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_dyn_quant()),
+                                            ::testing::ValuesIn(fusing_params_dyn_quant),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_default_dyn_quant_group_sizes_u2,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_basic_dyn_quant_u2),
+                                            ::testing::Values(ov::element::u2),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::scalar),
+                                            ::testing::Values(DecompressionType::scalar),
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_dyn_quant()),
                                             ::testing::ValuesIn(fusing_params_dyn_quant),
