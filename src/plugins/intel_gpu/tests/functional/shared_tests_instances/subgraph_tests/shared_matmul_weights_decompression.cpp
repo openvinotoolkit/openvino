@@ -34,6 +34,7 @@ const std::vector<ElementType> decompression_precisions = {ov::element::f16, ov:
 const std::vector<ElementType> weights_precisions = {ov::element::u8, ov::element::u4};
 const std::vector<bool> transpose_weights = {true, false};
 
+std::map<std::string, std::string> additional_config = {};
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulSharedCompressedWeights,
                          SharedMatmulWeightsDecompression,
                          ::testing::Combine(::testing::Values(utils::DEVICE_GPU),
@@ -42,7 +43,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulSharedCompressedWeights,
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::ValuesIn(transpose_weights),
                                             ::testing::Values(DecompressionType::full),
-                                            ::testing::Values(true)),
+                                            ::testing::Values(true),
+                                            ::testing::Values(additional_config)),
                          SharedMatmulWeightsDecompression::getTestCaseName);
 
 }  // namespace

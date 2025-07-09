@@ -49,7 +49,12 @@
 // to access and change C pooling primitive desc internal padding field
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/core/CoreTypes.h>
+#    include <arm_compute/core/TensorInfo.h>
+#    include <arm_compute/core/Types.h>
+
 #    include "executors/acl/acl_utils.hpp"
+#    include "nodes/executors/acl/acl_pooling.hpp"
 #    include "utils/debug_capabilities.h"
 #endif
 
