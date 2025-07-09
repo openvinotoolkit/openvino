@@ -152,6 +152,7 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
+        Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure

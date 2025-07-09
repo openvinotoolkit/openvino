@@ -367,6 +367,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
+            m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
@@ -541,6 +542,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, host_gather.src_idx);
     write(stream, host_gather.idx_idx);
 
+    write(stream, quant_unpack_gather.dst_idx);
+    write(stream, quant_unpack_gather.src_w_idx);
+    write(stream, quant_unpack_gather.src_z_idx);
+    write(stream, quant_unpack_gather.src_s_idx);
+    write(stream, quant_unpack_gather.idx_idx);
+
     write(stream, spatial);
 
     write(stream, is_remote);
@@ -608,6 +615,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, host_gather.dst_idx);
     read(stream, host_gather.src_idx);
     read(stream, host_gather.idx_idx);
+
+    read(stream, quant_unpack_gather.dst_idx);
+    read(stream, quant_unpack_gather.src_w_idx);
+    read(stream, quant_unpack_gather.src_z_idx);
+    read(stream, quant_unpack_gather.src_s_idx);
+    read(stream, quant_unpack_gather.idx_idx);
 
     read(stream, spatial);
 
@@ -1699,6 +1712,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
+                          BIND(npuw::partitioning::gather_quant, NPUW_HOST_GATHER_QUANT),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
