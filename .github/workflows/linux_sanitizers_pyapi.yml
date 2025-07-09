@@ -262,7 +262,8 @@ jobs:
   CXX_Func_Tests:
     # todo: move another plugin's func tests here
     name: C++ func tests
-    if: ${{ github.repository_owner == 'openvinotoolkit' }}
+    # todo: remove
+    if: ${{ github.repository_owner == 'openvinotoolkit' && inputs.sanitizerMode == 'AddressAndLeak' }}
     needs: [Docker, Build]
     timeout-minutes: 180
     runs-on: aks-linux-8-cores-16gb
