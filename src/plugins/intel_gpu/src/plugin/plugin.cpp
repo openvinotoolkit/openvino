@@ -89,7 +89,7 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
 
 void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) const {
     uint32_t offset = 0;
-    const auto type_info = ov::WeightlessCacheAttribute::get_type_info_static();
+    const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
     
     for (auto node : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node)) {
