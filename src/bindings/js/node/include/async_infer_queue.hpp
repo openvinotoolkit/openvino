@@ -15,7 +15,6 @@
 class AsyncInferQueue : public Napi::ObjectWrap<AsyncInferQueue> {
 public:
     AsyncInferQueue(const Napi::CallbackInfo& info);
-    ~AsyncInferQueue();
     static Napi::Function get_class(Napi::Env env);
 
     void release(const Napi::CallbackInfo& info);

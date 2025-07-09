@@ -49,11 +49,6 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
     }
 }
 
-AsyncInferQueue::~AsyncInferQueue() {
-    m_requests.clear();
-    m_user_ids.clear();
-    m_user_inputs.clear();
-}
 
 void AsyncInferQueue::release() {
     if (m_tsfn) {
