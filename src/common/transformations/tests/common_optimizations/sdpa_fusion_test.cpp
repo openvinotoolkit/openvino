@@ -98,7 +98,7 @@ public:
     }
 
     // Build pattern (MatMul -> scale -> mask -> Softmax -> MatMul)
-    void create_pattern_sdpa(bool transpose_b = false) {
+    void create_pattern_sdpa(bool transpose_b = false, int softmax_axis = -1) {
         m_preprocessing_callback(nodes);
 
         auto attn_scores = make_shared<op::v0::MatMul>(nodes[InputType::Q], nodes[InputType::K], false, transpose_b);
@@ -111,7 +111,7 @@ public:
         if (with_mask) {
             attn_scores_with_mask = make_shared<op::v1::Add>(attn_scores_scaled, m_mask);
         }
-        auto softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, -1);
+        auto softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, softmax_axis);
         auto output = make_shared<op::v0::MatMul>(softmax, nodes[InputType::V]);
 
         nodes[InputType::SDPA] = output;
@@ -522,7 +522,6 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                                               {10, 1024, 1024},  // mask_shape
                                                               0.125f             // scale
                                                               ))));
-
 
 class SDPAFusionExplicitTranspose
     : public TransformationTestsF,
