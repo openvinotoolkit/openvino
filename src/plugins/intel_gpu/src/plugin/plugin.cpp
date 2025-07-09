@@ -91,7 +91,7 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
     uint32_t offset = 0;
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
     
-    for (auto node : model->get_ordered_ops()) {
+    for (const auto& node : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node)) {
             auto& rtInfo = node->get_rt_info();
             const auto element_type = node->get_element_type();
