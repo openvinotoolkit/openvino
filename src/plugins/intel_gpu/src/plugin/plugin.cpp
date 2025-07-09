@@ -87,6 +87,22 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
+bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) const {
+    const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
+    
+    for (const auto& node : model->get_ordered_ops()) {        
+        if (ov::op::util::is_constant(node)) {
+            auto& rtInfo = node->get_rt_info();
+            const auto& it = rtInfo.find(type_info);
+
+            if (it != rtInfo.end())
+                return true;
+        }
+    }
+
+    return false;
+}
+
 void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) const {
     uint32_t offset = 0;
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
@@ -98,9 +114,8 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
 
             // Set rtInfo only if it's not set already.
             if (const auto& it = rtInfo.find(type_info);  it == rtInfo.end()) {
-                // offset and size are used as dummy. Offset behaves as a unique key for each constant.
-                rtInfo[type_info] = ov::WeightlessCacheAttribute(1, offset, element_type);
-                offset++;
+                // Offset behaves as a unique key for each constant. Size = 1 is used as dummy. 
+                rtInfo[type_info] = ov::WeightlessCacheAttribute(1, offset++, element_type);
             }
         }
     }
@@ -211,10 +226,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
     ov::CacheMode cache_mode = config.get_cache_mode();
-    const auto& weights_path = config.get_weights_path();
 
     // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
-    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && weights_path.empty()) {
+    // This is a temporary solution. A common way of handling weightless caching will be defined later.
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && !is_weightless_cache_attributes_set(model)) {
         set_weightless_cache_attributes(model);
     }
 
@@ -239,6 +254,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
+
+    ov::CacheMode cache_mode = config.get_cache_mode();
+
+    // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
+    // This is a temporary solution. A common way of handling weightless caching will be defined later.
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && !is_weightless_cache_attributes_set(model)) {
+        set_weightless_cache_attributes(model);
+    }
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
@@ -390,9 +413,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         const std::string& weights_path = config.get_weights_path();
 
         if (!ov::util::validate_weights_path(weights_path)) {
-            // This is non IR case, e.g. onnxruntime
+            // This is non IR case, e.g. onnxruntime.
+            // This may not be required. Constant nodes should have the information already.
+            // This is a temporary solution. A more robust solution will be implemented in future. 
+            
+            // If some app modifies ov::Model before compile_model(), and 
+            // the constants are changed, and such modification is not done before import_model(), 
+            // weightless caching will not produce correct result.
             if (auto orig_model = config.get_model(); orig_model != nullptr) {
-                set_weightless_cache_attributes(orig_model);
+                if (!is_weightless_cache_attributes_set(orig_model))
+                    set_weightless_cache_attributes(orig_model);
             } else {
                 return nullptr;
             }
