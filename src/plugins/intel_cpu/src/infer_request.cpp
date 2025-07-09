@@ -655,8 +655,8 @@ void SyncInferRequest::sub_streams_infer() {
 
     if (!requests.empty()) {
         for (const auto& output : outputs) {
-            auto tensor = requests[0]->get_tensor(output);
-            set_tensor(output, tensor);
+            auto tensor = get_tensor(output);
+            requests[0]->set_tensor(output, tensor);
         }
         for (size_t i = 0; i < requests_num; i++) {
             for (auto& input : inputs) {
@@ -665,8 +665,7 @@ void SyncInferRequest::sub_streams_infer() {
             }
 
             requests[i]->set_callback([message]([[maybe_unused]] const std::exception_ptr& ptr) {
-                ov::threading::MessageInfo msg_info;
-                msg_info.msg_type = ov::threading::MsgType::CALL_BACK;
+                ov::threading::MessageInfo msg_info{ov::threading::MsgType::CALL_BACK};
                 message->send_message(msg_info);
             });
         }

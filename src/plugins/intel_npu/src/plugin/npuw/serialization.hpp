@@ -80,18 +80,31 @@ class LazyTensor;
 
 namespace s11n {
 
+class PairHash {
+public:
+    template <typename T, typename U>
+    std::size_t operator()(const std::pair<T, U>& p) const {
+        return std::hash<T>()(p.first) ^ std::hash<U>()(p.second);
+    }
+};
+
+using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
 using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
 
-struct EncryptContext {
-    explicit EncryptContext(bool _encrypted,
-                            std::function<std::string(const std::string&)> _encrypt,
-                            std::function<std::string(const std::string&)> _decrypt)
+struct CompiledContext {
+    CompiledContext(bool _encrypted,
+                    const std::function<std::string(const std::string&)>& _encrypt,
+                    const std::function<std::string(const std::string&)>& _decrypt,
+                    const BF16Cache& _bf16_consts = {})
         : encrypted(_encrypted),
           encrypt(_encrypt),
-          decrypt(_decrypt) {}
+          decrypt(_decrypt),
+          bf16_consts(_bf16_consts) {}
     bool encrypted = false;
     std::function<std::string(const std::string&)> encrypt = nullptr;
     std::function<std::string(const std::string&)> decrypt = nullptr;
+    // FIXME: needed to pass original bf16 consts meta to CompiledModel
+    BF16Cache bf16_consts;
 };
 
 struct WeightsContext {
@@ -106,13 +119,18 @@ struct WeightsContext {
     explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
     // NOTE: This construtor can and should only be used when importing weightless blobs
-    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights, const ConstsCache& _consts_cache);
+    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights,
+                            const ConstsCache& _consts_cache,
+                            const BF16Cache& _bf16_consts);
 
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
     ov::npuw::s11n::Weights weights = nullptr;
     ConstsCache consts_cache;
+    BF16Cache bf16_consts;
 };
+
+BF16Cache get_bf16_consts(const std::shared_ptr<ov::Model>& model);
 
 // Specific type overloads
 void write(std::ostream& stream, const std::streampos& var);
@@ -200,6 +218,14 @@ void write(std::ostream& stream, const std::unordered_set<T>& var) {
     }
 }
 
+template <typename T, typename H>
+void write(std::ostream& stream, const std::unordered_set<T, H>& var) {
+    write(stream, var.size());
+    for (const auto& el : var) {
+        write(stream, el);
+    }
+}
+
 template <typename K, typename V>
 void write(std::ostream& stream, const std::map<K, V>& var) {
     write(stream, var.size());
@@ -254,6 +280,18 @@ void read(std::istream& stream, std::array<T, N>& var) {
 
 template <typename T>
 void read(std::istream& stream, std::unordered_set<T>& var) {
+    var.clear();
+    std::size_t var_size = 0;
+    stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);
+    for (std::size_t i = 0; i < var_size; ++i) {
+        T elem;
+        read(stream, elem);
+        var.insert(std::move(elem));
+    }
+}
+
+template <typename T, typename H>
+void read(std::istream& stream, std::unordered_set<T, H>& var) {
     var.clear();
     std::size_t var_size = 0;
     stream.read(reinterpret_cast<char*>(&var_size), sizeof var_size);

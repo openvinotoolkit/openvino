@@ -351,7 +351,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {op::copy_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -364,7 +364,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {op::eltwise_shape_infer(m_node.get(), input_shapes)};
     }
 };
@@ -443,7 +443,7 @@ public:
     using ShapeInferBase::ShapeInferBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes)};
     }
 };
@@ -498,7 +498,7 @@ public:
     using ShapeInferPaddingBase::ShapeInferPaddingBase;
 
     std::optional<std::vector<StaticShape>> infer(const std::vector<StaticShapeRef>& input_shapes,
-                                                  const ov::ITensorAccessor& /*unused*/) override {
+                                                  [[maybe_unused]] const ov::ITensorAccessor& acc) override {
         return {shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, m_pads_begin, m_pads_end)};
     }
 };
@@ -561,8 +561,7 @@ std::shared_ptr<typename TShapeInfer::iface_type> make_shape_infer(std::shared_p
 using ShapeInferKey = ov::NodeTypeInfo;
 
 // Helper macros to make map entries
-#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...) \
-    { OP::get_type_info_static(), make_shape_infer<__VA_ARGS__> }
+#define _OV_OP_SHAPE_INFER_VA_REG(OP, ...)                  {OP::get_type_info_static(), make_shape_infer<__VA_ARGS__>}
 #define OV_OP_SHAPE_INFER_MASK_REG(OP, SHAPE_INFER, MASK)   _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER, OP, MASK)
 #define OV_OP_SHAPE_INFER_NON_TEMPLATE_REG(OP, SHAPE_INFER) _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER)
 

@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include <cstddef>
+#include <type_traits>
+
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 
-
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class SpecificIterationHandlers {
 public:
@@ -20,49 +20,47 @@ public:
                               pass::PassPipeline main_body_handlers,
                               pass::PassPipeline last_iter_handlers);
 
-    template <SpecificLoopIterType Type,
-              typename std::enable_if<Type == SpecificLoopIterType::FIRST_ITER, bool>::type = true>
-    const pass::PassPipeline& get_passes() const {
+    template <SpecificLoopIterType Type, std::enable_if_t<Type == SpecificLoopIterType::FIRST_ITER, bool> = true>
+    [[nodiscard]] const pass::PassPipeline& get_passes() const {
         return m_first_iter_handlers;
     }
 
-    template <SpecificLoopIterType Type,
-              typename std::enable_if<Type == SpecificLoopIterType::MAIN_BODY, bool>::type = true>
-    const pass::PassPipeline& get_passes() const {
+    template <SpecificLoopIterType Type, std::enable_if_t<Type == SpecificLoopIterType::MAIN_BODY, bool> = true>
+    [[nodiscard]] const pass::PassPipeline& get_passes() const {
         return m_main_body_handlers;
     }
 
-    template <SpecificLoopIterType Type,
-              typename std::enable_if<Type == SpecificLoopIterType::LAST_ITER, bool>::type = true>
-    const pass::PassPipeline& get_passes() const {
+    template <SpecificLoopIterType Type, std::enable_if_t<Type == SpecificLoopIterType::LAST_ITER, bool> = true>
+    [[nodiscard]] const pass::PassPipeline& get_passes() const {
         return m_last_iter_handlers;
     }
 
     template <SpecificLoopIterType Type,
               typename T,
               class... Args,
-              typename std::enable_if<Type == SpecificLoopIterType::FIRST_ITER, bool>::type = true>
+              std::enable_if_t<Type == SpecificLoopIterType::FIRST_ITER, bool> = true>
     void register_pass(Args&&... args) {
-        m_first_iter_handlers.register_pass<T>(args...);
+        m_first_iter_handlers.register_pass<T>(std::forward<Args>(args)...);
     }
 
     template <SpecificLoopIterType Type,
               typename T,
               class... Args,
-              typename std::enable_if<Type == SpecificLoopIterType::MAIN_BODY, bool>::type = true>
+              std::enable_if_t<Type == SpecificLoopIterType::MAIN_BODY, bool> = true>
     void register_pass(Args&&... args) {
-        m_main_body_handlers.register_pass<T>(args...);
+        m_main_body_handlers.register_pass<T>(std::forward<Args>(args)...);
     }
 
     template <SpecificLoopIterType Type,
               typename T,
               class... Args,
-              typename std::enable_if<Type == SpecificLoopIterType::LAST_ITER, bool>::type = true>
+              std::enable_if_t<Type == SpecificLoopIterType::LAST_ITER, bool> = true>
     void register_pass(Args&&... args) {
-        m_last_iter_handlers.register_pass<T>(args...);
+        m_last_iter_handlers.register_pass<T>(std::forward<Args>(args)...);
     }
 
-    static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs, const SpecificIterationHandlers& rhs);
+    static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs,
+                                                    const SpecificIterationHandlers& rhs);
 
 private:
     pass::PassPipeline m_first_iter_handlers;
@@ -70,6 +68,4 @@ private:
     pass::PassPipeline m_last_iter_handlers;
 };
 
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered

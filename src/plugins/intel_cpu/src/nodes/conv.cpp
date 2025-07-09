@@ -191,17 +191,7 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 }
 
 Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, ConvolutionShapeInferFactory(op)),
-      withSum(false),
-      withDWConv(false),
-      dw_conv_oc(0),
-      dw_conv_ih(0),
-      dw_conv_iw(0),
-      dw_conv_in_dt(memory::data_type::undef),
-      groupNum(1LU),
-      IC(1),
-      groupIC(1),
-      groupOC(1) {
+    : Node(op, context, ConvolutionShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -575,8 +565,9 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
-    if (!fusedWith.empty())
+    if (!fusedWith.empty()) {
         return false;
+    }
 #endif
     return canFuseSimpleOperation(node);
 }

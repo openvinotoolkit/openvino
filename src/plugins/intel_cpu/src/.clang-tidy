@@ -18,7 +18,6 @@
 # -cppcoreguidelines-pro-type-const-cast. There is some code which uses const_cast and cannot get rid of that
 # -cppcoreguidelines-pro-type-reinterpret-cast. There are a lot of code which uses reinterpret_cast
 # -cppcoreguidelines-pro-type-static-cast-downcast. Performance impact
-# -cppcoreguidelines-pro-type-member-init. Too many unnecessary initializations
 # -cppcoreguidelines-pro-type-union-access. There are a lot of code which uses unions
 # -cppcoreguidelines-pro-type-vararg. There are a lot of code which uses vararg functions
 # -cppcoreguidelines-rvalue-reference-param-not-moved. There are a lot of code which uses rvalue references
@@ -38,7 +37,6 @@
 # -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
 # -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
 # -cppcoreguidelines-avoid-const-or-ref-data-members
-# -cppcoreguidelines-avoid-non-const-global-variables
 # -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
 # -google-explicit-constructor,
@@ -76,7 +74,6 @@ Checks: >
   -cppcoreguidelines-avoid-const-or-ref-data-members,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-explicit-virtual-functions,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-misleading-capture-default-by-value,
@@ -87,7 +84,6 @@ Checks: >
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-const-cast,
-  -cppcoreguidelines-pro-type-member-init,
   -cppcoreguidelines-pro-type-reinterpret-cast,
   -cppcoreguidelines-pro-type-static-cast-downcast,
   -cppcoreguidelines-pro-type-union-access,
@@ -119,9 +115,14 @@ Checks: >
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
 FormatStyle: file
-# HeaderFilterRegex: 'src/plugins/intel_cpu/src/.*'
+HeaderFilterRegex: 'src/plugins/intel_cpu/src/.*\.h(pp)?$'
 CheckOptions:
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
+    value: true
+  # use = instead of {} for initialization
+  - key: cppcoreguidelines-pro-type-member-init.UseAssignment
+    value: true
+  - key: modernize-use-default-member-init.UseAssignment
     value: true
   # matches with corresponding cpplink check  
   - key: google-readability-namespace-comments.ShortNamespaceLines
@@ -145,6 +146,7 @@ CheckOptions:
   - key: readability-braces-around-statements.ShortStatementLines
     value: "1"
   # itt and conditional compilation are implemented via tricky macro combinations
+  # TODO: remove snippets/*.hpp from the list
   - key: misc-include-cleaner.IgnoreHeaders
     value: >
       .*/itt.h;
@@ -152,6 +154,7 @@ CheckOptions:
       .*/selective_build.h;
       src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.hpp;
       src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.cpp;
+      snippets/lowered/loop_manager.hpp;
 #  Reasonable way to enforce splitting complex code into simple functions
   - key: readability-function-size.StatementThreshold
     value: "800"

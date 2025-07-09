@@ -2,7 +2,7 @@
 numpy
 bandit
 black
-flake8<=7.2.0
+flake8<=7.3.0
 flake8-annotations-complexity<=0.1.0
 flake8-broken-line<=1.0.0
 flake8-bugbear<=24.12.12
@@ -38,4 +38,4 @@ types-setuptools
 wheel
 pybind11-stubgen<2.6
 pre-commit<4.3
-pyright<=1.1.401
+pyright<=1.1.402

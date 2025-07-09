@@ -2,7 +2,8 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Any, Callable, Union, Optional
+from typing import Any, Union, Optional
+from collections.abc import Callable
 import torch
 import numpy as np
 import openvino as ov

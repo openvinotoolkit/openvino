@@ -3,17 +3,28 @@
 //
 
 #include "snippets/lowered/pass/insert_load_store.hpp"
-#include "snippets/op/rank_normalization.hpp"
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/utils/utils.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
@@ -32,12 +43,17 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
         const auto& consumer_expr = consumer_input.get_expr();
         const auto& consumer = consumer_expr->get_node();
         const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(consumer);
-        if (ma && ma->is_memory_access_input_port(consumer_input.get_index()))
+        if (ma && ma->is_memory_access_input_port(consumer_input.get_index())) {
             continue;
+        }
 
         const auto load = std::make_shared<op::Load>(data_ngraph_output, get_count(data_expr->get_output_port(0)));
-        linear_ir.insert_node(load, std::vector<PortConnectorPtr>{ data_out }, consumer_expr->get_loop_ids(),
-                              true, linear_ir.find_after(data_expr_it, consumer_expr), { consumer_input });
+        linear_ir.insert_node(load,
+                              std::vector<PortConnectorPtr>{data_out},
+                              consumer_expr->get_loop_ids(),
+                              true,
+                              linear_ir.find_after(data_expr_it, consumer_expr),
+                              {consumer_input});
         was_inserted = true;
     }
 
@@ -53,24 +69,32 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     const auto port = parent_output.get_index();
     const auto& parent = parent_expr->get_node();
     const auto ma = std::dynamic_pointer_cast<modifier::MemoryAccess>(parent);
-    if (ma && ma->is_memory_access_output_port(port))
+    if (ma && ma->is_memory_access_output_port(port)) {
         return false;
+    }
 
     const auto& loop_ids = parent_expr->get_loop_ids();
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port(0)));
     const auto insertion_it =
         linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr);
     const auto& insertion_pos = insertion_it.base();
-    linear_ir.insert_node(store, std::vector<ExpressionPort>{ parent_output }, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
+    linear_ir.insert_node(store,
+                          std::vector<ExpressionPort>{parent_output},
+                          loop_ids,
+                          true,
+                          insertion_pos,
+                          {data_expr->get_input_port(0)});
     return true;
 }
 
-bool InsertLoadStore::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+bool InsertLoadStore::run(LinearIR& linear_ir,
+                          lowered::LinearIR::constExprIt begin,
+                          lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoadStore")
 
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto expr = *expr_it;
+        const auto& expr = *expr_it;
         const auto& node = expr->get_node();
         if (ov::is_type<ov::op::v0::Parameter>(node)) {
             modified |= insert_load(linear_ir, expr_it);
@@ -78,14 +102,12 @@ bool InsertLoadStore::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt be
             modified |= insert_store(linear_ir, expr_it);
         } else if (ov::is_type<BufferExpression>(expr)) {
             modified |= insert_load(linear_ir, expr_it);
-            if (expr->get_input_count() > 0)
+            if (expr->get_input_count() > 0) {
                 modified |= insert_store(linear_ir, expr_it);
+            }
         }
     }
     return modified;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

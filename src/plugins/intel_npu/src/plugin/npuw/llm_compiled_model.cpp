@@ -5,6 +5,7 @@
 
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
@@ -75,15 +76,10 @@ public:
 protected:
     // generic part of matchers, to transpose v-tensors, and concat, and update matmul args
     void transpose_matmul_b(Context::Ref ctx,
-                            std::shared_ptr<ov::Node> node_param,
-                            std::shared_ptr<ov::Node> node_concat,
-                            std::shared_ptr<ov::Node> node_transpose,
-                            std::shared_ptr<ov::Node> node_matmul) {
-        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
-        auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
-        auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
-        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
-
+                            const std::shared_ptr<ov::op::v0::Parameter>& matched_param,
+                            const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
+                            const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
+                            const std::shared_ptr<ov::op::v0::MatMul>& matched_matmul) {
         auto param_shape = matched_param->get_partial_shape();
         NPUW_ASSERT(param_shape.size() == 4u);
         // NB: Transpose Parameter that correspond to V-tensor it will
@@ -98,6 +94,19 @@ protected:
         matched_concat->set_axis(3u);
         matched_matmul->set_transpose_b(true);
         ctx.get().bTransposed = true;
+    }
+
+    void transpose_matmul_b(Context::Ref ctx,
+                            const std::shared_ptr<ov::Node>& node_param,
+                            const std::shared_ptr<ov::Node>& node_concat,
+                            const std::shared_ptr<ov::Node>& node_transpose,
+                            const std::shared_ptr<ov::Node>& node_matmul) {
+        auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(node_param);
+        auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(node_concat);
+        auto matched_transpose = std::static_pointer_cast<ov::op::v1::Transpose>(node_transpose);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
+
+        transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
     }
 };
 
@@ -206,11 +215,7 @@ private:
             reshape_axes_node->set_friendly_name(matched_reshape->get_friendly_name() + "/new_reshape_shape");
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
-            transpose_matmul_b(ctx,
-                               matched_node_param,
-                               matched_node_concat,
-                               matched_node_transpose,
-                               matched_node_matmul);
+            transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
             LOG_DEBUG("vtensors transposed: LLama3 pattern");
             return true;
         };
@@ -330,6 +335,239 @@ public:
     }
 };
 
+class GroupQueryAttentionDecomposition : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GroupQueryAttentionDecomposition");
+    GroupQueryAttentionDecomposition(bool is_prefill_model) {
+        auto pattern_node = ov::pass::pattern::wrap_type<ov::op::internal::GroupQueryAttention>();
+
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+            auto& pattern_to_output = m.get_pattern_value_map();
+            auto node = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(
+                pattern_to_output.at(pattern_node).get_node_shared_ptr());
+
+            if (node == nullptr || transformation_callback(node)) {
+                return false;
+            }
+
+            auto new_output_node = decompose(node, is_prefill_model);
+            ov::replace_node(node, new_output_node);
+            return true;
+        };
+
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern_node, "GroupQueryAttentionDecomposition");
+        register_matcher(m, std::move(callback));
+    }
+
+    ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node, bool is_prefill_model) {
+        using namespace ov::op;
+        using namespace ov;
+
+        const auto num_heads = node->get_num_heads();
+        const auto kv_num_heads = node->get_kv_num_heads();
+        const auto scale = node->get_scale();
+        const auto do_rotary = node->get_do_rotary();
+        const auto rotary_interleaved = node->get_rotary_interleaved();
+        // TODO: add softcap support
+
+        auto Q = node->input_value(0);
+        auto K = node->input_value(1);
+        auto V = node->input_value(2);
+        auto past_key = node->input_value(3);
+        auto past_value = node->input_value(4);
+        auto seqlens_k = node->input_value(5);
+        auto cos_cache = node->input_value(6);
+        auto sin_cache = node->input_value(7);
+
+        // The length of all tokens (past + current) is `seqlens_k` + 1.
+        // current = Q.shape[2], past = `seqlens_k` + 1 - current
+
+        const auto T = Q.get_element_type();
+        const auto q_shape = register_new_node<v3::ShapeOf>(Q);
+        const auto current_seqlen = get_dimensions(q_shape, {2});
+        const auto head_size_node = get_dimensions(q_shape, {3});
+
+        const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+        const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+        const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+        const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
+        const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
+
+        // Only consider batch is 1
+        const auto seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
+        const auto past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, current_seqlen);
+        const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
+
+        if (do_rotary) {
+            ov::Output<ov::Node> position_ids = register_new_node<v4::Range>(zero_without_shape,
+                                                                             curr_seqlen_scalar,
+                                                                             one_without_shape,
+                                                                             ov::element::i64);
+            position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
+
+            const auto cos = register_new_node<v8::Gather>(cos_cache, position_ids, zero);
+            const auto sin = register_new_node<v8::Gather>(sin_cache, position_ids, zero);
+            Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
+            K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
+        }
+
+        auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
+            return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
+        };
+        K = construct_kv_cache(past_key, K);
+        V = construct_kv_cache(past_value, V);
+
+        ov::Output<ov::Node> present_k = K;
+        ov::Output<ov::Node> present_v = V;
+
+        const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
+        const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
+
+        // Broadcast KV if grouped query attention
+        const size_t kv_num_heads_factor = num_heads / kv_num_heads;
+        if (kv_num_heads_factor > 1) {
+            const auto kv_shape = register_new_node<v3::ShapeOf>(K);
+            const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
+            const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
+            auto new_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{kv_shape_prev_2, one, kv_shape_last_2}, 0);
+            K = register_new_node<v1::Reshape>(K, new_kv_shape, false);
+            V = register_new_node<v1::Reshape>(V, new_kv_shape, false);
+            K = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, K), 2);
+            V = register_new_node<v0::Concat>(ov::OutputVector(kv_num_heads_factor, V), 2);
+            const auto q_shape = register_new_node<v3::ShapeOf>(Q);
+            const auto q_shape_prev_2 = get_dimensions(q_shape, {0, 1});
+            auto extended_kv_shape = register_new_node<v0::Concat>(ov::NodeVector{q_shape_prev_2, kv_shape_last_2}, 0);
+            K = register_new_node<v1::Reshape>(K, extended_kv_shape, false);
+            V = register_new_node<v1::Reshape>(V, extended_kv_shape, false);
+        }
+
+        // Make attention mask
+        std::shared_ptr<ov::Node> mask;
+
+        std::shared_ptr<ov::Node> hori_range =
+            register_new_node<v4::Range>(zero_without_shape, concat_kv_len_scalar, one_without_shape, ov::element::i64);
+        hori_range = register_new_node<v0::Unsqueeze>(hori_range, zero);
+
+        std::shared_ptr<ov::Node> vert_range =
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
+        vert_range = register_new_node<v0::Unsqueeze>(vert_range, one);
+        const auto past_k_node_len = get_dimensions(past_key.get_node_shared_ptr(), {2});
+        vert_range = register_new_node<v1::Add>(vert_range, past_k_node_len);
+
+        const auto triu = register_new_node<v1::Greater>(hori_range, vert_range);
+        const auto typed_zero = register_new_node(v0::Constant::create(T, ov::Shape{}, {0}));
+        // cf. make_attention_mask@src\plugins\intel_gpu\tests\common\subgraphs_builders.hpp
+        std::shared_ptr<ov::Node> minus_inf = nullptr;
+        if (T == ov::element::f32)
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {-std::numeric_limits<float>::infinity()}));
+        else if (T == ov::element::f16)
+            minus_inf =
+                register_new_node(v0::Constant::create(T, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()}));
+        mask = register_new_node<v1::Select>(triu, minus_inf, typed_zero);
+
+        if (is_prefill_model) {
+            // prefill model
+            const auto padding_len = register_new_node<v1::Subtract>(concat_kv_len, seqlens_1d);
+            const auto padding_mask_vert_shape = register_new_node<v0::Concat>(ov::NodeVector{current_seqlen, one}, 0);
+            const auto padding_mask_vert = register_new_node<v3::Broadcast>(padding_len, padding_mask_vert_shape);
+            const auto padding_mask = register_new_node<v1::GreaterEqual>(hori_range, padding_mask_vert);
+            mask = register_new_node<v1::Select>(padding_mask, mask, minus_inf);
+        } else {
+            // kv cache model
+            const auto left_mask = register_new_node<v1::Less>(hori_range, seqlens_elemi64);     // first N
+            const auto righ_mask = register_new_node<v1::GreaterEqual>(hori_range, vert_range);  // last 1
+            const auto atte_mask = register_new_node<v1::LogicalOr>(left_mask, righ_mask);       // [1,1,1,..., 0,0,0,1]
+            mask = register_new_node<v1::Select>(atte_mask, mask, minus_inf);
+        }
+
+        std::shared_ptr<ov::Node> qga_output;
+        if (scale != 0.0f) {
+            auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+        } else {
+            qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+        }
+
+        // transpose the result from (batch_size, num_heads, sequence_length, head_size)
+        // to (batch_size, sequence_length, num_heads * head_size)
+        auto perm = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
+        auto qga_output_transposed = register_new_node<v1::Transpose>(qga_output, perm);
+        auto dim_merge_shape = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1}));
+        auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
+
+        return {output, present_k, present_v};
+    }
+
+    // make split functions is a copy-past from ONNX FE. TODO: move it to one place
+    ov::OutputVector make_split(const ov::Output<ov::Node>& value, int64_t num_splits, int64_t axis) {
+        using namespace ov::op;
+        const auto axis_node = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {axis}));
+        const auto split = register_new_node<v1::Split>(value, axis_node, num_splits);
+
+        return split->outputs();
+    }
+
+    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
+                                             const std::vector<int>& dims) {
+        using namespace ov::op;
+        const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+        const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
+        return register_new_node<v8::Gather>(shape, dims_const, zero);
+    }
+
+    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims) {
+        return get_dimensions(register_new_node<ov::op::v3::ShapeOf>(node), dims);
+    }
+
+    std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
+                                              ov::Output<ov::Node> cos,
+                                              ov::Output<ov::Node> sin,
+                                              bool interleaved) {
+        using namespace ov::op;
+        auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+
+        if (interleaved) {
+            auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+            auto cos_last_dim = get_dimensions(cos.get_node_shared_ptr(), {-1});
+            auto input_shape = register_new_node<v3::ShapeOf>(input);
+            auto dim_bns = get_dimensions(input_shape, {0, 1, 2});
+
+            auto negtive_one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+            auto split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, two}, 0);
+            auto reshaped_input = register_new_node<v1::Reshape>(input, split_input_shape, false);
+
+            auto in_split = make_split(reshaped_input, 2, -1);
+            split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim}, 0);
+            auto in_split_0 = register_new_node<v1::Reshape>(in_split[0], split_input_shape, false);
+            auto in_split_1 = register_new_node<v1::Reshape>(in_split[1], split_input_shape, false);
+
+            auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split_0, cos),
+                                                         register_new_node<v1::Multiply>(in_split_1, sin));
+            auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split_0, sin),
+                                                    register_new_node<v1::Multiply>(in_split_1, cos));
+
+            split_input_shape = register_new_node<v0::Concat>(ov::NodeVector{dim_bns, cos_last_dim, one}, 0);
+            auto res_0_5d = register_new_node<v1::Reshape>(res_0, split_input_shape, false);
+            auto res_1_5d = register_new_node<v1::Reshape>(res_1, split_input_shape, false);
+
+            auto concat_ret = register_new_node<v0::Concat>(ov::NodeVector{res_0_5d, res_1_5d}, -1);
+            return register_new_node<v1::Reshape>(concat_ret, input_shape, false);
+        } else {
+            auto in_split = make_split(input, 2, -1);
+            auto res_0 = register_new_node<v1::Subtract>(register_new_node<v1::Multiply>(in_split[0], cos),
+                                                         register_new_node<v1::Multiply>(in_split[1], sin));
+            auto res_1 = register_new_node<v1::Add>(register_new_node<v1::Multiply>(in_split[0], sin),
+                                                    register_new_node<v1::Multiply>(in_split[1], cos));
+
+            return register_new_node<v0::Concat>(ov::NodeVector{res_0, res_1}, -1);
+        }
+    }
+};
+
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -378,6 +616,12 @@ bool remove_empty_kv_inputs(std::shared_ptr<ov::Model> model) {
     ov::pass::Validate().run_on_model(model);
     // NB: if old_params is not empty - pass has been applied
     return !ctx.old_params.empty();
+}
+
+void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<GroupQueryAttentionDecomposition>(is_prefill_model);
+    rewr.run_on_model(model);
 }
 }  // namespace
 
@@ -475,7 +719,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         supported_properties.end()) {
         compiler_dq = true;
     }
-    return std::make_optional(NPUDesc{arch, max_tiles, compiler_dq});
+    return std::make_optional(NPUDesc{std::move(arch), max_tiles, compiler_dq});
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
@@ -628,6 +872,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
     LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
@@ -644,6 +891,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
+
+    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
+    decompose_GQA(prefill_model, true);
+    decompose_GQA(kvcache_model, false);
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
@@ -757,7 +1008,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     write(stream, is_weightless);
 
     if (!encryption_required) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         return serialize(stream, ctx);
     }
 
@@ -765,18 +1016,18 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     std::stringstream non_encrypted_stream;
     if (is_weightless) {
         non_encrypted_stream.copyfmt(stream);
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         serialize(non_encrypted_stream, ctx);
         std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
         write(stream, encrypted);
     } else {
         // In case of blob with weights only encrypt XML part of the model
-        EncryptContext ctx(true, enc_callbacks.encrypt, nullptr);
+        CompiledContext ctx(true, enc_callbacks.encrypt, nullptr);
         serialize(stream, ctx);
     }
 }
 
-void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& ctx) const {
+void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const {
     LOG_INFO("Serializing LLMCompiledModel...");
     LOG_BLOCK();
 
@@ -810,7 +1061,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
 
         // Serialize CompiledModels
         // Note: no need to pass any encryption here as it's done in export_model()
-        EncryptContext enc_ctx(false, nullptr, nullptr);
+        CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
         m_prefill_compiled->serialize(model_stream, enc_ctx);
     };
@@ -921,7 +1172,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     };
 
     if (!encrypted) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         auto compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_banks(stream, compiled_model);
@@ -944,10 +1195,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
-        EncryptContext ctx(true, nullptr, enc_callbacks.decrypt);
+        CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
         compiled_model = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
@@ -963,7 +1214,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
-    const ov::npuw::s11n::EncryptContext& ctx) {
+    const ov::npuw::s11n::CompiledContext& ctx) {
     using namespace ov::npuw::s11n;
 
     auto read_model_meta = [&](std::istream& model_stream) {
@@ -996,7 +1247,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
         // Deserialize CompiledModels
         // Note: no need to pass any encryption here as it's done in import_model()
-        EncryptContext enc_ctx(false, nullptr, nullptr);
+        CompiledContext enc_ctx(false, nullptr, nullptr);
         compiled->m_kvcache_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         compiled->m_prefill_compiled = ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
 

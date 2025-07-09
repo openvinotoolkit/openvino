@@ -14,9 +14,7 @@
 #include "openvino/core/node.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class CausalMaskPreprocess : public Node {
 public:
@@ -49,6 +47,4 @@ private:
     std::shared_ptr<Executor> m_executor;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

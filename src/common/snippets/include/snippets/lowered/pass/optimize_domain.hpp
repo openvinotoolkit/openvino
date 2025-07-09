@@ -4,13 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <vector>
+
+#include "openvino/core/rtti.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface OptimizeDomain
@@ -18,13 +20,14 @@ namespace pass {
  *        The pass collapses two last dimensions while none of them is broadcasted and the resulting dim size
  *        1. Dimension collapsing: If none of the last two dimensions are broadcasted, the last dimension's size
  *           is less than min_kernel_work_amount and the remaining dimensions provide work amount larger than
- *           min_parallel_work_amount (min_kernel_work_amount and min_parallel_work_amount specified in LireanIR config),
- *           then these two dimensions are collapsed into one and the collapsing attempt is repeated.
+ *           min_parallel_work_amount (min_kernel_work_amount and min_parallel_work_amount specified in LinearIR
+ *           config), then these two dimensions are collapsed into one and the collapsing attempt is repeated.
  *        2. Tile rank increment: Tile rank is the rank of a tensor that processed during one call. If all except
  *           for the last two dimensions provide work_amount larger than min_parallel_work_amount, then tile_rank
  *           is incremented. This effectively increases kernel work_amount.
  *        Examples of graphs before and after this transformations are depicted below.
- * @param tile_rank (taken by reference) rank of a tensor that processed during one call. Incremented if dimensions are collapsed.
+ * @param tile_rank (taken by reference) rank of a tensor that processed during one call. Incremented if dimensions are
+ * collapsed.
  * @ingroup snippets
  */
 // Example:
@@ -62,7 +65,4 @@ private:
                                                     size_t total_work_amount);
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

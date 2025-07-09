@@ -4,16 +4,18 @@
 
 #pragma once
 
-#include "pass.hpp"
+#include <cstddef>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/rtti.hpp"
+#include "pass.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface InitBuffersDefault
- * @brief The pass inits Buffer expressions in LinearIR default (non-optimized): sets unique offsets and reg groups to Buffers.
+ * @brief The pass inits Buffer expressions in LinearIR default (non-optimized): sets unique offsets and reg groups to
+ * Buffers.
  * @ingroup snippets
  */
 
@@ -29,13 +31,12 @@ public:
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
-    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
+    bool run(lowered::LinearIR& linear_ir,
+             lowered::LinearIR::constExprIt begin,
+             lowered::LinearIR::constExprIt end) override;
 
 private:
     size_t& m_buffer_scratchpad_size;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -9,7 +9,7 @@
 #include <openvino/runtime/device_id_parser.hpp>
 #include <string>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
 using namespace ov::test::behavior;
@@ -25,7 +25,7 @@ public:
     std::string IE_NPU_TESTS_DUMP_PATH;
     std::string IE_NPU_TESTS_LOG_LEVEL;
     std::string IE_NPU_TESTS_PLATFORM;
-    std::string OV_NPU_TESTS_SKIP_CONFIG_FILE;
+    std::string OV_NPU_TESTS_SKIP_CONFIG_FILE = "npu_skip_func_tests.xml";
     mutable std::string OV_NPU_TESTS_BLOBS_PATH;  // mutable because it may have a default value set in main.cpp
 
     bool IE_NPU_TESTS_RUN_COMPILER = true;

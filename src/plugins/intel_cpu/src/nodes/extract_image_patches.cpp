@@ -4,8 +4,6 @@
 
 #include "extract_image_patches.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <cmath>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -19,7 +17,6 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
@@ -36,8 +33,14 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
-using namespace dnnl::impl::cpu;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#endif
+
 using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
@@ -656,11 +659,11 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
 
     jpp.dtype_size = prcSize;
     if (mayiuse(x64::avx512_core)) {
-        jpp.block_size = cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
     } else if (mayiuse(x64::avx2)) {
-        jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::avx2>::vlen / prcSize;
     } else if (mayiuse(x64::sse41)) {
-        jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::sse41>::vlen / prcSize;
     } else {
         jpp.block_size = 1;
     }
@@ -668,13 +671,14 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
     return jpp;
 }
 
-ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecutor(const VectorDims& inDims,
-                                                                                    const VectorDims& outDims,
-                                                                                    const VectorDims& kSizes,
-                                                                                    const VectorDims& strides,
-                                                                                    const VectorDims& rates,
-                                                                                    const ExtImgPatcherPadType& padType,
-                                                                                    const size_t prcSize) {
+ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecutor(
+    [[maybe_unused]] const VectorDims& inDims,
+    [[maybe_unused]] const VectorDims& outDims,
+    [[maybe_unused]] const VectorDims& kSizes,
+    [[maybe_unused]] const VectorDims& strides,
+    [[maybe_unused]] const VectorDims& rates,
+    [[maybe_unused]] const ExtImgPatcherPadType& padType,
+    [[maybe_unused]] const size_t prcSize) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {
