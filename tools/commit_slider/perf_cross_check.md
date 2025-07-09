@@ -1,6 +1,6 @@
 # Case #1. Cross-checking of performance degradation.
 
-([Basic concepts.](README.md))
+([Basic concepts.](README.md) [More about templates.](common_architecture.md))
 
 #### Themes: Mode and Template customization, API design
   
@@ -93,7 +93,7 @@ It faces given problem, but looks clumsy and verbose. We also need to interpret 
 
 ## Version #2: Specific Mode
 
-If there is no Mode which resolves commit with our task or we need more readable output and opportunity to handle every commit directly, we can implement custom Mode. We can also customize API.
+If there is no Mode [Details about Mode](README.md# implementing-custom-traversal-rule) which resolves commit with our task or we need more readable output and opportunity to handle every commit directly, we can implement custom Mode. We can also pass specific parameters directly to Mode.
 ### Mode
 ```
 # Mode supposes to be as much generic as possible
@@ -181,8 +181,10 @@ def  getCommitInfo(self, commit):
         t2=commit.secondThroughput)
 ```
 ### Configuration
+
+Supposedly we pass both command lines launching models in two parameters `cfg["runConfig"]["firstAppCmd"]` and `cfg["runConfig"]["secondAppCmd"]`, i.e.
+
 ```
-supposedly we pass both commandlines launching models in two parameters cfg["runConfig"]["firstAppCmd"] and cfg["runConfig"]["secondAppCmd"], i.e.
 cfg = { 
     "appCmd" : "{actualAppCmd}",
     "appPath": "<path_to_benchmark_app>",
