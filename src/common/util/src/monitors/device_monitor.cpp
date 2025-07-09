@@ -19,7 +19,12 @@ std::map<std::string, float> get_device_utilization(const std::string& device_id
         m_device_monitor = std::make_shared<ov::util::CPUDeviceMonitor>();
     else
         m_device_monitor = std::make_shared<ov::util::XPUDeviceMonitor>(device_id);
-    return m_device_monitor->get_utilization();
+    try {
+        return m_device_monitor->get_utilization();
+    } catch (...) {
+        // Handle exceptions and return an empty map
+        return {};
+    }
 }
 }  // namespace util
 }  // namespace ov

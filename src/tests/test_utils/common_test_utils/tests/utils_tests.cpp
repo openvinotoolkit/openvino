@@ -117,13 +117,8 @@ TEST(UtilsTests, device_monitor) {
 #endif
 
     std::string invalid_device_id = "INVALID_DEVICE_ID";
-#ifdef _WIN32
-    ASSERT_THROW(utilization = get_device_utilization(invalid_device_id), std::runtime_error)
-        << "Expected exception for invalid device ID";
-#else
-    // On non-Windows platforms, we expect no exception and an empty utilization map
+    // expect no exception and an empty utilization map
     ASSERT_NO_THROW(utilization = get_device_utilization(invalid_device_id))
-        << "Expected no exception for invalid device ID on non-Windows platforms";
+        << "Expected no exception for invalid device ID";
     ASSERT_TRUE(utilization.empty()) << "Expected empty utilization map for invalid device ID";
-#endif
 }
