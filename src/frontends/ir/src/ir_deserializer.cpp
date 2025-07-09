@@ -427,12 +427,12 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     if (m_weights && m_weights->size() == sizeof(void*)) {
                         // std::cout << __func__ << ":" << __LINE__ << std::endl;
                         void* weightsMapPtr = nullptr;
-                        std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
-                                  << std::endl;
+                        // std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
+                        //           << std::endl;
                         memcpy(&weightsMapPtr, m_weights->get_ptr(), sizeof(void*));
                         m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapPtr);
                         // print pointer value of m_weights_map for debugging
-                        std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
+                        // std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
                     } else {
                         OPENVINO_THROW("Empty weights data in map!");
                     }
@@ -525,12 +525,12 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     if (m_weights && m_weights->size() == sizeof(void*)) {
                         // std::cout << __func__ << ":" << __LINE__ << std::endl;
                         void* weightsMapPtr = nullptr;
-                        std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
-                                  << std::endl;
+                        // std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
+                        //           << std::endl;
                         memcpy(&weightsMapPtr, m_weights->get_ptr(), sizeof(void*));
                         m_weights_map = reinterpret_cast<ov::pass::WeightsMap*>(weightsMapPtr);
                         // print pointer value of m_weights_map for debugging
-                        std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
+                        // std::cout << "m_weights_map pointer: " << m_weights_map << std::endl;
                     } else {
                         OPENVINO_THROW("Empty weights data in map!");
                     }
