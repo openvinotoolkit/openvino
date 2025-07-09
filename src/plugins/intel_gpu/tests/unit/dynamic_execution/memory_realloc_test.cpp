@@ -238,7 +238,6 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_memory_get_from_padded_poo
     for (size_t i = 0; i < output_mem->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(output_mem_ptr[i], ref_output[i]);
     }
-    std::cout << std::endl;
 }
 
 TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
