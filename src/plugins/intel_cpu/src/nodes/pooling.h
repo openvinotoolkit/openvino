@@ -4,14 +4,21 @@
 
 #pragma once
 
-#include "common/dnnl_executor.h"
-#include "executors/pooling_list.hpp"
-#include "node.h"
-#include "oneapi/dnnl/dnnl.hpp"
+#include <memory>
+#include <string>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "common/dnnl_executor.h"
+#include "cpu_shape.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/executors/pooling.hpp"
+#include "nodes/node_config.h"
+#include "oneapi/dnnl/dnnl.hpp"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class Pooling : public Node {
 public:
@@ -47,11 +54,11 @@ private:
 
     std::shared_ptr<PoolingExecutor> execPtr = nullptr;
 
-    void initEffectiveAttributes(const Shape& inDims, const Shape& outDims);
+    void initEffectiveAttributes(const Shape& inShape, const Shape& outShape);
     dnnl::algorithm getPoolingAlgorithm() const;
     dnnl::pooling_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candidate,
                                                                    const dnnl::memory::desc& out_candidate,
-                                                                   const dnnl::algorithm alg);
+                                                                   dnnl::algorithm alg);
 
     AttrPtr pAttr;
 
@@ -61,6 +68,4 @@ private:
     bool useACL = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

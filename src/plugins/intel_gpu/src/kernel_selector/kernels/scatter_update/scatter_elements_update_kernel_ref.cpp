@@ -87,6 +87,13 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, bool is_second) const {
     CommonDispatchData dispatchData;
+    KernelData kd = KernelData::Default<scatter_elements_update_params>(params, 2);
+    if (is_second && params.mode != ScatterUpdateReduction::NONE) {
+        dispatchData.gws = {1, 1, 1};
+        dispatchData.lws = {1, 1, 1};
+        return dispatchData;
+    }
+
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
@@ -147,14 +154,14 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
 
 bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType:: SCATTER_ELEMENTS_UPDATE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const scatter_elements_update_params& params = static_cast<const scatter_elements_update_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -201,11 +208,7 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", params.engineInfo.maxLocalMemSize));
-            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", dispatchData.gws[0] * dispatchData.gws[1] * dispatchData.gws[2]));
-            if (newParams.mode != ScatterUpdateReduction::NONE) {
-                dispatchData.gws = {1, 1, 1};
-                dispatchData.lws = {1, 1, 1};
-            }
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", newParams.inputs[1].LogicalSize()));
         }
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

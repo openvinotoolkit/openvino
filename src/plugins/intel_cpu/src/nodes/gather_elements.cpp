@@ -5,12 +5,25 @@
 #include "gather_elements.h"
 
 #include <cmath>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "common/cpu_memcpy.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
@@ -64,6 +77,7 @@ void GatherElements::prepareParams() {
         strideAxDst_ *= dstDims[i];
     }
     dstAxDim_ = dstDims[axis_];
+    dataAxDim_ = dataDims[axis_];
     if (axis_ > 0) {
         strideAx1Diff_ = 1;
         for (size_t i = dataDims.size() - 1; i >= axis_; i--) {
@@ -101,6 +115,14 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
 void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
+namespace helpers {
+static int HandleNegativeIndices(const int* indices, int idx, int axisDimSize) {
+    const int index = indices[idx];
+    OPENVINO_ASSERT(index < axisDimSize && index >= -axisDimSize, "indices values of GatherElement exceed data size");
+    const int fixedIdx = index < 0 ? axisDimSize + index : index;
+    return fixedIdx;
+}
+}  // namespace helpers
 
 template <typename dataType>
 void GatherElements::directExecution() {
@@ -110,7 +132,8 @@ void GatherElements::directExecution() {
 
     const int outSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
-        int start(0lu), end(0lu);
+        int start(0LU);
+        int end(0LU);
         splitter(outSize, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -129,7 +152,8 @@ void GatherElements::directExecution() {
                     dstShift0 += strideAx1Diff_;
                 }
             }
-            dstData[o] = srcData[o + dstShift0 + (indices[o] - dstAxIdx) * strideAxDst_];
+            const int idx = helpers::HandleNegativeIndices(indices, o, dataAxDim_);
+            dstData[o] = srcData[o + dstShift0 + (idx - dstAxIdx) * strideAxDst_];
         }
     };
 
@@ -138,12 +162,18 @@ void GatherElements::directExecution() {
 
 void GatherElements::execute([[maybe_unused]] const dnnl::stream& strm) {
     switch (dataTypeSize_) {
-    case sizeof(element_type_traits<ov::element::i32>::value_type):
-        return directExecution<element_type_traits<ov::element::i32>::value_type>();
-    case sizeof(element_type_traits<ov::element::i16>::value_type):
-        return directExecution<element_type_traits<ov::element::i16>::value_type>();
-    case sizeof(element_type_traits<ov::element::i8>::value_type):
-        return directExecution<element_type_traits<ov::element::i8>::value_type>();
+    case sizeof(element_type_traits<ov::element::i32>::value_type): {
+        directExecution<element_type_traits<ov::element::i32>::value_type>();
+        break;
+    }
+    case sizeof(element_type_traits<ov::element::i16>::value_type): {
+        directExecution<element_type_traits<ov::element::i16>::value_type>();
+        break;
+    }
+    case sizeof(element_type_traits<ov::element::i8>::value_type): {
+        directExecution<element_type_traits<ov::element::i8>::value_type>();
+        break;
+    }
     default:
         THROW_CPU_NODE_ERR("Unsupported data type size");
     }

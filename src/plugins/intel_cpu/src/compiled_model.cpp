@@ -4,31 +4,44 @@
 
 #include "compiled_model.h"
 
+#include <algorithm>
 #include <cstring>
+#include <exception>
+#include <memory>
+#include <mutex>
+#include <ostream>
 #include <utility>
+#include <vector>
 
 #include "async_infer_request.h"
 #include "config.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "graph.h"
+#include "graph_context.h"
 #include "infer_request.h"
-#include "itt.h"
+#include "internal_properties.hpp"
 #include "low_precision/low_precision.hpp"
-#include "memory_control.hpp"
-#include "memory_state.h"
-#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+#include "sub_memory_manager.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/memory_stats_dump.hpp"
 #include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/runtime/IScheduler.h>
+#    include <arm_compute/runtime/Scheduler.h>
+
 #    include "nodes/executors/acl/acl_ie_scheduler.hpp"
 #endif
 
@@ -183,7 +196,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
             try {
                 GraphContext::Ptr ctx;
                 {
-                    std::lock_guard<std::mutex> lock{*m_mutex.get()};
+                    std::lock_guard<std::mutex> lock{*m_mutex};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
                     ctx = std::make_shared<GraphContext>(m_cfg,
@@ -288,6 +301,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::key_cache_precision.name()),
@@ -367,6 +381,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        const auto& enable_tensor_parallel = config.enableTensorParallel;
+        return enable_tensor_parallel;
     }
     if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(

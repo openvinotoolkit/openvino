@@ -148,25 +148,25 @@ KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params) 
 
 bool GemmKernelMMADslmInt8::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);
     auto input0_type = gmm_params.inputs[0].GetDType();
     auto input1_type = gmm_params.inputs[1].GetDType();
 
     if (gmm_params.transpose_input0 || gmm_params.transpose_input1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     GemmTuningData tuning_data = InitGemmTuningData(gmm_params);
     if (HasLeftovers(tuning_data))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (!IsSIMDSizeSupported(params.engineInfo, tuning_data.simd_size))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if ((input0_type != Datatype::UINT8 && input0_type != Datatype::INT8) ||
         (input1_type != Datatype::UINT8 && input1_type != Datatype::INT8))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

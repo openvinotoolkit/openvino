@@ -12,6 +12,13 @@ if(OV_COMPILER_IS_INTEL_LLVM)
     ov_disable_deprecated_warnings()
 endif()
 
+# Disable adhoc codesign on Apple AARCH64 by default for internal builds.
+# For community distribution channels (e.g. conda, brew), enable it via -DOV_FORCE_ADHOC_SIGN=ON.
+if(APPLE AND AARCH64 AND NOT OV_FORCE_ADHOC_SIGN)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-no_adhoc_codesign")
+endif()
+
+
 include(cmake/install_tbb.cmake)
 
 # CC library should be registered before other cc targets

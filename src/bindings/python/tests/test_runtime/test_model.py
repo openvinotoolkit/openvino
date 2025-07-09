@@ -93,13 +93,13 @@ def test_add_output_port():
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
-    relu1.get_output_tensor(0).set_names({"relu_t1"})
     relu2 = ops.relu(relu1, name="relu2")
     model = Model(relu2, [param], "TestModel")
     assert len(model.results) == 1
     new_outs = model.add_outputs(relu1.output(0))
     assert len(model.results) == 2
     assert len(new_outs) == 1
+    assert len(new_outs[0].names) != 0
     assert new_outs[0].get_node().get_instance_id() == model.outputs[1].get_node().get_instance_id()
     assert new_outs[0].get_index() == model.outputs[1].get_index()
 
@@ -243,16 +243,16 @@ def test_model_sink_ctors():
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
 
-    # Model(List[openvino._pyopenvino.op.Result], List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], str = '')
+    # Model(list[openvino._pyopenvino.op.Result], list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], str = '')
     model = Model(results=[res], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
     model.validate_nodes_and_infer_types()
     sinks = ["Assign"]
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
 
-    # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], str = '')
+    # Model(list[ov::Output<ov::Node>, list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], str = '')
     model = Model(results=[res.output(0)], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
@@ -268,15 +268,15 @@ def test_model_sink_ctors():
     assign = ops.assign(add, variable_1)
     res = ops.result(add, "res")
 
-    # Model(List[openvino._pyopenvino.op.Result], List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], List[openvino._pyopenvino.op.util.Variable], str = '')
+    # Model(list[openvino._pyopenvino.op.Result], list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], list[openvino._pyopenvino.op.util.Variable], str = '')
     model = Model(results=[res], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
 
-    # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
-    # List[openvino._pyopenvino.op.Parameter], List[openvino._pyopenvino.op.util.Variable], str = '')
+    # Model(list[ov::Output<ov::Node>, list[ov::Output<ov::Node>],
+    # list[openvino._pyopenvino.op.Parameter], list[openvino._pyopenvino.op.util.Variable], str = '')
     model = Model(results=[res.output(0)], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])

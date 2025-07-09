@@ -6,7 +6,6 @@
 #    pragma once
 
 #    include <cstdlib>
-#    include <string>
 
 namespace ov::intel_cpu {
 
@@ -16,7 +15,7 @@ public:
         readProperties();
     }
 
-    bool enable_segfault_detector;
+    bool enable_segfault_detector = false;
 
 private:
     void readProperties();

@@ -235,8 +235,8 @@ std::shared_ptr<ov::Model> ConcatFunction::getOriginalWithNeighbors(
             concat1,
             std::make_shared<ov::opset1::Multiply>(
                 std::make_shared<ov::opset1::Convert>(ov::opset1::Constant::create(ov::element::i8, convShape, {1}),
-                                                      ov::element::f32),
-                ov::opset1::Constant::create(ov::element::f32, Shape{}, {1})),
+                                                      precision),
+                ov::opset1::Constant::create(precision, Shape{}, {1})),
             ov::Strides{1, 1},
             ov::CoordinateDiff{0, 0},
             ov::CoordinateDiff{0, 0},

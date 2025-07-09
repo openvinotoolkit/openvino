@@ -6,16 +6,32 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <numeric>
+#include <cstdlib>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "config.h"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
+#else
+#    include <oneapi/dnnl/dnnl.hpp>
+
+#    include "onednn/dnnl.h"
+#    include "openvino/runtime/performance_heuristics.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
-#include "graph.h"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "transformations/utils.hpp"
@@ -38,16 +54,15 @@ void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::ve
             }
         }
     }
-
-    return;
 };
 
 std::vector<std::vector<int>> get_streams_info_table(
-    const int input_streams,
-    const bool input_streams_changed,
-    const int input_threads,
-    const int input_infer_requests,
-    const int model_prefer_threads,
+    int input_streams,
+    bool input_streams_changed,
+    int input_threads,
+    int input_infer_requests,
+    int model_prefer_threads,
+    bool enable_tensor_parallel,
     const std::string& input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table) {
@@ -206,9 +221,8 @@ std::vector<std::vector<int>> get_streams_info_table(
         }
     }
 
-    if (((input_streams_changed == false) &&
-         (input_perf_hint == ov::util::to_string(ov::hint::PerformanceMode::LATENCY))) ||
-        ((input_streams_changed == true) && (input_streams == 1))) {
+    if (((!input_streams_changed) && (input_perf_hint == ov::util::to_string(ov::hint::PerformanceMode::LATENCY))) ||
+        ((input_streams_changed) && (input_streams == 1))) {
         n_streams = 1;
         stream_info[NUMBER_OF_STREAMS] = n_streams;
         for (auto& n : proc_socket_table) {
@@ -287,14 +301,14 @@ std::vector<std::vector<int>> get_streams_info_table(
     } else {
         n_threads =
             input_threads > 0 ? std::min(proc_type_table[0][ALL_PROC], input_threads) : proc_type_table[0][ALL_PROC];
-        if ((input_streams_changed == true) && (input_streams > 0)) {
+        if ((input_streams_changed) && (input_streams > 0)) {
             n_streams = input_infer_requests > 0 ? std::min(input_infer_requests, input_streams) : input_streams;
             if (n_streams >= n_threads) {
                 n_streams = n_threads;
                 n_threads_per_stream = 1;
             } else {
                 n_threads_per_stream =
-                    std::min(static_cast<int>(n_threads / n_streams),
+                    std::min((n_threads / n_streams),
                              proc_type_table[0][MAIN_CORE_PROC] == 0 ? proc_type_table[0][EFFICIENT_CORE_PROC]
                                                                      : proc_type_table[0][MAIN_CORE_PROC]);
                 check_threads_per_stream();
@@ -319,23 +333,32 @@ std::vector<std::vector<int>> get_streams_info_table(
                     n_threads_per_stream = 5;
                 } else if (0 == n_proc % 3) {
                     n_threads_per_stream = 3;
-                } else if (proc_type_table.size() == 1) {
+                } else if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
+                            proc_type_table[0][EFFICIENT_CORE_PROC] != proc_type_table[0][ALL_PROC]) ||
+                           (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0)) {
                     n_threads_per_stream = n_proc;
                 } else {
-                    n_threads_per_stream = (n_proc > 16) ? 4 : std::max(1, static_cast<int>(n_proc / 4));
+                    n_threads_per_stream = (n_proc > 16) ? 4 : std::max(1, (n_proc / 4));
                 }
-                n_streams = static_cast<int>(n_threads / n_threads_per_stream);
+                if (input_threads > 0) {
+                    n_streams = n_threads / n_threads_per_stream;
+                } else {
+                    n_streams = 0;
+                    for (size_t i = MAIN_CORE_PROC; i <= HYPER_THREADING_PROC; i++) {
+                        n_streams += proc_type_table[0][i] / n_threads_per_stream;
+                    }
+                }
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
                     if (proc_type_table.size() == 1) {
-                        n_threads_per_stream = std::min(static_cast<int>(n_threads / n_streams), n_proc);
+                        n_threads_per_stream = std::min((n_threads / n_streams), n_proc);
                     } else {
-                        n_threads_per_stream = static_cast<int>(n_threads / n_streams);
+                        n_threads_per_stream = (n_threads / n_streams);
                     }
                 } else {
                     while ((n_streams * 2 <= n_threads_per_stream) && (n_threads_per_stream > 1)) {
-                        n_threads_per_stream = static_cast<int>(n_threads_per_stream / 2);
-                        n_streams = static_cast<int>(n_threads / n_threads_per_stream);
+                        n_threads_per_stream = (n_threads_per_stream / 2);
+                        n_streams = (n_threads / n_threads_per_stream);
                     }
                 }
             } else if ((1 == model_prefer_threads) &&
@@ -344,23 +367,29 @@ std::vector<std::vector<int>> get_streams_info_table(
                        (proc_type_table[0][MAIN_CORE_PROC] > 0) && (n_threads > proc_type_table[0][MAIN_CORE_PROC])) {
                 n_streams = (n_threads >= proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC] +
                                               proc_type_table[0][LP_EFFICIENT_CORE_PROC])
-                                ? static_cast<int>(n_threads - proc_type_table[0][EFFICIENT_CORE_PROC] / 2 -
-                                                   proc_type_table[0][LP_EFFICIENT_CORE_PROC] / 2)
+                                ? (n_threads - proc_type_table[0][EFFICIENT_CORE_PROC] / 2 -
+                                   proc_type_table[0][LP_EFFICIENT_CORE_PROC] / 2)
                                 : static_cast<int>(proc_type_table[0][MAIN_CORE_PROC] +
                                                    (n_threads - proc_type_table[0][MAIN_CORE_PROC]) / 2);
                 n_streams = input_infer_requests > 0 ? std::min(n_streams, input_infer_requests) : n_streams;
                 n_threads_per_stream = -1;
             } else {
-                auto model_threads = n_threads == 1                     ? 1
-                                     : model_prefer_threads > n_threads ? n_threads / 2
-                                                                        : model_prefer_threads;
+                int model_threads = [&]() {
+                    if (n_threads == 1) {
+                        return 1;
+                    }
+                    if (model_prefer_threads > n_threads) {
+                        return n_threads / 2;
+                    }
+                    return model_prefer_threads;
+                }();
                 n_streams = ((n_threads + model_threads - 1) / model_threads);
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
-                    n_threads_per_stream = static_cast<int>(n_threads / n_streams);
+                    n_threads_per_stream = (n_threads / n_streams);
                     check_threads_per_stream();
                 } else {
-                    n_threads_per_stream = model_threads > 0 ? model_threads : static_cast<int>(n_threads / n_streams);
+                    n_threads_per_stream = model_threads > 0 ? model_threads : (n_threads / n_streams);
                 }
             }
         }
@@ -507,6 +536,16 @@ std::vector<std::vector<int>> get_streams_info_table(
                     stream_table_size = streams_info_table.size();
                 }
             }
+
+            if ((total_streams == 1) && (proc_type_table.size() == 1) && enable_tensor_parallel &&
+                (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
+                 hint_model_distribution_policy.end())) {
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table[0][THREADS_PER_STREAM] = streams_info_table[0][THREADS_PER_STREAM] * 2;
+                streams_info_table[1][NUMBER_OF_STREAMS] = -1;
+                streams_info_table[2][NUMBER_OF_STREAMS] = -1;
+            }
         }
     } else if (proc_type_table.size() == 1) {
         if (stream_info[PROC_TYPE] == ALL_PROC) {
@@ -546,7 +585,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
     int rank_level = input_rank_level == 0 ? 1 : input_rank_level;
     init_rank.resize(rank_level, 0);
 
-    for (auto& row : streams_info_table) {
+    for (const auto& row : streams_info_table) {
         if (row[NUMBER_OF_STREAMS] < 0) {
             for (int i = 0; i < abs(row[NUMBER_OF_STREAMS]); i++) {
                 init_rank[rank_level - 1] = num_sub_streams + i;
@@ -578,31 +617,34 @@ int get_model_prefer_threads(const int num_streams,
         }
 #else
         const auto isa = dnnl::get_effective_cpu_isa();
-        float isaSpecificThreshold = 1.0f;
+        float isaSpecificThreshold = 1.0F;
         switch (isa) {
         case dnnl::cpu_isa::sse41:
-            isaSpecificThreshold = 0.5f;
+            isaSpecificThreshold = 0.5F;
             break;
         case dnnl::cpu_isa::avx2:
         case dnnl::cpu_isa::avx512_core:
-            isaSpecificThreshold = 1.0f;
+            isaSpecificThreshold = 1.0F;
             break;
         case dnnl::cpu_isa::avx512_core_vnni:
         case dnnl::cpu_isa::avx2_vnni:
         case dnnl::cpu_isa::avx2_vnni_2:
-            isaSpecificThreshold = 2.0f;
+            isaSpecificThreshold = 2.0F;
             break;
         case dnnl::cpu_isa::avx512_core_amx:
-            isaSpecificThreshold = 4.0f;
+            isaSpecificThreshold = 4.0F;
             break;
         default:
-            isaSpecificThreshold = 1.0f;
+            isaSpecificThreshold = 1.0F;
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::mem_bandwidth_pressure_tolerance(model,
+                                                 L2_cache_size,
+                                                 memThresholdAssumeLimitedForISA,
+                                                 config.inferencePrecision);
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         config.modelPreferThreads = 4;
@@ -677,12 +719,16 @@ int get_model_prefer_threads(const int num_streams,
             // By default the latency case uses (faster) Big cores only, depending on the compute ratio
             // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
             // cores only cases except LLM.
-            model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                                 (int8_intensive ? int8_threshold : fp32_threshold))
-                               ? ((!llm_related && ov::get_number_of_blocked_cores())
-                                      ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC]
-                                      : proc_type_table[0][MAIN_CORE_PROC])
-                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+            bool use_all_cores =
+                proc_type_table[0][MAIN_CORE_PROC] <=
+                (proc_type_table[0][EFFICIENT_CORE_PROC] / (int8_intensive ? int8_threshold : fp32_threshold));
+            bool use_big_and_little = !llm_related && (ov::get_number_of_blocked_cores() != 0);
+
+            if (use_all_cores || use_big_and_little) {
+                model_prefer = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+            } else {
+                model_prefer = proc_type_table[0][MAIN_CORE_PROC];
+            }
 #endif
         }
     } else {  // throughput
@@ -724,6 +770,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      config.threads,
                                                      config.hintNumRequests,
                                                      model_prefer_threads,
+                                                     config.enableTensorParallel,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);

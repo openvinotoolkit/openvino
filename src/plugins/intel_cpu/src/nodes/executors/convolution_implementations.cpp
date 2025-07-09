@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 #include <vector>
 
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_format_filter.hpp"
 #include "nodes/executors/convolution_config.hpp"
-#include "nodes/executors/debug_messages.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
@@ -17,7 +19,19 @@
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/arch_macros.h"
 #include "utils/general_utils.h"
+
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "nodes/executors/debug_messages.hpp"
+#    include "nodes/executors/executor.hpp"
+#    include "post_ops.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -47,9 +61,9 @@ static const TypeMapping dnnlConvTypeMapping {
     // @todo explicitly cover configuration limitations for oneDNN on ARM
 };
 // clang-format on
-struct RequiresFallbackDefault {
+struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
-        return requiresFallbackCommon(config, dnnlConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
+        return createOptimalConfigCommon(config, dnnlConvTypeMapping, layoutConfig, dnnlConvolutionMappingNotation);
     }
 
     LayoutConfig layoutConfig;
@@ -58,10 +72,15 @@ struct RequiresFallbackDefault {
 template <typename PostOpType>
 [[maybe_unused]] static inline bool hasPostOp(const ConvConfig& config) {
     const auto& postOps = config.attrs.postOps;
-    return any_of(postOps.begin(), postOps.end(), [](const std::shared_ptr<PostOp>& postOp) {
-        return std::dynamic_pointer_cast<PostOpType>(postOp);
+    return any_of(postOps.begin(), postOps.end(), [](const auto& postOp) {
+        return postOp.type() == typeid(PostOpType);
     });
 }
+
+[[maybe_unused]] static inline bool isQuantized(const ConvConfig& config) {
+    return one_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
+           config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8;
+};
 
 template <typename Attrs>
 bool MatchesMemoryFormatFilter(const executor::Config<Attrs>& config,
@@ -91,11 +110,7 @@ bool MatchesMemoryFormatFilter(const executor::Config<Attrs>& config,
     const auto desc = DnnlBlockedMemoryDesc(config.descs.at(ARG_DST)->getShape(),
                                             dnnl::memory::data_type::f32,
                                             filter.output.front());
-    if (!desc.hasLayoutType(layoutConfig.back())) {
-        return false;
-    }
-
-    return true;
+    return desc.hasLayoutType(layoutConfig.back());
 }
 
 // to keep OV_CPU_INSTANCE macros aligned
@@ -113,11 +128,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 }
 
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
-                VERIFY(DnnlConvolutionPrimitive::isBrgConvAvailable(config), "brgemm convolution is not available");
+                VERIFY(isQuantized(config) || DnnlConvolutionPrimitive::isBrgConvAvailable(config), "is not quantized or brgemm convolution is not available");
 
                 return true;
             },
-            RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -131,12 +146,13 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 }
 
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
                 return IC == 1 && groupOC == 1;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -144,19 +160,22 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_ncsp_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;
                 }
 
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
 
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
                 return IC < 4 && groupOC != 1;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -169,11 +188,12 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                     return false;
                 }
 
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
                 return IC < 4 && groupOC != 1;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -181,19 +201,22 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             "convolution_dnnl_nCsp16c_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
+                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
+
                 if (!MatchesMemoryFormatFilter(config, LayoutConfig{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                memoryFormatFilter)) {
                     return false;
                 }
 
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
 
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
                 return IC > 4;
             },
-            RequiresFallbackDefault{{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
+            CreateOptimalConfigDefault{{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -206,11 +229,12 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                     return false;
                 }
 
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
                 return IC > 4;
             },
-            RequiresFallbackDefault{{LayoutType::nCsp8c, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
+            CreateOptimalConfigDefault{{LayoutType::nCsp8c, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -223,12 +247,13 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                     return false;
                 }
 
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
 
                 return true;
             },
-            RequiresFallbackDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
+            CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -241,9 +266,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                     return false;
                 }
 
+                VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
+
                 return !one_of(srcType(config), ov::element::bf16, ov::element::f16) && DnnlConvolutionPrimitive::isNspcAvailable(config);
             },
-            RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
@@ -258,7 +285,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 return true;
             },
-            RequiresFallbackDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
+            CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
