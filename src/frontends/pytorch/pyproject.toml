@@ -10,8 +10,8 @@ url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
 
 [tool.poetry.group.dev.dependencies]
-torch = { version = ">=1.8.0,<=2.7.1", source = "pytorch-cpu" }
-torchvision = { version = "<=0.22.0", source = "pytorch-cpu" }
+torch = { version = "<=2.7.1", source = "pytorch-cpu" }
+torchvision = { version = "<=0.22.1", source = "pytorch-cpu" }
 
 [tool.poetry.group.tests]
 optional = true
