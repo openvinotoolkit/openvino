@@ -23,11 +23,11 @@ public:
 
     void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta) override;
 
-    std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
+    [[nodiscard]] std::unique_ptr<snippets::KernelExecutorBase::GenericConfig> get_clone_ptr() const override {
         return std::make_unique<GemmKernelKaiConfig>(*this);
     }
 
-    size_t hash() const override {
+    [[nodiscard]] size_t hash() const override {
         return m_hash;
     }
 
