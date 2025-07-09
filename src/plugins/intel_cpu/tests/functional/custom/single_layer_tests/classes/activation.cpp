@@ -236,6 +236,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
             (activation_type == utils::ActivationTypes::PReLu) ||
+            (activation_type == utils::ActivationTypes::Greater) ||
             (activation_type == utils::ActivationTypes::Sigmoid) )
             return "jit";
     }
