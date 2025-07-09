@@ -137,7 +137,7 @@ public:
     }
 
     FilePosition write(ov::pass::WeightsVariant object) {
-        std::cout << "ConstantWriter::write: " << object.index() << "key:" << m_blob_offset << std::endl;
+        // std::cout << "ConstantWriter::write: " << object.index() << "key:" << m_blob_offset << std::endl;
         const auto offset = m_blob_offset;
         m_blob_offset += 1;
 
@@ -634,11 +634,11 @@ public:
                     int64_t offset = 0;
                     int64_t type = 0;
                     if (a1) {
-                        std::cout << "Save one StringAlignedBuffer" << std::endl;
+                        // std::cout << "Save one StringAlignedBuffer" << std::endl;
                         offset = m_constant_write_handler.write(a1->get());
                         new_size = a1->get()->size();
                     } else {
-                        std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
+                        // std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
                         offset = m_constant_write_handler.write(a2->get());
                         type = 1;
                         new_size = a2->get()->size();
@@ -667,7 +667,7 @@ public:
                     size_t new_size;
                     int64_t offset = m_constant_write_handler.write(a->get());
                     new_size = a->get()->size();
-                    std::cout << "Save one AlignedBuffer" << std::endl;
+                    // std::cout << "Save one AlignedBuffer" << std::endl;
                     m_xml_node.append_attribute("key").set_value(static_cast<unsigned long long>(offset));
                     m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
                     m_xml_node.append_attribute("type").set_value(static_cast<unsigned long long>(2));
