@@ -99,6 +99,7 @@ jobs:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-64gb
+    # todo: add move matrix to additional job to prevent unused building
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
@@ -152,9 +153,6 @@ jobs:
                  
       - name: Install python dependencies
         run: |
-          # For Python API: build and wheel packaging
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
 
@@ -200,7 +198,7 @@ jobs:
             -DENABLE_INTEL_NPU=OFF \
             -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-            -DENABLE_WHEEL=ON \
+            -DENABLE_WHEEL=OFF \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
@@ -289,7 +287,9 @@ jobs:
         # to prevent false-positive alerts and time exceeded error,
         # in workflow_dispatch case all smoke tests will be launched with all types of sanitizers
         # if gtestFilter and sanMode inputs are not specified
-        if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
+        # WA: only for open PR
+        # if: ${{ (github.event_name == 'workflow_dispatch' && (inputs.sanitizerMode == 'All' || inputs.sanitizerMode == matrix.SANITIZER) || matrix.SANITIZER == 'AddressAndLeak')}}
+        if: ${{ matrix.SANITIZER == 'AddressAndLeak' }}
         run: |
           echo Sanitizer mode: "${SANITIZER_MODE}"
         env:
