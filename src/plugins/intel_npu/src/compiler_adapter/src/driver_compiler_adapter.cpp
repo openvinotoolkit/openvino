@@ -303,7 +303,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
     size_t callNumber = 0;
 
     // Convention: run until the main schedule has been returned.
-    auto compile_model_mem_start = get_peak_memory_usage();
+    int64_t compile_model_mem_start;
+    if (_logger.level() >= ov::log::Level::INFO) {
+        compile_model_mem_start = get_peak_memory_usage();
+    }
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
         updatedConfig.update({{ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++)}});
@@ -333,12 +336,14 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
             break;
         }
     }
-    auto compile_model_mem_end = get_peak_memory_usage();
 
-    _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
-    _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
-    // Note: Following log is parsed by CI. Take care when modifying it.
-    _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
+    if (_logger.level() >= ov::log::Level::INFO) {
+        auto compile_model_mem_end = get_peak_memory_usage();
+        _logger.debug("Start of compilation memory usage: Peak %lld KB", compile_model_mem_start);
+        _logger.debug("End of compilation memory usage: Peak %lld KB", compile_model_mem_end);
+        // Note: Following log is parsed by CI. Take care when modifying it.
+        _logger.info("Compilation memory usage: Peak %lld KB", compile_model_mem_end - compile_model_mem_start);
+    }
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
