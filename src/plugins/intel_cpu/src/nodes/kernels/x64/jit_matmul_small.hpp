@@ -74,6 +74,16 @@ struct jit_uni_matmul_small_kernel_f32 : public jit_uni_matmul_small_kernel,
     void generate() override;
 
 private:
+    // ukernel_2k2 support matmul with M/N <= 2, K can be any values.
+    void ukernel_2k2(const size_t& M,
+                     const size_t& N,
+                     const size_t& K_full_size,
+                     const size_t& offset_in1,
+                     const size_t& offset_in2,
+                     const size_t& offset_out,
+                     const size_t& lda,
+                     const size_t& ldb,
+                     const size_t& ldc);
     void apply_post_ops(ov::element::Type dst_prc, size_t vmm_idx, bool is_broadcast);
     using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
                                                          Xbyak::Xmm,
