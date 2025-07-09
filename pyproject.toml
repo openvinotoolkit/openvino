@@ -72,8 +72,8 @@ optional = true
 [tool.poetry.group.tensorflow.dependencies]
 h5py = "<=3.14.0"
 "tensorflow" = [
-	{ version = "<=2.18.0", markers = 'platform_system == "Windows"' },
-	{ version = "<=2.19.0", markers = 'platform_system != "Windows"' }
+	{ version = ">=1.15.5,<=2.18.0", markers = 'platform_system == "Windows"' },
+	{ version = ">=1.15.5,<=2.19.0", markers = 'platform_system != "Windows"' }
 ]
 
 [tool.poetry.group.onnx]
