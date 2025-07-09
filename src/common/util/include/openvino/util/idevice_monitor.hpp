@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,5 +20,11 @@ public:
 
 private:
     std::string m_device_name;
+};
+
+class IDeviceMonitorImpl {
+public:
+    virtual ~IDeviceMonitorImpl() = default;
+    virtual std::map<std::string, float> get_utilization() = 0;
 };
 }  // namespace ov::util

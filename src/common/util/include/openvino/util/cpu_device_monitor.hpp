@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ public:
     std::map<std::string, float> get_utilization() override;
 
 private:
-    class PerformanceImpl;
-    std::shared_ptr<PerformanceImpl> m_perf_impl = nullptr;
+    std::shared_ptr<IDeviceMonitorImpl> m_impl = nullptr;
 };
 }  // namespace ov::util

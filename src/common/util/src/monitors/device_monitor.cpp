@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,12 @@ namespace ov {
 namespace util {
 
 std::map<std::string, float> get_device_utilization(const std::string& device_id) {
-    std::shared_ptr<ov::util::IDeviceMonitor> m_device_performance;
+    std::shared_ptr<ov::util::IDeviceMonitor> m_device_monitor;
     if (device_id.empty())
-        m_device_performance = std::make_shared<ov::util::CPUDeviceMonitor>();
+        m_device_monitor = std::make_shared<ov::util::CPUDeviceMonitor>();
     else
-        m_device_performance = std::make_shared<ov::util::XPUDeviceMonitor>(device_id);
-    return m_device_performance->get_utilization();
+        m_device_monitor = std::make_shared<ov::util::XPUDeviceMonitor>(device_id);
+    return m_device_monitor->get_utilization();
 }
 }  // namespace util
 }  // namespace ov
