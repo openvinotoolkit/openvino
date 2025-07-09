@@ -13,7 +13,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/cos.hpp"
-#include "disable_f16_comp_for_periodic_nodes.hpp"
+#include "disable_f16_comp_for_periodic_funcs.hpp"
 
 ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionForPeriodicFuncs()
     : ov::pass::MatcherPass() {
@@ -33,7 +33,6 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
 
         // Disable FP16 compression for the current node
         ov::disable_fp16_compression(node);
-        std::cout << "***********[PAUL] !!!!!!! Set disable fp16 compression for " << node->get_friendly_name() << std::endl;
 
         // List of node types to skip during input traversal
         std::unordered_set<std::string> skip_node_types = {
@@ -85,7 +84,6 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
                 } else {
                     // Disable FP16 compression for the first node that modifies values
                     ov::disable_fp16_compression(next_node);
-                    std::cout << "***********[PAUL] !!!!!!! Set disable fp16 compression for " << next_node->get_friendly_name() << std::endl;
                     return true;
                 }
             }
