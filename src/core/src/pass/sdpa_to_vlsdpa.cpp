@@ -4,13 +4,13 @@
 
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 
+#include <map>
+
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
-#include "ov_ops/vl_sdpa.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/vl_sdpa.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include <map> 
 
 using namespace ov::op;
 
@@ -50,10 +50,8 @@ bool ov::pass::SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& mode
     };
 
     // change "attention_mask" to "cu_seq_lens", and "window_attention_mask" to "cu_window_seqlens"
-    const std::map<std::string, std::string> mask_2_seqlens_mapping{
-        {"attention_mask", "cu_seq_lens"},
-        {"window_attention_mask", "cu_window_seqlens"}
-    };
+    const std::map<std::string, std::string> mask_2_seqlens_mapping{{"attention_mask", "cu_seq_lens"},
+                                                                    {"window_attention_mask", "cu_window_seqlens"}};
     for (const auto& [param_name, param_new] : mask_2_seqlens_mapping) {
         if (auto param = get_parameter(model, param_name)) {
             //
@@ -88,21 +86,24 @@ bool ov::pass::SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& mode
                 }
             }
 
-            if (!consumers_are_sdpa) continue;
+            if (!consumers_are_sdpa)
+                continue;
 
-            std::cout << "=========================== SDPA_TO_VLSDPA (" << model->get_friendly_name() << ") success! =====================" << std::endl;
+            std::cout << "=========================== SDPA_TO_VLSDPA (" << model->get_friendly_name()
+                      << ") success! =====================" << std::endl;
             model->remove_parameter(param);
             auto cu_seqlens_param =
-            setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), param_new.c_str());
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), param_new.c_str());
             model->add_parameters({cu_seqlens_param});
             for (auto target : param->get_output_target_inputs(0)) {
-                auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(target.get_node()->shared_from_this());
+                auto sdpa =
+                    ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(target.get_node()->shared_from_this());
                 OPENVINO_ASSERT(sdpa, "all consumers should be SDPA!");
 
                 const auto sdpa_consumers = sdpa->get_output_target_inputs(0);
                 const auto new_args = sdpa->input_values();
-                OutputVector inputs {new_args.at(0), new_args.at(1), new_args.at(2), cu_seqlens_param};
-    
+                OutputVector inputs{new_args.at(0), new_args.at(1), new_args.at(2), cu_seqlens_param};
+
                 std::shared_ptr<op::internal::VLSDPA> vl_sdpa;
                 vl_sdpa = std::make_shared<op::internal::VLSDPA>(inputs);
                 vl_sdpa->set_friendly_name(sdpa->get_friendly_name());

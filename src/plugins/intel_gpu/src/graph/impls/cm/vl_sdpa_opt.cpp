@@ -1,17 +1,17 @@
 // Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <cmath>
-#include <algorithm>
-
 #include "vl_sdpa_opt.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include "common_utils/kernel_generator_base.hpp"
+#include "intel_gpu/primitives/vl_sdpa.hpp"
 #include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "utils/kernel_generator.hpp"
-#include "intel_gpu/primitives/vl_sdpa.hpp"
 
 namespace ov::intel_gpu::cm {
 namespace {
@@ -21,7 +21,7 @@ constexpr auto get_vlsdpa_build_options() {
 }
 
 // Overload << operator for vectors
-template<typename T>
+template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
     os << "[";
     for (size_t i = 0; i < vec.size(); ++i) {
@@ -62,9 +62,9 @@ protected:
         const auto query_shape = transpose_pshape(params.get_input_layout(0).get_partial_shape(), desc->input_q_transpose_order);
         const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
 
-        const size_t head_size = key_shape[query_shape.size()-1].get_length();
-        const size_t num_q_heads = query_shape[query_shape.size()-3].get_length();
-        const size_t num_kv_heads = key_shape[key_shape.size()-3].get_length();
+        const size_t head_size = key_shape[query_shape.size() - 1].get_length();
+        const size_t num_q_heads = query_shape[query_shape.size() - 3].get_length();
+        const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(head_size));
 
         jit.add({
@@ -81,7 +81,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
 
-        for (uint32_t i = 0; i < params.input_layouts.size() - 1; i++) { // inputs: q, k, v
+        for (uint32_t i = 0; i < params.input_layouts.size() - 1; i++) {  // inputs: q, k, v
             args.push_back({ArgumentDescriptor::Types::INPUT, i});
         }
 
@@ -89,7 +89,7 @@ protected:
             args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
         }
 
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(params.input_layouts.size() - 1)}); // input: cu_seq_lens
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(params.input_layouts.size() - 1)});  // input: cu_seq_lens
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
@@ -113,7 +113,7 @@ protected:
                 return transposed_pshape;
             };
             const auto query_shape = transpose_pshape(params.get_input_layout(0).get_shape(), desc->input_q_transpose_order);
-            const size_t num_q_heads = query_shape[query_shape.size()-3];  // TODO: make it to be configuration of primitive_inst
+            const size_t num_q_heads = query_shape[query_shape.size() - 3];  // TODO: make it to be configuration of primitive_inst
 
             auto& instance = reinterpret_cast<typed_primitive_inst<cldnn::vl_sdpa>&>(*rt_params->instance);
             const auto& cu_seqlens = vl_sdpa_inst::get_mask_seqlens_from_memory(instance.cu_seqlens_memory_ptr(), params.get_stream());
@@ -127,7 +127,7 @@ protected:
 
             const auto& info = params.get_device_info();
             const size_t CM_GRF_WIDTH = (info.arch <= gpu_arch::xe_hpc) ? 256 : 512;
-            const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));   // or 8 on Xe1
+            const size_t q_step = static_cast<size_t>(std::floor(CM_GRF_WIDTH / 32));  // or 8 on Xe1
             size_t wg_size = static_cast<size_t>(std::floor((max_seq_len + q_step - 1) / q_step));
             int32_t need_wg_mapping = 0;
             if (wg_size > 16) {
@@ -156,7 +156,7 @@ protected:
             wgs.global = {num_q_heads, wg_count * wg_size};
             wgs.local = {1, wg_size};
 
-            std::vector<int32_t> scalars {need_wg_mapping};
+            std::vector<int32_t> scalars{need_wg_mapping};
             kd.params.scalars.clear();
             for (auto i : scalars) {
                 scalar_desc desc;

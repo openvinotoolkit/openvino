@@ -8,8 +8,8 @@
 #include <utility>
 
 #include "intel_gpu/runtime/layout.hpp"
-#include "vl_sdpa_inst.h"
 #include "registry/implementation_manager.hpp"
+#include "vl_sdpa_inst.h"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 

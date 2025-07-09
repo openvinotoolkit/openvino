@@ -4,56 +4,31 @@
 
 #include "ov_ops/vl_sdpa.hpp"
 
-#include "itt.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
-
-#include "itt.hpp"
-#include "scaled_dot_product_attention_shape_inference.hpp"
-
-#include "ov_ops/augru_sequence.hpp"
-
 #include "augru_sequence_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "ov_ops/augru_sequence.hpp"
+#include "scaled_dot_product_attention_shape_inference.hpp"
 namespace ov {
 namespace op {
 namespace internal {
-
-namespace {
-// Overload << operator for vectors
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
-    os << "[";
-    for (size_t i = 0; i < vec.size(); ++i) {
-        os << vec[i];
-        if (i != vec.size() - 1) {
-            os << ", ";
-        }
-    }
-    os << "]";
-    return os;
-}
-};  // namespace
 
 VLSDPA::VLSDPA(const OutputVector& inputs,
                const std::vector<int64_t>& order_q,
                const std::vector<int64_t>& order_k,
                const std::vector<int64_t>& order_v,
                const std::vector<int64_t>& order_out)
-    : Op(inputs)
-    , m_order_q(order_q)
-    , m_order_k(order_k)
-    , m_order_v(order_v)
-    , m_order_out(order_out) {
+    : Op(inputs),
+      m_order_q(order_q),
+      m_order_k(order_k),
+      m_order_v(order_v),
+      m_order_out(order_out) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<ov::Node> VLSDPA::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(internal_VLSDPA_clone_with_new_inputs);
-    return std::make_shared<VLSDPA>(new_args,
-                                    m_order_q,
-                                    m_order_k,
-                                    m_order_v,
-                                    m_order_out);
+    return std::make_shared<VLSDPA>(new_args, m_order_q, m_order_k, m_order_v, m_order_out);
 }
 
 bool VLSDPA::visit_attributes(ov::AttributeVisitor& visitor) {
@@ -72,10 +47,9 @@ void VLSDPA::validate_and_infer_types() {
     auto out_type = get_input_element_type(0);
 
     const auto& cu_seqlens_type = get_input_element_type(3);
-    NODE_VALIDATION_CHECK(
-        this,
-        cu_seqlens_type.is_integral() || cu_seqlens_type.is_dynamic(),
-        "The element type of cu_seqlens must be integral.");
+    NODE_VALIDATION_CHECK(this,
+                          cu_seqlens_type.is_integral() || cu_seqlens_type.is_dynamic(),
+                          "The element type of cu_seqlens must be integral.");
 
     for (size_t i = 1; i < 3; i++) {
         const auto& element_type = get_input_element_type(i);
@@ -101,10 +75,6 @@ void VLSDPA::validate_and_infer_types() {
         return transposed_pshape;
     };
     const auto& output_shape = transpose_pshape(input_shapes[0], m_order_q);
-    // std::cout << "----------------- VLSDPA::validate_and_infer_types() -----------------" << std::endl;
-    // std::cout << "----------------- m_order_q: " << m_order_q <<
-    // "," << "m_order_out: " << m_order_out <<
-    // "," << input_shapes[0] << "->" << output_shape<< std::endl;
     if (m_order_out.size() > 0) {
         set_output_type(0, out_type, transpose_pshape(output_shape, m_order_out));
     } else {
