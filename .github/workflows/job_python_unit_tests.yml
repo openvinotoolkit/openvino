@@ -7,11 +7,6 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
-        type: string
-        required: false
-        default: '{"image": null}'
       image:
         description: 'Docker image to use for the job'
         type: string
@@ -48,9 +43,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install      
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
-      
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -61,8 +54,8 @@ jobs:
             **/*.toml
             **/*.lock
           sparse-checkout-cone-mode: false
-
-      - name: Download OpenVINO artifacts
+    
+      - name: Download OpenVINO artifacts (tarballs and wheels)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: openvino_@(wheels|tests)
@@ -74,7 +67,7 @@ jobs:
         run: brew install pigz
           
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v 
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Setup Python ${{ inputs.python-version }}
@@ -135,7 +128,7 @@ jobs:
             GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
             export LD_PRELOAD=${GOMP_LIB}
           fi
-
+          
           poetry run pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
