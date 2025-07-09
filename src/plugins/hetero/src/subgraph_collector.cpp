@@ -201,7 +201,8 @@ ov::hetero::SubgraphCollector::SubgraphIdsMap ov::hetero::SubgraphCollector::col
 }
 void ov::hetero::SubgraphCollector::split_subgraphs_by_parameter_results() {
     auto is_constant_input = [](const std::shared_ptr<ov::Node>& node) -> bool {
-        if (ov::op::util::is_constant(node)) return true;
+        if (ov::op::util::is_constant(node))
+            return true;
         if (ov::is_type<ov::op::v0::Convert>(node)) {
             // Check all inputs of Convert are from constants
             for (const auto& input : node->inputs()) {
