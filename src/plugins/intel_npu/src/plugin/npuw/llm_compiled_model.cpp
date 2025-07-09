@@ -647,6 +647,17 @@ struct KVAxesPosition {
     uint32_t seq_len;
 };
 
+void print_shape(ov::PartialShape shape) {
+    std::cout << "Shape: [";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        std::cout << shape[i];
+        if (i < shape.size() - 1) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << "]" << std::endl;
+}
+
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
@@ -678,6 +689,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape[kv_axes_position.batch] = 1;
             new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
         }
+        std::cout << "input name: " << input_name << std::endl;
+        print_shape(new_shape);
         new_shapes.emplace(input_name, new_shape);
     }
     model->reshape(new_shapes);
@@ -846,7 +859,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
       m_name(model->get_friendly_name()),
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
-    LOG_DEBUG("Creating LLMCompiledModel");
+    LOG_WARN("Creating LLMCompiledModel");
+    std::cout << "[gx] Creating LLMCompiledModel" << "\n";
     LOG_BLOCK();
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
@@ -867,16 +881,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_cfg.update(any_copy(npuw_llm_props));
 
-    LOG_DEBUG("1. Creating kvcache model as clone of passed one.");
+    LOG_WARN("1. Creating kvcache model as clone of passed one.");
+    std::cout << "[gx] 1. Creating kvcache model as clone of passed one." << "\n";
     auto kvcache_model = model->clone();
-    LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
+    LOG_WARN("2. Transform kvcache model from stateful to stateless.");
+    std::cout << "[gx] 2. Transform kvcache model from stateful to stateless." << "\n";
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
-    LOG_DEBUG("   ...also convert BF16 to FP16");
+    LOG_WARN("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-    LOG_DEBUG("3. Creating prefill model as clone of transformed kvcache one.");
+    LOG_WARN("3. Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
@@ -887,34 +903,49 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
-    LOG_DEBUG("4. Make prefill model with static shapes");
-    reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
-    LOG_DEBUG("5. Make kvcache model with static shapes");
+    LOG_WARN("4. Make prefill model with static shapes");
+    printf("4. Make prefill model with static shapes\n");
+    // reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
+    reshape_to_static(prefill_model, 128, m_kvcache_desc.max_prompt_size, axes);
+    ov::serialize(prefill_model, "gx_prefill_model.xml", "gx_prefill_model.bin");
+    ov::pass::Validate().run_on_model(prefill_model);
+    LOG_WARN("5. Make kvcache model with static shapes");
+    printf("5. Make kvcache model with static shapes\n");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
+    ov::serialize(kvcache_model, "gx_kv_model.xml", "gx_kv_model.bin");
 
-    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
+    LOG_WARN("5.1, decompose GroupQueryAttention OP");
+    printf("5.1, decompose GroupQueryAttention OP\n");
     decompose_GQA(prefill_model, true);
     decompose_GQA(kvcache_model, false);
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
-        LOG_DEBUG("6. Check and apply opt layout");
+        LOG_WARN("6. Check and apply opt layout");
+        printf("6. Check and apply opt layout\n");
         LOG_BLOCK();
         if (ov::npuw::util::optimize_value_tensors(kvcache_model, false)) {
             NPUW_ASSERT(ov::npuw::util::optimize_value_tensors(prefill_model, true));
             m_kvcache_desc.v_tensors_transposed = true;
         } else {
-            LOG_DEBUG("vtensors optimisation not applied");
+            LOG_WARN("vtensors optimisation not applied");
+            printf("vtensors optimisation not applied\n");
         }
     } else {
-        LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
+        LOG_WARN("6. Check and apply opt layout --- SKIPPED");
+        printf("6. Check and apply opt layout --- SKIPPED\n");
     }
-    NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
-    LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
+    // NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+    LOG_WARN("7. Optimize kvcache model to output key/values for new token.");
+    printf("7. Optimize kvcache model to output key/values for new token.\n");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
-    LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");
+    LOG_WARN("8. Converting KV-cache in kvcache model to FP16.");
+    printf("8. Converting KV-cache in kvcache model to FP16.\n");
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
-    LOG_DEBUG("9. Converting KV-cache in prefill model to FP16.");
+
+    prefill_model = redirect_new_kv_to_output(prefill_model);
+    LOG_WARN("9. Converting KV-cache in prefill model to FP16.");
+    printf("9. Converting KV-cache in prefill model to FP16.\n");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
     auto npudesc = extract_npu_descriptor(plugin);
@@ -956,7 +987,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                       "model and its config, please check passed config.");
 
     implement_properties();
-    LOG_DEBUG("Done");
+    LOG_WARN("Done");
 }
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,

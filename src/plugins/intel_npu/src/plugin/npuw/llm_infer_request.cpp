@@ -284,6 +284,7 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
             return;
         }
 
+
         if (left_prompts <= 0) {
             std::cout << "left_prompts is less than 0, no need to copy KV-Cache" << std::endl;
             break;
@@ -315,32 +316,14 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
                                                     kvcache_desc.num_stored_tokens - static_cast<uint32_t>(current_prompts_len),
                                                     kvcache_desc.num_stored_tokens);
             auto kvcache_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
-            // Current key and value is generated at the end of kv-cache
-            auto kvcache_out_slice = make_tensor_slice(kvcache_out_tensor,
-                                                    kv_dim,
-                                                    kvcache_desc.max_prompt_size - static_cast<uint32_t>(current_prompts_len),
-                                                    kvcache_desc.max_prompt_size);
-
-            if (i == 0) {
-                std::cout << "kv_dim: " << kv_dim << std::endl;
-                std::cout << "kvcache_in_tensor: " << std::endl;
-                print_shape(kvcache_in_tensor->get_shape());
-                std::cout << "kvcache_out_tensor: " << std::endl;
-                print_shape(kvcache_out_tensor->get_shape());
-
-                std::cout << "kvcache_in_slice: " << std::endl;
-                print_shape(kvcache_in_slice->get_shape());
-                std::cout << "kvcache_out_slice: " << std::endl;
-                print_shape(kvcache_out_slice->get_shape());
-            }
 
             if (kv_dim == 3u) {
-                // ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_slice, kvcache_in_slice);
-                copy_columns_by_row_chunks(kvcache_out_slice, kvcache_in_slice);
+                // ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_tensor, kvcache_in_slice);
+                copy_columns_by_row_chunks(kvcache_out_tensor, kvcache_in_slice);
             } else if (kv_dim == 2u) {
-                copy_by_planes(kvcache_out_slice, kvcache_in_slice);
+                copy_by_planes(kvcache_out_tensor, kvcache_in_slice);
             } else {
-                kvcache_out_slice->copy_to(kvcache_in_slice._ptr);
+                kvcache_out_tensor->copy_to(kvcache_in_slice._ptr);
             }
 
 #if 0
@@ -442,6 +425,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
             auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
+            auto prefill_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+
             // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
             //        taking into account kvcache dimension.
             fill_tensor<ov::float16>(kvcache_in_tensor, 0);
@@ -452,24 +437,48 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
             ov::SoPtr<ov::ITensor> prefill_out_slice;
             if (m_copy_kv_cache_from_chunk_prefill) {
-                prefill_out_slice = make_tensor_slice(prefill_out_tensor,
+                auto prefilled_len_in_input = prefill_in_tensor->get_shape()[kv_dim];
+                auto prefilled_len_in_output = kvcache_desc.num_stored_tokens - prefilled_len_in_input;
+                auto prefill_in_slice = make_tensor_slice(prefill_in_tensor,
                                                        kv_dim,
-                                                       0u, kvcache_desc.num_stored_tokens);
+                                                       0u, static_cast<uint32_t>(prefilled_len_in_input));
+
+                auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(prefilled_len_in_input));
+                // TODO: reduce repeated code
+                if (kv_dim == 3u) {
+                    copy_columns_by_row_chunks(prefill_in_slice, kvcache_in_slice);
+                } else if (kv_dim == 2u) {
+                    copy_by_planes(prefill_in_slice, kvcache_in_slice);
+                } else {
+                    prefill_in_slice->copy_to(kvcache_in_slice._ptr);
+                }
+
+                prefill_out_slice = make_tensor_slice(prefill_out_tensor, kv_dim, 0, static_cast<uint32_t>(prefilled_len_in_output));
+
+                kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, kvcache_desc.num_stored_tokens - static_cast<uint32_t>(prefilled_len_in_output), kvcache_desc.num_stored_tokens);
+
+                if (kv_dim == 3u) {
+                    copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+                } else if (kv_dim == 2u) {
+                    copy_by_planes(prefill_out_slice, kvcache_in_slice);
+                } else {
+                    prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+                }
             } else {
                 prefill_out_slice = make_tensor_slice(prefill_out_tensor,
                                                        kv_dim,
                                                        kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
                                                        kvcache_desc.max_prompt_size);
-            }
 
-            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+                auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
-            if (kv_dim == 3u) {
-                copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
-            } else if (kv_dim == 2u) {
-                copy_by_planes(prefill_out_slice, kvcache_in_slice);
-            } else {
-                prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+                if (kv_dim == 3u) {
+                    copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
+                } else if (kv_dim == 2u) {
+                    copy_by_planes(prefill_out_slice, kvcache_in_slice);
+                } else {
+                    prefill_out_slice->copy_to(kvcache_in_slice._ptr);
+                }
             }
         }
 
