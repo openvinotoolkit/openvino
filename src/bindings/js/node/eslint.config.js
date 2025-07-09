@@ -31,6 +31,7 @@ const customRules = {
   'no-explicit-any': 0,
   'no-unused-vars': 0, // addon.ts interfaces
   '@typescript-eslint/no-require-imports': 0,
+  '@typescript-eslint/no-misused-new': 'off',
 };
 
 module.exports = defineConfig([
