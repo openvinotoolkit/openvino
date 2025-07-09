@@ -89,7 +89,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
         THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
+    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp)}, {PortConfigurator(LayoutType::ncsp, ov::element::i32)}, impl_desc_type::ref);
 }
 
 template <typename T>

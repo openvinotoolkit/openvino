@@ -62,8 +62,8 @@ void Col2Im::initSupportedPrimitiveDescriptors() {
     }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
     addSupportedPrimDesc(
-        {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
-        {{LayoutType::ncsp, dataPrecision}},
+        {PortConfigurator(LayoutType::ncsp, dataPrecision), PortConfigurator(LayoutType::ncsp, ov::element::i32), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
+        {PortConfigurator(LayoutType::ncsp, dataPrecision)},
         impl_desc_type::ref);
 }
 

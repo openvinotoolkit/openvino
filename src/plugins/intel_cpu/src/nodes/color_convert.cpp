@@ -312,8 +312,8 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
-    descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
-                       std::vector<PortConfigurator>{{layout, precision}},
+    descs.emplace_back(std::vector<PortConfigurator>(node->getOriginalInputsNumber(), PortConfigurator(layout, precision)),
+                       std::vector<PortConfigurator>{PortConfigurator(layout, precision)},
                        mayiuse(cpu_isa_t::sse41) ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
@@ -647,8 +647,8 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     ColorConvert::Converter::PrimitiveDescs descs;
 
-    descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
-                       std::vector<PortConfigurator>{{layout, precision}},
+    descs.emplace_back(std::vector<PortConfigurator>(node->getOriginalInputsNumber(), PortConfigurator(layout, precision)),
+                       std::vector<PortConfigurator>{PortConfigurator(layout, precision)},
                        mayiuse(cpu_isa_t::sse41) ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 

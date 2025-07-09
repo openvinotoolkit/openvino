@@ -68,7 +68,7 @@ public:
           constant(constant),
           inPlace(inPlace) {}
 
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,  // NOLINT(google-explicit-constructor)
+    explicit PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
                      ov::element::Type prc = ov::element::dynamic,
                      bool constant = false,
                      int inPlace = -1)

@@ -176,19 +176,19 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
                                                                   {LayoutType::nCsp8c, LayoutType::nCsp8c}};
 
         for (const auto& df : dataFomats) {
-            addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, ov::element::f32}},
-                                 {{df.second, dataPrecision}},
+            addSupportedPrimDesc({PortConfigurator(df.first, dataPrecision), PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                                 {PortConfigurator(df.second, dataPrecision)},
                                  impl_type);
         }
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable && noTrans) {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::f32}},
-                             {{LayoutType::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)}, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
+                             {PortConfigurator(LayoutType::ncsp, dataPrecision)},
                              impl_type);
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                              {LayoutType::ncsp, ov::element::f32},
-                              {LayoutType::ncsp, ov::element::f32}},
-                             {{LayoutType::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
+                              {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                              {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
+                             {PortConfigurator(LayoutType::ncsp, dataPrecision)},
                              impl_type);
     }
 }
@@ -436,7 +436,7 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
                 if (srcDesc.hasLayoutType(LayoutType::nspc)) {
                     binOffIn = roiBatchInd * channels * height * width + gc;
                     inBlkRes = 0;
-                } else {  // nchw, nChw16c, nChw8c
+                } else { // nchw, nChw16c, nChw8c
                     const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
                     binOffIn = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
                     inBlkRes =

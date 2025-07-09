@@ -75,8 +75,8 @@ void SearchSorted::initSupportedPrimitiveDescriptors() {
         outputPrec = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inputPrec}, {LayoutType::ncsp, inputPrec}},
-                         {{LayoutType::ncsp, outputPrec}},
+    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, inputPrec)}, {PortConfigurator(LayoutType::ncsp, inputPrec)}},
+                         {PortConfigurator(LayoutType::ncsp, outputPrec)},
                          impl_desc_type::ref);
 }
 

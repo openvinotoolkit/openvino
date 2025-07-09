@@ -49,10 +49,11 @@ void ROIAlignRotated::initSupportedPrimitiveDescriptors() {
     ov::element::Type inputPrec0 = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrec = getOriginalOutputPrecisionAtPort(0);
 
-    addSupportedPrimDesc(
-        {{LayoutType::ncsp, inputPrec0}, {LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}},
-        {{LayoutType::ncsp, outputPrec}},
-        impl_desc_type::ref);
+    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, inputPrec0),
+                          PortConfigurator(LayoutType::ncsp, ov::element::f32),
+                          PortConfigurator(LayoutType::ncsp, ov::element::i32)},
+                         {PortConfigurator(LayoutType::ncsp, outputPrec)},
+                         impl_desc_type::ref);
 }
 
 bool ROIAlignRotated::created() const {

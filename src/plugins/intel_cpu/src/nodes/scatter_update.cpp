@@ -325,14 +325,14 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
 
     bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
-    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1},
-                                               {LayoutType::ncsp, indicesPrec},
-                                               {LayoutType::ncsp, dataPrec}};
+    std::vector<PortConfigurator> inPortConfig{PortConfigurator(LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1),
+                                               PortConfigurator(LayoutType::ncsp, indicesPrec),
+                                               PortConfigurator(LayoutType::ncsp, dataPrec)};
     if (axisRelaxed) {
         inPortConfig.emplace_back(LayoutType::ncsp, axisPrec);
     }
     addSupportedPrimDesc(inPortConfig,
-                         {{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1}},
+                         {PortConfigurator(LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1)},
                          impl_desc_type::unknown);
 }
 

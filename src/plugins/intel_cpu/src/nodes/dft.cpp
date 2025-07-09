@@ -96,12 +96,12 @@ void DFT::initSupportedPrimitiveDescriptors() {
     }
 
     std::vector<PortConfigurator> inDataConfigurators(
-        {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
+        {PortConfigurator(LayoutType::ncsp, ov::element::f32), PortConfigurator(LayoutType::ncsp, ov::element::i32)});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         inDataConfigurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
-    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}, impl_desc_type::ref_any);
 }
 
 namespace {
