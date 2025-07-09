@@ -23,8 +23,8 @@ public:
           ze_graph_handle_t graphHandle,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          bool blobAllocatedByPlugin,
           const Config& config,
+          const bool persistentBlob = true,
           const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
     size_t export_blob(std::ostream& stream) const override;
@@ -47,7 +47,7 @@ private:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _blobAllocatedByPlugin = false;
+    bool _persistentBlob;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;

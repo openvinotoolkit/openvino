@@ -38,6 +38,8 @@ private:
     ov::SoPtr<ICompiler> _compiler;
 
     Logger _logger;
+
+    uint32_t _graphExtVersion = 0;
 };
 
 }  // namespace intel_npu

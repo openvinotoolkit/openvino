@@ -5,6 +5,7 @@
 #include "metadata.hpp"
 
 #include <cstring>
+#include <iterator>
 #include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -65,9 +66,9 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
 
     auto metadataSize = get_medata_size() + _ovVersion.get_openvino_version_size();
     auto size = (metadataSize + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
-    auto sizeToWrite = size - metadataSize;
-    if (sizeToWrite) {
-        std::fill_n(std::ostream_iterator<char>(stream), sizeToWrite, 0);
+    auto paddingSize = size - metadataSize;
+    if (paddingSize) {
+        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
     }
 
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));

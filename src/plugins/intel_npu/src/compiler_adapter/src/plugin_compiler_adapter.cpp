@@ -13,6 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -64,15 +65,15 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         return;
     }
 
-    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    _graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
 
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(graphExtVersion),
-                 ZE_MINOR_VERSION(graphExtVersion));
+                 ZE_MAJOR_VERSION(_graphExtVersion),
+                 ZE_MINOR_VERSION(_graphExtVersion));
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -110,8 +111,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkDesc.metadata),
                                    std::move(tensor),
-                                   /* blobAllocatedByPlugin = */ false,
                                    config,
+                                   /* blobPersistent = */ true,
                                    _compiler);
 }
 
@@ -129,10 +130,16 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
     network.shrink_to_fit();
     _logger.debug("parse end");
 
-    ze_graph_handle_t graphHandle = nullptr;
+    bool blobAligned = false;
+    if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13)) {
+        blobAligned = utils::memory_and_size_aligned_to_standard_page_size(blob.data(), blob.get_byte_size());
+    }
 
+    ze_graph_handle_t graphHandle = nullptr;
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
+        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
+                                                  blob.get_byte_size(),
+                                                  blobAligned);
     }
 
     return std::make_shared<Graph>(_zeGraphExt,
@@ -140,8 +147,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
                                    graphHandle,
                                    std::move(networkMeta),
                                    std::move(blob),
-                                   blobAllocatedByPlugin,
                                    config,
+                                   blobAligned ? blobAligned : !blobAllocatedByPlugin,
                                    _compiler);
 }
 

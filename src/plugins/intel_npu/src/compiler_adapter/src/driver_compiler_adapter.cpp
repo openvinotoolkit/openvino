@@ -13,6 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -150,7 +151,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize DriverCompilerAdapter start");
 
-    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    _graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
@@ -159,8 +160,8 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize DriverCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(graphExtVersion),
-                 ZE_MINOR_VERSION(graphExtVersion));
+                 ZE_MAJOR_VERSION(_graphExtVersion),
+                 ZE_MINOR_VERSION(_graphExtVersion));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -204,7 +205,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   /* blobAllocatedByPlugin = */ false,
                                    config);
 }
 
@@ -213,9 +213,14 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
                                                      const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
+    bool blobAligned = false;
+    if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13)) {
+        blobAligned = utils::memory_and_size_aligned_to_standard_page_size(blob.data(), blob.get_byte_size());
+    }
+
     _logger.debug("parse start");
     ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size());
+        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size(), blobAligned);
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
@@ -226,8 +231,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
                                    graphHandle,
                                    std::move(networkMeta),
                                    std::move(blob),
-                                   blobAllocatedByPlugin,
-                                   config);
+                                   config,
+                                   blobAligned ? blobAligned : !blobAllocatedByPlugin);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
