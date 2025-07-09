@@ -39,6 +39,9 @@
 #include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/runtime/IScheduler.h>
+#    include <arm_compute/runtime/Scheduler.h>
+
 #    include "nodes/executors/acl/acl_ie_scheduler.hpp"
 #endif
 
