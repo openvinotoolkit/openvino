@@ -20,9 +20,9 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/variadic_split.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "transformations/utils/gen_pattern.hpp"
@@ -38,17 +38,18 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
     auto q_proj_weight_const_i8 =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
-    auto q_proj_weight_f32 = pattern::wrap_type<v0::Convert>({q_proj_weight_const_i8}, pattern::type_matches(element::i32));
+    auto q_proj_weight_f32 =
+        pattern::wrap_type<v0::Convert>({q_proj_weight_const_i8}, pattern::type_matches(element::i32));
     auto q_proj_weight_scales_per_OC =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::shape_matches("[?, 1]"));
     auto q_proj_weight_deq = pattern::wrap_type<v1::Multiply>({q_proj_weight_f32, q_proj_weight_scales_per_OC},
-                                                                      {{"auto_broadcast", "numpy"}});
+        {{"auto_broadcast", "numpy"}});
 
     auto q_proj_weight_const = pattern::wrap_const();
     auto q_proj_weight_cvt =
         pattern::optional<op::v0::Convert>({q_proj_weight_const}, pattern::type_matches(element::i32));  //  [4096,4096]
     auto q_proj = pattern::wrap_type<v0::MatMul>({input, q_proj_weight_cvt | q_proj_weight_deq},
-                                                     {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
+         {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -190,8 +191,8 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
     auto input = pattern::any_input(pattern::rank_equals(3));
 
     auto qkv_proj_weight_const = pattern::wrap_const();
-    auto qkv_proj_cvt = pattern::wrap_type<op::v0::Convert>({qkv_proj_weight_const},
-                                                            pattern::type_matches(element::f32));
+    auto qkv_proj_cvt =
+        pattern::wrap_type<op::v0::Convert>({qkv_proj_weight_const}, pattern::type_matches(element::f32));
 
     auto qkv_proj_weight_const_i8 =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
@@ -201,12 +202,13 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[?, 1]"));
     auto qkv_proj_weight_deq =
         pattern::wrap_type<ov::op::v1::Multiply>({qkv_proj_weight_f32, qkv_proj_weight_scales_per_OC},
-                                                 {{"auto_broadcast", "numpy"}});
+            {{"auto_broadcast", "numpy"}});
 
     auto qkv_proj = pattern::wrap_type<op::v0::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
-                                                       {{"transpose_a", false}, {"transpose_b", true}});
-    auto qkv_split_lengths = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i32) &&
-                                                                  pattern::shape_matches("[3]"));
+        {{"transpose_a", false}, {"transpose_b", true}});
+    auto qkv_split_lengths =
+        pattern::wrap_type<op::v0::Constant>(pattern::type_matches(
+            element::i32) && pattern::shape_matches("[3]"));
     auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
     auto result = qkv_split->output(0);
 
