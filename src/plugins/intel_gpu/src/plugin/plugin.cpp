@@ -393,9 +393,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
             // This is non IR case, e.g. onnxruntime
             if (auto orig_model = config.get_model(); orig_model != nullptr) {
                 set_weightless_cache_attributes(orig_model);
+            } else {
+                return nullptr;
             }
-        } else {
-            return nullptr;
         }
     }
 
