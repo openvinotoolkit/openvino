@@ -1,5 +1,5 @@
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/ubuntu:20.04
+FROM ${REGISTRY}/library/ubuntu:24.04
 
 USER root
 
@@ -18,6 +18,7 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
+        --no-install-recommends \
         curl \
         git \
         ca-certificates \
@@ -41,10 +42,12 @@ RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get purge -y python3-pip
+
 # Setup pip
-ENV PIP_VERSION="24.0"
+ENV PIP_VERSION="25.1"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.8

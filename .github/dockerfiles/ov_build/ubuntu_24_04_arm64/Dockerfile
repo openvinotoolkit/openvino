@@ -1,5 +1,5 @@
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/ubuntu:20.04
+FROM ${REGISTRY}/library/ubuntu:24.04
 
 USER root
 
@@ -18,6 +18,7 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
+        --no-install-recommends \
         curl \
         git \
         ca-certificates \
@@ -43,8 +44,8 @@ RUN apt-get update && \
         # For Java API
         default-jdk \
         # Compiler, required for multi-isa build
-        gcc-10 \
-        g++-10 \
+        gcc-14 \
+        g++-14 \
         # JS API
         xvfb \
         libgtk-3-0 \
@@ -52,6 +53,7 @@ RUN apt-get update && \
         # ONNX Runtime
         language-pack-en \
         && \
+    # Remove apt cache
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -60,9 +62,11 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
+RUN apt-get purge -y python3-pip
+
+# Set gcc-14 as a default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 30 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 30
 
 # Install sccache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -75,15 +79,13 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 # Setup pip
-ENV PIP_VERSION="24.0"
+ENV PIP_VERSION="25.1"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
-    python3 get-pip-3-8.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
+    python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
+    python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
+    python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.8
