@@ -17,9 +17,6 @@ public:
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
-
-private:
-    bool m_use_subgraph;
 };
 
 }  // namespace snippets
