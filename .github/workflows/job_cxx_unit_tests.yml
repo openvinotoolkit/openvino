@@ -105,6 +105,7 @@ jobs:
       - name: Check that all filters have at least one test in the suite
         shell: bash
         run: |
+          ${{ env.SETUPVARS_COMMAND }}
           declare -A binaries_and_filters=(
               ["ov_core_unit_tests"]="-*IE_GPU*"
               ["ov_inference_functional_tests"]=""
