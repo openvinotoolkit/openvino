@@ -8,6 +8,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/predicate.hpp"
 
 namespace ov::pass::pattern {
 namespace op {
@@ -94,5 +95,5 @@ std::shared_ptr<Node> wrap_type(std::initializer_list<std::pair<const std::strin
     return wrap_type<Args...>(PatternOps{}, Attributes(attrs));
 }
 
-std::shared_ptr<Node> wrap_const();
+OPENVINO_API std::shared_ptr<Node> wrap_const();
 }  // namespace ov::pass::pattern

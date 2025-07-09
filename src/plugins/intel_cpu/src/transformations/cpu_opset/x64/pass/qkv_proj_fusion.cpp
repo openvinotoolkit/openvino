@@ -20,6 +20,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/pp.hpp"
@@ -28,33 +29,28 @@
 
 using namespace ov::gen_pattern;
 using namespace ov::pass;
+using namespace ov::op;
 
 ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     MATCHER_SCOPE(QKVProjFusion);
 
-    auto input = makePattern("[?,?,?]");
-
-    auto q_proj_weight_const = makePattern<op::v0::Constant>({});
+    auto input = pattern::any_input(pattern::rank_equals(3));
 
     auto q_proj_weight_const_i8 =
-        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto q_proj_weight_f32 = makePattern<op::v0::Convert>({q_proj_weight_const_i8}, {{"destination_type", "f32"}});
-    auto q_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto q_proj_weight_deq = makePattern<ov::op::v1::Multiply>({q_proj_weight_f32, q_proj_weight_scales_per_OC},
-                                                               {{"auto_broadcast", "numpy"}});
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
+    auto q_proj_weight_f32 = pattern::wrap_type<v0::Convert>({q_proj_weight_const_i8}, pattern::type_matches(element::i32));
+    auto q_proj_weight_scales_per_OC =
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::shape_matches("[?, 1]"));
+    auto q_proj_weight_deq = pattern::wrap_type<v1::Multiply>({q_proj_weight_f32, q_proj_weight_scales_per_OC},
+                                                                      {{"auto_broadcast", "numpy"}});
 
+    auto q_proj_weight_const = pattern::wrap_const();
     auto q_proj_weight_cvt =
-        makePattern<op::v0::Convert>({q_proj_weight_const}, {{"destination_type", "f32"}});  //  [4096,4096]
-    auto q_proj = makePattern<op::v0::MatMul>({input, q_proj_weight_cvt | q_proj_weight_const | q_proj_weight_deq},
-                                              {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
-    auto result = q_proj;
+        pattern::optional<op::v0::Convert>({q_proj_weight_const}, pattern::type_matches(element::i32));  //  [4096,4096]
+    auto q_proj = pattern::wrap_type<v0::MatMul>({input, q_proj_weight_cvt | q_proj_weight_deq},
+                                                     {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -184,38 +180,37 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(q_proj, matcher_name);
     this->register_matcher(m, callback);
 }
 
 ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
     MATCHER_SCOPE(QKVProjFusion2);
 
-    auto input = makePattern("[?,?,?]");
+    auto input = pattern::any_input(pattern::rank_equals(3));
 
-    auto qkv_proj_weight_const = makePattern<op::v0::Constant>({});
-    auto qkv_proj_cvt = makePattern<op::v0::Convert>({qkv_proj_weight_const}, {{"destination_type", "f32"}});
+    auto qkv_proj_weight_const = pattern::wrap_const();
+    auto qkv_proj_cvt = pattern::wrap_type<op::v0::Convert>({qkv_proj_weight_const},
+                                                            pattern::type_matches(element::f32));
 
     auto qkv_proj_weight_const_i8 =
-        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto qkv_proj_weight_f32 = makePattern<op::v0::Convert>({qkv_proj_weight_const_i8}, {{"destination_type", "f32"}});
-    auto qkv_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto qkv_proj_weight_deq = makePattern<ov::op::v1::Multiply>({qkv_proj_weight_f32, qkv_proj_weight_scales_per_OC},
-                                                                 {{"auto_broadcast", "numpy"}});
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
+    auto qkv_proj_weight_f32 =
+        pattern::wrap_type<op::v0::Convert>({qkv_proj_weight_const_i8}, {{"destination_type", "f32"}});
+    auto qkv_proj_weight_scales_per_OC =
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[?, 1]"));
+    auto qkv_proj_weight_deq =
+        pattern::wrap_type<ov::op::v1::Multiply>({qkv_proj_weight_f32, qkv_proj_weight_scales_per_OC},
+                                                 {{"auto_broadcast", "numpy"}});
 
-    auto qkv_proj = makePattern<op::v0::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
-                                                {{"transpose_a", false}, {"transpose_b", true}});
-    auto qkv_split_lengths = makePattern<op::v0::Constant>({}, {}, "i32[3]");
-    auto qkv_split = makePattern<ov::op::v1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
-
+    auto qkv_proj = pattern::wrap_type<op::v0::MatMul>({input, qkv_proj_cvt | qkv_proj_weight_deq},
+                                                       {{"transpose_a", false}, {"transpose_b", true}});
+    auto qkv_split_lengths = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i32) &&
+                                                                  pattern::shape_matches("[3]"));
+    auto qkv_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({qkv_proj, 2, qkv_split_lengths});
     auto result = qkv_split->output(0);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
