@@ -119,10 +119,6 @@ void ROIAlignLayerTest::SetUp() {
                                                             spatial_scale,
                                                             pooling_mode);
     function = std::make_shared<ov::Model>(roi_align->outputs(), ov::ParameterVector{param}, "roi_align");
-
-    if (targetDevice == "GPU" && model_type == ov::element::f32) {
-        abs_threshold = 1e-4;   // ROIAlign may have very small differences in results
-    }
 }
 
 std::string ROIAlignV9LayerTest::getTestCaseName(const testing::TestParamInfo<roialignV9Params>& obj) {
@@ -203,10 +199,6 @@ void ROIAlignV9LayerTest::SetUp() {
                                                             ov::EnumNames<ov::op::v9::ROIAlign::PoolingMode>::as_enum(pooling_mode),
                                                             ov::EnumNames<ov::op::v9::ROIAlign::AlignedMode>::as_enum(roi_aligned_mode));
     function = std::make_shared<ov::Model>(roi_align->outputs(), ov::ParameterVector{param}, "roi_align");
-
-    if (targetDevice == "GPU" && model_type == ov::element::f32) {
-        abs_threshold = 1e-4;   // ROIAlign may have very small differences in results
-    }
 }
 }  // namespace test
 }  // namespace ov

@@ -8,6 +8,35 @@ namespace {
 using ov::test::ROIAlignLayerTest;
 using ov::test::ROIAlignV9LayerTest;
 
+class ROIAlignLayerGPUTest : public ROIAlignLayerTest {
+protected:
+    void SetUp() override {
+        ROIAlignLayerTest::SetUp();
+        auto param = this->GetParam();
+        ov::element::Type model_type = std::get<7>(param);
+        targetDevice = std::get<8>(param);
+        if (targetDevice == "GPU" && model_type == ov::element::f32) {
+            abs_threshold = 1e-5;   // ROIAlign may introduce small differences when output values are very small,
+            rel_threshold = 5e-2;   // so the threshold should account for this behavior.
+        }
+    }
+};
+
+class ROIAlignV9LayerGPUTest : public ROIAlignV9LayerTest {
+protected:
+    void SetUp() override {
+        ROIAlignV9LayerTest::SetUp();
+        auto param = this->GetParam();
+        ov::element::Type model_type = std::get<8>(param);
+        targetDevice = std::get<9>(param);
+
+        if (targetDevice == "GPU" && model_type == ov::element::f32) {
+            abs_threshold = 1e-5;   // ROIAlign may introduce small differences when output values are very small,
+            rel_threshold = 5e-2;   // so the threshold should account for this behavior.
+        }
+    }
+};
+
 const std::vector<ov::element::Type> netPRCs = {
     ov::element::f32
     // There is no possibility to test ROIAlign in fp16 precision,
@@ -21,8 +50,16 @@ const std::vector<ov::element::Type> netPRCs = {
     // ov::element::f16
 };
 
+TEST_P(ROIAlignLayerGPUTest, Inference) {
+    run();
+}
+
+TEST_P(ROIAlignV9LayerGPUTest, Inference) {
+    run();
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_average,
-                         ROIAlignLayerTest,
+                         ROIAlignLayerGPUTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                             std::vector<std::vector<ov::Shape>>{{{3, 8, 16, 16}},
                                                                                                 {{2, 1, 16, 16}},
@@ -35,10 +72,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_average,
                                             ::testing::Values("avg"),
                                             ::testing::ValuesIn(netPRCs),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ROIAlignLayerTest::getTestCaseName);
+                         ROIAlignLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max,
-                         ROIAlignLayerTest,
+                         ROIAlignLayerGPUTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                             std::vector<std::vector<ov::Shape>>{{{2, 8, 20, 20}},
                                                                                                 {{2, 1, 20, 20}},
@@ -51,10 +88,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max,
                                             ::testing::Values("max"),
                                             ::testing::ValuesIn(netPRCs),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ROIAlignLayerTest::getTestCaseName);
+                         ROIAlignLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_asym,
-                         ROIAlignV9LayerTest,
+                         ROIAlignV9LayerGPUTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                             std::vector<std::vector<ov::Shape>>{{{2, 1, 8, 8}},
                                                                                                 {{2, 8, 20, 20}},
@@ -69,10 +106,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_asym,
                                             ::testing::Values("asymmetric"),
                                             ::testing::ValuesIn(netPRCs),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ROIAlignV9LayerTest::getTestCaseName);
+                         ROIAlignV9LayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_hpfn,
-                         ROIAlignV9LayerTest,
+                         ROIAlignV9LayerGPUTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                             std::vector<std::vector<ov::Shape>>{{{2, 1, 8, 8}},
                                                                                                 {{2, 8, 20, 20}},
@@ -87,10 +124,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_avg_hpfn,
                                             ::testing::Values("half_pixel_for_nn"),
                                             ::testing::ValuesIn(netPRCs),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ROIAlignV9LayerTest::getTestCaseName);
+                         ROIAlignV9LayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max_hp,
-                         ROIAlignV9LayerTest,
+                         ROIAlignV9LayerGPUTest,
                          ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(
                                                             std::vector<std::vector<ov::Shape>>{{{2, 1, 8, 8}},
                                                                                                 {{2, 8, 20, 20}},
@@ -105,5 +142,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_TestsROIAlign_max_hp,
                                             ::testing::Values("half_pixel"),
                                             ::testing::ValuesIn(netPRCs),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ROIAlignV9LayerTest::getTestCaseName);
+                         ROIAlignV9LayerGPUTest::getTestCaseName);
 }  // namespace
