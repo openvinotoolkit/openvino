@@ -220,11 +220,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
         auto& eltw_node = node->as<eltwise>();
         bool is_bias_add = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
-                           eltw_node.get_dependencies().size() == 2;
+                           eltw_node.get_dependencies().size() == 2 &&
+                           eltw_node.has_eltwise_const_dep_idx() &&
+                           eltw_node.get_eltwise_const_dep_idx() < 2;
 
         if (!is_bias_add)
-            continue;
-        if (!eltw_node.has_eltwise_const_dep_idx())
             continue;
 
         auto const_dep_idx = eltw_node.get_eltwise_const_dep_idx();

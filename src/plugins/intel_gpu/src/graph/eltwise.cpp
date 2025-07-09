@@ -471,9 +471,12 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
 }
 
 bool eltwise_node::need_input_tensors_size_align() const {
-    auto& pshape_a = get_input_pshape(0);
-    auto& pshape_b = get_input_pshape(1);
-    if (pshape_a.size() != pshape_b.size() && pshape_a.size() > 1 && pshape_b.size() > 1 &&
+    if (get_input_layouts().size() < 2)
+        return false;
+
+    auto pshape_a = get_input_pshape(0).size();
+    auto pshape_b = get_input_pshape(1).size();
+    if (pshape_a != pshape_b && pshape_a > 1 && pshape_b > 1 &&
         get_primitive()->broadcast_spec == ov::op::AutoBroadcastType::NUMPY) {
         return true;
     }
