@@ -421,11 +421,11 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 if (!getParameters<int64_t>(dn, "shape", shape))
                     return;
                 ov::element::Type el_type = ov::element::Type(el_type_str);
-                std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
+                // std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
                 if (!m_weights_map) {
-                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                    // std::cout << __func__ << ":" << __LINE__ << std::endl;
                     if (m_weights && m_weights->size() == sizeof(void*)) {
-                        std::cout << __func__ << ":" << __LINE__ << std::endl;
+                        // std::cout << __func__ << ":" << __LINE__ << std::endl;
                         void* weightsMapPtr = nullptr;
                         std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
                                   << std::endl;
@@ -436,7 +436,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     } else {
                         OPENVINO_THROW("Empty weights data in map!");
                     }
-                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                    // std::cout << __func__ << ":" << __LINE__ << std::endl;
                 }
 
                 ov::pass::WeightsVariant weightsVariant;
@@ -449,21 +449,21 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     buffer = std::get<std::shared_ptr<ov::StringAlignedBuffer>>(weightsVariant);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
-                    std::cout << "using StringAlignedBuffer" << std::endl;
+                    // std::cout << "using StringAlignedBuffer" << std::endl;
                 } else if (type == 1) {
                     if (weightsVariant.index() != 1)
                         OPENVINO_THROW("Incorrect weights type in map!");
                     buffer = std::get<std::shared_ptr<ov::SharedStringAlignedBuffer>>(weightsVariant);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
-                    std::cout << "using SharedStringAlignedBuffer" << std::endl;
+                    // std::cout << "using SharedStringAlignedBuffer" << std::endl;
                 } else if (type == 2) {
                     if (weightsVariant.index() != 2)
                         OPENVINO_THROW("Incorrect weights type in map!");
                     buffer = std::get<std::shared_ptr<ov::AlignedBuffer>>(weightsVariant);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
-                    std::cout << "using AlignedBuffer" << std::endl;
+                    // std::cout << "using AlignedBuffer" << std::endl;
                 } else {
                     OPENVINO_THROW("Unknown weights type in map!");
                 }
@@ -473,7 +473,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     // auto buffer =
                     //     ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(data,
                     //     size);
-                    std::cout << "Warning: For StringAlignedBuffer!" << std::endl;
+                    // std::cout << "Warning: For StringAlignedBuffer!" << std::endl;
                     a->set(buffer);
                 } else {
                     if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3))
@@ -482,7 +482,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     // auto buffer =
                     //     std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, size,
                     //     m_weights);
-                    std::cout << "Warning: for AlignedBuffer" << std::endl;
+                    // std::cout << "Warning: for AlignedBuffer" << std::endl;
                     a->set(buffer);
                 }
             }
@@ -512,18 +512,18 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                 a->set(buffer);
             } else {
                 size_t key = static_cast<size_t>(pugixml::get_uint64_attr(dn, "key"));
-                size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
+                // size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
                 size_t type = static_cast<size_t>(pugixml::get_uint64_attr(dn, "type"));
-                std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
+                // std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
                 if (!getStrAttribute(dn, "element_type", el_type_str))
                     return;
                 if (!getParameters<int64_t>(dn, "shape", shape))
                     return;
 
                 if (!m_weights_map) {
-                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                    // std::cout << __func__ << ":" << __LINE__ << std::endl;
                     if (m_weights && m_weights->size() == sizeof(void*)) {
-                        std::cout << __func__ << ":" << __LINE__ << std::endl;
+                        // std::cout << __func__ << ":" << __LINE__ << std::endl;
                         void* weightsMapPtr = nullptr;
                         std::cout << "weights ptr " << m_weights->get_ptr() << " size " << m_weights->size()
                                   << std::endl;
@@ -534,7 +534,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     } else {
                         OPENVINO_THROW("Empty weights data in map!");
                     }
-                    std::cout << __func__ << ":" << __LINE__ << std::endl;
+                    // std::cout << __func__ << ":" << __LINE__ << std::endl;
                 }
                 ov::pass::WeightsVariant weightsVariant;
                 if (!m_weights_map->get_weights(key, weightsVariant))
@@ -546,19 +546,19 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
                     buffer = std::get<std::shared_ptr<ov::StringAlignedBuffer>>(weightsVariant);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
-                    std::cout << "using StringAlignedBuffer" << std::endl;
+                    // std::cout << "using StringAlignedBuffer" << std::endl;
                 } else if (type == 1) {
                     if (weightsVariant.index() != 1)
                         OPENVINO_THROW("Incorrect weights type in map!");
                     buffer = std::get<std::shared_ptr<ov::SharedStringAlignedBuffer>>(weightsVariant);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
-                    std::cout << "using SharedStringAlignedBuffer" << std::endl;
+                    // std::cout << "using SharedStringAlignedBuffer" << std::endl;
                 } else {
                     OPENVINO_THROW("Unknown weights type in map!");
                 }
 
-                std::cout << "Warning: For StringAlignedBuffer!" << std::endl;
+                // std::cout << "Warning: For StringAlignedBuffer!" << std::endl;
                 a->set(buffer);
             }
         }
