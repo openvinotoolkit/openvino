@@ -332,15 +332,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         _orig_config.erase(it);
     }
 
-    std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (auto blob_it = _orig_config.find(ov::hint::compiled_blob.name()); blob_it != _orig_config.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                      compiled_blob.get_byte_size(),
-                                                                      compiled_blob);
-        _orig_config.erase(blob_it);
-    }
-
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
 
@@ -373,16 +364,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
-                                                         const ov::AnyMap& properties) const{
-    OPENVINO_NOT_IMPLEMENTED;
+                                                         const ov::AnyMap& config) const{
+    std::string device_id = get_device_id(config);
+    auto context = get_default_context(device_id);
+    return import_model(model, { context, nullptr }, config);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& properties) const{
-    OPENVINO_NOT_IMPLEMENTED;
+                                                         const ov::AnyMap& config) const{
+    SharedStreamBuffer buf{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream(&buf);
+    return import_model(stream, context, config);
 }
-
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::get_property");

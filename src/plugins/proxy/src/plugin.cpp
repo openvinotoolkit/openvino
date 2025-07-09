@@ -16,6 +16,7 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
@@ -495,15 +496,18 @@ std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(std::istream
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(ov::Tensor& model,
                                                                     const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::proxy::Plugin::import_model(ov::Tensor& model,
                                                                     const ov::SoPtr<ov::IRemoteContext>& context,
                                                                     const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, context, properties);
 }
-
 
 std::string ov::proxy::Plugin::get_primary_device(size_t idx) const {
     std::vector<std::string> devices;

@@ -18,6 +18,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "utils/serialize.hpp"
 
 namespace ov::intel_cpu {
 
@@ -63,6 +64,8 @@ public:
     std::shared_ptr<ov::threading::MessageManager> m_msg_manager;
 
 private:
+    std::shared_ptr<ov::ICompiledModel> deserialize_model(ModelDeserializer& deserializer, const ov::AnyMap& config) const;
+
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 
     static void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model);

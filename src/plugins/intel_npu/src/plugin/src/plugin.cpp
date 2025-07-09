@@ -708,13 +708,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
                                                          const ov::AnyMap& properties) const{
-    OPENVINO_NOT_IMPLEMENTED;
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const{
-    OPENVINO_NOT_IMPLEMENTED;
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, context, properties);
 }
 
 

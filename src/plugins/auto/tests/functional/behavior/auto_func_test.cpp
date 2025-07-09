@@ -486,8 +486,6 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-
-
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;

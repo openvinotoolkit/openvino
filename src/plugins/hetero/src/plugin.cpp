@@ -22,6 +22,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
 #include "remote_context.hpp"
@@ -155,7 +156,9 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(ov::Tensor& model,
                                                                      const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream{&buffer};
+    return import_model(stream, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(ov::Tensor& model,

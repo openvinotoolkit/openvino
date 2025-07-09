@@ -559,10 +559,27 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_tensor, const ov::AnyMap& config) const {
-    return nullptr;
-}
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
+    CacheDecrypt decrypt{codec_xor};
+    bool decript_from_string = false;
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
+        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
+        decript_from_string = true;
+    }
+
+    ModelDeserializer deserializer(
+        model_stream,
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
+            return get_core()->read_model(model, weights);
+        },
+        decrypt,
+        decript_from_string);
+
+    return deserialize_model(deserializer, config);
+}
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tensor, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
@@ -575,11 +592,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tenso
         decript_from_string = true;
     }
 
-    auto _config = config;
     std::shared_ptr<ov::AlignedBuffer> model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
                                                                        model_tensor.get_byte_size(),
                                                                        model_tensor);
-
 
     ModelDeserializer deserializer(
         model_buffer,
@@ -589,9 +604,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tenso
         decrypt,
         decript_from_string);
 
+    return deserialize_model(deserializer, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer, const ov::AnyMap& config) const{
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 
+    auto _config = config;
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
