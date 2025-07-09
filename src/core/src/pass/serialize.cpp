@@ -59,6 +59,7 @@ public:
 namespace pass {
 WeightsMapWrapper::~WeightsMapWrapper() {
     if (m_weightsMap) {
+        std::cout << m_weightsMap << "destroied" << std::endl;
         delete reinterpret_cast<WeightsMap*>(m_weightsMap);
         m_weightsMap = nullptr;
     }

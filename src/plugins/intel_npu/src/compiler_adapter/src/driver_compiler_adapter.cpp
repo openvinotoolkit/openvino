@@ -216,7 +216,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    ov::pass::WeightsMapWrapper weightsMapWrapper;
+    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion, &weightsMapWrapper);
 
     std::string buildFlags;
     const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 9));
@@ -421,7 +422,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
 
     _logger.debug("serialize IR");
-    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion);
+    ov::pass::WeightsMapWrapper weightsMapWrapper;
+    auto serializedIR = serializeIR(model, compilerVersion, maxOpsetVersion, &weightsMapWrapper);
 
     std::string buildFlags;
     buildFlags += serializeConfig(config, compilerVersion);
@@ -454,14 +456,17 @@ uint32_t DriverCompilerAdapter::get_version() const {
  */
 SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::Model>& model,
                                                 ze_graph_compiler_version_info_t compilerVersion,
-                                                const uint32_t supportedOpsetVersion) const {
+                                                const uint32_t supportedOpsetVersion,
+                                                ov::pass::WeightsMapWrapper* weightsMapWrapper) const {
     // TODO: version check to see if we use traditional or new way since old driver can not parse map
     bool useWeightsMap = (compilerVersion.major > 7) || (compilerVersion.major == 7 && compilerVersion.minor >= 22);
+    if (weightsMapWrapper == nullptr) {
+        useWeightsMap = false;
+    }
 
-    ov::pass::WeightsMapWrapper weightsMapWrapper;
     driver_compiler_utils::IRSerializer irSerializer(model,
                                                      supportedOpsetVersion,
-                                                     useWeightsMap ? &weightsMapWrapper : nullptr);
+                                                     useWeightsMap ? weightsMapWrapper : nullptr);
 
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;

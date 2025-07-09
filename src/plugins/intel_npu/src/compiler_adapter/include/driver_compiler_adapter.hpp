@@ -13,6 +13,7 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
@@ -58,7 +59,8 @@ private:
 
     SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                              ze_graph_compiler_version_info_t compilerVersion,
-                             const uint32_t supportedOpsetVersion) const;
+                             const uint32_t supportedOpsetVersion,
+                             ov::pass::WeightsMapWrapper* weightsMapWrapper) const;
 
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
 
