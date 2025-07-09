@@ -251,25 +251,23 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
     auto qk_opt_scaled_opt_mask_added = optional<v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask}, add_pred);
     auto qk_post_mask_opt_reshaped = optional<v1::Reshape>({qk_opt_scaled_opt_mask_added, any_input()});
 
-    auto softmax_pred = (shape_matches("..., H, S_q, S_kv") || shape_matches("S_q, S_kv")) && consumers_count(1);
     // Softmax axis can be:
     // Pattern 1: axis = -1 (last axis)
     // Pattern 2: axis = rank size - 1 (also means last axis for static rank inputs)
-    auto softmax_axis_neg1 = wrap_type<v8::Softmax>({qk_post_mask_opt_reshaped}, softmax_pred, {{"axis", -1}});
-    auto softmax_axis_rank = wrap_type<v8::Softmax>(
-        {qk_post_mask_opt_reshaped},
-        softmax_pred && [](const ov::Output<ov::Node>& node) {
+    auto axis_predicate = (
+        [](const ov::Output<ov::Node>& node) {
             auto softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(node.get_node_shared_ptr());
             if (!softmax)
                 return false;
             auto input_rank = node.get_partial_shape().rank();
             if (input_rank.is_dynamic())
                 return false;
-            return static_cast<int64_t>(input_rank.get_length() - 1) == softmax->get_axis();
+            auto axis = ov::util::try_normalize_axis(softmax->get_axis(), input_rank, *softmax);
+            return static_cast<int64_t>(input_rank.get_length() - 1) == axis;
         }
     );
-    // Combine both patterns
-    auto softmax = softmax_axis_neg1 | softmax_axis_rank;
+    auto softmax_pred = axis_predicate && (shape_matches("..., H, S_q, S_kv") || shape_matches("S_q, S_kv")) && consumers_count(1);
+    auto softmax = wrap_type<v8::Softmax>({qk_post_mask_opt_reshaped}, softmax_pred);
     auto softmax_opt_reshaped = optional<v1::Reshape>({softmax, any_input()});
 
     auto qkv_shape = shape_matches("..., H, S_q, Ev") || shape_matches("S_q, Ev");
