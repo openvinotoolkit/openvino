@@ -314,7 +314,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                         if (hetero_query_model_by_device)
                             update_config(device_config, subgraph->get_function(), device_name, fallback_device);
                         query_results[device_name] =
-                        get_core()->query_model(subgraph->get_function(), device_name, device_config);
+                            get_core()->query_model(subgraph->get_function(), device_name, device_config);
                         update_supported_ops(supported_ops_temp, query_results[device_name]);
                         update_supported_ops(supported_ops_final, query_results[device_name]);
                     }
