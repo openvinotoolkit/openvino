@@ -123,6 +123,12 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quan
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
 
 /**
+ * @brief This property used to test accurcay of setting model_distribution_policy to TENSOR_PARALLEL in functional
+ * tests.
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"ENABLE_TENSOR_PARALLEL"};
+
+/**
  * @brief Define whether to enable sage_attn
  * @param true - enable
  * @param false - disable
