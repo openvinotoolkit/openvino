@@ -28,20 +28,14 @@ std::shared_ptr<RemoteContext> RemoteContext::get_this_shared_ptr() {
 
 ov::SoPtr<ov::IRemoteTensor> RemoteContext::create_tensor(const ov::element::Type& type,
                                                           const ov::Shape& shape,
-                                                          const ov::AnyMap& params) { 
-    try {
-        std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors;
-        tensors.reserve(m_contexts.size());
-        for (const auto& item : m_contexts) {
-            tensors.emplace_back(item.second->create_tensor(type, shape, params));
-        }
-        auto remote_tensor_ptr = std::make_shared<ov::hetero::RemoteTensor>(get_this_shared_ptr(), tensors);
-        return ov::SoPtr<ov::IRemoteTensor>(remote_tensor_ptr);
-    } catch (...) {
-        std::cout << "create_tensor failed\n";
+                                                          const ov::AnyMap& params) {
+    std::vector<ov::SoPtr<ov::IRemoteTensor>> tensors;
+    tensors.reserve(m_contexts.size());
+    for (const auto& item : m_contexts) {
+        tensors.emplace_back(item.second->create_tensor(type, shape, params));
     }
-    std::shared_ptr<ov::hetero::RemoteTensor> remote_tensor_ptr_1;
-    return ov::SoPtr<ov::IRemoteTensor>(remote_tensor_ptr_1);
+    auto remote_tensor_ptr = std::make_shared<ov::hetero::RemoteTensor>(get_this_shared_ptr(), tensors);
+    return ov::SoPtr<ov::IRemoteTensor>(remote_tensor_ptr);
 }
 
 const std::string& RemoteContext::get_device_name() const {

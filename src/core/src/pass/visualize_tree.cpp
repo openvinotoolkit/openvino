@@ -292,30 +292,29 @@ void ov::pass::VisualizeTree::add_node_arguments(std::shared_ptr<Node> node,
     for (const auto& input_value : node->input_values()) {
         auto arg = input_value.get_node_shared_ptr();
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
-        // if (ov::is_type<ov::op::v0::Constant>(arg) || ov::is_type<ov::op::v0::Parameter>(arg)) {
-        //     auto clone_name = "CLONE_" + std::to_string(fake_node_ctr);
-        //     auto color =
-        //         std::string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + std::string("\"");
-        //     std::vector<std::string> attributes{"shape=\"box\"",
-        //                                         "style=\"dashed\"",
-        //                                         std::move(color),
-        //                                         std::string("label=\"") + get_node_name(arg) + std::string("\n") +
-        //                                             get_constant_value(arg) + std::string("\"")};
+        if (ov::is_type<ov::op::v0::Constant>(arg) || ov::is_type<ov::op::v0::Parameter>(arg)) {
+            auto clone_name = "CLONE_" + std::to_string(fake_node_ctr);
+            auto color =
+                std::string("color=\"") + (arg->description() == "Parameter" ? "blue" : "black") + std::string("\"");
+            std::vector<std::string> attributes{"shape=\"box\"",
+                                                "style=\"dashed\"",
+                                                std::move(color),
+                                                std::string("label=\"") + get_node_name(arg) + std::string("\n") +
+                                                    get_constant_value(arg) + std::string("\"")};
 
-        //     if (m_node_modifiers && !arg->output(0).get_rt_info().empty()) {
-        //         m_node_modifiers(*arg, attributes);
-        //     }
-        //     m_ss << "    " << clone_name << "[";
-        //     for (const auto& attr : attributes) {
-        //         m_ss << " " << attr << " ";
-        //     }
-        //     m_ss << "]\n";
+            if (m_node_modifiers && !arg->output(0).get_rt_info().empty()) {
+                m_node_modifiers(*arg, attributes);
+            }
+            m_ss << "    " << clone_name << "[";
+            for (const auto& attr : attributes) {
+                m_ss << " " << attr << " ";
+            }
+            m_ss << "]\n";
 
-        //     m_ss << "    " << clone_name << " -> " << node->get_name()
-        //          << label_edge(arg, node, arg_index, jump_distance) << "\n";
-        //     fake_node_ctr++;
-        // } else 
-        if (jump_distance > max_jump_distance) {
+            m_ss << "    " << clone_name << " -> " << node->get_name()
+                 << label_edge(arg, node, arg_index, jump_distance) << "\n";
+            fake_node_ctr++;
+        } else if (jump_distance > max_jump_distance) {
             m_ss << add_attributes(arg);
             m_ss << add_attributes(node);
             auto recv_node_name = "RECV_" + std::to_string(fake_node_ctr);
