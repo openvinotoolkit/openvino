@@ -509,14 +509,16 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
     // Quantized cache is either u8/u4, the plain memory is both uint8,
     // Here we use stride_bytes instead of stride which consider divide sub_byte_multiplier automatically.
     if (past_len == 0) {
-        const auto total_blocks =
-            block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_indices_begins.ptr<int32_t>()[sub_seq_id];
+        // (block_indices_begins[sub_seq_id + 1] - 1) is not a reliable upper bound for sub_seq,
+        // (block_indices_begins[sub_seq_id + 1] - 1) may not exist in current batch under vLLM case,
+        // For example prompt_size=391, max-num-batched-tokens=256, vLLM allocates 13 blocks [0, 13)
+        // but in first iteration, vLLM only feeds 256 tokens, [0,8).
+        const auto total_blocks = ov::intel_cpu::div_up(q_len, block_size);
         parallel_for(total_blocks, [&](int32_t block_count) {
             const auto block_id = block_number_start + block_count;
             const auto block_number = block_indices.ptr<int32_t>()[block_id];
-            const auto token_num = (block_id == (block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - 1))
-                                       ? (q_len - block_count * block_size)
-                                       : block_size;
+            const auto token_num =
+                (block_count == (total_blocks - 1)) ? (q_len - block_count * block_size) : block_size;
             const size_t b_in_tokens = subsequence_begins.ptr<int32_t>()[sub_seq_id] + block_count * block_size;
             auto base = dst.ptr<uint8_t, DST_PREC>(block_number, h, 0, 0);
             auto* p_scales = reinterpret_cast<float*>(base);
@@ -534,7 +536,7 @@ static void quantize_block_by_channel(const ov::intel_cpu::PlainTensor& src,
     } else {
         const auto prev_nums = past_len % block_size;
         const size_t block_offset = block_number_start + past_len / block_size;
-        const auto total_blocks = block_indices_begins.ptr<int32_t>()[sub_seq_id + 1] - block_offset;
+        const auto total_blocks = ov::intel_cpu::div_up(prev_nums + q_len, block_size);
         parallel_for(total_blocks, [&](size_t block_id) {
             const bool is_first_block = block_id == 0;
             size_t offset = 0;
