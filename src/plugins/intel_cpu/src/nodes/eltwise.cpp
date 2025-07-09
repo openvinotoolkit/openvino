@@ -894,6 +894,7 @@ public:
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
+                    Algorithm::EltwiseGreater,
                     Algorithm::EltwiseSubtract)) {
             return false;
         }
