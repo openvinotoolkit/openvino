@@ -487,7 +487,7 @@ void primitive_inst::update_shape() {
             if (user->is_type<eltwise>() && user->as<eltwise>().get_primitive()->broadcast_spec == ov::op::AutoBroadcastType::NUMPY) {
                 ov::PartialShape::broadcast_merge_into(new_pshape, std::vector<ov::Dimension>(impl_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
                 auto aligned_layout = layout(new_pshape, new_layout.data_type, new_layout.format);
-                GPU_DEBUG_TRACE_DETAIL << id() << ": Update shape for align tensor : was: " << new_layout.to_short_string()
+                GPU_DEBUG_TRACE_DETAIL << id() << ": Update shape to align tensor : was: " << new_layout.to_short_string()
                                         << " now: " << aligned_layout.to_short_string() << std::endl;
             }
         }

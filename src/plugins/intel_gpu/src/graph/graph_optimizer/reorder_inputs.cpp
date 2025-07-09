@@ -754,19 +754,20 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             auto ref_pshape = eltwise_node.get_input_pshape(large_shape_idx);
             auto small_pshape = eltwise_node.get_input_pshape(small_shape_idx);
 
-            if (eltwise_node.has_eltwise_const_dep_idx()) {
+            if (eltwise_node.has_eltwise_const_dep_idx() && eltwise_node.get_eltwise_const_dep_idx() < 2) {
                 auto const_shape_idx = eltwise_node.get_eltwise_const_dep_idx();
                 auto const_pshape_size = eltwise_node.get_input_pshape(const_shape_idx).size();
                 OPENVINO_ASSERT(const_pshape_size == ref_pshape.size() || const_pshape_size <= 1,
                                 "Unexpected pshape size of NUMPY broadcast of eltwise " + eltwise_node.id());
             }
 
-            ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(ref_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
-
             auto& input = eltwise_node.get_dependency(small_shape_idx);
             if (input.get_output_layout().format != out_layout.format) {
                 GPU_DEBUG_TRACE_DETAIL << "Add reorder for" << eltwise_node.id() << " align tensor size. input " <<
                                         input.get_output_layout().format.to_string() << " output " << out_layout.format.to_string() << std::endl;
+
+                ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(ref_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
+
                 auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
                 auto new_reorder = std::make_shared<reorder>(eltwise_node.id() + "_reorder_eltwise_broadcast", input.id(), out_layout);
                 auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
