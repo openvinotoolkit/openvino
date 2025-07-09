@@ -93,12 +93,15 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
     
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node)) {
-            const auto& rtInfo = node->get_rt_info();
+            auto& rtInfo = node->get_rt_info();
             const auto& element_type = node->get_element_type();
 
-            // offset and size are used as dummy. Offset behaves as a unique key for each constant.
-            rtInfo[type_info] = ov::WeightlessCacheAttribute(1, offset, element_type);
-            offset++;
+            // Set rtInfo only if it's not set already.
+            if (const auto& it = rtInfo.find(type_info);  it == rtInfo.end()) {
+                // offset and size are used as dummy. Offset behaves as a unique key for each constant.
+                rtInfo[type_info] = ov::WeightlessCacheAttribute(1, offset, element_type);
+                offset++;
+            }
         }
     }
 }
