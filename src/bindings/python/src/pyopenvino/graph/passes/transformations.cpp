@@ -113,7 +113,7 @@ void regclass_transformations(py::module m) {
         R"( The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
                     
                       :param pairs_to_replace:
-                      :type pairs_to_replace: List[Tuple[op.Parameter, op.Result]
+                      :type pairs_to_replace: list[tuple[op.Parameter, op.Result]
     )");
     make_stateful.def(py::init<const std::map<std::string, std::string>&>(),
                       py::arg("pairs_to_replace"),
@@ -121,7 +121,7 @@ void regclass_transformations(py::module m) {
         The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
         
         :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
-        :type pairs_to_replace: Dict[str, str]
+        :type pairs_to_replace: dict[str, str]
     )");
     make_stateful.def("__repr__", [](const ov::pass::MakeStateful& self) {
         return Common::get_simple_repr(self);

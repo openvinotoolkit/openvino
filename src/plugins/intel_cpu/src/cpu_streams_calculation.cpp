@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
-#include <oneapi/dnnl/dnnl.hpp>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -17,7 +16,6 @@
 #include <vector>
 
 #include "config.h"
-#include "onednn/dnnl.h"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -26,10 +24,14 @@
 
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
+#else
+#    include <oneapi/dnnl/dnnl.hpp>
+
+#    include "onednn/dnnl.h"
+#    include "openvino/runtime/performance_heuristics.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "transformations/utils.hpp"
@@ -55,11 +57,12 @@ void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::ve
 };
 
 std::vector<std::vector<int>> get_streams_info_table(
-    const int input_streams,
-    const bool input_streams_changed,
-    const int input_threads,
-    const int input_infer_requests,
-    const int model_prefer_threads,
+    int input_streams,
+    bool input_streams_changed,
+    int input_threads,
+    int input_infer_requests,
+    int model_prefer_threads,
+    bool enable_tensor_parallel,
     const std::string& input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table) {
@@ -533,6 +536,16 @@ std::vector<std::vector<int>> get_streams_info_table(
                     stream_table_size = streams_info_table.size();
                 }
             }
+
+            if ((total_streams == 1) && (proc_type_table.size() == 1) && enable_tensor_parallel &&
+                (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
+                 hint_model_distribution_policy.end())) {
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table[0][THREADS_PER_STREAM] = streams_info_table[0][THREADS_PER_STREAM] * 2;
+                streams_info_table[1][NUMBER_OF_STREAMS] = -1;
+                streams_info_table[2][NUMBER_OF_STREAMS] = -1;
+            }
         }
     } else if (proc_type_table.size() == 1) {
         if (stream_info[PROC_TYPE] == ALL_PROC) {
@@ -757,6 +770,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      config.threads,
                                                      config.hintNumRequests,
                                                      model_prefer_threads,
+                                                     config.enableTensorParallel,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
