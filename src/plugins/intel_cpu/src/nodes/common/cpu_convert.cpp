@@ -73,11 +73,7 @@ template <>
     const auto& f16vec = gen.xmm3;
     const auto& f32vec = gen.ymm4;
 
-    if (mayiuse(cpu_isa_t::avx2)) {
-        gen.vmovdqu(f16vec, gen.xword[src]);
-    } else {
-        gen.movdqu(f16vec, gen.xword[src]);
-    }
+    gen.uni_vmovdqu(f16vec, gen.xword[src]);
     gen.vcvtph2ps(f32vec, f16vec);
     gen.vmovups(gen.yword[dst], f32vec);
 }
@@ -89,11 +85,7 @@ template <>
 
     gen.vmovups(f32vec, gen.yword[src]);
     gen.vcvtps2ph(f16vec, f32vec, 0);
-    if (mayiuse(cpu_isa_t::avx2)) {
-        gen.vmovdqu(gen.xword[dst], f16vec);
-    } else {
-        gen.movdqu(gen.xword[dst], f16vec);
-    }
+    gen.uni_vmovdqu(gen.xword[dst], f16vec);
 }
 
 template <typename src_t, typename dst_t>
