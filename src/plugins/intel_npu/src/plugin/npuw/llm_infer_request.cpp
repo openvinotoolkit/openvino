@@ -23,6 +23,16 @@ void print_shape(const ov::Shape& shape) {
     std::cout << "]" << std::endl;
 }
 
+void dumpTensor(ov::SoPtr<ov::ITensor> tensor, std::string fileName) {
+    // 获取指向Tensor数据的指针
+    const float* data = tensor->data<float>();
+    auto byte_size = tensor->get_byte_size();
+
+    std::ofstream outFile(fileName, std::ios::binary);
+    const auto out_data_ptr = (char*)(data);
+    outFile.write(out_data_ptr, byte_size);
+}
+
 template <typename T>
 void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
     T* tensor_data = tensor->data<T>();
@@ -203,7 +213,7 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
     auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
 
     auto chunk_prefill_input_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-    auto chunk_prompt_len = chunk_prefill_input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    int64_t chunk_prompt_len = chunk_prefill_input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
 
     auto chunk_prefill_attn_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
     auto chunk_prefill_pos_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
@@ -218,23 +228,35 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
         // std::cout << "Prefilled: " << prefilled_prompts << " Left: " << left_prompts << std::endl;
         // std::cout << "Prefilled bytes: " << prefilled_bytes << " Left: " << input_ids->get_byte_size() - prefilled_bytes << std::endl;
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
+        auto current_prompts_len = std::min(left_prompts, chunk_prompt_len);
+        auto left_prompts_bytes = input_ids->get_byte_size() - prefilled_bytes;
+        auto current_prefill_bytes = std::min(chunk_prefill_input_ids->get_byte_size(), left_prompts_bytes);
+
         std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
-                    std::min(chunk_prefill_input_ids->get_byte_size(), input_ids->get_byte_size() - prefilled_bytes),
+                    current_prefill_bytes,
                     reinterpret_cast<uint8_t*>(chunk_prefill_input_ids->data()));
+#if 1
+        auto* attention_mask_data = chunk_prefill_attn_mask->data<int64_t>();
+        for (size_t i = 0; i < prefilled_prompts; i ++) {
+            attention_mask_data[i] = 1;
+        }
 
-        std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, chunk_prefill_attn_mask->data<int64_t>());
+        for (int64_t i = 0; i < current_prompts_len; i ++) {
+            attention_mask_data[kvcache_desc.max_prompt_size - chunk_prompt_len + i] = 1;
+        }
+#endif
+        // std::copy_n(attention_mask->data<int64_t>(), attention_mask->get_size() - 1, chunk_prefill_attn_mask->data<int64_t>());
 
-        std::copy_n(position_ids->data<int64_t>() + prefilled_prompts, std::min(chunk_prefill_pos_ids->get_size(),
-            position_ids->get_size() - prefilled_prompts), chunk_prefill_pos_ids->data<int64_t>());
+        std::copy_n(position_ids->data<int64_t>() + prefilled_prompts, current_prompts_len, chunk_prefill_pos_ids->data<int64_t>());
 
         m_prefill_request->infer();
 
         // chunk_prefill_input_ids->get_byte_size() has been pre-filled
         prefilled_bytes += chunk_prefill_input_ids->get_byte_size();
-        left_prompts -= chunk_prompt_len;
-        prefilled_prompts += chunk_prompt_len;
+        left_prompts -= current_prompts_len;
+        prefilled_prompts += current_prompts_len;
 
-        kvcache_desc.num_stored_tokens += static_cast<uint32_t>(chunk_prompt_len);
+        kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
         // std::cout << "Done" << std::endl;
 
@@ -268,22 +290,32 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
                                     : kvcache_desc.dim;
             auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor,
                                                     kv_dim,
-                                                    kvcache_desc.num_stored_tokens - static_cast<uint32_t>(chunk_prompt_len),
+                                                    kvcache_desc.num_stored_tokens - static_cast<uint32_t>(current_prompts_len),
                                                     kvcache_desc.num_stored_tokens);
             auto kvcache_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
             auto kvcache_out_slice = make_tensor_slice(kvcache_out_tensor,
                                                     kv_dim,
-                                                    kvcache_desc.num_stored_tokens - static_cast<uint32_t>(chunk_prompt_len),
+                                                    kvcache_desc.num_stored_tokens - static_cast<uint32_t>(current_prompts_len),
                                                     kvcache_desc.num_stored_tokens);
 
-            std::cout << "kv_dim: " << kv_dim << std::endl;
-            std::cout << "kvcache_in_slice: " << std::endl;
-            print_shape(kvcache_in_slice->get_shape());
-            std::cout << "kvcache_out_tensor: " << std::endl;
-            print_shape(kvcache_out_tensor->get_shape());
-            std::cout << "kvcache_out_slice: " << std::endl;
-            print_shape(kvcache_out_slice->get_shape());
+            if (i == 0) {
+                std::cout << "kv_dim: " << kv_dim << std::endl;
+                std::cout << "kvcache_in_tensor: " << std::endl;
+                print_shape(kvcache_in_tensor->get_shape());
+                std::cout << "kvcache_out_tensor: " << std::endl;
+                print_shape(kvcache_out_tensor->get_shape());
 
+                std::cout << "kvcache_in_slice: " << std::endl;
+                print_shape(kvcache_in_slice->get_shape());
+                std::cout << "kvcache_out_slice: " << std::endl;
+                print_shape(kvcache_out_slice->get_shape());
+            }
+#if 0
+            std::cout << "dump: " << input_name + ".bin" << std::endl;
+            dumpTensor(kvcache_in_tensor, input_name + ".bin" );
+            std::cout << "dump: " << output_name + ".bin" << std::endl;
+            dumpTensor(kvcache_out_tensor, output_name + ".bin");
+#endif
             if (kv_dim == 3u) {
                 // ov::npuw::util::XARCH::copy_row_as_column(kvcache_out_slice, kvcache_in_slice);
                 copy_columns_by_row_chunks(kvcache_out_slice, kvcache_in_slice);
