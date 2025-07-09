@@ -6,15 +6,17 @@
 
 #include <csetjmp>
 #include <csignal>
+#include <cstdint>
+#include <string>
 
 #include "openvino/core/except.hpp"
+#include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 #include "xbyak_riscv/xbyak_riscv_util.hpp"
 
 using namespace Xbyak_riscv;
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
 namespace {
 
@@ -26,11 +28,11 @@ struct RVVGenerator : public CodeGenerator {
     }
 };
 
-static thread_local sigjmp_buf jmpbuf;
-
-static bool can_compile_rvv100() {
+// NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
+bool can_compile_rvv100() {
 #if defined(__linux__)
-    __sighandler_t signal_handler = [](int signal) {
+    static thread_local sigjmp_buf jmpbuf;
+    __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
         siglongjmp(jmpbuf, 1);
     };
 
@@ -53,6 +55,7 @@ static bool can_compile_rvv100() {
     sigaction(SIGILL, &old_sa, nullptr);
 
     return status;
+// NOLINTEND(misc-include-cleaner) bug in clang-tidy
 #else
     return false;
 #endif
@@ -97,6 +100,4 @@ std::string isa2str(cpu_isa_t isa) {
     }
 }
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::riscv64

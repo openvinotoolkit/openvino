@@ -4,16 +4,19 @@
 
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
                                        lowered::LinearIR::constExprIt begin,
@@ -29,9 +32,12 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
             if (loop_info->get_work_amount() == loop_info->get_increment()) {
                 auto new_finalization_offsets = loop_end->get_finalization_offsets();
                 const auto& ptr_increments = loop_end->get_ptr_increments();
-                const auto work_amount_incr = static_cast<int64_t>(loop_end->get_increment());
+                const auto& work_amount_incr_unsigned = loop_end->get_increment();
+                const auto& work_amount_incr = snippets::utils::is_dynamic_value(work_amount_incr_unsigned)
+                                                   ? snippets::utils::get_dynamic_value<int64_t>()
+                                                   : static_cast<int64_t>(work_amount_incr_unsigned);
                 for (size_t i = 0; i < new_finalization_offsets.size(); i++) {
-                    const auto ptr_shift = utils::dynamic_safe_mul(ptr_increments[i], work_amount_incr);
+                    const auto& ptr_shift = utils::dynamic_safe_mul(ptr_increments[i], work_amount_incr);
                     new_finalization_offsets[i] = utils::dynamic_safe_add(new_finalization_offsets[i], ptr_shift);
                 }
                 loop_end->set_finalization_offsets(new_finalization_offsets);
@@ -50,7 +56,4 @@ bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir,
     return is_modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass
