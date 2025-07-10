@@ -18,7 +18,11 @@
 namespace ov {
 namespace hetero {
 
-using SubmodelInfo = std::pair<std::string, std::shared_ptr<ov::Model>>;
+struct SubmodelInfo {
+    std::string affinity;
+    std::shared_ptr<ov::Model> submodel;
+    bool is_transformed = false;
+};
 
 class CompiledModel;
 
@@ -57,6 +61,13 @@ public:
 private:
     friend class CompiledModel;
 
+    struct QueryResult {
+        ov::SupportedOpsMap supported_ops;
+        ov::hetero::SubgraphsMappingInfo mapping_info;
+        std::shared_ptr<ov::Model> model;
+        bool is_transformed = false;
+    };
+
     ov::Any caching_device_properties(const std::string& device_priorities) const;
 
     DeviceProperties get_properties_per_device(const std::string& device_priorities,
@@ -65,7 +76,7 @@ private:
     void get_device_memory_map(const std::vector<std::string>& device_names,
                                std::map<std::string, size_t>& device_mem_map) const;
 
-    std::tuple<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo, std::shared_ptr<ov::Model>> query_model_update(
+    ov::hetero::Plugin::QueryResult query_model_update(
         std::shared_ptr<ov::Model>& model,
         const ov::AnyMap& properties,
         bool allow_exception = false) const;

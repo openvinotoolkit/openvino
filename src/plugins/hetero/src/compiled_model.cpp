@@ -20,7 +20,7 @@
 #include "properties.hpp"
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
-                                         const std::vector<ov::hetero::SubmodelInfo>& submodels,
+                                         std::vector<ov::hetero::SubmodelInfo>& submodels,
                                          const SubgraphsMappingInfo& mapping_info,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          ov::hetero::RemoteContext::Ptr context,
@@ -39,7 +39,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
     }
 }
 
-void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::SubmodelInfo>& submodels) {
+void ov::hetero::CompiledModel::compile_model(std::vector<ov::hetero::SubmodelInfo>& submodels) {
     const bool add_exclusive = submodels.size() > 1;
     const auto& hetero_plugin = get_hetero_plugin();
     const auto& core = hetero_plugin->get_core();
@@ -48,7 +48,7 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
     m_compiled_submodels.clear();
     m_compiled_submodels.reserve(submodels.size());
 
-    for (const auto& [device, sub_model] : submodels) {
+    for (auto& [device, sub_model, is_transformed] : submodels) {
         // get meta devices properties for the target device
         auto meta_devices = hetero_plugin->get_properties_per_device(device, device_properties);
 
@@ -71,9 +71,10 @@ void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::Subm
         CompiledModelDesc desc;
         desc.device = device;
         desc.model = sub_model;
-        auto model_ = sub_model->clone();
-        device_config[ov::internal::disable_transformation.name()] = true;
-        desc.compiled_model = core->compile_model(model_, device, device_config);
+        if (is_transformed) {
+            device_config[ov::internal::disable_transformation.name()] = true;
+        }
+        desc.compiled_model = core->compile_model(sub_model, device, device_config);
         m_compiled_submodels.emplace_back(std::move(desc));
     }
     set_inputs_and_outputs();
