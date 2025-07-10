@@ -176,8 +176,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RDFT_5d_last_axis/RDFTLayerTest.Inference/IS=\(10.4.8.2.5\)_modelType=f32_Axes=\(0.1.2.3.4\)_SignalSize=\(\).*)",
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
-            // Issue: 142900
-            // R"(.*smoke_TestsROIAlign_.*ROIAlignV9LayerTest.*)",
             // Use weight from model not from path hint
             R"(.*compile_from_weightless_blob.*)",
 

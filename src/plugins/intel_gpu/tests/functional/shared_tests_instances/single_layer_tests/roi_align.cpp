@@ -14,7 +14,6 @@ protected:
         ROIAlignLayerTest::SetUp();
         auto param = this->GetParam();
         ov::element::Type model_type = std::get<7>(param);
-        targetDevice = std::get<8>(param);
         if (model_type == ov::element::f32) {
             abs_threshold = 1e-5;   // ROIAlign may introduce small differences when output values are very small,
             rel_threshold = 5e-2;   // so the threshold should account for this behavior.
@@ -28,8 +27,6 @@ protected:
         ROIAlignV9LayerTest::SetUp();
         auto param = this->GetParam();
         ov::element::Type model_type = std::get<8>(param);
-        targetDevice = std::get<9>(param);
-
         if (model_type == ov::element::f32) {
             abs_threshold = 1e-5;   // ROIAlign may introduce small differences when output values are very small,
             rel_threshold = 5e-2;   // so the threshold should account for this behavior.
