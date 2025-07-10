@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 
+#include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
@@ -126,6 +127,117 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
     ASSERT_TRUE(reorder_mem->size() <= reorder_mem->get_mem_tracker()->size())
                 << "reorder mem buffer size: " <<  reorder_mem->size() << "bytes is bigger than original size of allocated mem: "
                 << reorder_mem->get_mem_tracker()->size() << "bytes.";
+}
+
+TEST(memory_reuse_realloc_reset_test, basic_conv_with_memory_get_from_padded_pool) {
+    auto& engine = get_test_engine();
+
+    layout weight_layout = layout{ov::PartialShape{1, 4, 3, 3}, data_types::f32, format::bfyx};
+    auto weights = engine.allocate_memory(weight_layout);
+    set_values<float>(weights, {
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f
+    });
+
+    layout weight_layout2 = layout{ov::PartialShape{1, 3, 3, 3}, data_types::f32, format::bfyx};
+    auto weights2 = engine.allocate_memory(weight_layout2);
+    set_values<float>(weights2, {
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f
+    });
+
+    layout elt_layout1 = layout{ov::PartialShape{1, 2, 4, 4}, data_types::f32, format::bfyx};
+    auto elt_mem1 = engine.allocate_memory(elt_layout1);
+    set_values<float>(elt_mem1, {
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f,
+
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f,
+        10.f, 10.f, 10.f, 10.f
+    });
+
+    std::vector<float> ref_output = {
+        1080, 1720, 1720, 1080,
+        1720, 2740, 2740, 1720,
+        1720, 2740, 2740, 1720,
+        1080, 1720, 1720, 1080
+    };
+
+    std::vector<float> subtract_val = {0.f, };
+    auto input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto elt_input_l = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+
+    topology topology(input_layout("elt_input", elt_input_l),
+                      data("weights", weights),
+                      data("weights2", weights2),
+                      reorder("reorder1-1", input_info("elt_input"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract),
+                      reorder("reorder1-2", input_info("elt_input"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract),
+                      concatenation("concat1", {input_info("reorder1-1"), input_info("reorder1-2")}, 1),
+                      convolution("conv1",
+                                  input_info("concat1"),
+                                  "weights",
+                                  "",     /*bias*/
+                                  1,
+                                  {1, 1}, /*stride*/
+                                  {1, 1}, /*dilation*/
+                                  {1, 1}, /*pad_above*/
+                                  {1, 1}, /*pad_below*/
+                                  false,
+                                  ov::op::PadType::EXPLICIT),
+                      reorder("reorder2-1", input_info("conv1"), format::bfyx, data_types::f32, subtract_val, reorder_mean_mode::subtract),
+                      concatenation("concat2", {input_info("reorder1-1"), input_info("reorder2-1")}, 1),
+                      convolution("conv2",
+                                  input_info("concat2"),
+                                  "weights2",
+                                  "",     /*bias*/
+                                  1,
+                                  {1, 1}, /*stride*/
+                                  {1, 1}, /*dilation*/
+                                  {1, 1}, /*pad_above*/
+                                  {1, 1}, /*pad_below*/
+                                  false,
+                                  ov::op::PadType::EXPLICIT),
+                      reorder("output", input_info("conv2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+    network network(engine, topology, config);
+    network.set_input_data("elt_input", elt_mem1);
+    auto outputs = network.execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
+
+    for (size_t i = 0; i < output_mem->get_layout().get_linear_size(); ++i) {
+        ASSERT_EQ(output_mem_ptr[i], ref_output[i]);
+    }
 }
 
 TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
