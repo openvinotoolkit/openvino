@@ -54,6 +54,12 @@ private:
     std::mutex m_mutex;
 };
 
+Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
+    : m_core(core),
+      m_alloc_device(alloc_device),
+      m_bank_name(bank_name),
+      m_rcm(std::make_shared<RemoteContextManager>()) {}
+
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
