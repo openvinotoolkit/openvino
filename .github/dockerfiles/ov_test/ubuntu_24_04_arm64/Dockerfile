@@ -18,7 +18,6 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-        --no-install-recommends \
         curl \
         git \
         ca-certificates \
@@ -42,18 +41,15 @@ RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-RUN apt-get purge -y python3-pip
-
-# Setup pip
-ENV PIP_VERSION="25.1"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
-    rm -f get-pip.py
-
-# Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
+
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages
