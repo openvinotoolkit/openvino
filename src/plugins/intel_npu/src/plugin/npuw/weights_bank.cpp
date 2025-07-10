@@ -140,6 +140,10 @@ void Bank::evaluate_and_allocate() {
 
             ov::SoPtr<ov::ITensor> remote_tensor;
 
+            if (ov::shape_size(allocated.meta.shape) == 0) {
+                continue; // Dummy LazyTensor - just ignore it
+            }
+
             auto remote_ctx = get_context(m_core, device_for_alloc);
             remote_tensor = remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
             uids_to_allocated.at(uid) = {allocated.meta, ov::make_tensor(remote_tensor)};
