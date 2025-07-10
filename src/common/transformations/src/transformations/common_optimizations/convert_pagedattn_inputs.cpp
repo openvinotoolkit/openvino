@@ -12,9 +12,9 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ov::pass;
 using namespace ov::op;
