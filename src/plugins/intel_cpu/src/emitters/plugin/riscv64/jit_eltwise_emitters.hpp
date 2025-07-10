@@ -562,4 +562,59 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
+class jit_swish_emitter : public jit_emitter {
+public:
+    jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      float beta,
+                      ov::element::Type exec_prc = ov::element::f32);
+    jit_swish_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                      ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                      const std::shared_ptr<ov::Node>& node,
+                      ov::element::Type exec_prc = ov::element::f32);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+    size_t aux_vecs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void emit_data() const override;
+    void register_table_entries() override;
+
+    float beta{1.f};
+    std::unique_ptr<jit_sigmoid_emitter> jit_sigmoid_emitter_{nullptr};
+};
+
+class jit_hswish_emitter : public jit_emitter {
+public:
+    jit_hswish_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       ov::element::Type exec_prc = ov::element::f32);
+    jit_hswish_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t get_aux_vecs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void emit_data() const override;
+    void register_table_entries() override;
+};
+
 }  // namespace ov::intel_cpu::riscv64
