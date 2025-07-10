@@ -76,10 +76,9 @@ private:
     void get_device_memory_map(const std::vector<std::string>& device_names,
                                std::map<std::string, size_t>& device_mem_map) const;
 
-    ov::hetero::Plugin::QueryResult query_model_update(
-        std::shared_ptr<ov::Model>& model,
-        const ov::AnyMap& properties,
-        bool allow_exception = false) const;
+    ov::hetero::Plugin::QueryResult query_model_update(std::shared_ptr<ov::Model>& model,
+                                                       const ov::AnyMap& properties,
+                                                       bool allow_exception = false) const;
 
     std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<SubmodelInfo>> split_graph(
         std::shared_ptr<ov::Model>& model,
