@@ -348,6 +348,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.kernel_timestamp_valid_bits = 0;
     info.compute_queue_group_ordinal = 0;
     info.device_memory_ordinal = 0;
+    info.supports_cp_offload = false;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     using namespace dnnl::impl::gpu::intel::jit;

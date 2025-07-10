@@ -110,6 +110,8 @@ struct device_info {
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
+    bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
+
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
     uint32_t vendor_id;                         ///< Vendor ID
@@ -131,10 +133,10 @@ struct device_info {
 
     pci_bus_info pci_info;                      ///< PCI bus information for the device
 
-    uint64_t timer_resolution;                  ///< Resolution of device timer used for profiling in cycles/sec
-    uint32_t kernel_timestamp_valid_bits;       ///< Number of valid bits in the kernel timestamp values
-    uint32_t compute_queue_group_ordinal;       ///< Ordinal of the command queue group with compute support
-    uint32_t device_memory_ordinal;             ///< Ordinal of the selected global device memory
+    uint64_t timer_resolution;                  ///< [L0] Resolution of device timer used for profiling in cycles/sec
+    uint32_t kernel_timestamp_valid_bits;       ///< [L0] Number of valid bits in the kernel timestamp values
+    uint32_t compute_queue_group_ordinal;       ///< [L0] Ordinal of the command queue group with compute support
+    uint32_t device_memory_ordinal;             ///< [L0] Ordinal of the selected global device memory
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device

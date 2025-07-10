@@ -6,6 +6,7 @@
 #include "ze_common.hpp"
 
 #include <ze_api.h>
+#include <ze_intel_gpu.h>
 #include <vector>
 #include <algorithm>
 #include <cassert>
@@ -50,6 +51,10 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     bool supports_ip_version = supports_extension(extensions, ZE_DEVICE_IP_VERSION_EXT_NAME, ZE_DEVICE_IP_VERSION_VERSION_1_0);
     bool supports_mutable_list = supports_extension(extensions, ZE_MUTABLE_COMMAND_LIST_EXP_NAME, ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_0);
     bool supports_pci_properties = supports_extension(extensions, ZE_PCI_PROPERTIES_EXT_NAME, ZE_PCI_PROPERTIES_EXT_VERSION_1_0);
+    bool supports_cp_offload =
+        supports_extension(extensions, ZEX_INTEL_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_NAME, ZEX_INTEL_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_VERSION_1_0);
+    bool supports_dp_properties =
+        supports_extension(extensions, ZE_INTEL_DEVICE_MODULE_DP_PROPERTIES_EXP_NAME, ZE_INTEL_DEVICE_MODULE_DP_PROPERTIES_EXP_VERSION_1_0);
 
     ze_device_ip_version_ext_t ip_version_properties = {ZE_STRUCTURE_TYPE_DEVICE_IP_VERSION_EXT, nullptr, 0};
     ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES_1_2, supports_ip_version ? &ip_version_properties : nullptr};
@@ -92,6 +97,10 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     });
 
     ze_device_module_properties_t device_module_properties{ZE_STRUCTURE_TYPE_DEVICE_MODULE_PROPERTIES};
+    ze_intel_device_module_dp_exp_properties_t dp_properties{ZE_STRUCTURE_INTEL_DEVICE_MODULE_DP_EXP_PROPERTIES, nullptr};
+    if (supports_dp_properties) {
+        device_module_properties.pNext = &dp_properties;
+    }
     ZE_CHECK(zeDeviceGetModuleProperties(device, &device_module_properties));
 
     ze_device_image_properties_t device_image_properties{ZE_STRUCTURE_TYPE_DEVICE_IMAGE_PROPERTIES};
@@ -136,9 +145,10 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_intel_subgroups_short = true;
     info.supports_intel_subgroups_char = true;
     info.supports_intel_required_subgroup_size = true;
+    info.supports_cp_offload = supports_cp_offload;
 
     info.supports_imad = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_DP4A) != 0;
-    info.supports_immad = false; // FIXME
+    info.supports_immad = supports_dp_properties && (dp_properties.flags & ZE_INTEL_DEVICE_MODULE_EXP_FLAG_DPAS) != 0;
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
