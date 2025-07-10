@@ -25,6 +25,7 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace {
 
