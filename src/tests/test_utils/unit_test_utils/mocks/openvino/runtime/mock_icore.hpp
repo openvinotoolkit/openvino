@@ -26,6 +26,10 @@ public:
                 query_model,
                 (const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&),
                 (const));
+    MOCK_METHOD(std::shared_ptr<ov::Model>,
+                get_transformed_model,
+                (const std::shared_ptr<ov::Model>&, const std::string&, const ov::AnyMap&),
+                (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 import_model,
                 (std::istream&, const std::string&, const ov::AnyMap&),
