@@ -94,7 +94,6 @@ jobs:
               ["ov_ir_frontend_tests"]=""
               ["paddle_tests"]=""
               ["ov_onnx_frontend_tests"]="-*IE_GPU*"
-              ["ov_tensorflow_common_tests"]=""
               ["ov_tensorflow_frontend_tests"]=""
               ["ov_tensorflow_lite_frontend_tests"]=""
               ["ov_transformations_tests"]=""
