@@ -185,7 +185,9 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     cp_offload_desc.stype = ZEX_INTEL_STRUCTURE_TYPE_QUEUE_COPY_OPERATIONS_OFFLOAD_HINT_EXP_PROPERTIES;
     cp_offload_desc.copyOffloadEnabled = true;
     cp_offload_desc.pNext = nullptr;
-    command_queue_desc.pNext = &cp_offload_desc;
+    if (info.supports_cp_offload) {
+        command_queue_desc.pNext = &cp_offload_desc;
+    }
 
     ZE_CHECK(zeCommandListCreateImmediate(_engine.get_context(), _engine.get_device(), &command_queue_desc, &m_command_list));
 }
