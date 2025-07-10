@@ -60,7 +60,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 # Use Python 3.11 as default
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+ENV PATH="/venv/bin:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages
