@@ -6,9 +6,9 @@ from unittest import TestCase
 from tests import skip_commit_slider_devtest
 
 sys.path.append('./')
-from test_util import getExpectedCommit,\
+from test_util import getExpectedCommit, \
     getBordersByTestData, getActualCommit, getCSOutput, \
-        createRepoAndUpdateData, runCSAndCheckPattern
+    createRepoAndUpdateData, runCSAndCheckPattern
 from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\

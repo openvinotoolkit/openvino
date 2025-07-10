@@ -653,7 +653,7 @@
         }
     },
     "CrossCheckPerformanceSeparateTemplateBadModel": {
-        "repoName": "crossCheckSeparateTemplateBadApp",
+        "repoName": "crossCheckSeparateTemplateBadModel",
         "patchedFile": "tests_res/cross_check_perf.cpp",
         "testCfg": {
             "template" : {

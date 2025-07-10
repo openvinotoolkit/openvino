@@ -217,9 +217,9 @@ We want to provide for user 2 ways to set up command lines for comparation. ```'
   
 ### Custom template
 ```
-from  utils.templates.common_template  import  Template
+from  utils.templates.common  import  CommonTemplate
 
-class  BenchmarkCrossCheckTemplate(Template):
+class  BenchmarkCrossCheckTemplate(CommonTemplate):
 
 def  printResult(commitPath, outLogger, getCommitInfo):
     # formatting of output anf post analisys
@@ -256,7 +256,7 @@ def  generateFullConfig(cfg, customCfg):
         curCfg['commitList'] = {'explicitList': [ start, end ] }
     tmpJSON['runConfig'] = curCfg
     # passing base parameters
-    Template.passParameters([
+    CommonTemplate.passParameters([
        'gitPath', 'buildPath', 'appPath'
         ], customCfg, tmpJSON)
     # resolving of API types
@@ -325,9 +325,9 @@ Supposed rootcause is: Model
 
 
 
-*  m1 = ./crossCheckSeparateTemplateBadApp -m good_model.xml
+*  m1 = ./crossCheckSeparateTemplateBadModel -m good_model.xml
 
-** m2 = ./crossCheckSeparateTemplateBadApp -m bad_model.xml
+** m2 = ./crossCheckSeparateTemplateBadModel -m bad_model.xml
 
 ```
 
