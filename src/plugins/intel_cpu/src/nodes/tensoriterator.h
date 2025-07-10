@@ -117,7 +117,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void createPrimitive() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
     bool created() const override;

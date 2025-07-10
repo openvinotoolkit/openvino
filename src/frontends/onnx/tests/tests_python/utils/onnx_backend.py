@@ -8,7 +8,8 @@ See ONNX documentation for details:
 https://github.com/onnx/onnx/blob/master/docs/Implementing%20an%20ONNX%20backend.md
 """
 
-from typing import Any, Dict, List, Optional, Sequence, Text, Tuple
+from typing import Any, Optional, Text
+from collections.abc import Sequence
 
 import numpy
 import onnx
@@ -21,14 +22,14 @@ from tests.tests_python.utils.onnx_helpers import import_onnx_model
 
 
 class OpenVinoOnnxBackendRep(BackendRep):
-    def __init__(self, graph_model, device="CPU"):  # type: (List[Model], str) -> None
+    def __init__(self, graph_model, device="CPU"):  # type: (list[Model], str) -> None
         super().__init__()
         self.device = device
         self.graph_model = graph_model
         self.runtime = get_runtime()
         self.computation = self.runtime.computation(graph_model)
 
-    def run(self, inputs, **kwargs):  # type: (Any, **Any) -> Tuple[Any, ...]
+    def run(self, inputs, **kwargs):  # type: (Any, **Any) -> tuple[Any, ...]
         """Run computation on model."""
         return self.computation(*inputs)
 
@@ -66,7 +67,7 @@ class OpenVinoOnnxBackend(Backend):
         inputs,  # type: Any
         device="CPU",  # type: Text
         **kwargs,  # type: Any
-    ):  # type: (...) -> Tuple[Any, ...]
+    ):  # type: (...) -> tuple[Any, ...]
         return cls.prepare(model, device, **kwargs).run(inputs)
 
     @classmethod
@@ -75,14 +76,14 @@ class OpenVinoOnnxBackend(Backend):
         node,  # type: onnx.NodeProto
         inputs,  # type: Any
         device="CPU",  # type: Text
-        outputs_info=None,  # type: Optional[Sequence[Tuple[numpy.dtype, Tuple[int, ...]]]]
-        **kwargs,  # type: Dict[Text, Any]
-    ):  # type: (...) -> Optional[Tuple[Any, ...]]
+        outputs_info=None,  # type: Optional[Sequence[tuple[numpy.dtype, tuple[int, ...]]]]
+        **kwargs,  # type: dict[Text, Any]
+    ):  # type: (...) -> Optional[tuple[Any, ...]]
         """Prepare and run a computation on an ONNX node."""
         # default values for input/output tensors
         input_tensor_types = [np_dtype_to_tensor_dtype(node_input.dtype) for node_input in inputs]
         output_tensor_types = [onnx.TensorProto.FLOAT for _ in range(len(node.output))]
-        output_tensor_shapes = [()]  # type: List[Tuple[int, ...]]
+        output_tensor_shapes = [()]  # type: list[tuple[int, ...]]
 
         if outputs_info is not None:
             output_tensor_types = [

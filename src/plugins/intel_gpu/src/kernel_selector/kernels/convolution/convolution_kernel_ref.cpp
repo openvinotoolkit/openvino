@@ -114,7 +114,7 @@ KernelsPriority ConvolutionKernel_Ref::GetKernelsPriority(const Params& /*params
 
 bool ConvolutionKernel_Ref::Validate(const Params& params) const {
     if (!ConvolutionKernelBase::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& conv_params = static_cast<const convolution_params&>(params);
     auto input_type = conv_params.inputs[0].GetDType();
@@ -141,20 +141,20 @@ bool ConvolutionKernel_Ref::Validate(const Params& params) const {
                         (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
 
     if (!is_quantization && !has_fused_op)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if (conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
         if (conv_params.activations_zero_points.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
         if (conv_params.weights_zero_points.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else {
         if (!conv_params.activations_zero_points.empty() || !conv_params.weights_zero_points.empty())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

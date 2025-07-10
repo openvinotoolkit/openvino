@@ -21,7 +21,7 @@ class jit_abs_emitter : public jit_emitter {
 public:
     jit_abs_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                    ov::element::Type exec_prc = ov::element::f32);
 
     jit_abs_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -43,7 +43,7 @@ class jit_add_emitter : public jit_emitter {
 public:
     jit_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                    ov::element::Type exec_prc = ov::element::f32);
 
     jit_add_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -65,9 +65,9 @@ class jit_clamp_emitter : public jit_emitter {
 public:
     jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                      const float min,
-                      const float max,
-                      const ov::element::Type exec_prc = ov::element::f32);
+                      float min,
+                      float max,
+                      ov::element::Type exec_prc = ov::element::f32);
 
     jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -98,7 +98,7 @@ class jit_divide_emitter : public jit_emitter {
 public:
     jit_divide_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                       const ov::element::Type exec_prc = ov::element::f32);
+                       ov::element::Type exec_prc = ov::element::f32);
 
     jit_divide_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -120,7 +120,7 @@ class jit_equal_emitter : public jit_emitter {
 public:
     jit_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                      const ov::element::Type exec_prc = ov::element::f32);
+                      ov::element::Type exec_prc = ov::element::f32);
 
     jit_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -148,7 +148,7 @@ class jit_not_equal_emitter : public jit_emitter {
 public:
     jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                          const ov::element::Type exec_prc = ov::element::f32);
+                          ov::element::Type exec_prc = ov::element::f32);
 
     jit_not_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -176,7 +176,7 @@ class jit_exp_emitter : public jit_emitter {
 public:
     jit_exp_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                    ov::element::Type exec_prc = ov::element::f32);
 
     jit_exp_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -204,7 +204,7 @@ class jit_erf_emitter : public jit_emitter {
 public:
     jit_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                    ov::element::Type exec_prc = ov::element::f32);
 
     jit_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -236,8 +236,8 @@ class jit_elu_emitter : public jit_emitter {
 public:
     jit_elu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const float alpha,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                    float alpha,
+                    ov::element::Type exec_prc = ov::element::f32);
 
     jit_elu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -270,7 +270,7 @@ class jit_floor_emitter : public jit_emitter {
 public:
     jit_floor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                      const ov::element::Type exec_prc = ov::element::f32);
+                      ov::element::Type exec_prc = ov::element::f32);
 
     jit_floor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -291,7 +291,7 @@ class jit_floor_mod_emitter : public jit_emitter {
 public:
     jit_floor_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                          const ov::element::Type exec_prc = ov::element::f32);
+                          ov::element::Type exec_prc = ov::element::f32);
 
     jit_floor_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -315,7 +315,7 @@ public:
     // Constructor with explicit precision
     jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const ov::element::Type exec_prc = ov::element::f32);
+                        ov::element::Type exec_prc = ov::element::f32);
 
     // Constructor from node
     jit_ceiling_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
@@ -342,7 +342,7 @@ class jit_negative_emitter : public jit_emitter {
 public:
     jit_negative_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                         const ov::element::Type exec_prc = ov::element::f32);
+                         ov::element::Type exec_prc = ov::element::f32);
 
     jit_negative_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -364,7 +364,7 @@ class jit_gelu_erf_emitter : public jit_emitter {
 public:
     jit_gelu_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                         const ov::element::Type exec_prc = ov::element::f32);
+                         ov::element::Type exec_prc = ov::element::f32);
 
     jit_gelu_erf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -398,7 +398,7 @@ class jit_gelu_tanh_emitter : public jit_emitter {
 public:
     jit_gelu_tanh_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                          const ov::element::Type exec_prc = ov::element::f32);
+                          ov::element::Type exec_prc = ov::element::f32);
 
     jit_gelu_tanh_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -430,7 +430,7 @@ class jit_greater_emitter : public jit_emitter {
 public:
     jit_greater_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const ov::element::Type exec_prc = ov::element::f32);
+                        ov::element::Type exec_prc = ov::element::f32);
 
     jit_greater_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -458,7 +458,7 @@ class jit_greater_equal_emitter : public jit_emitter {
 public:
     jit_greater_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                              const ov::element::Type exec_prc = ov::element::f32);
+                              ov::element::Type exec_prc = ov::element::f32);
 
     jit_greater_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -486,7 +486,7 @@ class jit_hsigmoid_emitter : public jit_emitter {
 public:
     jit_hsigmoid_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                         const ov::element::Type exec_prc = ov::element::f32);
+                         ov::element::Type exec_prc = ov::element::f32);
 
     jit_hsigmoid_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -514,7 +514,7 @@ class jit_hswish_emitter : public jit_emitter {
 public:
     jit_hswish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                       const ov::element::Type exec_prc = ov::element::f32);
+                       ov::element::Type exec_prc = ov::element::f32);
 
     jit_hswish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -542,7 +542,7 @@ class jit_is_finite_emitter : public jit_emitter {
 public:
     jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                          const ov::element::Type exec_prc = ov::element::f32);
+                          ov::element::Type exec_prc = ov::element::f32);
 
     jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -570,7 +570,7 @@ class jit_is_nan_emitter : public jit_emitter {
 public:
     jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                       const ov::element::Type exec_prc = ov::element::f32);
+                       ov::element::Type exec_prc = ov::element::f32);
 
     jit_is_nan_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -598,7 +598,7 @@ class jit_maximum_emitter : public jit_emitter {
 public:
     jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const ov::element::Type exec_prc = ov::element::f32);
+                        ov::element::Type exec_prc = ov::element::f32);
 
     jit_maximum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -620,7 +620,7 @@ class jit_minimum_emitter : public jit_emitter {
 public:
     jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const ov::element::Type exec_prc = ov::element::f32);
+                        ov::element::Type exec_prc = ov::element::f32);
 
     jit_minimum_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -642,7 +642,7 @@ class jit_mish_emitter : public jit_emitter {
 public:
     jit_mish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const ov::element::Type exec_prc = ov::element::f32);
+                     ov::element::Type exec_prc = ov::element::f32);
 
     jit_mish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -678,9 +678,9 @@ public:
 
     jit_is_inf_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                       const bool detect_negative,
-                       const bool detect_positive,
-                       const ov::element::Type exec_prc = ov::element::f32);
+                       bool detect_negative,
+                       bool detect_positive,
+                       ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_count() const override;
 
@@ -707,7 +707,7 @@ class jit_less_emitter : public jit_emitter {
 public:
     jit_less_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const ov::element::Type exec_prc = ov::element::f32);
+                     ov::element::Type exec_prc = ov::element::f32);
 
     jit_less_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -735,7 +735,7 @@ class jit_less_equal_emitter : public jit_emitter {
 public:
     jit_less_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                           const ov::element::Type exec_prc = ov::element::f32);
+                           ov::element::Type exec_prc = ov::element::f32);
 
     jit_less_equal_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -763,7 +763,7 @@ class jit_logical_and_emitter : public jit_emitter {
 public:
     jit_logical_and_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                            const ov::element::Type exec_prc = ov::element::f32);
+                            ov::element::Type exec_prc = ov::element::f32);
 
     jit_logical_and_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -791,7 +791,7 @@ class jit_logical_or_emitter : public jit_emitter {
 public:
     jit_logical_or_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                           const ov::element::Type exec_prc = ov::element::f32);
+                           ov::element::Type exec_prc = ov::element::f32);
 
     jit_logical_or_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -819,7 +819,7 @@ class jit_logical_not_emitter : public jit_emitter {
 public:
     jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                            const ov::element::Type exec_prc = ov::element::f32);
+                            ov::element::Type exec_prc = ov::element::f32);
 
     jit_logical_not_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -847,7 +847,7 @@ class jit_logical_xor_emitter : public jit_emitter {
 public:
     jit_logical_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                            const ov::element::Type exec_prc = ov::element::f32);
+                            ov::element::Type exec_prc = ov::element::f32);
 
     jit_logical_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -875,7 +875,7 @@ class jit_mod_emitter : public jit_emitter {
 public:
     jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                    const ov::element::Type exec_prc = ov::element::f32);
+                    ov::element::Type exec_prc = ov::element::f32);
 
     jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -944,15 +944,15 @@ class jit_power_static_emitter : public jit_emitter {
 public:
     jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                             const float power,
-                             const float scale,
-                             const float shift,
-                             const ov::element::Type exec_prc = ov::element::f32);
+                             float power,
+                             float scale,
+                             float shift,
+                             ov::element::Type exec_prc = ov::element::f32);
 
     jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                              dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                              const std::shared_ptr<ov::Node>& node,
-                             const ov::element::Type exec_prc = ov::element::f32);
+                             ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_count() const override;
 
@@ -979,12 +979,12 @@ class jit_power_dynamic_emitter : public jit_emitter {
 public:
     jit_power_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                              const ov::element::Type exec_prc = ov::element::f32);
+                              ov::element::Type exec_prc = ov::element::f32);
 
     jit_power_dynamic_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                               dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                               const std::shared_ptr<ov::Node>& node,
-                              const ov::element::Type exec_prc = ov::element::f32);
+                              ov::element::Type exec_prc = ov::element::f32);
 
     size_t get_inputs_count() const override;
 
@@ -1004,7 +1004,7 @@ class jit_prelu_emitter : public jit_emitter {
 public:
     jit_prelu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                      const ov::element::Type exec_prc = ov::element::f32);
+                      ov::element::Type exec_prc = ov::element::f32);
 
     jit_prelu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1028,8 +1028,8 @@ class jit_relu_emitter : public jit_emitter {
 public:
     jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const float alpha,
-                     const ov::element::Type exec_prc = ov::element::f32);
+                     float alpha,
+                     ov::element::Type exec_prc = ov::element::f32);
 
     jit_relu_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1060,7 +1060,7 @@ class jit_round_half_away_from_zero_emitter : public jit_emitter {
 public:
     jit_round_half_away_from_zero_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                          const ov::element::Type exec_prc = ov::element::f32);
+                                          ov::element::Type exec_prc = ov::element::f32);
 
     jit_round_half_away_from_zero_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1082,7 +1082,7 @@ class jit_round_half_to_even_emitter : public jit_emitter {
 public:
     jit_round_half_to_even_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   const ov::element::Type exec_prc = ov::element::f32);
+                                   ov::element::Type exec_prc = ov::element::f32);
 
     jit_round_half_to_even_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1104,7 +1104,7 @@ class jit_select_emitter : public jit_emitter {
 public:
     jit_select_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                       const ov::element::Type exec_prc = ov::element::f32);
+                       ov::element::Type exec_prc = ov::element::f32);
 
     jit_select_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1128,7 +1128,7 @@ class jit_sigmoid_emitter : public jit_emitter {
 public:
     jit_sigmoid_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                        const ov::element::Type exec_prc = ov::element::f32);
+                        ov::element::Type exec_prc = ov::element::f32);
 
     jit_sigmoid_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                         dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1160,7 +1160,7 @@ class jit_softplus_emitter : public jit_emitter {
 public:
     jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                         const ov::element::Type exec_prc = ov::element::f32);
+                         ov::element::Type exec_prc = ov::element::f32);
 
     jit_softplus_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1192,7 +1192,7 @@ class jit_soft_sign_emitter : public jit_emitter {
 public:
     jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                          const ov::element::Type exec_prc = ov::element::f32);
+                          ov::element::Type exec_prc = ov::element::f32);
 
     jit_soft_sign_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1220,7 +1220,7 @@ class jit_sqrt_emitter : public jit_emitter {
 public:
     jit_sqrt_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                     const ov::element::Type exec_prc = ov::element::f32);
+                     ov::element::Type exec_prc = ov::element::f32);
 
     jit_sqrt_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                      dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1242,7 +1242,7 @@ class jit_squared_difference_emitter : public jit_emitter {
 public:
     jit_squared_difference_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                                   const ov::element::Type exec_prc = ov::element::f32);
+                                   ov::element::Type exec_prc = ov::element::f32);
 
     jit_squared_difference_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1264,7 +1264,7 @@ class jit_subtract_emitter : public jit_emitter {
 public:
     jit_subtract_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                         const ov::element::Type exec_prc = ov::element::f32);
+                         ov::element::Type exec_prc = ov::element::f32);
 
     jit_subtract_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                          dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -1286,8 +1286,8 @@ class jit_swish_emitter : public jit_emitter {
 public:
     jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                      const float beta,
-                      const ov::element::Type exec_prc = ov::element::f32);
+                      float beta,
+                      ov::element::Type exec_prc = ov::element::f32);
 
     jit_swish_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                       dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,

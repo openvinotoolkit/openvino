@@ -78,17 +78,17 @@ ParamsKey PriorBoxKernelRef::GetSupportedKey() const {
 
 bool PriorBoxKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::PRIOR_BOX) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& priorBoxParams = dynamic_cast<const prior_box_params&>(params);
     if (priorBoxParams.inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     // Current ref kernel doesn't support clustered version
     if (priorBoxParams.is_clustered) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     return true;
 }
