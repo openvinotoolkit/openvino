@@ -176,42 +176,18 @@ inline int64_t file_size(const char* path) {
  * @param[in]  path  The file name
  * @return     file size
  */
-inline bool file_exists(const char* path) {
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = ov::util::string_to_wstring(path);
-    const wchar_t* file_name = widefilename.c_str();
-#elif defined(__ANDROID__) || defined(ANDROID)
-    std::string file_name = path;
-    std::string::size_type pos = file_name.find('!');
+inline bool file_exists(const std::filesystem::path& path) {
+#if defined(__ANDROID__) || defined(ANDROID)
+    // Handle nested resource paths on Android platform
+    std::file_name = path.string();
+    auto pos = file_name.find('!');
     if (pos != std::string::npos) {
         file_name = file_name.substr(0, pos);
     }
+    return std::filesystem::exists(file_name);
 #else
-    const char* file_name = path;
+    return std::filesystem::exists(path);
 #endif
-    std::ifstream in(file_name, std::ios_base::binary | std::ios_base::ate);
-    return in.good();
-}
-
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief      Returns true if file exists
- * @param[in]  path  The file name
- * @return     true if file exists
- */
-inline bool file_exists(const std::wstring& path) {
-    return file_exists(wstring_to_string(path).c_str());
-}
-#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-
-/**
- * @brief      Returns true if file exists
- * @param[in]  path  The file name
- * @return     true if file exists
- */
-inline bool file_exists(const std::string& path) {
-    return file_exists(path.c_str());
 }
 
 std::string get_file_ext(const std::string& path);
