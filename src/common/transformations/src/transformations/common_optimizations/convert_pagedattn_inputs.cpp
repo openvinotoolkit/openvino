@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <transformations/utils/gen_pattern.hpp>
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -15,6 +14,8 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
 using namespace ov::pass;
 using namespace ov::op;
 
