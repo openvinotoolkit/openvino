@@ -63,7 +63,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_24_04_arm64\":\"mock\", \"ubuntu_22_04_riscv_xuantie\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_22_04_riscv_xuantie\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -76,7 +76,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
-            ov_build/ubuntu_24_04_arm64
+            ov_build/ubuntu_22_04_arm64
             ov_build/ubuntu_22_04_riscv_xuantie
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
@@ -158,7 +158,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb-arm
     container:
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_arm64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -211,7 +211,8 @@ jobs:
           --parallel $(($(nproc) - 1)) \
           --config ${{ env.CMAKE_BUILD_TYPE }} \
           --target openvino_intel_cpu_plugin \
-          -- --quiet -k 0
+          -- -k 0
+        # TODO: add --quiet after switch to Ubuntu 24.04+
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats

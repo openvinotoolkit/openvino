@@ -1,5 +1,5 @@
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/ubuntu:24.04
+FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
@@ -44,8 +44,8 @@ RUN apt-get update && \
         # For Java API
         default-jdk \
         # Compiler, required for multi-isa build
-        gcc-14 \
-        g++-14 \
+        gcc-11 \
+        g++-11 \
         # JS API
         xvfb \
         libgtk-3-0 \
@@ -64,9 +64,9 @@ RUN chmod +x /install_build_dependencies.sh && \
 
 RUN apt-get purge -y python3-pip
 
-# Set gcc-14 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 30
+# Set gcc-11 as a default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 30 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 30
 
 # Install sccache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -78,16 +78,22 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
+    python3 get-pip-3-8.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.9 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    rm -f get-pip.py
+
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
-
-# Setup pip
-ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} --force-reinstall --break-system-packages && \
-    rm -f get-pip.py
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
