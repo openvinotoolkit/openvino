@@ -152,9 +152,10 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
         return impl_desc_type::ref;
     }();
 
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, precision)}, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
-                         {PortConfigurator(LayoutType::ncsp, precision)},
-                         impl_type);
+    addSupportedPrimDesc(
+        {{PortConfigurator(LayoutType::ncsp, precision)}, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
+        {PortConfigurator(LayoutType::ncsp, precision)},
+        impl_type);
 }
 
 void RMSNorm::createPrimitive() {

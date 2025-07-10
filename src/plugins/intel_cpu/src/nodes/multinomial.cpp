@@ -82,10 +82,11 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
         m_probs_precision = ov::element::f32;
     }
 
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT])},
-                          {PortConfigurator(LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT])}},
-                         {PortConfigurator(LayoutType::ncsp, m_output_precision)},
-                         ref_any);
+    addSupportedPrimDesc(
+        {{PortConfigurator(LayoutType::ncsp, m_probs_precision, m_const_inputs[PROBS_PORT])},
+         {PortConfigurator(LayoutType::ncsp, m_num_samples_precision, m_const_inputs[NUM_SAMPLES_PORT])}},
+        {PortConfigurator(LayoutType::ncsp, m_output_precision)},
+        ref_any);
 }
 
 bool Multinomial::needShapeInfer() const {

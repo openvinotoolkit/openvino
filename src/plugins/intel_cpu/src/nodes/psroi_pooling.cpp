@@ -176,12 +176,14 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
                                                                   {LayoutType::nCsp8c, LayoutType::nCsp8c}};
 
         for (const auto& df : dataFomats) {
-            addSupportedPrimDesc({PortConfigurator(df.first, dataPrecision), PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-                                 {PortConfigurator(df.second, dataPrecision)},
-                                 impl_type);
+            addSupportedPrimDesc(
+                {PortConfigurator(df.first, dataPrecision), PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                {PortConfigurator(df.second, dataPrecision)},
+                impl_type);
         }
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable && noTrans) {
-        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)}, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
+        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
+                              {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
                              {PortConfigurator(LayoutType::ncsp, dataPrecision)},
                              impl_type);
     } else if (getAlgorithm() == Algorithm::PSROIPoolingBilinearDeformable) {

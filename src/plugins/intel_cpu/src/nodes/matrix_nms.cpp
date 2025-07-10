@@ -153,7 +153,8 @@ void MatrixNms::initSupportedPrimitiveDescriptors() {
                    "valid_outputs",
                    m_outType);
 
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)}, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
+    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                          {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
                          {{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
                           {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
                           {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},

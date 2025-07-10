@@ -498,9 +498,10 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         refParams.src_prc = ov::element::f32;
     }
 
-    addSupportedPrimDesc({PortConfigurator(format, refParams.src_prc), PortConfigurator(LayoutType::ncsp, refParams.src_prc)},
-                         {PortConfigurator(format, refParams.src_prc)},
-                         impl_type);
+    addSupportedPrimDesc(
+        {PortConfigurator(format, refParams.src_prc), PortConfigurator(LayoutType::ncsp, refParams.src_prc)},
+        {PortConfigurator(format, refParams.src_prc)},
+        impl_type);
 }
 
 void ROIPooling::createPrimitive() {

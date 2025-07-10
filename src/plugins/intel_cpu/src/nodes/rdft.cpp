@@ -164,7 +164,9 @@ void RDFT::initSupportedPrimitiveDescriptors() {
         configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
-    addSupportedPrimDesc(configurators, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(configurators,
+                         {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                         impl_desc_type::ref_any);
 }
 
 void RDFT::execute([[maybe_unused]] const dnnl::stream& strm) {

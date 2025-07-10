@@ -133,8 +133,12 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
                          impl_type);
     // canUseBlocked
     if (attrs.axis != 1) {
-        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp8c, precision)}, {PortConfigurator(LayoutType::nCsp8c, precision)}, impl_type);
-        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp16c, precision)}, {PortConfigurator(LayoutType::nCsp16c, precision)}, impl_type);
+        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp8c, precision)},
+                             {PortConfigurator(LayoutType::nCsp8c, precision)},
+                             impl_type);
+        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp16c, precision)},
+                             {PortConfigurator(LayoutType::nCsp16c, precision)},
+                             impl_type);
     }
 }
 
