@@ -70,29 +70,46 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         supported_precision_intersection = prcs_intersect;
     }
 
+    // To select the most suitable precision from inputs are mixed-precision
+    // Preference is given to higher bitwidth, and for equal bitwidth, to real (floating point) types.
+    auto select_precision_from_inputs = [](const ov::element::Type(&src_prc)[MAX_ELTWISE_INPUTS],
+                                           const size_t inputs_number) {
+        auto selected_type = src_prc[0];  // Start with the first input's precision
+        for (size_t i = 1; i < inputs_number; i++) {
+            if (selected_type.bitwidth() > src_prc[i].bitwidth()) {
+                continue;
+            }
+            // If bitwidths are equal and selected_type is real (floating point), keep it
+            if (selected_type.bitwidth() == src_prc[i].bitwidth() && selected_type.is_real()) {
+                continue;
+            }
+            // Otherwise, update selected_type to the current input's precision
+            selected_type = src_prc[i];
+        }
+        return selected_type;
+    };
+
+    const auto input_precision = select_precision_from_inputs(src_prc, inputs_number);
+
     for (const auto prc : exec_precisions_priority) {
+        if (input_precision != prc) {
+            continue;
+        }
         if (std::any_of(supported_precision_intersection.begin(),
                         supported_precision_intersection.end(),
-                        [&prc, &src_prc](const std::vector<element::Type>& precisions) {
-                            return (std::find(precisions.begin(), precisions.end(), prc) != precisions.end()) &&
-                                   (std::find(src_prc, src_prc + sizeof(src_prc), prc) != src_prc + sizeof(src_prc));
+                        [&prc](const std::vector<element::Type>& precisions) {
+                            // L56 has the check that all precisions are equal
+                            // So only check the first one
+                            return (precisions[0] == prc);
                         })) {
             exec_prc = prc;
             break;
         }
     }
 
-    if (Algorithm::EltwiseSelect != eltwise_data.front().algo || exec_prc == ov::element::dynamic) {
-        for (size_t i = 0; i < inputs_number; i++) {
-            if (src_prc[i] != exec_prc) {
-                exec_prc = ov::element::f32;
-                break;
-            }
-        }
-    }
-
     if (exec_prc == ov::element::dynamic) {
-        OPENVINO_THROW("Eltwise jitter failed to specify execution precision for Eltwise node");
+        // Fallback to fp32 if no other precision is found
+        exec_prc = ov::element::f32;
     }
 
     return exec_prc;
