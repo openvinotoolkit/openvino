@@ -436,7 +436,7 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
                 if (srcDesc.hasLayoutType(LayoutType::nspc)) {
                     binOffIn = roiBatchInd * channels * height * width + gc;
                     inBlkRes = 0;
-                } else { // nchw, nChw16c, nChw8c
+                } else {  // nchw, nChw16c, nChw8c
                     const int inputBlockIdx = (gc / inBlockSize) * inBlockSize;
                     binOffIn = (roiBatchInd * inputChannelsPadding + inputBlockIdx) * height * width;
                     inBlkRes =

@@ -70,7 +70,8 @@ void ExperimentalDetectronTopKROIs::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)}, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
+    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                          {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
                          {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
                          impl_desc_type::ref_any);
 }

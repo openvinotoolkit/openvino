@@ -129,13 +129,15 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     }
     for (const auto& df : dataFormats) {
         if (algorithm == Algorithm::AdaptivePoolingAvg) {
-            addSupportedPrimDesc({PortConfigurator(df, precision), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                                 {PortConfigurator(df, precision)},
-                                 impl_desc_type::unknown);
+            addSupportedPrimDesc(
+                {PortConfigurator(df, precision), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
+                {PortConfigurator(df, precision)},
+                impl_desc_type::unknown);
         } else {
-            addSupportedPrimDesc({PortConfigurator(df, precision), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                                 {PortConfigurator(df, precision), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                                 impl_desc_type::unknown);
+            addSupportedPrimDesc(
+                {PortConfigurator(df, precision), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
+                {PortConfigurator(df, precision), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
+                impl_desc_type::unknown);
         }
     }
 }

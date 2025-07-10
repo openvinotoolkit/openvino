@@ -99,7 +99,9 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
         inDataConfigurators.emplace_back(LayoutType::ncsp, inDataPrecision);
     }
 
-    addSupportedPrimDesc(inDataConfigurators, {PortConfigurator(LayoutType::ncsp, inDataPrecision)}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators,
+                         {PortConfigurator(LayoutType::ncsp, inDataPrecision)},
+                         impl_desc_type::ref_any);
 }
 
 void EmbeddingSegmentsSum::prepareParams() {
