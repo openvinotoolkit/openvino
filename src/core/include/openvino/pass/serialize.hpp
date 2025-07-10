@@ -4,16 +4,13 @@
 
 #pragma once
 
+#include <filesystem>
 #include <functional>
 #include <string>
 
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/pass.hpp"
-
-#ifdef OPENVINO_CPP_VER_AT_LEAST_17
-#    include <filesystem>
-#endif
 
 namespace ov {
 namespace pass {
@@ -37,20 +34,15 @@ public:
 
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
-    Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
-
-#ifdef OPENVINO_CPP_VER_AT_LEAST_17
     Serialize(const std::filesystem::path& xmlPath,
               const std::filesystem::path& binPath,
-              Version version = Version::UNSPECIFIED)
-        : Serialize(xmlPath.string(), binPath.string(), version) {}
-#endif
+              Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream* m_xmlFile;
     std::ostream* m_binFile;
-    const std::string m_xmlPath;
-    const std::string m_binPath;
+    const std::filesystem::path m_xmlPath;
+    const std::filesystem::path m_binPath;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
 };

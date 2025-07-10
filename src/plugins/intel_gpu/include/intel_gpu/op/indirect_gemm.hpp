@@ -26,7 +26,7 @@ public:
                  const std::vector<int64_t>& order_a,
                  const std::vector<int64_t>& order_b,
                  const std::vector<int64_t>& order_c,
-                 const ov::element::Type output_type = ov::element::undefined);
+                 const ov::element::Type output_type = ov::element::dynamic);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
     void validate_and_infer_types() override;

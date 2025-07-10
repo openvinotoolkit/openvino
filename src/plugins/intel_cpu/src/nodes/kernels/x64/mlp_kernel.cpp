@@ -4,9 +4,25 @@
 
 #include "mlp_kernel.hpp"
 
-#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cassert>
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <type_traits>
+
 #include "mlp_utils.hpp"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -18,11 +34,18 @@ using TileConfiger = ov::Extensions::Cpu::TileConfiger;
 namespace ov::intel_cpu {
 
 void MKernel::generate_2x2() {
-    Xbyak::Reg64 reg_A_addr = abi_param2;
-    Xbyak::Reg64 reg_A_stride = abi_param3;
-    Xbyak::Reg64 reg_B_addr = abi_param4;
-    Xbyak::Reg64 reg_C_addr = abi_param5;
-    Xbyak::Reg64 reg_C_stride = abi_param6;
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -139,6 +162,10 @@ void MKernel::generate_2x2() {
     tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC11);
 
     pop(reg_prefetch);
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -170,11 +197,18 @@ void MKernel::tile_config_M(TileConfig& tile_cfg, int M) {
 }
 
 void MKernel::generate_1x2() {
-    Xbyak::Reg64 reg_A_addr = abi_param2;
-    Xbyak::Reg64 reg_A_stride = abi_param3;
-    Xbyak::Reg64 reg_B_addr = abi_param4;
-    Xbyak::Reg64 reg_C_addr = abi_param5;
-    Xbyak::Reg64 reg_C_stride = abi_param6;
+    auto reg_A_addr = abi_param2;
+    auto reg_A_stride = abi_param3;
+    auto reg_B_addr = abi_param4;
+#ifdef _WIN32
+    auto reg_C_addr = rdi;
+    auto reg_C_stride = rsi;
+    push(rdi);
+    push(rsi);
+#else
+    auto reg_C_addr = abi_param5;
+    auto reg_C_stride = abi_param6;
+#endif
 
     Xbyak::Reg64 reg_ktiles = rax;
     Xbyak::Reg64 reg_B_stride = r10;
@@ -253,7 +287,10 @@ void MKernel::generate_1x2() {
         tilestored(ptr[reg_C_addr + reg_C_stride + 64], tmmC01);
     }
     L(skip_store);
-
+#ifdef _WIN32
+    pop(rsi);
+    pop(rdi);
+#endif
     ret();
 }
 
@@ -266,7 +303,7 @@ public:
 
     void generate() override {
         Xbyak::Label loop_begin;
-        Xbyak::Reg64 src = abi_param1;
+        auto src = abi_param1;
         for (int i = 0; i < 16; i++) {
             vcvtph2ps(zmm0, ptr[src]);
             vcvtph2ps(zmm1, ptr[src + 32]);
@@ -280,13 +317,13 @@ public:
 };
 
 template <typename Tdst>
-static typename std::enable_if<std::is_same<ov::bfloat16, Tdst>::value || std::is_same<ov::float16, Tdst>::value>::type
+static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
 repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     static FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
-        if (std::is_same<ov::bfloat16, Tdst>::value) {
+        if (std::is_same_v<ov::bfloat16, Tdst>) {
             fp16_to_bf16(dst);
         }
         return;
@@ -295,7 +332,7 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     assert(K <= 32);
     assert(N <= 16);
     int k = 0;
-    Tdst zero(0.0f);
+    Tdst zero(0.0F);
     for (; k < 32; k += 2) {
         int n = 0;
         bool is_k0_valid = (k) < K;
@@ -383,7 +420,7 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
 
     const int k_step = 64;
     auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
-    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    auto* pdst = ext_buff;
     for (int n = 0; n < N; n += 32) {
         auto* src0 = p_weight + n * N_stride;
         auto* src1 = p_weight + (n + 16) * N_stride;
@@ -391,9 +428,9 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
         auto valid_n1 = std::min((N - (n + 16)), 16);
         for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<int8_t*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, src0 + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<int8_t*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
+            repackB(pdst, src1 + k, N_stride, valid_n1, valid_k);
             pdst += 1024;
         }
     }
@@ -448,14 +485,14 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
     const int k_step = 64;
     auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
     auto N2 = N / 2;
-    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    auto* pdst = ext_buff;
     for (int n = 0; n < N2; n += 16) {
         auto valid_n0 = std::min((N2 - n), 16);
         for (int k = 0; k < K; k += k_step) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
         }
     }
@@ -469,20 +506,20 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
 // but prefetch of next B must be specified by caller.
 //
 void MKernel::run(int M,  // actual M
-                  uint8_t* pA,
+                  const uint8_t* pA,
                   int strideA,          // A [M, K]
                   BMatrix& repacked_B,  // B [N/32, K*32] ov::bfloat16
-                  uint8_t* pC,
-                  int strideC,          // C [M, N]
-                  uint8_t* prefetch_B,  // prefetch B
+                  const uint8_t* pC,
+                  int strideC,                // C [M, N]
+                  const uint8_t* prefetch_B,  // prefetch B
                   bool do_accumulation) {
-    call_args args;
+    call_args args{};
 
     auto* pB = repacked_B.ptr;
     auto strideB = repacked_B.Bpair_rows * repacked_B.Bpair_size;
     auto num_blkN = repacked_B.Bpair_cols;
 
-    args.do_accumulation = do_accumulation;
+    args.do_accumulation = static_cast<int64_t>(do_accumulation);
     args.k_tiles = repacked_B.Bpair_rows;
     args.strideA = strideA;
     args.strideC = strideC;
@@ -502,10 +539,11 @@ void MKernel::run(int M,  // actual M
     }
 }
 
-void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) const {
     assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(BM, nthr, ithr, start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_bf16_i8(psrc + start * src_stride,
                                                              src_stride,
@@ -519,10 +557,11 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
     });
 }
 
-void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) const {
     assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(BM, nthr, ithr, start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_f16_i8(psrc + start * src_stride,
                                                             src_stride,
@@ -539,10 +578,10 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride
 void GateUpCombine::generate() {
     Xbyak::Label loop_begin;
 
-    Xbyak::Reg64 src = abi_param1;
-    Xbyak::Reg64 dst = abi_param2;
-    Xbyak::Reg64 prefetch_dst = abi_param3;
-    Xbyak::Reg64 BN = abi_param4;
+    auto src = abi_param1;
+    auto dst = abi_param2;
+    auto prefetch_dst = abi_param3;
+    auto BN = abi_param4;
 
     Xbyak::Reg64 loop_i = rax;
     const auto zmm_gate = zmm5;
@@ -553,9 +592,9 @@ void GateUpCombine::generate() {
     auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
-        1.f,
-        1.0f,
-        1.f,
+        1.F,
+        1.0F,
+        1.F,
         data_type::f32,
         true,                               // save_state, true due to additional r15 is used.
         Xbyak::Reg64(Xbyak::Operand::R10),  // p_table
@@ -599,11 +638,18 @@ void GateUpCombine::generate() {
 
 void ReduceAdd2bh::generate() {
     if (m_do_reduce2) {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 src1 = abi_param2;
-        Xbyak::Reg64 dst = abi_param3;
-        Xbyak::Reg64 prefetch_dst = abi_param4;
-        Xbyak::Reg64 BN = abi_param5;
+        auto src0 = rdx;
+        auto src1 = r8;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(src1, ptr[abi_param1 + offsetof(CallArgs, src1)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
@@ -635,10 +681,16 @@ void ReduceAdd2bh::generate() {
 
         ret();
     } else {
-        Xbyak::Reg64 src0 = abi_param1;
-        Xbyak::Reg64 dst = abi_param2;
-        Xbyak::Reg64 prefetch_dst = abi_param3;
-        Xbyak::Reg64 BN = abi_param4;
+        auto src0 = rdx;
+        auto dst = r9;
+        auto prefetch_dst = r10;
+        auto BN = r11;
+
+        mov(src0, ptr[abi_param1 + offsetof(CallArgs, src0)]);
+        mov(dst, ptr[abi_param1 + offsetof(CallArgs, dst)]);
+        mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
+        mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
+
         Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;

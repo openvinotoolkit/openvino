@@ -124,7 +124,7 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     // check if the tensor names of target port is a subset of source port's tensor names
     auto check_tensor_names = [](const std::unordered_set<std::string>& source,
                                  const std::unordered_set<std::string>& target) {
-        for (auto const& name : target) {
+        for (const auto& name : target) {
             if (source.find(name) == source.end())
                 return false;
         }
@@ -141,13 +141,14 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     // Find port without caching work slow because we need each time iterate over all ports and compare different
     // strings So use WA with caching in order to make 2+ calls for the same ports faster.
     // Calculate hash for the port
-    size_t port_hash = ov::util::hash_combine(
-        std::vector<size_t>{std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
+    size_t port_hash =
+        ov::util::hash_combine({std::hash<const ov::Node*>()(port.get_node()), std::hash<size_t>()(port.get_index())});
     {
         std::lock_guard<std::mutex> lock(m_cache_mutex);
-        if (m_cached_ports.find(port_hash) != m_cached_ports.end()) {
+        auto itr = m_cached_ports.find(port_hash);
+        if (itr != m_cached_ports.end()) {
             // Cached port for the hash was found
-            return m_cached_ports[port_hash];
+            return itr->second;
         }
     }
     ov::ISyncInferRequest::FoundPort::Type type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
@@ -205,7 +206,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
 ov::SoPtr<ov::ITensor>& ov::ISyncInferRequest::get_tensor_ptr(const ov::Output<const ov::Node>& port) const {
     auto found_port = find_port(port);
     OPENVINO_ASSERT(found_port.found(), "Cannot find tensor for port ", port);
-    auto ports = found_port.is_input() ? get_inputs() : get_outputs();
+    const auto& ports = found_port.is_input() ? get_inputs() : get_outputs();
     auto it = m_tensors.find(ports.at(found_port.idx).get_tensor_ptr());
     OPENVINO_ASSERT(it != m_tensors.end(), "Cannot find tensor for port: ", port);
 

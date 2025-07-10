@@ -90,8 +90,8 @@ KernelsData MatrixNmsKernelRef::GetKernelsData(const Params& params) const {
     const size_t box_info_buffer_size = box_info_num * BOX_INFO_SIZE;
     const size_t sel_boxes_num_buffer_size = batches_num * classes_num * sizeof(int);
 
-    kernel_data.internalBufferSizes.push_back(box_info_buffer_size);
-    kernel_data.internalBufferSizes.push_back(sel_boxes_num_buffer_size);
+    kernel_data.internalBuffers.push_back(box_info_buffer_size);
+    kernel_data.internalBuffers.push_back(sel_boxes_num_buffer_size);
     kernel_data.internalBufferDataType = Datatype::F32;
 
     for (size_t i{}; i < kernels_num; ++i) {
@@ -122,7 +122,7 @@ float MatrixNmsKernelRef::GetKernelsPriority(const Params& params) const {
 
 bool MatrixNmsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::MATRIX_NMS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

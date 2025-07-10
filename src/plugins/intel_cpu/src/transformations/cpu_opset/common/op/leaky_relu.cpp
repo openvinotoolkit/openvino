@@ -4,6 +4,13 @@
 
 #include "leaky_relu.hpp"
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::LeakyReluNode::LeakyReluNode(const ov::Output<ov::Node>& data,
@@ -24,7 +31,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::LeakyReluNode::clone_with_new_inputs(co
 void ov::intel_cpu::LeakyReluNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(LeakyReluNode_validate_and_infer_types);
     set_output_type(0,
-                    m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type,
+                    m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type,
                     get_input_partial_shape(0));
 }
 

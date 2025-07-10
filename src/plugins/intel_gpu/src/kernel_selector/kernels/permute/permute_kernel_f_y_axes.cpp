@@ -19,12 +19,12 @@ constexpr size_t cSimpleMemCopyOpDivider = 4UL;
 constexpr size_t c3DTransposeBufHeight = 4UL;
 
 size_t GetDivisor(const size_t input_size) {
-    std::vector<size_t> v = {/*32,*/ 16, 8, 4, 2, 1};
-    auto is_divided = [input_size](size_t i) {
-        return input_size % i == 0;
-    };
-    auto result = std::find_if(begin(v), end(v), is_divided);
-    return *result;
+    for (size_t d : {16, 8, 4, 2}) {
+        if (input_size % d == 0)
+            return d;
+    }
+
+    return 1; // Fallback: Any integer divides evenly by 1
 }
 
 bool IsSimpleMemCopyOperation(const permute_params& params) {
@@ -145,6 +145,8 @@ JitConstants PermuteKernel_f_y_axes::GetJitConstants(const permute_params& param
         jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     }
 
+    jit.Merge(MakeTypeJitConstants(params.inputs[0].GetDType(), "ACCUMULATOR"));
+
     if (!params.fused_ops.empty()) {
         const std::vector<std::string> original_output_order = {"b_idx", "f_out_idx", "y_out_idx", "x_idx"};
         const FusedOpsConfiguration conf_scalar = {"", original_output_order, "res", params.inputs[0].GetDType(), 1};
@@ -195,7 +197,7 @@ CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& para
 
 bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto is_swapping_f_with_y = [](const std::vector<uint16_t>& order) {
@@ -220,17 +222,17 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     const auto feature_div = GetDivisor(in.Feature().v);
     const auto y_div = GetDivisor(in.Y().v);
     if (feature_div == 1 || y_div == 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (in.X().v > 1 && GetDivisor(in.X().v) == 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (!is_swapping_f_with_y(params.order)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (in_layout != out_layout) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Accept only supported blocked layouts and SIMD sizes.
@@ -240,7 +242,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
         if (!(IsSIMDSizeSupported(params.engineInfo, subgroup_size) &&
               (in_layout == DataLayout::b_fs_yx_fsv32 || in_layout == DataLayout::b_fs_yx_fsv16))) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

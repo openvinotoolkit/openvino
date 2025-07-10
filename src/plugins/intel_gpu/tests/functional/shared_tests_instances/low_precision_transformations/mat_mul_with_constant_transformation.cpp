@@ -14,7 +14,7 @@ const std::vector<ov::element::Type> precisions = {
     ov::element::f16
 };
 
-//transpose_a = false, transpose_b = true
+// transpose_a = false, transpose_b = true
 std::vector<MatMulWithConstantTransformationTestValues> testValues = {
     {
         { 2, 3, 4 },
@@ -23,7 +23,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{2, 1}, {2, 1}, {2, 1}, {2, 1}}, {-128.f, -12.8f}, {127.f, 12.7f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     {
         { 2, 3, 4 },
@@ -32,7 +32,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         {},
         { ov::element::f32, {}, {0.1f} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     {
         { 1, 3, 4 },
@@ -41,7 +41,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{2, 1}, {2, 1}, {2, 1}, {2, 1}}, {-128.f, -12.8f}, {127.f, 12.7f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     {
         { 1, 1, 3, 4 },
@@ -50,7 +50,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{2, 1}, {2, 1}, {2, 1}, {2, 1}}, {-128.f, -12.8f}, {127.f, 12.7f}, {-128.f, -12.8f}, {127.f, 12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     {
         { 1, 1, 3, 4 },
@@ -59,7 +59,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         {},
         { ov::element::f32, {}, {{0.1f, 0.01}, ov::element::f32, ov::Shape{ 2, 1 }} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     {
         { 1, 3, 4 },
@@ -68,7 +68,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-128.f}, {127.f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     {
         { 2, 3 },
@@ -77,7 +77,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-12.8f}, {12.7f} },
         { {}, {}, {} },
         "FullyConnected",
-        "U8"
+        "u8"
     },
     {
         { 2, 3 },
@@ -86,8 +86,17 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         {},
         { ov::element::f32, {}, {0.1f} },
         "FullyConnected",
-        "U8"
-    }
+        "u8"
+    },
+    {
+        { 2, 3 },
+        { 256ul, {{1, 1}, {1, 1}, {1, 1}, {1, 1}}, {-128.f}, {383.f}, {0.5f}, {1.5f} },
+        { std::vector<float>{1, 2, 3, 4, 5, 6}, ov::element::i8, ov::Shape{ 2, 3 } },
+        {},
+        { ov::element::f32, {}, {0.1f} },
+        "FullyConnected",
+        "u8"
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithConstantTransformation,

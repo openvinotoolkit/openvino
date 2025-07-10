@@ -8,24 +8,27 @@
 #include <algorithm>
 #include <stack>
 
-own::ade::Nodes own::ade::Node::srcNodes() const {
-    own::ade::Nodes src_nodes;
-    src_nodes.reserve(m_src_edges.size());
-    std::transform(m_src_edges.begin(),
-                   m_src_edges.end(),
-                   std::back_inserter(src_nodes),
-                   [](own::ade::EdgeHandle edge) {
-                       return edge->srcNode();
-                   });
-    // FIXME: this was introduced to make the graph
-    // the same every run when created the same way.
-    // FIXME: cache this information
-    std::sort(src_nodes.begin(), src_nodes.end(), [&](const own::ade::NodeHandle& a, const own::ade::NodeHandle& b) {
-        auto locked_graph = m_graph.lock();
-        return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
-               locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
-    });
-    return src_nodes;
+own::ade::Nodes own::ade::Node::srcNodes() {
+    if (src_nodes_cache_dirty) {
+        own::ade::Nodes src_nodes;
+        src_nodes.reserve(m_src_edges.size());
+        std::transform(m_src_edges.begin(),
+                       m_src_edges.end(),
+                       std::back_inserter(src_nodes),
+                       [](own::ade::EdgeHandle edge) {
+                           return edge->srcNode();
+                       });
+        std::sort(src_nodes.begin(),
+                  src_nodes.end(),
+                  [&](const own::ade::NodeHandle& a, const own::ade::NodeHandle& b) {
+                      auto locked_graph = m_graph.lock();
+                      return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
+                             locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
+                  });
+        cached_src_nodes = src_nodes;
+        src_nodes_cache_dirty = false;
+    }
+    return cached_src_nodes;
 }
 
 own::ade::Nodes own::ade::Node::dstNodes() const {
@@ -61,10 +64,11 @@ own::ade::NodeHandle own::ade::Graph::create() {
     own::ade::NodeHandle nh(node);
     m_nodes.emplace(node.get(), MetaPtr<own::ade::Node>{node, own::ade::Meta{}});
     this->meta(nh).set(detail::CreateIdx{m_create_idx++});
+
     return nh;
 }
 
-void own::ade::Graph::remove(own::ade::NodeHandle nh) {
+void own::ade::Graph::remove(const own::ade::NodeHandle& nh) {
     auto src_edges = nh->srcEdges();
     for (size_t i = 0; i < src_edges.size(); ++i) {
         remove(src_edges[i]);
@@ -76,52 +80,54 @@ void own::ade::Graph::remove(own::ade::NodeHandle nh) {
     m_nodes.erase(nh.get());
 }
 
-void own::ade::Graph::remove(own::ade::EdgeHandle eh) {
+void own::ade::Graph::remove(const own::ade::EdgeHandle& eh) {
     auto src = eh->srcNode();
     auto dst = eh->dstNode();
     src->m_dst_edges.erase(eh);
     dst->m_src_edges.erase(eh);
+    dst->src_nodes_cache_dirty = true;
     m_edges.erase(eh.get());
 }
 
-own::ade::EdgeHandle own::ade::Graph::link(own::ade::NodeHandle src, own::ade::NodeHandle dst) {
+own::ade::EdgeHandle own::ade::Graph::link(const own::ade::NodeHandle& src, const own::ade::NodeHandle& dst) {
     auto edge = std::make_shared<own::ade::Edge>(src, dst);
     own::ade::EdgeHandle eh{edge};
     m_edges.emplace(edge.get(), MetaPtr<own::ade::Edge>{edge, own::ade::Meta{}});
     src->m_dst_edges.insert(eh);
     dst->m_src_edges.insert(eh);
+    dst->src_nodes_cache_dirty = true;
     return eh;
 }
 
-own::ade::Meta& own::ade::Graph::meta(own::ade::NodeHandle handle) {
+own::ade::Meta& own::ade::Graph::meta(const own::ade::NodeHandle& handle) {
     const auto it = m_nodes.find(handle.get());
     ASSERT(it != m_nodes.end());
     return it->second.meta;
 }
 
-const own::ade::Meta& own::ade::Graph::meta(own::ade::NodeHandle handle) const {
+const own::ade::Meta& own::ade::Graph::meta(const own::ade::NodeHandle& handle) const {
     const auto it = m_nodes.find(handle.get());
     ASSERT(it != m_nodes.end());
     return it->second.meta;
 }
 
-own::ade::Meta& own::ade::Graph::meta(own::ade::EdgeHandle handle) {
+own::ade::Meta& own::ade::Graph::meta(const own::ade::EdgeHandle& handle) {
     const auto it = m_edges.find(handle.get());
     ASSERT(it != m_edges.end());
     return it->second.meta;
 }
 
-const own::ade::Meta& own::ade::Graph::meta(own::ade::EdgeHandle handle) const {
+const own::ade::Meta& own::ade::Graph::meta(const own::ade::EdgeHandle& handle) const {
     const auto it = m_edges.find(handle.get());
     ASSERT(it != m_edges.end());
     return it->second.meta;
 }
 
-bool own::ade::Graph::contains(own::ade::NodeHandle handle) const {
+bool own::ade::Graph::contains(const own::ade::NodeHandle& handle) const {
     return m_nodes.find(handle.get()) != m_nodes.end();
 }
 
-bool own::ade::Graph::linked(own::ade::NodeHandle src, own::ade::NodeHandle dst) {
+bool own::ade::Graph::linked(const own::ade::NodeHandle& src, const own::ade::NodeHandle& dst) {
     for (const auto& edge : src->m_dst_edges) {
         if (edge->dstNode() == dst) {
             return true;

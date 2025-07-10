@@ -211,7 +211,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
             // value for every input
             auto in_shape = input_pshape.get_shape();
             for (size_t i = 0; i < desc->stride[0].spatial.size(); i++) {
-                const size_t idx = in_shape.size() - 1 - i;
+                const int idx = static_cast<int>(in_shape.size() - 1 - i);
                 if (idx < 0)
                     break;
                 in_shape[idx] = (in_shape[idx] - 1) / desc->stride[0].spatial[i] + 1;
@@ -393,7 +393,7 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       "");
         }
     } else {
-        bool use_new_shape_infer = network.get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+        bool use_new_shape_infer = network.get_config().get_allow_new_shape_infer();
         auto input0_pshape = node.get_input_pshape(0);
 
         for (size_t i = 1; i < inputs_count; ++i) {

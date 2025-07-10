@@ -4,31 +4,44 @@
 
 #include "compiled_model.h"
 
+#include <algorithm>
 #include <cstring>
+#include <exception>
+#include <memory>
+#include <mutex>
+#include <ostream>
 #include <utility>
+#include <vector>
 
 #include "async_infer_request.h"
 #include "config.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "graph.h"
+#include "graph_context.h"
 #include "infer_request.h"
-#include "itt.h"
+#include "internal_properties.hpp"
 #include "low_precision/low_precision.hpp"
-#include "memory_control.hpp"
-#include "memory_state.h"
-#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/common_util.hpp"
-#include "transformations/transformation_pipeline.h"
-#include "transformations/utils/utils.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+#include "sub_memory_manager.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/memory_stats_dump.hpp"
 #include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/runtime/IScheduler.h>
+#    include <arm_compute/runtime/Scheduler.h>
+
 #    include "nodes/executors/acl/acl_ie_scheduler.hpp"
 #endif
 
@@ -43,6 +56,18 @@ struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
     }
     std::mutex _mutex;
 };
+
+CompiledModel::~CompiledModel() {
+    if (m_has_sub_compiled_models) {
+        m_sub_compiled_models.clear();
+        m_sub_memory_manager->_memorys_table.clear();
+    }
+    auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
+    if (streamsExecutor) {
+        streamsExecutor->cpu_reset();
+    }
+    CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps, m_name, m_graphs, m_socketWeights));
+}
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -89,6 +114,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor) {
         set_callback_executor(m_callback_executor);
     }
+
+    m_optimized_single_stream = (executor_config.get_streams() == 1 && executor_config.get_threads() == 1);
 
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
@@ -149,19 +176,27 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
     int streamId = 0;
     int socketId = 0;
-    auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
-    if (nullptr != streamsExecutor) {
-        streamId = streamsExecutor->get_stream_id();
-        socketId = std::max(0, streamsExecutor->get_socket_id());
+
+    size_t graph_idx = 0;
+    if (m_graphs.size() > 1) {
+        auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
+        if (nullptr != streamsExecutor) {
+            streamId = streamsExecutor->get_stream_id();
+            socketId = std::max(0, streamsExecutor->get_socket_id());
+        }
+        graph_idx = streamId % m_graphs.size();
     }
-    auto graphLock = GraphGuard::Lock(m_graphs[streamId % m_graphs.size()]);
+
+    auto graphLock = GraphGuard::Lock(m_graphs[graph_idx]);
+
     if (!graphLock._graph.IsReady()) {
         std::exception_ptr exception;
+        auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(m_task_executor);
         auto makeGraph = [&] {
             try {
                 GraphContext::Ptr ctx;
                 {
-                    std::lock_guard<std::mutex> lock{*m_mutex.get()};
+                    std::lock_guard<std::mutex> lock{*m_mutex};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
                     ctx = std::make_shared<GraphContext>(m_cfg,
@@ -199,7 +234,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     auto async_infer_request =
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
-                                            get_callback_executor());
+                                            get_callback_executor(),
+                                            m_optimized_single_stream);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());
@@ -265,6 +301,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::key_cache_precision.name()),
@@ -280,65 +317,92 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         // @todo Does not seem ok to 'dump()' the whole graph everytime in order to get a name
         const std::string modelName = graph.dump()->get_friendly_name();
         return decltype(ov::model_name)::value_type(modelName);
-    } else if (name == ov::optimal_number_of_infer_requests) {
+    }
+    if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = config.streamExecutorConfig.get_streams();
         return static_cast<decltype(ov::optimal_number_of_infer_requests)::value_type>(
             streams > 0 ? streams : 1);  // ov::optimal_number_of_infer_requests has no negative values
-    } else if (name == ov::num_streams) {
+    }
+    if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig.get_streams();
         return decltype(ov::num_streams)::value_type(
             streams);  // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
-    } else if (name == ov::inference_num_threads) {
+    }
+    if (name == ov::inference_num_threads) {
         const auto num_threads = config.streamExecutorConfig.get_threads();
         return static_cast<decltype(ov::inference_num_threads)::value_type>(num_threads);
-    } else if (name == ov::enable_profiling.name()) {
+    }
+    if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;
         return static_cast<decltype(ov::enable_profiling)::value_type>(perfCount);
-    } else if (name == ov::hint::inference_precision) {
+    }
+    if (name == ov::hint::inference_precision) {
         return decltype(ov::hint::inference_precision)::value_type(config.inferencePrecision);
-    } else if (name == ov::hint::performance_mode) {
+    }
+    if (name == ov::hint::performance_mode) {
         return static_cast<decltype(ov::hint::performance_mode)::value_type>(config.hintPerfMode);
-    } else if (name == ov::log::level) {
+    }
+    if (name == ov::log::level) {
         return static_cast<decltype(ov::log::level)::value_type>(config.logLevel);
-    } else if (name == ov::hint::enable_cpu_pinning.name()) {
+    }
+    if (name == ov::hint::enable_cpu_pinning.name()) {
         const bool use_pin = config.enableCpuPinning;
         return static_cast<decltype(ov::hint::enable_cpu_pinning)::value_type>(use_pin);
-    } else if (name == ov::hint::enable_cpu_reservation.name()) {
+    }
+    if (name == ov::hint::enable_cpu_reservation.name()) {
         const bool use_reserve = config.enableCpuReservation;
         return static_cast<decltype(ov::hint::enable_cpu_reservation)::value_type>(use_reserve);
-    } else if (name == ov::hint::scheduling_core_type) {
+    }
+    if (name == ov::hint::scheduling_core_type) {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
-    } else if (name == ov::hint::model_distribution_policy) {
+    }
+    if (name == ov::hint::model_distribution_policy) {
         const auto& distribution_policy = config.modelDistributionPolicy;
         return distribution_policy;
-    } else if (name == ov::hint::enable_hyper_threading.name()) {
+    }
+    if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;
         return static_cast<decltype(ov::hint::enable_hyper_threading)::value_type>(use_ht);
-    } else if (name == ov::hint::execution_mode) {
+    }
+    if (name == ov::hint::execution_mode) {
         return config.executionMode;
-    } else if (name == ov::hint::num_requests) {
+    }
+    if (name == ov::hint::num_requests) {
         return static_cast<decltype(ov::hint::num_requests)::value_type>(config.hintNumRequests);
-    } else if (name == ov::execution_devices) {
+    }
+    if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_plugin->get_device_name()};
-    } else if (name == ov::intel_cpu::denormals_optimization) {
+    }
+    if (name == ov::intel_cpu::denormals_optimization) {
         return static_cast<decltype(ov::intel_cpu::denormals_optimization)::value_type>(
             config.denormalsOptMode == Config::DenormalsOptMode::DO_On);
-    } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
+    }
+    if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
-    } else if (name == ov::hint::dynamic_quantization_group_size) {
+    }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        const auto& enable_tensor_parallel = config.enableTensorParallel;
+        return enable_tensor_parallel;
+    }
+    if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(
             config.fcDynamicQuantizationGroupSize);
-    } else if (name == ov::hint::kv_cache_precision) {
+    }
+    if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
-    } else if (name == ov::key_cache_precision) {
+    }
+    if (name == ov::key_cache_precision) {
         return decltype(ov::key_cache_precision)::value_type(config.keyCachePrecision);
-    } else if (name == ov::value_cache_precision) {
+    }
+    if (name == ov::value_cache_precision) {
         return decltype(ov::value_cache_precision)::value_type(config.valueCachePrecision);
-    } else if (name == ov::key_cache_group_size) {
+    }
+    if (name == ov::key_cache_group_size) {
         return static_cast<decltype(ov::key_cache_group_size)::value_type>(config.keyCacheGroupSize);
-    } else if (name == ov::value_cache_group_size) {
+    }
+    if (name == ov::value_cache_group_size) {
         return static_cast<decltype(ov::value_cache_group_size)::value_type>(config.valueCacheGroupSize);
     }
     OPENVINO_THROW("Unsupported property: ", name);

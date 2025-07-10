@@ -4,7 +4,22 @@
 
 #include "utils.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <set>
+#include <type_traits>
+#include <vector>
+
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu {
 
@@ -30,15 +45,14 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
     return {get_reg_type(xb_reg), static_cast<size_t>(xb_reg.getIdx())};
 }
 
-template <
-    cpu_isa_t isa,
-    typename std::enable_if<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
-                            bool>::type = true>
+template <cpu_isa_t isa,
+          std::enable_if_t<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
+                           bool> = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
         auto push_if_live = [&live_regs, &regs_to_spill](Xbyak::Reg&& reg) {
-            if (live_regs.empty() || live_regs.count(Xbyak2SnippetsReg(reg))) {
+            if (live_regs.empty() || (live_regs.count(Xbyak2SnippetsReg(reg)) != 0U)) {
                 regs_to_spill.emplace_back(reg);
             }
         };

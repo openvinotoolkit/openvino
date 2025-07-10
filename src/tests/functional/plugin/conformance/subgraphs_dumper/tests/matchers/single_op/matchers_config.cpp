@@ -3,8 +3,9 @@
 //
 
 #include "matchers/single_op/single_op.hpp"
-#include "openvino/op/ops.hpp"
 #include "base_test.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace {
 

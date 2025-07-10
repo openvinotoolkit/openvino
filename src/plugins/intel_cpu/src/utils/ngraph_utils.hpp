@@ -5,8 +5,14 @@
 #pragma once
 
 #include <cassert>
-#include <transformations/utils/utils.hpp>
+#include <cstddef>
+#include <map>
+#include <memory>
+#include <string>
 
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov::intel_cpu {
@@ -15,9 +21,8 @@ inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, 
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
         return it->second.as<std::string>();
-    } else {
-        return {};
     }
+    return {};
 }
 
 inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node>& node) {

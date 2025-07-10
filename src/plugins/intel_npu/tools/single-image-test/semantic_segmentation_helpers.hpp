@@ -22,9 +22,7 @@ std::vector<std::pair<bool, float>> mean_IoU(std::vector<T> actOutput, std::vect
                                              uint32_t ignoreLabel) {
     std::vector<uint32_t> output;
     for (size_t i = 0; i < refOutput.size(); i++) {
-        auto mask = (refOutput[i] < classes) & (actOutput[i] < classes);
-
-        if (mask == 1) {
+        if ((refOutput[i] < classes) && (actOutput[i] < classes)) {
             output.push_back(classes * refOutput[i] + actOutput[i]);
         }
     }

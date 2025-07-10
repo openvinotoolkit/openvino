@@ -4,17 +4,26 @@
 
 #pragma once
 
+#include <cassert>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <set>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
-#include "node.h"
-#include "snippets/generator.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
-enum emitter_in_out_map {
+enum emitter_in_out_map : uint8_t {
     vec_to_vec,
     vec_to_gpr,
     gpr_to_vec,
@@ -27,8 +36,7 @@ public:
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : Emitter(),
-          h(host),
+        : h(host),
           host_isa_(host_isa),
           exec_prc_(exec_prc),
           in_out_type_(in_out_type),
@@ -37,11 +45,10 @@ public:
 
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
-                const std::shared_ptr<ov::Node>& n,
+                [[maybe_unused]] const std::shared_ptr<ov::Node>& n,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : Emitter(),
-          h(host),
+        : h(host),
           host_isa_(host_isa),
           exec_prc_(exec_prc),
           in_out_type_(in_out_type),
@@ -64,8 +71,8 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 protected:
-    size_t get_max_vecs_count() const;
-    int32_t get_vec_length() const;
+    static size_t get_max_vecs_count();
+    static int32_t get_vec_length();
 
     mutable std::vector<size_t> aux_vec_idxs;
     mutable std::vector<size_t> aux_gpr_idxs;
@@ -85,7 +92,7 @@ protected:
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
     void load_table_addr() const {
-        h->adr(p_table, *l_table.get());
+        h->adr(p_table, *l_table);
     }
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
@@ -117,7 +124,7 @@ protected:
 
     void store_context(const std::unordered_set<size_t>& ignore_registers) const;
 
-    void restore_context(const std::unordered_set<size_t>& ignore_registers) const;
+    void restore_context(const std::unordered_set<size_t>& ignore_vec_regs) const;
 
     using table_t = std::multimap<std::string, table_entry_t>;
     using mapped_table_t = std::multimap<std::string, mapped_table_entry_t>;
@@ -141,9 +148,9 @@ protected:
     }
 
     void push_entries_of(const table_t& t) {
-        for (auto it = t.begin(); it != t.end(); it++) {
-            auto key = (*it).first;
-            auto te = (*it).second;  // copy values from table
+        for (const auto& it : t) {
+            auto key = it.first;
+            auto te = it.second;  // copy values from table
             push_arg_entry_of(key, te.val, te.bcast);
         }
     }
@@ -165,13 +172,14 @@ private:
         return te.off + key_off_val_shift * scale;
     }
 
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+    virtual void validate_arguments([[maybe_unused]] const std::vector<size_t>& in,
+                                    [[maybe_unused]] const std::vector<size_t>& out) const {}
 
-    static inline size_t get_asimd_vectors_count() {
+    static size_t get_asimd_vectors_count() {
         return 32;
     }
 
-    inline int32_t get_gpr_length() const {
+    int32_t get_gpr_length() const {
         return h->x0.getBit() / 8;
     }
 

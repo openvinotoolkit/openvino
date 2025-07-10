@@ -4,6 +4,12 @@
 
 #include "dft_uni_kernel.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
@@ -67,15 +73,15 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
     L(main_loop_end_label);
 
     if (mayiuse(cpu::x64::avx512_core)) {
-        Xbyak::Zmm zmm_sum = Xbyak::Zmm(vmm_sum.getIdx());
-        Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
-        Xbyak::Ymm ymm_sum_2 = Xbyak::Ymm(vmm_sum_2.getIdx());
+        auto zmm_sum = Xbyak::Zmm(vmm_sum.getIdx());
+        auto ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
+        auto ymm_sum_2 = Xbyak::Ymm(vmm_sum_2.getIdx());
 
         vextractf64x4(ymm_sum_2, zmm_sum, 1);
         vaddps(ymm_sum, ymm_sum, ymm_sum_2);
     }
     if (mayiuse(cpu::x64::avx2)) {
-        Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
+        auto ymm_sum = Xbyak::Ymm(vmm_sum.getIdx());
 
         vextractf128(xmm_sum_2, ymm_sum, 1);
         vaddps(xmm_sum, xmm_sum, xmm_sum_2);

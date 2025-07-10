@@ -6,10 +6,26 @@
 
 #include "intel_gpu/op/convolution.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -73,7 +89,7 @@ SinkReshape::SinkReshape() {
         return is_suitable_reshape(reshape) && is_suitable_parent(reshape->get_input_node_shared_ptr(0));
     };
 
-    auto reshape_m = wrap_type<v1::Reshape>(reshape_predicate);
+    auto reshape_m = wrap_type<v1::Reshape>(reshape_predicate && consumers_count(1));
     auto transpose_const_m = wrap_type<v0::Constant>();
     auto transpose_m = wrap_type<v1::Transpose>({reshape_m, transpose_const_m});
 

@@ -6,11 +6,18 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
+#include "internal_properties.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/properties_test.hpp"
+
+#if defined(_WIN32)
+#    include <windows.h>
+#endif
 
 namespace {
 
@@ -40,6 +47,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
         RO_property(ov::hint::kv_cache_precision.name()),
         RO_property(ov::key_cache_precision.name()),
@@ -159,6 +167,46 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     ASSERT_EQ(streams, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservation) {
+    ov::Core ie;
+    int32_t threads = 1;
+    int32_t res_threads = -1;
+    bool cpu_reservation = true;
+    bool res_cpu_reservation = false;
+    bool cpu_pinning = false;
+    bool res_cpu_pinning = false;
+
+#if defined(__APPLE__)
+    cpu_reservation = false;
+    cpu_pinning = false;
+#elif defined(__linux__)
+    cpu_pinning = true;
+#elif defined(_WIN32)
+    ULONG highestNodeNumber = 0;
+    if (!GetNumaHighestNodeNumber(&highestNodeNumber)) {
+        return;
+    }
+    if (highestNodeNumber > 0) {
+        cpu_pinning = false;
+    } else {
+        cpu_pinning = true;
+    }
+#endif
+
+    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+
+    ov::AnyMap config = {{ov::inference_num_threads.name(), threads}, {ov::hint::enable_cpu_reservation.name(), true}};
+    ov::CompiledModel compiledModel = ie.compile_model(model, deviceName, config);
+
+    OV_ASSERT_NO_THROW(res_threads = compiledModel.get_property(ov::inference_num_threads));
+    OV_ASSERT_NO_THROW(res_cpu_reservation = compiledModel.get_property(ov::hint::enable_cpu_reservation));
+    OV_ASSERT_NO_THROW(res_cpu_pinning = compiledModel.get_property(ov::hint::enable_cpu_pinning));
+
+    ASSERT_EQ(res_threads, threads);
+    ASSERT_EQ(res_cpu_reservation, cpu_reservation);
+    ASSERT_EQ(res_cpu_pinning, cpu_pinning);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckSparseWeigthsDecompressionRate) {
     ov::Core core;
 
@@ -183,7 +231,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckKVCachePrecision) {
     core.set_property(deviceName, ov::hint::kv_cache_precision(ov::element::f32));
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
-    auto kv_cache_precision_value = ov::element::undefined;
+    auto kv_cache_precision_value = ov::element::dynamic;
     OV_ASSERT_NO_THROW(kv_cache_precision_value = compiledModel.get_property(ov::hint::kv_cache_precision));
     ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
 }
@@ -195,8 +243,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkFinetuneKVCachePrecision) {
     core.set_property(deviceName, ov::value_cache_precision(ov::element::u4));
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
-    auto key_cache_precision_value = ov::element::undefined;
-    auto value_cache_precision_value = ov::element::undefined;
+    auto key_cache_precision_value = ov::element::dynamic;
+    auto value_cache_precision_value = ov::element::dynamic;
     OV_ASSERT_NO_THROW(key_cache_precision_value = compiledModel.get_property(ov::key_cache_precision));
     OV_ASSERT_NO_THROW(value_cache_precision_value = compiledModel.get_property(ov::value_cache_precision));
     ASSERT_EQ(key_cache_precision_value, ov::element::f16);
@@ -235,7 +283,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckAccuracyModeKVCachePrecisi
     ASSERT_NO_THROW(core.set_property(deviceName, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
     ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
 
-    auto kv_cache_precision_value = ov::element::undefined;
+    auto kv_cache_precision_value = ov::element::dynamic;
     ASSERT_NO_THROW(kv_cache_precision_value = compiledModel.get_property(ov::hint::kv_cache_precision));
     ASSERT_EQ(kv_cache_precision_value, ov::element::f32);
 }
@@ -264,7 +312,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExecutionModeIsAvailableIn
 TEST_F(OVClassConfigTestCPU,
        smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCoreInferencePrecision) {
     ov::Core ie;
-    auto inference_precision_value = ov::element::undefined;
+    auto inference_precision_value = ov::element::dynamic;
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
 
@@ -280,7 +328,7 @@ TEST_F(OVClassConfigTestCPU,
        smoke_CpuExecNetworkCheckCoreInferencePrecisionHasHigherPriorityThanModelPerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
-    auto inference_precision_value = ov::element::undefined;
+    auto inference_precision_value = ov::element::dynamic;
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
 
@@ -299,7 +347,7 @@ TEST_F(OVClassConfigTestCPU,
        smoke_CpuExecNetworkCheckModelInferencePrecisionHasHigherPriorityThanCorePerformanceExecutionMode) {
     ov::Core ie;
     auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
-    auto inference_precision_value = ov::element::undefined;
+    auto inference_precision_value = ov::element::dynamic;
     const auto inference_precision_expected = bf16_if_can_be_emulated;
 
     OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
@@ -471,6 +519,26 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCorePr
     ASSERT_EQ(valueSize.as<uint64_t>(), 8);
     ASSERT_EQ(keyCacheType.as<ov::element::Type>(), ov::element::f16);
     ASSERT_EQ(valueCacheType.as<ov::element::Type>(), ov::element::bf16);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
+    ov::Core core;
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_matmul_bias();
+    std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), setModels},
+                         {ov::intel_cpu::enable_tensor_parallel.name(), true},
+                         {ov::num_streams.name(), 1},
+                         {ov::inference_num_threads.name(), 1}};
+
+    core.set_property(deviceName, config);
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
+    bool enable_tensor_parallel = false;
+    OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(enable_tensor_parallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
+    ASSERT_EQ(model_distribution_policy_value, setModels);
+    ASSERT_EQ(enable_tensor_parallel, true);
 }
 
 }  // namespace

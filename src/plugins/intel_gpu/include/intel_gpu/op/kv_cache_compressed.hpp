@@ -24,7 +24,7 @@ public:
                       int64_t concat_axis,
                       int64_t gather_axis,
                       const QuantizationAttrs& quantization_attrs,
-                      const ov::element::Type output_type = ov::element::undefined);
+                      const ov::element::Type output_type = ov::element::dynamic);
 
     void validate_and_infer_types() override;
 
@@ -42,7 +42,7 @@ public:
     std::vector<uint64_t> get_scales_zp_output_order() const { return m_quantization_attrs.scales_zp_output_order; }
 
 private:
-    bool m_compressed;
+    bool m_compressed = false;
     QuantizationAttrs m_quantization_attrs = {};
 };
 

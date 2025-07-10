@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cstddef>
+#include <type_traits>
 #ifdef CPU_DEBUG_CAPS
 
 #    include "cpu/x64/jit_generator.hpp"
@@ -55,15 +59,11 @@ namespace ov::intel_cpu {
 class RegPrinter {
 public:
     using jit_generator = dnnl::impl::cpu::x64::jit_generator;
-    template <typename PRC_T,
-              typename REG_T,
-              typename std::enable_if<std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
+    template <typename PRC_T, typename REG_T, std::enable_if_t<std::is_base_of_v<Xbyak::Xmm, REG_T>, int> = 0>
     static void print(jit_generator& h, REG_T reg, const char* name = nullptr) {
         print_vmm<PRC_T, REG_T>(h, reg, name);
     }
-    template <typename PRC_T,
-              typename REG_T,
-              typename std::enable_if<!std::is_base_of<Xbyak::Xmm, REG_T>::value, int>::type = 0>
+    template <typename PRC_T, typename REG_T, std::enable_if_t<!std::is_base_of_v<Xbyak::Xmm, REG_T>, int> = 0>
     static void print(jit_generator& h, REG_T reg, const char* name = nullptr) {
         print_reg<PRC_T, REG_T>(h, reg, name);
     }
@@ -77,7 +77,7 @@ private:
     template <typename PRC_T, size_t vlen>
     static void print_vmm_prc(const char* name, const char* ori_name, PRC_T* ptr);
     template <typename T>
-    static void print_reg_prc(const char* name, const char* ori_name, T* val);
+    static void print_reg_prc(const char* name, const char* ori_name, T* ptr);
     static void preamble(jit_generator& h);
     static void postamble(jit_generator& h);
     template <typename T>

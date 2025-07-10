@@ -4,6 +4,15 @@
 
 #include "arbitrary_order_desc_creator.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <utility>
+
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -28,7 +37,7 @@ CpuBlockedMemoryDesc ArbitraryOrderDescCreator::createDesc(const ov::element::Ty
         blkDims[i] = dims[m_order[i]];
     }
 
-    return CpuBlockedMemoryDesc(precision, srcShape, blkDims, m_order);
+    return {precision, srcShape, blkDims, m_order};
 }
 
 size_t ArbitraryOrderDescCreator::getMinimalRank() const {

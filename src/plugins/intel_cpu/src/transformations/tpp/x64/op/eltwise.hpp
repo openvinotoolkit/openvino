@@ -4,16 +4,27 @@
 
 #pragma once
 
+#include <libxsmm_typedefs.h>
+
+#include <memory>
+
 #include "descriptor.hpp"
-#include "modifiers.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/op.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "snippets/op/powerstatic.hpp"
-#include "snippets/utils/utils.hpp"
+#include "snippets/shape_types.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu::tpp::op {
 using AutoBroadcastSpec = ov::op::AutoBroadcastSpec;
@@ -23,13 +34,13 @@ class EltwiseTPP : public modifier::TensorProcessingPrimitive {
 public:
     static bool is_supported(const std::shared_ptr<ov::Node>& node);
     bool visit_attributes(AttributeVisitor& visitor);
-    virtual OpDescTPP get_op_desc() const = 0;
+    [[nodiscard]] virtual OpDescTPP get_op_desc() const = 0;
 };
 
 class BinaryEltwiseTPP : public EltwiseTPP {
 public:
     BinaryEltwiseTPP(libxsmm_meltw_binary_type op_type);
-    OpDescTPP get_op_desc() const override {
+    [[nodiscard]] OpDescTPP get_op_desc() const override {
         return OpDescTPP(m_op_type, m_flags);
     }
 
@@ -44,7 +55,7 @@ protected:
 class UnaryEltwiseTPP : public EltwiseTPP {
 public:
     UnaryEltwiseTPP(libxsmm_meltw_unary_type op_type);
-    OpDescTPP get_op_desc() const override {
+    [[nodiscard]] OpDescTPP get_op_desc() const override {
         return OpDescTPP(m_op_type);
     }
 

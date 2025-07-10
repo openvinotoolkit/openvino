@@ -175,13 +175,12 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
             kernel_string->options = exe_mode + " -cl-mad-enable";
             if (engine_info.bOptHintsSupport)
                 kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
-            if (engine_info.bLocalBlockIOSupport)
-                kernel_string->options += " -Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
         }
 
-#if CL_TARGET_OPENCL_VERSION >= 200
-        kernel_string->options += " -cl-std=CL2.0";
-#endif
+        if (engine_info.supports_work_group_collective_functions)
+            kernel_string->options += " -cl-std=CL3.0";
+        else
+            kernel_string->options += " -cl-std=CL2.0";
 
         kernel_string->entry_point = entry_point;
         kernel_string->batch_compilation = true;

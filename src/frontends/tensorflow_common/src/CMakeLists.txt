@@ -23,7 +23,7 @@ endif()
 set_target_properties(${TARGET_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::util
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::util openvino::frontend::common_translators
                                      PUBLIC openvino::core::dev)
 
 target_include_directories(${TARGET_NAME}
@@ -39,3 +39,5 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
                         $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>)
+
+ov_build_target_faster(${TARGET_NAME} PCH)

@@ -11,8 +11,85 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
+
+namespace ov::test {
+
+using op::v0::Parameter, op::v0::Constant, op::v1::Add;
+
+class SerializePassTest : public testing::Test {
+protected:
+    std::filesystem::path m_out_xml_path;
+    std::filesystem::path m_out_bin_path;
+    std::shared_ptr<Model> m_model;
+
+    void SetUp() override {
+        const auto filePrefix = ov::test::utils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
+    }
+
+    void TearDown() override {
+        if (std::filesystem::exists(m_out_xml_path)) {
+            std::filesystem::remove(m_out_xml_path);
+        }
+
+        if (std::filesystem::exists(m_out_bin_path)) {
+            std::filesystem::remove(m_out_bin_path);
+        }
+    }
+
+    static FunctionsComparator model_comparator() {
+        return FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::CONST_VALUES);
+    }
+};
+
+class SerializePassTestP : public SerializePassTest, public testing::WithParamInterface<element::Type> {};
+
+INSTANTIATE_TEST_SUITE_P(numeric_types,
+                         SerializePassTestP,
+                         testing::Values(element::bf16,
+                                         element::f16,
+                                         element::f32,
+                                         element::f64,
+                                         element::i4,
+                                         element::i8,
+                                         element::i16,
+                                         element::i32,
+                                         element::i64,
+                                         element::u1,
+                                         element::u2,
+                                         element::u4,
+                                         element::u8,
+                                         element::u16,
+                                         element::u32,
+                                         element::u64,
+                                         element::nf4,
+                                         element::f8e4m3,
+                                         element::f8e5m2,
+                                         element::f4e2m1,
+                                         element::f8e8m0),
+                         testing::PrintToStringParamName());
+
+TEST_P(SerializePassTestP, serialize_simple_model_with_constant) {
+    const auto& precision = GetParam();
+    const auto p1 = std::make_shared<Parameter>(precision, PartialShape{5});
+    const auto c1 = std::make_shared<Constant>(precision, Shape{5}, std::vector{1, 0, 1, 1, 1});
+    const auto add = std::make_shared<Add>(p1, c1);
+    m_model = std::make_shared<Model>(OutputVector{add}, ParameterVector{p1}, "simple_model");
+
+    OV_ASSERT_NO_THROW(pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m_model));
+
+    const auto serialized_model = test::readModel(m_out_xml_path.string(), m_out_bin_path.string());
+    const auto& [is_valid, error_msg] = model_comparator().compare(serialized_model, m_model);
+    EXPECT_TRUE(is_valid) << error_msg;
+}
+}  // namespace ov::test
 
 using SerializationParams = std::tuple<std::string, std::string>;
 
@@ -39,10 +116,10 @@ public:
 
     void SetUp() override {
         m_model_path = ov::test::utils::getModelFromTestModelZoo(
-            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}));
+            ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<0>(GetParam())}).string());
         if (!std::get<1>(GetParam()).empty()) {
             m_binary_path = ov::test::utils::getModelFromTestModelZoo(
-                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
+                ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}).string());
         }
 
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
@@ -74,7 +151,6 @@ TEST_P(SerializationTest, SaveModel) {
     });
 }
 
-#ifdef OPENVINO_CPP_VER_AT_LEAST_17
 TEST_P(SerializationTest, CompareFunctionsByPath) {
     const auto out_xml_path = std::filesystem::path(m_out_xml_path);
     const auto out_bin_path = std::filesystem::path(m_out_bin_path);
@@ -89,7 +165,6 @@ TEST_P(SerializationTest, SaveModelByPath) {
         ov::save_model(m, out_xml_path, false);
     });
 }
-#endif
 
 INSTANTIATE_TEST_SUITE_P(
     IRSerialization,

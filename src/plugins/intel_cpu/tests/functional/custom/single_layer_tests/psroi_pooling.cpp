@@ -5,6 +5,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "openvino/op/psroi_pooling.hpp"
 
 using namespace CPUTestUtils;
 
@@ -82,7 +83,7 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         PSROIPoolingSpecificParams psroiPoolingParams;
-        auto netPrecision = ov::element::undefined;
+        auto netPrecision = ov::element::dynamic;
         std::tie(psroiPoolingParams, netPrecision, targetDevice) = basicParamsSet;
         inType = outType = netPrecision;
         std::tie(featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode) =

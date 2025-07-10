@@ -9,7 +9,7 @@
 namespace ov {
 namespace util {
 
-bool validate_weights_path(std::string& weights_path);
+bool validate_weights_path(const std::string& weights_path);
 
 }  // namespace util
 }  // namespace ov

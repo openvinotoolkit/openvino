@@ -4,7 +4,17 @@
 
 #include "jit_conversion_emitters.hpp"
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace Xbyak_aarch64;
@@ -242,8 +252,8 @@ template <cpu_isa_t isa>
 void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_idxs,
                                               const std::vector<size_t>& out_idxs) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+    auto src = TReg(in_idxs[0]);
+    auto dst = TReg(out_idxs[0]);
     jit_convert_process<TReg>(src, dst, input_type, output_type, false);
 }
 
@@ -267,8 +277,8 @@ template <cpu_isa_t isa>
 void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_idxs,
                                               const std::vector<size_t>& out_idxs) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src = TReg(in_idxs[0]);
-    TReg dst = TReg(out_idxs[0]);
+    auto src = TReg(in_idxs[0]);
+    auto dst = TReg(out_idxs[0]);
     jit_convert_process<TReg>(src, dst, input_type, output_type, true);
 }
 

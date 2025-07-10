@@ -16,8 +16,12 @@ endif()
 
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
-      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm
-      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/arm)
+      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm)
+endif()
+
+if (NOT AARCH64)
+    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
+      ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/aarch64)
 endif()
 
 if(NOT X86_64)
@@ -38,6 +42,10 @@ endif()
 
 if (ENABLE_SHL_FOR_CPU)
     set(SHL_LIBRARY "shl")
+endif()
+
+if (ENABLE_KLEIDIAI_FOR_CPU)
+    set(KLEIDIAI_LIBRARY "kleidiai")
 endif()
 
 ov_add_test_target(
@@ -70,6 +78,7 @@ ov_add_test_target(
             snippets_test_utils
             ${MLAS_LIBRARY}
             ${SHL_LIBRARY}
+            ${KLEIDIAI_LIBRARY}
         ADD_CPPLINT
         LABELS
             OV UNIT CPU
@@ -96,6 +105,7 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
+    PCH
 )
 
 function(group_source_file GROUP_NAME GROUP_DIR)
@@ -105,7 +115,7 @@ function(group_source_file GROUP_NAME GROUP_DIR)
     endforeach()
 endfunction()
 
-if(ENABLE_FASTER_BUILD) 
+if(ENABLE_UNITY_BUILD)
     set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
     group_source_file(unit_src_nodes ${CMAKE_CURRENT_SOURCE_DIR}/nodes)
     group_source_file(unit_src_snippets_transformations ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations)

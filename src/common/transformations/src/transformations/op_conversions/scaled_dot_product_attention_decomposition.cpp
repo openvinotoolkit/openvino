@@ -7,7 +7,9 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -30,6 +32,36 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+
+namespace {
+
+bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
+                                 const ov::Output<ov::Node>& kT,
+                                 const ov::Output<ov::Node>& scale) {
+    const auto& scale_pshape = scale.get_partial_shape();
+    const auto& query_pshape = query.get_partial_shape();
+    if (scale_pshape.is_dynamic() || query_pshape.is_dynamic()) {
+        return false;
+    }
+
+    // According to the ov SDPA specification, the scale input have to be 1d with 1 element
+    // or scalar.
+    if (ov::shape_size(scale_pshape.to_shape()) != 1) {
+        return false;
+    }
+
+    // using the original implementation to calculate the shapes.
+    // we need to move the scale after MatMul only if the tensor after MatMul is smaller.
+    auto q_scaled = std::make_shared<ov::op::v1::Multiply>(query, scale);
+    auto scaled_attn = std::make_shared<ov::op::v0::MatMul>(q_scaled, kT);
+    const auto& scaled_attn_pshape = scaled_attn->output(0).get_partial_shape();
+    if (scaled_attn_pshape.is_static()) {
+        return ov::shape_size(query_pshape.to_shape()) > ov::shape_size(scaled_attn_pshape.to_shape());
+    }
+    return false;
+}
+
+}  // namespace
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);
@@ -68,9 +100,23 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto one_f = register_new_node<v1::ConvertLike>(one_i, query);
     auto zero_f = register_new_node<v1::ConvertLike>(zero_i, query);
 
+    auto build_extract_dim_subgraph = [this, &zero_i](const std::shared_ptr<v3::ShapeOf>& shape_of,
+                                                      const int64_t idx) -> std::shared_ptr<ov::Node> {
+        const auto dim_to_extract_const = v0::Constant::create(element::i32, Shape{}, {idx});
+        const auto gather = std::make_shared<v8::Gather>(shape_of, dim_to_extract_const, zero_i);
+        // When dim_to_extract is static but the whole shape is dynamic,
+        // ConstantFolding can't fold ShapeOf->Gather subgraph in this case.
+        // So it's better to explicitly extract the needed dimension.
+        if (auto constant = ov::util::get_constant_from_source(gather)) {
+            return register_new_node(constant);
+        }
+        register_new_node(dim_to_extract_const);
+        return register_new_node(gather);
+    };
+
     Output<Node> scale;
     if (node->get_input_size() < 5) {
-        scale = register_new_node<v8::Gather>(q_shape, minus_one, zero_i)->output(0);
+        scale = build_extract_dim_subgraph(q_shape, -1);
         scale = register_new_node<v1::ConvertLike>(scale, query);
         auto sqrt_scale = register_new_node<v0::Sqrt>(scale);
         scale = register_new_node<v1::Divide>(one_f, sqrt_scale);
@@ -78,7 +124,6 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scale = node->input_value(4);
     }
 
-    auto q_scaled = register_new_node<v1::Multiply>(query, scale);
     auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
     auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
     auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
@@ -92,7 +137,16 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto transpose_dims =
         register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
     auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
-    auto scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+
+    ov::Output<Node> scaled_atten;
+    if (can_move_scale_after_matmul(query, k_transposed, scale)) {
+        auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
+        scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
+    } else {
+        auto q_scaled = register_new_node<v1::Multiply>(query, scale);
+        scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+    }
+
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
 
     if (node->get_causal() || node->get_input_size() > 3) {
@@ -112,8 +166,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
                 atten_mask = mask;
             }
         } else {
-            auto target_s_len = register_new_node<v8::Gather>(q_shape, minus_two, zero_i);
-            auto source_s_len = register_new_node<v8::Gather>(k_shape, minus_two, zero_i);
+            auto target_s_len = build_extract_dim_subgraph(q_shape, -2);
+            auto source_s_len = build_extract_dim_subgraph(k_shape, -2);
             auto ssl = register_new_node<v0::Unsqueeze>(source_s_len, zero_i);
             auto tsl = register_new_node<v0::Unsqueeze>(target_s_len, zero_i);
             auto mask_shape = register_new_node<v0::Concat>(OutputVector{tsl, ssl}, 0);

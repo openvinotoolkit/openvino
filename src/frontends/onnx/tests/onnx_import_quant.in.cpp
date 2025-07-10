@@ -191,6 +191,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_no_zero_point) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_one_dim_scale) {
+    auto model = convert_model("quantize_linear_one_dim_scale.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<float>{18, 100, 20, 10});  // x
+    test_case.add_input(std::vector<float>{2.0f});             // scale
+    test_case.add_input(std::vector<std::uint8_t>{1});         // zero_point
+
+    test_case.add_expected_output<std::uint8_t>(std::vector<std::uint8_t>{10, 51, 11, 6});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point) {
     auto model = convert_model("dequantize_linear_21_no_zero_point.onnx");
 
@@ -199,6 +211,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point) {
     test_case.add_expected_output<float>(
         {6, 3},
         std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 0, 0});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_21_no_zero_point_cw) {
+    auto model = convert_model("dequantize_linear_21_no_zero_point_cw.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>({6, 4}, std::vector<float>{1,  2,  3,  4,  10, 12, 14, 16, 27, 30, 33, 36,
+                                                                    52, 56, 60, 60, 5,  10, 15, 20, 30, 36, 42, 48});
     test_case.run();
 }
 
@@ -211,6 +233,30 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_ui
     test_case.add_input(std::vector<uint8_t>{128});             // zero_point
 
     test_case.add_expected_output<float>({4}, std::vector<float>{-256.0f, -250.0f, 0.0f, 254.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_fp16_zero_scale_uint8) {
+    auto model = convert_model("dequantize_linear_0_fp16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
+    test_case.add_input(std::vector<ov::float16>{2.0f});        // scale
+    test_case.add_input(std::vector<uint8_t>{128});             // zero_point
+
+    test_case.add_expected_output<ov::float16>({4}, std::vector<ov::float16>{-256.0f, -250.0f, 0.0f, 254.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_bf16_zero_scale_uint8) {
+    auto model = convert_model("dequantize_linear_0_bf16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
+    test_case.add_input(std::vector<ov::bfloat16>{2.0f});       // scale
+    test_case.add_input(std::vector<uint8_t>{128});             // zero_point
+
+    test_case.add_expected_output<ov::bfloat16>({4}, std::vector<ov::bfloat16>{-256.0f, -250.0f, 0.0f, 254.0f});
     test_case.run();
 }
 
@@ -338,6 +384,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_cw) {
+    auto model = convert_model("dequantize_linear_21_cw.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_expected_output<float>({6, 4}, std::vector<float>{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
+                                                                    4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_ignore_axis) {
     auto model = convert_model("dequantize_linear_scalar_ignore_axis.onnx");
 
@@ -428,7 +484,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     auto test_case = ov::test::TestCase(model, s_device);
 
 	test_case.add_input_from_file<uint8_t>(
-		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/x.bin" }));
+		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/x.bin" }).string());
     test_case.add_input(std::vector<float>{0.00369204697199166f});  // x_scale
     test_case.add_input(std::vector<uint8_t>{132});                 // x_zero_point
     test_case.add_input(std::vector<uint8_t>{0});                   // w
@@ -438,7 +494,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d) {
     test_case.add_input(std::vector<uint8_t>{123});                 // y_zero_point
 
 	test_case.add_expected_output_from_file<uint8_t>({ 1, 1, 7, 7 },
-		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/y.bin" }));
+		util::path_join({ ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "files/qlinearconv2d/y.bin" }).string());
     test_case.run();
 }
 

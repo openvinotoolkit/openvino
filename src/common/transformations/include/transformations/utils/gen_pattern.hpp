@@ -22,18 +22,27 @@
 #include <string>
 #include <utility>
 
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/core/log_util.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace gen_pattern {
@@ -272,6 +281,7 @@ public:
     bool operator<(const Symbol& rhs) const {
         return get_id() < rhs.get_id();
     }
+    bool validate = true;
 };
 
 inline Symbol operator-(const Symbol& lhs) {
@@ -811,17 +821,20 @@ public:
                          pattern_value.get_index(),
                          "!=",
                          graph_value.get_index());
+            OPENVINO_LOG_GENPATTERN1(matcher, pattern_value, graph_value);
             return false;
         }
 
         auto value_node = graph_value.get_node_shared_ptr();
         if (!value_node->get_type_info().is_castable(m_type_info)) {
             _VERBOSE_LOG(level, "X OP type mismatch: ", m_signature, " vs ", graph_value);
+            OPENVINO_LOG_GENPATTERN2(matcher, pattern_value, graph_value);
             return false;
         }
 
         if (!m_vt.predicate(graph_value)) {
             _VERBOSE_LOG(level, "X value info mismatch: ", m_signature, " vs ", graph_value);
+            OPENVINO_LOG_GENPATTERN3(matcher);
             return false;
         }
 
@@ -830,6 +843,7 @@ public:
             value_node->visit_attributes(visitor);
             if (!visitor.matched()) {
                 _VERBOSE_LOG(level, "X OP attrs mismatch: ", m_signature, " vs ", graph_value);
+                OPENVINO_LOG_GENPATTERN4(matcher);
                 return false;
             }
         }
@@ -843,12 +857,18 @@ public:
 
         if (matcher_verbose_enabled())
             level.push_back('\t');
+        OPENVINO_LOG_GENPATTERN5(matcher);
         bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
+        OPENVINO_LOG_GENPATTERN6(matcher, ret);
         if (matcher_verbose_enabled()) {
             level.pop_back();
             _VERBOSE_LOG(level, ret ? "O" : "X", m_signature, " vs ", graph_value);
         }
         return ret;
+    }
+
+    const DiscreteTypeInfo& get_wrapped_type() const {
+        return m_type_info;
     }
 
 private:
@@ -1144,15 +1164,6 @@ std::shared_ptr<Node> GenConst_tril(values_info vt) {
     });
 }
 
-inline std::shared_ptr<Node> operator|(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return std::make_shared<ov::pass::pattern::op::Or>(OutputVector{lhs, rhs});
-}
-
-inline std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
-    return std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{lhs->get_default_output(), rhs->get_default_output()});
-}
-
 inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                              detail::PatternNode start,
                                              detail::PatternNode stop,
@@ -1189,6 +1200,7 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
                                       size_t axis,
                                       int line_no = CURRENT_LINE_NO,
                                       const char* file = CURRENT_FILE) {
+    using namespace ov::pass;
     auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}},
                                            {},
                                            nullptr,
@@ -1386,7 +1398,7 @@ public:
             if (sym.is_independent_var()) {
                 auto id = sym.get_id();
                 if (symbol_value_map.count(id)) {
-                    if (symbol_value_map[id] != value) {
+                    if (sym.validate && symbol_value_map[id] != value) {
                         _VERBOSE_LOG(" in-consistency between multiple references of same symbol(",
                                      sym.get_name(),
                                      "): ",

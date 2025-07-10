@@ -6,4 +6,5 @@ if (require.main === module) {
 
 async function main() {
   await downloadTestModel(testModels.testModelFP32);
+  await downloadTestModel(testModels.modelV3Small);
 }

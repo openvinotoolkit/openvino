@@ -22,32 +22,38 @@ struct ArgumentDescriptor {
 
 namespace zeroUtils {
 
-#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)              \
-    if (ZE_RESULT_SUCCESS != result) {                                                  \
-        OPENVINO_THROW("L0 ",                                                           \
-                       step,                                                            \
-                       " result: ",                                                     \
-                       ze_result_to_string(result),                                     \
-                       ", code 0x",                                                     \
-                       std::hex,                                                        \
-                       uint64_t(result),                                                \
-                       " - ",                                                           \
-                       ze_result_to_description(result),                                \
-                       " . ",                                                           \
-                       intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
+#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)                  \
+    {                                                                                       \
+        ze_result_t ret = (result);                                                         \
+        if (ZE_RESULT_SUCCESS != ret) {                                                     \
+            OPENVINO_THROW("L0 ",                                                           \
+                           step,                                                            \
+                           " result: ",                                                     \
+                           ze_result_to_string(ret),                                        \
+                           ", code 0x",                                                     \
+                           std::hex,                                                        \
+                           uint64_t(ret),                                                   \
+                           " - ",                                                           \
+                           ze_result_to_description(ret),                                   \
+                           " . ",                                                           \
+                           intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
+        }                                                                                   \
     }
 
-#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)         \
-    if (ZE_RESULT_SUCCESS != result) {                    \
-        OPENVINO_THROW("L0 ",                             \
-                       step,                              \
-                       " result: ",                       \
-                       ze_result_to_string(result),       \
-                       ", code 0x",                       \
-                       std::hex,                          \
-                       uint64_t(result),                  \
-                       " - ",                             \
-                       ze_result_to_description(result)); \
+#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)          \
+    {                                                      \
+        ze_result_t ret = (result);                        \
+        if (ZE_RESULT_SUCCESS != ret) {                    \
+            OPENVINO_THROW("L0 ",                          \
+                           step,                           \
+                           " result: ",                    \
+                           ze_result_to_string(ret),       \
+                           ", code 0x",                    \
+                           std::hex,                       \
+                           uint64_t(ret),                  \
+                           " - ",                          \
+                           ze_result_to_description(ret)); \
+        }                                                  \
     }
 
 static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
@@ -63,132 +69,73 @@ static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Prio
     }
 }
 
-static inline std::size_t precisionToSize(const ze_graph_argument_precision_t val) {
-    switch (val) {
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
-        return 8;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
-        return 8;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
-        return 16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
-        return 16;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
-        return 32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
-        return 32;
-    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
-        return 64;
-    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
-        return 64;
+static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
+    switch (zeElementType) {
+    case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
+        return ov::element::Type_t::dynamic;
+    case ZE_GRAPH_ARGUMENT_PRECISION_DYNAMIC:
+        return ov::element::Type_t::dynamic;
+    case ZE_GRAPH_ARGUMENT_PRECISION_BOOLEAN:
+        return ov::element::Type_t::boolean;
+    case ZE_GRAPH_ARGUMENT_PRECISION_NF4:
+        return ov::element::Type_t::nf4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E4M3:
+        return ov::element::Type_t::f8e4m3;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E5M2:
+        return ov::element::Type_t::f8e5m2;
+    case ZE_GRAPH_ARGUMENT_PRECISION_FP8_E8M0:
+        return ov::element::Type_t::f8e8m0;
     case ZE_GRAPH_ARGUMENT_PRECISION_BF16:
-        return 16;
+        return ov::element::Type_t::bf16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP16:
-        return 16;
+        return ov::element::Type_t::f16;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP32:
-        return 32;
+        return ov::element::Type_t::f32;
     case ZE_GRAPH_ARGUMENT_PRECISION_FP64:
-        return 64;
+        return ov::element::Type_t::f64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT4:
+        return ov::element::Type_t::i4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT8:
+        return ov::element::Type_t::i8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT16:
+        return ov::element::Type_t::i16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT32:
+        return ov::element::Type_t::i32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
+        return ov::element::Type_t::i64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT2:
+        return ov::element::Type_t::u2;
     case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
-        return 1;
+        return ov::element::Type_t::u1;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
+        return ov::element::Type_t::u4;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT8:
+        return ov::element::Type_t::u8;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT16:
+        return ov::element::Type_t::u16;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT32:
+        return ov::element::Type_t::u32;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT64:
+        return ov::element::Type_t::u64;
     default:
-        OPENVINO_THROW("precisionToSize switch->default reached");
+        return ov::element::Type_t::dynamic;
     }
 }
 
-static inline ze_graph_argument_precision_t getZePrecision(const ov::element::Type_t precision) {
-    switch (precision) {
-    case ov::element::Type_t::i4:
-        return ZE_GRAPH_ARGUMENT_PRECISION_INT4;
-    case ov::element::Type_t::u4:
-        return ZE_GRAPH_ARGUMENT_PRECISION_UINT4;
-    case ov::element::Type_t::i8:
-        return ZE_GRAPH_ARGUMENT_PRECISION_INT8;
-    case ov::element::Type_t::u8:
-        return ZE_GRAPH_ARGUMENT_PRECISION_UINT8;
-    case ov::element::Type_t::i16:
-        return ZE_GRAPH_ARGUMENT_PRECISION_INT16;
-    case ov::element::Type_t::u16:
-        return ZE_GRAPH_ARGUMENT_PRECISION_UINT16;
-    case ov::element::Type_t::i32:
-        return ZE_GRAPH_ARGUMENT_PRECISION_INT32;
-    case ov::element::Type_t::u32:
-        return ZE_GRAPH_ARGUMENT_PRECISION_UINT32;
-    case ov::element::Type_t::i64:
-        return ZE_GRAPH_ARGUMENT_PRECISION_INT64;
-    case ov::element::Type_t::u64:
-        return ZE_GRAPH_ARGUMENT_PRECISION_UINT64;
-    case ov::element::Type_t::bf16:
-        return ZE_GRAPH_ARGUMENT_PRECISION_BF16;
-    case ov::element::Type_t::f16:
-        return ZE_GRAPH_ARGUMENT_PRECISION_FP16;
-    case ov::element::Type_t::f32:
-        return ZE_GRAPH_ARGUMENT_PRECISION_FP32;
-    case ov::element::Type_t::f64:
-        return ZE_GRAPH_ARGUMENT_PRECISION_FP64;
-    case ov::element::Type_t::u1:
-        return ZE_GRAPH_ARGUMENT_PRECISION_BIN;
-    default:
-        return ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN;
-    }
-}
-
-static inline std::size_t layoutCount(const ze_graph_argument_layout_t val) {
-    switch (val) {
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCHW:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NHWC:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW:
-        return 5;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC:
-        return 5;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_OIHW:
-        return 4;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_C:
-        return 1;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CHW:
-        return 3;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_HW:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_NC:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_CN:
-        return 2;
-    case ZE_GRAPH_ARGUMENT_LAYOUT_ANY:
-        // When input has empty shape, val is ZE_GRAPH_ARGUMENT_LAYOUT_ANY
-        // Add this to pass Single Layer Test on Windows
-        return 0;
-    default:
-        OPENVINO_THROW("layoutCount switch->default reached");
-    }
-}
-
-static inline std::size_t getSizeIOBytes(const ze_graph_argument_properties_3_t& argument) {
-    std::size_t num_elements = 1;
-    for (std::size_t i = 0; i < layoutCount(argument.deviceLayout); ++i) {
-        num_elements *= argument.dims[i];
-    }
-    const std::size_t size_in_bits = num_elements * precisionToSize(argument.devicePrecision);
-    const std::size_t size_in_bytes = (size_in_bits + (CHAR_BIT - 1)) / CHAR_BIT;
-    return size_in_bytes;
-}
-
-static inline uint32_t findGroupOrdinal(ze_device_handle_t device_handle, const ze_device_properties_t& properties) {
-    auto log = Logger::global().clone("findGroupOrdinal");
+static inline uint32_t findCommandQueueGroupOrdinal(
+    ze_device_handle_t device_handle,
+    const ze_command_queue_group_property_flags_t& command_queue_group_property) {
+    auto log = Logger::global().clone("findCommandQueueGroupOrdinal");
 
     std::vector<ze_command_queue_group_properties_t> command_group_properties;
     uint32_t command_queue_group_count = 0;
+
     // Discover all command queue groups
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeDeviceGetCommandQueueGroupProperties",
         zeDeviceGetCommandQueueGroupProperties(device_handle, &command_queue_group_count, nullptr));
 
-    log.debug("zero_utils::findGroupOrdinal - resize command_queue_group_count");
+    log.debug("zero_utils::findCommandQueueGroupOrdinal - resize command_queue_group_count");
     command_group_properties.resize(command_queue_group_count);
 
     for (auto& prop : command_group_properties) {
@@ -201,39 +148,24 @@ static inline uint32_t findGroupOrdinal(ze_device_handle_t device_handle, const 
                                                                        &command_queue_group_count,
                                                                        command_group_properties.data()));
 
-    if (properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) {
-        for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-            const auto& flags = command_group_properties[index].flags;
-            if ((flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0 &&
-                (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) == 0) {
-                return index;
-            }
-        }
-
-        // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
-        // enabled
-        for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
-            const auto& flags = command_group_properties[index].flags;
-            if (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) {
-                return index;
-            }
-        }
-
-        // if still don't find compute flag, return a warning
-        log.warning("Fail to find a command queue group that contains compute flag, it will be set to 0.");
-        return 0;
-    }
-
     for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
         const auto& flags = command_group_properties[index].flags;
-        if ((flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0 &&
-            (flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) != 0) {
+        if (flags == command_queue_group_property) {
             return index;
         }
     }
 
-    // if still don't find compute and copy flag, return a warning
-    log.warning("Fail to find a command queue group that contains compute and copy flags, it will be set to 0.");
+    // if we don't find a group where only the proper flag is enabled then search for a group where that flag is
+    // enabled
+    for (uint32_t index = 0; index < command_group_properties.size(); ++index) {
+        const auto& flags = command_group_properties[index].flags;
+        if (flags & command_queue_group_property) {
+            return index;
+        }
+    }
+
+    // if still don't find compute flag, return a warning
+    log.warning("Fail to find a command queue group that contains compute flag, it will be set to 0.");
     return 0;
 }
 
@@ -283,8 +215,8 @@ static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle
     auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
     if (res == ZE_RESULT_SUCCESS) {
         if (desc.id) {
-            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
-                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
+            if ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type == ZE_MEMORY_TYPE_SHARED)) {
                 return true;
             }
         }

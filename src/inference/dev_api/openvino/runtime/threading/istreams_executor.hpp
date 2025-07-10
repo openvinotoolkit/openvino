@@ -222,7 +222,8 @@ public:
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
                 _threads_per_stream == config._threads_per_stream &&
-                _thread_preferred_core_type == config._thread_preferred_core_type) {
+                _thread_preferred_core_type == config._thread_preferred_core_type &&
+                _rank == config._rank) {
                 return true;
             } else {
                 return false;
@@ -250,6 +251,12 @@ public:
      * @return An index of current stream. Or throw exceptions if called not from stream thread
      */
     virtual int get_stream_id() = 0;
+
+    /**
+     * @brief Return the total number of streams
+     * @return The total number of streams.
+     */
+    virtual int get_streams_num() = 0;
 
     /**
      * @brief Return the id of current NUMA Node

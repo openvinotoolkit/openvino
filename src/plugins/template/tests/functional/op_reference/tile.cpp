@@ -62,7 +62,7 @@ private:
         const auto repeats =
             std::make_shared<op::v0::Constant>(params.repeats.type, params.repeats.shape, params.repeats.data.data());
         const auto tile = std::make_shared<op::v0::Tile>(A, repeats);
-        const auto f = std::make_shared<Model>(NodeVector{tile}, ParameterVector{A});
+        const auto f = std::make_shared<Model>(OutputVector{tile}, ParameterVector{A});
         return f;
     }
 };

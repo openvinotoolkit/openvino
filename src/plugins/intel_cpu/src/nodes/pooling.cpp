@@ -5,28 +5,56 @@
 #include "pooling.h"
 
 #include <memory_desc/cpu_memory_desc_utils.h>
+#include <oneapi/dnnl/dnnl_types.h>
 
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/common/dnnl_executor.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/pooling_list.hpp"
 #include "nodes/node_config.h"
-#include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/avg_pool_base.hpp"
+#include "openvino/op/util/max_pool_base.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 // to access and change C pooling primitive desc internal padding field
-#include <common/pooling_pd.hpp>
-#include <common/primitive_desc_iface.hpp>
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/core/CoreTypes.h>
+#    include <arm_compute/core/TensorInfo.h>
+#    include <arm_compute/core/Types.h>
+
 #    include "executors/acl/acl_utils.hpp"
+#    include "nodes/executors/acl/acl_pooling.hpp"
 #    include "utils/debug_capabilities.h"
 #endif
 
@@ -53,7 +81,7 @@ struct PoolingKey {
     dnnl::algorithm alg;
     impl_desc_type implType;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
@@ -98,7 +126,6 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
                                                              const std::vector<ptrdiff_t>& effective_pad_begin,
                                                              const std::vector<ptrdiff_t>& effective_pad_end,
                                                              const std::vector<ptrdiff_t>& effective_dilation,
-                                                             const std::vector<ptrdiff_t>& data_pad_end,
                                                              const dnnl::primitive_attr& attr) {
     if (alg == dnnl::algorithm::undef) {
         OPENVINO_THROW("Unsupported pooling type");
@@ -145,22 +172,24 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
                 errorMessage = "MaxPool from opset8 and opset14 is supported only with one output";
                 return false;
             }
-        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v8::MaxPool>(op) &&
-                   !ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op) &&
-                   !ov::is_type<const ov::op::v14::AvgPool>(op)) {
+        } else if (!ov::is_type_any_of<const ov::op::v1::MaxPool,
+                                       const ov::op::v8::MaxPool,
+                                       const ov::op::v14::MaxPool,
+                                       const ov::op::v1::AvgPool,
+                                       const ov::op::v14::AvgPool>(op)) {
             errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
             return false;
         }
 #if defined(OV_CPU_WITH_ACL)
-        if (ov::as_type_ptr<const ov::op::v8::MaxPool>(op) ||
-            ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
-            if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2,2)) {
-                errorMessage = "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
+        if (ov::is_type_any_of<const ov::op::v8::MaxPool, const ov::op::v14::MaxPool>(op)) {
+            if (ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)->get_kernel() != ov::Shape(2, 2)) {
+                errorMessage =
+                    "Pooling indices returning source tensor coordinates is only supported for pool size 2x2";
                 return false;
             }
         }
@@ -180,8 +209,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 
     auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute,
                              const std::vector<size_t>& external_attribute) {
-        for (size_t i = 0; i < external_attribute.size(); i++) {
-            internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
+        for (uint64_t i : external_attribute) {
+            internal_attribute.push_back(static_cast<ptrdiff_t>(i));
         }
     };
 
@@ -222,29 +251,30 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
 }
 
 std::vector<memory::format_tag> Pooling::getAvailableFormatsForDims(const Shape& dims) const {
-    if (dims.getRank() == 0) {
+    switch (dims.getRank()) {
+    case 0:
+    case 1:
         return {memory::format_tag::x};
-    } else if (dims.getRank() == 1) {
-        return {memory::format_tag::x};
-    } else if (dims.getRank() == 2) {
+    case 2:
         return {memory::format_tag::nc};
-    } else if (dims.getRank() == 3) {
+    case 3:
         return {memory::format_tag::nCw8c,
                 memory::format_tag::nCw16c,
                 memory::format_tag::nwc,
                 memory::format_tag::ncw};
-    } else if (dims.getRank() == 4) {
+    case 4:
         return {memory::format_tag::nChw8c,
                 memory::format_tag::nChw16c,
                 memory::format_tag::nhwc,
                 memory::format_tag::nchw};
-    } else if (dims.getRank() == 5) {
+    case 5:
         return {memory::format_tag::nCdhw8c,
                 memory::format_tag::nCdhw16c,
                 memory::format_tag::ndhwc,
                 memory::format_tag::ncdhw};
+    default:
+        return {memory::format_tag::any};
     }
-    return {memory::format_tag::any};
 }
 
 void Pooling::initEffectiveAttributes(const Shape& inShape, const Shape& outShape) {
@@ -371,29 +401,51 @@ void Pooling::getSupportedDescriptors() {
             outputDataType = memory::data_type::f32;
         }
         // i8 layers supports only ndhwc and nhwc layouts
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            parentShape,
-            inputDataType,
-            inputRank == 3 ? memory::format_tag::nwc
-                           : (inputRank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            childShape,
-            outputDataType,
-            inputRank == 3 ? memory::format_tag::nwc
-                           : (inputRank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc));
+        auto [in_candidate, out_candidate] = [&]() {
+            std::shared_ptr<DnnlBlockedMemoryDesc> in_candidate;
+            std::shared_ptr<DnnlBlockedMemoryDesc> out_candidate;
+            if (inputRank == 3) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::nwc);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::nwc);
+            } else if (inputRank == 4) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::nhwc);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::nhwc);
+            } else {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::ndhwc);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::ndhwc);
+            }
+            return std::make_pair(in_candidate, out_candidate);
+        }();
         createDescriptor({in_candidate}, {out_candidate});
     } else if ((inputRank == 3 || inputRank == 4 || inputRank == 5) && parentShape.getDims()[1] == 1) {
         // WA. We should force planar layout since it provides better performance
-        const auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            parentShape,
-            inputDataType,
-            inputRank == 3 ? memory::format_tag::ncw
-                           : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
-        const auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(
-            childShape,
-            outputDataType,
-            inputRank == 3 ? memory::format_tag::ncw
-                           : (inputRank == 4 ? memory::format_tag::nchw : memory::format_tag::ncdhw));
+        auto [in_candidate, out_candidate] = [&]() {
+            std::shared_ptr<DnnlBlockedMemoryDesc> in_candidate;
+            std::shared_ptr<DnnlBlockedMemoryDesc> out_candidate;
+            if (inputRank == 3) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::ncw);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::ncw);
+            } else if (inputRank == 4) {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::nchw);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::nchw);
+            } else {
+                in_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(parentShape, inputDataType, memory::format_tag::ncdhw);
+                out_candidate =
+                    std::make_shared<DnnlBlockedMemoryDesc>(childShape, outputDataType, memory::format_tag::ncdhw);
+            }
+            return std::make_pair(in_candidate, out_candidate);
+        }();
         createDescriptor({in_candidate}, {out_candidate});
     } else {
         if (!one_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
@@ -410,7 +462,7 @@ void Pooling::getSupportedDescriptors() {
 }
 
 void Pooling::prepareParams() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr) {
         THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
     }
@@ -485,18 +537,17 @@ void Pooling::prepareParams() {
                                                     key.effective_pad_begin,
                                                     key.effective_pad_end,
                                                     key.effective_dilation,
-                                                    key.data_pad_end,
                                                     key.attr);
 
             auto first_desc = dnnl::pooling_forward::primitive_desc(prim_desc.get());
             const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
             if (found) {
-                return std::make_shared<DnnlExecutor>(prim_desc);
+                return std::make_shared<DnnlExecutorLegacy>(prim_desc);
             }
 
             // use the first available
-            return std::make_shared<DnnlExecutor>(first_desc);
+            return std::make_shared<DnnlExecutorLegacy>(first_desc);
         };
 
         auto cache = context->getParamsCache();
@@ -516,7 +567,7 @@ void Pooling::prepareParams() {
         Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
 #ifdef CPU_DEBUG_CAPS
-        auto pd = dnnlExecPtr->getPrimitiveDesc();
+        const auto* pd = dnnlExecPtr->getPrimitiveDesc();
         DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
     }
@@ -567,14 +618,13 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
         }
         if (!poolingAttrs.exclude_pad && (not_zero_l || not_zero_r)) {
             return dnnl::algorithm::pooling_avg_include_padding;
-        } else {
-            return dnnl::algorithm::pooling_avg_exclude_padding;
         }
-    } else if (algorithm == Algorithm::PoolingMax) {
-        return dnnl::algorithm::pooling_max;
-    } else {
-        return dnnl::algorithm::undef;
+        return dnnl::algorithm::pooling_avg_exclude_padding;
     }
+    if (algorithm == Algorithm::PoolingMax) {
+        return dnnl::algorithm::pooling_max;
+    }
+    return dnnl::algorithm::undef;
 }
 
 dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dnnl::memory::desc& in_candidate,
@@ -591,7 +641,6 @@ dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(const dn
                                   poolingAttrs.effective_pad_begin,
                                   poolingAttrs.effective_pad_end,
                                   poolingAttrs.effective_dilation,
-                                  poolingAttrs.data_pad_end,
                                   *attr);
 }
 
@@ -627,7 +676,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     }
 
     if (useACL) {
-        auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+        const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
         auto pushDesc = [&](LayoutType format) {
             NodeConfig config;
             config.inConfs.resize(getParentEdges().size());
@@ -663,7 +712,8 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     }
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
-        std::vector<PortConfig> inConfs, outConfs;
+        std::vector<PortConfig> inConfs;
+        std::vector<PortConfig> outConfs;
         const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {

@@ -388,6 +388,7 @@ public:
     AttributeAdapter(op::LSTMWeightsFormat& value) : EnumAttributeAdapterBase<op::LSTMWeightsFormat>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::LSTMWeightsFormat>");
+    ~AttributeAdapter() override;
 };
 
 }  // namespace ov

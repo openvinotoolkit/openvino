@@ -10,12 +10,13 @@
 
 #include "utils/cpu_test_utils.hpp"
 #include "utils/bfloat16.hpp"
+#include "openvino/op/roi_pooling.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-enum ProposalGenerationMode { RANDOM, ULTIMATE_RIGHT_BORDER };
+enum ProposalGenerationMode : uint8_t { RANDOM, ULTIMATE_RIGHT_BORDER };
 
 using roiPoolingShapes = std::vector<InputShape>;
 
@@ -194,7 +195,12 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        selectedType += netPrecision.to_string();
+
+        if (!with_cpu_x86_avx512_core() && netPrecision == ElementType::bf16) {
+            selectedType += ov::element::f32.to_string();
+        } else {
+            selectedType += netPrecision.to_string();
+        }
 
         if (netPrecision == ov::element::bf16) {
             rel_threshold = 1e-2;

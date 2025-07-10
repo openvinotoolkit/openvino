@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
@@ -17,16 +27,16 @@ public:
               const std::vector<MemoryDescPtr>& dstDescs,
               const dnnl::primitive_attr& attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
-    impl_desc_type implType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::ref;
     }
 };
 
 class RefOptimizedTransposeExecutorBuilder : public TransposeExecutorBuilder {
 public:
-    bool isSupported(const TransposeParams& transposeParams,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override {
+    [[nodiscard]] bool isSupported(const TransposeParams& transposeParams,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const override {
         static const std::vector<std::vector<size_t>> optimizedOrders = {
             std::vector<size_t>{0, 3, 1, 2},
             std::vector<size_t>{0, 4, 1, 2, 3},
@@ -41,7 +51,7 @@ public:
         return false;
     }
 
-    TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] TransposeExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<RefOptimizedTransposeExecutor>(context);
     }
 };

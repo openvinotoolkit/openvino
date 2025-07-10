@@ -4,8 +4,13 @@
 
 #include "acl_utils.hpp"
 
+#include <arm_compute/function_info/ActivationLayerInfo.h>
+
+#include <functional>
+
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
 #include "support/Mutex.h"
-#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
@@ -19,7 +24,7 @@ void configureThreadSafe(const std::function<void(void)>& config) {
 arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm,
                                                         float alpha = 0.0,
                                                         float beta = 0.0,
-                                                        float gamma = 0.0) {
+                                                        [[maybe_unused]] float gamma = 0.0) {
     switch (algorithm) {
     case Algorithm::EltwiseRelu:
         if (alpha == 0) {

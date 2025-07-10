@@ -4,10 +4,12 @@
 //
 #pragma once
 
-#include <cpu/aarch64/brgemm/brgemm.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
+
+#include <cpu/aarch64/brgemm/brgemm_types.hpp>
 #include <cpu/aarch64/matmul/brgemm_matmul_copy_utils.hpp>
-#include <cpu/aarch64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
+#include <memory>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {
@@ -36,10 +38,10 @@ public:
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
-    const size_t get_scratch_a_size() const;
+    [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
-    const size_t get_scratch_b_size() const;
-    const size_t get_wsp_size() const {
+    [[nodiscard]] size_t get_scratch_b_size() const;
+    [[nodiscard]] static const size_t get_wsp_size() {
         return 4 * 1024;
     }
 
@@ -66,12 +68,12 @@ private:
     std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t> brgKernels[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_a_t> brgCopyAKernel;
     std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel;
-    size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
+    static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
-    void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel);
+    static void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel);
     // LDA, LDB is used for stride of target memory
-    void init_brgemm_copy_a(
+    static void init_brgemm_copy_a(
         std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
         size_t K,
         size_t K_blk,
@@ -81,7 +83,7 @@ private:
         bool transpose = false,
         size_t copy_A_src_stride = 0);
 
-    void init_brgemm_copy_b(
+    static void init_brgemm_copy_b(
         std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_b_t>& brgCopyKernel,
         size_t N,
         size_t N_blk,
@@ -93,11 +95,11 @@ private:
         bool transpose = false,
         size_t copy_B_wei_stride = 0);
 
-    void callBrgemm(brgemmCtx& ctx,
-                    std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,
-                    const void* pin0,
-                    const void* pin1,
-                    void* pout,
-                    void* wsp);
+    static void callBrgemm(brgemmCtx& ctx,
+                           std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,
+                           const void* pin0,
+                           const void* pin1,
+                           void* pout,
+                           void* wsp);
 };
 }  // namespace ov::intel_cpu

@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/is_finite.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/opsets/opset10.hpp"
 
-using namespace ov::opset10;
+using ov::op::v0::Parameter;
+using ov::op::v10::IsFinite;
 
 TEST(type_prop, isfinite_output_shape) {
     const auto data = std::make_shared<Parameter>(ov::element::f16, ov::Shape{4, 2});

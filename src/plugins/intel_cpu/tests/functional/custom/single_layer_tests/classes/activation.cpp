@@ -8,6 +8,9 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "shared_test_classes/single_op/activation.hpp"
+#if defined(OPENVINO_ARCH_RISCV64)
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#endif
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;
@@ -161,7 +164,7 @@ void ActivationLayerCPUTest::SetUp() {
     auto params = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front());
     auto activation = utils::make_activation(params, netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ov::Model>(ov::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
+    function = std::make_shared<ov::Model>(ov::OutputVector{activation}, ov::ParameterVector{params}, "Activation");
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (netPrecision == ov::element::f32 && outPrecision == ov::element::f32) {
         abs_threshold = 8e-4;
@@ -180,12 +183,14 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     if ((element_type == ov::element::f32) &&
         ((activation_type == utils::ActivationTypes::Clamp) ||
         (activation_type == utils::ActivationTypes::Elu) ||
+        (activation_type == utils::ActivationTypes::Erf) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Floor) ||
         (activation_type == utils::ActivationTypes::Ceiling) ||
         (activation_type == utils::ActivationTypes::Negative) ||
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
+        (activation_type == utils::ActivationTypes::HSigmoid) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
         (activation_type == utils::ActivationTypes::IsFinite) ||
         (activation_type == utils::ActivationTypes::IsNaN) ||
@@ -200,7 +205,10 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::LogicalNot) ||
         (activation_type == utils::ActivationTypes::Tanh) ||
         (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
-        (activation_type == utils::ActivationTypes::RoundHalfToEven))) {
+        (activation_type == utils::ActivationTypes::RoundHalfToEven) ||
+        (activation_type == utils::ActivationTypes::LeakyRelu) ||
+        (activation_type == utils::ActivationTypes::PReLu) ||
+        (activation_type == utils::ActivationTypes::SoftPlus))) {
         return "jit";
     }
 
@@ -209,7 +217,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
-    if ((activation_type == utils::ActivationTypes::Floor) ||
+    if ((activation_type == utils::ActivationTypes::Erf) ||
+       (activation_type == utils::ActivationTypes::Floor) ||
        (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
@@ -219,18 +228,31 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "ref";
     }
     return "acl";
-#elif defined(OV_CPU_WITH_SHL)
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+        if ((activation_type == utils::ActivationTypes::Abs) ||
+            (activation_type == utils::ActivationTypes::Clamp) ||
+            (activation_type == utils::ActivationTypes::Exp) ||
+            (activation_type == utils::ActivationTypes::Floor) ||
+            (activation_type == utils::ActivationTypes::Negative) ||
+            (activation_type == utils::ActivationTypes::LeakyRelu) ||
+            (activation_type == utils::ActivationTypes::Relu) ||
+            (activation_type == utils::ActivationTypes::PReLu) ||
+            (activation_type == utils::ActivationTypes::Sigmoid) ||
+            (activation_type == utils::ActivationTypes::Sqrt))
+            return "jit";
+    }
+#if defined(OV_CPU_WITH_SHL)
     if ((activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::PReLu) ||
         (activation_type == utils::ActivationTypes::Exp) ||
         (activation_type == utils::ActivationTypes::Clamp)) {
         return "shl";
-    } else {
-        return "ref";
     }
-#else
-    return CPUTestsBase::getPrimitiveType();
 #endif
+#endif
+    return CPUTestsBase::getPrimitiveType();
 }
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
@@ -250,6 +272,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Sigmoid,     {{}}},
         {Tanh,        {{}}},
         {Relu,        {{}}},
+        {Erf,         {{}}},
         {Exp,         {{}}},
         {Clamp,       {{-2.0f, 2.0f}}},
         {Elu,         {{0.1f}}},
@@ -257,8 +280,13 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
+// On other platforms HSigmoid is decomposed
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+        {HSigmoid,    {{}}},
+#endif
         {HSwish,      {{}}},
         {PReLu,       {{-0.01f}}},
+        {LeakyRelu,   {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}},
         {SoftSign,    {{}}},

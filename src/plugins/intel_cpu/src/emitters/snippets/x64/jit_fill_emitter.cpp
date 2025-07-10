@@ -4,6 +4,23 @@
 
 #include "jit_fill_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/fill.hpp"
+#include "utils/general_utils.h"
+
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -57,8 +74,8 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
 
-    Vmm src_vmm = Vmm(in[0]);
-    Vmm dst_vmm = Vmm(out[0]);
+    auto src_vmm = Vmm(in[0]);
+    auto dst_vmm = Vmm(out[0]);
 
     const size_t supported_et_size = 4;
     const auto register_capacity = (src_vmm.getBit() / 8) / supported_et_size;

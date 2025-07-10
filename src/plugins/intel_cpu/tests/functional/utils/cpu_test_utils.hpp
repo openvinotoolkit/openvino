@@ -88,7 +88,7 @@ using CPUSpecificParams = std::tuple<std::vector<cpu_memory_format_t>,  // input
                                      std::string                        // selected primitive type
                                      >;
 
-enum class nodeType { convolution, convolutionBackpropData, groupConvolution, groupConvolutionBackpropData };
+enum class nodeType : uint8_t { convolution, convolutionBackpropData, groupConvolution, groupConvolutionBackpropData };
 
 inline std::string nodeType2PluginType(nodeType nt) {
     if (nt == nodeType::convolution)
@@ -113,7 +113,7 @@ inline std::string nodeType2str(nodeType nt) {
         return "GroupConvolutionBackpropData";
     throw std::runtime_error("Undefined node type to convert to string!");
 }
-
+bool with_cpu_x86_avx2_vnni_2();
 class CPUTestsBase {
 public:
     typedef std::map<std::string, ov::Any> CPUInfo;

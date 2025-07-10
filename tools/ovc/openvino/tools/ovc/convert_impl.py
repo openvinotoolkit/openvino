@@ -10,7 +10,7 @@ import traceback
 import tracemalloc
 from collections import OrderedDict
 from pathlib import Path
-from typing import Iterable, Callable
+from collections.abc import Callable, Iterable
 
 try:
     import openvino_telemetry as tm
@@ -208,7 +208,8 @@ def check_model_object(argv):
             return "tf"
     if 'torch' in sys.modules:
         import torch
-        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
+        if isinstance(model, (torch.nn.Module, torch.jit.ScriptFunction)) or (
+                hasattr(torch, "export") and isinstance(model, (torch.export.ExportedProgram))):
             return "pytorch"
         try:
             from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
@@ -236,7 +237,13 @@ def check_model_object(argv):
 
     if 'jax' in sys.modules:
         import jax
-        if isinstance(model, (jax.core.Jaxpr, jax.core.ClosedJaxpr)):
+        from packaging import version
+        if version.parse(jax.__version__) < version.parse("0.6.0"):
+            import jax as jex
+            import jax.core
+        else:
+            import jax.extend as jex
+        if isinstance(model, (jex.core.Jaxpr, jex.core.ClosedJaxpr)):
             return "jax"
 
     raise Error('Unknown model type: {}'.format(type(model)))

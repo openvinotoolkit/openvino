@@ -133,4 +133,6 @@ OPENVINO_API EnumNames<op::v1::Reverse::Mode>& EnumNames<op::v1::Reverse::Mode>:
         {{"index", op::v1::Reverse::Mode::INDEX}, {"mask", op::v1::Reverse::Mode::MASK}});
     return enum_names;
 }
+
+AttributeAdapter<op::v1::Reverse::Mode>::~AttributeAdapter() = default;
 }  // namespace ov

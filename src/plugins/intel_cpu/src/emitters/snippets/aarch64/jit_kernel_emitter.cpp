@@ -4,10 +4,32 @@
 
 #include "jit_kernel_emitter.hpp"
 
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <algorithm>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <set>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/reg_spill.hpp"
 #include "snippets/utils/reg_utils.hpp"
-#include "snippets/utils/utils.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -123,7 +145,8 @@ void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const
                               data_ptr_regs_idx.size());
 }
 
-void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
+                                   [[maybe_unused]] const std::vector<size_t>& out) const {
     h->preamble();
 
     std::set<snippets::Reg> available_gpr;
@@ -172,7 +195,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         auto expected_out_type = snippets::RegType::undefined;
         const auto& node = expression->get_node();
         // Note: currently only a few operations are allowed to have mixed in/out register types => skip validation here
-        if (!ov::is_type<snippets::op::LoopEnd>(node) && !ov::is_type<snippets::op::RegSpillBase>(node) &&
+        if (!ov::is_type_any_of<snippets::op::LoopEnd, snippets::op::RegSpillBase>(node) &&
             !std::dynamic_pointer_cast<jit_nop_emitter>(emitter)) {
             std::tie(expected_in_type, expected_out_type) = get_expected_reg_types(emitter);
         }
@@ -222,8 +245,8 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
     XReg reg_runtime_params = arg_regs[0];
     XReg reg_indexes = arg_regs[1];
 
-    XReg reg_tmp = XReg(h->X_TMP_0);
-    XReg reg_aux = XReg(h->X_TMP_1);
+    auto reg_tmp = XReg(h->X_TMP_0);
+    auto reg_aux = XReg(h->X_TMP_1);
 
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter

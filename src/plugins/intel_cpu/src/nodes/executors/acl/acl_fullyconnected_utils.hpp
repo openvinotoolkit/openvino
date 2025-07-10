@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
+#include <optional>
+
 #include "acl_common_executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
-#include "ov_optional.hpp"
 
 namespace ov::intel_cpu {
 
@@ -12,24 +14,24 @@ struct ACLFCAttrs {
     ov::element::Type inputPrecision;
     bool isConvertedWeights = false;
     bool isWeightsRepacked = false;
-    bool weightsNonTransposed;
+    bool weightsNonTransposed = false;
 };
 
 namespace acl_fc_executor {
 
 VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape);
 
-VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, const size_t out_rank);
+VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, size_t out_rank);
 
 DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
-ov::optional<MemoryPtr> convertWeightPrecision(const MemoryPtr& input,
-                                               const MemoryPtr& output,
-                                               ov::element::Type weightPrecision);
+std::optional<MemoryPtr> convertWeightPrecision(const MemoryPtr& input,
+                                                const MemoryPtr& output,
+                                                ov::element::Type weightPrecision);
 
-ov::optional<MemoryPtr> reorderDataFallback(const MemoryPtr& input,
-                                            const MemoryPtr& output,
-                                            const ExecutorContext::CPtr& context);
+std::optional<MemoryPtr> reorderDataFallback(const MemoryPtr& input,
+                                             const MemoryPtr& output,
+                                             const ExecutorContext::CPtr& context);
 
 MemoryPtr reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
                       const DnnlMemoryDescPtr& dstWeightDesc,
@@ -37,7 +39,7 @@ MemoryPtr reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
                       const ExecutorContext::CPtr& context);
 
 MemoryPtr reorderWeights(const MemoryArgs& memory,
-                         const ExecutorContext::CPtr context,
+                         ExecutorContext::CPtr context,
                          ACLFCAttrs& aclfcAttrs,
                          DnnlMemoryDescPtr dnnlSrcDesc,
                          DnnlMemoryDescPtr dnnlDstDesc);
@@ -46,11 +48,10 @@ MemoryPtr prepareWeightMemory(const MemoryArgs& memory,
                               const ExecutorContext::CPtr& context,
                               const FCAttrs& attrs,
                               ACLFCAttrs& aclfcAttrs,
-                              const PostOps& postOps,
                               arm_compute::WeightFormat& expectedWeightFormat,
                               arm_compute::TensorInfo& weiTensorInfo);
 
-arm_compute::TensorShape normalizeDimsTo2D(const arm_compute::TensorShape shape);
+arm_compute::TensorShape normalizeDimsTo2D(arm_compute::TensorShape shape);
 
 void updateFCTensorsShapes(ACLShapes& aclMemoryShapes);
 
@@ -64,7 +65,7 @@ public:
 
 class ACLWeightFormatGenerator : public ACLCommonExecutor {
 public:
-    ACLWeightFormatGenerator(const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory);
+    ACLWeightFormatGenerator(const FCAttrs& attrs, const MemoryArgs& memory);
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
@@ -76,7 +77,7 @@ private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
     arm_compute::WeightsInfo weightsInfo;
     ACLFCAttrs aclfcAttrs;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
 };
 
 }  // namespace acl_fc_executor

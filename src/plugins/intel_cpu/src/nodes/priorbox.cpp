@@ -6,12 +6,25 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <vector>
 
-#include "dnnl_types.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/prior_box.hpp"
 #include "shape_inference/custom/priorbox.hpp"
 
 namespace ov::intel_cpu::node {
@@ -28,7 +41,7 @@ float clip_less(float x, float threshold) {
 
 bool PriorBox::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBox>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBox operation is supported";
             return false;
@@ -46,8 +59,8 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBox>(op);
-    const ov::opset1::PriorBox::Attributes& attrs = priorBox->get_attrs();
+    const auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBox>(op);
+    const ov::op::v0::PriorBox::Attributes& attrs = priorBox->get_attrs();
     offset = attrs.offset;
     step = attrs.step;
     min_size = attrs.min_size;
@@ -59,8 +72,8 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     fixed_ratio = attrs.fixed_ratio;
     density = attrs.density;
 
-    bool exist;
-    aspect_ratio.push_back(1.0f);
+    bool exist = false;
+    aspect_ratio.push_back(1.0F);
     for (float aspect_ratio_item : attrs.aspect_ratio) {
         exist = false;
 
@@ -81,11 +94,11 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
         aspect_ratio.push_back(aspect_ratio_item);
         if (flip) {
-            aspect_ratio.push_back(1.0f / aspect_ratio_item);
+            aspect_ratio.push_back(1.0F / aspect_ratio_item);
         }
     }
 
-    number_of_priors = ov::opset1::PriorBox::number_of_priors(attrs);
+    number_of_priors = ov::op::v0::PriorBox::number_of_priors(attrs);
 
     if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
         for (float i : attrs.variance) {
@@ -96,7 +109,7 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
             variance.push_back(i);
         }
     } else if (attrs.variance.empty()) {
-        variance.push_back(0.1f);
+        variance.push_back(0.1F);
     } else {
         THROW_CPU_NODE_ERR("has wrong number of variance values. Not less than 1 and more than 4 variance values.");
     }
@@ -112,7 +125,7 @@ bool PriorBox::needShapeInfer() const {
     const int* in_data = memory->getDataAs<int>();
     const int h = in_data[0];
     const int w = in_data[1];
-    const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
+    const auto output = static_cast<size_t>(4) * h * w * number_of_priors;
 
     return outputShape[1] != output;
 }
@@ -140,7 +153,7 @@ void PriorBox::createPrimitive() {
     }
 }
 
-void PriorBox::execute(const dnnl::stream& strm) {
+void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int* in_data = getSrcDataAtPortAs<int>(0);
     const int H = in_data[0];
     const int W = in_data[1];
@@ -152,14 +165,14 @@ void PriorBox::execute(const dnnl::stream& strm) {
     const int OH = 4 * H * W * number_of_priors;
     const int OW = 1;
 
-    float* dst_data = getDstDataAtPortAs<float>(0);
+    auto* dst_data = getDstDataAtPortAs<float>(0);
 
     float step_ = step;
     auto min_size_ = min_size;
     if (!scale_all_sizes) {
         // mxnet-like PriorBox
         if (step_ == -1) {
-            step_ = 1.f * IH / H;
+            step_ = 1.F * IH / H;
         } else {
             step_ *= IH;
         }
@@ -169,9 +182,14 @@ void PriorBox::execute(const dnnl::stream& strm) {
     }
 
     int64_t idx = 0;
-    float center_x, center_y, box_width, box_height, step_x, step_y;
-    float IWI = 1.0f / static_cast<float>(IW);
-    float IHI = 1.0f / static_cast<float>(IH);
+    float center_x = NAN;
+    float center_y = NAN;
+    float box_width = NAN;
+    float box_height = NAN;
+    float step_x = NAN;
+    float step_y = NAN;
+    float IWI = 1.0F / static_cast<float>(IW);
+    float IHI = 1.0F / static_cast<float>(IH);
 
     if (step_ == 0) {
         step_x = static_cast<float>(IW) / W;
@@ -200,8 +218,8 @@ void PriorBox::execute(const dnnl::stream& strm) {
     for (int64_t h = 0; h < H; ++h) {
         for (int64_t w = 0; w < W; ++w) {
             if (step_ == 0) {
-                center_x = (w + 0.5f) * step_x;
-                center_y = (h + 0.5f) * step_y;
+                center_x = (w + 0.5F) * step_x;
+                center_y = (h + 0.5F) * step_y;
             } else {
                 center_x = (offset + w) * step_;
                 center_y = (offset + h) * step_;
@@ -209,19 +227,19 @@ void PriorBox::execute(const dnnl::stream& strm) {
 
             for (size_t s = 0; s < fixed_size.size(); ++s) {
                 auto fixed_size_ = static_cast<size_t>(fixed_size[s]);
-                box_width = box_height = fixed_size_ * 0.5f;
+                box_width = box_height = fixed_size_ * 0.5F;
 
                 if (!fixed_ratio.empty()) {
                     for (float ar : fixed_ratio) {
                         auto density_ = static_cast<int64_t>(density[s]);
                         auto shift = static_cast<int64_t>(fixed_size[s] / density_);
                         ar = std::sqrt(ar);
-                        float box_width_ratio = fixed_size[s] * 0.5f * ar;
-                        float box_height_ratio = fixed_size[s] * 0.5f / ar;
+                        float box_width_ratio = fixed_size[s] * 0.5F * ar;
+                        float box_height_ratio = fixed_size[s] * 0.5F / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
+                                float center_x_temp = center_x - fixed_size_ / 2.F + shift / 2.F + c * shift;
+                                float center_y_temp = center_y - fixed_size_ / 2.F + shift / 2.F + r * shift;
                                 calculate_data(center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true);
                             }
                         }
@@ -232,8 +250,8 @@ void PriorBox::execute(const dnnl::stream& strm) {
                         auto shift = static_cast<int64_t>(fixed_size[s] / density_);
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
+                                float center_x_temp = center_x - fixed_size_ / 2.F + shift / 2.F + c * shift;
+                                float center_y_temp = center_y - fixed_size_ / 2.F + shift / 2.F + r * shift;
                                 calculate_data(center_x_temp, center_y_temp, box_width, box_height, true);
                             }
                         }
@@ -247,12 +265,12 @@ void PriorBox::execute(const dnnl::stream& strm) {
                         auto density_ = static_cast<int64_t>(density[s]);
                         auto shift = static_cast<int64_t>(fixed_size[s] / density_);
                         ar = std::sqrt(ar);
-                        float box_width_ratio = fixed_size[s] * 0.5f * ar;
-                        float box_height_ratio = fixed_size[s] * 0.5f / ar;
+                        float box_width_ratio = fixed_size[s] * 0.5F * ar;
+                        float box_height_ratio = fixed_size[s] * 0.5F / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
+                                float center_x_temp = center_x - fixed_size_ / 2.F + shift / 2.F + c * shift;
+                                float center_y_temp = center_y - fixed_size_ / 2.F + shift / 2.F + r * shift;
                                 calculate_data(center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true);
                             }
                         }
@@ -261,25 +279,25 @@ void PriorBox::execute(const dnnl::stream& strm) {
             }
 
             for (size_t ms_idx = 0; ms_idx < min_size_.size(); ms_idx++) {
-                box_width = min_size_[ms_idx] * 0.5f;
-                box_height = min_size_[ms_idx] * 0.5f;
+                box_width = min_size_[ms_idx] * 0.5F;
+                box_height = min_size_[ms_idx] * 0.5F;
                 calculate_data(center_x, center_y, box_width, box_height, false);
 
                 if (max_size.size() > ms_idx) {
-                    box_width = box_height = std::sqrt(min_size_[ms_idx] * max_size[ms_idx]) * 0.5f;
+                    box_width = box_height = std::sqrt(min_size_[ms_idx] * max_size[ms_idx]) * 0.5F;
                     calculate_data(center_x, center_y, box_width, box_height, false);
                 }
 
                 if (scale_all_sizes || (!scale_all_sizes && (ms_idx == min_size_.size() - 1))) {
                     size_t s_idx = scale_all_sizes ? ms_idx : 0;
                     for (float ar : aspect_ratio) {
-                        if (std::fabs(ar - 1.0f) < 1e-6) {
+                        if (std::fabs(ar - 1.0F) < 1e-6) {
                             continue;
                         }
 
                         ar = std::sqrt(ar);
-                        box_width = min_size_[s_idx] * 0.5f * ar;
-                        box_height = min_size_[s_idx] * 0.5f / ar;
+                        box_width = min_size_[s_idx] * 0.5F * ar;
+                        box_height = min_size_[s_idx] * 0.5F / ar;
                         calculate_data(center_x, center_y, box_width, box_height, false);
                     }
                 }
@@ -289,7 +307,7 @@ void PriorBox::execute(const dnnl::stream& strm) {
 
     if (clip) {
         parallel_for((H * W * number_of_priors * 4), [&](size_t i) {
-            dst_data[i] = (std::min)((std::max)(dst_data[i], 0.0f), 1.0f);
+            dst_data[i] = (std::min)((std::max)(dst_data[i], 0.0F), 1.0F);
         });
     }
 

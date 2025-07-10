@@ -2,9 +2,9 @@
 
 This sample demonstrates how to estimate performance of a model using Asynchronous Inference Request API in throughput mode. Unlike [demos](https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos) this sample doesn't have other configurable command line arguments. Feel free to modify sample's source code to try out different options.
 
-The reported results may deviate from what [benchmark_app](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/benchmark-tool.html) reports. One example is model input precision for computer vision tasks. benchmark_app sets uint8, while the sample uses default model precision which is usually float32.
+The reported results may deviate from what [benchmark_app](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/benchmark-tool.html) reports. One example is model input precision for computer vision tasks. benchmark_app sets uint8, while the sample uses default model precision which is usually float32.
 
-For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/sync-benchmark.html)
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/sync-benchmark.html)
 
 ## Requirements
 
@@ -14,8 +14,8 @@ For more detailed information on how this sample works, check the dedicated [art
 |                                | [face-detection-0200](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/face-detection-0200)  |
 | Model Format                   | OpenVINO™ toolkit Intermediate Representation                                                                          |
 |                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                                                                      |
-| Supported devices              | [All](https://docs.openvino.ai/2025/about-openvino/compatibility-and-support/supported-devices.html)                   |
-| Other language realization     | [C++](https://docs.openvino.ai/2025/learn-openvino/openvino-samples/sync-benchmark.html)                               |
+| Supported devices              | [All](https://docs.openvino.ai/2025/documentation/compatibility-and-support/supported-devices.html)                    |
+| Other language realization     | [C++](https://docs.openvino.ai/2025/get-started/learn-openvino/openvino-samples/sync-benchmark.html)                               |
 
 The following Python API is used in the application:
 

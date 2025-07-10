@@ -49,26 +49,25 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_GroupNormalizationStatic,
     GroupNormalizationTest,
     testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
+                     ::testing::Values(ov::element::dynamic),
+                     ::testing::Values(ov::element::dynamic),
                      testing::ValuesIn(ov::test::static_shapes_to_test_representation(staticInputShapes)),
                      testing::ValuesIn(numGroups),
                      testing::ValuesIn(epsilon),
                      testing::Values(ov::test::utils::DEVICE_CPU),
                      testing::ValuesIn(additionalConfig)),
-                     GroupNormalizationTest::getTestCaseName);
+    GroupNormalizationTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_GroupNormalizationDyn,
-    GroupNormalizationTest,
-    testing::Combine(testing::ValuesIn(netPrecisions),
-                     ::testing::Values(ov::element::undefined),
-                     ::testing::Values(ov::element::undefined),
-                     testing::ValuesIn(DynamicInputShapes),
-                     testing::ValuesIn(numGroups),
-                     testing::ValuesIn(epsilon),
-                     testing::Values(ov::test::utils::DEVICE_CPU),
-                     testing::ValuesIn(additionalConfig)),
-                     GroupNormalizationTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupNormalizationDyn,
+                         GroupNormalizationTest,
+                         testing::Combine(testing::ValuesIn(netPrecisions),
+                                          ::testing::Values(ov::element::dynamic),
+                                          ::testing::Values(ov::element::dynamic),
+                                          testing::ValuesIn(DynamicInputShapes),
+                                          testing::ValuesIn(numGroups),
+                                          testing::ValuesIn(epsilon),
+                                          testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::ValuesIn(additionalConfig)),
+                         GroupNormalizationTest::getTestCaseName);
 
 } // anonymous namespace

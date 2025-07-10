@@ -4,8 +4,25 @@
 
 #include "string_tensor_pack.h"
 
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/string_tensor_pack.hpp"
 #include "openvino/reference/string_tensor_pack.hpp"
+#include "selective_build.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 StringTensorPack::StringTensorPack(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
@@ -84,7 +101,7 @@ bool StringTensorPack::isExecutable() const {
     return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
 }
 
-void StringTensorPack::execute(const dnnl::stream& strm) {
+void StringTensorPack::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto indicesPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     StringTensorPackContext ctx = {*this};
     OV_SWITCH(intel_cpu,

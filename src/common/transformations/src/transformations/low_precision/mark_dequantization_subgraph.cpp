@@ -5,12 +5,15 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
@@ -23,9 +26,13 @@ using namespace ov::pass::pattern;
 
 namespace {
 
-bool check_precision(const ov::element::Type_t type_to_check, const ov::element::TypeVector& precisions) {
-    return std::find(precisions.begin(), precisions.end(), type_to_check) != precisions.end();
-};
+ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& precisions) {
+    return ov::pass::pattern::op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            return std::find(precisions.begin(), precisions.end(), output.get_element_type()) != precisions.end();
+        },
+        "check_precision");
+}
 
 using RTInfoSetter = std::function<void(const std::shared_ptr<ov::Node>& node)>;
 void set_rt_info(const PatternValueMap& pt_map,
@@ -35,10 +42,9 @@ void set_rt_info(const PatternValueMap& pt_map,
     for (const auto& pattern_node : pattern_nodes) {
         if (pt_map.count(pattern_node)) {
             auto node = pt_map.at(pattern_node).get_node_shared_ptr();
-
             // we don't need to mark Converts with disable_cf attribute if the `from` type (input type)
             // is not in the `precisions` list.
-            if (ov::as_type_ptr<v0::Convert>(node) && !check_precision(node->get_input_element_type(0), precisions)) {
+            if (ov::as_type_ptr<v0::Convert>(node) && !check_precision(precisions)(node->input_value(0))) {
                 continue;
             }
 
@@ -56,13 +62,13 @@ we cannot perform swapping as this would break another part of the graph.
                                ZP Const
                                   │
                                   ▼
-          Input                Convert                Input  
-            │                  │     │                  │    
-            ▼                  ▼     ▼                  ▼    
+          Input                Convert                Input
+            │                  │     │                  │
+            ▼                  ▼     ▼                  ▼
  Scale      Convert      Reshape     Reshape      Convert      Scale
      |            │    (64,1,1,1)   (1,64,1,1)    │            │
      |            │      │                 │      │            |
-     ▼            ▼      ▼                 ▼      ▼            ▼   
+     ▼            ▼      ▼                 ▼      ▼            ▼
      Reshape      Subtract                 Subtract      Reshape
            |      |                               |      |
            ▼      ▼                               ▼      ▼
@@ -73,13 +79,13 @@ Though, we can perform swapping if the shapes are same for all branches: e.g.
                                ZP Const
                                   │
                                   ▼
-          Input                Convert                Input  
-            │                  │     │                  │    
-            ▼                  ▼     ▼                  ▼    
+          Input                Convert                Input
+            │                  │     │                  │
+            ▼                  ▼     ▼                  ▼
             Convert      Reshape     Reshape      Convert
  Scale            │    (64,1,1,1)   (64,1,1,1)    │            Scale
      |            │      │                 │      │            |
-     ▼            ▼      ▼                 ▼      ▼            ▼   
+     ▼            ▼      ▼                 ▼      ▼            ▼
      Reshape      Subtract                 Subtract      Reshape
            |      |                               |      |
            ▼      ▼                               ▼      ▼
@@ -104,8 +110,8 @@ Scale       Convert   Convert          Input
                                   Subtract      Reshape
                                          |      |
                                          ▼      ▼
-                                         Multiply                               
-    
+                                         Multiply
+
 Step 2: the right part of the graph would be matched transforming the graph above into the final form:
 
                         ZP Const
@@ -150,17 +156,18 @@ bool can_swap(const PatternValueMap& pt_map,
             auto first_shape = target_inputs.begin()->get_node()->output(0).get_shape();
 
             // Step 1 (see steps description in the comments above)
-            if (std::all_of(std::next(target_inputs.begin()), target_inputs.end(),
+            if (std::all_of(std::next(target_inputs.begin()),
+                            target_inputs.end(),
                             [&](const ov::Input<ov::Node>& input) {
                                 return input.get_node()->get_output_partial_shape(0).is_static() &&
                                        input.get_node()->get_shape() == first_shape;
                             })) {
-                                return true;
+                return true;
             } else if (first_node->get_output_partial_shape(0).is_static() &&
                        second_node->get_output_partial_shape(0).is_static() &&
                        first_node->get_output_shape(0) == second_node->get_output_shape(0)) {
-            // Step 2
-                    return true;
+                // Step 2
+                return true;
             }
         }
     }
@@ -195,7 +202,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
     MATCHER_SCOPE(MarkDequantization);
 
     // data input:
-    auto input_pattern = any_input();
+    auto input_pattern = any_input(check_precision(precisions));
     auto convert_pattern = wrap_type<v0::Convert>({input_pattern}, consumers_count(1));
 
     // zero points:
@@ -216,7 +223,7 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
         auto input = pt_map.at(input_pattern);
         const auto multiply = m.get_match_root();
 
-        if (!check_precision(input.get_element_type(), precisions) || transformation_callback(multiply)) {
+        if (transformation_callback(multiply)) {
             return false;
         }
 
@@ -289,8 +296,7 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
         for (const auto& pattern_node : keep_const_precisions) {
             if (pt_map.count(pattern_node.first)) {
                 auto node = pt_map.at(pattern_node.first).get_node_shared_ptr();
-                const auto& precision = node->get_output_element_type(0);
-                if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precision, precisions)) {
+                if (ov::as_type_ptr<v0::Constant>(node) && check_precision(precisions)(node->output(0))) {
                     if (pattern_node.second) {
                         ov::disable_keep_const_precision(node);
                     } else {
@@ -303,5 +309,107 @@ ov::pass::KeepConstPrecision::KeepConstPrecision(const element::TypeVector& prec
     };
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepConstPrecision");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element::TypeVector& precisions,
+                                                                   bool add_precision_sensitive_convert) {
+    MATCHER_SCOPE(KeepDequantizationPrecision);
+
+    auto input_pattern = pattern::wrap_type<v0::Constant>(pattern::type_matches_any(precisions));
+    auto convert_pattern = pattern::wrap_type<v0::Convert>({input_pattern}, pattern::consumers_count(1));
+
+    // zero points:
+    auto zp_pattern = pattern::wrap_type<v0::Constant>();
+    auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, any_input()});
+    auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
+
+    // scale:
+    auto scale_pattern = pattern::wrap_type<v0::Constant>();
+    auto scale_convert_pattern = pattern::optional<v0::Convert>(scale_pattern);
+    auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
+    auto multiply_pattern = pattern::wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
+
+    matcher_pass_callback callback = [=](Matcher& m) {
+        const auto& pt_map = m.get_pattern_value_map();
+        auto multiply = m.get_match_root();
+
+        if (transformation_callback(multiply)) {
+            return false;
+        }
+
+        auto nodes_to_mark = {convert_pattern,
+                              multiply_pattern,
+                              subtract_pattern,
+                              zp_convert_pattern,
+                              zp_reshape_pattern,
+                              scale_convert_pattern,
+                              scale_reshape_pattern};
+
+        for (const auto& node_to_mark : nodes_to_mark) {
+            if (pt_map.count(node_to_mark)) {
+                auto node_ptr = pt_map.at(node_to_mark).get_node_shared_ptr();
+                disable_fp16_compression(node_ptr);
+            }
+        }
+
+        // Insert Convert to stop disable_fp16_compression attribute propagation in
+        // PropagateUpMarkToKeepInMixedPrecision and PropagateDownMarkToKeepInMixedPrecision passes because this node is
+        // not included to the node propagation list. Marking Convert as precision sensitive to prevent additional
+        // Convert insertion (with disable_const_folding flag) inside AlignMixedFP32FP16Types transformation. Use
+        // Multiply's output data type to ensure data type consistency.
+        if (add_precision_sensitive_convert) {
+            auto convert = std::make_shared<v0::Convert>(multiply, multiply->get_output_element_type(0));
+            multiply->output(0).replace(convert);
+            ov::mark_as_precision_sensitive(convert->input(0));
+
+            return true;
+        }
+
+        return false;
+    };
+
+    auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& table_values_precisions,
+                                                 const element::TypeVector& indices_precisions) {
+    MATCHER_SCOPE(MarkGatherSubgraph);
+
+    // 1. Data input → (optional Convert) → (input to Gather[0])
+    auto data_input = wrap_type<op::v0::Constant>(check_precision(table_values_precisions));
+    auto data_convert = pattern::optional<op::v0::Convert>({data_input});
+
+    // 2. Indices input → (optional Convert) → (input to Gather[1])
+    auto indices_input = wrap_type<op::v0::Constant, op::v0::Parameter>(check_precision(indices_precisions));
+    auto indices_convert = pattern::optional<op::v0::Convert>({indices_input});
+
+    // Gather (fp, integral, any)
+    auto axis = any_input(value_matches("0"));
+    auto gather = wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
+
+    matcher_pass_callback callback = [=](Matcher& m) {
+        const auto& pm = m.get_pattern_map();
+        auto gather_node = pm.at(gather);
+        if (transformation_callback(gather_node)) {
+            return false;
+        }
+
+        for (const auto& node : {gather, data_convert, indices_convert}) {
+            if (pm.count(node))
+                ov::disable_constant_folding(pm.at(node));
+        }
+
+        for (const auto& node : {data_input, indices_input}) {
+            if (pm.count(node))
+                ov::enable_keep_const_precision(pm.at(node));
+        }
+
+        return false;
+    };
+
+    auto m = std::make_shared<Matcher>(gather, "MarkGatherSubgraph");
     this->register_matcher(m, callback);
 }

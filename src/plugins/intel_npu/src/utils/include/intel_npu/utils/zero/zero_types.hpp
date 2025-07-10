@@ -14,7 +14,7 @@
 /**
  * @brief Last version of the Command Queue functions used within plugin
  */
-using ze_command_queue_npu_dditable_ext_last_t = ze_command_queue_npu_dditable_ext_1_0_t;
+using ze_command_queue_npu_dditable_ext_last_t = ze_command_queue_npu_dditable_ext_t;
 /**
  * @brief Last version of the Graph Profiling functions used within plugin
  */
@@ -33,6 +33,9 @@ private:
 
     ze_graph_dditable_ext_decorator(const ze_graph_dditable_ext_decorator&) = delete;
     ze_graph_dditable_ext_decorator(ze_graph_dditable_ext_decorator&&) = delete;
+
+    ze_graph_dditable_ext_decorator& operator=(const ze_graph_dditable_ext_decorator&) = delete;
+    ze_graph_dditable_ext_decorator& operator=(ze_graph_dditable_ext_decorator&&) = delete;
 
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_driverExtVersion < since) {
@@ -168,6 +171,23 @@ public:
         throwWhenUnsupported("ze_pfnGraphGetProperties_ext_2_t", ZE_GRAPH_EXT_VERSION_1_8);
         return _impl->pfnGraphInitialize(hGraph);
     }
+
+    // version 1.11
+    ze_result_t ZE_APICALL pfnCompilerGetSupportedOptions(ze_device_handle_t hDevice,
+                                                          ze_npu_options_type_t type,
+                                                          size_t* pSize,
+                                                          char* pSupportedOptions) {
+        throwWhenUnsupported("pfnCompilerGetSupportedOptions", ZE_GRAPH_EXT_VERSION_1_11);
+        return _impl->pfnCompilerGetSupportedOptions(hDevice, type, pSize, pSupportedOptions);
+    }
+
+    ze_result_t ZE_APICALL pfnCompilerIsOptionSupported(ze_device_handle_t hDevice,
+                                                        ze_npu_options_type_t type,
+                                                        const char* pOption,
+                                                        const char* pValue) {
+        throwWhenUnsupported("pfnCompilerIsOptionSupported", ZE_GRAPH_EXT_VERSION_1_11);
+        return _impl->pfnCompilerIsOptionSupported(hDevice, type, pOption, pValue);
+    }
 };
 
 /**
@@ -182,6 +202,9 @@ private:
 
     ze_command_queue_npu_dditable_ext_decorator(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
     ze_command_queue_npu_dditable_ext_decorator(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
+
+    ze_command_queue_npu_dditable_ext_decorator& operator=(const ze_command_queue_npu_dditable_ext_decorator&) = delete;
+    ze_command_queue_npu_dditable_ext_decorator& operator=(ze_command_queue_npu_dditable_ext_decorator&&) = delete;
 
     void throwWhenUnsupported(std::string_view func, uint32_t since) {
         if (_commandQueueExtVersion < since) {
@@ -224,6 +247,9 @@ private:
 
     ze_graph_profiling_ddi_table_ext_decorator(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
     ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
+
+    ze_graph_profiling_ddi_table_ext_decorator& operator=(const ze_graph_profiling_ddi_table_ext_decorator&) = delete;
+    ze_graph_profiling_ddi_table_ext_decorator& operator=(ze_graph_profiling_ddi_table_ext_decorator&&) = delete;
 
 public:
     ze_graph_profiling_ddi_table_ext_decorator(ze_graph_profiling_dditable_ext_last_t* impl)

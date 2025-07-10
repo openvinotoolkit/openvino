@@ -52,7 +52,7 @@ if(ENABLE_PROFILING_ITT)
     else()
         add_subdirectory(thirdparty/ittapi)
     endif()
-    add_subdirectory(thirdparty/itt_collector EXCLUDE_FROM_ALL)
+    add_subdirectory(thirdparty/itt_collector)
 endif()
 
 if(X86_64 OR X86 OR UNIVERSAL2)
@@ -117,6 +117,12 @@ if(ENABLE_INTEL_GPU)
             file(STRINGS "${OpenCL_HPP}" CL_DEVICE_UUID_KHR_CPP REGEX ".*CL_DEVICE_UUID_KHR.*")
             if(CL_DEVICE_UUID_KHR_CPP)
                 list(APPEND opencl_interface_definitions OV_GPU_OPENCL_HPP_HAS_UUID)
+            endif()
+
+            # check whether CL/opencl.hpp contains C++ wrapper for property CL_DEVICE_PCI_BUS_INFO_KHR
+            file(STRINGS "${OpenCL_HPP}" CL_DEVICE_PCI_BUS_INFO_KHR_CPP REGEX ".*CL_DEVICE_PCI_BUS_INFO_KHR.*")
+            if(CL_DEVICE_PCI_BUS_INFO_KHR_CPP)
+                list(APPEND opencl_interface_definitions OV_GPU_OPENCL_HPP_HAS_BUS_INFO)
             endif()
 
             set_target_properties(OpenCL::OpenCL PROPERTIES
@@ -534,25 +540,23 @@ endif()
 # nlohmann json
 #
 
-if(ENABLE_SAMPLES)
-    # Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
-    find_package(nlohmann_json 3.9.0 QUIET)
-    if(nlohmann_json_FOUND)
-        # conan and vcpkg create imported target nlohmann_json::nlohmann_json
-    else()
-        add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+# Note: NPU requires 3.9.0 version, because it contains 'nlohmann::ordered_json'
+find_package(nlohmann_json 3.9.0 QUIET)
+if(nlohmann_json_FOUND)
+    # conan and vcpkg create imported target nlohmann_json::nlohmann_json
+else()
+    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
 
-        # this is required only because of NPU plugin reused this: export & install
-        ov_developer_package_export_targets(TARGET nlohmann_json
-                                            INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include")
+    # this is required only because of NPU plugin reused this: export & install
+    ov_developer_package_export_targets(TARGET nlohmann_json
+                                        INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/include")
 
-        # for nlohmann library versions older than v3.0.0
-        if(NOT TARGET nlohmann_json::nlohmann_json)
-            add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
-            set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
-                INTERFACE_LINK_LIBRARIES nlohmann_json
-                INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
-        endif()
+    # for nlohmann library versions older than v3.0.0
+    if(NOT TARGET nlohmann_json::nlohmann_json)
+        add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
+        set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
+            INTERFACE_LINK_LIBRARIES nlohmann_json
+            INTERFACE_COMPILE_DEFINITIONS JSON_HEADER)
     endif()
 endif()
 

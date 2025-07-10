@@ -17,6 +17,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/graph/node.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
@@ -44,34 +45,117 @@ void regclass_graph_Node(py::module m) {
     node.doc() = "openvino.Node wraps ov::Node";
     node.def(
         "__add__",
-        [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
-            return std::make_shared<ov::op::v1::Add>(a, b);
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Add>(left, Common::node_from_input_value(right)));
+        },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A+B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
+            :return: The node performing element-wise addition.
+            :rtype: openvino.Node
+        )"",
+        py::is_operator());
+    node.def(
+        "__radd__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Add>(Common::node_from_input_value(left), right));
         },
         py::is_operator());
     node.def(
         "__sub__",
-        [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
-            return std::make_shared<ov::op::v1::Subtract>(a, b);
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Subtract>(left, Common::node_from_input_value(right)));
+        },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A-B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
+            :return: The node performing element-wise subtraction.
+            :rtype: openvino.Node
+        )"",
+        py::is_operator());
+    node.def(
+        "__rsub__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Subtract>(Common::node_from_input_value(left), right));
         },
         py::is_operator());
     node.def(
         "__mul__",
-        [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
-            return std::make_shared<ov::op::v1::Multiply>(a, b);
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Multiply>(left, Common::node_from_input_value(right)));
         },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A*B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
+            :return: The node performing element-wise multiplication.
+            :rtype: openvino.Node
+        )"",
         py::is_operator());
     node.def(
-        "__div__",
-        [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
-            return std::make_shared<ov::op::v1::Divide>(a, b);
+        "__rmul__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Multiply>(Common::node_from_input_value(left), right));
         },
         py::is_operator());
     node.def(
         "__truediv__",
-        [](const std::shared_ptr<ov::Node>& a, const std::shared_ptr<ov::Node> b) {
-            return std::make_shared<ov::op::v1::Divide>(a, b);
+        [](const std::shared_ptr<ov::Node>& left, Common::NodeInput& right) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Divide>(left, Common::node_from_input_value(right)));
+        },
+        py::arg("right"),
+        R""(
+            Return node which applies f(A,B) = A/B to the input nodes element-wise.
+
+            :param right: The right operand.
+            :type right: Union[openvino.Node, int, float, numpy.ndarray]
+            :return: The node performing element-wise division.
+            :rtype: openvino.Node
+        )"",
+        py::is_operator());
+    node.def(
+        "__rtruediv__",
+        [](const std::shared_ptr<ov::Node>& right, Common::NodeInput& left) {
+            return std::shared_ptr<ov::Node>(
+                std::make_shared<ov::op::v1::Divide>(Common::node_from_input_value(left), right));
         },
         py::is_operator());
+
+    node.def(
+        "__array_ufunc__",
+        [](py::object self, py::object ufunc, const char* method, py::args inputs, py::kwargs kwargs) {
+            py::object result = py::none();
+            if (std::strcmp(method, "__call__") == 0) {
+                if (ufunc.is(py::module::import("numpy").attr("add"))) {
+                    result = self.attr("__radd__")(inputs[0]);
+                } else if (ufunc.is(py::module::import("numpy").attr("subtract"))) {
+                    result = self.attr("__rsub__")(inputs[0]);
+                } else if (ufunc.is(py::module::import("numpy").attr("multiply"))) {
+                    result = self.attr("__rmul__")(inputs[0]);
+                } else if (ufunc.is(py::module::import("numpy").attr("divide"))) {
+                    result = self.attr("__rtruediv__")(inputs[0]);
+                }
+                if (result.is_none()) {
+                    throw py::type_error("Unsupported __array_ufunc__ operation between openvino.Node and np.array.");
+                }
+            }
+            return result;
+        });
 
     node.def("__repr__", [](const ov::Node& self) {
         std::string type_name = self.get_type_name();
@@ -146,9 +230,9 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the node on inputs, putting results in outputs
                 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[openvino.Tensor]
+                :type output_tensors: list[openvino.Tensor]
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[openvino.Tensor]
+                :type input_tensors: list[openvino.Tensor]
                 :param evaluation_context: Storage of additional settings and attributes that can be used
                 when evaluating the function. This additional information can be shared across nodes.
                 :type evaluation_context: openvino.RTMap
@@ -165,9 +249,9 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the function on inputs, putting results in outputs
 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: List[openvino.Tensor]
+                :type output_tensors: list[openvino.Tensor]
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: List[openvino.Tensor]
+                :type input_tensors: list[openvino.Tensor]
                 :rtype: bool
              )");
     node.def("get_instance_id",
@@ -205,8 +289,8 @@ void regclass_graph_Node(py::module m) {
              R"(
                  Returns list of node's inputs, in order.
 
-                 :return: List of node's inputs
-                 :rtype: List[openvino.Input]
+                 :return: list of node's inputs
+                 :rtype: list[openvino.Input]
              )");
     node.def("input_value",
              &ov::Node::input_value,
@@ -391,8 +475,8 @@ void regclass_graph_Node(py::module m) {
              R"(
                 A list containing a handle for each of this node's inputs, in order.
 
-                :return: List of node's inputs.
-                :rtype: List[openvino.Input]
+                :return: list of node's inputs.
+                :rtype: list[openvino.Input]
              )");
     node.def("output",
              (ov::Output<ov::Node>(ov::Node::*)(size_t)) & ov::Node::output,
@@ -410,17 +494,32 @@ void regclass_graph_Node(py::module m) {
              R"(
                 A list containing a handle for each of this node's outputs, in order.
 
-                :return: List of node's outputs.
-                :rtype: List[openvino.Output]
+                :return: list of node's outputs.
+                :rtype: list[openvino.Output]
              )");
     node.def("get_rt_info",
              (PyRTMap & (ov::Node::*)()) & ov::Node::get_rt_info,
              py::return_value_policy::reference_internal,
              R"(
-                Returns PyRTMap which is a dictionary of user defined runtime info.
+                Returns RTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
                 :rtype: openvino.RTMap
+             )");
+    node.def(
+        "set_rt_info",
+        [](ov::Node& self, const py::object& value, const py::str& key) -> void {
+            self.get_rt_info()[key.cast<std::string>()] = Common::utils::py_object_to_any(value);
+        },
+        py::arg("value"),
+        py::arg("key"),
+        R"(
+                Add a value to the runtime info.
+
+                :param value: Value for the runtime info.
+                :type value: Any
+                :param key: String that defines a key in the runtime info dictionary.
+                :type key: str
              )");
 
     node.def("set_argument", &ov::Node::set_argument);

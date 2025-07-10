@@ -308,7 +308,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     int width = 224;
     int height = 448;
 
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     ASSERT_TRUE(!devices.empty());
     auto iter = devices.find(std::to_string(device_query::device_id));
@@ -391,7 +391,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     int height = 448;
     int input_height = height + height / 2;
 
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     ASSERT_TRUE(!devices.empty());
     auto iter = devices.find(std::to_string(device_query::device_id));
@@ -552,7 +552,7 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test
     int width = 224;
     int height = 448;
 
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     ASSERT_TRUE(!devices.empty());
     auto iter = devices.find(std::to_string(device_query::device_id));

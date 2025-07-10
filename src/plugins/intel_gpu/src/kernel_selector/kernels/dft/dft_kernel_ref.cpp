@@ -131,7 +131,7 @@ KernelsData DFTKernelRef::GetKernelsData(const Params& params) const {
 
         // Set internal buffer
         kd.internalBufferDataType = idft_input.GetDType();
-        kd.internalBufferSizes.push_back(idft_output.PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(idft_output.PhysicalSizeInBytes());
 
         // Fill IRDFT kernel data
         auto irdft_params = derived_params;
@@ -187,12 +187,12 @@ ParamsKey DFTKernelRef::GetSupportedKey() const {
 
 bool DFTKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::DFT) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto& params = dynamic_cast<const dft_params&>(p);
     if (params.inputs.size() != 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

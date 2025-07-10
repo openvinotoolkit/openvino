@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/grn.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -84,8 +85,8 @@ const std::vector<InputShape> dataInputDynamicShapes = {{{-1, -1}, {{5, 17}, {10
 INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUStatic,
                          GRNLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::ValuesIn(dataInputStaticShapes),
                                             ::testing::ValuesIn(biases),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
@@ -94,8 +95,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUStatic,
 INSTANTIATE_TEST_SUITE_P(smoke_GRNCPUDynamic,
                          GRNLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(netPrecisions),
-                                            ::testing::Values(ov::element::undefined),
-                                            ::testing::Values(ov::element::undefined),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(ov::element::dynamic),
                                             ::testing::ValuesIn(dataInputDynamicShapes),
                                             ::testing::ValuesIn(biases),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),

@@ -4,7 +4,17 @@
 
 #include "jit_scalar_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
+#include "emitters/utils.hpp"
+#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -18,7 +28,7 @@ ScalarTppEmitter::ScalarTppEmitter(jit_generator* h, cpu_isa_t isa, const ov::sn
     in_out_type_ = gpr_to_gpr;
 }
 
-void ScalarTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void ScalarTppEmitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const auto it = entry_map_.find("scalar_tpp");
     OV_CPU_JIT_EMITTER_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
     const auto& out_reg = Reg64(static_cast<int>(out[0]));

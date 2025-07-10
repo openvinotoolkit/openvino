@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -89,9 +90,6 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
 
         const size_t G = grouped ? (has_transpose ? *(scale_shape.rbegin() + 2) : *(scale_shape.rbegin() + 1)) : 1;
 
-        if (supports_config && !supports_config(fc, IC, OC, G))
-            return false;
-
         auto reshape_const_to_2d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
@@ -157,7 +155,7 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         }
 
         fc_input_zp =
-            with_zero_point ? fc_input_zp : std::make_shared<ov::op::v0::Constant>(element::undefined, Shape{0});
+            with_zero_point ? fc_input_zp : std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
         ov::disable_constant_folding(fc_input_zp);
         result_nodes.push_back(fc_input_zp);
 
@@ -167,6 +165,9 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
                                                                                    fc_input_scale,
                                                                                    fc_input_zp,
                                                                                    fc->get_output_type());
+
+        if (supports_config && !supports_config(new_fc, IC, OC, G))
+            return false;
 
         result_nodes.push_back(new_fc);
         new_fc->set_friendly_name(fc->get_friendly_name());

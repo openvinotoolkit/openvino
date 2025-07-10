@@ -4,18 +4,43 @@
 
 #include "tensoriterator.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "allocation_context.hpp"
+#include "cache/multi_cache.h"
 #include "common/blocked_desc_creator.h"
 #include "common/cpu_memcpy.h"
 #include "common/reorder_prim.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
@@ -53,8 +78,8 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 
 static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const MemoryDescPtr& new_desc) {
     // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-    for (size_t j = 0; j < to_mems.size(); j++) {
-        to_mems[j]->redefineDesc(new_desc);
+    for (const auto& to_mem : to_mems) {
+        to_mem->redefineDesc(new_desc);
     }
 }
 
@@ -92,7 +117,7 @@ public:
         auto part_dims = part_blob->getShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
-        auto sign_of_stride = stride < 0.0f ? -1 : 1;
+        auto sign_of_stride = stride < 0.0F ? -1 : 1;
 
         iter_count = full_dims[axis] / abs_stride;
 
@@ -105,7 +130,7 @@ public:
         chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
         full_mem = full_blob->getPrimitive();
-        const auto full_mem_handler = full_mem.get_data_handle();
+        auto* const full_mem_handler = full_mem.get_data_handle();
         dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
         auto elem_size = DnnlExtensionUtils::sizeOfDataType(chunk_desc.get_data_type());
@@ -163,16 +188,16 @@ public:
 
 class IterCountPortHelper : public PortMapHelper {
 public:
-    IterCountPortHelper(const MemoryPtr& to, const dnnl::engine& eng) {
+    IterCountPortHelper(const MemoryPtr& to, [[maybe_unused]] const dnnl::engine& eng) {
         // Only scalar I32 tensor is supported
         OPENVINO_ASSERT(to->getDataType() == memory::data_type::s32);
         OPENVINO_ASSERT(to->getShape() == Shape(VectorDims{1}));
         mem_holder_dst = to->getPrimitive();
     }
 
-    void execute(const dnnl::stream& strm, int n_iter) override {
+    void execute([[maybe_unused]] const dnnl::stream& strm, int n_iter) override {
         auto mem = mem_holder_dst;
-        auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
+        auto* data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for IterCountPortHelper");
         }
@@ -189,7 +214,7 @@ public:
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
+        auto* data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asBoolCheck");
         }
@@ -206,7 +231,7 @@ public:
     }
 
     int getStatus() override {
-        auto data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
+        auto* data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asIntCheck");
         }
@@ -265,9 +290,8 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     const auto& src_mem = from->getPrimitive();
     const auto& src_desc = src_mem.get_desc();
     const auto& dims = src_desc.get_dims();
-    count =
-        std::accumulate(dims.begin(), dims.begin() + map_rule.axis, static_cast<size_t>(1), std::multiplies<size_t>());
-    len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
+    count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, static_cast<size_t>(1), std::multiplies<>());
+    len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<>());
     chunk_unit_in_byte = abs_stride * len;
 
     if (!mem_holder_buffer) {  // else reuse buffer holder of last inference
@@ -281,7 +305,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     num_execs = 0;
 }
 
-bool DynamicBuffer::check_buffer() {
+bool DynamicBuffer::check_buffer() const {
     if (map_rule.stride > 0) {
         if (static_cast<ptrdiff_t>(chunk_offset_in_byte + chunk_unit_in_byte) > chunk_stride_in_byte) {
             return true;
@@ -554,11 +578,11 @@ void TensorIterator::createPrimitive() {
     }
 
     if (loopBodyConditionOutputIdx == -1) {
-        continue_cond_check.reset(new staticValueCheck(true));  // always true
+        continue_cond_check = std::make_shared<staticValueCheck>(true);  // always true
     }
     if (loopExecutionConditionIdx == -1) {
-        initial_cond_check.reset(new staticValueCheck(true));
-        lastUsedCond = initial_cond_check->getStatus();
+        initial_cond_check = std::make_shared<staticValueCheck>(true);
+        lastUsedCond = (initial_cond_check->getStatus() != 0);
     }
 
     if (runAsDynamic()) {
@@ -578,8 +602,8 @@ int TensorIterator::registerToAllocationContext(int offset, AllocationContext& c
 
 bool TensorIterator::needPrepareParams() const {
     if (getAlgorithm() == Algorithm::TensorIteratorLoop) {
-        const auto tripCountPtr = getSrcDataAtPortAs<const uint32_t>(loopTripCountIdx);
-        const auto condPtr = getSrcDataAtPortAs<const uint8_t>(loopExecutionConditionIdx);
+        const auto* const tripCountPtr = getSrcDataAtPortAs<const uint32_t>(loopTripCountIdx);
+        const auto* const condPtr = getSrcDataAtPortAs<const uint8_t>(loopExecutionConditionIdx);
         if (tripCountPtr[0] != static_cast<size_t>(lastUsedTripCount) ||
             static_cast<bool>(condPtr[0]) != lastUsedCond) {
             return true;
@@ -644,7 +668,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
+    bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
@@ -660,7 +684,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        continue_cond = (continue_cond_check->getStatus() != 0);
 
         // copy data from subgraph iteration to outputs
         // or to the next iteration inputs
@@ -678,7 +702,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
     const auto& eng = getEngine();
     sub_graph.ResetInferCount();
 
-    bool continue_cond = initial_cond_check->getStatus();
+    bool continue_cond = initial_cond_check->getStatus() != 0;
     int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
@@ -697,7 +721,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
 
         sub_graph.Infer();
 
-        continue_cond = continue_cond_check->getStatus();
+        continue_cond = (continue_cond_check->getStatus() != 0);
 
         for (auto& buffer : buffers) {
             buffer->execute(eng, i);
@@ -795,7 +819,7 @@ void TensorIterator::prepareLoopBodyCurrentIteration() {
 void TensorIterator::prepareContinueCond() {
     if (loopBodyConditionOutputIdx != -1 || !continue_cond_check) {
         auto mem = output_mem[loopBodyConditionOutputIdx];
-        continue_cond_check.reset(new asBoolCheck(mem));
+        continue_cond_check = std::make_shared<asBoolCheck>(mem);
     }
 }
 
@@ -803,9 +827,9 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
     if (loopExecutionConditionIdx != -1 || !initial_cond_check) {
         auto edge = getParentEdgeAt(loopExecutionConditionIdx);
         auto mem = edge->getMemoryPtr();
-        initial_cond_check.reset(new asBoolCheck(mem));
+        initial_cond_check = std::make_shared<asBoolCheck>(mem);
         if (IMPLICATION(compileStage, edge->getParent()->isConstant())) {
-            lastUsedCond = initial_cond_check->getStatus();
+            lastUsedCond = (initial_cond_check->getStatus() != 0);
         }
     }
 }
@@ -813,12 +837,12 @@ void TensorIterator::prepareInitialCond(const bool compileStage) {
 void TensorIterator::prepareTripCount(const bool compileStage) {
     bool read_data = false;
     if (loopTripCountIdx == -1) {
-        trip_count_check.reset(new staticValueCheck(getNumIteration(inputPortMap, outputPortMap)));
+        trip_count_check = std::make_shared<staticValueCheck>(getNumIteration(inputPortMap, outputPortMap));
         read_data = true;
     } else {
         auto edge = getParentEdgeAt(loopTripCountIdx);
         auto mem = edge->getMemoryPtr();
-        trip_count_check.reset(new asIntCheck(mem));
+        trip_count_check = std::make_shared<asIntCheck>(mem);
         read_data = IMPLICATION(compileStage, edge->getParent()->isConstant());
     }
     if (read_data) {
@@ -877,16 +901,12 @@ void TensorIterator::reshapeAndFillOutput(const dnnl::stream& strm) {
 }
 
 bool TensorIterator::checkForInputAndBodyShapesInequality() const {
-    for (auto map_rule : inputPortMap) {
+    return std::any_of(inputPortMap.begin(), inputPortMap.end(), [&](const PortMap& map_rule) {
         auto original_dims = sliced_input_dims(getSrcMemoryAtPort(map_rule.from), map_rule.axis, map_rule.stride);
-        auto& to_mems = input_mems[map_rule.to];
+        const auto& to_mems = input_mems[map_rule.to];
         const auto& body_inshape = to_mems.front()->getShape();
-        if (body_inshape.isDynamic() || body_inshape.getDims() != original_dims) {
-            return true;
-        }
-    }
-
-    return false;
+        return body_inshape.isDynamic() || body_inshape.getDims() != original_dims;
+    });
 }
 
 // redefine memory for input nodes of subgraph and reset first_mappers as the primitives are invalid,
@@ -906,7 +926,7 @@ void TensorIterator::restoreSubgraphInputByBackEdges() {
             redefineToMemories(to_mems, desc);
 
             // update first_mappers to replace its legacy input memory addr.
-            input_map.second.reset(new BackEdgePortHelper(context->getParamsCache(), from_mem, to_mem));
+            input_map.second = std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem);
         }
     }
 }
@@ -927,8 +947,8 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
                                " (out of range)");
         }
         const auto space = dimensions[axis];
-        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
-        const int end = static_cast<int>((rule.end < 0 ? (space + 1) : 0) + rule.end);
+        const auto start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
+        const auto end = static_cast<int>((rule.end < 0 ? (space + 1) : 0) + rule.end);
 
         const auto stride = rule.stride;
         if (stride == 0) {
@@ -965,17 +985,17 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
     int numIterations = 1;
     bool isDefault = true;
     for (const auto& rule : inputPortMap) {
-        const auto& dims = getSrcMemoryAtPort(rule.from)->getStaticDims();
-        if (!isIterable(rule)) {
-            continue;
-        }
-
         if (rule.from < 0 || rule.from >= static_cast<int64_t>(inputShapes.size())) {
             THROW_CPU_NODE_ERR(": Invalid \"from\" value: \"from\" = ",
                                rule.from,
                                " inputs number = ",
                                inputShapes.size(),
                                " (out of range)");
+        }
+
+        const auto& dims = getSrcMemoryAtPort(rule.from)->getStaticDims();
+        if (!isIterable(rule)) {
+            continue;
         }
 
         const auto currentNumIterations = getNumIterations(rule, dims);

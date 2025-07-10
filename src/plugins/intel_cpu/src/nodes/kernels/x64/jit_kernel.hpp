@@ -3,15 +3,23 @@
 //
 
 #pragma once
+#include <cpu/x64/xbyak/xbyak.h>
+
 #include <array>
-#include <common/nstl.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
-#include <tuple>
+#include <list>
+#include <memory>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include "cpu/x64/jit_generator.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -82,7 +90,15 @@ struct reg_traits : public reg_traits_by_size<sizeof(T)> {};
 
 template <size_t N>
 struct vec_min_size {
-    constexpr static size_t size = N <= 16 ? 16 : N <= 32 ? 32 : 64;
+    constexpr static size_t size = []() constexpr -> size_t {
+        if (N <= 16) {
+            return 16;
+        }
+        if (N <= 32) {
+            return 32;
+        }
+        return 64;
+    }();
 };
 
 template <typename T, size_t N>
@@ -141,7 +157,7 @@ class boolean_expression {
 public:
     using reg_type = const typename reg_traits<T>::type;
 
-    enum class type {
+    enum class type : uint8_t {
         eq,   // ==
         neq,  // !=
         ls,   // <
@@ -184,11 +200,8 @@ public:
     if_expression(const boolean_expression<T>& expr) : _expr(expr) {}
 
     ~if_expression() {
-        try {
-            if (!_is_exit_valid) {
-                _expr._kernel.assignL(_exit, _else);
-            }
-        } catch (...) {
+        if (!_is_exit_valid) {
+            _expr._kernel.assignL(_exit, _else);
         }
     }
 
@@ -197,7 +210,7 @@ public:
         using namespace Xbyak;
 
         _expr.cmp(_else);
-        fn();
+        std::forward<F>(fn)();
         _expr._kernel.jmp(_exit, Xbyak::CodeGenerator::T_NEAR);
         _expr._kernel.L(_else);
 
@@ -213,10 +226,8 @@ private:
     friend class then_expression<T>;
 };
 
-typedef struct register_tag {
-} register_tag;
-typedef struct memory_tag {
-} memory_tag;
+using register_tag = struct register_tag {};
+using memory_tag = struct memory_tag {};
 
 template <typename T, typename Tag>
 class variable_base;
@@ -228,14 +239,14 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base(const variable_base&);
-    variable_base(variable_base&&) noexcept;
+    variable_base(const variable_base& rhs);
+    variable_base(variable_base&& rhs) noexcept;
 
-    reg_type& reg() const {
+    [[nodiscard]] reg_type& reg() const {
         return *_reg;
     }
 
-    const shared_reg<reg_type>& shreg() const {
+    [[nodiscard]] const shared_reg<reg_type>& shreg() const {
         return _reg;
     }
 
@@ -262,8 +273,8 @@ public:
 
     variable_base& operator=(const variable_base&) = delete;
 
-    variable_base(const variable_base&);
-    variable_base(variable_base&&) noexcept;
+    variable_base(const variable_base& rhs);
+    variable_base(variable_base&& rhs) noexcept;
 
     reg_type& reg() const {
         return *_addr;
@@ -279,25 +290,25 @@ protected:
 
 template <typename T>
 class variable<T, register_tag>
-    : public variable_base<typename std::enable_if<!std::is_floating_point<T>::value, T>::type, register_tag> {
+    : public variable_base<std::enable_if_t<!std::is_floating_point_v<T>, T>, register_tag> {
 public:
     using type = T;
     using base = variable_base<type, register_tag>;
     using reg_type = const typename base::reg_type;
-    using arithmetic_type = typename std::conditional<std::is_pointer<T>::value, size_t, T>::type;
+    using arithmetic_type = std::conditional_t<std::is_pointer_v<T>, size_t, T>;
 
     variable(variable&&) noexcept = default;
     variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
-    typename std::conditional<std::is_pointer<T>::value &&
-                                  !std::is_pointer<typename std::remove_pointer<T>::type>::value,
-                              variable<typename std::remove_pointer<T>::type, memory_tag>,
-                              void>::type
+    std::conditional_t<std::is_pointer_v<T> && !std::is_pointer_v<std::remove_pointer_t<T>>,
+                       variable<std::remove_pointer_t<T>, memory_tag>,
+                       void>
     operator*() const {
-        return variable<typename std::remove_pointer<T>::type, memory_tag>(base::_kernel, base::shreg());
+        return variable<std::remove_pointer_t<T>, memory_tag>(base::_kernel, base::shreg());
     }
 
+    // NOLINTBEGIN(cppcoreguidelines-c-copy-assignment-signature, misc-unconventional-assign-operator)
     const variable& operator=(reg_type& rhs) const {
         base::_kernel.mov(base::reg(), rhs);
         return *this;
@@ -522,12 +533,12 @@ public:
         return *this;
     }
 
-    const variable& blend(reg_type& rhs, uint16_t mask) const {
+    [[nodiscard]] const variable& blend(reg_type& rhs, uint16_t mask) const {
         base::_kernel.uni_vblendps(base::reg(), rhs, mask);
         return *this;
     }
 
-    const variable& permute(const std::array<uint8_t, N>& order) const {
+    [[nodiscard]] const variable& permute(const std::array<uint8_t, N>& order) const {
         base::_kernel.uni_vpermps(base::reg(), order.data(), base::reg());
         return *this;
     }
@@ -541,14 +552,14 @@ public:
 };
 
 class stack_frame {
+public:
     stack_frame(const stack_frame&) = delete;
     stack_frame& operator=(const stack_frame&) = delete;
 
-public:
     stack_frame(jit_kernel& kernel, size_t size, uint32_t alignment = 1);
     stack_frame(stack_frame&& rhs) noexcept;
     ~stack_frame();
-    const Xbyak::Reg64& pointer() const;
+    [[nodiscard]] const Xbyak::Reg64& pointer() const;
     void clear() const;
 
 private:
@@ -563,10 +574,10 @@ ov::element::Type type2precision();
 dnnl::impl::cpu::x64::cpu_isa_t get_current_isa();
 
 class consts_table {
+public:
     consts_table(const consts_table&) = delete;
     consts_table& operator=(const consts_table&) = delete;
 
-public:
     consts_table() = default;
     const void* store(const void* data, size_t size);
 
@@ -725,8 +736,8 @@ void jit_kernel::load(const variable<DstT[N]>& dst, const variable<SrcT>& src, s
     static_assert(std::is_same<typename variable<SrcT>::reg_type, const Xbyak::Reg64>::value,
                   "Source register must be Reg64");
 
-    using src_type = typename std::remove_cv<typename std::remove_pointer<SrcT>::type>::type;
-    using dst_type = typename std::remove_cv<typename std::remove_pointer<DstT>::type>::type;
+    using src_type = std::remove_cv_t<std::remove_pointer_t<SrcT>>;
+    using dst_type = std::remove_cv_t<std::remove_pointer_t<DstT>>;
 
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
@@ -736,7 +747,8 @@ void jit_kernel::load(const variable<DstT[N]>& dst, const variable<SrcT>& src, s
 
     const auto key = load_emitter_params(src_prc, dst_prc, length).hash();
     if (!_emitters[key]) {
-        _emitters[key].reset(new jit_load_emitter(this, internal::get_current_isa(), src_prc, dst_prc, length));
+        _emitters[key] =
+            std::make_unique<jit_load_emitter>(this, internal::get_current_isa(), src_prc, dst_prc, length);
     }
     _emitters[key]->emit_code({static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx())},
                               {static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx())},
@@ -746,7 +758,7 @@ void jit_kernel::load(const variable<DstT[N]>& dst, const variable<SrcT>& src, s
 
 template <typename DstT, size_t N, typename SrcT>
 void jit_kernel::load(const variable<DstT[N]>& dst, const variable<SrcT>& src, const variable<size_t>& length) {
-    using src_type = typename std::remove_cv<typename std::remove_pointer<SrcT>::type>::type;
+    using src_type = std::remove_cv_t<std::remove_pointer_t<SrcT>>;
 
     auto s = stack(N * sizeof(src_type));
     s.clear();
@@ -764,8 +776,8 @@ void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, 
     static_assert(std::is_same<typename variable<DstT>::reg_type, const Xbyak::Reg64>::value,
                   "Destination register must be Reg64");
 
-    using src_type = typename std::remove_cv<typename std::remove_pointer<SrcT>::type>::type;
-    using dst_type = typename std::remove_cv<typename std::remove_pointer<DstT>::type>::type;
+    using src_type = std::remove_cv_t<std::remove_pointer_t<SrcT>>;
+    using dst_type = std::remove_cv_t<std::remove_pointer_t<DstT>>;
 
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
@@ -775,7 +787,8 @@ void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, 
 
     const auto key = store_emitter_params(src_prc, dst_prc, length).hash();
     if (!_emitters[key]) {
-        _emitters[key].reset(new jit_store_emitter(this, internal::get_current_isa(), src_prc, dst_prc, length));
+        _emitters[key] =
+            std::make_unique<jit_store_emitter>(this, internal::get_current_isa(), src_prc, dst_prc, length);
     }
     _emitters[key]->emit_code({static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx())},
                               {static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx())},
@@ -785,7 +798,7 @@ void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, 
 
 template <typename DstT, typename SrcT, size_t N>
 void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, const variable<size_t>& length) {
-    using dst_type = typename std::remove_cv<typename std::remove_pointer<DstT>::type>::type;
+    using dst_type = std::remove_cv_t<std::remove_pointer_t<DstT>>;
 
     auto s = stack(N * sizeof(dst_type));
 
@@ -862,10 +875,7 @@ namespace internal {
 template <typename Reg>
 shared_reg<Reg> make_shared(Reg& reg, jit_kernel& kernel) {
     std::shared_ptr<Reg> ptr(&reg, [&kernel](Reg* preg) {
-        try {
-            kernel.free(*preg);
-        } catch (...) {
-        }
+        kernel.free(*preg);
     });
     return ptr;
 }
@@ -936,7 +946,7 @@ then_expression<T>::then_expression(if_expression<T>& expr) : _if_expr(expr) {}
 template <typename T>
 template <typename F>
 void then_expression<T>::_else(F&& fn) {
-    fn();
+    std::forward<F>(fn)();
     _if_expr._expr._kernel.L(_if_expr._exit);
     _if_expr._is_exit_valid = true;
 }
@@ -995,6 +1005,8 @@ variable<T[N], register_tag>::variable(jit_kernel& krnl)
 
 template <typename T, size_t N>
 variable<T[N], register_tag>::variable(jit_kernel& krnl, const shared_reg<reg_type>& reg) : base(krnl, reg) {}
+
+// NOLINTEND(cppcoreguidelines-c-copy-assignment-signature, misc-unconventional-assign-operator)
 
 }  // namespace internal
 

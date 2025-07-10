@@ -46,6 +46,8 @@ struct Subgraph {
 
     // Stores transformation history for weights which will be applied before inference
     std::vector<weights::LazyTensor> _lazy_closure;
+    // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
+    std::vector<bool> _is_lazy_unpack;
 
     bool _forced_to_fcall = false;
 
@@ -56,6 +58,17 @@ struct Subgraph {
         int64_t idx_idx = -1;
     };
     Gather _host_gather;
+
+    struct QuantUnpackGather {
+        int64_t dst_idx = -1;
+
+        int64_t src_w_idx = -1;
+        int64_t src_z_idx = -1;
+        int64_t src_s_idx = -1;
+
+        int64_t idx_idx = -1;
+    };
+    QuantUnpackGather _quant_unpack_gather;
 
     using Ref = std::reference_wrapper<Subgraph>;
 };
@@ -72,6 +85,9 @@ struct Function {
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 
     std::optional<ov::npuw::function::Spatial> _spatial;
+
+    // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
+    std::set<std::size_t> _idx_lazy_unpack;
 };
 
 struct Group {

@@ -97,6 +97,7 @@ DEFINE_string(data_shape, "",
     "In case of one input size: \"[1,3,224,224]\"");
 DEFINE_string(skip_output_layers, "" , "Skip output layers from the network. Currently only applicable for"
         "RRMSE and NRMSE mode. Accept ';' separated list of output layers");
+DEFINE_bool(clamp_u8_outputs, false, "Apply clamping when converting FP to U8");
 
 // for using input image mean and scale
 static constexpr char mean_values_message[] =
@@ -127,6 +128,13 @@ DEFINE_string(
     ref_dir,
     "",
     "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
+static constexpr char ref_results_message[] =
+        "String of reference result file(s) to be used during run_test mode. "
+        "For the same test case, the files should be separated by comma (,) (example: one case multiple output). "
+        "For different test cases, it should be separated by semicolon (;). "
+        "If ref_dir is provided, the reference files should be relative to the ref_dir. "
+        "Else, if ref_dir is not provided, the reference files should be absolute paths. ";
+DEFINE_string(ref_results, "", ref_results_message);
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
@@ -138,6 +146,7 @@ DEFINE_double(rrmse_loss_threshold, std::numeric_limits<double>::max(), "Thresho
 DEFINE_double(nrmse_loss_threshold, 1.0, "Threshold for 'nrmse' mode");
 DEFINE_double(confidence_threshold, 1e-4, "Confidence threshold for Detection mode");
 DEFINE_double(box_tolerance, 1e-4, "Box tolerance for 'detection' mode");
+DEFINE_bool(apply_soft_max, false, "Apply SoftMax for 'nrmse' mode");
 
 DEFINE_double(psnr_reference, 30.0, "PSNR reference value in dB");
 DEFINE_double(psnr_tolerance, 1e-4, "Tolerance for 'psnr' mode");
@@ -155,6 +164,7 @@ DEFINE_int32(num, 3, "Number of scales for Yolo V3");
 
 typedef std::chrono::high_resolution_clock Time;
 // for Semantic Segmentation
+DEFINE_bool(skip_arg_max, false, "Skip ArgMax post processing step");
 DEFINE_uint32(sem_seg_classes, 12, "Number of classes for semantic segmentation");
 DEFINE_double(sem_seg_threshold, 0.98, "Threshold for 'semantic segmentation' mode");
 DEFINE_uint32(sem_seg_ignore_label, std::numeric_limits<uint32_t>::max(), "The number of the label to be ignored");
@@ -200,10 +210,10 @@ std::string to_string(const std::vector<std::string>& c) {
     return ret;
 }
 
-std::map<std::string, std::string> parseArgMap(std::string argMap) {
+std::map<std::string, std::string> parseArgMap(std::string argMap, char delimiter = ';') {
     argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
 
-    const auto pairs = splitStringList(argMap, ';');
+    const auto pairs = splitStringList(argMap, delimiter);
 
     std::map<std::string, std::string> parsedMap;
     for (auto&& pair : pairs) {
@@ -250,9 +260,12 @@ void parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Mean_values [channel1,channel2,channel3]  " << FLAGS_mean_values << std::endl;
     std::cout << "    Scale_values [channel1,channel2,channel3] " << FLAGS_scale_values << std::endl;
     std::cout << "    Skip checking output layers:              " << FLAGS_skip_output_layers << std::endl;
+    std::cout << "    Clamp U8 outputs:                         " << FLAGS_clamp_u8_outputs << std::endl;
     if (FLAGS_run_test) {
-        std::cout << "    Reference files direcotry:                "
-                  << (FLAGS_ref_dir.empty() ? "Current directory" : FLAGS_ref_dir) << std::endl;
+        std::cout << "    Reference files directory:                "
+                  << (FLAGS_ref_dir.empty() && FLAGS_ref_results.empty() ? "Current directory" : FLAGS_ref_dir)
+                  << std::endl;
+        std::cout << "    Reference file(s):                        " << FLAGS_ref_results<< std::endl;
         std::cout << "    Mode:             " << FLAGS_mode << std::endl;
         if (strEq(FLAGS_mode, "classification")) {
             std::cout << "    Top K:            " << FLAGS_top_k << std::endl;
@@ -309,8 +322,11 @@ std::vector<size_t> getStrides(const ov::Shape& shape) {
     return strides;
 }
 
-std::vector<cv::Mat> ovToCV(const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
-                            size_t batchInd = 0, size_t depthInd = 0) {
+std::vector<cv::Mat> ovToCV(ov::Tensor& tensor,
+                            const ov::Shape& shape,
+                            const ov::Layout& layout,
+                            size_t batchInd = 0,
+                            size_t depthInd = 0) {
     const ov::element::Type& precision = tensor.get_element_type();
 
     OPENVINO_ASSERT(layout == ov::Layout("NCHW") || layout == ov::Layout("NCDHW"),
@@ -420,7 +436,11 @@ struct BatchIndexer {
         return sstream.str();
     }
 };
-void cvToOV(const cv::Mat& cvImg, const BatchIndexer &cvImgInBatch, const ov::Tensor& tensor, const ov::Shape& shape, const ov::Layout& layout,
+void cvToOV(const cv::Mat& cvImg,
+            const BatchIndexer& cvImgInBatch,
+            ov::Tensor& tensor,
+            const ov::Shape& shape,
+            const ov::Layout& layout,
             const std::string& colorFormat) {
     const ov::element::Type& precision = tensor.get_element_type();
 
@@ -522,13 +542,15 @@ void cvToOV(const cv::Mat& cvImg, const BatchIndexer &cvImgInBatch, const ov::Te
                           << n << " up to " << N << " with image data from the array: "
                           << cvImgInBatch.to_string() << std::endl;
             }
-            cv::Mat batch(static_cast<int>(H), static_cast<int>(W), cvType,
+            cv::Mat batch(static_cast<const int>(H),
+                          static_cast<int>(W),
+                          cvType,
                           dataBuffer + n * (out.size().area() * out.elemSize()));
             out.copyTo(batch);
         }
     } else if (layout == ov::Layout("NCHW")) {
         ov::Tensor auxTensor(precision, shape);
-        const ov::Tensor &outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
+        ov::Tensor& outTensor = (cvImgInBatch.index == 0 ? tensor : auxTensor);
         // only a first image from an input image array fills an original input tensor up.
         // Subsequent images (if exist) will fill batch slices of the input tensor
         // by its number in the input array respectively
@@ -696,6 +718,84 @@ std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
     return out;
 }
 
+/**
+ * @brief Parses and processes input files and matches them to model input names.
+ *
+ * This function processes input file specifications for multiple test cases. It supports both 
+ * the simple format (same file for all inputs) and the mapped format (specific files for specific inputs).
+ *
+ * The input format supports:
+ * - Multiple test cases separated by semicolons (';')
+ * - Within each test case, input mappings separated by commas (',')
+ * - Optional batched inputs separated by pipe ('|') are ignored
+ * - Each mapping in the format "input_name:file_path1|file_path2"
+ *
+ * @param inputsInfo     Vector of model input information objects (retrieved from ov::Model::inputs())
+ * @param inputCases    String containing input file specifications
+ *
+ * @return A string with processed input files, maintaining the test case structure (semicolon-separated)
+ *         with each test case containing comma-separated input files.
+ *
+ * @throws OpenVINO::AssertionFailure If input specification is incomplete or contains duplicates within the
+ *         same test case.
+ */
+std::string parseInputFiles(const std::vector<ov::Output<const ov::Node>> inputsInfo, const std::string& inputCases) {
+    // Splits input files into test cases (delimited by ';')
+    std::vector<std::string> inputCasesList = splitStringList(inputCases, ';');
+
+    std::vector<std::string> processedInputCasesList(inputCasesList.size());
+
+    for (size_t testCaseIndex = 0; testCaseIndex < inputCasesList.size(); ++testCaseIndex) {
+        const auto& inputFilesPerCase = inputCasesList[testCaseIndex];
+        std::map<std::string, std::string> inputFilesPerCaseMap = parseArgMap(inputFilesPerCase, ',');
+        std::vector<std::string> processedInputFilesPerCaseList(inputsInfo.size());
+
+        for (size_t i = 0; i < inputsInfo.size(); ++i) {
+            const auto& inputInfo = inputsInfo[i];
+            const auto& inputNames = inputInfo.get_names();
+
+            for (const auto& name : inputNames) {
+                auto it = inputFilesPerCaseMap.find(name);
+                if (it != inputFilesPerCaseMap.end()) {
+                    processedInputFilesPerCaseList[i] = it->second;
+                    break;
+                }
+            }
+        }
+
+        size_t valueCount = std::count_if(processedInputFilesPerCaseList.begin(), processedInputFilesPerCaseList.end(),
+                                        [](const std::string& s) { return !s.empty(); });
+        // All inputs must have values or none must have values
+        if (valueCount > 0 && valueCount < inputsInfo.size()) {
+            OPENVINO_ASSERT(false, "Incomplete input specification. All inputs must be specified or none. "
+                                "Check if there are duplicate input names in the input file map.");
+        }
+        if (valueCount == 0) {
+            processedInputCasesList[testCaseIndex] = inputFilesPerCase;
+            continue;
+        }
+        // Concatenate processedInputFilesPerCaseList results with , delimiter, then store in processedInputCasesList at index
+        std::string processedInputFilesPerCase;
+        for (size_t i = 0; i < processedInputFilesPerCaseList.size(); ++i) {
+            if (i > 0) {
+                processedInputFilesPerCase += ",";
+            }
+            processedInputFilesPerCase += processedInputFilesPerCaseList[i];
+        }
+        processedInputCasesList[testCaseIndex] = std::move(processedInputFilesPerCase);
+    }
+
+    // Concatenate processedInputCasesList results with ; delimiter
+    std::string processedInputCases;
+    for (size_t i = 0; i < processedInputCasesList.size(); ++i) {
+        if (i > 0) {
+            processedInputCases += ";";
+        }
+        processedInputCases += processedInputCasesList[i];
+    }
+    return processedInputCases;
+}
+
 template <class T>
 std::optional<T> getRegexSubstitutionIfExist(const std::string& haystack, const std::map<RegexPtr, T>& substitutions) {
     for (const auto& s : substitutions) {
@@ -733,7 +833,7 @@ std::string cleanName(std::string&& name) {
 
 ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
                      const std::vector<std::string>& filePaths, const std::string& colorFormat) {
-    const ov::Tensor tensor(precision, shape);
+    ov::Tensor tensor(precision, shape);
     for (size_t fileIndex = 0; fileIndex != filePaths.size(); fileIndex++) {
         const auto &filePath = filePaths[fileIndex];
         const auto frame = cv::imread(filePath, cv::IMREAD_COLOR);
@@ -755,10 +855,10 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
     const size_t fileBytes = static_cast<size_t>(fileSize);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
-    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::undefined) {
+    if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::dynamic) {
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
-        const ov::Tensor inputTensor(dataPrecision, shape);
+        ov::Tensor inputTensor(dataPrecision, shape);
         if (fileBytes == inputTensor.get_byte_size()) {
             binaryFile.read(reinterpret_cast<char*>(inputTensor.data()), static_cast<std::streamsize>(fileBytes));
             npu::utils::convertTensorPrecision(inputTensor, requestedTensor);
@@ -768,17 +868,17 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
                       << " while converting precision from " << dataPrecision << " to " << modelPrecision
                       << ". Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                            "Input layout has no batch dimenstion: ", layout.to_string());
+                            "Input layout has no batch dimension: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
             OPENVINO_ASSERT(fileBytes * N == inputTensor.get_byte_size(), "File contains ", fileBytes, " bytes, but ",
                             inputTensor.get_byte_size() * N, " total in batch size ", N,
                             " expected while converting precision from ", dataPrecision, " to ", modelPrecision);
             ov::Shape debatchedInputTensorShape(shape);
             debatchedInputTensorShape[ov::layout::batch_idx(layout)] = 1;
-            const ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
+            ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
             binaryFile.read(reinterpret_cast<char*>(inputDebatchedTensor.data()),
                             static_cast<std::streamsize>(fileBytes));
-            const ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
+            ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
             npu::utils::convertTensorPrecision(inputDebatchedTensor, convertedPrecisionTensor);
             std::list<ov::Tensor> tensorsToJoin;
             std::list<ov::Tensor> tensorsFromSplit = npu::utils::splitBatchedTensor(requestedTensor, layout, N);
@@ -804,7 +904,7 @@ void loadBinary(const std::string& filePath, const BatchIndexer &fileSourceInBat
                       << " when datatypes match. "
                       << "Check whether it is possible to fit it into batch loading " << std::endl;
             OPENVINO_ASSERT(ov::layout::has_batch(layout),
-                            "Input layout has no batch dimenstion: ", layout.to_string());
+                            "Input layout has no batch dimension: ", layout.to_string());
             size_t N = shape[ov::layout::batch_idx(layout)];
             OPENVINO_ASSERT(fileBytes * N == reqTensorBytes, "File contains ", fileBytes, " bytes, but ",
                             reqTensorBytes, " in batch size ", N, " expected");
@@ -855,9 +955,12 @@ ov::Tensor loadBinaries(const ov::element::Type& modelPrecision, const ov::Shape
  * @param dataPrecision Indicates the precision used by the data found within the binary file.
  * @return The tensor containing the loaded data.
  */
-ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
-                     const std::vector<std::string>& filePaths, const std::string& colorFormat,
-                     const ov::element::Type& dataPrecision = ov::element::Type_t::undefined) {
+ov::Tensor loadInput(const ov::element::Type& modelPrecision,
+                     const ov::Shape& shape,
+                     const ov::Layout& layout,
+                     const std::vector<std::string>& filePaths,
+                     const std::string& colorFormat,
+                     const ov::element::Type& dataPrecision = ov::element::Type_t::dynamic) {
     if (isImage(shape, layout) && !FLAGS_img_as_bin) {
         return loadImages(modelPrecision, shape, layout, filePaths, colorFormat);
     } else {
@@ -866,7 +969,7 @@ ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& s
 }
 
 ov::Tensor loadTensor(const ov::element::Type& precision, const ov::Shape& shape, const std::string& filePath) {
-    const ov::Tensor tensor(precision, shape);
+    ov::Tensor tensor(precision, shape);
 
     std::ifstream file(filePath, std::ios_base::in | std::ios_base::binary);
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for read");
@@ -881,7 +984,7 @@ void dumpTensor(const ov::Tensor& tensor, const std::string& filePath) {
     std::ofstream file(filePath, std::ios_base::out | std::ios_base::binary);
     OPENVINO_ASSERT(file.is_open(), "Can't open file ", filePath, " for write");
 
-    const auto dataBuffer = reinterpret_cast<char*>(tensor.data());
+    const auto dataBuffer = reinterpret_cast<const char*>(tensor.data());
     file.write(dataBuffer, static_cast<std::streamsize>(tensor.get_byte_size()));
 }
 
@@ -1397,7 +1500,32 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference) {
     return nrmseLoss <= FLAGS_nrmse_loss_threshold;
 }
 
-bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
+std::vector<float> softmax(std::vector<float>& tensor) {
+    std::vector<double> probabilities(tensor.size());
+    std::vector<float> results(tensor.size());
+
+    // Find the maximum value for numerical stability
+    float max_value = *std::max_element(tensor.begin(), tensor.end());
+
+    // Compute the exponentials of the tensor after subtracting max_value for numerical stability
+    double sum_exp = 0.0;
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] = exp(tensor[i] - max_value);  // exp(tensor_value - max_value) for stability
+        sum_exp += probabilities[i];
+    }
+
+    // Normalize the probabilities by dividing by the sum of exponentials
+    for (size_t i = 0; i < tensor.size(); ++i) {
+        probabilities[i] /= sum_exp;
+    }
+
+    std::transform(probabilities.begin(), probabilities.end(), results.begin(),
+                   [](double value) { return static_cast<float>(value); });
+
+    return results;
+}
+
+bool testNRMSE(TensorMap& outputs, const TensorMap& references, size_t batch_size = 1) {
     if (batch_size != 1) {
         throw std::runtime_error(
                 "The testcase 'nrmse' doesn't support any `override_model_batch_size` values besides 1 yet");
@@ -1411,7 +1539,7 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
     std::vector<std::string> skipped_layers;
     skipped_layers = splitStringList(FLAGS_skip_output_layers, ';');
 
-    for (const auto& [tensorName, output] : outputs) {
+    for (auto& [tensorName, output] : outputs) {
         if (std::find(skipped_layers.begin(), skipped_layers.end(), tensorName) != skipped_layers.end()) {
             std::cout << "Skip NRMSE test for layers: " << tensorName << std::endl;
             continue;
@@ -1419,6 +1547,25 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, size_t bat
 
         auto referencesIterator = references.find(tensorName);
         OPENVINO_ASSERT(referencesIterator != references.end());
+        bool applySoftMax = FLAGS_apply_soft_max;
+
+        if (applySoftMax) {
+            std::vector<float> actOutput;
+            std::vector<float> refOutput;
+
+            std::copy_n((npu::utils::toFP32(output)).data<const float>(), output.get_size(), std::back_insert_iterator(actOutput));
+            std::copy_n((npu::utils::toFP32(referencesIterator->second)).data<const float>(), referencesIterator->second.get_size(),
+                std::back_insert_iterator(refOutput));
+
+            auto actSoftMax = softmax(actOutput);
+            auto refSoftMax = softmax(refOutput);
+
+            std::copy_n(actSoftMax.begin(), output.get_size(), output.data<float>());
+            // Why reference data is not updated?
+            std::copy_n(refSoftMax.begin(),
+                        referencesIterator->second.get_size(),
+                        const_cast<float*>(referencesIterator->second.data<float>()));
+        }
 
         std::cout << "Compare " << tensorName << " with reference" << std::endl;
         if (!computeNRMSE(output, referencesIterator->second)) {
@@ -1787,6 +1934,7 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     OPENVINO_ASSERT(outputs.size() == outputLayouts.size(),
                     "Mismatch between the number of model outputs and their corresponding layout values");
 
+    bool skipArgMax = FLAGS_skip_arg_max;
     unsigned int classes = FLAGS_sem_seg_classes;
     auto semSegThreshold = static_cast<float>(FLAGS_sem_seg_threshold);
 
@@ -1794,8 +1942,20 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
     std::vector<uint8_t> parsedOutputs;
     std::vector<std::pair<bool, float>> iou(classes, {false, 0.0f});
 
-    utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
-    utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    if (skipArgMax) {
+        const ov::Tensor referenceU8 = npu::utils::toPrecision(references.begin()->second, ov::element::u8);
+        const ov::Tensor outputU8 = npu::utils::toPrecision(outputs.begin()->second, ov::element::u8);
+
+        const size_t C = referenceU8.get_shape()[ov::layout::channels_idx(outputLayouts.begin()->second)];
+        const size_t H = referenceU8.get_shape()[ov::layout::height_idx(outputLayouts.begin()->second)];
+        const size_t W = referenceU8.get_shape()[ov::layout::width_idx(outputLayouts.begin()->second)];
+
+        std::copy_n(referenceU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedReferences));
+        std::copy_n(outputU8.data<uint8_t>(), C * H * W, std::back_insert_iterator(parsedOutputs));
+    } else {
+        utils::argMax_channels(references.begin()->second, parsedReferences, outputLayouts.begin()->second);
+        utils::argMax_channels(outputs.begin()->second, parsedOutputs, outputLayouts.begin()->second);
+    }
 
     if (parsedReferences.size() != parsedOutputs.size()) {
         std::cout << "Reference size and output size are different" << std::endl;
@@ -1822,9 +1982,47 @@ static ov::Shape parseDataShape(const std::string& dataShapeStr) {
     return ov::Shape(dataShape);
 }
 
+std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+                               size_t numberOfTestCase, size_t outputInd) {
+    std::string blobFileFullPath;
+    if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
+        // Case 1: Reference files & directory are provided (relative path)
+        std::filesystem::path refDirPath(FLAGS_ref_dir);
+        std::filesystem::path refFilePath(refFiles[outputInd]);
+        blobFileFullPath = (refDirPath / refFilePath).string();
+    } else if (!refFiles.empty()) {
+        // Case 2: Reference files provided only (absolute path)
+        blobFileFullPath = refFiles[outputInd];
+    } else {
+        // Case 3: Reference directory provided only
+        std::ostringstream ostr;
+        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        const auto blobFileName = ostr.str();
+
+        std::filesystem::path fullPath = FLAGS_ref_dir;
+        fullPath /= blobFileName;
+        blobFileFullPath = fullPath.string();
+    }
+
+    return blobFileFullPath;
+}
+
 static int runSingleImageTest() {
     std::cout << "Run single image test" << std::endl;
     try {
+        // Flow of Single Image Test
+        // 1. Parse input and output precisions (if given)
+        // 2. Parse input and output layouts (if given)
+        // 3. Parse input files (if given)
+        // 4. Parse input files as binaries (if given) according to precision
+        // 5. Setup OpenVINO Core
+        // 6. Load network if possible, else directly load as binary
+        // 7. (For loadable networks) Configure pre-/post-processing (precision and layout)
+        // 8. (For loadable networks) Perform reshape (reshape will only be done if either
+        //    shape or override_model_batch_size is specified)
+        // 9. (For loadable networks) Compile model
+        // 10. Store compile model (if given)
+        // 11. Run inference / tests
         const std::unordered_set<std::string> allowedPrecision = {"U8", "I32", "I64", "FP16", "FP32"};
         if (!FLAGS_ip.empty()) {
             // input precision is U8, I32, I64, FP16 or FP32 only
@@ -1844,61 +2042,8 @@ static int runSingleImageTest() {
         std::map<RegexPtr, ov::Layout> inModelLayouts = parseLayoutRegex(FLAGS_iml);
         std::map<RegexPtr, ov::Layout> outModelLayouts = parseLayoutRegex(FLAGS_oml);
 
-        std::vector<std::string> inputFilesPerCase;
-        using FilesPerInput = std::vector<std::string>;
-        using FilesForModelInputs = std::vector<FilesPerInput>;
-        std::vector<FilesForModelInputs> inputFilesForOneInfer;
-
-        inputFilesPerCase = splitStringList(FLAGS_input, ';');
-        for (const auto& images : inputFilesPerCase) {
-            std::vector<std::string> filesPerModel = splitStringList(images, ',');
-            FilesForModelInputs entireModelFiles;
-            entireModelFiles.reserve(filesPerModel.size());
-            for (auto &&filesPerInput : filesPerModel) {
-                // from now on each input of a model support multiple image files as content of a batched input
-                entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
-            }
-            inputFilesForOneInfer.push_back(std::move(entireModelFiles));
-        }
-
-        std::vector<std::string> inputBinPrecisionStrPerCase;
-        std::vector<std::vector<ov::element::Type>> inputBinPrecisionForOneInfer(inputFilesForOneInfer.size());
-        if (FLAGS_img_as_bin) {
-            for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
-                inputBinPrecisionForOneInfer[i] =
-                        std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::undefined);
-            }
-            inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
-            std::size_t inferIdx = 0;
-            for (const auto& precisions : inputBinPrecisionStrPerCase) {
-                std::vector<std::string> inputBinPrecisionsStrThisInfer = splitStringList(precisions, ',');
-                std::size_t precisionIdx = 0;
-                for (const auto& precision : inputBinPrecisionsStrThisInfer) {
-                    if (strEq(precision, "FP32")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f32;
-                    } else if (strEq(precision, "FP16")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f16;
-                    } else if (strEq(precision, "BF16")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::bf16;
-                    } else if (strEq(precision, "I32")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i32;
-                    } else if (strEq(precision, "I64")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i64;
-                    } else if (strEq(precision, "U8")) {
-                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u8;
-                    } else {
-                        std::cout << "WARNING: Unhandled precision '" << precision
-                                  << "'! Only FP32, FP16, I32, I64 and U8 can be currently converted to the network's"
-                                  << "input tensor precision.";
-                    }
-                    ++precisionIdx;
-                }
-                ++inferIdx;
-            }
-        }
-
         if (FLAGS_network.empty()) {
-            std::cout << "Not enough parameters. Check help." << std::endl;
+            std::cout << "Not enough parameters. (Network not specified). Check help." << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -1912,17 +2057,11 @@ static int runSingleImageTest() {
             auto model = core.read_model(FLAGS_network);
             nameIOTensors(model);
 
-            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
-            InputsInfo infoMap;
-
-            std::cout << "Performing reshape" << std::endl;
-            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
-                    FLAGS_override_model_batch_size, FLAGS_device);
-
             ov::preprocess::PrePostProcessor ppp(model);
 
+            const ov::OutputVector inputInfo = model->inputs();
+
             // Input precision
-            const auto inputInfo = model->inputs();
             if (!FLAGS_ip.empty()) {
                 ov::element::Type prc_in = ov::element::u8;
                 if (FLAGS_ip == "FP16")
@@ -2001,6 +2140,9 @@ static int runSingleImageTest() {
 
                 for (size_t i = 0; i < outputInfo.size(); ++i) {
                     ppp.output(i).tensor().set_element_type(prc_out);
+                    if (prc_out == ov::element::u8 && FLAGS_clamp_u8_outputs) {
+                        ppp.output(i).postprocess().clamp(0.0, 255.0);
+                    }
                 }
             }
 
@@ -2031,9 +2173,15 @@ static int runSingleImageTest() {
                 }
             }
 
-            if (FLAGS_shape.empty()) {
-                setModelBatch(model, FLAGS_override_model_batch_size);
-            }
+            auto inputsInfo = std::const_pointer_cast<ov::Model>(model)->inputs();
+            InputsInfo infoMap;
+
+            printInputAndOutputsInfoShort(*model);
+
+            std::cout << "Performing reshape" << std::endl;
+            reshape(std::move(inputsInfo), infoMap, model, FLAGS_shape,
+                    FLAGS_override_model_batch_size, FLAGS_device);
+
             std::cout << "Compile model" << std::endl;
             model = ppp.build();
             printInputAndOutputsInfoShort(*model);
@@ -2050,6 +2198,89 @@ static int runSingleImageTest() {
             std::ifstream file(FLAGS_network, std::ios_base::in | std::ios_base::binary);
             OPENVINO_ASSERT(file.is_open(), "Can't open file ", FLAGS_network, " for read");
             compiledModel = core.import_model(file, FLAGS_device);
+        }
+
+        auto inputInfo = compiledModel.inputs();
+
+        // Declare input file variables
+        std::vector<std::string> inputFilesPerCase;
+        using FilesPerInput = std::vector<std::string>;
+        using FilesForModelInputs = std::vector<FilesPerInput>;
+        std::vector<FilesForModelInputs> inputFilesForOneInfer;
+
+        // Parse input files string (matching of node names - if given)
+        std::string processedFileInputs = parseInputFiles(inputInfo, FLAGS_input);
+        inputFilesPerCase = splitStringList(processedFileInputs, ';');
+        for (const auto& images : inputFilesPerCase) {
+            std::vector<std::string> filesPerModel = splitStringList(images, ',');
+            FilesForModelInputs entireModelFiles;
+            entireModelFiles.reserve(filesPerModel.size());
+            for (auto &&filesPerInput : filesPerModel) {
+                // from now on each input of a model support multiple image files as content of a batched input
+                entireModelFiles.push_back(splitStringList(filesPerInput, '|'));
+            }
+            inputFilesForOneInfer.push_back(std::move(entireModelFiles));
+        }
+
+        // Declare output file / reference file variables
+        std::vector<std::string> refFilesPerCase;
+        using RefFilesPerInput = std::vector<std::string>;
+        using RefFilesForModelOutputs = std::vector<RefFilesPerInput>;
+        RefFilesForModelOutputs refFilesForOneInfer;
+
+        // Parse reference files
+        if (!FLAGS_ref_results.empty()) {
+            refFilesPerCase = splitStringList(FLAGS_ref_results, ';');
+            // Make sure that the number of test cases (separated by ;) is the same as number of test cases given in
+            // input files
+            if (refFilesPerCase.size() != inputFilesPerCase.size()) {
+                std::cout << "The number of test cases in reference files is not equal to the number of test cases"
+                    << " given in input files. "
+                    << "  Number of test cases in reference files: " << refFilesPerCase.size()
+                    << "  Number of test cases in input files: " << inputFilesPerCase.size() << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            for (const auto& refResult : refFilesPerCase) {
+                std::vector<std::string> refFilesPerModel = splitStringList(refResult, ',');
+                refFilesForOneInfer.push_back(std::move(refFilesPerModel));
+            }
+        }
+
+        std::vector<std::string> inputBinPrecisionStrPerCase;
+        std::vector<std::vector<ov::element::Type>> inputBinPrecisionForOneInfer(inputFilesForOneInfer.size());
+        if (FLAGS_img_as_bin) {
+            for (std::size_t i = 0; i < inputFilesForOneInfer.size(); ++i) {
+                inputBinPrecisionForOneInfer[i] =
+                    std::vector<ov::element::Type>(inputFilesForOneInfer[i].size(), ov::element::dynamic);
+            }
+            inputBinPrecisionStrPerCase = splitStringList(FLAGS_img_bin_precision, ';');
+            std::size_t inferIdx = 0;
+            for (const auto& precisions : inputBinPrecisionStrPerCase) {
+                std::vector<std::string> inputBinPrecisionsStrThisInfer = splitStringList(precisions, ',');
+                std::size_t precisionIdx = 0;
+                for (const auto& precision : inputBinPrecisionsStrThisInfer) {
+                    if (strEq(precision, "FP32")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f32;
+                    } else if (strEq(precision, "FP16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::f16;
+                    } else if (strEq(precision, "BF16")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::bf16;
+                    } else if (strEq(precision, "I32")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i32;
+                    } else if (strEq(precision, "I64")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::i64;
+                    } else if (strEq(precision, "U8")) {
+                        inputBinPrecisionForOneInfer[inferIdx][precisionIdx] = ov::element::u8;
+                    } else {
+                        std::cout << "WARNING: Unhandled precision '" << precision
+                                << "'! Only FP32, FP16, I32, I64 and U8 can be currently converted to the network's"
+                                << "input tensor precision.";
+                    }
+                    ++precisionIdx;
+                }
+                ++inferIdx;
+            }
         }
 
         // store compiled model, if required
@@ -2090,6 +2321,12 @@ static int runSingleImageTest() {
             const FilesForModelInputs &inputFiles = inputFilesForOneInfer[numberOfTestCase];
             OPENVINO_ASSERT(inputFiles.size() == inputsInfo.size(), "Number of input files ", inputFiles.size(),
                             " doesn't match network configuration ", inputsInfo.size());
+            const RefFilesPerInput &refFiles = refFilesForOneInfer.empty() ? RefFilesPerInput{}
+                                                                           : refFilesForOneInfer[numberOfTestCase];
+            if (!FLAGS_ref_results.empty()) {
+                OPENVINO_ASSERT(refFiles.size() == outputsInfo.size(), "Number of reference files ", refFiles.size(),
+                " doesn't match number of network output (s): ", outputsInfo.size());
+            }
 
             TensorMap inTensors;
             size_t inputInd = 0;
@@ -2150,10 +2387,10 @@ static int runSingleImageTest() {
             std::cout << "Run inference on " << FLAGS_device << std::endl;
 
             const auto startTime = Time::now();
-            const auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
+            auto outInference = runInfer(inferRequest, compiledModel, inTensors, dumpedInputsPaths);
             const auto endTime = Time::now();
 
-            const TensorMap& outputTensors = outInference.first;
+            TensorMap& outputTensors = outInference.first;
 
             printPerformanceCountsAndLatency(numberOfTestCase, outInference.second, endTime - startTime);
 
@@ -2169,18 +2406,12 @@ static int runSingleImageTest() {
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
-                    std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
-                    const auto blobFileName = ostr.str();
+                    std::string blobFileFullPath = getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
 
-                    std::filesystem::path fullPath = FLAGS_ref_dir;
-                    fullPath /= blobFileName;
-                    const auto blobFileFullName = fullPath.string();
-
-                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullName << " as "
+                    std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
 
-                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullName);
+                    const ov::Tensor referenceTensor = loadTensor(precision, shape, blobFileFullPath);
                     referenceTensors.emplace(tensorName, referenceTensor);
 
                     // Determine the output layout

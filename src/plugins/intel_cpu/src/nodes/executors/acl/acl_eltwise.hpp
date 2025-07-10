@@ -12,7 +12,7 @@ namespace ov::intel_cpu {
 
 class AclEltwiseExecutor : public EltwiseExecutor {
 public:
-    explicit AclEltwiseExecutor(const ExecutorContext::CPtr context);
+    explicit AclEltwiseExecutor(ExecutorContext::CPtr context);
     static bool isEltwiseAlgorithmSupported(Algorithm algorithm);
 
     bool init(const EltwiseAttrs& attrs,
@@ -24,12 +24,12 @@ public:
               const std::vector<MemoryPtr>& dst,
               const void* post_ops_data_) override;
 
-    impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type getImplType() const override {
         return implType;
     }
 
 private:
-    EltwiseAttrs aclEltwiseAttrs{};
+    EltwiseAttrs aclEltwiseAttrs;
     impl_desc_type implType = impl_desc_type::acl;
     std::vector<arm_compute::Tensor> srcTensors, dstTensors;
     std::unique_ptr<arm_compute::IFunction> ifunc;
@@ -37,11 +37,11 @@ private:
 
 class AclEltwiseExecutorBuilder : public EltwiseExecutorBuilder {
 public:
-    bool isSupported(const EltwiseAttrs& eltwiseAttrs,
-                     const std::vector<MemoryDescPtr>& srcDescs,
-                     const std::vector<MemoryDescPtr>& dstDescs) const override;
+    [[nodiscard]] bool isSupported(const EltwiseAttrs& eltwiseAttrs,
+                                   const std::vector<MemoryDescPtr>& srcDescs,
+                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
 
-    EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
+    [[nodiscard]] EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
         return std::make_shared<AclEltwiseExecutor>(context);
     }
 };

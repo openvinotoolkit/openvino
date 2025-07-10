@@ -10,10 +10,10 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<ov::element::Type> precisions = {
-        ov::element::f32
+    ov::element::f32
 };
 
-//transpose_a = false, transpose_b = true
+// transpose_a = false, transpose_b = true
 std::vector<MatMulWithConstantTransformationTestValues> testValues = {
     // 3D with different values
     {
@@ -110,7 +110,17 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         { ov::element::f32, {}, {0.1f} },
         "FullyConnected",
         "u8"
-    }
+    },
+    // 2D with unusual subtract on activations & Dq on weights
+    {
+        { 2, 3 },
+        { 256ul, {{1, 1}, {1, 1}, {1, 1}, {1, 1}}, {-128.f}, {383.f}, {0.5f}, {1.5f} },
+        { std::vector<float>{1, 2, 3, 4, 5, 6}, ov::element::i8, ov::Shape{ 2, 3 } },
+        {},
+        { ov::element::f32, {}, {0.1f} },
+        "FullyConnected",
+        "u8"
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MatMulWithConstantTransformation,

@@ -4,7 +4,30 @@
 
 #include "acl_pooling.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/IFunction.h>
+#include <arm_compute/runtime/NEON/functions/NEPooling3dLayer.h>
+#include <arm_compute/runtime/NEON/functions/NEPoolingLayer.h>
+
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/pooling.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
@@ -33,18 +56,16 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
     unsigned int stride_x = (poolingAttrs.stride.size() >= 2u) ? poolingAttrs.stride[1] : poolingAttrs.stride[0];
     unsigned int stride_y = (poolingAttrs.stride.size() >= 2u) ? poolingAttrs.stride[0] : 1;
 
-    PoolingType pool_type;
-    bool exclude_padding = false;
-    if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
-        pool_type = PoolingType::MAX;
-        exclude_padding = (poolingAttrs.pad_type != op::PadType::EXPLICIT);
-    } else if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
-        pool_type = PoolingType::AVG;
-        exclude_padding = poolingAttrs.exclude_pad;
-    } else {
+    auto [pool_type, exclude_padding] = [&]() -> std::pair<PoolingType, bool> {
+        if (poolingAttrs.algorithm == Algorithm::PoolingMax) {
+            return {PoolingType::MAX, (poolingAttrs.pad_type != op::PadType::EXPLICIT)};
+        }
+        if (poolingAttrs.algorithm == Algorithm::PoolingAvg) {
+            return {PoolingType::AVG, poolingAttrs.exclude_pad};
+        }
         DEBUG_LOG("Unknown pooling algorithm: ", static_cast<int>(poolingAttrs.algorithm));
-        return false;
-    }
+        return {PoolingType::MAX, false};
+    }();
 
     // The combination of parameters: NCHW + CEIL gives an accuracy problem in AvgPool.
     // One workaround is to disable the ACL executor for these parameters.
@@ -54,46 +75,40 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
         DEBUG_LOG("NCHW + CEIL gives an accuracy problem in ACL AvgPool. ACL executor will not be created.");
         return false;
     }
-    DimensionRoundingType round;
-    switch (poolingAttrs.rounding) {
-    case op::RoundingType::FLOOR:
-        round = DimensionRoundingType::FLOOR;
-        break;
-    case op::RoundingType::CEIL:
-        round = DimensionRoundingType::CEIL;
-        break;
-    // CEIL_TORCH type is mapped to ACL CEIL type
-    case op::RoundingType::CEIL_TORCH:
-        round = DimensionRoundingType::CEIL;
-        break;
-    default:
-        DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
-        return false;
-    }
+    auto round = [&]() -> DimensionRoundingType {
+        switch (poolingAttrs.rounding) {
+        case op::RoundingType::FLOOR:
+            return DimensionRoundingType::FLOOR;
+        case op::RoundingType::CEIL:
+        case op::RoundingType::CEIL_TORCH:
+            return DimensionRoundingType::CEIL;
+        default:
+            DEBUG_LOG("Unknown rounding type: ", poolingAttrs.rounding);
+            return DimensionRoundingType::FLOOR;
+        }
+    }();
 
     if (srcDimsSize == 5) {
         if (dstDescsSize > 1) {
             DEBUG_LOG("NEPooling3dLayer does not support indices");
             return false;
-        } else {
-            unsigned int kernel_d = poolingAttrs.kernel[2];
-            unsigned int stride_z = poolingAttrs.stride[2];
-            unsigned int pad_front = poolingAttrs.data_pad_begin[2];
-            unsigned int pad_back = poolingAttrs.data_pad_end[2];
-            pool3d_info->pool_type = pool_type;
-            pool3d_info->exclude_padding = exclude_padding;
-            pool3d_info->pool_size = arm_compute::Size3D(kernel_w, kernel_h, kernel_d);
-            pool3d_info->stride = arm_compute::Size3D(stride_x, stride_y, stride_z);
-            pool3d_info->padding =
-                arm_compute::Padding3D(pad_left, pad_right, pad_top, pad_bottom, pad_front, pad_back);
-            pool3d_info->round_type = round;
-            arm_compute::Status s =
-                arm_compute::NEPooling3dLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool3d_info);
-            if (!s) {
-                DEBUG_LOG("NEPooling3dLayer validation failed: ", s.error_description());
-                return false;
-            }
         }
+        unsigned int kernel_d = poolingAttrs.kernel[2];
+        unsigned int stride_z = poolingAttrs.stride[2];
+        unsigned int pad_front = poolingAttrs.data_pad_begin[2];
+        unsigned int pad_back = poolingAttrs.data_pad_end[2];
+        pool3d_info->pool_type = pool_type;
+        pool3d_info->exclude_padding = exclude_padding;
+        pool3d_info->pool_size = arm_compute::Size3D(kernel_w, kernel_h, kernel_d);
+        pool3d_info->stride = arm_compute::Size3D(stride_x, stride_y, stride_z);
+        pool3d_info->padding = arm_compute::Padding3D(pad_left, pad_right, pad_top, pad_bottom, pad_front, pad_back);
+        pool3d_info->round_type = round;
+        arm_compute::Status s = arm_compute::NEPooling3dLayer::validate(&srcTensorInfo, &dstTensorInfo, *pool3d_info);
+        if (!s) {
+            DEBUG_LOG("NEPooling3dLayer validation failed: ", s.error_description());
+            return false;
+        }
+
     } else {
         pool_info->data_layout = dataLayout;
         pool_info->pool_size = arm_compute::Size2D(kernel_w, kernel_h);
@@ -138,7 +153,7 @@ bool AclPoolingExecutor::isSupported(const TensorInfo& srcTensorInfo,
 bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
                               const std::vector<MemoryDescPtr>& srcDescs,
                               const std::vector<MemoryDescPtr>& dstDescs,
-                              const dnnl::primitive_attr& attr) {
+                              [[maybe_unused]] const dnnl::primitive_attr& attr) {
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 
@@ -236,18 +251,20 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
 
 void AclPoolingExecutor::exec(const std::vector<MemoryCPtr>& src,
                               const std::vector<MemoryPtr>& dst,
-                              std::unordered_map<int, MemoryPtr> postOpsArgs) {
+                              [[maybe_unused]] std::unordered_map<int, MemoryPtr> postOpsArgs) {
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
-    if (dst.size() > 1u)
+    if (dst.size() > 1u) {
         indTensor.allocator()->import_memory(dst[1]->getData());
+    }
 
     ifunc->run();
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();
-    if (dst.size() > 1u)
+    if (dst.size() > 1u) {
         indTensor.allocator()->free();
+    }
 }
 
 }  // namespace ov::intel_cpu

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
@@ -37,10 +37,10 @@ TEST_P(InferencePrecisionTests, smoke_canSetInferencePrecisionAndInfer) {
 static const std::vector<params> test_params = {
     {ov::element::f16, ov::element::f32},
     {ov::element::f16, ov::element::f16},
-    {ov::element::f16, ov::element::undefined},
+    {ov::element::f16, ov::element::dynamic},
     {ov::element::f32, ov::element::f32},
     {ov::element::f32, ov::element::f16},
-    {ov::element::f32, ov::element::undefined},
+    {ov::element::f32, ov::element::dynamic},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests, InferencePrecisionTests, ::testing::ValuesIn(test_params), InferencePrecisionTests::getTestCaseName);
@@ -73,16 +73,18 @@ TEST(ExecutionModeTest, SetCompileGetInferPrecisionAndExecMode) {
 
     {
         /* ov::hint::inference_precision has higher priority than ov::hint::execution_mode */
-        auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(ov::element::undefined),
-                                                                                     ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
+        auto compiled_model = core.compile_model(model,
+                                                 ov::test::utils::DEVICE_GPU,
+                                                 ov::hint::inference_precision(ov::element::dynamic),
+                                                 ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
         ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, compiled_model.get_property(ov::hint::execution_mode));
-        ASSERT_EQ(ov::element::undefined, compiled_model.get_property(ov::hint::inference_precision));
+        ASSERT_EQ(ov::element::dynamic, compiled_model.get_property(ov::hint::inference_precision));
     }
 
     {
         auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
         ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, compiled_model.get_property(ov::hint::execution_mode));
-        ASSERT_EQ(ov::element::undefined, compiled_model.get_property(ov::hint::inference_precision));
+        ASSERT_EQ(ov::element::dynamic, compiled_model.get_property(ov::hint::inference_precision));
     }
 
     {

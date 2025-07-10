@@ -4,15 +4,46 @@
 
 #include "memory.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "allocation_context.hpp"
 #include "common/arbitrary_order_desc_creator.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
+#include "edge.h"
+#include "graph.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_state.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/input.h"
+#include "nodes/memory_state_base.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/util/common_util.hpp"
+#include "proxy_mem_blk.h"
 #include "scaled_attn.h"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
@@ -26,17 +57,17 @@ namespace {
 class MemoryStub : public IMemory {
 public:
     class MemoryBlockStub : public IMemoryBlockObserver {
-        void* getRawPtr() const noexcept override {
+        [[nodiscard]] void* getRawPtr() const noexcept override {
             return nullptr;
         }
         void setExtBuff(void* ptr, size_t size) override {
             // pass
         }
-        bool resize(size_t size) override {
+        bool resize([[maybe_unused]] size_t size) override {
             // pass
             return false;
         }
-        bool hasExtBuffer() const noexcept override {
+        [[nodiscard]] bool hasExtBuffer() const noexcept override {
             // pass
             return false;
         }
@@ -48,33 +79,32 @@ public:
         }
     };
 
-public:
     MemoryStub(dnnl::engine eng, MemoryDescPtr pMemDesc)
         : m_eng(std::move(eng)),
           m_pMemDesc(std::move(pMemDesc)),
           m_pMemoryBlock(std::make_shared<MemoryBlockStub>()) {}
 
-    const MemoryDesc& getDesc() const override {
+    [[nodiscard]] const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
     }
 
-    MemoryDescPtr getDescPtr() const override {
+    [[nodiscard]] MemoryDescPtr getDescPtr() const override {
         return m_pMemDesc;
     }
 
-    void* getData() const override {
+    [[nodiscard]] void* getData() const override {
         OPENVINO_THROW("Unexpected call MemoryStub::getData()");
     }
 
-    size_t getSize() const override {
+    [[nodiscard]] size_t getSize() const override {
         return 0;
     }
 
-    const Shape& getShape() const override {
+    [[nodiscard]] const Shape& getShape() const override {
         return m_pMemDesc->getShape();
     }
 
-    const VectorDims& getStaticDims() const override {
+    [[nodiscard]] const VectorDims& getStaticDims() const override {
         return m_pMemDesc->getShape().getStaticDims();
     }
 
@@ -82,15 +112,17 @@ public:
         m_pMemDesc = desc;
     }
 
-    void load(const IMemory& src, bool ftz) const override {
+    void load([[maybe_unused]] const IMemory& src,
+              [[maybe_unused]] bool ftz,
+              [[maybe_unused]] bool bf16saturation) const override {
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
-    MemoryBlockPtr getMemoryBlock() const override {
+    [[nodiscard]] MemoryBlockPtr getMemoryBlock() const override {
         return m_pMemoryBlock;
     }
 
-    dnnl::memory getPrimitive() const override {
+    [[nodiscard]] dnnl::memory getPrimitive() const override {
         OPENVINO_THROW("Unexpected call MemoryStub::getPrimitive()");
     }
 
@@ -188,7 +220,7 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     // Mimic the parent node memory desc to avoid extra reorder
     auto parentEdge = getParentEdgeAt(0);
     auto parent = parentEdge->getParent();
-    auto parentPd = parent->getSelectedPrimitiveDescriptor();
+    auto* parentPd = parent->getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(parentPd,
                     parent->getTypeStr(),
                     " ",
@@ -198,7 +230,7 @@ void MemoryOutputBase::initOptimalPrimitiveDescriptor() {
     const auto& parentConfig = parentPd->getConfig();
     auto mem_desc = parentConfig.outConfs[parentEdge->getInputNum()].getMemDesc();
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -266,7 +298,7 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -301,12 +333,12 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
     }
 }
 
-void MemoryOutput::runStatic(dnnl::stream strm) {
+void MemoryOutput::runStatic([[maybe_unused]] dnnl::stream strm) {
     auto inputMem = getSrcMemoryAtPort(0);
     CPU_NODE_ASSERT(assignedMem, " uninitialized assigned memory");
 
     if (inputMem->getData() != assignedMem->getData()) {
-        assignedMem->load(*inputMem, true);
+        assignedMem->load(*inputMem, true, false);
     }
 }
 
@@ -349,7 +381,7 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -405,8 +437,8 @@ MemoryInputBase::MemoryInputBase(const std::string& id,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
                                  const GraphContext::CPtr& context,
-                                 const ov::optional<std::vector<Shape>>& input_shape,
-                                 const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                 const std::optional<std::vector<Shape>>& input_shape,
+                                 const std::optional<std::vector<ov::element::Type>>& input_prc,
                                  MemoryInputBase::mode mode)
     : Input(output_shape, output_prc, name, type, context),
       MemoryStateNode(id) {
@@ -507,7 +539,7 @@ bool MemoryInputBase::isExecutable() const {
 void MemoryStatesRegister::registerInput(MemoryInputBase* node) {
     OPENVINO_ASSERT(node, "Unexpected null MemoryInput pointer");
     // in case of output already registered
-    auto sibling = getMemoryOutputByName(node->getId());
+    auto* sibling = getMemoryOutputByName(node->getId());
     if (sibling != nullptr) {
         node->registerOutputNode(sibling);
     }
@@ -516,7 +548,7 @@ void MemoryStatesRegister::registerInput(MemoryInputBase* node) {
 
 void MemoryStatesRegister::registerOutput(MemoryOutputBase* node) {
     OPENVINO_ASSERT(node, "Unexpected null MemoryOutput pointer");
-    auto sibling = getMemoryInputByName(node->getId());
+    auto* sibling = getMemoryInputByName(node->getId());
     if (sibling != nullptr) {
         node->registerInputNode(sibling);
     }
@@ -575,7 +607,6 @@ void MemoryInputBase::assignState() {
 
 void MemoryInputBase::bypassAssignState() {
     // nothing to do
-    return;
 }
 
 MemoryInput::MemoryInput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx)
@@ -596,8 +627,8 @@ MemoryInput::MemoryInput(const std::string& id,
                          const Shape& output_shape,
                          const ov::element::Type& output_prc,
                          const GraphContext::CPtr& context,
-                         const ov::optional<std::vector<Shape>>& input_shape,
-                         const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                         const std::optional<std::vector<Shape>>& input_shape,
+                         const std::optional<std::vector<ov::element::Type>>& input_prc,
                          std::shared_ptr<ov::Model> func,
                          mode mode)
     : MemoryInputBase::MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc, mode),
@@ -648,7 +679,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     }
 
     auto child = childEdge->getChild();
-    auto childPd = child->getSelectedPrimitiveDescriptor();
+    auto* childPd = child->getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(childPd,
                     child->getTypeStr(),
                     " ",
@@ -658,7 +689,7 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     const auto& childConfig = childPd->getConfig();
     auto mem_desc = childConfig.inConfs[childEdge->getOutputNum()].getMemDesc();
 
-    auto selectedPd = getSelectedPrimitiveDescriptor();
+    auto* selectedPd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selectedPd,
                     " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -668,18 +699,16 @@ void MemoryInput::initOptimalPrimitiveDescriptor() {
     selectedPd->setConfig(config);
 
     if (haveSubgraph()) {
-        // Adopt parent configuration, avoid to insert reorder before the MemoryInput.
         std::vector<Input::InputConfig> graphInputConfig;
-
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            auto desc = getParentOutputMemDesc(getParentEdgeAt(i));
+        for (auto&& portConfig : config.inConfs) {
+            auto desc = portConfig.getMemDesc();
             graphInputConfig.emplace_back(node::Input::InputConfig{desc, true});
         }
 
         std::vector<Input::OutputConfig> graphOutputConfig;
         for (auto&& portConfig : config.outConfs) {
             auto desc = portConfig.getMemDesc();
-            graphOutputConfig.emplace_back(node::Input::OutputConfig{desc, true});
+            graphOutputConfig.emplace_back(desc, true);
         }
 
         // configure the inner graph to get the information about output memory descriptors
@@ -739,7 +768,7 @@ int MemoryInput::registerToAllocationContext(int offset, AllocationContext& cont
     return subGraph->RegisterToAllocationContext(offset, context);
 }
 
-void MemoryInput::runDynamic(dnnl::stream strm) {
+void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
     auto assignedMem = getAssignedState()->input_mem();
 
     CPU_NODE_ASSERT(assignedMem, " assigned state has null memory ptr");
@@ -786,15 +815,14 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
             // external graph or override the src pointer with the memory pointer pointing to the subgraph output
             // memory
-            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1,
-                            "has unexpected number of outputs");
+            CPU_NODE_ASSERT(subGraph->outputsNumber() == 1, "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
             // edges, attached to the output ports has to be updated after an inference of the inner graph finished
-            auto& childEdges = getChildEdges();
+            const auto& childEdges = getChildEdges();
             for (size_t j = 1; j < childEdges.size(); j++) {
-                auto& childEdge = childEdges[j];
+                const auto& childEdge = childEdges[j];
                 auto childEdgePtr = childEdge.lock();
                 assert(childEdgePtr);
                 assert(0 == childEdgePtr->getInputNum());
@@ -811,11 +839,11 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
 
     // copy data when necessary
     if (src->getData() != dst->getData()) {
-        dst->load(*src, true);
+        dst->load(*src, true, false);
     }
 }
 
-void MemoryInput::runStatic(dnnl::stream strm) {
+void MemoryInput::runStatic([[maybe_unused]] dnnl::stream strm) {
     auto assignedMem = getAssignedState()->input_mem();
 
     CPU_NODE_ASSERT(assignedMem, "assigned state has null memory ptr");
@@ -855,17 +883,17 @@ void MemoryInput::runStatic(dnnl::stream strm) {
     // copy data when necessary
     auto dst = getDstMemoryAtPort(0);
     if (src->getData() != dst->getData()) {
-        dst->load(*src, true);
+        dst->load(*src, true, false);
     }
 }
 
 void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     if (!(look & Edge::LOOK_UP)) {
-        Node::resolveInPlaceEdges(look);
+        ov::intel_cpu::node::Input::resolveInPlaceEdges(look);
         return;
     }
 
-    auto selected_pd = getSelectedPrimitiveDescriptor();
+    auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd,
                     "failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
@@ -918,8 +946,8 @@ MemoryInputSDPA::MemoryInputSDPA(const std::string& id,
                                  const Shape& output_shape,
                                  const ov::element::Type& output_prc,
                                  const GraphContext::CPtr& context,
-                                 const ov::optional<std::vector<Shape>>& input_shape,
-                                 const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                 const std::optional<std::vector<Shape>>& input_shape,
+                                 const std::optional<std::vector<ov::element::Type>>& input_prc,
                                  const std::shared_ptr<ScaledDotProductAttention>& sdpaNode)
     : MemoryInputBase(id, name, type, output_shape, output_prc, context, input_shape, input_prc),
       m_sdpaNode(sdpaNode) {}
@@ -967,6 +995,14 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     // retrieve the internal precision and axis order from the SDPA node
     CPU_NODE_ASSERT(node, "SDPA node is not available");
     auto kv_precision = node->getKVCachePrecision();
+    ScaledDotProductAttention::SDPAQuantParam quant_param;
+    if (kv_precision == ov::element::u8) {
+        const auto& edges_to_past_key = node->getParentEdgeAt(node->getParentEdges().size() - 2);
+        const auto& past_key = std::dynamic_pointer_cast<node::MemoryInputBase>(edges_to_past_key->getParent());
+        OPENVINO_ASSERT(past_key);
+        quant_param = past_key->getId() == state_name ? node->getKeyQuantParam() : node->getValueQuantParam();
+    }
+
     VectorDims order = {2, 0, 1, 3};
     if (!node->getKVCacheOrder().empty()) {
         order = node->getKVCacheOrder();
@@ -974,14 +1010,18 @@ MemStatePtr MemoryInputSDPA::makeState() const {
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, outputShapes.at(0));
 
-    return std::make_shared<VariableStateKVcache>(state_name, original_desc, internal_desc);
+    return std::make_shared<VariableStateKVcache>(state_name,
+                                                  original_desc,
+                                                  internal_desc,
+                                                  quant_param.isByChannel,
+                                                  quant_param.groupSize);
 }
 
 void MemoryInputSDPA::runStatic(dnnl::stream strm) {
     // nothing to do
 }
 
-void MemoryInputSDPA::runDynamic(dnnl::stream strm) {
+void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
     auto currentState = getAssignedState();
     if (currentState->is_reset_state()) {
         if (getParentEdges().empty()) {
@@ -1005,7 +1045,7 @@ void MemoryInputSDPA::runDynamic(dnnl::stream strm) {
 
 void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     if (getParentEdgeAt(0)) {
-        Node::resolveInPlaceEdges(look);
+        ov::intel_cpu::node::Input::resolveInPlaceEdges(look);
     } else {
         auto memDesc = getBaseMemDescAtOutputPort(0);
         for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
@@ -1025,8 +1065,8 @@ MemoryInputSingle::MemoryInputSingle(const std::string& id,
                                      const Shape& output_shape,
                                      const ov::element::Type& output_prc,
                                      const GraphContext::CPtr& context,
-                                     const ov::optional<std::vector<Shape>>& input_shape,
-                                     const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                                     const std::optional<std::vector<Shape>>& input_shape,
+                                     const std::optional<std::vector<ov::element::Type>>& input_prc,
                                      std::shared_ptr<ov::Model> func)
     : MemoryInput(id,
                   name,
@@ -1068,7 +1108,7 @@ void MemoryInputSingle::runStatic(dnnl::stream strm) {
         auto stateMem = getAssignedState()->output_mem();
         CPU_NODE_ASSERT(stateMem, " state memory has nullptr");
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result, true);
+            stateMem->load(*result, true, false);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state
@@ -1093,7 +1133,7 @@ void MemoryInputSingle::runDynamic(dnnl::stream strm) {
         }
 
         if (result->getData() != stateMem->getData()) {
-            stateMem->load(*result, true);
+            stateMem->load(*result, true, false);
         }
     }
     getAssignedState()->commit();  // since we don't use MemoryOutput, commit must be called to change the reset state

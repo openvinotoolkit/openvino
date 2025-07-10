@@ -4,17 +4,45 @@
 
 #include "llm_mlp.h"
 
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "openvino/core/parallel.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
+#include "dnnl_scratch_pad.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#include "utils/debug_capabilities.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <oneapi/dnnl/dnnl_types.h>
+
+#    include <algorithm>
+#    include <atomic>
+#    include <cstddef>
+#    include <type_traits>
+#    include <utility>
+
+#    include "cpu_memory.h"
+#    include "memory_desc/blocked_memory_desc.h"
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#    include "openvino/core/parallel.hpp"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#    include "utils/plain_tensor.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "kernels/x64/mlp_kernel.hpp"
@@ -34,7 +62,7 @@ public:
 
     WeightBuffer wbuffer;
 
-    LinearKsplit2() {}
+    LinearKsplit2() = default;
 
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
@@ -44,7 +72,7 @@ public:
         bool is_quantized = config.down_quantized;
 
         auto reg_blk_K_size = is_quantized ? REG_BLK_K_SIZE_I8 : REG_BLK_K_SIZE;
-        auto cache_blk_k_size = is_quantized ? CACHE_BLK_K_SIZE : CACHE_BLK_K_SIZE;
+        auto cache_blk_k_size = CACHE_BLK_K_SIZE;
         auto weight_element_size = is_quantized ? sizeof(int8_t) : sizeof(ov::float16);
 
         OPENVINO_ASSERT((N % REG_BLK_N_SIZE) == 0);
@@ -102,7 +130,7 @@ public:
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (is_quantized) {
@@ -125,7 +153,7 @@ public:
              float* w_scale) {
         static ReduceAdd2bh jit_reduce2cvt(true, std::is_same<T, ov::float16>::value);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             auto& workC = work.m_C;
             if (work) {
@@ -174,11 +202,11 @@ public:
 
     int used_nthr = 0;
 
-    LinearGateUp() {}
+    LinearGateUp() = default;
 
     WeightBuffer wbuffer;
 
-    GateUpCombine* jit_gateup;
+    GateUpCombine* jit_gateup = nullptr;
 
     // weight [N, K]
     // Gate & Up are interleaved in N dimension: 16-gate / 16-up
@@ -243,7 +271,7 @@ public:
         wbuffer.alloc(works, weight_element_size);
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
@@ -272,15 +300,15 @@ public:
                    const LLMMLPNode::Config& config,
                    MatrixDynQuantPerRow& src_dq,
                    float* w_scale) {
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 work.run(M, pA, strideA_in_bytes);
 
                 // K reduce is done, results of [M, BN] sub-block is ready in L2.
                 // combine Gate & Up
-                float* ptr_c;
-                size_t stride_c;
+                float* ptr_c = nullptr;
+                size_t stride_c = 0;
                 if (config.gate_up_quantized) {
                     // dequantize m_C in-place
                     ptr_c = work.m_C.template ptr<float>();
@@ -391,7 +419,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             });
 
             m_threads_num = parallel_get_max_threads();
-            for (size_t ithr = 0lu; ithr < m_threads_num; ithr++) {
+            for (size_t ithr = 0LU; ithr < m_threads_num; ithr++) {
                 auto C1_size = gate_up.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
                 auto C2_size = down.works[ithr].set_C(M, reinterpret_cast<float*>(cur_scratch_base));
                 auto max_C_size = std::max(C1_size, C2_size);
@@ -430,7 +458,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     void execute() override {
         auto input = m_pnode->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
-        uint8_t* pA = input->getDataAs<uint8_t>();
+        auto* pA = input->getDataAs<uint8_t>();
         const auto& srcStrides = input->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
         int strideA = srcStrides[srcStrides.size() - 2];
@@ -470,7 +498,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
                               m_quant_act,
                               m_w_scale_gateup.ptr<float>());
 
-            uint8_t* p_up_act = reinterpret_cast<uint8_t*>(m_actUp.ptr<T>());
+            auto* p_up_act = reinterpret_cast<uint8_t*>(m_actUp.ptr<T>());
             size_t stride_up_act = m_actUp.stride_bytes(0);
             if (m_config.down_quantized) {
                 m_quant_up_act.quantize(BM, m_actUp.ptr<T>(), m_actUp.stride(0));
@@ -487,13 +515,18 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
     }
 
 private:
-    size_t m_threads_num = 0lu;
+    size_t m_threads_num = 0LU;
 };
 #else
 template <typename T>
 struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
-    Executor(LLMMLP*, const LLMMLPNode::Config&, const DnnlScratchPadPtr&) {}
-    void execute() {}
+    Executor(LLMMLP* node, const LLMMLPNode::Config& config, const DnnlScratchPadPtr& scratchPad) {
+        (void)node;
+        (void)config;
+        (void)scratchPad;
+    }
+
+    void execute() override {}
 };
 #endif
 
@@ -592,14 +625,13 @@ void LLMMLP::createPrimitive() {
     }
 }
 
-void LLMMLP::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void LLMMLP::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
-bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                  std::string& errorMessage,
-                                  uint64_t fcDynamicQuantizationGroupSize) noexcept {
+bool LLMMLP::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                  [[maybe_unused]] std::string& errorMessage,
+                                  [[maybe_unused]] uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_mlp = ov::as_type_ptr<const LLMMLPNode>(op);
@@ -613,7 +645,7 @@ bool LLMMLP::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             auto down_size = down_proj_w_pshape[0].get_length();
             auto up_size = down_proj_w_pshape[1].get_length();
 
-            auto& config = node_mlp->get_config();
+            const auto& config = node_mlp->get_config();
             if (config.gate_up_quantized &&
                 (fcDynamicQuantizationGroupSize < static_cast<uint64_t>(config.hidden_size))) {
                 errorMessage = "LLMMLPNode gate-up-proj only support per-token dynamic quantization";

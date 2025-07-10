@@ -4,22 +4,21 @@
 
 #include "reorder_prim.h"
 
-#include <algorithm>
-#include <memory>
-#include <string>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 
+#include "cache/multi_cache.h"
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "dnnl_extension_utils.h"
-#include "dnnl_types.h"
-#include "utils/general_utils.h"
+#include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
 
 struct ReorderKey {
     dnnl::memory::desc src;
     dnnl::memory::desc dest;
-    size_t hash() const;
+    [[nodiscard]] size_t hash() const;
     bool operator==(const ReorderKey& rhs) const;
 };
 

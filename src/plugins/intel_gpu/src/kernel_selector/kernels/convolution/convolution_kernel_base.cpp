@@ -12,14 +12,14 @@
 namespace kernel_selector {
 bool ConvolutionKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CONVOLUTION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -170,8 +170,8 @@ void ConvolutionKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 }

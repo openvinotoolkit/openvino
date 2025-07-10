@@ -4,6 +4,8 @@
 
 #include "matchers/subgraph/manager.hpp"
 
+#include <chrono>
+
 using namespace ov::tools::subgraph_dumper;
 
 std::vector<SubgraphExtractor::ExtractedPattern>

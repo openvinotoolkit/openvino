@@ -3,11 +3,12 @@
 //
 
 #include <gtest/gtest.h>
+#include <openvino/opsets/opset1.hpp>
 #include <subgraph_simple.hpp>
 #include <transformations/snippets/common/pass/mul_add_to_fma.hpp>
-#include <transformations/snippets/x64/shape_inference.hpp>
+#include <transformations/snippets/common/shape_inference.hpp>
 #include <transformations/snippets/common/op/fused_mul_add.hpp>
-#include <transformations/snippets/x64/shape_inference.hpp>
+#include <transformations/snippets/common/shape_inference.hpp>
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -55,7 +56,7 @@ protected:
         const auto& sec_input = add_input_idx == 0 ? data2->output(0) : mul->output(0);
         auto add = std::make_shared<op::v1::Add>(fst_input, sec_input);
 
-        return std::make_shared<Model>(NodeVector{add}, parameters);
+        return std::make_shared<Model>(OutputVector{add}, parameters);
     }
 
     std::shared_ptr<ov::Model> initLowered() const override {
@@ -77,7 +78,7 @@ protected:
         auto c = scalar_input || add_input_idx == 0 ? data2 : data0;
 
         auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
-        return std::make_shared<ov::Model>(NodeVector{fma}, parameters);
+        return std::make_shared<ov::Model>(OutputVector{fma}, parameters);
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {
@@ -176,7 +177,8 @@ TEST_F(TransformationTestsF, smoke_Snippets_MulAddToFMATestsNegative) {
     auto additional_consumer = std::make_shared<op::v0::Relu>(mul);
     auto add = std::make_shared<op::v1::Add>(mul, data2);
 
-    model = std::make_shared<Model>(ov::NodeVector{add, additional_consumer}, ov::ParameterVector{data0, data1, data2});
+    model =
+        std::make_shared<Model>(ov::OutputVector{add, additional_consumer}, ov::ParameterVector{data0, data1, data2});
     manager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
 }
 }  // namespace snippets

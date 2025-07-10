@@ -52,14 +52,14 @@ DeviceFeaturesKey MVNKernel_b_fs_yx_fsv16_imad::get_required_device_features_key
 
 bool MVNKernel_b_fs_yx_fsv16_imad::Validate(const Params& p) const {
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto params = static_cast<const mvn_params&>(p);
 
     // TODO Add support for input padding via iterating over y (parallel or in kernel).
     if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0 ||
         params.inputs[0].Z().pad.Total() != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -227,7 +227,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          dispatchData.item_groups * intermidiate_bytes);
     }
     {
@@ -251,7 +251,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          intermidiate_bytes);
     }
     if (params.mvnNormalizeVariance) {
@@ -298,7 +298,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBufferSizes.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
                                          intermidiate_bytes);
     }
     {  // Final

@@ -12,10 +12,7 @@ namespace ov::intel_cpu {
 
 class ACLFullyConnectedExecutor : public ACLCommonExecutor {
 public:
-    ACLFullyConnectedExecutor(const FCAttrs& attrs,
-                              const PostOps& postOps,
-                              const MemoryArgs& memory,
-                              const ExecutorContext::CPtr& context);
+    ACLFullyConnectedExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
 
     static bool supports(const FCConfig& config);
 
@@ -27,7 +24,7 @@ public:
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
     MemoryCPtr packedWeights;
     ACLFCAttrs aclfcAttrs;
     arm_compute::TensorInfo weiTensorInfo;

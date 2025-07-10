@@ -39,7 +39,7 @@ class TestPythonOp(PytorchLayerTest):
             pytest.param(
                 False,
                 marks=pytest.mark.xfail(
-                    reason="Subgraph of prim::PythonOp cannot be retrived using if using scripting."
+                    reason="Subgraph of prim::PythonOp cannot be retrieved using if using scripting."
                 ),
             ),
         ],

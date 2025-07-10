@@ -4,12 +4,30 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
-#include <utility>
+#include <cpu/x64/xbyak/xbyak.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <set>
 #include <vector>
 
+#include "cpu_types.h"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
-#include "nodes/eltwise.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/kernels/jit_eltwise_common.hpp"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "selective_build.h"
 
 namespace ov::intel_cpu {
 namespace x64 {
@@ -35,7 +53,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     static const std::vector<element::Type> exec_precisions_priority =
         {element::u8, element::i8, element::u16, element::i16, element::bf16, element::i32, element::f32};
-    auto const exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
+    const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
                                                                   exec_precisions_priority);
@@ -59,9 +77,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     }
 
     if (mayiuse(avx512_core) || mayiuse(avx2_vnni_2)) {
-        auto const mode = jep_.do_output_saturation ? jit_uni_vcvtneps2bf16::conversion_mode::saturation_mode
-                                                    : jit_uni_vcvtneps2bf16::conversion_mode::default_mode;
-        uni_vcvtneps2bf16.reset(new jit_uni_vcvtneps2bf16(this, isa, element::bf16, mode));
+        uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
     }
 
     const auto& jep = jep_;
@@ -208,11 +224,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
                 apply_post_ops(true, jep_.oc_size > 1 ? j * sizeof(float) : 0);
 
-                store_scalar(ptr[reg_dst + j * jep.dst_prc.size()],
-                             xmm_dst,
-                             exec_prc,
-                             jep.dst_prc,
-                             jep.do_output_saturation);
+                store_scalar(ptr[reg_dst + j * jep.dst_prc.size()], xmm_dst, exec_prc, jep.dst_prc);
             }
 
             for (size_t i = 0; i < jep.inputs_number; i++) {
@@ -288,7 +300,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
         apply_post_ops(true);
 
-        store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc, jep.do_output_saturation);
+        store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc);
 
         for (size_t i = 0; i < jep.inputs_number; i++) {
             if (jep.src_size[i] != 1) {
@@ -314,8 +326,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
     }
 
     eltwise_emitter->emit_data();
-    for (size_t i = 0; i < post_op_emitters.size(); i++) {
-        post_op_emitters[i]->emit_data();
+    for (auto& post_op_emitter : post_op_emitters) {
+        post_op_emitter->emit_data();
     }
 }
 
@@ -527,7 +539,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
                                                ov::element::Type src_prc,
                                                ov::element::Type dst_prc,
                                                bool broadcast) {
-    Xmm xmm_src = Xmm(vmm_src.getIdx());
+    auto xmm_src = Xmm(vmm_src.getIdx());
 
     if (src_prc == dst_prc) {
         if (broadcast) {
@@ -670,8 +682,8 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
                                                 Vmm vmm_dst,
                                                 ov::element::Type src_prc,
                                                 ov::element::Type dst_prc) {
-    Xmm xmm_dst = Xmm(vmm_dst.getIdx());
-    Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+    auto xmm_dst = Xmm(vmm_dst.getIdx());
+    auto ymm_dst = Ymm(vmm_dst.getIdx());
 
     if (src_prc == dst_prc) {
         uni_vmovups(op, vmm_dst);
@@ -781,8 +793,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
                                                 Xmm xmm_dst,
                                                 ov::element::Type src_prc,
-                                                ov::element::Type dst_prc,
-                                                const bool do_output_saturation) {
+                                                ov::element::Type dst_prc) {
     if (src_prc == dst_prc) {
         switch (src_prc.size()) {
         case 4:
@@ -819,12 +830,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         uni_vmovss(op, xmm_dst);
         break;
     case ov::element::bf16:
-        if (do_output_saturation) {
-            uni_vpsrld(xmm_dst, xmm_dst, 16);
-        } else {
-            uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())},
-                                         {static_cast<size_t>(xmm_dst.getIdx())});
-        }
+        uni_vcvtneps2bf16->emit_code({static_cast<size_t>(xmm_dst.getIdx())}, {static_cast<size_t>(xmm_dst.getIdx())});
         uni_vpextrw(op, xmm_dst, 0x0);
         break;
     case ov::element::f16:
@@ -874,7 +880,8 @@ struct SupportedPrecisions {
 };
 }  // namespace
 
-std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(const Algorithm& algo) {
+std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_precisions(
+    [[maybe_unused]] const Algorithm& algo) {
     std::set<std::vector<element::Type>> precisions;
 
     OV_SWITCH(intel_cpu,

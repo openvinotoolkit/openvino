@@ -4,14 +4,9 @@
 
 #pragma once
 
-#include <assert.h>
-
-#include <memory>
+#include <cassert>
 #include <mutex>
-#include <string>
 #include <vector>
-
-#include "cpu_memory.h"
 
 namespace ov::intel_cpu {
 class SubMemoryManager {

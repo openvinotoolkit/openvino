@@ -55,22 +55,30 @@ options:
       as well as conversion on the fly. For integration with the final product it may offer
       lower performance, though.
 
-   .. tab-item:: Base OpenVINO (not recommended)
+   .. tab-item:: OpenVINO™ Model Server
 
-      Note that the base version of OpenVINO may also be used to run generative AI. Although it may
-      offer a simpler environment, with fewer dependencies, it has significant limitations and a more
-      demanding implementation process.
+      | - Easy and quick deployment of models to edge or cloud.
+      | - Includes endpoints for serving generative AI models.
+      | - Available in both Python and C++.
+      | - Allows client applications in any programming language that supports REST or gRPC.
 
-      To learn more, refer to the article for the 2024.6 OpenVINO version:
-      `Generative AI with Base OpenVINO <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__
+      :doc:`OpenVINO™ Model Server <model-server/ovms_what_is_openvino_model_server>`
+      provides a set of REST API endpoints dedicated to generative use cases. The endpoints
+      simplify writing AI applications, ensure scalability, and provide state-of-the-art
+      performance optimizations. They include OpenAI API for:
+      `text generation <https://openvino-doc.iotg.sclab.intel.com/seba-test-8/model-server/ovms_docs_rest_api_chat.html>`__,
+      `embeddings <https://openvino-doc.iotg.sclab.intel.com/seba-test-8/model-server/ovms_docs_rest_api_embeddings.html>`__,
+      and `reranking <https://openvino-doc.iotg.sclab.intel.com/seba-test-8/model-server/ovms_docs_rest_api_rerank.html>`__.
+      The model server supports deployments as containers or binary applications on Linux and Windows with CPU or GPU acceleration.
+      See the :doc:`demos <model-server/ovms_docs_demos>`.
 
 
 
 The advantages of using OpenVINO for generative model deployment:
 
 | **Fewer dependencies and smaller footprint**
-|    Less bloated than frameworks such as Hugging Face and PyTorch, with a smaller binary size and reduced
-     memory footprint, makes deployments easier and updates more manageable.
+|    More compact than frameworks such as Hugging Face and PyTorch, with a smaller binary size
+     and reduced memory footprint, makes deployments easier and updates more manageable.
 
 | **Compression and precision management**
 |    Techniques such as 8-bit and 4-bit weight compression, including embedding layers, and storage
@@ -87,17 +95,20 @@ The advantages of using OpenVINO for generative model deployment:
      inference performance and memory usage in long-running text generation tasks by managing past
      KV-cache tensors more efficiently internally. This feature is automatically activated for
      many supported models, while unsupported ones remain stateless. Learn more about the
-     :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
+     :doc:`Stateful models and State API <../openvino-workflow/running-inference/inference-request/stateful-models>`.
 
 | **Optimized LLM inference**
 |    Includes a Python API for rapid development and C++ for further optimization, offering
      better performance than Python-based runtimes.
 
 
+You can run Generative AI models, using native OpenVINO API, although it is not recommended.
+If you want to learn how to do it, refer to
+`the 24.6 documentation <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__.
+
+
 Proceed to guides on:
 
 * :doc:`OpenVINO GenAI <./openvino-workflow-generative/inference-with-genai>`
 * :doc:`Hugging Face and Optimum Intel <./openvino-workflow-generative/inference-with-optimum-intel>`
-* `Generative AI with Base OpenVINO <https://docs.openvino.ai/2025/learn-openvino/llm_inference_guide/llm-inference-native-ov>`__
-
-
+* `Generative AI with OpenVINO Inference Engine <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/llm-inference-native-ov.html>`__

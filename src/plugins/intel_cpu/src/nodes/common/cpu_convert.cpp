@@ -4,18 +4,42 @@
 
 #include "cpu_convert.h"
 
-#include "cpu_memcpy.h"
-#include "openvino/core/type/nf4.hpp"
-#include "utils/bfloat16.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <tuple>
+#include <type_traits>
 
-#if defined(OPENVINO_ARCH_X86_64)
+#include "cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "onednn/dnnl.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/float4_e2m1.hpp"
+#include "openvino/core/type/float8_e4m3.hpp"
+#include "openvino/core/type/float8_e5m2.hpp"
+#include "openvino/core/type/float8_e8m0.hpp"
+#include "openvino/core/type/nf4.hpp"
+#include "selective_build.h"
+#include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+#    include <memory>
+
 #    include "cpu/x64/jit_avx512_core_fp8cvt.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #    include "nodes/kernels/x64/jit_kernel.hpp"
-#else
-#    include "cpu_memory.h"
-#    include "openvino/core/type/element_type_traits.hpp"
-#    include "selective_build.h"
-#    include "utils/general_utils.h"
 #endif
 
 namespace ov::intel_cpu {
@@ -31,9 +55,10 @@ enum f8_type : uint8_t { none, f8e4m3, f8e5m2 };
 
 template <typename src_t, typename dst_t>
 f8_type get_f8_type() {
-    if (std::is_same<src_t, ov::float8_e4m3>::value || std::is_same<dst_t, ov::float8_e4m3>::value) {
+    if (std::is_same_v<src_t, ov::float8_e4m3> || std::is_same_v<dst_t, ov::float8_e4m3>) {
         return f8_type::f8e4m3;
-    } else if (std::is_same<src_t, ov::float8_e5m2>::value || std::is_same<dst_t, ov::float8_e5m2>::value) {
+    }
+    if (std::is_same_v<src_t, ov::float8_e5m2> || std::is_same_v<dst_t, ov::float8_e5m2>) {
         return f8_type::f8e5m2;
     }
     return f8_type::none;
@@ -43,9 +68,9 @@ template <typename src_t, typename dst_t>
 void convert_vec(jit_generator& gen, const RegExp& src, const RegExp& dst);
 
 template <>
-void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f16vec = gen.xmm3;
-    auto const& f32vec = gen.ymm4;
+[[maybe_unused]] void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+    const auto& f16vec = gen.xmm3;
+    const auto& f32vec = gen.ymm4;
 
     gen.movdqu(f16vec, gen.xword[src]);
     gen.vcvtph2ps(f32vec, f16vec);
@@ -53,9 +78,9 @@ void convert_vec<ov::float16, float>(jit_generator& gen, const RegExp& src, cons
 }
 
 template <>
-void convert_vec<float, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f16vec = gen.xmm3;
-    auto const& f32vec = gen.ymm4;
+[[maybe_unused]] void convert_vec<float, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+    const auto& f16vec = gen.xmm3;
+    const auto& f32vec = gen.ymm4;
 
     gen.vmovups(f32vec, gen.yword[src]);
     gen.vcvtps2ph(f16vec, f32vec, 0);
@@ -68,7 +93,7 @@ class jit_convert_array : public jit_kernel {
 
     void generate() override {
         bool is_fp8 = f8_e4m3_emu_ || f8_e5m2_emu_;
-        size_t vlen = is_fp8 ? 16u : 8u;
+        size_t vlen = is_fp8 ? 16U : 8U;
         size_t vlen_log2 = is_fp8 ? 4 : 3;
 
         preamble();
@@ -80,7 +105,7 @@ class jit_convert_array : public jit_kernel {
 
         size >>= vlen_log2;
 
-        foreach (0, size, [&, this](const Xbyak::Reg64& idx) {
+        foreach (0, size, [&, this]([[maybe_unused]] const Xbyak::Reg64& idx) {
             _convert_vec(*this, src, dst);
             src += _src_size * vlen;
             dst += _dst_size * vlen;
@@ -122,15 +147,15 @@ class jit_convert_array : public jit_kernel {
     }
 
 public:
-    typedef struct {
+    using args_t = struct {
         const void* src;
         void* out;
         const size_t count;
-    } args_t;
+    };
 
-    typedef void (*fn_t)(const args_t*);
+    using fn_t = void (*)(const args_t*);
 
-    typedef void (*convert_vec_t)(jit_generator&, const RegExp&, const RegExp&);
+    using convert_vec_t = void (*)(jit_generator&, const RegExp&, const RegExp&);
 
     jit_convert_array(convert_vec_t convert_vec)
         : jit_kernel(jit_name()),
@@ -201,9 +226,9 @@ private:
 };
 
 template <>
-void convert_vec<float, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f32vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<float, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f32vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<float, ov::float8_e4m3>&>(gen);
 
@@ -213,9 +238,9 @@ void convert_vec<float, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float8_e4m3, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f32vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f32vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float8_e4m3, float>&>(gen);
 
@@ -225,9 +250,11 @@ void convert_vec<ov::float8_e4m3, float>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.ymm4;
+[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.ymm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float16, ov::float8_e4m3>&>(gen);
 
@@ -237,9 +264,11 @@ void convert_vec<ov::float16, ov::float8_e4m3>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.ymm4;
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.ymm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float8_e4m3, ov::float16>&>(gen);
 
@@ -249,9 +278,11 @@ void convert_vec<ov::float8_e4m3, ov::float16>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>&>(gen);
 
@@ -262,10 +293,12 @@ void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e4m3>(jit_generator& gen,
 }
 
 template <>
-void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.ymm4;
-    auto const& f32vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.ymm4;
+    const auto& f32vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>&>(gen);
 
@@ -277,9 +310,9 @@ void convert_vec<ov::float8_e4m3, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
 }
 
 template <>
-void convert_vec<float, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f32vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<float, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f32vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<float, ov::float8_e5m2>&>(gen);
 
@@ -289,9 +322,9 @@ void convert_vec<float, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float8_e5m2, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f32vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, float>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f32vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float8_e5m2, float>&>(gen);
 
@@ -301,9 +334,11 @@ void convert_vec<ov::float8_e5m2, float>(jit_generator& gen, const RegExp& src, 
 }
 
 template <>
-void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.ymm4;
+[[maybe_unused]] void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.ymm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float16, ov::float8_e5m2>&>(gen);
 
@@ -313,9 +348,11 @@ void convert_vec<ov::float16, ov::float8_e5m2>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.ymm4;
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator& gen,
+                                                                const RegExp& src,
+                                                                const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.ymm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float8_e5m2, ov::float16>&>(gen);
 
@@ -325,9 +362,11 @@ void convert_vec<ov::float8_e5m2, ov::float16>(jit_generator& gen, const RegExp&
 }
 
 template <>
-void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>&>(gen);
 
@@ -338,10 +377,12 @@ void convert_vec<ov::intel_cpu::bfloat16_t, ov::float8_e5m2>(jit_generator& gen,
 }
 
 template <>
-void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator& gen, const RegExp& src, const RegExp& dst) {
-    auto const& f8vec = gen.xmm3;
-    auto const& f16vec = gen.ymm4;
-    auto const& f32vec = gen.zmm4;
+[[maybe_unused]] void convert_vec<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>(jit_generator& gen,
+                                                                              const RegExp& src,
+                                                                              const RegExp& dst) {
+    const auto& f8vec = gen.xmm3;
+    const auto& f16vec = gen.ymm4;
+    const auto& f32vec = gen.zmm4;
 
     auto& cvt = dynamic_cast<jit_convert_array<ov::float8_e5m2, ov::intel_cpu::bfloat16_t>&>(gen);
 
@@ -389,11 +430,10 @@ struct PrecisionInfo<ov::element::boolean> {
     using value_type = uint8_t;
 };
 
-template <typename T,
-          typename U = typename std::conditional<std::is_same<ov::float16, T>::value ||
-                                                     std::is_same<ov::intel_cpu::bfloat16_t, T>::value,
-                                                 float,
-                                                 T>::type>
+template <
+    typename T,
+    typename U =
+        std::conditional_t<std::is_same_v<ov::float16, T> || std::is_same_v<ov::intel_cpu::bfloat16_t, T>, float, T>>
 struct Range {
     const std::tuple<U, U>& fit(const ov::element::Type& prec);
 
@@ -404,35 +444,29 @@ private:
 template <typename T, typename U>
 const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
     if (prec.is_real()) {
-        double lbound, ubound;
-        switch (prec) {
-        case ov::element::f8e4m3:
-            lbound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max());
-            break;
-        case ov::element::f8e5m2:
-            lbound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max());
-            break;
-        case ov::element::bf16:
-            lbound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max());
-            break;
-        case ov::element::f16:
-            lbound = static_cast<double>(std::numeric_limits<ov::float16>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<ov::float16>::max());
-            break;
-        case ov::element::f32:
-            lbound = static_cast<double>(std::numeric_limits<float>::lowest());
-            ubound = static_cast<double>(std::numeric_limits<float>::max());
-            break;
-        case ov::element::f64:
-            lbound = std::numeric_limits<double>::lowest();
-            ubound = std::numeric_limits<double>::max();
-            break;
-        default:
-            OPENVINO_THROW("Unsupported precision");
-        }
+        auto [lbound, ubound] = [&]() {
+            switch (prec) {
+            case ov::element::f8e4m3:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max()));
+            case ov::element::f8e5m2:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max()));
+            case ov::element::bf16:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::intel_cpu::bfloat16_t>::max()));
+            case ov::element::f16:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<ov::float16>::lowest()),
+                                       static_cast<double>(std::numeric_limits<ov::float16>::max()));
+            case ov::element::f32:
+                return std::make_tuple(static_cast<double>(std::numeric_limits<float>::lowest()),
+                                       static_cast<double>(std::numeric_limits<float>::max()));
+            case ov::element::f64:
+                return std::make_tuple(std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max());
+            default:
+                OPENVINO_THROW("Unsupported precision");
+            }
+        }();
         // If U is integral, its range always less than float, so not need update _range
         // Else it will be overflow, for example static_cast double to int64_t:
         //         int64_t ubound = 9223372036854775807
@@ -443,50 +477,41 @@ const std::tuple<U, U>& Range<T, U>::fit(const ov::element::Type& prec) {
             std::get<1>(_range) = static_cast<U>(std::min(static_cast<double>(std::get<1>(_range)), ubound));
         }
     } else {
-        int64_t lbound;
-        uint64_t ubound;
-        switch (prec) {
-        case ov::element::boolean:
-            lbound = static_cast<int64_t>(std::numeric_limits<bool>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<bool>::max());
-            break;
-        case ov::element::u8:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint8_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint8_t>::max());
-            break;
-        case ov::element::i8:
-            lbound = static_cast<int64_t>(std::numeric_limits<int8_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int8_t>::max());
-            break;
-        case ov::element::u16:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint16_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint16_t>::max());
-            break;
-        case ov::element::i16:
-            lbound = static_cast<int64_t>(std::numeric_limits<int16_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int16_t>::max());
-            break;
-        case ov::element::u32:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint32_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
-            break;
-        case ov::element::i32:
-            lbound = static_cast<int64_t>(std::numeric_limits<int32_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int32_t>::max());
-            break;
-        case ov::element::u64:
-            lbound = static_cast<int64_t>(std::numeric_limits<uint64_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<uint64_t>::max());
-            break;
-        case ov::element::i64:
-            lbound = static_cast<int64_t>(std::numeric_limits<int64_t>::lowest());
-            ubound = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
-            break;
-        default:
-            OPENVINO_THROW("Unsupported precision");
-        }
-        using ltype = typename std::conditional<std::is_floating_point<U>::value, double, int64_t>::type;
-        using utype = typename std::conditional<std::is_floating_point<U>::value, double, uint64_t>::type;
+        auto [lbound, ubound] = [&]() {
+            switch (prec) {
+            case ov::element::boolean:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<bool>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<bool>::max()));
+            case ov::element::u8:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint8_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint8_t>::max()));
+            case ov::element::i8:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int8_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int8_t>::max()));
+            case ov::element::u16:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint16_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint16_t>::max()));
+            case ov::element::i16:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int16_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int16_t>::max()));
+            case ov::element::u32:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint32_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()));
+            case ov::element::i32:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int32_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int32_t>::max()));
+            case ov::element::u64:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<uint64_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<uint64_t>::max()));
+            case ov::element::i64:
+                return std::make_tuple(static_cast<int64_t>(std::numeric_limits<int64_t>::lowest()),
+                                       static_cast<uint64_t>(std::numeric_limits<int64_t>::max()));
+            default:
+                OPENVINO_THROW("Unsupported precision");
+            }
+        }();
+        using ltype = std::conditional_t<std::is_floating_point<U>::value, double, int64_t>;
+        using utype = std::conditional_t<std::is_floating_point<U>::value, double, uint64_t>;
         std::get<0>(_range) =
             static_cast<U>(std::max(static_cast<ltype>(std::get<0>(_range)), static_cast<ltype>(lbound)));
         std::get<1>(_range) =
@@ -504,7 +529,7 @@ struct ConvertContext {
     bool converted;
 
     template <typename T>
-    std::tuple<T, T> range() const {
+    [[nodiscard]] std::tuple<T, T> range() const {
         Range<T> r;
         r.fit(interimPrc);
         return r.fit(dstPrc);
@@ -519,8 +544,7 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertContext& ctx) {
         auto src = static_cast<const src_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
-        src_t lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<src_t>();
+        auto [lbound, ubound] = ctx.range<src_t>();
 
         // Align with the behavior of ngraph ref and jit implementation. Conversion from f8e4m3-inf
         // to float should output float-inf instead of f8e4m3-max. Proper handling of special values
@@ -535,11 +559,11 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
         }
 
         if (std::is_integral<src_t>::value || ctx.interimPrc.is_real() || std::is_integral<dst_t>::value) {
-            parallel_for(ctx.size, [&](size_t i) {
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<dst_t>(std::max(std::min(src[i], ubound), lbound));
             });
         } else {
-            parallel_for(ctx.size, [&](size_t i) {
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<dst_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
             });
         }
@@ -551,17 +575,16 @@ struct ConvertPrecision<std::tuple<src_t, dst_t>> {
 template <>
 struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const float*>(ctx.srcPtr);
-        auto dst = static_cast<ov::intel_cpu::bfloat16_t*>(ctx.dstPtr);
+        const auto* src = static_cast<const float*>(ctx.srcPtr);
+        auto* dst = static_cast<ov::intel_cpu::bfloat16_t*>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_real()) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(src[i]);
             });
         } else {
-            float lbound, ubound;
-            std::tie(lbound, ubound) = ctx.range<float>();
-            parallel_for(ctx.size, [&](size_t i) {
+            auto [lbound, ubound] = ctx.range<float>();
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = static_cast<ov::intel_cpu::bfloat16_t>(std::trunc(std::max(std::min(src[i], ubound), lbound)));
             });
         }
@@ -573,17 +596,16 @@ struct ConvertPrecision<std::tuple<float, ov::intel_cpu::bfloat16_t>> {
 template <>
 struct ConvertPrecision<std::tuple<ov::intel_cpu::bfloat16_t, float>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const ov::intel_cpu::bfloat16_t*>(ctx.srcPtr);
-        auto dst = static_cast<float*>(ctx.dstPtr);
+        const auto* src = static_cast<const ov::intel_cpu::bfloat16_t*>(ctx.srcPtr);
+        auto* dst = static_cast<float*>(ctx.dstPtr);
 
         if (ctx.interimPrc.is_real()) {
             parallel_for(ctx.size, [&](size_t i) {
                 dst[i] = static_cast<float>(src[i]);
             });
         } else {
-            float lbound, ubound;
-            std::tie(lbound, ubound) = ctx.range<ov::intel_cpu::bfloat16_t>();
-            parallel_for(ctx.size, [&](size_t i) {
+            auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.range<ov::intel_cpu::bfloat16_t>());
+            parallel_for(ctx.size, [&, lbound = lbound, ubound = ubound](size_t i) {
                 dst[i] = std::trunc(std::max(std::min(static_cast<float>(src[i]), ubound), lbound));
             });
         }
@@ -597,17 +619,16 @@ template <typename src_t>
 struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
     void operator()(ConvertContext& ctx) {
         auto src = static_cast<const src_t*>(ctx.srcPtr);
-        auto dst = static_cast<ov::float16*>(ctx.dstPtr);
+        auto* dst = static_cast<ov::float16*>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        src_t lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<src_t>();
+        auto [lbound, ubound] = ctx.range<src_t>();
 
         if (std::is_integral<src_t>::value) {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -620,7 +641,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                if (std::is_same<typename std::remove_cv<src_t>::type, float>::value) {  // fp32 -> fp16
+                if (std::is_same<std::remove_cv_t<src_t>, float>::value) {  // fp32 -> fp16
                     jit_convert(reinterpret_cast<const float*>(src) + offset, dst + offset, current_batch_size);
                 } else {
                     batch_type tmp;
@@ -631,7 +652,7 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
                 }
             });
         } else {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -649,18 +670,17 @@ struct ConvertPrecision<std::tuple<src_t, ov::float16>> {
 template <typename dst_t>
 struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const ov::float16*>(ctx.srcPtr);
+        const auto* src = static_cast<const ov::float16*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<ov::float16>();
+        auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.range<ov::float16>());
 
         if (std::is_integral<dst_t>::value) {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -673,7 +693,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
             parallel_for(iterations, [&](size_t i) {
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
-                if (std::is_same<typename std::remove_cv<dst_t>::type, float>::value) {  // fp16 -> fp32
+                if (std::is_same<std::remove_cv_t<dst_t>, float>::value) {  // fp16 -> fp32
                     jit_convert(src + offset, reinterpret_cast<float*>(dst) + offset, current_batch_size);
                 } else {
                     batch_type tmp;
@@ -684,7 +704,7 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
                 }
             });
         } else {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -702,20 +722,19 @@ struct ConvertPrecision<std::tuple<ov::float16, dst_t>> {
 template <>
 struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
     void operator()(ConvertContext& ctx) {
-        auto src = static_cast<const ov::float16*>(ctx.srcPtr);
-        auto dst = static_cast<ov::float16*>(ctx.dstPtr);
+        const auto* src = static_cast<const ov::float16*>(ctx.srcPtr);
+        auto* dst = static_cast<ov::float16*>(ctx.dstPtr);
 
         constexpr size_t batch = 64;
         const size_t iterations = ov::intel_cpu::div_up(ctx.size, batch);
         typedef float batch_type[batch];
 
-        float lbound, ubound;
-        std::tie(lbound, ubound) = ctx.range<ov::float16>();
+        auto [lbound, ubound] = static_cast<std::tuple<float, float>>(ctx.range<ov::float16>());
 
         if (ctx.interimPrc.is_real()) {
             cpu_memcpy(dst, src, ctx.size * sizeof(ov::float16));
         } else {
-            parallel_for(iterations, [&](size_t i) {
+            parallel_for(iterations, [&, lbound = lbound, ubound = ubound](size_t i) {
                 batch_type tmp;
                 const size_t offset = i * batch;
                 const size_t current_batch_size = std::min(ctx.size - offset, batch);
@@ -811,7 +830,7 @@ struct ConvertFromBinPrecision;
 template <typename src_t, typename dst_t>
 struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFromBinContext& ctx) {
-        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         const size_t nBits = 8;
         const size_t nBytes = rnd_up(ctx.size, nBits);
@@ -841,23 +860,21 @@ struct ConvertFrom4BitContext {
     bool converted;
 };
 
-static int8_t get_i4(const uint8_t& val, bool high) {
+[[maybe_unused]] static int8_t get_i4(const uint8_t& val, bool high) {
     if (high) {
         if (val & 0x80) {
             return static_cast<int8_t>((val >> 4) | 0xf8);
-        } else {
-            return static_cast<int8_t>(val >> 4);
         }
+        return static_cast<int8_t>(val >> 4);
     }
     if (val & 0x8) {
         // Just fill in the high 4 bits with 1
         return static_cast<int8_t>(val | 0xf8);
-    } else {
-        return static_cast<int8_t>(val & 0xF);
     }
+    return static_cast<int8_t>(val & 0xF);
 }
 
-static int8_t get_u4(const uint8_t& val, bool high) {
+[[maybe_unused]] static int8_t get_u4(const uint8_t& val, bool high) {
     return high ? (val >> 4) : (val & 0xF);
 }
 
@@ -867,23 +884,23 @@ struct ConvertFrom4BitPrecision;
 template <typename src_t, typename dst_t>
 struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFrom4BitContext& ctx) {
-        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         if (ctx.inType == ov::element::nf4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(ConvertNF4::dequantize(get_u4(src[i / 2], i % 2)));
+                dst[i] = static_cast<dst_t>(ConvertNF4::dequantize(get_u4(src[i / 2], (i % 2) != 0U)));
             });
         } else if (ctx.inType == ov::element::u4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(get_u4(src[i / 2], i % 2));
+                dst[i] = static_cast<dst_t>(get_u4(src[i / 2], (i % 2) != 0U));
             });
         } else if (ctx.inType == ov::element::i4) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(get_i4(src[i / 2], i % 2));
+                dst[i] = static_cast<dst_t>(get_i4(src[i / 2], (i % 2) != 0U));
             });
         } else if (ctx.inType == ov::element::f4e2m1) {
             parallel_for(ctx.size, [&](size_t i) {
-                dst[i] = static_cast<dst_t>(float4_e2m1::from_bits(get_u4(src[i / 2], i % 2)));
+                dst[i] = static_cast<dst_t>(float4_e2m1::from_bits(get_u4(src[i / 2], (i % 2) != 0U)));
             });
         } else {
             OPENVINO_THROW("cpu_convert doesn't support input data type: ", ctx.inType, ". Not implemented.");
@@ -892,8 +909,7 @@ struct ConvertFrom4BitPrecision<std::tuple<src_t, dst_t>> {
     }
 };
 
-#define INTEL_CPU_CVT_TO_4BIT_LIST                                              \
-    INTEL_CPU_CVT(f32, nf4), INTEL_CPU_CVT(f16, nf4), INTEL_CPU_CVT(bf16, nf4)
+#define INTEL_CPU_CVT_TO_4BIT_LIST INTEL_CPU_CVT(f32, nf4), INTEL_CPU_CVT(f16, nf4), INTEL_CPU_CVT(bf16, nf4)
 
 struct ConvertTo4BitContext {
     ov::element::Type_t outType;
@@ -911,23 +927,24 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertTo4BitContext& ctx) {
         auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
             uint8_t shift = high_half ? 4 : 0;
-            return dst | (uint8_t) (val << shift);
+            return dst | (uint8_t)(val << shift);
         };
 
         auto src = static_cast<const src_t*>(ctx.srcPtr);
-        auto dst = static_cast<uint8_t*>(ctx.dstPtr);
+        auto* dst = static_cast<uint8_t*>(ctx.dstPtr);
         // each byte must be fully processed within same thread
         auto work_amount = ctx.size / 2;
         auto has_tail = ctx.size % work_amount != 0;
         if (ctx.outType == ov::element::nf4) {
             parallel_for(work_amount, [&](size_t ib) {
-               size_t idx = ib*2;
-               const auto val = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[idx])), false);
-               dst[ib] = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx+1])), true);
+                size_t idx = ib * 2;
+                const auto val = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[idx])), false);
+                dst[ib] = insert_half_byte(val, ConvertNF4::quantize(static_cast<float>(src[idx + 1])), true);
             });
 
             if (has_tail) {
-                dst[work_amount] = insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[2*work_amount])), false);
+                dst[work_amount] =
+                    insert_half_byte(0, ConvertNF4::quantize(static_cast<float>(src[2 * work_amount])), false);
             }
         } else {
             OPENVINO_THROW("cpu_convert doesn't support output data type: ", ctx.outType, ". Not implemented.");
@@ -953,7 +970,7 @@ struct ConvertFromByteFPPrecision;
 template <typename src_t, typename dst_t>
 struct ConvertFromByteFPPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFromByteFPContext& ctx) {
-        auto src = static_cast<const uint8_t*>(ctx.srcPtr);
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         if (ctx.inType == ov::element::f8e8m0) {
             parallel_for(ctx.size, [&](size_t i) {
@@ -1020,14 +1037,15 @@ void cpu_convert(const void* srcPtr,
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
         const size_t totalSize = size * dstPrc.size();
         if (srcPrc == element::string) {
-            auto str_src = reinterpret_cast<const StringMemory::OvString*>(srcPtr);
-            auto str_dst = reinterpret_cast<StringMemory::OvString*>(dstPtr);
+            const auto* str_src = reinterpret_cast<const StringMemory::OvString*>(srcPtr);
+            auto* str_dst = reinterpret_cast<StringMemory::OvString*>(dstPtr);
             std::copy(str_src, str_src + size, str_dst);
         } else if (totalSize >= L2_cache_size) {
-            auto src = static_cast<const uint8_t*>(srcPtr);
-            auto dst = static_cast<uint8_t*>(dstPtr);
+            const auto* src = static_cast<const uint8_t*>(srcPtr);
+            auto* dst = static_cast<uint8_t*>(dstPtr);
             parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-                size_t start = 0, end = 0;
+                size_t start = 0;
+                size_t end = 0;
                 splitter(totalSize, nthr, ithr, start, end);
                 cpu_memcpy(dst + start, src + start, end - start);
             });
@@ -1054,13 +1072,13 @@ void cpu_convert(const void* srcPtr,
                            "> precision to: ",
                            dstPrc);
         }
-    } else if (srcPrc.bitwidth() == 4u) {
+    } else if (srcPrc.bitwidth() == 4U) {
         ConvertFrom4BitContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
         if (!ctx.converted) {
             OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
         }
-    } else if (dstPrc.bitwidth() == 4u) {
+    } else if (dstPrc.bitwidth() == 4U) {
         ConvertTo4BitContext ctx{dstPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertTo4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
         if (!ctx.converted) {
@@ -1106,7 +1124,7 @@ struct isSupported {
     }
 };
 
-bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc) {
+bool is_supported_convert([[maybe_unused]] ov::element::Type srcPrc, [[maybe_unused]] ov::element::Type dstPrc) {
     isSupportedContext ctx;
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);

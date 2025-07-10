@@ -6,11 +6,33 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
+#include <cpu/platform.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utils/bfloat16.hpp>
+#include <vector>
 
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "selective_build.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -44,7 +66,7 @@ void NonZero::getSupportedDescriptors() {
     if (getParentEdges().size() != 1) {
         THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
     }
-    if (!getChildEdges().size()) {
+    if (getChildEdges().empty()) {
         THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
     }
 }
@@ -85,7 +107,7 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     }
     default: {
         threadsCount = parallel_get_max_threads();
-        if (inSize < static_cast<size_t>(blockSize * threadsCount)) {
+        if (inSize < static_cast<size_t>(blockSize) * threadsCount) {
             threadsCount = 1;
         }
 
@@ -121,7 +143,7 @@ void NonZero::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void NonZero::execute(const dnnl::stream& strm) {
+void NonZero::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     NonZeroContext ctx = {*this};
     OV_SWITCH(intel_cpu,
@@ -156,7 +178,7 @@ void NonZero::executeSpecified() {
         VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
-    int* dst = dstMemPtr->getDataAs<int>();
+    auto* dst = dstMemPtr->getDataAs<int>();
     if (totalNonZeroCount == 0) {
         return;
     }
@@ -173,7 +195,7 @@ void NonZero::executeSpecified() {
     case 1: {
         // if nonZeroCounts.size() > 1, then the 2nd round scan could run in parallel.
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
-            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, 0);
+            size_t outputIndex = std::accumulate(nonZeroCounts.begin(), nonZeroCounts.begin() + ithr, size_t{0});
             for_1d(ithr, nthr, inShape.getElementsCount(), [&](size_t i) {
                 if (src[i] != zero) {
                     dst[outputIndex] = i;

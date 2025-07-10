@@ -120,6 +120,7 @@ public:
 #define CASE_GEMM_2IN_FP16_4 { { 1, 2, 128, 64 }, { 1, 2, 64, 256 } }, { 1, 2, 128, 256 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_5 { { 2, 3, 2, 2 }, { 2, 3, 2, 2 } }, { 2, 3, 2, 2 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_3D_1 { { 16, 8, 64 }, { 16, 64, 8 }, { 16, 1, 8 } }, { 16, 8, 8 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GEMM_2IN_FP16_3D_2 { { 1, 8, 64 }, { 1, 64, 8 }, { 1, 1, 1 } }, { 1, 8, 8 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_5D_1 { { 2, 3, 5, 6, 4 }, { 2, 3, 5, 4, 6} }, { 2, 3, 5, 6, 6 }, data_types::f16, data_types::f16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GEMM_2IN_FP16_6D_1 { { 2, 3, 2, 3, 5, 7 }, { 2, 3, 2, 3, 7, 5 } }, { 2, 3, 2, 3, 5, 5 }, data_types::f16, data_types::f16, data_types::f16, format::bfwzyx, data_types::f16, format::bfwzyx
 
@@ -336,7 +337,6 @@ TEST_P(gemm_2in_add, eltwise_postop_dynamic) {
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 
     auto add_data_layout = get_output_layout(p);
@@ -434,7 +434,6 @@ TEST_P(gemm_2in_add, eltwise_postop_scalar_dynamic) {
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
 
     auto add_data_layout = get_output_layout(p);
@@ -463,7 +462,7 @@ TEST_P(gemm_2in_add, eltwise_postop_scalar_dynamic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    // gemm_test_params{ CASE_GEMM_2IN_FP16_3, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },    // TODO: check why failed in eltwise_postop_dynamic
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_4, 3, 4, "", broadcast_kinds::none, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::batch, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", broadcast_kinds::batch, eltwise_mode::prod },
@@ -482,6 +481,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vec
 class gemm_2in_dynamic_add : public gemm_2in_add {};
 TEST_P(gemm_2in_dynamic_add, add) {
     auto p = GetParam();
+
+    if (engine.get_device_info().supports_immad) {
+        p.expected_fused_primitives++;
+        if (!p.kernel_name.empty()) {
+            p.expected_not_fused_primitives++;
+        }
+    }
 
     cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -519,8 +525,13 @@ TEST_P(gemm_2in_dynamic_add, add) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_dynamic_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 4, "gemm_tiled_opt", broadcast_kinds::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 5, "", broadcast_kinds::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 5, "", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_2, 4, 5, "", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_2, 4, 5, "", broadcast_kinds::batch, eltwise_mode::sum },
+    // Reference graph can be fused because force_implementation leads to optimize_data = true;
     gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 4, "gemm_tiled_opt", broadcast_kinds::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_3D_1, 4, 4, "gemm_tiled_opt", broadcast_kinds::batch, eltwise_mode::sum }
 }));
 
 class gemm_2in_act_scale_quantize_i8 : public GemmFusingTest {};

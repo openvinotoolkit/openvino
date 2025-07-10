@@ -37,7 +37,7 @@ bool GLU::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void GLU::validate_and_infer_types() {
-    auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
+    auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);

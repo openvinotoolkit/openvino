@@ -18,7 +18,7 @@
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"
-#include "impls/registry/implementation_map.hpp"
+#include "registry/implementation_map.hpp"
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
@@ -54,7 +54,6 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         this->can_reuse_memory = other.can_reuse_memory;
         this->can_share_kernels = other.can_share_kernels;
         this->_kernel_name = other._kernel_name;
-        this->can_reuse_memory = other.can_reuse_memory;
         this->_is_dynamic = other._is_dynamic;
         this->m_manager = other.m_manager;
     }
@@ -76,7 +75,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         ob << _kernels_data.size();
         for (auto& kd : _kernels_data) {
             ob << make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ob << kd.internalBufferSizes;
+            ob << kd.internalBuffers;
             ob << kd.kernels;
             ob << kd.kernelName;
         }
@@ -90,7 +89,7 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         for (size_t i = 0; i < kernels_size; i++) {
             kernel_selector::kernel_data kd;
             ib >> make_data(&kd.internalBufferDataType, sizeof(kernel_selector::Datatype));
-            ib >> kd.internalBufferSizes;
+            ib >> kd.internalBuffers;
             ib >> kd.kernels;
             ib >> kd.kernelName;
             _kernels_data[i] = kd;
@@ -157,21 +156,19 @@ protected:
         return _kernels;
     }
 
-    std::vector<layout> get_internal_buffer_layouts_impl() const override {
-        std::vector<layout> layouts;
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+        std::vector<BufferDescriptor> internal_buffers;
         for (auto& kd : _kernels_data) {
-            if (kd.internalBufferSizes.empty())
+            if (kd.internalBuffers.empty())
                 continue;
 
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
-            for (auto size : kd.internalBufferSizes) {
-                layout inbuf_layout = {dtype, format::bfyx, // simple linear format (flattern to x channel)
-                                        {1, 1, 1, (tensor::value_type)(size / bpp)}};
-                layouts.push_back(inbuf_layout);
+            for (const auto& buffer : kd.internalBuffers) {
+                internal_buffers.emplace_back(buffer.byte_count / bpp, dtype, buffer.lockable);
             }
         }
-        return layouts;
+        return internal_buffers;
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
@@ -230,10 +227,6 @@ protected:
             auto sub_kernel_idx = k.second;
             _kernels[sub_kernel_idx] = k.first;
         }
-    }
-
-    std::vector<kernel::ptr> get_kernels() override {
-        return _kernels;
     }
 
     std::pair<std::string, std::string> get_kernels_dump_info() const override {

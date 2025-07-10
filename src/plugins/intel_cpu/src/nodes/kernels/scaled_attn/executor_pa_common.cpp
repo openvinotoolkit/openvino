@@ -1,35 +1,40 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "executor_pa_common.hpp"
+#if !defined(XBYAK_RISCV_V) && !defined(OPENVINO_ARCH_AARCH64)
+#    include "executor_pa_common.hpp"
+#endif
 
-#include <float.h>
-
+#include <cfloat>
 #include <cmath>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
 
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-#include "openvino/core/type/float16.hpp"
-#include "utils/plain_tensor.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <cpu/x64/jit_generator.hpp>
+#    include <cstdint>
+#    include <stdexcept>
+#    include <utility>
+#    include <vector>
+
+#    include "openvino/core/type/element_type.hpp"
+#endif
 
 namespace ov::Extensions::Cpu {
 
 using namespace ov;
+
+#ifdef OPENVINO_ARCH_X86_64
 using namespace ov::intel_cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-#ifdef OPENVINO_ARCH_X86_64
-
 void TileConfig::reset(int palette, int _startRow, const std::vector<std::pair<int, int>>& _rows_columnsBytes) {
     palette_id = palette;
     startRow = _startRow;
-    uint64_t i;
-    for (i = 0; i < 14; i++) {
+    uint64_t i = 0;
+    for (; i < 14; i++) {
         reserved[i] = 0;
     }
     for (i = 0; i < _rows_columnsBytes.size(); i++) {

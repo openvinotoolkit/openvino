@@ -56,8 +56,8 @@ public:
     inline ze_device_graph_properties_t getCompilerProperties() const {
         return compiler_properties;
     }
-    inline uint32_t getMutableCommandListVersion() const {
-        return mutable_command_list_version;
+    inline uint32_t getMutableCommandListExtVersion() const {
+        return mutable_command_list_ext_version;
     }
     inline ze_api_version_t getZeDrvApiVersion() const {
         return ze_drv_api_version;
@@ -72,6 +72,8 @@ public:
         }
         return false;
     }
+
+    static const std::shared_ptr<ZeroInitStructsHolder>& getInstance();
 
 private:
     void initNpuDriver();
@@ -92,7 +94,7 @@ private:
     std::unique_ptr<ze_graph_profiling_ddi_table_ext_decorator> graph_profiling_npu_dditable_ext_decorator;
 
     ze_driver_properties_t driver_properties = {};
-    uint32_t mutable_command_list_version = 0;
+    uint32_t mutable_command_list_ext_version = 0;
 
     ze_api_version_t ze_drv_api_version = {};
 

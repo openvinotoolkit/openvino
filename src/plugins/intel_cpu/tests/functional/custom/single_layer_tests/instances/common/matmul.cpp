@@ -286,8 +286,8 @@ const std::vector<ShapeRelatedParams> IS_Dynamic_nightly = {
 
 const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),
                                              ::testing::ValuesIn(netPRCs()),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
+                                             ::testing::Values(ElementType::dynamic),
+                                             ::testing::Values(ElementType::dynamic),
                                              ::testing::Values(utils::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                                              ::testing::ValuesIn(additionalConfig()));
@@ -300,12 +300,12 @@ const auto testParams = ::testing::Combine(matMulParams,
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Static, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulParamsDynamic = ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
-                                             ::testing::ValuesIn(netPRCs()),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(utils::InputLayerType::PARAMETER),
-                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::ValuesIn(additionalConfig()));
+                                                    ::testing::ValuesIn(netPRCs()),
+                                                    ::testing::Values(ElementType::dynamic),
+                                                    ::testing::Values(ElementType::dynamic),
+                                                    ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                    ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                    ::testing::ValuesIn(additionalConfig()));
 
 const auto testParamsDynamic = ::testing::Combine(matMulParamsDynamic,
                                            ::testing::Values(MatMulNodeType::MatMul),
@@ -315,12 +315,12 @@ const auto testParamsDynamic = ::testing::Combine(matMulParamsDynamic,
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic, MatMulLayerCPUTest, testParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulParamsDynamic_nightly = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_nightly),
-                                             ::testing::ValuesIn(netPRCs()),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(utils::InputLayerType::PARAMETER),
-                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::ValuesIn(additionalConfig()));
+                                                            ::testing::ValuesIn(netPRCs()),
+                                                            ::testing::Values(ElementType::dynamic),
+                                                            ::testing::Values(ElementType::dynamic),
+                                                            ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                            ::testing::ValuesIn(additionalConfig()));
 
 const auto testParamsDynamic_nightly = ::testing::Combine(matMulParamsDynamic_nightly,
                                            ::testing::Values(MatMulNodeType::MatMul),

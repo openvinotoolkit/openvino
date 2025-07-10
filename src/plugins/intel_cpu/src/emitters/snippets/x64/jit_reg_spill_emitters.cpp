@@ -4,7 +4,20 @@
 
 #include "jit_reg_spill_emitters.hpp"
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/reg_spill.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -35,13 +48,14 @@ void jit_reg_spill_begin_emitter::validate_arguments(const std::vector<size_t>& 
 
 void jit_reg_spill_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
                                                  const std::vector<size_t>& out,
-                                                 const std::vector<size_t>& pool_vec_idxs,
-                                                 const std::vector<size_t>& pool_gpr_idxs) const {
+                                                 [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                                 [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_reg_spill_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_reg_spill_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                            [[maybe_unused]] const std::vector<size_t>& out) const {
     m_abi_reg_spiller->preamble(m_regs_to_spill);
 }
 
@@ -71,14 +85,15 @@ void jit_reg_spill_end_emitter::validate_arguments(const std::vector<size_t>& in
 }
 
 void jit_reg_spill_end_emitter::emit_code_impl(const std::vector<size_t>& in,
-                                          const std::vector<size_t>& out,
-                                          const std::vector<size_t>& pool_vec_idxs,
-                                          const std::vector<size_t>& pool_gpr_idxs) const {
+                                               const std::vector<size_t>& out,
+                                               [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
+                                               [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
     emit_impl(in, out);
 }
 
-void jit_reg_spill_end_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_reg_spill_end_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
+                                          [[maybe_unused]] const std::vector<size_t>& out) const {
     m_abi_reg_spiller->postamble();
 }
 

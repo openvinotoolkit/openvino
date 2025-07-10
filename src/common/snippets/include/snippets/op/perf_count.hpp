@@ -2,19 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#pragma once
+#    pragma once
 
-#include "openvino/op/op.hpp"
-#include "openvino/runtime/threading/thread_local.hpp"
+#    include <chrono>
 
-namespace ov {
-namespace snippets {
+#    include "openvino/op/op.hpp"
+#    include "openvino/runtime/threading/thread_local.hpp"
+
+namespace ov::snippets {
 
 namespace op {
 class PerfCountEnd;
-} // namespace op
+}  // namespace op
 
 namespace utils {
 
@@ -28,8 +38,9 @@ public:
     Dumper() = default;
     virtual ~Dumper() = default;
 
-    void init(const std::string &params);
+    void init(const std::string& params);
     virtual void update(const op::PerfCountEnd* node) = 0;
+
 protected:
     std::map<std::string, std::string> m_debug_params_map;
     std::string m_params;
@@ -59,7 +70,7 @@ private:
  */
 class CSVDumper : public Dumper {
 public:
-    CSVDumper(const std::string csv_path);
+    CSVDumper(std::string csv_path);
     ~CSVDumper() override;
 
     void update(const op::PerfCountEnd* node) override;
@@ -68,7 +79,7 @@ private:
     const std::string csv_path;
 };
 
-} // namespace utils
+}  // namespace utils
 
 namespace op {
 
@@ -84,7 +95,6 @@ public:
     PerfCountBeginBase() = default;
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     void validate_and_infer_types_except_PerfCountEnd();
@@ -102,7 +112,6 @@ public:
     PerfCountEndBase() = default;
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 /**
@@ -135,19 +144,19 @@ public:
     PerfCountEnd(const Output<Node>& pc_begin,
                  std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
                  const std::string& params = "");
-    PerfCountEnd();
-    ~PerfCountEnd();
+    PerfCountEnd() = default;
+    ~PerfCountEnd() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
     void init_pc_begin();
     void set_accumulated_time();
 
-    const ov::threading::ThreadLocal<uint64_t> &get_accumulation() const {
+    const ov::threading::ThreadLocal<uint64_t>& get_accumulation() const {
         return accumulation;
     }
 
-    const ov::threading::ThreadLocal<uint32_t> &get_iteration() const {
+    const ov::threading::ThreadLocal<uint32_t>& get_iteration() const {
         return iteration;
     }
 
@@ -159,7 +168,7 @@ private:
     std::shared_ptr<PerfCountBegin> m_pc_begin = nullptr;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace op
+}  // namespace ov::snippets
+
 #endif  // SNIPPETS_DEBUG_CAPS

@@ -86,8 +86,10 @@ ParamsKey EmbeddingBagKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableInputDataType(Datatype::UINT32);
+
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT32);
 
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -100,7 +102,7 @@ ParamsKey EmbeddingBagKernelRef::GetSupportedKey() const {
 
 bool EmbeddingBagKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::EMBEDDING_BAG) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const embedding_bag_params& params = static_cast<const embedding_bag_params&>(p);
 
@@ -111,11 +113,11 @@ bool EmbeddingBagKernelRef::Validate(const Params& p) const {
     };
 
     if (!checkIntType(params.inputs[1].GetDType()))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.type == EmbeddingBagType::OFFSETS_SUM || params.type == EmbeddingBagType::SEGMENTS_SUM) {
         if (!checkIntType(params.inputs[2].GetDType()))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

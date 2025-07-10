@@ -4,14 +4,26 @@
 
 #include "matmul.hpp"
 
-#include "openvino/opsets/opset1.hpp"
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/matmul.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
+                           [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& shapeA = input_shapes[0].get();
     const VectorDims& shapeB = input_shapes[1].get();
     const size_t rankA = shapeA.size();
@@ -46,7 +58,8 @@ Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
             if (shapeB[i] == 1) {
                 m_shapeY[i] = shapeA[i];
                 continue;
-            } else if (shapeA[i] != 1) {
+            }
+            if (shapeA[i] != 1) {
                 OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
                                shapeA[i],
                                " with second input dimension=",
@@ -62,7 +75,7 @@ Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
 }
 
 ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
-    if (const auto matmul = ov::as_type_ptr<const ov::opset1::MatMul>(m_op)) {
+    if (const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(m_op)) {
         const auto input_rank0 = matmul->get_input_partial_shape(0).rank().get_length();
         const auto input_rank1 = matmul->get_input_partial_shape(1).rank().get_length();
 
@@ -71,11 +84,9 @@ ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
             const bool transpose_a = matmul->get_transpose_a();
             const bool transpose_b = matmul->get_transpose_b();
             return std::make_shared<MMShapeInfer>(output_rank, transpose_a, transpose_b);
-        } else {
-            return make_shape_inference(m_op);
         }
-    } else {
-        OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
+        return make_shape_inference(m_op);
     }
+    OPENVINO_THROW("Unexpected operation type in the MatMul shape inference factory");
 }
 }  // namespace ov::intel_cpu::node

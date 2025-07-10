@@ -4,14 +4,38 @@
 
 #include "transpose.h"
 
-#include <string>
+#include <oneapi/dnnl/dnnl_types.h>
 
-#include "common/primitive_hashing_utils.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/reorder_prim.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_list.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "shape_inference/custom/transpose.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
@@ -47,7 +71,7 @@ Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
         if (order.empty()) {
             size_t rank = getInputShapeAtPort(INPUT_DATA_IDX).getRank();
-            for (size_t i = 1lu; i <= rank; ++i) {
+            for (size_t i = 1LU; i <= rank; ++i) {
                 order.emplace_back(rank - i);
             }
         }
@@ -63,7 +87,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
 
     prec = getOriginalInputPrecisionAtPort(0);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     NodeConfig config;
     config.inConfs.resize(2);
@@ -77,20 +101,24 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
 
-    auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config, const TransposeParams& transposeParams) {
+    auto supportedPrimitiveDescriptorsBuilder = [this](const NodeConfig& config,
+                                                       const TransposeParams& transposeParams) {
         std::vector<MemoryDescPtr> srcMemoryDescs;
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+        srcMemoryDescs.reserve(config.inConfs.size());
+        for (const auto& inConf : config.inConfs) {
+            srcMemoryDescs.emplace_back(inConf.getMemDesc());
         }
         std::vector<MemoryDescPtr> dstMemoryDescs;
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+        srcMemoryDescs.reserve(config.outConfs.size());
+        dstMemoryDescs.reserve(config.outConfs.size());
+        for (const auto& outConf : config.outConfs) {
+            dstMemoryDescs.emplace_back(outConf.getMemDesc());
         }
         auto factory = std::make_shared<TransposeExecutorFactory>(transposeParams,
                                                                   srcMemoryDescs,
                                                                   dstMemoryDescs,
                                                                   transpose_context);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, factory});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, factory);
     };
 
     const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);
@@ -160,7 +188,7 @@ void Transpose::prepareParams() {
         primArgs = {{DNNL_ARG_SRC, srcMemPtr->getPrimitive()}, {DNNL_ARG_DST, dstMemPtr->getPrimitive()}};
 #ifdef CPU_DEBUG_CAPS
         if (prim) {
-            auto pd = prim.get_primitive_desc();
+            const auto* pd = prim.get_primitive_desc();
             DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
         }
 #endif
@@ -173,15 +201,16 @@ void Transpose::prepareParams() {
     transposeParams.permuteParams.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        auto orderPtr = getSrcDataAtPortAs<const int32_t>(0);
+        const auto* orderPtr = getSrcDataAtPortAs<const int32_t>(0);
         auto orderLen = getSrcMemoryAtPort(0)->getSize();
         transposeParams.permuteParams.order.assign(orderPtr, orderPtr + orderLen);
     }
 
     auto engine = getEngine();
-    auto builder = [&srcDesc, &dstDesc, this](const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
+    auto builder =
+        [&srcDesc, &dstDesc, this]([[maybe_unused]] const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
         dnnl::primitive_attr attr;
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
                                                                                                    {srcDesc},
                                                                                                    {dstDesc},

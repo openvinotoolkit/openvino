@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -28,7 +29,7 @@ ov::pass::ConvertConvertLike::ConvertConvertLike() {
 
         auto like = cvtlike->input_value(1);
         const element::Type& dest_type = like.get_element_type();
-        if (dest_type == element::dynamic || dest_type == element::undefined)
+        if (dest_type == element::dynamic)
             return false;
 
         auto cvt = std::make_shared<ov::op::v0::Convert>(cvtlike->input_value(0), dest_type);

@@ -375,7 +375,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | Enter                                                   | YES                           |                               |
 | Equal                                                   | YES                           |                               |
 | Erf                                                     | YES                           |                               |
-| Erfc                                                    | NO                            |                               |
+| Erfc                                                    | YES                           |                               |
 | Erfinv                                                  | NO                            |                               |
 | EuclideanNorm                                           | YES                           |                               |
 | Exit                                                    | YES                           |                               |
@@ -1025,7 +1025,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SdcaOptimizer                                           | NO                            |                               |
 | SdcaOptimizerV2                                         | NO                            |                               |
 | SdcaShrinkL1                                            | NO                            |                               |
-| SegmentMax                                              | NO                            |                               |
+| SegmentMax                                              | YES                           |                               |
 | SegmentMaxV2                                            | NO                            |                               |
 | SegmentMean                                             | NO                            |                               |
 | SegmentMin                                              | NO                            |                               |
@@ -1134,7 +1134,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | SparseSegmentMeanGrad                                   | NO                            |                               |
 | SparseSegmentMeanGradV2                                 | NO                            |                               |
 | SparseSegmentMeanWithNumSegments                        | NO                            |                               |
-| SparseSegmentSqrtN                                      | NO                            |                               |
+| SparseSegmentSqrtN                                      | YES                           |                               |
 | SparseSegmentSqrtNGrad                                  | NO                            |                               |
 | SparseSegmentSqrtNGradV2                                | NO                            |                               |
 | SparseSegmentSqrtNWithNumSegments                       | NO                            |                               |

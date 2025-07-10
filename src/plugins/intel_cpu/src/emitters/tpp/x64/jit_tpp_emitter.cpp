@@ -4,9 +4,26 @@
 
 #include "jit_tpp_emitter.hpp"
 
+#include <cpu/x64/xbyak/xbyak.h>
+
+#include <algorithm>
+#include <array>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "cpu_types.h"
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
+#include "emitters/tpp/common/utils.hpp"
+#include "emitters/utils.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "transformations/tpp/x64/op/eltwise.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -58,7 +75,7 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     };
 
     for (size_t i = 0; i < num_ins; i++) {
-        io_dtypes[i] = ov_to_xsmm_dtype(node->get_input_element_type(i));
+        io_dtypes[i] = tpp::utils::ov_to_xsmm_dtype(node->get_input_element_type(i));
         io_offsets[i] = tpp_mod->get_input_offset(i);
         io_strides[i] =
             replace_full_dim(tpp_mod->get_input_stride(i), expr->get_input_port_descriptor(i)->get_shape().back());
@@ -67,7 +84,7 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
 
     for (size_t i = 0; i < num_outs; i++) {
         const auto i_off = i + num_ins;
-        io_dtypes[i_off] = ov_to_xsmm_dtype(node->get_output_element_type(i));
+        io_dtypes[i_off] = tpp::utils::ov_to_xsmm_dtype(node->get_output_element_type(i));
         io_offsets[i_off] = tpp_mod->get_output_offset(i);
         io_strides[i_off] =
             replace_full_dim(tpp_mod->get_output_stride(i), expr->get_output_port_descriptor(i)->get_shape().back());
@@ -93,10 +110,12 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     spill.preamble(get_regs_to_spill());
 
     int aux_xmm_count = 0;
-    for (auto reg_idx : in)
+    for (auto reg_idx : in) {
         h->uni_vmovq(Xmm(aux_xmm_count++), Reg64(static_cast<int>(reg_idx)));
-    for (auto reg_idx : out)
+    }
+    for (auto reg_idx : out) {
         h->uni_vmovq(Xmm(aux_xmm_count++), Reg64(static_cast<int>(reg_idx)));
+    }
 
     OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count == num_kernel_args, "offsets for some inputs/outputs were not set");
     OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count < static_cast<int>(abi_params.size()),
@@ -112,8 +131,9 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     OV_CPU_JIT_EMITTER_ASSERT(compiled_kernel, "Failed to compile libxsmm_kernel");
 
     h->mov(abi_params[0], compiled_kernel);
-    for (int i = 0; i < num_kernel_args; i++)
+    for (int i = 0; i < num_kernel_args; i++) {
         data_ptr_reg(Xmm(i), abi_params[i + 1], io_offsets[i]);
+    }
     // save function address in gpr to pass in call instruction
     h->mov(aux_reg, get_execute_function_ptr());
 
@@ -122,22 +142,6 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     spill.rsp_restore();
 
     spill.postamble();
-}
-
-libxsmm_datatype TppEmitter::ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
-    switch (elemet_type) {
-    case ov::element::Type_t::f32:
-        return LIBXSMM_DATATYPE_F32;
-    case ov::element::Type_t::bf16:
-        return LIBXSMM_DATATYPE_BF16;
-    case ov::element::Type_t::i8:
-        return LIBXSMM_DATATYPE_I8;
-    case ov::element::Type_t::u8:
-        return LIBXSMM_DATATYPE_U8;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Attempt to convert unsupported ov data type");
-        return LIBXSMM_DATATYPE_IMPLICIT;
-    }
 }
 
 }  // namespace ov::intel_cpu

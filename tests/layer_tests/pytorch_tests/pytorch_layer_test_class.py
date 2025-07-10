@@ -13,22 +13,22 @@ import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from openvino.frontend import FrontEndManager
-from openvino.runtime import Core, Type, PartialShape
+from openvino import Core, Type, PartialShape
 import openvino.properties.hint as hints
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-def skip_check(param):
-    return skip_if_export(param) if PytorchLayerTest.use_torch_export() else skip_if_fx(param)
+def skip_check(*param, reason="Unsupported"):
+    return skip_if_export(*param, reason=reason) if PytorchLayerTest.use_torch_export() else skip_if_fx(*param, reason=reason)
 
 
-def skip_if_export(param, reason="Unsupported on torch.export"):
-    return pytest.param(param, marks=pytest.mark.skipif(PytorchLayerTest.use_torch_export(), reason=reason))
+def skip_if_export(*param, reason="Unsupported on torch.export"):
+    return pytest.param(*param, marks=pytest.mark.skipif(PytorchLayerTest.use_torch_export(), reason=reason))
 
 
-def skip_if_fx(param, reason="Unsupported on torch.fx"):
-    return pytest.param(param, marks=pytest.mark.skipif(PytorchLayerTest.use_torch_compile_backend(), reason=reason))
+def skip_if_fx(*param, reason="Unsupported on torch.fx"):
+    return pytest.param(*param, marks=pytest.mark.skipif(PytorchLayerTest.use_torch_compile_backend(), reason=reason))
 
 
 class PytorchLayerTest:
@@ -123,7 +123,9 @@ class PytorchLayerTest:
                 from openvino import convert_model
                 from torch.export import export
 
-                em = export(model, tuple(torch_inputs))
+                dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
+
+                em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
 
                 converted_model = convert_model(
                     em, example_input=torch_inputs, verbose=True)
@@ -280,22 +282,20 @@ class PytorchLayerTest:
         return om
 
     def torch_compile_backend_test(self, model, inputs, **kwargs):
-        torch._dynamo.reset()
-        with torch.no_grad():
-            model.eval()
-            fw_res = model(*inputs)
+        torch._dynamo.config.suppress_errors = True
 
         torch._dynamo.reset()
+        model.eval()
         with torch.no_grad():
-            model.eval()
-            options={"testing": 1,}
-            if ("aot_autograd" in kwargs):
-                options.update({"aot_autograd": True,})
+            fw_res = model(*inputs)
+
+        with torch.no_grad():
+            options = {"testing": 1}
+            if "aot_autograd" in kwargs:
+                options.update({"aot_autograd": True})
             if "dynamic_quantization_group_size" in kwargs:
                 options["config"] = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": str(kwargs["dynamic_quantization_group_size"])}
-            dynamic = False
-            if ("dynamic" in kwargs):
-                dynamic = kwargs["dynamic"]
+            dynamic = kwargs.get("dynamic", False)
 
             ov_model = torch.compile(
                 model, backend="openvino", dynamic=dynamic, options=options)
@@ -307,7 +307,6 @@ class PytorchLayerTest:
         if not isinstance(ov_res, (tuple)):
             ov_res = (ov_res,)
 
-        flatten_fw_res, flatten_ov_res = [], []
         flatten_fw_res = flattenize_outputs(fw_res)
         flatten_ov_res = flattenize_outputs(ov_res)
 
@@ -328,9 +327,8 @@ class PytorchLayerTest:
         else:
             fw_eps = 1e-4
         is_ok = True
-        for i in range(len(flatten_ov_res)):
+        for i, cur_fw_res in enumerate(flatten_fw_res):
             cur_ov_res = flatten_ov_res[i]
-            cur_fw_res = flatten_fw_res[i]
             if not torch.allclose(cur_fw_res, cur_ov_res,
                                   atol=fw_eps, rtol=fw_eps,
                                   equal_nan=True):

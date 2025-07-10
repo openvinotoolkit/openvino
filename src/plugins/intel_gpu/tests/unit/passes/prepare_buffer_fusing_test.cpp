@@ -709,7 +709,7 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
         ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
-TEST(prepare_buffer_fusing, in_place_crop_static_padding_and_gemm) {
+TEST(prepare_buffer_fusing, disable_crop_buffer_fusing_with_shift_right_padding) {
     auto& engine = get_test_engine();
 
     auto gemm_input_mem = engine.allocate_memory({ {1, 4, 4, 2}, data_types::f32, format::bfyx });
@@ -747,7 +747,7 @@ TEST(prepare_buffer_fusing, in_place_crop_static_padding_and_gemm) {
         auto outputs = network.execute();
 
         auto crop_prim = network.get_primitive("crop");
-        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+        ASSERT_EQ(crop_prim->can_be_optimized(), false);    // Not opt out because the user, gemm node, has paddings at spatial dimensions
 
         auto output = outputs.at("output").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -1543,4 +1543,27 @@ TEST(prepare_buffer_fusing, inner_axis_data_offset_with_gemm_user) {
 
     auto& crop_node = prog->get_node("crop2").as<crop>();
     ASSERT_FALSE(crop_node.can_be_optimized());
+}
+
+TEST(prepare_buffer_fusing, redundant_reorder_permute) {
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ ov::PartialShape{1, 2, 3, 5}, data_types::f16, format::byfx };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(reorder("reorder", input_info("input"), format::bfyx, data_types::f16));
+    topology.add(permute("permute", input_info("reorder"), {0, 2, 1, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topology, config, false, false);
+    ASSERT_NE(prog, nullptr);
+
+    auto& permute_node = prog->get_node("permute").as<permute>();
+    auto& reorder_node = prog->get_node("reorder").as<reorder>();
+    ASSERT_TRUE(reorder_node.can_be_optimized());
+    ASSERT_TRUE(permute_node.can_be_optimized());
 }

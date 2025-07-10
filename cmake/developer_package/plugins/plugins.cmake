@@ -89,10 +89,6 @@ function(ov_add_plugin)
 
         target_link_libraries(${OV_PLUGIN_NAME} PRIVATE openvino::runtime openvino::runtime::dev)
 
-        if(WIN32)
-            set_target_properties(${OV_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${OV_PLUGIN_NAME})
-        endif()
-
         if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
             if (APPLE)
                 target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,-undefined,dynamic_lookup)
@@ -108,8 +104,23 @@ function(ov_add_plugin)
 
         if (OV_PLUGIN_ADD_CLANG_TIDY)
             if (ENABLE_CLANG_TIDY)
+                set(clang_tidy_options "--extra-arg=-Wno-unused-command-line-argument")
+                if(DEFINED CMAKE_CXX_COMPILER_TARGET)
+                    list(APPEND clang_tidy_options "--extra-arg=--target=${CMAKE_CXX_COMPILER_TARGET}")
+                endif()
+                if(DEFINED OV_CLANG_TIDY_TOOLCHAIN_FLAGS)
+                    list(APPEND clang_tidy_options ${OV_CLANG_TIDY_TOOLCHAIN_FLAGS})
+                endif()
+                if(ENABLE_CLANG_TIDY_FIX)
+                    list(APPEND clang_tidy_options "--fix-errors")
+                endif()
+                if(RISCV64)
+                    list(APPEND clang_tidy_options "--extra-arg-before=-march=rv64gcv1p0_zfh")
+                    list(APPEND clang_tidy_options "--extra-arg-before=-mabi=lp64d")
+                    list(APPEND clang_tidy_options "--extra-arg-before=-D__fp16=_Float16")
+                endif()
                 set_target_properties(${OV_PLUGIN_NAME} PROPERTIES
-                    CXX_CLANG_TIDY "clang-tidy-${CLANG_TIDY_REQUIRED_VERSION};--extra-arg=-Wno-unused-command-line-argument")
+                    CXX_CLANG_TIDY "${CLANG_TIDY};${clang_tidy_options}")
             endif()
         endif()
 
@@ -146,6 +157,8 @@ function(ov_add_plugin)
                 install(TARGETS ${OV_PLUGIN_NAME}
                         LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR}
                         COMPONENT ${install_component})
+
+                ov_install_pdb(${TARGET_NAME})
             else()
                 ov_install_static_lib(${OV_PLUGIN_NAME} ${OV_CPACK_COMP_CORE})
             endif()

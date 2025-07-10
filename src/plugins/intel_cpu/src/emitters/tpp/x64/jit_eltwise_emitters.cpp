@@ -4,6 +4,25 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include <libxsmm.h>
+#include <libxsmm_typedefs.h>
+
+#include <algorithm>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
+#include "emitters/tpp/common/utils.hpp"
+#include "emitters/tpp/x64/jit_tpp_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "transformations/tpp/x64/op/eltwise.hpp"
 
 namespace ov::intel_cpu {
@@ -53,7 +72,7 @@ const uintptr_t BinaryEltwiseTppEmitter::get_compiled_kernel_ptr() const {
 }
 
 std::set<std::vector<element::Type>> BinaryEltwiseTppEmitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -100,7 +119,7 @@ void UnaryEltwiseTppEmitter::execute_kernel(libxsmm_meltwfunction_unary eltwise_
 }
 
 std::set<std::vector<element::Type>> UnaryEltwiseTppEmitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 

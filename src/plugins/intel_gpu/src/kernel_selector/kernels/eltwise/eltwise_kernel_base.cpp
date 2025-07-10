@@ -111,32 +111,32 @@ Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) con
 
 bool EltwiseKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::ELTWISE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const eltwise_params& params = static_cast<const eltwise_params&>(p);
 
     if (params.inputs.size() == 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     auto& operations = params.operations;
 
     if (operations.size() == 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     for (size_t op_num = 0; op_num < operations.size(); op_num++) {
         const auto& ew = operations[op_num];
 
         if (ew.inputs.size() != GetNumberOfInputs(ew.mode)) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
 
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto& input = ew.inputs[input_idx];
             if (input.mode == EltwiseInputMode::INPUT_BUFFER && input.index >= params.inputs.size()) {
-                return false;
+                DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         }
     }
@@ -144,7 +144,7 @@ bool EltwiseKernelBase::Validate(const Params& p) const {
     const eltwise_params& orgParams = static_cast<const eltwise_params&>(p);
     for (auto& fused_op : orgParams.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -310,11 +310,14 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += "(!" + input0_str + " != !" + input1_str + ")";
                 break;
             case EltwiseMode::FLOOR_MOD: {
+                auto input_0_type = params.inputs[0].GetDType();
                 auto input_1_type = params.inputs[1].GetDType();
-                if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::F32) {
-                    op += "(" + input0_str + " - floor(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
+                if (input_0_type == input_1_type && (input_0_type == kernel_selector::Datatype::F16 || input_0_type == kernel_selector::Datatype::F32)) {
+                    op += "fmod(" + input0_str + ", " + input1_str + ")";
+                } else if (input_1_type == kernel_selector::Datatype::F16 || input_1_type == kernel_selector::Datatype::F32) {
+                    op += "(" + input0_str + " - trunc(" + input0_str + " / " + input1_str + ") * " + input1_str + ")";
                 } else {
-                    op += "(" + input0_str + " - floor(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
+                    op += "(" + input0_str + " - trunc(" + input0_str + " / convert_float(" + input1_str + ")) * " + input1_str + ")";
                 }
                 break;
             }

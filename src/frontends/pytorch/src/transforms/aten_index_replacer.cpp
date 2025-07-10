@@ -4,6 +4,7 @@
 
 #include "aten_index_replacer.hpp"
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/op/add.hpp"
@@ -35,13 +36,10 @@ namespace pass {
 using namespace ov::op;
 
 AtenIndexToSelect::AtenIndexToSelect() {
-    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"aten::index"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto index_op = cast_fw_node(m.get_match_root(), "aten::index");
-        if (!index_op) {
-            return false;
-        }
+        auto index_op = m.get_match_root();
         ov::pass::NodeRegistry rg;
         auto input_node = index_op->input_value(0);
         auto indicies = index_op->input_value(1).get_node_shared_ptr();
@@ -76,7 +74,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             }
             auto index_dtype = indicies->get_output_element_type(0);
             if (index_dtype == element::boolean || index_dtype == element::u8) {
-                auto nonzero = rg.make<v3::NonZero>(indicies, element::i32);
+                auto nonzero = rg.make<v3::NonZero>(indicies);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 auto masked_id = rg.make<v1::Transpose>(nonzero, input_order);
                 auto gather = rg.make<v8::GatherND>(input_node, masked_id);

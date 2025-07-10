@@ -1,11 +1,15 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cstdlib>
+
+#include "openvino/core/except.hpp"
+#include "openvino/util/env_util.hpp"
 #ifdef CPU_DEBUG_CAPS
 
-#    include "debug_caps_config.h"
-
 #    include <string>
+
+#    include "debug_caps_config.h"
 
 namespace ov::intel_cpu {
 
@@ -22,61 +26,63 @@ void DebugCapsConfig::readProperties() {
     auto parseDumpFormat = [](const std::string& format) {
         if (format == "BIN") {
             return FORMAT::BIN;
-        } else if (format == "TEXT") {
-            return FORMAT::TEXT;
-        } else {
-            OPENVINO_THROW("readDebugCapsProperties: Unknown dump format");
         }
+        if (format == "TEXT") {
+            return FORMAT::TEXT;
+        }
+        OPENVINO_THROW("readDebugCapsProperties: Unknown dump format");
     };
 
-    const char* envVarValue = nullptr;
-
-    if ((envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH")) {
         execGraphPath = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_VERBOSE"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_VERBOSE")) {
         verbose = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR")) {
         blobDumpDir = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_FORMAT"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_FORMAT")) {
         blobDumpFormat = parseDumpFormat(envVarValue);
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID")) {
         blobDumpFilters[FILTER::BY_EXEC_ID] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS")) {
         blobDumpFilters[FILTER::BY_PORTS] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE")) {
         blobDumpFilters[FILTER::BY_TYPE] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME")) {
         blobDumpFilters[FILTER::BY_NAME] = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_DISABLE"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_DISABLE")) {
         disable.parseAndSet(envVarValue);
     }
 
-    if ((envVarValue = readEnv("OV_CPU_DUMP_IR"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_DUMP_IR")) {
         dumpIR.parseAndSet(envVarValue);
     }
 
-    if ((envVarValue = readEnv("OV_CPU_SUMMARY_PERF"))) {
+    if (auto envVarValue = ov::util::getenv_bool("OV_CPU_SUMMARY_PERF")) {
         summaryPerf = envVarValue;
     }
 
-    if ((envVarValue = readEnv("OV_CPU_AVERAGE_COUNTERS"))) {
+    if (const auto* envVarValue = readEnv("OV_CPU_AVERAGE_COUNTERS")) {
         averageCountersPath = envVarValue;
+    }
+
+    if (const auto* envVarValue = readEnv("OV_CPU_MEMORY_STATISTICS_PATH")) {
+        memoryStatisticsDumpPath = envVarValue;
     }
 }
 

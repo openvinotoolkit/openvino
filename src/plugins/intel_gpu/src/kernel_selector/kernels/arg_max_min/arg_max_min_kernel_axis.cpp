@@ -86,14 +86,14 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
 
 bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
     if (!ArgMaxMinKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
 
     if (params.inputs.size() > 1) {
         if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -130,10 +130,10 @@ void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
         const size_t group_size = prim_params.topK >= 8 ? prim_params.topK : 8;
         const size_t group_num = ((sort_size - 1) / group_size) + 1;
 
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(iav_type_size * sort_size * ops_size * 2);
-        kd.internalBufferSizes.push_back(4 * group_num * ops_size * 2);
-        kd.internalBufferSizes.push_back(ops_size * elem_size);
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(iav_type_size * sort_size * ops_size * 2);
+        kd.internalBuffers.push_back(4 * group_num * ops_size * 2);
+        kd.internalBuffers.push_back(ops_size * elem_size);
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
 }
@@ -172,9 +172,9 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
+        kd.internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
         kd.internalBufferDataType = orgParams.inputs[0].GetDType();
     }
 

@@ -11,8 +11,11 @@
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "partitioning/partitioning.hpp"
+#include "serialization.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
 
@@ -45,6 +48,9 @@ public:
                   const bool serialized);
 
     void export_model(std::ostream& model) const override;
+    static std::shared_ptr<CompiledModel> import_model(std::istream& stream,
+                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                       const ov::AnyMap& properties);
     std::shared_ptr<const ov::Model> get_runtime_model() const override;
 
     void set_property(const ov::AnyMap& properties) override;
@@ -70,9 +76,11 @@ private:
 
     void report_io() const;
 
-    void serialize(std::ostream& stream) const;
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
-                                                      const std::shared_ptr<const ov::IPlugin>& plugin);
+                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                      const ov::AnyMap& properties,
+                                                      const ov::npuw::s11n::CompiledContext& ctx);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be
@@ -93,6 +101,8 @@ private:
 
     // For full deserialization flow with weights
     void reconstruct_closure();
+    // For weightless serialization flow
+    void store_const_offsets(const std::shared_ptr<ov::Model>& model);
 
     void finalize_weights_bank();
     void detach_memory();
@@ -142,6 +152,7 @@ private:
         std::optional<std::size_t> replaced_by;
 
         Subgraph::Gather host_gather;
+        Subgraph::QuantUnpackGather quant_unpack_gather;
         std::optional<ov::npuw::compiled::Spatial> spatial;
 
         // FIXME: This is a 1:1 copy of the ov::npuw::Subgraph structure
@@ -166,8 +177,8 @@ private:
         // Metrics
         execution_stats stat;
 
-        void serialize(std::ostream& stream) const;
-        void deserialize(std::istream& stream);
+        void serialize(std::ostream& stream, const ov::npuw::s11n::WeightsContext& ctx) const;
+        void deserialize(std::istream& stream, const ov::npuw::s11n::WeightsContext& ctx);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 
@@ -177,6 +188,9 @@ private:
     execution_stats m_total_stat;
 
     std::shared_ptr<weights::Bank> m_weights_bank = nullptr;
+
+    std::unordered_map<const void*, std::size_t> m_const_to_offset;
+    ov::npuw::s11n::BF16Cache m_bf16_consts;
 };
 }  // namespace npuw
 }  // namespace ov

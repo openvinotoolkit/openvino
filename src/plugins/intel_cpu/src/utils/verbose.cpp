@@ -1,6 +1,15 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <utility>
+
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
@@ -14,8 +23,6 @@
 #    include "../src/common/c_types_map.hpp"
 #    include "../src/common/verbose.hpp"
 #    include "cpu_types.h"
-#    include "dnnl_debug.h"
-#    include "dnnl_types.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "verbose.h"
 
@@ -111,21 +118,18 @@ void Verbose::printInfo() {
                 auto fmt_str = md2fmt_str("", dnnl_desc.get(), format_kind_t::dnnl_format_kind_undef);
                 auto dim_str = md2dim_str(dnnl_desc.get());
                 return {fmt_str, dim_str};
-            } else {
-                return {"empty", {}};
             }
-        } else {
-            auto fmt_str = desc->getPrecision().to_string();
-            if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
-                auto dim_str = dim2str(dims.front());
-                std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
-                    dim_str.append("x" + dim2str(dim));
-                });
-                return {fmt_str, dim_str};
-            } else {
-                return {fmt_str, {}};
-            }
+            return {"empty", {}};
         }
+        auto fmt_str = desc->getPrecision().to_string();
+        if (const auto& dims = desc->getShape().getDims(); !dims.empty()) {
+            auto dim_str = dim2str(dims.front());
+            std::for_each(++(dims.begin()), dims.end(), [&dim_str](size_t dim) {
+                dim_str.append("x" + dim2str(dim));
+            });
+            return {fmt_str, dim_str};
+        }
+        return {fmt_str, {}};
     };
 
     auto formatMemDesc = [&](const MemoryDescPtr& desc, std::string& prefix) {

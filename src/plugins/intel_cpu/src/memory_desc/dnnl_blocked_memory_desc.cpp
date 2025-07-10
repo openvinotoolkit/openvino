@@ -4,14 +4,30 @@
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
+#include <oneapi/dnnl/dnnl_common_types.h>
+#include <oneapi/dnnl/dnnl_types.h>
+
 #include <algorithm>
+#include <common/c_types_map.hpp>
 #include <common/memory_desc_wrapper.hpp>
+#include <common/utils.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+#include <vector>
 
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -161,7 +177,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     if (!strides.empty() && !emptyDesc && std::none_of(strides.begin(), strides.end(), [](size_t x) {
             return Shape::UNDEFINED_DIM == x;
         })) {
-        bool inner_block_are_dense = one_of(strides.back(), 0u, 1u);  // stride 1 - is dense case, 0 - broad casted
+        bool inner_block_are_dense = one_of(strides.back(), 0U, 1U);  // stride 1 - is dense case, 0 - broad casted
         for (size_t i = outer_ndims; i < strides.size() - 1; i++) {
             inner_block_are_dense &= (strides[i] == strides[i + 1] * blockedDims[i + 1]);
         }
@@ -264,23 +280,23 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const MemoryDesc& rhs) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc);
-    } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
-        return isCompatible(*desc);
-    } else {
-        return false;
     }
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc);
+    }
+    return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const BlockedMemoryDesc& rhs, CmpMask cmpMask) const {
-    if (auto desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
+    if (const auto* desc = dynamic_cast<const DnnlBlockedMemoryDesc*>(&rhs)) {
         return isCompatible(*desc, cmpMask);
-    } else if (auto desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
-        return isCompatible(*desc, cmpMask);
-    } else {
-        return false;
     }
+    if (const auto* desc = dynamic_cast<const CpuBlockedMemoryDesc*>(&rhs)) {
+        return isCompatible(*desc, cmpMask);
+    }
+    return false;
 }
 
 bool DnnlBlockedMemoryDesc::isCompatible(const CpuBlockedMemoryDesc& rhs, CmpMask cmpMask) const {
@@ -425,11 +441,7 @@ bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
             return false;
         }
     }
-    if (blk_size != UNREACHABLE_DIM && static_cast<int64_t>(blk_size) != desc.get_inner_blks()[0]) {
-        return false;
-    }
-
-    return true;
+    return blk_size == UNREACHABLE_DIM || static_cast<int64_t>(blk_size) == desc.get_inner_blks()[0];
 }
 
 bool DnnlBlockedMemoryDesc::isTailCFormat() const {
@@ -533,8 +545,8 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         }
     }
 
-    auto actualStrides = desc.get()->format_desc.blocking.strides;
-    auto refStrides = refDesc.get()->format_desc.blocking.strides;
+    auto* actualStrides = desc.get()->format_desc.blocking.strides;
+    auto* refStrides = refDesc.get()->format_desc.blocking.strides;
 
     VectorDims actualOrder(desc.get()->ndims);
     {
@@ -579,10 +591,7 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         });
     }
 
-    if (actualOrder != refOrder) {
-        return false;
-    }
-    return true;
+    return actualOrder == refOrder;
 }
 
 size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
@@ -615,7 +624,7 @@ size_t DnnlBlockedMemoryDesc::getPaddedElementsCount() const {
     return std::accumulate(std::begin(padded_dims),
                            std::begin(padded_dims) + desc.get_ndims(),
                            size_t{1},
-                           std::multiplies<int64_t>());
+                           std::multiplies<>());
 }
 
 bool DnnlBlockedMemoryDesc::blocksExtended() const {

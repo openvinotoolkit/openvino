@@ -3,6 +3,7 @@
 //
 
 #include "compress_quantize_weights.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -94,7 +95,7 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
             return false;
         const auto& high_precision_type = fq->get_element_type();
 
-        auto weights = ov::util::constantfold_subgraph(fq->get_input_node_shared_ptr(0));
+        auto weights = ov::util::constantfold_subgraph(fq->input_value(0));
         if (!weights)
             return false;
         auto input_low = ov::as_type_ptr<op::v0::Constant>(fq->get_input_node_shared_ptr(1));
@@ -177,7 +178,7 @@ ov::pass::CompressWeightsWithFakeQuantize::CompressWeightsWithFakeQuantize() {
             auto levels = fq->get_levels();
             if (levels <= 2 || levels > 256)
                 return false;
-            auto low_precision_type = element::undefined;
+            auto low_precision_type = element::dynamic;
             // Currently we support two weights quantize types: i4, u4, i8, u8
             // we determine that the weights should be cast to u4, u8 inside compute_scale_and_zero_point
             if (levels <= 16) {

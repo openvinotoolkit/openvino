@@ -6,9 +6,21 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <random>
+#include <string>
+#include <utility>
 
-#include "kernels/x64/random_uniform.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -31,7 +43,7 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
 
     void prepareParams() override;
 
@@ -39,23 +51,23 @@ public:
 
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
 
     void createPrimitive() override;
 
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    std::string getPrimitiveDescriptorType() const override;
+    [[nodiscard]] std::string getPrimitiveDescriptorType() const override;
 
 protected:
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     void evalRange();
@@ -64,8 +76,8 @@ private:
 
     void prepareGeneratorKernel();
 
-    enum PortIndex { SHAPE = 0, MIN_VAL, MAX_VAL };
-    enum AlgorithmType { STL = 0, PHILOX, MERSENNE_TWISTER };
+    enum PortIndex : uint8_t { SHAPE = 0, MIN_VAL, MAX_VAL };
+    enum AlgorithmType : uint8_t { STL = 0, PHILOX, MERSENNE_TWISTER };
 
     bool m_const_inputs[3] = {false, false, false};
 
@@ -74,11 +86,11 @@ private:
     uint64_t m_op_seed = 0lu;
     std::pair<uint64_t, uint64_t> m_state{0lu, 0lu};
 
-    VectorDims m_out_shape = {};
+    VectorDims m_out_shape;
     uint64_t m_output_elements_count = 1lu;
-    OutputType m_min_val;
-    OutputType m_max_val;
-    OutputType m_range_val;
+    OutputType m_min_val = {};
+    OutputType m_max_val = {};
+    OutputType m_range_val = {};
     AlgorithmType m_algo = STL;
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +137,7 @@ private:
     void preparePhiloxParams();
 
     std::pair<uint64_t, uint64_t> computePhilox(void* out,
-                                                size_t work_amount,
+                                                size_t output_elements_count,
                                                 const std::pair<uint64_t, uint64_t>& prev_state);
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +154,7 @@ private:
 
     void prepareMersenneTwisterParams();
 
-    void computeMersenneTwister(void* out, size_t work_amount);
+    void computeMersenneTwister(void* out, size_t output_elements_count);
 
     /////////////////////////////////////////////////////////////////////////////////
 

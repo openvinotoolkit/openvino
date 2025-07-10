@@ -9,6 +9,8 @@
 #include "irdft_shape_inference.hpp"
 
 #include "json_object.h"
+#include "openvino/op/dft.hpp"
+#include "openvino/op/idft.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(dft)

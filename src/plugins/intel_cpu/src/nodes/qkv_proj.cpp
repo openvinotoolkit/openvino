@@ -4,20 +4,44 @@
 
 #include "qkv_proj.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#include "utils/debug_capabilities.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <algorithm>
+#    include <type_traits>
+#    include <utility>
+
+#    include "cpu_memory.h"
+#    include "dnnl_scratch_pad.h"
+#    include "kernels/x64/mlp_utils.hpp"
+#    include "memory_desc/blocked_memory_desc.h"
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#    include "utils/plain_tensor.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "kernels/x64/mlp_utils.hpp"
+#    include "nodes/kernels/x64/mlp_kernel.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -32,8 +56,9 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
     auto n_groups = grouped_works.size();
     // allocate 1 worker for each group
     std::vector<int> g_workers(n_groups, 1);
-    auto left_workers = n_workers - n_groups;
-    while (left_workers > 0) {
+    size_t left_workers = n_workers - n_groups;
+
+    for (size_t i = 0; i < left_workers; i++) {
         // which group is working hardest?
         float hardest_works = 0;
         size_t hardest_group = 0;
@@ -45,7 +70,6 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
             }
         }
         g_workers[hardest_group]++;
-        left_workers--;
     }
 
     return g_workers;
@@ -59,7 +83,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
     int m_M = 0;
-    size_t m_threads_num = 0lu;
+    size_t m_threads_num = 0LU;
 
     MatrixDynQuantPerRow m_quant_act;
 
@@ -147,7 +171,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         wbuffer.alloc(works, weight_element_size);
 
-        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+        ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
@@ -204,7 +228,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
-        uint8_t* psrc0 = input->getDataAs<uint8_t>();
+        auto* psrc0 = input->getDataAs<uint8_t>();
         int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<T>();
         auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<T>();
@@ -251,7 +275,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                 strideA = m_quant_act.K;
             }
 
-            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, const size_t nthr) {
+            ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
                 auto& work = works[ithr];
                 if (work) {
                     work.run(BM, pA, strideA);
@@ -291,12 +315,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                                                                                asym);
                     }
                     // compress accumulation result into target
-                    for (int mi = 0; mi < BM; mi++, src += stride_src, dst += stride_dst) {
-                        // the prefetch distance is increased to ensure by the time store happens
-                        // prefetch has done and no HW prefetcher is triggered
-                        auto* prefetch_dst = (mi + 2 < BM) ? (dst + 2 * stride_dst) : (dst);
-                        jit_cvt(src, dst, prefetch_dst, work.BN);
-                    }
+                    jit_cvt.call(src, stride_src, dst, stride_dst, BM, work.BN);
                 }
             });
             m += BM;
@@ -330,8 +349,7 @@ void QKVProjection::createPrimitive() {
     }
 }
 
-void QKVProjection::execute(const dnnl::stream& strm) {
-    MAYBE_UNUSED(strm);
+void QKVProjection::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_executor->execute();
 }
 
@@ -421,10 +439,10 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                         std::string& errorMessage,
-                                         int concurrency,
-                                         uint64_t fcDynamicQuantizationGroupSize) noexcept {
+bool QKVProjection::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                         [[maybe_unused]] std::string& errorMessage,
+                                         [[maybe_unused]] int concurrency,
+                                         [[maybe_unused]] uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_qkv = ov::as_type_ptr<const QKVProjectionNode>(op);
@@ -434,8 +452,9 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                     errorMessage = "QKVProjection needs at least 3 cores to work";
                     return false;
                 }
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
-                if (unbalance_ratio > 0.2f) {
+                if (unbalance_ratio > 0.2F) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
                     return false;
                 }
@@ -443,6 +462,12 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             const auto& config = node_qkv->get_config();
             if ((config.hidden_size % CACHE_BLK_K_SIZE) != 0) {
                 errorMessage = "QKVProjection input channel size is not multiple of cache blocking size";
+                return false;
+            }
+
+            if (config.hidden_size < 1536) {
+                // this threashold is determined by Qwen1.5B
+                errorMessage = "QKVProjection input channel size is too small";
                 return false;
             }
 

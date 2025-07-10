@@ -4,8 +4,6 @@
 
 #include "common_test_utils/file_utils.hpp"
 
-#include "precomp.hpp"
-
 #ifdef __APPLE__
 #    include <mach-o/dyld.h>
 #endif
@@ -105,7 +103,7 @@ std::string getOpenvinoLibDirectory() {
 #endif
 }
 
-std::string getExecutableDirectory() {
+std::string getExecutableDirectoryA() {
     std::string path;
 #ifdef _WIN32
     char buffer[MAX_PATH];
@@ -123,7 +121,31 @@ std::string getExecutableDirectory() {
         throw "Can't get test executable path name";
     }
     path = std::string(buffer, len);
-    return ov::util::get_directory(path);
+    return ov::util::get_directory(path).string();
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+std::wstring getExecutableDirectoryW() {
+#    ifdef _WIN32
+    WCHAR ov_ext_path[MAX_PATH];
+    HMODULE hm = NULL;
+    GetModuleFileNameW(hm, (LPWSTR)ov_ext_path, sizeof(ov_ext_path) / sizeof(ov_ext_path[0]));
+    auto path = std::wstring(ov_ext_path);
+    return ov::util::get_directory(path).wstring();
+#    elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
+    return ov::util::string_to_wstring(getExecutableDirectoryA());
+#    else
+#        error "Unsupported OS"
+#    endif
+}
+#endif
+
+std::string getExecutableDirectory() {
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    return ov::util::wstring_to_string(getExecutableDirectoryW());
+#else
+    return getExecutableDirectoryA();
+#endif
 }
 
 std::string getCurrentWorkingDir() {
@@ -150,7 +172,7 @@ std::string getCurrentWorkingDir() {
 }
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath) {
-    return ov::util::path_join({getExecutableDirectory(), relModelPath});
+    return ov::util::path_join({getExecutableDirectory(), relModelPath}).string();
 }
 
 std::string getRelativePath(const std::string& from, const std::string& to) {

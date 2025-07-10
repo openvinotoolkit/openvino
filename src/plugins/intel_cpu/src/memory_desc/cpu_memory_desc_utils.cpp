@@ -5,16 +5,27 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 
 #include <cpu_memory.h>
-#include <dnnl_types.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
 #include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
 #include "cpu_memory_desc.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
 #include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "memory_desc/empty_memory_desc.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 using namespace dnnl;
 
@@ -22,7 +33,7 @@ namespace ov::intel_cpu {
 
 DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& desc) {
     if (MemoryDescType::Blocked == desc->getType()) {
-        const auto cpuDesc = desc->as<CpuBlockedMemoryDesc>();
+        auto* const cpuDesc = desc->as<CpuBlockedMemoryDesc>();
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(),
                                                                                 cpuDesc->getShape(),
                                                                                 cpuDesc->getBlockDims(),
@@ -30,38 +41,38 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr& 
                                                                                 cpuDesc->getOffsetPadding(),
                                                                                 cpuDesc->getOffsetPaddingToData(),
                                                                                 cpuDesc->getStrides()));
-    } else if (MemoryDescType::Empty == desc->getType()) {
-        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
-    } else if (MemoryDescType::Dnnl & desc->getType()) {
-        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
     }
+    if (MemoryDescType::Empty == desc->getType()) {
+        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
+    }
+    if (MemoryDescType::Dnnl & desc->getType()) {
+        return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
+    }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
 }
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const MemoryDesc& desc) {
     if (MemoryDescType::DnnlBlocked == desc.getType()) {
-        return DnnlBlockedMemoryDesc(*desc.as<DnnlBlockedMemoryDesc>());
-    } else if (MemoryDescType::Blocked == desc.getType()) {
-        const auto cpuDesc = desc.as<CpuBlockedMemoryDesc>();
-        return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(),
-                                     cpuDesc->getShape(),
-                                     cpuDesc->getBlockDims(),
-                                     cpuDesc->getOrder(),
-                                     cpuDesc->getOffsetPadding(),
-                                     cpuDesc->getOffsetPaddingToData(),
-                                     cpuDesc->getStrides());
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
+        return {*desc.as<DnnlBlockedMemoryDesc>()};
     }
+    if (MemoryDescType::Blocked == desc.getType()) {
+        const auto* const cpuDesc = desc.as<CpuBlockedMemoryDesc>();
+        return {cpuDesc->getPrecision(),
+                cpuDesc->getShape(),
+                cpuDesc->getBlockDims(),
+                cpuDesc->getOrder(),
+                cpuDesc->getOffsetPadding(),
+                cpuDesc->getOffsetPaddingToData(),
+                cpuDesc->getStrides()};
+    }
+    OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
 }
 
 BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr& desc) {
     if (desc->getType() & MemoryDescType::Blocked) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
     }
+    OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
 }
 
 CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::SoPtr<ov::ITensor>& tensor) {

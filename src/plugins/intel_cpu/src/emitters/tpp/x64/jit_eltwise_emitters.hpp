@@ -4,7 +4,26 @@
 
 #pragma once
 
+#include <libxsmm.h>
+#include <libxsmm_typedefs.h>
+
+#include <cassert>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <set>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "emitters/tpp/common/utils.hpp"
 #include "jit_tpp_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 
@@ -65,7 +84,7 @@ public:
 class ReferenceUnaryEltwiseTppEmitter : public UnaryEltwiseTppEmitter {
 public:
     // Note: can create template to suppport different executor signatures
-    typedef std::function<float(float)> executor_function;
+    using executor_function = std::function<float(float)>;
     ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr,
@@ -87,10 +106,9 @@ public:
 private:
     executor_function executor{nullptr};
 
-    template <
-        class Tin,
-        class Tout,
-        typename std::enable_if<!std::is_same<Tin, Tout>::value || !std::is_same<Tin, float>::value, bool>::type = true>
+    template <class Tin,
+              class Tout,
+              std::enable_if_t<!std::is_same_v<Tin, Tout> || !std::is_same_v<Tin, float>, bool> = true>
     void evaluate_reference_impl(Tin* in0, Tout* out0) {
         for (int n = 0; n < m_shape.n; n++) {
             auto in0_row = in0;

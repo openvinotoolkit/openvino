@@ -5,7 +5,9 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <functional>
+#include <utility>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
@@ -17,7 +19,7 @@ namespace ov::intel_cpu {
 
 template <size_t bypassId>
 struct use {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
+    ov::element::Type operator()(const std::vector<ov::element::Type>& types, [[maybe_unused]] size_t idx) const {
         assert(bypassId < types.size());
         return types[bypassId];
     }
@@ -31,20 +33,16 @@ struct bypass {
 
 template <ov::element::Type_t type>
 struct just {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
-        // ignore everything
-        (void)types;
-        (void)idx;
+    ov::element::Type operator()([[maybe_unused]] const std::vector<ov::element::Type>& types,
+                                 [[maybe_unused]] size_t idx) const {
         return type;
     }
 };
 
 template <>
 struct just<TypeMaskAlias::fxx> {
-    ov::element::Type operator()(const std::vector<ov::element::Type>& types, size_t idx) const {
-        // ignore everything
-        (void)types;
-        (void)idx;
+    ov::element::Type operator()([[maybe_unused]] const std::vector<ov::element::Type>& types,
+                                 [[maybe_unused]] size_t idx) const {
         return defaultFloatPrecision();
     }
 };
@@ -87,18 +85,18 @@ public:
           m_translation(std::move(translation)),
           m_enabled(std::move(enabled)) {}
 
-    const InOutTypeMask& mask() const {
+    [[nodiscard]] const InOutTypeMask& mask() const {
         return m_mask;
     }
 
-    InOutTypes translate(const InOutTypes& types) const {
+    [[nodiscard]] InOutTypes translate(const InOutTypes& types) const {
         if (m_translation) {
             return m_translation(types);
         }
         return {};
     }
 
-    bool enabled() const {
+    [[nodiscard]] bool enabled() const {
         if (m_enabled) {
             return m_enabled();
         }

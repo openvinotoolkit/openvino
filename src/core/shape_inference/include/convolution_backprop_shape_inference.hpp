@@ -3,6 +3,8 @@
 //
 #pragma once
 
+#include <optional>
+
 #include "convolution_backprop_shape_inference_util.hpp"
 #include "convolution_shape_inference_util.hpp"
 #include "openvino/op/convolution.hpp"
@@ -22,7 +24,7 @@ std::vector<TRShape> shape_infer(const ConvolutionBackpropData* op,
     NODE_VALIDATION_CHECK(op, inputs_count >= 2);
     using namespace ov::util;
 
-    ov::optional<TRShape> out_spatial_shape;
+    std::optional<TRShape> out_spatial_shape;
     if (has_spatial_shape) {
         const auto& spatial_shape = input_shapes[2];
         NODE_VALIDATION_CHECK(op,

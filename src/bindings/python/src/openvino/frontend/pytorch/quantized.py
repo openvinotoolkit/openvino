@@ -19,9 +19,9 @@ def detect_quantized_model(model: torch.nn.Module) -> Optional[str]:
     """
     if (model and getattr(model, "config", None)
             and getattr(model.config, "quantization_config", None)):
-        return model.config.quantization_config.quant_method
+        return model.config.quantization_config.quant_method  # type: ignore
     if getattr(model, "model", None):
-        return detect_quantized_model(model.model)
+        return detect_quantized_model(model.model)  # type: ignore[arg-type]
     return None
 
 
@@ -53,7 +53,7 @@ def patch_quantized(model: torch.nn.Module) -> None:
         patch_model(model, extensions,
                     "_openvino_quantized_patch_orig_forward")  # type: ignore
     elif quant_type == "gptq":
-        model._openvino_gptq_patched = True
+        model._openvino_gptq_patched = True  # type: ignore[assignment]
         gptq.patch_model(model)  # type: ignore
     else:
         raise RuntimeError(f"Unknown quantization type: {quant_type}.")

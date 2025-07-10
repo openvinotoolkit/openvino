@@ -24,11 +24,16 @@ namespace intel_npu {
 class ZeroTensor final : public ov::ITensor {
 public:
     ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+               const Config& config,
                const ov::element::Type element_type,
                const ov::Shape& shape,
                const ov::Allocator& allocator);
 
-    void* data(const ov::element::Type& type = {}) const override;
+    void* data() override;
+    void* data(const ov::element::Type& type) override;
+
+    const void* data() const override;
+    const void* data(const ov::element::Type& type) const override;
 
     const ov::element::Type& get_element_type() const override;
 
@@ -55,6 +60,7 @@ private:
     void destroy_memory();
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
+    Logger _logger;
 
     ov::element::Type _element_type;
     ov::Shape _shape;

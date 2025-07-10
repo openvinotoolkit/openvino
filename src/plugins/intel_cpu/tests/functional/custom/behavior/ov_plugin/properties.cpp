@@ -13,6 +13,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "internal_properties.hpp"
 
 #include <algorithm>
 
@@ -54,6 +55,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::intel_cpu::denormals_optimization.name()),
         RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RW_property(ov::hint::dynamic_quantization_group_size.name()),
         RW_property(ov::hint::kv_cache_precision.name()),
         RW_property(ov::key_cache_precision.name()),
@@ -196,11 +198,10 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
 const auto bf16_if_can_be_emulated = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
 using ExpectedModeAndType = std::pair<ov::hint::ExecutionMode, ov::element::Type>;
 
-const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode {
-    {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
-                                            expected_precision_for_performance_mode}},
-    {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
-                                            ov::element::undefined}},
+const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode{
+    {ov::hint::ExecutionMode::PERFORMANCE,
+     {ov::hint::ExecutionMode::PERFORMANCE, expected_precision_for_performance_mode}},
+    {ov::hint::ExecutionMode::ACCURACY, {ov::hint::ExecutionMode::ACCURACY, ov::element::dynamic}},
 };
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondingInferencePrecision) {
@@ -208,7 +209,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondi
     const auto inference_precision_default = expected_precision_for_performance_mode;
     const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
     auto execution_mode_value = ov::hint::ExecutionMode::PERFORMANCE;
-    auto inference_precision_value = ov::element::undefined;
+    auto inference_precision_value = ov::element::dynamic;
 
     // check default values
     OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
@@ -242,7 +243,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
     };
 
     auto expect_inference_precision = [&](const ov::element::Type expected_value) {
-        auto inference_precision_value = ov::element::undefined;;
+        auto inference_precision_value = ov::element::dynamic;
         OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
         ASSERT_EQ(inference_precision_value, expected_value);
     };

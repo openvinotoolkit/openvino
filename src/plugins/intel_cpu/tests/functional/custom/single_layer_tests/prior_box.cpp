@@ -5,6 +5,8 @@
 #include "openvino/core/partial_shape.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/prior_box.hpp"
+#include "openvino/op/shape_of.hpp"
 
 using namespace CPUTestUtils;
 
@@ -197,16 +199,16 @@ const auto layerSpecificParams = ::testing::Combine(
     ::testing::ValuesIn(variances),
     ::testing::ValuesIn(scale_all_sizes));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox, PriorBoxLayerCPUTest,
-    ::testing::Combine(
-        layerSpecificParams,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::Values(ov::test::ElementType::undefined),
-        ::testing::ValuesIn(inputShape),
-        ::testing::ValuesIn(imageShape),
-        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-    PriorBoxLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBox,
+                         PriorBoxLayerCPUTest,
+                         ::testing::Combine(layerSpecificParams,
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(ov::test::ElementType::dynamic),
+                                            ::testing::Values(ov::test::ElementType::dynamic),
+                                            ::testing::ValuesIn(inputShape),
+                                            ::testing::ValuesIn(imageShape),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         PriorBoxLayerCPUTest::getTestCaseName);
 
 } // namespace
 }  // namespace test

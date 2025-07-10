@@ -133,7 +133,7 @@ void UniqueCountKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
         // Need to adjust buffer size according to input size
-        kd.internalBufferSizes.front() = prim_params.inputs.front().PhysicalSizeInBytes();
+        kd.internalBuffers.front() = prim_params.inputs.front().PhysicalSizeInBytes();
         kd.internalBufferDataType = prim_params.inputs.front().GetDType();
     };
 }
@@ -169,7 +169,7 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params) const {
 
     // Additional buffer to save intermediate algorithm results
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-    kernel_data.internalBufferSizes.push_back(kernel_params.inputs.front().PhysicalSizeInBytes());
+    kernel_data.internalBuffers.push_back(kernel_params.inputs.front().PhysicalSizeInBytes());
     kernel_data.internalBufferDataType = kernel_params.inputs.front().GetDType();
 
     return {kernel_data};
@@ -191,15 +191,15 @@ ParamsKey UniqueCountKernelRef::GetSupportedKey() const {
 
 bool UniqueCountKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::UNIQUE_COUNT) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const unique_count_params&>(params);
     if (kernel_params.inputs.size() != 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     if (kernel_params.outputs.size() != 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;
@@ -297,15 +297,15 @@ ParamsKey UniqueGatherKernelRef::GetSupportedKey() const {
 
 bool UniqueGatherKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::UNIQUE_GATHER) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     const auto& kernel_params = dynamic_cast<const unique_gather_params&>(params);
     if (kernel_params.inputs.size() != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
     if (kernel_params.outputs.size() != 4) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from openvino import PartialShape
+from openvino import PartialShape, Symbol, Dimension
 from openvino import opset13 as ops
 from openvino.passes import Matcher, WrapType, Or, AnyInput, Optional
 from openvino.passes import (
@@ -15,6 +15,8 @@ from openvino.passes import (
     has_static_rank,
     type_matches,
     type_matches_any,
+    shape_matches,
+    attrs_match,
 )
 from openvino.utils.types import get_element_type
 
@@ -251,6 +253,43 @@ def test_any_input_predicate():
     matcher = Matcher(AnyInput(lambda output: len(output.get_shape()) == 4), "FindActivation")
     assert matcher.match(param)
     assert not matcher.match(slope)
+
+
+def test_any_input_symbol_predicate():
+    def symbol_matching_test(shape: PartialShape, pattern: str):
+        param = ops.parameter(shape)
+        matcher = Matcher(AnyInput(shape_matches(pattern)), "Find" + pattern)
+        assert matcher.match(param), f"Match failed for {shape} {pattern}"
+        return matcher.get_symbols()
+
+    symbols = symbol_matching_test(PartialShape([1, 3, 22, 22]), "[Batch,Channels,Spatial,Spatial]")
+    assert symbols["Batch"] == 1, symbols
+    assert symbols["Channels"] == 3, symbols
+    assert symbols["Spatial"] == 22, symbols
+
+    shape = PartialShape([-1, 2, 3, 4, -1, 6, 7])
+    a_dim, b_dim = Dimension(), Dimension()
+    a_dim.set_symbol(Symbol())
+    b_dim.set_symbol(Symbol())
+    shape[0] = a_dim
+    shape[4] = b_dim
+    symbols = symbol_matching_test(shape, "[Batches...,Dyn,Six,7]")
+    assert symbols["Batches"] == [a_dim.get_symbol(), 2, 3, 4], symbols
+    assert symbols["Dyn"] == b_dim.get_symbol(), symbols
+    assert symbols["Six"] == 6, symbols
+
+
+def test_attrs_match():
+    param = ops.parameter([-1, -1])
+
+    def test_shape_of_attribute(et: str):
+        node = ops.shape_of(param, output_type=et)
+        attr = {"output_type": et}
+        matcher = Matcher(AnyInput(attrs_match(attr)), "Find shape_of with attribute")
+        assert matcher.match(node), f"Match failed for {node} with attribute"
+
+    test_shape_of_attribute("i64")
+    test_shape_of_attribute("i32")
 
 
 def test_optional_full_match():

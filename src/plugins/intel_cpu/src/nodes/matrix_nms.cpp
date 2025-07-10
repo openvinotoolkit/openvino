@@ -5,13 +5,28 @@
 #include "matrix_nms.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/matrix_nms.hpp"
 #include "ov_ops/nms_static_shape_ie.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
@@ -67,7 +82,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
     const auto matrix_nms = ov::as_type_ptr<const ov::op::v8::MatrixNms>(op);
 
-    auto& attrs = matrix_nms->get_attrs();
+    const auto& attrs = matrix_nms->get_attrs();
     if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::CLASSID) {
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
     } else if (attrs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::SCORE) {
@@ -92,8 +107,8 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     m_postThreshold = attrs.post_threshold;
     m_normalized = attrs.normalized;
     if (m_decayFunction == MatrixNmsDecayFunction::LINEAR) {
-        m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
-            return (1. - iou) / (1. - max_iou + 1e-10f);
+        m_decay_fn = [](float iou, float max_iou, [[maybe_unused]] float sigma) -> float {
+            return (1. - iou) / (1. - max_iou + 1e-10F);
         };
     } else {
         m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
@@ -151,36 +166,33 @@ bool MatrixNms::created() const {
 
 namespace {
 
-static inline float boxArea(const float* bbox, const bool normalized) {
+inline float boxArea(const float* bbox, const bool normalized) {
     if (bbox[2] < bbox[0] || bbox[3] < bbox[1]) {
         return static_cast<float>(0.);
-    } else {
-        const float width = bbox[2] - bbox[0];
-        const float height = bbox[3] - bbox[1];
-        if (normalized) {
-            return width * height;
-        } else {
-            return (width + 1) * (height + 1);
-        }
     }
+    const float width = bbox[2] - bbox[0];
+    const float height = bbox[3] - bbox[1];
+    if (normalized) {
+        return width * height;
+    }
+    return (width + 1) * (height + 1);
 }
 
-static inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {
+inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {
     if (bbox2[0] > bbox1[2] || bbox2[2] < bbox1[0] || bbox2[1] > bbox1[3] || bbox2[3] < bbox1[1]) {
         return static_cast<float>(0.);
-    } else {
-        const float xMin = std::max(bbox1[0], bbox2[0]);
-        const float yMin = std::max(bbox1[1], bbox2[1]);
-        const float xMax = std::min(bbox1[2], bbox2[2]);
-        const float yMax = std::min(bbox1[3], bbox2[3]);
-        float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
-        float width = xMax - xMin + norm;
-        float height = yMax - yMin + norm;
-        const float interArea = width * height;
-        const float bbox1Area = boxArea(bbox1, normalized);
-        const float bbox2Area = boxArea(bbox2, normalized);
-        return interArea / (bbox1Area + bbox2Area - interArea);
     }
+    const float xMin = std::max(bbox1[0], bbox2[0]);
+    const float yMin = std::max(bbox1[1], bbox2[1]);
+    const float xMax = std::min(bbox1[2], bbox2[2]);
+    const float yMax = std::min(bbox1[3], bbox2[3]);
+    float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
+    float width = xMax - xMin + norm;
+    float height = yMax - yMin + norm;
+    const float interArea = width * height;
+    const float bbox1Area = boxArea(bbox1, normalized);
+    const float bbox2Area = boxArea(bbox2, normalized);
+    return interArea / (bbox1Area + bbox2Area - interArea);
 }
 }  // namespace
 
@@ -229,7 +241,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
 
     if (scoresData[candidateIndex[0]] > m_postThreshold) {
         auto box_index = candidateIndex[0];
-        auto box = boxesData + box_index * 4;
+        const auto* box = boxesData + box_index * 4;
         filterBoxes[0].box.x1 = box[0];
         filterBoxes[0].box.y1 = box[1];
         filterBoxes[0].box.x2 = box[2];
@@ -254,7 +266,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
             continue;
         }
         auto boxIndex = candidateIndex[i];
-        auto box = boxesData + boxIndex * 4;
+        const auto* box = boxesData + boxIndex * 4;
         filterBoxes[numDet].box.x1 = box[0];
         filterBoxes[numDet].box.y1 = box[1];
         filterBoxes[numDet].box.x2 = box[2];
@@ -271,7 +283,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
 void MatrixNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
-    if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
+    if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2]) {
         THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' input dmensions");
     }
 
@@ -281,9 +293,12 @@ void MatrixNms::prepareParams() {
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = m_backgroundClass == -1                                 ? m_numClasses
-                              : static_cast<size_t>(m_backgroundClass) < m_numClasses ? m_numClasses - 1
-                                                                                      : m_numClasses;
+    size_t real_num_classes = [&]() {
+        if (m_backgroundClass == -1 || static_cast<size_t>(m_backgroundClass) >= m_numClasses) {
+            return m_numClasses;
+        }
+        return m_numClasses - 1;
+    }();
     if (m_nmsTopk >= 0) {
         max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
     } else {
@@ -329,9 +344,9 @@ void MatrixNms::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-void MatrixNms::execute(const dnnl::stream& strm) {
-    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
-    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
+void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const auto* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     ov::parallel_for2d(m_numBatches, m_numClasses, [&](size_t batchIdx, size_t classIdx) {
         if (classIdx == static_cast<size_t>(m_backgroundClass)) {
@@ -423,12 +438,13 @@ void MatrixNms::execute(const dnnl::stream& strm) {
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
     if (!m_outStaticShape) {
-        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), static_cast<size_t>(0));
-        redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
+        auto totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), int64_t{0});
+        OPENVINO_ASSERT(totalBox > 0, "Total number of boxes is less or equal than 0");
+        redefineOutputMemory({{static_cast<size_t>(totalBox), 6}, {static_cast<size_t>(totalBox), 1}, {m_numBatches}});
     }
-    float* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
-    int* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
-    int* validOutputs = validOutputsMemPtr->getDataAs<int>();
+    auto* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
+    auto* selectedIndices = selectedIndicesMemPtr->getDataAs<int>();
+    auto* validOutputs = validOutputsMemPtr->getDataAs<int>();
     for (size_t i = 0; i < m_numPerBatch.size(); i++) {
         validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
     }
@@ -440,7 +456,7 @@ void MatrixNms::execute(const dnnl::stream& strm) {
         for (int64_t j = 0; j < real_boxes; j++) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
-            auto selectedBase = selectedOutputs + (outputOffset + j) * 6;
+            auto* selectedBase = selectedOutputs + (outputOffset + j) * 6;
             selectedBase[0] = m_filteredBoxes[originalIndex].classIndex;
             selectedBase[1] = m_filteredBoxes[originalIndex].score;
             selectedBase[2] = m_filteredBoxes[originalIndex].box.x1;
@@ -450,7 +466,7 @@ void MatrixNms::execute(const dnnl::stream& strm) {
         }
 
         if (m_outStaticShape) {
-            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.f);
+            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.F);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
             outputOffset += m_maxBoxesPerBatch;
             originalOffset += real_boxes;

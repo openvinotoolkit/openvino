@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_cpu {
@@ -28,6 +32,8 @@ public:
         validate_and_infer_types();
     }
 
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -37,7 +43,7 @@ public:
     }
 
 private:
-    Config m_config;
+    Config m_config{};
 };
 
 }  // namespace ov::intel_cpu

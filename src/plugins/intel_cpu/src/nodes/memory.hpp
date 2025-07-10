@@ -6,11 +6,27 @@
 
 #include <graph.h>
 
-#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
+#include "allocation_context.hpp"
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "edge.h"
+#include "graph_context.h"
 #include "input.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "memory_state.h"
 #include "memory_state_base.h"
-#include "ov_optional.hpp"
+#include "node.h"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "proxy_mem_blk.h"
 
 namespace ov::intel_cpu::node {
@@ -24,7 +40,6 @@ public:
     using InputNodesMap = std::unordered_map<std::string, MemoryStateNode*>;
     using OutputNodesMap = std::unordered_map<std::string, MemoryNode*>;
 
-public:
     void registerOutput(MemoryOutputBase* node);
     void registerInput(MemoryInputBase* node);
     void remove(MemoryNode* node);
@@ -37,7 +52,6 @@ private:
     MemoryInputBase* getMemoryInputByName(const std::string& name);
     MemoryOutputBase* getMemoryOutputByName(const std::string& name);
 
-private:
     InputNodesMap memory_inputs;
     OutputNodesMap memory_outputs;
 };
@@ -62,11 +76,11 @@ public:
         return getType() == Type::MemoryOutput;
     }
 
-    void execute(const dnnl::stream& strm) override final;             // NOLINT
-    void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
+    void execute(const dnnl::stream& strm) override final;
+    void executeDynamicImpl(const dnnl::stream& strm) override final;
 
-    bool isExecutable() const override final;  // NOLINT
-    bool neverExecute() const override final;  // NOLINT
+    bool isExecutable() const override final;
+    bool neverExecute() const override final;
 
     void registerInputNode(MemoryInputBase* node);
     void deregisterSibling(MemoryInputBase* node);
@@ -127,10 +141,9 @@ protected:
 
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
-    enum class mode { read_value_assign, single_read_value };
+    enum class mode : uint8_t { read_value_assign, single_read_value };
 
-public:
-    MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
+    MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx);
 
     ~MemoryInputBase() override;
 
@@ -141,22 +154,22 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
 
-    void execute(const dnnl::stream& strm) override final;             // NOLINT
-    void executeDynamicImpl(const dnnl::stream& strm) override final;  // NOLINT
+    void execute(const dnnl::stream& strm) override final;
+    void executeDynamicImpl(const dnnl::stream& strm) override final;
     bool needShapeInfer() const override {
         return false;
     }
     bool needPrepareParams() const override {
         return false;
     }
-    bool neverExecute() const override final;  // NOLINT
-    bool isExecutable() const override final;  // NOLINT
+    bool neverExecute() const override final;
+    bool isExecutable() const override final;
 
     void registerOutputNode(MemoryOutputBase* node);
     void deregisterSibling(MemoryOutputBase* node);
 
     MemoryOutputBase& getOutputNode();
-    void assignState(MemStatePtr newState) override final;  // NOLINT
+    void assignState(MemStatePtr newState) override final;
 
 protected:
     MemoryInputBase(const std::string& id,
@@ -165,11 +178,10 @@ protected:
                     const Shape& output_shape,
                     const ov::element::Type& output_prc,
                     const GraphContext::CPtr& context,
-                    const ov::optional<std::vector<Shape>>& input_shape,
-                    const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                    const std::optional<std::vector<Shape>>& input_shape,
+                    const std::optional<std::vector<ov::element::Type>>& input_prc,
                     mode mode = mode::read_value_assign);
 
-protected:
     virtual void runStatic(dnnl::stream strm) = 0;
     virtual void runDynamic(dnnl::stream strm) = 0;
     virtual void assignStateHook() = 0;
@@ -178,13 +190,11 @@ protected:
     }
 
 private:
-    using executeHookPtr = void (MemoryInputBase::*)(void);
+    using executeHookPtr = void (MemoryInputBase::*)();
 
-private:
     void assignState();
     void bypassAssignState();
 
-private:
     /**
      * @brief keeps reference to output sibling node
      */
@@ -202,8 +212,8 @@ public:
                 const Shape& output_shape,
                 const ov::element::Type& output_prc,
                 const GraphContext::CPtr& context,
-                const ov::optional<std::vector<Shape>>& input_shape,
-                const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                const std::optional<std::vector<Shape>>& input_shape,
+                const std::optional<std::vector<ov::element::Type>>& input_prc,
                 std::shared_ptr<ov::Model> func = nullptr,
                 mode mode = mode::read_value_assign);
 
@@ -227,14 +237,12 @@ protected:
     void runDynamic(dnnl::stream strm) override;
 
 private:
-    void assignStateHook() override { /*pass*/
-    }
+    void assignStateHook() override { /*pass*/ }
 
     bool haveSubgraph() const {
         return body != nullptr;
     }
 
-private:
     std::shared_ptr<ov::Model> body = nullptr;
     std::unique_ptr<ov::intel_cpu::Graph> subGraph = nullptr;
     std::vector<MemoryPtr> subgraphMemoryPtrs;
@@ -250,8 +258,8 @@ public:
                       const Shape& output_shape,
                       const ov::element::Type& output_prc,
                       const GraphContext::CPtr& context,
-                      const ov::optional<std::vector<Shape>>& input_shape,
-                      const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                      const std::optional<std::vector<Shape>>& input_shape,
+                      const std::optional<std::vector<ov::element::Type>>& input_prc,
                       std::shared_ptr<ov::Model> func);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -271,8 +279,8 @@ public:
                     const Shape& output_shape,
                     const ov::element::Type& output_prc,
                     const GraphContext::CPtr& context,
-                    const ov::optional<std::vector<Shape>>& input_shape,
-                    const ov::optional<std::vector<ov::element::Type>>& input_prc,
+                    const std::optional<std::vector<Shape>>& input_shape,
+                    const std::optional<std::vector<ov::element::Type>>& input_prc,
                     const std::shared_ptr<ScaledDotProductAttention>& sdpaNode);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -287,7 +295,6 @@ private:
     void runStatic(dnnl::stream strm) override;
     void runDynamic(dnnl::stream strm) override;
 
-private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };

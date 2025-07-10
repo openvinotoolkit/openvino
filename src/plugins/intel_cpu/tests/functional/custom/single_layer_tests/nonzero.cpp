@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/non_zero.hpp"
 
 using namespace CPUTestUtils;
 
@@ -30,7 +31,7 @@ public:
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, genData, cpuParams) = obj.param;
         std::string td;
-        ElementType netType = ElementType::undefined;
+        ElementType netType = ElementType::dynamic;
         InputShape inputShape;
 
         std::tie(inputShape, netType) = basicParamsSet;
@@ -74,7 +75,7 @@ protected:
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, genData, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        ElementType netType = ElementType::undefined;
+        ElementType netType = ElementType::dynamic;
         InputShape inputShape;
         std::tie(inputShape, netType) = basicParamsSet;
 

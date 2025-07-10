@@ -8,6 +8,7 @@
 
 #ifdef OV_CORE_USE_XBYAK_JIT
 #    include "openvino/reference/utils/jit_generator.hpp"
+#    include "openvino/util/os.hpp"
 #endif
 
 #ifdef OV_CORE_USE_INTRINSICS
@@ -480,14 +481,15 @@ public:
 template <class Clamp, typename TI, typename TO>
 void convert_impl(const TI* arg, TO* out, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
-    if (auto converter = jit_convert_array::get<TI, TO, Clamp::enabled>()) {
-        jit_convert_array::args_t args = {arg, out, count};
-        converter(&args);
-    } else
-#endif
-    {
-        Converter<TI, TO>::template apply<Clamp>(arg, out, count);
+    if (util::may_i_use_dynamic_code()) {
+        if (auto converter = jit_convert_array::get<TI, TO, Clamp::enabled>()) {
+            jit_convert_array::args_t args = {arg, out, count};
+            converter(&args);
+            return;
+        }
     }
+#endif  // OV_CORE_USE_XBYAK_JIT
+    Converter<TI, TO>::template apply<Clamp>(arg, out, count);
 }
 }  // namespace
 
@@ -539,16 +541,18 @@ void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size
     // can re-use Clamp as bf16 is converted to float before clamping
     using clamp_bf16_f16 = Clamp<float, float16>;
     convert_impl<clamp_bf16_f16>(arg, out, count);
-    // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
+    // CVS-125496: duplicate and stub for ARM, provide optimized solution
 }
 
 size_t count_out_of_f16_range(const float* arg, size_t count) {
 #ifdef OV_CORE_USE_XBYAK_JIT
-    if (auto converter = jit_count_out_of_range::get<float, float16>()) {
-        size_t num_out_of_range = 0;
-        jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
-        converter(&args);
-        return num_out_of_range;
+    if (util::may_i_use_dynamic_code()) {
+        if (auto converter = jit_count_out_of_range::get<float, float16>()) {
+            size_t num_out_of_range = 0;
+            jit_count_out_of_range::args_t args = {arg, &num_out_of_range, count};
+            converter(&args);
+            return num_out_of_range;
+        }
     }
 #endif  // OV_CORE_USE_XBYAK_JIT
     const auto is_out_of_f16_range = [](const float v) {

@@ -16,6 +16,7 @@
 
 #include "itt.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
@@ -255,7 +256,7 @@ public:
             if (m_visualize.is_bool()) {
                 _visualize();
             } else {
-                const auto& filter_tokens = split_by_delimiter(m_visualize.get_str(), ',');
+                const auto& filter_tokens = ov::util::split_by_delimiter(m_visualize.get_str(), ',');
                 for (const auto& token : filter_tokens) {
                     if (pass_name.find(token) != std::string::npos) {
                         _visualize();
@@ -278,7 +279,7 @@ public:
             if (m_serialize.is_bool()) {
                 _serialize();
             } else {
-                const auto& filter_tokens = split_by_delimiter(m_serialize.get_str(), ',');
+                const auto& filter_tokens = ov::util::split_by_delimiter(m_serialize.get_str(), ',');
                 for (const auto& token : filter_tokens) {
                     if (pass_name.find(token) != std::string::npos) {
                         _serialize();
@@ -293,25 +294,12 @@ private:
     static std::string gen_file_name(const std::string& model_name, const std::string& pass_name, const size_t idx) {
         std::stringstream name;
         // visualizations and serializations will be named after the outermost function
-        const size_t num_digits_in_pass_index = 3;
         std::string index_str = std::to_string(idx);
-        index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
+        const size_t num_digits_in_pass_index = index_str.length() > 2LU ? 0LU : (3LU - index_str.length());
+        index_str = std::string(num_digits_in_pass_index, '0') + index_str;
 
         name << model_name << std::string("_") << index_str << std::string("_") << pass_name;
         return name.str();
-    }
-
-    static std::vector<std::string> split_by_delimiter(std::string str, char delimiter) {
-        std::vector<std::string> res;
-        size_t pos = 0;
-        while ((pos = str.find(delimiter)) != std::string::npos) {
-            res.push_back(str.substr(0, pos));
-            str.erase(0, pos + 1);
-        }
-        if (pos != str.size() - 1) {
-            res.push_back(str);
-        }
-        return res;
     }
 
     std::unordered_map<std::string, stopwatch> stopwatches;

@@ -4,14 +4,34 @@
 
 #include "stft.h"
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/rdft.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/stft.hpp"
-#include "openvino/reference/stft.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -77,11 +97,11 @@ bool STFT::created() const {
 }
 
 namespace {
-static void transpose_out4d(const uint8_t* in,
-                            uint8_t* out,
-                            const VectorDims& in_shape,
-                            const VectorDims& out_shape,
-                            size_t elem_size) {
+void transpose_out4d(const uint8_t* in,
+                     uint8_t* out,
+                     const VectorDims& in_shape,
+                     const VectorDims& out_shape,
+                     size_t elem_size) {
     const std::vector<size_t> axes_order{0, 2, 1, 3};
     parallel_for3d(out_shape[0],
                    out_shape[1],
@@ -99,10 +119,10 @@ static void transpose_out4d(const uint8_t* in,
 }
 }  // namespace
 
-void STFT::execute(const dnnl::stream& strm) {
-    const float* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
-    const float* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
-    float* rdft_result = getDstDataAtPortAs<float>(0);
+void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
+    const auto* signal = getSrcDataAtPortAs<const float>(DATA_IDX);
+    const auto* window = getSrcDataAtPortAs<const float>(WINDOW_IDX);
+    auto* rdft_result = getDstDataAtPortAs<float>(0);
     const VectorDims& signal_shape = getSrcMemoryAtPort(DATA_IDX)->getStaticDims();
     const VectorDims& window_shape = getSrcMemoryAtPort(WINDOW_IDX)->getStaticDims();
     const int64_t frame_size = (getSrcDataAtPortAs<const int32_t>(FRAME_SIZE_IDX))[0];
@@ -142,7 +162,7 @@ void STFT::execute(const dnnl::stream& strm) {
                        signal_slice.end(),
                        pad_window.begin(),
                        signal_slice.begin(),
-                       std::multiplies<float>());
+                       std::multiplies<>());
 
         const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
         auto twiddles = rdft_executor->generateTwiddles({static_cast<int>(signal_slice.size())}, fft_out_shape, {0});

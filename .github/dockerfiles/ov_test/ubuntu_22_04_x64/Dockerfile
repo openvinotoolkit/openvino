@@ -25,6 +25,8 @@ RUN apt-get update && \
         tzdata \
         # parallel gzip
         pigz \
+        # Samples
+        clang \
         # Python
         python3.11-dev \
         python3.11-venv \
@@ -32,6 +34,13 @@ RUN apt-get update && \
         libhdf5-dev \
         # For TF Models tests
         wget \
+        # libGL for PyTorch Models tests
+        ffmpeg  \
+        libsm6  \
+        libxext6 \
+        libgl1 \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
         && \
     rm -rf /var/lib/apt/lists/*
 

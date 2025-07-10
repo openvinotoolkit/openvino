@@ -19,6 +19,7 @@
 #include "openvino/op/util/slice_plan.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/strided_slice.hpp"
+#include "slice_shape_inference_utils.hpp"
 #include "strided_slice_shape_inference.hpp"
 #include "utils.hpp"
 
@@ -47,24 +48,18 @@ StridedSlice::StridedSlice(const Output<Node>& data,
 }
 
 namespace {
-std::shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Output<Node>& end) {
-    const auto& begin_pshape = begin.get_partial_shape();
-    const auto& end_pshape = end.get_partial_shape();
-
-    size_t strides_length = 0;
-    if (begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1 && begin_pshape[0].is_static()) {
-        strides_length = begin_pshape[0].get_length();
-    } else if (end_pshape.rank().is_static() && end_pshape.rank().get_length() == 1 && end_pshape[0].is_static()) {
-        strides_length = end_pshape[0].get_length();
-    } else  // dynamic case
-    {
-        OPENVINO_ASSERT(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
-                        "Begin input must be 1D");
-        return std::make_shared<v1::Broadcast>(v0::Constant::create(element::i64, {}, {1}),
-                                               std::make_shared<v0::ShapeOf>(begin));
+std::shared_ptr<Node> create_default_strides(const Output<Node>& begin, const Output<Node>& end) {
+    const auto strides_size = ov::op::slice::default_stride_size(begin.get_partial_shape(), end.get_partial_shape());
+    if (strides_size > 0) {
+        return v0::Constant::create(element::i64, Shape{static_cast<size_t>(strides_size)}, {1});
     }
 
-    return v0::Constant::create(element::i64, Shape{strides_length}, std::vector<int64_t>(strides_length, 1));
+    // dynamic case
+    const auto& begin_pshape = begin.get_partial_shape();
+    OPENVINO_ASSERT(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1, "Begin input must be 1D");
+
+    return std::make_shared<v1::Broadcast>(v0::Constant::create(element::i64, {}, {1}),
+                                           std::make_shared<v0::ShapeOf>(begin));
 }
 
 /**
@@ -94,7 +89,7 @@ StridedSlice::StridedSlice(const Output<Node>& data,
     : StridedSlice(data,
                    begin,
                    end,
-                   calculate_default_strides(begin, end),
+                   create_default_strides(begin, end),
                    begin_mask,
                    end_mask,
                    new_axis_mask,
@@ -146,7 +141,7 @@ void StridedSlice::validate_and_infer_types() {
 
     // Fill up strides input with default strides if not set by this point.
     if (get_input_size() < 4) {
-        set_argument(3, calculate_default_strides(get_input_node_ptr(1)->output(0), get_input_node_ptr(2)->output(0)));
+        set_argument(3, create_default_strides(get_input_node_ptr(1)->output(0), get_input_node_ptr(2)->output(0)));
     }
 
     set_input_is_relevant_to_shape(1);
@@ -172,7 +167,19 @@ AxisSet StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask)
 
 std::shared_ptr<Node> StridedSlice::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_StridedSlice_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
+    auto args_size = new_args.size();
+    NODE_VALIDATION_CHECK(this, (args_size == 3) || (args_size == 4), "Incorrect number of new inputs: ", args_size);
+
+    if (args_size == 3) {
+        return std::make_shared<StridedSlice>(new_args.at(0),
+                                              new_args.at(1),
+                                              new_args.at(2),
+                                              m_begin_mask,
+                                              m_end_mask,
+                                              m_new_axis_mask,
+                                              m_shrink_axis_mask,
+                                              m_ellipsis_mask);
+    }
     return std::make_shared<v1::StridedSlice>(new_args.at(0),
                                               new_args.at(1),
                                               new_args.at(2),
@@ -222,7 +229,7 @@ bool evaluate_strided_slice(const Tensor& data,
 
 bool StridedSlice::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_StridedSlice_evaluate);
-    // FIXME: 4th input is optional, but it is required by the following code
+    // CVS-169883: 4th input is optional, but it is required by the following code
     OPENVINO_ASSERT(inputs.size() == 4);
     OPENVINO_ASSERT(outputs.size() == 1);
     return strided_slice::evaluate_strided_slice(inputs[0],
@@ -239,6 +246,7 @@ bool StridedSlice::evaluate(TensorVector& outputs, const TensorVector& inputs) c
 
 bool StridedSlice::has_evaluate() const {
     OV_OP_SCOPE(v1_StridedSlice_has_evaluate);
+    // CVS-169883: 4th input is optional
     return get_input_size() == 4;
 }
 
@@ -335,6 +343,7 @@ bool StridedSlice::constant_fold(OutputVector& output_values, const OutputVector
     }
     return is_folded;
 }
+
 }  // namespace v1
 }  // namespace op
 }  // namespace ov

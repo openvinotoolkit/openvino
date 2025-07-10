@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from collections.abc import Mapping
 import numpy as np
 import pytest
 
@@ -154,9 +153,9 @@ def test_ovdict_single_output_noname(device, is_direct):
         _ = result["some_name"]
     assert "some_name" in str(e0.value)
 
-    # Check if returned names are tuple with one empty set
+    # Check if returned names are tuple with one default name set
     assert len(result.names()) == 1
-    assert result.names()[0] == set()
+    assert result.names()[0] != set()
 
 
 @pytest.mark.parametrize("is_direct", [True, False])

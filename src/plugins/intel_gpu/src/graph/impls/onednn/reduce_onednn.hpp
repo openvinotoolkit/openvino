@@ -4,7 +4,7 @@
 
 #include "impls/onednn/utils.hpp"
 #include "reduce_inst.h"
-#include "impls/registry/implementation_manager.hpp"
+#include "registry/implementation_manager.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -48,8 +48,9 @@ struct ReduceImplementationManager : public ImplementationManager {
 
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<reduce>());
+        const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
         const auto& reduce_node = node.as<reduce>();
@@ -66,6 +67,7 @@ struct ReduceImplementationManager : public ImplementationManager {
         static const std::vector<format::type> supported_formats = {
             format::any,
             format::bfyx,
+            format::byxf,
             format::bfzyx,
             format::bfwzyx,
             format::b_fs_yx_fsv16,
@@ -109,10 +111,6 @@ struct ReduceImplementationManager : public ImplementationManager {
         if (out_layout == in_layout) {
             return false;
         }
-
-        // oneDNN reduction selects ref kernel for simple formats(bfyx..) which has perf regression with a decent tensor size.
-        if (format::is_simple_data_format(in_layout.format))
-            return false;
 
         // Onednn reduction does NOT support reordering of unreduced-axes.
         // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.

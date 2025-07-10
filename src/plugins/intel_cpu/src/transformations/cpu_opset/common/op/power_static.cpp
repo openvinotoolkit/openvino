@@ -4,6 +4,14 @@
 
 #include "power_static.hpp"
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::PowerStaticNode::PowerStaticNode(const ov::Output<Node>& data,
@@ -36,7 +44,7 @@ std::shared_ptr<ov::Node> ov::intel_cpu::PowerStaticNode::clone_with_new_inputs(
 void ov::intel_cpu::PowerStaticNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(PowerStaticNode_validate_and_infer_types);
     set_output_type(0,
-                    m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type,
+                    m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type,
                     get_input_partial_shape(0));
 }
 

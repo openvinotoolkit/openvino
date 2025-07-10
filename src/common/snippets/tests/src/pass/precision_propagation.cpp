@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/op/convert_saturation.hpp"
@@ -152,7 +153,7 @@ std::vector<PrecisionPropagationParamsValues> test_cases {
         {
             {},
             {},
-            {element::i8, element::undefined},
+            {element::i8, element::dynamic},
             {}
         }
     },
@@ -212,7 +213,7 @@ std::vector<PrecisionPropagationParamsValues> test_cases {
         {
             {},
             {},
-            {element::f32, element::undefined},
+            {element::f32, element::dynamic},
             {}
         }
     },
@@ -222,7 +223,7 @@ std::vector<PrecisionPropagationParamsValues> test_cases {
         {
             {element::f32, element::f32},
             {},
-            {element::undefined, element::f32},
+            {element::dynamic, element::f32},
             {
                 {element::f32, element::f32},
                 {element::bf16, element::bf16}
@@ -244,7 +245,7 @@ std::vector<PrecisionPropagationParamsValues> test_cases {
         {
             {element::f32, element::f32},
             {},
-            {element::undefined, element::f32},
+            {element::dynamic, element::f32},
             {
                 {element::f32, element::f32},
                 {element::bf16, element::bf16}

@@ -328,6 +328,14 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                 if ((vec_axis_dim == 1 && op.tensors[0].LogicalSize() != 1) && (params.inputs[1].X().v != vec_axis_dim)) {
                     vec_load_type = LoadType::LT_UNALIGNED;
                 }
+
+                // In case of a fused operation where input data has dynamic innermost dimension,
+                // we shouldn't use block reads, as the dynamic dimension may only have a single
+                // broadcastable value. Therefore, we should force scalar fusions (to read elements
+                // one by one using _SAFE index calculation) and apply them in the loop over vec_size
+                if (vec_axis_dim == 0) {
+                    jit.AddConstants({MakeJitConstant("FUSE_SCALAR", 1)});
+                }
             }
         }
         FusedOpsConfiguration conf_vec = { "_VEC", {"b", "f", "(y + write_id)", "x"},
@@ -339,8 +347,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                            IndexType::TENSOR_COORD,
                                            Tensor::DataChannelName::X };
 
-        FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "x"},
-                                               "dequantized",
+        FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "xs"},
+                                               "dequantized_scalar",
                                                input_dt,
                                                1,
                                                LoadType::LT_UNALIGNED,
@@ -412,18 +420,18 @@ KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params) con
 
 bool GemmKernelTiledOpt::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);
 
     if (gmm_params.outputs[0].PitchesDifferFromLogicalDims())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     size_t num_inputs = (gmm_params.indirect_input0 || gmm_params.indirect_input1) ? gmm_params.inputs.size() - 1 : gmm_params.inputs.size();
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
         auto& input = gmm_params.inputs[input_idx];
         if (!Tensor::SimpleLayout(input.GetLayout())) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         // Supports outer padding as first element offset and dynamic padding for Batch, Feature, X, Y dimensions for first and second inputs
         // in case of shape agnostic kernel
@@ -437,15 +445,15 @@ bool GemmKernelTiledOpt::Validate(const Params& params) const {
         }
 
         if (!proper_pad_x || !proper_pad_y || input.Z().pad.Total() != 0 || !proper_pad_f)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (gmm_params.has_dynamic_inputs() && !gmm_params.is_shape_agnostic)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     for (size_t i = 1; i < num_inputs; i++)
         if (gmm_params.inputs[0].GetDType() != gmm_params.inputs[i].GetDType())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

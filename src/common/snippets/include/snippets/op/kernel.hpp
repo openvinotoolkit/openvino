@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Kernel
@@ -22,12 +25,12 @@ public:
     Kernel() = default;
     Kernel(lowered::LinearIR region);
 
-    template<typename ... ArgTypes>
+    template <typename... ArgTypes>
     static std::shared_ptr<Kernel> make_kernel(bool is_dynamic, ArgTypes&&... args);
     virtual size_t get_num_call_args() const = 0;
 
-    std::shared_ptr<lowered::LinearIR> region;
-    const void *compile_params = nullptr;
+    std::shared_ptr<lowered::LinearIR> region = nullptr;
+    const void* compile_params = nullptr;
 };
 
 class KernelStatic : public Kernel {
@@ -35,7 +38,9 @@ public:
     OPENVINO_OP("KernelStatic", "SnippetsOpset", Kernel);
     KernelStatic() = default;
     KernelStatic(lowered::LinearIR region);
-    size_t get_num_call_args() const override { return  2; }
+    size_t get_num_call_args() const override {
+        return 2;
+    }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
@@ -44,19 +49,18 @@ public:
     OPENVINO_OP("KernelDynamic", "SnippetsOpset", Kernel);
     KernelDynamic() = default;
     KernelDynamic(lowered::LinearIR region);
-    size_t get_num_call_args() const override { return  1; }
+    size_t get_num_call_args() const override {
+        return 1;
+    }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
-template<typename ... ArgTypes>
+template <typename... ArgTypes>
 std::shared_ptr<Kernel> Kernel::make_kernel(bool is_dynamic, ArgTypes&&... args) {
     if (is_dynamic) {
         return std::make_shared<KernelDynamic>(std::forward<ArgTypes>(args)...);
-    } else {
-        return std::make_shared<KernelStatic>(std::forward<ArgTypes>(args)...);
     }
+    return std::make_shared<KernelStatic>(std::forward<ArgTypes>(args)...);
 }
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

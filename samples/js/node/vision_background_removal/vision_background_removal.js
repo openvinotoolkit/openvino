@@ -112,7 +112,7 @@ async function main(
 }
 
 // Details about this normalization:
-// https://docs.openvino.ai/2025/notebooks/vision-background-removal-with-output.html#load-and-pre-process-input-image
+// https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/vision-background-removal/vision-background-removal.ipynb#Load-and-Pre-Process-Input-Image
 function normalizeImage(imageData, width, height) {
   // Mean and scale values
   const inputMean = [123.675, 116.28, 103.53];

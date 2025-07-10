@@ -237,10 +237,26 @@ static constexpr ov::Property<bool> spatial_dyn{"NPUW_SPATIAL_DYN"};
 /**
  * @brief
  * Type: boolean
+ * Force subgraph interconnect tensors to f16 precision if those are in f32
+ * Default value: false
+ */
+static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
+
+/**
+ * @brief
+ * Type: boolean
  * When applicable, do embedding gather on host.
  * Default value: true.
  */
 static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
+
+/**
+ * @brief
+ * Type: boolean
+ * When applicable, do embedding gather on host but leave it quantized.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
 
 /**
  * @brief
@@ -434,6 +450,16 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: std::string.
+ * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
+ * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
+ * Possible values: "DYNAMIC", "STATIC".
+ * Default value: "STATIC".
+ */
+static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"};
+
+/**
+ * @brief
  * Type: ov::AnyMap.
  * Configuration for compilation of prefill model.
  * NOTE: !! Write-only !!
@@ -444,7 +470,7 @@ static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFI
  * @brief
  * Type: std::string.
  * Hint for generation stage. NPUW will use optimal configuration based on the passed preference via hint.
- * Hint is ignored if used with "NPUW_LLM_GENERATE_CONFIG".
+ * Passing this hint with "NPUW_LLM_GENERATE_CONFIG" will generate a error.
  * Possible values: "FAST_COMPILE", "BEST_PERF".
  * Default value: "FAST_COMPILE".
  */
