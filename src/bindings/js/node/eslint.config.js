@@ -29,9 +29,7 @@ const customRules = {
   'keyword-spacing': ['error', { overrides: { catch: { after: false } } }],
   'prefer-destructuring': ['error', { object: true, array: false }],
   'no-explicit-any': 0,
-  'no-unused-vars': 0, // addon.ts interfaces
   '@typescript-eslint/no-require-imports': 0,
-  '@typescript-eslint/no-misused-new': 'off',
 };
 
 module.exports = defineConfig([
@@ -47,5 +45,11 @@ module.exports = defineConfig([
       parser: tseslint.parser,
     },
     rules: customRules,
+  },
+  {
+    files: ['**/addon.ts'],
+    rules: {
+      '@typescript-eslint/no-misused-new': 'off',
+    },
   },
 ]);
