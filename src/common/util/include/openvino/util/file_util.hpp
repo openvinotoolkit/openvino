@@ -179,7 +179,7 @@ inline int64_t file_size(const char* path) {
 inline bool file_exists(const std::filesystem::path& path) {
 #if defined(__ANDROID__) || defined(ANDROID)
     // Handle nested resource paths on Android platform
-    std::file_name = path.string();
+    std::string file_name = path.string();
     auto pos = file_name.find('!');
     if (pos != std::string::npos) {
         file_name = file_name.substr(0, pos);
@@ -189,6 +189,12 @@ inline bool file_exists(const std::filesystem::path& path) {
     return std::filesystem::exists(path);
 #endif
 }
+
+#ifdef _MSC_VER
+inline bool file_exists(const char* path) {
+    return file_exists(ov::util::string_to_wstring(path));
+}
+#endif
 
 std::string get_file_ext(const std::string& path);
 ov::util::Path get_directory(const ov::util::Path& path);

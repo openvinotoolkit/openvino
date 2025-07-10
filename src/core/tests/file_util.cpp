@@ -514,8 +514,6 @@ protected:
         {
             std::ofstream outfile("android_test_file_20.txt");
             outfile << "This is a test file.";
-            std::ofstream outfile("android_app.jar");
-            outfile << "This is a test file.";
         }
 #endif
     }
@@ -534,7 +532,6 @@ protected:
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
         std::filesystem::remove("android_test_file_20.txt");
-        std::filesystem::remove("android_app.jar");
 #endif
     }
 };
@@ -581,8 +578,8 @@ TEST_F(FileUtilTest, LargeFileSizeTest) {
 
 TEST_F(FileUtilTest, fileExistTest) {
     EXPECT_TRUE(ov::util::file_exists("test_file_20.txt"));
-    EXPECT_TRUE(ov::util::file_exists(ov::util::make_path(L"test_file_20.txt")));
     EXPECT_TRUE(ov::util::file_exists(ov::util::Path("test_file_20.txt")));
+    EXPECT_TRUE(ov::util::file_exists(ov::util::make_path(L"test_file_20.txt")));
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -629,18 +626,15 @@ TEST_F(FileUtilTest, wcharFileSizeTest) {
     EXPECT_EQ(ov::util::file_size(ov::util::make_path(L"这是_wchar.txt")), 20);
 }
 
-TEST_F(FileUtilTest, unicodeFileExistTest) {
-    EXPECT_TRUE(ov::util::file_exists("test_file_20.txt"));
+TEST_F(FileUtilTest, wcharFileExistTest) {
+#    ifdef _MSC_VER
     EXPECT_TRUE(ov::util::file_exists(L"这是_wchar.txt"));
-    EXPECT_TRUE(ov::util::file_exists(ov::util::Path("test_file_20.txt")));
-    EXPECT_TRUE(ov::util::file_exists(ov::util::make_path(L"这是_wchar.txt")));
-
-#    if defined(__ANDROID__) || defined(ANDROID)
-    EXPECT_TRUE(ov::util::file_exists("android_test_file_20.txt"));
-    EXPECT_TRUE(ov::util::file_exists("android_app.jar!/assets/resource.txt"));
-    EXPECT_TRUE(ov::util::file_exists(L"android_test_file_20.txt"));
-    EXPECT_TRUE(ov::util::file_exists(ov::util::Path("android_test_file_20.txt")));
+    EXPECT_TRUE(ov::util::file_exists(ov::util::Path(L"这是_wchar.txt")));
+#    else
+    EXPECT_TRUE(ov::util::file_exists(ov::util::Path("这是_wchar.txt")));
 #    endif
+    EXPECT_TRUE(ov::util::file_exists("这是_wchar.txt"));
+    EXPECT_TRUE(ov::util::file_exists(ov::util::make_path(L"这是_wchar.txt")));
 }
 #endif
 
@@ -654,5 +648,10 @@ TEST_F(FileUtilTest, androidWithCutFileSizeTest) {
     EXPECT_EQ(ov::util::file_size("android_test_file_20.txt!_to_cut.jar"), 20);
     EXPECT_EQ(ov::util::file_size(L"android_test_file_20.txt!_to_cut.jar"), 20);
     EXPECT_EQ(ov::util::file_size(ov::util::Path("android_test_file_20.txt!_to_cut.jar")), 20);
+}
+TEST_F(FileUtilTest, androidWithCutFileExistTest) {
+    EXPECT_TRUE(ov::util::file_exists("android_test_file_20.txt"));
+    EXPECT_TRUE(ov::util::file_exists(L"android_test_file_20.txt!_to_cut.jar"));
+    EXPECT_TRUE(ov::util::file_exists(ov::util::Path("android_test_file_20.txt!_to_cut.jar")));
 }
 #endif
