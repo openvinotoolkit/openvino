@@ -13,7 +13,7 @@ namespace ov::intel_cpu {
 
 class AclMVNExecutor : public MVNExecutor {
 public:
-    AclMVNExecutor(const ExecutorContext::CPtr context);
+    AclMVNExecutor(ExecutorContext::CPtr context);
 
     bool init(const MVNAttrs& mvnAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,

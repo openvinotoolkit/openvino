@@ -71,7 +71,13 @@ def execute_cached(compiled_model, *args):
     return result
 
 
-def openvino_execute(gm: GraphModule, *args, executor_parameters=None, partition_id, options):
+def openvino_execute(
+    gm: GraphModule,
+    *args,
+    executor_parameters=None,
+    partition_id: int = 0,
+    options=None,
+):
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
