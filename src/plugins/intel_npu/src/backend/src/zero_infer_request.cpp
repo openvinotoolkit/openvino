@@ -831,14 +831,10 @@ void ZeroInferRequest::infer_async() {
                 OPENVINO_THROW("Empty buffer");
             }
 
-            if (!_externalMemoryStandardAllocationSupported ||
-                !memory_and_size_aligned_to_standard_page_size(userBuffer,
-                                                               userTensor.at(SINGLE_TENSOR)->get_byte_size())) {
-                if (userBuffer != levelZeroBuffer) {
-                    _logger.info("Tensor is not allocated in the current Level Zero context");
-                    OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
-                    std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
-                }
+            if (userBuffer != levelZeroBuffer) {
+                _logger.info("Tensor is not allocated in the current Level Zero context");
+                OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
+                std::memcpy(levelZeroBuffer, userBuffer, userTensor.at(SINGLE_TENSOR)->get_byte_size());
             }
         }
 
@@ -883,14 +879,11 @@ void ZeroInferRequest::get_result() {
                 OPENVINO_THROW("Empty buffer");
             }
 
-            if (!_externalMemoryStandardAllocationSupported ||
-                !memory_and_size_aligned_to_standard_page_size(userBuffer, userTensor->get_byte_size())) {
-                if (userBuffer != levelZeroBuffer) {
-                    _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context",
-                                 outputIndex);
-                    OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
-                    std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
-                }
+            if (userBuffer != levelZeroBuffer) {
+                _logger.info("Output tensor by index: %zu is not allocated in the current Level Zero context",
+                             outputIndex);
+                OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
+                std::memcpy(userBuffer, levelZeroBuffer, userTensor->get_byte_size());
             }
         }
 
