@@ -1,4 +1,4 @@
-const pluginJs = require('@eslint/js');
+const eslint = require('@eslint/js');
 const globals = require('globals');
 const tseslint = require('typescript-eslint');
 const { defineConfig } = require('eslint/config');
@@ -33,7 +33,7 @@ const customRules = {
 };
 
 module.exports = defineConfig([
-  pluginJs.configs.recommended,
+  eslint.configs.recommended,
   tseslint.configs.recommended,
   {
     ignores: ['types/', 'dist/'],
