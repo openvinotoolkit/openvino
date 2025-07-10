@@ -123,13 +123,6 @@ public:
             }
             total_kv_len += kv_len;
         }
-        // std::sort(attn_items.begin(), attn_items.end(), [] (const AttnWorkItem& left, const AttnWorkItem& right)
-        // {
-        //     // kv block number which will be acessed later
-        //     auto left_kv_blocks = left.q_block_id;
-        //     auto right_kv_blocks = right.q_block_id;
-        //     return left_kv_blocks > right_kv_blocks;
-        // });
     }
     [[nodiscard]] const AttnWorkItem& get_attn_work_item(size_t idx) const {
         return attn_items[idx];

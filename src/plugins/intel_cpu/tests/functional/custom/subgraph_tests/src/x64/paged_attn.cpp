@@ -38,7 +38,7 @@ using namespace std;
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, bool>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, ov::AnyMap>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
@@ -47,9 +47,9 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
         ElementType inType;
         InputShapes inputShapes;
-        bool isSageAttn;
         bool extendBlockIndices;
-        std::tie(inType, inputShapes, extendBlockIndices, isSageAttn) = obj.param;
+        ov::AnyMap additional_config;
+        std::tie(inType, inputShapes, extendBlockIndices, additional_config) = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -67,7 +67,11 @@ public:
         }
         result << "Prc=" << inType << "_";
         result << "ExtendBlockIndices=" << extendBlockIndices;
-        result << "isSageAttn=" << isSageAttn;
+        result << "config=(";
+        for (const auto& configEntry : additional_config) {
+            result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
+        }
+        result << ")";
 
         return result.str();
     }
@@ -215,8 +219,8 @@ public:
         ElementType inType;
         InputShapes inputShapes;
         bool extendBlockIndices;
-        bool isSageAttn;
-        std::tie(inType, inputShapes, extendBlockIndices, isSageAttn) = this->GetParam();
+        ov::AnyMap additional_config;
+        std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -224,9 +228,8 @@ public:
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
             rel_threshold = 0.01f;
         }
-        if (isSageAttn) {
-            configuration[ov::intel_cpu::enable_sage_attn.name()] = true;
-        }
+
+        configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
@@ -428,8 +431,9 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     ElementType inType;
     InputShapes inputShapes;
     bool extendBlockIndices;
-    bool isSageAttn;
-    std::tie(inType, inputShapes, extendBlockIndices, isSageAttn) = this->GetParam();
+    ov::AnyMap additional_config;
+    std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
+    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
@@ -447,6 +451,8 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
 }
 
 namespace {
+const std::vector<ov::AnyMap> additional_configs = {{{ov::intel_cpu::enable_sage_attn.name(), true}},
+                                                    {{ov::intel_cpu::enable_sage_attn.name(), false}}};
 const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
     {
         // L1, B, H, S
@@ -460,7 +466,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false),
-                                            ::testing::Values(true, false)),
+                                            ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
@@ -654,8 +660,9 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     ElementType inType;
     InputShapes inputShapes;
     bool extendBlockIndices;
-    bool isSageAttn;
-    std::tie(inType, inputShapes, extendBlockIndices, isSageAttn) = this->GetParam();
+    ov::AnyMap additional_config;
+    std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
+    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
@@ -687,7 +694,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(true, false),
-                                            ::testing::Values(true, false)),
+                                            ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 

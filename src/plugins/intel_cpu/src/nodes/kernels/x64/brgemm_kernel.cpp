@@ -528,6 +528,48 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     }
 }
 
+void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
+    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
+    auto* ptr_B = reinterpret_cast<uint8_t*>(b);
+    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
+
+    copy_buffer_b(ptr_B, scratch_b);
+
+    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
+        const bool is_M_tail = (M - mb * M_blk < M_blk);
+        auto* ptr_a = ptr_A + (mb * M_blk * lda) * srcType.size();
+        auto* ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
+        executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
+    }
+}
+
+void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
+                              std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                              const void* pin0,
+                              const void* pin1,
+                              void* Cout,
+                              void* Dout,
+                              const float* bScale,
+                              void* wsp,
+                              bool doPostops) {
+    if (ctx.is_with_amx) {
+        amx_tile_configure(ctx.palette);
+    }
+    if (doPostops) {
+        brgemm_post_ops_data_t post_ops_data;
+        post_ops_data.scales = bScale;
+        brgemm_batch_element_t addr_batch;
+        addr_batch.ptr.A = pin0;
+        addr_batch.ptr.B = pin1;
+        brgemm_kernel_execute_postops(brgKernel.get(), 1, &addr_batch, Cout, Dout, post_ops_data, wsp);
+    } else {
+        brgemm_batch_element_t addr_batch;
+        addr_batch.ptr.A = pin0;
+        addr_batch.ptr.B = pin1;
+        brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, Cout, wsp, nullptr);
+    }
+}
+
 void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
                                         void* a,
                                         void* b,
@@ -536,6 +578,31 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
                                         float* scale_b,
                                         void* wsp,
                                         void* scratch_a) {
+    OPENVINO_THROW("[Brgemm]cannot call executeGemmWithScale with no quantized kernel");
+}
+
+BrgemmKernelQuantized::BrgemmKernelQuantized(size_t M,
+                                             size_t N,
+                                             size_t K,
+                                             size_t lda,
+                                             size_t ldb,
+                                             size_t ldc,
+                                             size_t ldd,
+                                             bool b_transposed,
+                                             ov::element::Type inType,
+                                             ov::element::Type DType,
+                                             BrgemmKernel::ScaleType bScaleType,
+                                             bool b_accumulate)
+    : BrgemmKernel(M, N, K, lda, ldb, ldc, ldd, b_transposed, inType, DType, bScaleType, b_accumulate) {}
+
+void BrgemmKernelQuantized::executeGemmWithScale(bool is_M_tail,
+                                                 void* a,
+                                                 void* b,
+                                                 void* c,
+                                                 void* d,
+                                                 float* scale_b,
+                                                 void* wsp,
+                                                 void* scratch_a) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
     auto* ptr_D = reinterpret_cast<uint8_t*>(d);
@@ -607,47 +674,4 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
         }
     }
 }
-
-void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
-    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto* ptr_B = reinterpret_cast<uint8_t*>(b);
-    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
-
-    copy_buffer_b(ptr_B, scratch_b);
-
-    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
-        const bool is_M_tail = (M - mb * M_blk < M_blk);
-        auto* ptr_a = ptr_A + (mb * M_blk * lda) * srcType.size();
-        auto* ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
-        executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
-    }
-}
-
-void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
-                              std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                              const void* pin0,
-                              const void* pin1,
-                              void* Cout,
-                              void* Dout,
-                              const float* bScale,
-                              void* wsp,
-                              bool doPostops) {
-    if (ctx.is_with_amx) {
-        amx_tile_configure(ctx.palette);
-    }
-    if (doPostops) {
-        brgemm_post_ops_data_t post_ops_data;
-        post_ops_data.scales = bScale;
-        brgemm_batch_element_t addr_batch;
-        addr_batch.ptr.A = pin0;
-        addr_batch.ptr.B = pin1;
-        brgemm_kernel_execute_postops(brgKernel.get(), 1, &addr_batch, Cout, Dout, post_ops_data, wsp);
-    } else {
-        brgemm_batch_element_t addr_batch;
-        addr_batch.ptr.A = pin0;
-        addr_batch.ptr.B = pin1;
-        brgemm_kernel_execute(brgKernel.get(), 1, &addr_batch, Cout, wsp, nullptr);
-    }
-}
-
 }  // namespace ov::intel_cpu

@@ -24,19 +24,13 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 #if defined(OPENVINO_ARCH_X86_64)
-void sage_attn_transpose_k(const ReorderWorkItem& item,
-                           const size_t hk,
-                           const size_t block_size,
-                           const std::shared_ptr<ov::intel_cpu::BrgemmKernel>& brgemm_ptr,
-                           ov::intel_cpu::PlainTensor& key_cache,
-                           ov::intel_cpu::PlainTensor& qk_scratch_b);
 
-void sage_attn_transpose_k(const ReorderWorkItem& item,
-                           const size_t hk,
-                           const size_t block_size,
-                           const std::shared_ptr<ov::intel_cpu::BrgemmKernel>& brgemm_ptr,
-                           ov::intel_cpu::PlainTensor& key_cache,
-                           ov::intel_cpu::PlainTensor& qk_scratch_b) {
+inline void sage_attn_transpose_k(const ReorderWorkItem& item,
+                                  const size_t hk,
+                                  const size_t block_size,
+                                  const std::shared_ptr<ov::intel_cpu::BrgemmKernel>& brgemm_ptr,
+                                  ov::intel_cpu::PlainTensor& key_cache,
+                                  ov::intel_cpu::PlainTensor& qk_scratch_b) {
     const auto batch_in_reorder = item.batch_in_reorder;
     const auto kv_block = item.kv_block_id;
     const auto block_number = item.block_number;

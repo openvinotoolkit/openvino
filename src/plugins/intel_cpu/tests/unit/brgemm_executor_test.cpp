@@ -30,16 +30,13 @@ public:
         result << ",M=" << M;
         result << ",N=" << N;
         result << ",K=" << K;
-        result << ",WithpostScale=" << postScale << std::endl;
+        result << ",WithpostScale=" << postScale;
         return result.str();
     }
 };
 
 template <typename T>
 void run_test(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
-    M = 33;
-    N = 32;
-    K = 33;
     ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false, rtPrec);
     size_t nthr = 8;
     bool is_f32 = (rtPrec == ov::element::f32);
@@ -84,9 +81,6 @@ void run_test(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
 
 template <>
 void run_test<int8_t>(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
-    // size_t M = 32;
-    // size_t N = 32;
-    // size_t K = 80;
     ov::intel_cpu::BrgemmKernel gemm(M, N, K, K + 4, K + 4, N, true, rtPrec);
     size_t nthr = 8;
     bool is_f32 = (rtPrec == ov::element::f32);
@@ -137,21 +131,18 @@ void run_test<int8_t>(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
 }
 
 static void run_test_post_scales(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
-    // size_t M = 32;
-    // size_t N = 32;
-    // size_t K = 80;
-    ov::intel_cpu::BrgemmKernel gemm(M,
-                                     N,
-                                     K,
-                                     K + 4,
-                                     K + 4,
-                                     N,
-                                     N,
-                                     true,
-                                     rtPrec,
-                                     ov::element::f32,
-                                     ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
-                                     false);
+    ov::intel_cpu::BrgemmKernelQuantized gemm(M,
+                                              N,
+                                              K,
+                                              K + 4,
+                                              K + 4,
+                                              N,
+                                              N,
+                                              true,
+                                              rtPrec,
+                                              ov::element::f32,
+                                              ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
+                                              false);
     size_t nthr = 8;
     bool is_f32 = (rtPrec == ov::element::f32);
     std::vector<int8_t> a_data(M * (K + 4));

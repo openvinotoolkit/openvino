@@ -26,12 +26,12 @@ template <
     std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> || std::is_same_v<T, float>) &&
                          (SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
                      bool> = true>
-static void attn_acc_value_block(float* out,
-                                 float* weight,
-                                 T* v,
-                                 const size_t S,
-                                 const size_t block_size,
-                                 [[maybe_unused]] const size_t group_size) {
+void attn_acc_value_block(float* out,
+                          float* weight,
+                          T* v,
+                          const size_t S,
+                          const size_t block_size,
+                          [[maybe_unused]] const size_t group_size) {
 #if defined(HAVE_AVX512F)
     size_t j = 0;
     for (; j + 4 <= block_size; j += 4) {
@@ -159,12 +159,12 @@ static void attn_acc_value_block(float* out,
     }
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
-static void attn_acc_value_block_by_dim(float* out,
-                                        float* weight,
-                                        uint8_t* v,
-                                        const size_t S,
-                                        const size_t block_size,
-                                        const size_t group_size) {
+void attn_acc_value_block_by_dim(float* out,
+                                 float* weight,
+                                 uint8_t* v,
+                                 const size_t S,
+                                 const size_t block_size,
+                                 const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -339,12 +339,12 @@ static void attn_acc_value_block_by_dim(float* out,
 }
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
-static void attn_acc_value_block_by_dim(float* out,
-                                        float* weight,
-                                        uint8_t* v_ptr,
-                                        const size_t S,
-                                        const size_t block_size,
-                                        const size_t group_size) {
+void attn_acc_value_block_by_dim(float* out,
+                                 float* weight,
+                                 uint8_t* v_ptr,
+                                 const size_t S,
+                                 const size_t block_size,
+                                 const size_t group_size) {
     size_t src_offset = 0;
     size_t dst_offset = 0;
     const size_t params_offset = sizeof(float) * 2;
@@ -432,11 +432,7 @@ static void attn_acc_value_block_by_dim(float* out,
 }
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
-static void attn_acc_value_block_by_channel(float* out,
-                                            float* weight,
-                                            void* v,
-                                            const size_t S,
-                                            const size_t block_size) {
+void attn_acc_value_block_by_channel(float* out, float* weight, void* v, const size_t S, const size_t block_size) {
     auto p_scales = reinterpret_cast<float*>(v);
     auto p_zps = p_scales + S;
     auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
@@ -524,11 +520,7 @@ static void attn_acc_value_block_by_channel(float* out,
 }
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
-static void attn_acc_value_block_by_channel(float* out,
-                                            float* weight,
-                                            void* v,
-                                            const size_t S,
-                                            const size_t block_size) {
+void attn_acc_value_block_by_channel(float* out, float* weight, void* v, const size_t S, const size_t block_size) {
     auto p_scales = reinterpret_cast<float*>(v);
     auto p_zps = p_scales + S;
     auto v_data_ptr = reinterpret_cast<uint8_t*>(v) + 2 * sizeof(float) * S;
@@ -693,13 +685,13 @@ static void attn_acc_value_block_by_channel(float* out,
 template <typename TA,
           ov::element::Type_t SRC_PREC,
           std::enable_if_t<(SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4), bool> = true>
-static void attn_acc_value_block_quantized(float* out,
-                                           float* weight,
-                                           uint8_t* v,
-                                           const size_t S,
-                                           const bool is_bychannel,
-                                           const size_t block_size,
-                                           const size_t group_size) {
+void attn_acc_value_block_quantized(float* out,
+                                    float* weight,
+                                    uint8_t* v,
+                                    const size_t S,
+                                    const bool is_bychannel,
+                                    const size_t block_size,
+                                    const size_t group_size) {
     if (is_bychannel) {
         attn_acc_value_block_by_channel<TA, SRC_PREC>(out, weight, v, S, block_size);
     } else {
@@ -711,12 +703,12 @@ template <typename TA,
           ov::element::Type_t SRC_PREC,
           std::enable_if_t<(!ov::intel_cpu::one_of(SRC_PREC, ov::element::u4, ov::element::u8, ov::element::i8)),
                            bool> = true>
-static void dot_product_block(TA* a,
-                              void* b,
-                              float* c,
-                              const size_t n,
-                              const size_t block_size,
-                              [[maybe_unused]] const size_t group_size) {
+void dot_product_block(TA* a,
+                       void* b,
+                       float* c,
+                       const size_t n,
+                       const size_t block_size,
+                       [[maybe_unused]] const size_t group_size) {
     auto* b_src = reinterpret_cast<typename element_type_traits<SRC_PREC>::value_type*>(b);
 #if defined(HAVE_AVX512F)
     size_t j = 0;
@@ -829,11 +821,7 @@ static void dot_product_block(TA* a,
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
-static void dot_product_block_quantized_by_channel(TA* a,
-                                                   uint8_t* b,
-                                                   float* c,
-                                                   const size_t n,
-                                                   const size_t block_size) {
+void dot_product_block_quantized_by_channel(TA* a, uint8_t* b, float* c, const size_t n, const size_t block_size) {
     const size_t params_offset = sizeof(float) * 2 * n;
     const size_t src_stride = n;
     auto p_scales = reinterpret_cast<float*>(b);
@@ -1044,11 +1032,7 @@ static void dot_product_block_quantized_by_channel(TA* a,
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u4), bool> = true>
-static void dot_product_block_quantized_by_channel(TA* a,
-                                                   uint8_t* b,
-                                                   float* c,
-                                                   const size_t n,
-                                                   const size_t block_size) {
+void dot_product_block_quantized_by_channel(TA* a, uint8_t* b, float* c, const size_t n, const size_t block_size) {
     const size_t sub_byte_multiplier = 2;
     // parans scale f32 [n] + zp f32[n]
     const size_t params_offset = sizeof(float) * 2 * n;
@@ -1126,12 +1110,12 @@ static void dot_product_block_quantized_by_channel(TA* a,
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::i8), bool> = true>
-static void dot_product_block_quantized_by_dims(TA* a,
-                                                void* b,
-                                                float* c,
-                                                const size_t n,
-                                                const size_t block_size,
-                                                const size_t group_size) {
+void dot_product_block_quantized_by_dims(TA* a,
+                                         void* b,
+                                         float* c,
+                                         const size_t n,
+                                         const size_t block_size,
+                                         const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -1341,12 +1325,12 @@ static void dot_product_block_quantized_by_dims(TA* a,
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
-static void dot_product_block_quantized_by_dims(TA* a,
-                                                uint8_t* b,
-                                                float* c,
-                                                const size_t n,
-                                                const size_t block_size,
-                                                const size_t group_size) {
+void dot_product_block_quantized_by_dims(TA* a,
+                                         uint8_t* b,
+                                         float* c,
+                                         const size_t n,
+                                         const size_t block_size,
+                                         const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -1614,12 +1598,12 @@ static void dot_product_block_quantized_by_dims(TA* a,
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u4), bool> = true>
-static void dot_product_block_quantized_by_dims(TA* a,
-                                                uint8_t* b,
-                                                float* c,
-                                                const size_t n,
-                                                const size_t block_size,
-                                                const size_t group_size) {
+void dot_product_block_quantized_by_dims(TA* a,
+                                         uint8_t* b,
+                                         float* c,
+                                         const size_t n,
+                                         const size_t block_size,
+                                         const size_t group_size) {
     // The layout for per token per head:
     // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized
     // feature(u8,idx_S)| The quantized feature will start from 8bytes=sizeof(float)+sizeof(float)
@@ -1863,13 +1847,13 @@ template <
     typename TA,
     ov::element::Type_t SRC_PREC,
     std::enable_if_t<(ov::intel_cpu::one_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4)), bool> = true>
-static void dot_product_block_quantized(TA* a,
-                                        uint8_t* b,
-                                        float* c,
-                                        const size_t n,
-                                        const bool is_bychannel,
-                                        const size_t block_size,
-                                        const size_t group_size) {
+void dot_product_block_quantized(TA* a,
+                                 uint8_t* b,
+                                 float* c,
+                                 const size_t n,
+                                 const bool is_bychannel,
+                                 const size_t block_size,
+                                 const size_t group_size) {
     if (is_bychannel) {
         if constexpr (ov::intel_cpu::one_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
             dot_product_block_quantized_by_channel<TA, SRC_PREC>(a, b, c, n, block_size);
@@ -1880,7 +1864,7 @@ static void dot_product_block_quantized(TA* a,
 }
 
 template <typename T>
-static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
+void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_stride) {
     size_t i = 0;
 #if defined(HAVE_AVX512F)
     for (; i + vec_len_f32_avx512 <= S; i += vec_len_f32_avx512) {

@@ -302,15 +302,7 @@ static void saged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                                                 block_number,
                                                 block_offset,
                                                 quant_param.key_group_size);
-    });
-    // quant value
-    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
-        auto slot = slot_mapping.ptr<int32_t>(b)[m];
-        if (slot < 0) {
-            return;
-        }
-        auto block_number = slot / block_size;
-        auto block_offset = slot % block_size;
+
         quantize_block_by_dims<T, VALUE_DST_PREC>(v_src,
                                                   v_dst,
                                                   b,
@@ -502,43 +494,30 @@ void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
         saged_attn_quant_mt<ov::float16, ov::element::u8, ov::element::u8>};
     if (quant_param.is_sage_attn) {
         size_t dispatch = k_dst.get_precision() == ov::element::u8 ? 1 : 0;
-        if (k_src.get_precision() == ov::element::f32) {
-            saged_attn_fp32[dispatch](k_src,
-                                      v_src,
-                                      k_dst,
-                                      v_dst,
-                                      past_lens,
-                                      subsequence_begins,
-                                      block_indices,
-                                      block_indices_begins,
-                                      slot_mapping,
-                                      temp_buffer,
-                                      quant_param);
-        } else if (k_src.get_precision() == ov::element::bf16) {
-            saged_attn_bf16[dispatch](k_src,
-                                      v_src,
-                                      k_dst,
-                                      v_dst,
-                                      past_lens,
-                                      subsequence_begins,
-                                      block_indices,
-                                      block_indices_begins,
-                                      slot_mapping,
-                                      temp_buffer,
-                                      quant_param);
-        } else if (k_src.get_precision() == ov::element::f16) {
-            saged_attn_f16[dispatch](k_src,
-                                     v_src,
-                                     k_dst,
-                                     v_dst,
-                                     past_lens,
-                                     subsequence_begins,
-                                     block_indices,
-                                     block_indices_begins,
-                                     slot_mapping,
-                                     temp_buffer,
-                                     quant_param);
-        }
+        const auto sage_attn_call = [&]() -> function_type {
+            switch (k_src.get_precision()) {
+            case ov::element::f32:
+                return saged_attn_fp32[dispatch];
+            case ov::element::bf16:
+                return saged_attn_bf16[dispatch];
+            case ov::element::f16:
+                return saged_attn_f16[dispatch];
+            default:
+                OPENVINO_THROW("Unsupported sage attention precision ", k_src.get_precision());
+                return nullptr;
+            }
+        }();
+        sage_attn_call(k_src,
+                       v_src,
+                       k_dst,
+                       v_dst,
+                       past_lens,
+                       subsequence_begins,
+                       block_indices,
+                       block_indices_begins,
+                       slot_mapping,
+                       temp_buffer,
+                       quant_param);
         return;
     }
     size_t dispatch = 0;

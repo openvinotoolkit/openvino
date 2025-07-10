@@ -19,7 +19,7 @@
 namespace ov::Extensions::Cpu::XARCH {
 
 template <typename T>
-static void find_minmax(const T* src, size_t n, float& min, float& max) {
+void find_minmax(const T* src, size_t n, float& min, float& max) {
     max = -FLT_MAX;
     min = FLT_MAX;
     size_t i = 0;
@@ -126,7 +126,7 @@ static void find_minmax(const T* src, size_t n, float& min, float& max) {
 }
 
 template <typename T>
-static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
+void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
     size_t i = 0;
     float max = -FLT_MAX;
     float min = FLT_MAX;

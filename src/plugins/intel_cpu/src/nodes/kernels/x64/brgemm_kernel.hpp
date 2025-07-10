@@ -18,6 +18,7 @@ public:
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
     // BF16 * BF16 -> FP32
     // S8 * S8 -> S32
+    // S8 * S8 -> S32
     // lda is the leading dimension for A matrix
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
@@ -31,6 +32,39 @@ public:
                  bool b_transposed = false,
                  ov::element::Type inType = ov::element::bf16,
                  bool b_accumulate = false);
+
+    // execute all M
+    void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
+    // execute by m_blk
+    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
+
+    // execute by m_blk + scale
+    virtual void executeGemmWithScale(bool is_M_tail,
+                                      void* a,
+                                      void* b,
+                                      void* c,
+                                      void* d,
+                                      float* scale_b,
+                                      void* wsp,
+                                      void* scratch_a);
+
+    void copy_buffer_b(void* b, void* scratch_b);
+    // bytes needed to place scratch buffer a
+    [[nodiscard]] const size_t get_scratch_a_size() const;
+    // bytes needed to place scratch buffer b
+    [[nodiscard]] const size_t get_scratch_b_size() const;
+    [[nodiscard]] static const size_t get_mblk_size() {
+        return matmulOptimalM;
+    }
+    [[nodiscard]] const size_t get_k_blk() const {
+        return K_blk;
+    }
+    [[nodiscard]] static size_t get_wsp_size() {
+        return 4 * 1024;
+    }
+
+protected:
+    // Advanced features are protected for derived class not for public usage
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
     // BF16 * BF16 -> FP32
     // S8 * S8 -> S32
@@ -51,37 +85,6 @@ public:
                  ov::element::Type DType,
                  ScaleType bScaleType,
                  bool b_accumulate);
-    // execute all M
-    void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
-    // execute by m_blk
-    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
-
-    // execute by m_blk + scale
-    void executeGemmWithScale(bool is_M_tail,
-                              void* a,
-                              void* b,
-                              void* c,
-                              void* d,
-                              float* scale_b,
-                              void* wsp,
-                              void* scratch_a);
-
-    void copy_buffer_b(void* b, void* scratch_b);
-    // bytes needed to place scratch buffer a
-    [[nodiscard]] const size_t get_scratch_a_size() const;
-    // bytes needed to place scratch buffer b
-    [[nodiscard]] const size_t get_scratch_b_size() const;
-    [[nodiscard]] static const size_t get_mblk_size() {
-        return matmulOptimalM;
-    }
-    [[nodiscard]] const size_t get_k_blk() const {
-        return K_blk;
-    }
-    [[nodiscard]] static size_t get_wsp_size() {
-        return 4 * 1024;
-    }
-
-private:
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0, ldd = 0;
@@ -148,5 +151,30 @@ private:
                            const float* bScale,
                            void* wsp,
                            bool doPostops);
+};
+
+class BrgemmKernelQuantized : public BrgemmKernel {
+public:
+    BrgemmKernelQuantized(size_t M,
+                          size_t N,
+                          size_t K,
+                          size_t lda,
+                          size_t ldb,
+                          size_t ldc,
+                          size_t ldd,
+                          bool b_transposed,
+                          ov::element::Type inType,
+                          ov::element::Type DType,
+                          ScaleType bScaleType,
+                          bool b_accumulate);
+    // execute by m_blk + scale
+    void executeGemmWithScale(bool is_M_tail,
+                              void* a,
+                              void* b,
+                              void* c,
+                              void* d,
+                              float* scale_b,
+                              void* wsp,
+                              void* scratch_a) override;
 };
 }  // namespace ov::intel_cpu

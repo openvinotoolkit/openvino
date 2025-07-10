@@ -12,9 +12,9 @@ namespace ov::Extensions::Cpu {
 struct QuantizeParam {
     bool quant_key_by_channel;
     bool quant_value_by_channel;
+    bool is_sage_attn;
     size_t key_group_size;
     size_t value_group_size;
-    bool is_sage_attn;
 };
 }  // namespace ov::Extensions::Cpu
 

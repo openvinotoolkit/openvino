@@ -645,7 +645,7 @@ struct MHAHelper {
 
         // to ensure qk s8s8 s32 has enough buffer
         if (_params.is_sage_attn && H * std::max(S, SV) < _block_size) {
-            _output.resize<float>({static_cast<size_t>(_nthr), _block_size, H, div_up(_block_size, H)});
+            _output.resize<float>({_nthr, _block_size, H, div_up(_block_size, H)});
         }
 
         if (_params.is_sage_attn) {
@@ -665,18 +665,19 @@ struct MHAHelper {
                     // oneDNN brgemm has limitation with a_scale, it doesn't support per-row scale
                     // only enable b_scale here
 #    if defined(OPENVINO_ARCH_X86_64)
-                    _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
-                                                                 _block_size,
-                                                                 S,
-                                                                 H * (S + sizeof(float)),
-                                                                 S + sizeof(float),
-                                                                 _block_size,
-                                                                 _new_score_stride,
-                                                                 true,
-                                                                 ov::element::i8,
-                                                                 ov::element::f32,
-                                                                 ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
-                                                                 false);
+                    _qk_gemm[i] =
+                        std::make_shared<BrgemmKernelQuantized>(i + 1,
+                                                                _block_size,
+                                                                S,
+                                                                H * (S + sizeof(float)),
+                                                                S + sizeof(float),
+                                                                _block_size,
+                                                                _new_score_stride,
+                                                                true,
+                                                                ov::element::i8,
+                                                                ov::element::f32,
+                                                                ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
+                                                                false);
 #    endif
                 } else {
                     _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
