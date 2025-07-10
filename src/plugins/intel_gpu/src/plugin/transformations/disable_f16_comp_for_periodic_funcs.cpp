@@ -69,9 +69,7 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
 
     auto cos = ov::pass::pattern::wrap_type<ov::op::v0::Cos>();
     auto sin = ov::pass::pattern::wrap_type<ov::op::v0::Sin>();
-    auto cosh = ov::pass::pattern::wrap_type<ov::op::v0::Cosh>();
-    auto sinh = ov::pass::pattern::wrap_type<ov::op::v0::Sinh>();
-    auto periodic_func_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{cos, sin, cosh, sinh});
+    auto sin_cos_func_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{cos, sin});
 
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -117,6 +115,6 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
         // Start traversal from the current node
         return traverse_inputs(node);
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(periodic_func_pattern, "DisableFP16CompressionForPeriodicFuncs");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sin_cos_func_pattern, "DisableFP16CompressionForPeriodicFuncs");
     register_matcher(m, callback);
 }
