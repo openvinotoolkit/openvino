@@ -232,10 +232,11 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
     if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
         try {
             auto compiled_blob = blob_hint->second.as<ov::Tensor>();
-            ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
-            std::istream stream{&buffer};
-            compiled_model =
-                context ? plugin.import_model(stream, context, config) : plugin.import_model(stream, config);
+            auto _config = config;
+            _config.erase(ov::hint::compiled_blob.name());
+
+            compiled_model = context ? plugin.import_model(compiled_blob, context, _config)
+                                     : plugin.import_model(compiled_blob, _config);
         } catch (...) {
         }
     }

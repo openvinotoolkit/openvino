@@ -2856,12 +2856,12 @@ TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported
                                                  ov::weights_path.name(),
                                                  ov::hint::model.name()};
         }));
-    ON_CALL(*mockPlugin, import_model(A<std::istream&>(), _))
-        .WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+    ON_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](ov::Tensor& itensor, const ov::AnyMap& config) {
             if (m_checkConfigCb) {
                 m_checkConfigCb(config);
             }
-            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
+            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
             EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
             EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
             return nullptr;
@@ -2877,7 +2877,9 @@ TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported
     MkDirGuard guard(m_cacheDir);
     EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
     EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
-    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<ov::Tensor&>(), _)).Times(1);
 
     EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
     if (m_type == TestLoadType::EModelName) {
