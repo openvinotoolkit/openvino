@@ -66,13 +66,13 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
         int32_t begin = 0;
         int32_t end = 0;
         if (stridePtr[cur_idx] < 0) {
-            begin = m_begin_mask_set.count(cur_idx) ? shapeIn[in_idx] : beginPtr[cur_idx];
-            end = m_end_mask_set.count(cur_idx) ? (-1 - shapeIn[in_idx]) : endPtr[cur_idx];
+            begin = m_begin_mask_set.count(static_cast<int64_t>(cur_idx)) ? static_cast<int32_t>(shapeIn[in_idx]) : static_cast<int32_t>(beginPtr[cur_idx]);
+            end = m_end_mask_set.count(static_cast<int64_t>(cur_idx)) ? (-1 - static_cast<int32_t>(shapeIn[in_idx])) : static_cast<int32_t>(endPtr[cur_idx]);
         } else {
-            begin = m_begin_mask_set.count(cur_idx) ? 0 : beginPtr[cur_idx];
-            end = m_end_mask_set.count(cur_idx) ? shapeIn[in_idx] : endPtr[cur_idx];
+            begin = m_begin_mask_set.count(static_cast<int64_t>(cur_idx)) ? 0 : static_cast<int32_t>(beginPtr[cur_idx]);
+            end = m_end_mask_set.count(static_cast<int64_t>(cur_idx)) ? static_cast<int32_t>(shapeIn[in_idx]) : static_cast<int32_t>(endPtr[cur_idx]);
         }
-        return ov::op::slice::get_sliced_value(shapeIn[in_idx], begin, end, stridePtr[cur_idx]);
+        return ov::op::slice::get_sliced_value(static_cast<int64_t>(shapeIn[in_idx]), begin, end, stridePtr[cur_idx]);
     };
 
     const auto shapeInSize = shapeIn.size();
@@ -87,8 +87,8 @@ Result StridedSliceShapeInfer::infer(const std::vector<std::reference_wrapper<co
     for (size_t axis_idx = 0, out_idx = 0, in_idx = 0;
          axis_idx < maxAxisSize && in_idx < shapeInSize && out_idx < outputShapeSize;
          axis_idx++) {
-        newAxis = (m_new_axis_mask_set.count(axis_idx) != 0U);
-        shrinkAxis = (m_shrink_axis_mask_set.count(axis_idx) != 0U);
+        newAxis = (m_new_axis_mask_set.count(static_cast<int64_t>(axis_idx)) != 0U);
+        shrinkAxis = (m_shrink_axis_mask_set.count(static_cast<int64_t>(axis_idx)) != 0U);
         if (newAxis) {
             // from test when shrinkAxis && newAxis, only newAxis is working in NgraphShapeInfer,
             // so merge if(newAxis) and if(shrinkAxis && newAxis) together.

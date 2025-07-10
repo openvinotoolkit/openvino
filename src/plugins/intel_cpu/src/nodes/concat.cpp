@@ -86,7 +86,7 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     auto concatOp = ov::as_type_ptr<ov::op::v0::Concat>(op);
     auto axis = concatOp->get_axis();
     if (axis < 0) {
-        axis += inRank;
+        axis += static_cast<int64_t>(inRank);
     }
     if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
         THROW_CPU_NODE_ERR("has invalid value of axis parameter: ", axis);
@@ -118,7 +118,7 @@ void Concat::getSupportedDescriptors() {
 
     const auto& childDims = outputShapes[0].getDims();
     if (childDims[axis] != Shape::UNDEFINED_DIM &&
-        std::all_of(childDims.begin(), childDims.begin() + axis, [](size_t dim) {
+        std::all_of(childDims.begin(), childDims.begin() + static_cast<ptrdiff_t>(axis), [](size_t dim) {
             return dim == 1;
         })) {
         canBeInPlace = true;
@@ -456,7 +456,7 @@ void Concat::prepareParams() {
 
             const auto& dims = srcMemPtr->getStaticDims();
             for (size_t j = 0; j < dims.size(); j++) {
-                desc.get()->dims[j] = dims[j];
+                desc.get()->dims[j] = static_cast<int64_t>(dims[j]);
             }
             srcs_d.emplace_back(desc);
         }
@@ -467,8 +467,8 @@ void Concat::prepareParams() {
 
         const auto& dims = dstMemPtr->getStaticDims();
         for (size_t i = 0; i < dims.size(); i++) {
-            desc.get()->dims[i] = dims[i];
-            desc.get()->padded_dims[i] = dims[i];
+            desc.get()->dims[i] = static_cast<int64_t>(dims[i]);
+            desc.get()->padded_dims[i] = static_cast<int64_t>(dims[i]);
         }
 
         auto primitive_desc = concat::primitive_desc(getEngine(), desc, static_cast<int>(axis), srcs_d);
@@ -611,7 +611,7 @@ void Concat::execNspcSpecCase() {
         channels_size += num_channels * dataSize;
 
         if (firstNonZeroEdge == -1) {
-            firstNonZeroEdge = i;
+            firstNonZeroEdge = static_cast<int>(i);
         }
 
         nonZeroInShapes++;
@@ -750,7 +750,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
                     "can't use inPlace memory with concatenation on dynamic dimension");
 
-    auto edges = getChildEdgesAtPort(inplaceOutIndx);
+    auto edges = getChildEdgesAtPort(static_cast<int>(inplaceOutIndx));
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) {
         return edge->getStatus() == Edge::Status::Allocated;
     });
@@ -782,7 +782,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
         }
 
         parentEdge->reuse(newMem);
-        offset += partDim;
+        offset += static_cast<ptrdiff_t>(partDim);
     }
 }
 

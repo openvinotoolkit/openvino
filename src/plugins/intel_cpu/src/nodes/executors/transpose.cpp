@@ -59,7 +59,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         }
     }
     if (!src_block_order.empty()) {
-        int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), src_block_order[0]));
+        auto pos = static_cast<int>(std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), src_block_order[0])));
         new_src_block_strides.insert(new_src_block_strides.begin() + pos, src_block_strides[0]);
         new_dst_block_strides.insert(
             new_dst_block_strides.begin() + pos,
@@ -78,13 +78,13 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     VectorDims sorted_dst_dims;
 
     //  support dynamic batch
-    int batch_ord = std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0));
+    auto batch_ord = static_cast<int>(std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0)));
     int batch_count = 0;
     int batch_pos = 0;
     for (size_t i = 0; i < new_dst_block_order.size(); i++) {
         if (static_cast<int>(new_dst_block_order[i]) == batch_ord) {
             batch_count++;
-            batch_pos = i;
+            batch_pos = static_cast<int>(i);
         }
     }
     if (batch_count == 1) {
@@ -120,13 +120,13 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     int max_threads = parallel_get_max_threads();
     const int n_max = 3;  //  max count dims for parallel
     int n = 0;
-    int work_amount = sorted_dst_dims[0];
+    auto work_amount = static_cast<int>(sorted_dst_dims[0]);
     for (size_t i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
         n++;
         if (work_amount >= 4 * max_threads) {  //  4 * max_threads is a specially selected value for best performance
             break;
         }
-        work_amount *= sorted_dst_dims[i];
+        work_amount *= static_cast<int>(sorted_dst_dims[i]);
     }
 
     jcp.src_strides = sorted_src_strides;
@@ -134,7 +134,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     jcp.dst_block_dims = sorted_dst_dims;
     jcp.n = std::min(n, n2);
     jcp.ndims = sorted_order.size();
-    jcp.data_size = params.data_size;
+    jcp.data_size = static_cast<int>(params.data_size);
 
     return jcp;
 }

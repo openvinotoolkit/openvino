@@ -61,7 +61,7 @@ GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphC
     auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
     if (axis < 0) {
-        axis += dataRank;
+        axis += static_cast<int64_t>(dataRank);
     }
     if (axis < 0 || axis >= static_cast<int>(dataRank)) {
         THROW_CPU_NODE_ERR("has invalid axis attribute: ", axis);
@@ -74,16 +74,16 @@ void GatherElements::prepareParams() {
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     strideAxDst_ = 1;
     for (size_t i = dstDims.size() - 1; i > axis_; i--) {
-        strideAxDst_ *= dstDims[i];
+        strideAxDst_ *= static_cast<int>(dstDims[i]);
     }
-    dstAxDim_ = dstDims[axis_];
-    dataAxDim_ = dataDims[axis_];
+    dstAxDim_ = static_cast<int>(dstDims[axis_]);
+    dataAxDim_ = static_cast<int>(dataDims[axis_]);
     if (axis_ > 0) {
         strideAx1Diff_ = 1;
         for (size_t i = dataDims.size() - 1; i >= axis_; i--) {
-            strideAx1Diff_ *= dataDims[i];
+            strideAx1Diff_ *= static_cast<int>(dataDims[i]);
         }
-        strideAx1Diff_ -= strideAxDst_ * dstDims[axis_];
+        strideAx1Diff_ -= strideAxDst_ * static_cast<int>(dstDims[axis_]);
     }
 }
 
@@ -130,7 +130,7 @@ void GatherElements::directExecution() {
     const auto* indices = getSrcDataAtPortAs<const int>(indicesIndex_);
     auto* dstData = getDstDataAtPortAs<dataType>(0);
 
-    const int outSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
+    const auto outSize = static_cast<int>(getChildEdgeAt(0)->getMemory().getShape().getElementsCount());
     auto threadBody = [&](const int ithr, const int nthr) {
         int start(0LU);
         int end(0LU);

@@ -273,7 +273,7 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& in_mem_ptrs
             clean_repacked_offsets(ithr);
         };
         caller = [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes, size_t ithr) {
-            in_parallel_repack_inputs(in_mem_ptrs, indexes, ithr, call_args);
+            in_parallel_repack_inputs(in_mem_ptrs, indexes, static_cast<int>(ithr), call_args);
             callable(&call_args, indexes.data());
         };
         break;
@@ -331,7 +331,7 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
         };
         caller = [&](jit_snippets_call_args& call_args, const std::vector<size_t>& indexes, size_t ithr) {
             update_ptrs(call_args, src_ptrs, dst_ptrs, indexes);
-            in_parallel_repack_inputs(in_mem_ptrs, indexes, ithr, call_args);
+            in_parallel_repack_inputs(in_mem_ptrs, indexes, static_cast<int>(ithr), call_args);
             callable(&call_args);
         };
         break;

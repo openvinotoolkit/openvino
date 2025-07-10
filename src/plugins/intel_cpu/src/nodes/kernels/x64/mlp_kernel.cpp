@@ -352,7 +352,7 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
 static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
     if (N == 16 && K == 64) {
         // SIMD optimized version
-        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(int8_t));
+        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, static_cast<int>(N_stride * sizeof(int8_t)));
         return;
     }
 
@@ -366,10 +366,10 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? psrc[0] : 0;
-            *dst++ = is_k1_valid ? psrc[1] : 0;
-            *dst++ = is_k2_valid ? psrc[2] : 0;
-            *dst++ = is_k3_valid ? psrc[3] : 0;
+            *dst++ = is_k0_valid ? static_cast<int8_t>(psrc[0]) : 0;
+            *dst++ = is_k1_valid ? static_cast<int8_t>(psrc[1]) : 0;
+            *dst++ = is_k2_valid ? static_cast<int8_t>(psrc[2]) : 0;
+            *dst++ = is_k3_valid ? static_cast<int8_t>(psrc[3]) : 0;
         }
         for (; n < 16; n++) {
             *dst++ = 0;
@@ -428,9 +428,9 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
         auto valid_n1 = std::min((N - (n + 16)), 16);
         for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(pdst, src0 + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, src0 + k, static_cast<int>(N_stride), valid_n0, valid_k);
             pdst += 1024;
-            repackB(pdst, src1 + k, N_stride, valid_n1, valid_k);
+            repackB(pdst, src1 + k, static_cast<int>(N_stride), valid_n1, valid_k);
             pdst += 1024;
         }
     }
@@ -490,9 +490,9 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
         auto valid_n0 = std::min((N2 - n), 16);
         for (int k = 0; k < K; k += k_step) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(pdst, p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B0 + n * N_stride + k, static_cast<int>(N_stride), valid_n0, valid_k);
             pdst += 1024;
-            repackB(pdst, p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B1 + n * N_stride + k, static_cast<int>(N_stride), valid_n0, valid_k);
             pdst += 1024;
         }
     }
@@ -520,7 +520,7 @@ void MKernel::run(int M,  // actual M
     auto num_blkN = repacked_B.Bpair_cols;
 
     args.do_accumulation = static_cast<int64_t>(do_accumulation);
-    args.k_tiles = repacked_B.Bpair_rows;
+    args.k_tiles = static_cast<int64_t>(repacked_B.Bpair_rows);
     args.strideA = strideA;
     args.strideC = strideC;
     args.prefetch = prefetch_B;
@@ -549,7 +549,7 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
                                                              src_stride,
                                                              data + start * K,
                                                              K,
-                                                             end - start,
+                                                             static_cast<int>(end - start),
                                                              K,
                                                              scale + start,
                                                              zp + start,
@@ -567,7 +567,7 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride
                                                             src_stride,
                                                             data + start * K,
                                                             K,
-                                                            end - start,
+                                                            static_cast<int>(end - start),
                                                             K,
                                                             scale + start,
                                                             zp + start,

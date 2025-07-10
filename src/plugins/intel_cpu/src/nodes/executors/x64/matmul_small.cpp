@@ -76,7 +76,7 @@ void MatMulSmallExecutor::exec(const std::unordered_map<int, dnnl::memory>& prim
     const size_t threads_num = parallel_get_max_threads();
     const size_t wa =
         std::accumulate(src_shape.begin(), src_shape.end() - 2, static_cast<size_t>(1), std::multiplies<>());
-    parallel_nt(threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
+    parallel_nt(static_cast<int>(threads_num), [&](const int ithr, [[maybe_unused]] const int nthr) {
         size_t start = 0, end = 0;
         splitter(wa, nthr, ithr, start, end);
         jit_matmul_small_call_args args{};

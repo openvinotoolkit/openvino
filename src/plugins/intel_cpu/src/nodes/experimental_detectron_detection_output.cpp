@@ -202,7 +202,7 @@ static void nms_cf(const float* conf_data,
     int count = 0;
     for (int i = 0; i < boxes_num; ++i) {
         if (conf_data[i] > confidence_threshold) {
-            indices[count] = static_cast<int>(i);
+            indices[count] = i;
             count++;
         }
     }
@@ -273,9 +273,9 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
     score_threshold_ = attributes.score_threshold;
     nms_threshold_ = attributes.nms_threshold;
     max_delta_log_wh_ = attributes.max_delta_log_wh;
-    classes_num_ = attributes.num_classes;
-    max_detections_per_class_ = attributes.post_nms_count;
-    max_detections_per_image_ = attributes.max_detections_per_image;
+    classes_num_ = static_cast<int>(attributes.num_classes);
+    max_detections_per_class_ = static_cast<int>(attributes.post_nms_count);
+    max_detections_per_image_ = static_cast<int>(attributes.max_detections_per_image);
     class_agnostic_box_regression_ = attributes.class_agnostic_box_regression;
     deltas_weights_ = attributes.deltas_weights;
 }
@@ -299,7 +299,7 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 }
 
 void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
+    const auto rois_num = static_cast<int>(getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0]);
     assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
     assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
 

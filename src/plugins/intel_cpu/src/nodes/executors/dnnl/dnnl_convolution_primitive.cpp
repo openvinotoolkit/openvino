@@ -597,7 +597,7 @@ static std::tuple<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> apply_auto_pad
 
     for (size_t i = 0; i < num_spatial; ++i, ++data_dim, ++kernel_dim) {
         std::tie(pad_b[i], pad_e[i]) =
-            padding(data_shape[data_dim], weights_shape[kernel_dim], dilations[i], strides[i]);
+            padding(static_cast<int64_t>(data_shape[data_dim]), static_cast<int64_t>(weights_shape[kernel_dim]), static_cast<int64_t>(dilations[i]), static_cast<int64_t>(strides[i]));
     }
 
     return {padB, padE};

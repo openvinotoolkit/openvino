@@ -93,7 +93,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t maxTime = inDims[1];
     const size_t classesNum = inDims[2];
 
-    int blankIndex = static_cast<int>(classesNum - 1);
+    auto blankIndex = static_cast<int>(classesNum - 1);
     if (inputShapes.size() > 4) {
         blankIndex = getSrcDataAtPortAs<const int>(4)[0];
     }
@@ -201,7 +201,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             return;
         }
         int64_t cw = 0;
-        int64_t st = static_cast<int64_t>(start);
+        auto st = static_cast<int64_t>(start);
         for (; sB < batchNum; sB++) {
             cw += logitsLength[sB];
             if (cw >= st) {

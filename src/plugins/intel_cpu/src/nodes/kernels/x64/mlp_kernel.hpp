@@ -118,7 +118,7 @@ public:
             // call number: N / 32 * M / 32
             // each call needs fetch: 32 * N * sizeof(ov::bfloat16) / (N / 32 * M / 32) = 32 * 1024 *
             // sizeof(ov::bfloat16) / M
-            m_prefetch_Blines = 32768 * sizeof(ov::bfloat16) / 64 / M_hint;
+            m_prefetch_Blines = static_cast<int>(32768 * sizeof(ov::bfloat16) / 64 / M_hint);
         }
 
         create_kernel();
@@ -366,7 +366,7 @@ struct Work {
                                 strideA,
                                 blockB,
                                 pC,
-                                C_stride_bytes,
+                                static_cast<int>(C_stride_bytes),
                                 blockB1.ptr,
                                 do_accumulation);
                 }
@@ -378,7 +378,7 @@ struct Work {
                                 strideA,
                                 blockB,
                                 pC + Mbody * C_stride_bytes,
-                                C_stride_bytes,
+                                static_cast<int>(C_stride_bytes),
                                 blockB1.ptr,
                                 do_accumulation);
                 }
@@ -400,14 +400,14 @@ struct Work {
             int do_accumulation = 0;
             MKernel::call_args args{};
             args.strideA = strideA;
-            args.strideC = C_stride_bytes;
+            args.strideC = static_cast<int64_t>(C_stride_bytes);
             args.M = Mtails;
             for (size_t ni = 0; ni < num_blkN; ni++) {
                 args.pC = pC + ni * 32 * sizeof(float);
                 do_accumulation = 0b010;
                 for (size_t ki = 0; ki < num_blk_K; ki++) {
                     auto& blockB = weights[ki];
-                    args.k_tiles = blockB.Bpair_rows;
+                    args.k_tiles = static_cast<int64_t>(blockB.Bpair_rows);
                     args.pA = pA + ki * blk_K_size * element_size;
                     args.pB = blockB.ptr + ni * blockB.Bpair_rows * blockB.Bpair_size;
                     args.do_accumulation = do_accumulation;
