@@ -88,6 +88,7 @@ inline void parallel_set_max_nested_levels(int levels) {
 
 #    include <algorithm>
 #    include <cstdlib>
+#    include <limits>
 #    include <string>
 
 /* MSVC still supports omp 2.0 only */
@@ -157,6 +158,45 @@ inline int parallel_get_nested_level() {
     return omp_get_level();
 #    else
     return 0;
+#    endif
+}
+
+inline int parallel_enable_nesting() {
+    int res = 0;
+#    if _OPENMP >= 200805
+    static const int MAX_LEVEL = std::numeric_limits<int>::max();
+    res = parallel_get_max_nested_levels();
+    if (res < MAX_LEVEL) {
+        parallel_set_max_nested_levels(MAX_LEVEL);
+    }
+#    endif
+
+#    if _OPENMP < 201811
+    auto origin_nested = parallel_get_nested();
+    if (origin_nested == 0) {
+        parallel_set_nested(1);
+    } else {
+        res = res | 0x80000000;
+    }
+#    endif
+
+    return res;
+}
+
+inline void parallel_restore_nesting(const int val) {
+#    if _OPENMP >= 200805
+    const int origin_nested_levels = val & 0x7FFFFFFF;
+    if (origin_nested_levels != parallel_get_max_nested_levels()) {
+        parallel_set_max_nested_levels(origin_nested_levels);
+    }
+#    endif
+
+#    if _OPENMP < 201811
+    const int origin_nested = val & 0x80000000;
+    const int cur_nested = parallel_get_nested();
+    if (origin_nested != cur_nested && (origin_nested == 0 || cur_nested == 0)) {
+        parallel_set_nested(origin_nested);
+    }
 #    endif
 }
 
