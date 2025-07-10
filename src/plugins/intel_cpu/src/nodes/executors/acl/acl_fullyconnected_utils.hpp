@@ -14,14 +14,14 @@ struct ACLFCAttrs {
     ov::element::Type inputPrecision;
     bool isConvertedWeights = false;
     bool isWeightsRepacked = false;
-    bool weightsNonTransposed;
+    bool weightsNonTransposed = false;
 };
 
 namespace acl_fc_executor {
 
 VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape);
 
-VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, const size_t out_rank);
+VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, size_t out_rank);
 
 DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc, const DnnlMemoryDescPtr& dstDesc);
 
@@ -39,7 +39,7 @@ MemoryPtr reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
                       const ExecutorContext::CPtr& context);
 
 MemoryPtr reorderWeights(const MemoryArgs& memory,
-                         const ExecutorContext::CPtr context,
+                         ExecutorContext::CPtr context,
                          ACLFCAttrs& aclfcAttrs,
                          DnnlMemoryDescPtr dnnlSrcDesc,
                          DnnlMemoryDescPtr dnnlDstDesc);
@@ -51,7 +51,7 @@ MemoryPtr prepareWeightMemory(const MemoryArgs& memory,
                               arm_compute::WeightFormat& expectedWeightFormat,
                               arm_compute::TensorInfo& weiTensorInfo);
 
-arm_compute::TensorShape normalizeDimsTo2D(const arm_compute::TensorShape shape);
+arm_compute::TensorShape normalizeDimsTo2D(arm_compute::TensorShape shape);
 
 void updateFCTensorsShapes(ACLShapes& aclMemoryShapes);
 
@@ -77,7 +77,7 @@ private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
     arm_compute::WeightsInfo weightsInfo;
     ACLFCAttrs aclfcAttrs;
-    arm_compute::WeightFormat expectedWeightFormat;
+    arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
 };
 
 }  // namespace acl_fc_executor

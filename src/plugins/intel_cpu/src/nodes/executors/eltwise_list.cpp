@@ -12,6 +12,10 @@
 #    include "nodes/executors/executor.hpp"
 #endif
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_eltwise.hpp"
+#endif
+
 #if defined(OV_CPU_WITH_SHL)
 #    include "nodes/executors/shl/shl_eltwise.hpp"
 #endif
