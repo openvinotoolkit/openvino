@@ -6,12 +6,14 @@ const { exec } = require('child_process');
 const execPromise = util.promisify(exec);
 const { testModels, downloadTestModel } = require('../utils.js');
 
-describe('E2E testing for OpenVINO as an Electron dependency.', function() {
+describe('E2E testing for OpenVINO as an Electron dependency.', function () {
   this.timeout(50000);
 
   before(async () => {
     await downloadTestModel(testModels.testModelFP32);
-    await execPromise('cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project');
+    await execPromise(
+      'cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project',
+    );
   });
 
   it('should install dependencies', (done) => {

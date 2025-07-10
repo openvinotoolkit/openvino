@@ -75,28 +75,26 @@ describe('ov basic tests.', () => {
 
     it('saveModelSync(model) throws', () => {
       const expectedMsg = (
-        '\'saveModelSync\' method called with incorrect parameters.\n' +
+        "'saveModelSync' method called with incorrect parameters.\n" +
         'Provided signature: (object) \n' +
         'Allowed signatures:\n' +
         '- (Model, string)\n' +
         '- (Model, string, boolean)\n'
       ).replace(/[()]/g, '\\$&');
 
-      assert.throws(
-        () => ov.saveModelSync(model),
-        new RegExp(expectedMsg));
+      assert.throws(() => ov.saveModelSync(model), new RegExp(expectedMsg));
     });
 
     it('saveModelSync(model, path) throws with incorrect path', () => {
       const expectedMsg = (
-        'Path for xml file doesn\'t ' +
-        'contains file name with \'xml\' extension'
+        "Path for xml file doesn't " + "contains file name with 'xml' extension"
       ).replace(/[()]/g, '\\$&');
 
       const noXmlPath = `${outDir}${model.getName()}_fp32`;
       assert.throws(
         () => ov.saveModelSync(model, noXmlPath),
-        new RegExp(expectedMsg));
+        new RegExp(expectedMsg),
+      );
     });
   });
 
@@ -150,7 +148,7 @@ describe('ov basic tests.', () => {
 
     it('compileModelSync(model, device, configOfTypeString) throws', () => {
       const expectedMsg = (
-        '\'compileModelSync\' method called with incorrect parameters.\n' +
+        "'compileModelSync' method called with incorrect parameters.\n" +
         'Provided signature: (object, string, string) \n' +
         'Allowed signatures:\n' +
         '- (string, string)\n' +
@@ -174,7 +172,7 @@ describe('ov basic tests.', () => {
 
     it('compileModelSync(model) throws with invalid number of args', () => {
       const expectedMsg = (
-        '\'compileModelSync\' method called with incorrect parameters.\n' +
+        "'compileModelSync' method called with incorrect parameters.\n" +
         'Provided signature: (object) \n' +
         'Allowed signatures:\n' +
         '- (string, string)\n' +

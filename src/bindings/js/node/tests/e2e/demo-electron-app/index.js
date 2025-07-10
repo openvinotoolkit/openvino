@@ -29,7 +29,7 @@ async function main() {
 
     const result = await inferRequest.inferAsync([tensor]);
     console.log('Infer request result:', result);
-  } catch(error) {
+  } catch (error) {
     console.error('Error:', error);
     app.exit(1);
   }

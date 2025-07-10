@@ -1,40 +1,13 @@
 const eslint = require('@eslint/js');
+const prettierConfig = require('eslint-config-prettier/flat');
 const globals = require('globals');
 const tseslint = require('typescript-eslint');
 const { defineConfig } = require('eslint/config');
 
-const customRules = {
-  'semi': ['error'],
-  'no-var': ['error'],
-  'max-len': ['error', { 'code': 120, 'ignoreUrls': true }],
-  'eol-last': ['error'],
-  'indent': ['error', 2],
-  'camelcase': ['error'],
-  'semi-spacing': ['error'],
-  'arrow-spacing': ['error'],
-  'comma-spacing': ['error'],
-  'no-multi-spaces': ['error'],
-  'quotes': ['error', 'single'],
-  'no-trailing-spaces': ['error'],
-  'space-before-blocks': ['error'],
-  'newline-before-return': ['error'],
-  'comma-dangle': ['error', 'always-multiline'],
-  'space-before-function-paren': ['error', {
-    named: 'never',
-    anonymous: 'never',
-    asyncArrow: 'always',
-  }],
-  'key-spacing': ['error', { beforeColon: false }],
-  'no-multiple-empty-lines': ['error', { max: 1, maxBOF: 0, maxEOF: 0 }],
-  'keyword-spacing': ['error', { overrides: { catch: { after: false } } }],
-  'prefer-destructuring': ['error', { object: true, array: false }],
-  'no-explicit-any': 0,
-  '@typescript-eslint/no-require-imports': 0,
-};
-
 module.exports = defineConfig([
   eslint.configs.recommended,
   tseslint.configs.recommended,
+  prettierConfig, // to disable stylistic rules from ESLint
   {
     ignores: ['types/', 'dist/'],
   },
@@ -44,7 +17,13 @@ module.exports = defineConfig([
       globals: globals.node,
       parser: tseslint.parser,
     },
-    rules: customRules,
+    rules: {
+      'no-var': ['error'],
+      camelcase: ['error'],
+      'prefer-destructuring': ['error', { object: true, array: false }],
+      '@typescript-eslint/no-explicit-any': 0,
+      '@typescript-eslint/no-require-imports': 0,
+    },
   },
   {
     files: ['**/addon.ts'],

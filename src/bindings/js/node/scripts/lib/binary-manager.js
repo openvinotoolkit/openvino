@@ -76,8 +76,8 @@ class BinaryManager {
     if (isRuntimeDirectoryExists && !options.force) {
       if (options.ignoreIfExists) {
         console.warn(
-          `Directory '${destinationPath}' already exists. Skipping `
-          + 'runtime downloading because "ignoreIfExists" flag is passed.',
+          `Directory '${destinationPath}' already exists. Skipping ` +
+            'runtime downloading because "ignoreIfExists" flag is passed.',
         );
 
         return;
@@ -91,17 +91,18 @@ class BinaryManager {
 
     // Install binaries from directories if possible
     if (process.env.npm_package_resolved.startsWith('file:')) {
-      const binDir = path.join(
-        path.dirname(process.env.npm_package_resolved),
-        'bin',
-      ).replace('file:', '');
-      if (existsSync(path.join(binDir, 'libopenvino.so')) ||
-        existsSync(path.join(binDir, 'openvino.dll'))) {
+      const binDir = path
+        .join(path.dirname(process.env.npm_package_resolved), 'bin')
+        .replace('file:', '');
+      if (
+        existsSync(path.join(binDir, 'libopenvino.so')) ||
+        existsSync(path.join(binDir, 'openvino.dll'))
+      ) {
         try {
-          await fs.cp(binDir, destinationPath, {'recursive': true});
+          await fs.cp(binDir, destinationPath, { recursive: true });
 
           return;
-        } catch(error) {
+        } catch (error) {
           console.error(`Failed to copy bin directory: ${error}.`);
         }
       }
@@ -130,7 +131,7 @@ class BinaryManager {
       await removeDirectory(destinationPath);
       await this.unarchive(archiveFilePath, destinationPath);
       console.log('The archive was successfully extracted.');
-    } catch(error) {
+    } catch (error) {
       console.error(`Failed to download OpenVINO runtime: ${error}.`);
       throw error;
     } finally {
@@ -186,12 +187,15 @@ class BinaryManager {
     return new Promise((resolve, reject) => {
       createReadStream(archivePath)
         .pipe(gunzip())
-        .pipe(tar.extract(dest)
-          .on('finish', () => {
-            resolve();
-          }).on('error', (err) => {
-            reject(err);
-          }),
+        .pipe(
+          tar
+            .extract(dest)
+            .on('finish', () => {
+              resolve();
+            })
+            .on('error', (err) => {
+              reject(err);
+            }),
         );
     });
   }

@@ -35,7 +35,7 @@ interface Core {
   /**
    * It constructs a new Core object.
    */
-  new(): Core;
+  new (): Core;
   /**
    * Registers extensions to a Core object.
    * @param libraryPath Path to the library with ov::Extension.
@@ -114,10 +114,7 @@ interface Core {
    * @param deviceName The name of a device, the properties of which you get.
    * @param propertyName Property name.
    */
-  getProperty(
-    deviceName: string,
-    propertyName: string,
-  ): OVAny;
+  getProperty(deviceName: string, propertyName: string): OVAny;
   /**
    * It returns information on the version of device plugins.
    * @param deviceName A device name to identify a plugin.
@@ -230,7 +227,7 @@ interface Model {
    * It constructs a default Model object. Use {@link Core.readModel}
    * to read Model from supported file format.
    */
-  new(): Model;
+  new (): Model;
   /**
    * It returns a cloned model.
    */
@@ -309,7 +306,7 @@ interface Model {
    */
   reshape(
     partialShape: PartialShape | string,
-    variablesShapes?: Record<string, PartialShape | string>
+    variablesShapes?: Record<string, PartialShape | string>,
   ): Model;
   /** Reshapes model inputs.
    * @param partialShapes A Map with partial shapes.
@@ -321,7 +318,7 @@ interface Model {
    */
   reshape(
     partialShapes: Map<number | string | Output, PartialShape | string>,
-    variablesShapes?: Record<string, PartialShape | string>
+    variablesShapes?: Record<string, PartialShape | string>,
   ): Model;
   /**
    * It gets all the model inputs as an array.
@@ -343,7 +340,7 @@ interface CompiledModel {
    * It constructs a default CompiledModel object. Use {@link Core.compileModel}
    * or {@link Core.importModel} to get model compiled for a specific device.
    */
-  new(): CompiledModel;
+  new (): CompiledModel;
   /** It gets all inputs of a compiled model. */
   inputs: Output[];
   /** It gets all outputs of a compiled model. */
@@ -495,7 +492,7 @@ interface InferRequest {
    * Use {@link CompiledModel.createInferRequest}
    * to get InferRequest object specific for a given deployed model.
    */
-  new(): InferRequest;
+  new (): InferRequest;
   /**
    * It infers specified input(s) in the synchronous mode.
    * @remarks
@@ -612,7 +609,7 @@ interface InferRequest {
 type Dimension = number | [number, number];
 
 interface Output {
-  new(): Output;
+  new (): Output;
   anyName: string;
   shape: number[];
   toString(): string;
@@ -722,5 +719,4 @@ export interface NodeAddon {
   resizeAlgorithm: typeof resizeAlgorithm;
 }
 
-export default
-require('../bin/ov_node_addon.node') as NodeAddon;
+export default require('../bin/ov_node_addon.node') as NodeAddon;

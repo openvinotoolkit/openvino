@@ -4,10 +4,7 @@
 
 const path = require('path');
 const fs = require('node:fs/promises');
-const {
-  downloadFile,
-  checkIfPathExists,
-} = require('../scripts/lib/utils');
+const { downloadFile, checkIfPathExists } = require('../scripts/lib/utils');
 
 const modelDir = path.join(__dirname, 'unit', 'test_models');
 
@@ -57,21 +54,27 @@ module.exports = {
 function compareModels(model1, model2) {
   const differences = [];
   if (model1.getFriendlyName() !== model2.getFriendlyName()) {
-    differences.push('Friendly names of models are not equal ' +
+    differences.push(
+      'Friendly names of models are not equal ' +
         `model_one: ${model1.getFriendlyName()},` +
-        `model_two: ${model2.getFriendlyName()}`);
+        `model_two: ${model2.getFriendlyName()}`,
+    );
   }
 
   if (model1.inputs.length !== model2.inputs.length) {
-    differences.push('Number of models\' inputs are not equal ' +
-    `model_one: ${model1.inputs.length}, ` +
-    `model_two: ${model2.inputs.length}`);
+    differences.push(
+      "Number of models' inputs are not equal " +
+        `model_one: ${model1.inputs.length}, ` +
+        `model_two: ${model2.inputs.length}`,
+    );
   }
 
   if (model1.outputs.length !== model2.outputs.length) {
-    differences.push('Number of models\' outputs are not equal ' +
+    differences.push(
+      "Number of models' outputs are not equal " +
         `model_one: ${model1.outputs.length}, ` +
-        `model_two: ${model2.outputs.length}`);
+        `model_two: ${model2.outputs.length}`,
+    );
   }
 
   if (differences.length) {
@@ -101,22 +104,23 @@ async function downloadTestModel(model) {
     const proxyUrl = env.http_proxy || env.HTTP_PROXY || env.npm_config_proxy;
 
     const modelExists = await checkIfPathExists(model.xml);
-    if (!modelExists) await downloadFile(
-      model.xmlURL,
-      path.dirname(model.xml),
-      path.basename(model.xml),
-      proxyUrl,
-    );
+    if (!modelExists)
+      await downloadFile(
+        model.xmlURL,
+        path.dirname(model.xml),
+        path.basename(model.xml),
+        proxyUrl,
+      );
 
     const weightsExists = await checkIfPathExists(model.bin);
-    if (!weightsExists) await downloadFile(
-      model.binURL,
-      path.dirname(model.bin),
-      path.basename(model.bin),
-      proxyUrl,
-    );
-
-  } catch(error) {
+    if (!weightsExists)
+      await downloadFile(
+        model.binURL,
+        path.dirname(model.bin),
+        path.basename(model.bin),
+        proxyUrl,
+      );
+  } catch (error) {
     console.error(`Failed to download the model: ${error}.`);
     throw error;
   }

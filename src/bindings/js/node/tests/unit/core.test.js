@@ -28,7 +28,7 @@ describe('ov.Core tests', () => {
     assert.equal(cacheDir, tmpDir);
   });
 
-  it('Core.setProperty(\'CPU\')', () => {
+  it('Core.setProperty("CPU")', () => {
     const tmpDir = '/tmp';
 
     core.setProperty('CPU', { CACHE_DIR: tmpDir });
@@ -38,7 +38,7 @@ describe('ov.Core tests', () => {
     assert.equal(cacheDir, tmpDir);
   });
 
-  it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {
+  it('Core.getProperty("CPU", "SUPPORTED_PROPERTIES") is Array', () => {
     const supportedPropertiesArray = core.getProperty(
       'CPU',
       'SUPPORTED_PROPERTIES',
@@ -47,7 +47,7 @@ describe('ov.Core tests', () => {
     assert.ok(Array.isArray(supportedPropertiesArray));
   });
 
-  it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {
+  it('Core.setProperty("CPU", { "NUM_STREAMS": 5 })', () => {
     const streams = 5;
 
     core.setProperty('CPU', { NUM_STREAMS: streams });
@@ -56,7 +56,7 @@ describe('ov.Core tests', () => {
     assert.equal(result, streams);
   });
 
-  it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {
+  it('Core.setProperty("CPU", { "INFERENCE_NUM_THREADS": 3 })', () => {
     const threads = 3;
 
     core.setProperty('CPU', { INFERENCE_NUM_THREADS: threads });
@@ -72,7 +72,7 @@ describe('ov.Core tests', () => {
     );
   });
 
-  it('Core.addExtension(\'not_exists\') with non-existed library', () => {
+  it('Core.addExtension("not_exists") with non-existed library', () => {
     const notExistsExt = 'not_exists';
 
     assert.throws(
