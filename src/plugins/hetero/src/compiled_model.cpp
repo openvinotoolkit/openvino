@@ -48,7 +48,10 @@ void ov::hetero::CompiledModel::compile_model(std::vector<ov::hetero::SubmodelIn
     m_compiled_submodels.clear();
     m_compiled_submodels.reserve(submodels.size());
 
-    for (auto& [device, sub_model, is_transformed] : submodels) {
+    for (auto& submodel : submodels) {
+        const auto& device = submodel.affinity;
+        const auto& model = submodel.submodel;
+        const auto& is_transformed = submodel.is_transformed;
         // get meta devices properties for the target device
         auto meta_devices = hetero_plugin->get_properties_per_device(device, device_properties);
 
@@ -70,11 +73,11 @@ void ov::hetero::CompiledModel::compile_model(std::vector<ov::hetero::SubmodelIn
         // compile the submodel and add to the compiled submodels list
         CompiledModelDesc desc;
         desc.device = device;
-        desc.model = sub_model;
+        desc.model = model;
         if (is_transformed) {
             device_config[ov::internal::disable_transformation.name()] = true;
         }
-        desc.compiled_model = core->compile_model(sub_model, device, device_config);
+        desc.compiled_model = core->compile_model(model, device, device_config);
         m_compiled_submodels.emplace_back(std::move(desc));
     }
     set_inputs_and_outputs();

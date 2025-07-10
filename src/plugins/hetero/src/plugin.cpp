@@ -94,7 +94,7 @@ std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo
         submodels[i].is_transformed = res.is_transformed;
     }
 
-    return {mapping_info, submodels};
+    return {res.mapping_info, submodels};
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -309,10 +309,8 @@ ov::hetero::Plugin::QueryResult ov::hetero::Plugin::query_model_update(
     };
     res.model = model;
     if (are_all_same_gpu_type(device_names)) {
-        auto& device_config1 = properties_per_device.at("GPU.0");
-        std::cout << "start get_transformed_model\n";
-        res.model = get_core()->get_transformed_model(model, "GPU.0", device_config1);
-        std::cout << "get_transformed_model\n";
+        auto& first_device_config = properties_per_device.at(device_names[0]);
+        res.model = get_core()->get_transformed_model(model, device_names[0], first_device_config);
         res.is_transformed = true;
     }
 
