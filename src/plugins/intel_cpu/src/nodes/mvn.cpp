@@ -2749,14 +2749,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
     };
 
 #if OV_THREAD == OV_THREAD_OMP
-    auto origin_nested_levels = parallel_get_max_nested_levels();
-    if (origin_nested_levels <= parallel_get_nested_level() + 1) {
-        parallel_set_max_nested_levels(origin_nested_levels + 2);
-    }
-    auto origin_nested = parallel_get_nested();
-    if (origin_nested == 0) {
-        parallel_set_nested(1);
-    }
+    const auto origin_nested = parallel_enable_nesting();
 #endif
 
     parallel_nt_static(b_threads, [&](const int ithr, const int nthr) {
@@ -2764,12 +2757,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
     });
 
 #if OV_THREAD == OV_THREAD_OMP
-    if (origin_nested != parallel_get_nested()) {
-        parallel_set_nested(origin_nested);
-    }
-    if (origin_nested_levels != parallel_get_max_nested_levels()) {
-        parallel_set_max_nested_levels(origin_nested_levels);
-    }
+    parallel_restore_nesting(origin_nested);
 #endif
 }
 
