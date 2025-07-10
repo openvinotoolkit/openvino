@@ -85,17 +85,17 @@ void jit_dnnl_emitter::emit_code_impl(const std::vector<size_t>& in_vec_idxs,
                                       [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
     if (host_isa_ == cpu::x64::sse41) {
         if (out_vec_idxs[0] != in_vec_idxs[0]) {
-            h->uni_vmovups(Xmm(out_vec_idxs[0]), Xmm(in_vec_idxs[0]));
+            h->uni_vmovups(Xmm(static_cast<int>(out_vec_idxs[0])), Xmm(static_cast<int>(in_vec_idxs[0])));
         }
         eltwise_injector_sse42->compute_vector(out_vec_idxs[0]);
     } else if (host_isa_ == cpu::x64::avx2) {
         if (out_vec_idxs[0] != in_vec_idxs[0]) {
-            h->uni_vmovups(Ymm(out_vec_idxs[0]), Ymm(in_vec_idxs[0]));
+            h->uni_vmovups(Ymm(static_cast<int>(out_vec_idxs[0])), Ymm(static_cast<int>(in_vec_idxs[0])));
         }
         eltwise_injector_avx2->compute_vector(out_vec_idxs[0]);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         if (out_vec_idxs[0] != in_vec_idxs[0]) {
-            h->uni_vmovups(Zmm(out_vec_idxs[0]), Zmm(in_vec_idxs[0]));
+            h->uni_vmovups(Zmm(static_cast<int>(out_vec_idxs[0])), Zmm(static_cast<int>(in_vec_idxs[0])));
         }
         eltwise_injector_avx512_core->compute_vector(out_vec_idxs[0]);
     } else {

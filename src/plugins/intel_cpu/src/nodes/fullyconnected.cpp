@@ -344,7 +344,7 @@ void FullyConnected::execTensorParallelSync() {
             return parts;
         };
 
-        const int dim = dims.size() - 1;
+        const int dim = static_cast<int>(dims.size()) - 1;
         // selected dim bytes
         auto channel_size = dims[dim] * prec.size();
         // total bytes

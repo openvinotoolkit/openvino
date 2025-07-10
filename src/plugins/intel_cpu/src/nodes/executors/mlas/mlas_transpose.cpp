@@ -125,7 +125,7 @@ std::enable_if_t<has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisIn
 int64_t MlasTransposeExecutor::calcShapeSize(const Shape& shape, size_t start, size_t end) {
     int64_t size = 1;
     for (size_t i = start; i < end; i++) {
-        size *= shape.getDims()[i];
+        size *= static_cast<int64_t>(shape.getDims()[i]);
     }
     return size;
 }
@@ -212,7 +212,7 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisOutwards(input_data,
                                           output_data,
                                           num_loops,
-                                          num_writers,
+                                          static_cast<int64_t>(num_writers),
                                           writes_per_loop,
                                           writes_per_writer_per_loop);
         break;
@@ -221,7 +221,7 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint16_t*>(input_data),
                                           reinterpret_cast<uint16_t*>(output_data),
                                           num_loops,
-                                          num_writers,
+                                          static_cast<int64_t>(num_writers),
                                           writes_per_loop,
                                           writes_per_writer_per_loop);
         break;
@@ -230,7 +230,7 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint32_t*>(input_data),
                                           reinterpret_cast<uint32_t*>(output_data),
                                           num_loops,
-                                          num_writers,
+                                          static_cast<int64_t>(num_writers),
                                           writes_per_loop,
                                           writes_per_writer_per_loop);
         break;
@@ -239,7 +239,7 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisOutwards(reinterpret_cast<const uint64_t*>(input_data),
                                           reinterpret_cast<uint64_t*>(output_data),
                                           num_loops,
-                                          num_writers,
+                                          static_cast<int64_t>(num_writers),
                                           writes_per_loop,
                                           writes_per_writer_per_loop);
         break;
@@ -252,7 +252,7 @@ void MlasTransposeExecutor::TransposeSingleAxisOutwards(const MemoryCPtr& input,
             for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
                 uint8_t* output_for_current_writer = output_for_first_writer;
 
-                for (uint64_t w = 0; w < num_writers; ++w) {
+                for (uint64_t w = 0; w < static_cast<uint64_t>(num_writers); ++w) {
                     memcpy(output_for_current_writer, input_data, bytes_per_write);
                     // skip to output position for next writer
                     output_for_current_writer += (writes_per_writer_per_loop * bytes_per_write);
@@ -290,7 +290,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisInwards(input_data,
                                          output_data,
                                          num_loops,
-                                         num_readers,
+                                         static_cast<int64_t>(num_readers),
                                          reads_per_loop,
                                          reads_per_reader_per_loop);
         break;
@@ -299,7 +299,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint16_t*>(input_data),
                                          reinterpret_cast<uint16_t*>(output_data),
                                          num_loops,
-                                         num_readers,
+                                         static_cast<int64_t>(num_readers),
                                          reads_per_loop,
                                          reads_per_reader_per_loop);
         break;
@@ -308,7 +308,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint32_t*>(input_data),
                                          reinterpret_cast<uint32_t*>(output_data),
                                          num_loops,
-                                         num_readers,
+                                         static_cast<int64_t>(num_readers),
                                          reads_per_loop,
                                          reads_per_reader_per_loop);
         break;
@@ -317,7 +317,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input,
         SimpleTransposeSingleAxisInwards(reinterpret_cast<const uint64_t*>(input_data),
                                          reinterpret_cast<uint64_t*>(output_data),
                                          num_loops,
-                                         num_readers,
+                                         static_cast<int64_t>(num_readers),
                                          reads_per_loop,
                                          reads_per_reader_per_loop);
         break;
@@ -328,7 +328,7 @@ void MlasTransposeExecutor::TransposeSingleAxisInwards(const MemoryCPtr& input,
             const uint8_t* input_for_first_reader = input_data;
             for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
                 const uint8_t* input_for_current_reader = input_for_first_reader;
-                for (uint64_t r = 0; r < num_readers; ++r) {
+                for (uint64_t r = 0; r < static_cast<uint64_t>(num_readers); ++r) {
                     memcpy(output_data, input_for_current_reader, bytes_per_read);
                     output_data += bytes_per_read;
                     // skip to input position for next reader

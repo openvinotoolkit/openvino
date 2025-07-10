@@ -73,7 +73,7 @@ Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
         if (blacklist_gpr_idxs.count(_idx) > 0) {
             continue;
         }
-        return Xbyak::Reg64(_idx);
+        return Xbyak::Reg64(static_cast<int>(_idx));
     }
     OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
 }

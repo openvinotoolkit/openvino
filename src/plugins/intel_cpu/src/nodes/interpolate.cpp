@@ -1752,7 +1752,7 @@ bool InterpolateKey::operator==(const InterpolateKey& rhs) const {
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
 inline VectorDims getBlockND(const VectorDims& shape) {
-    int shapeRank = shape.size();
+    int shapeRank = static_cast<int>(shape.size());
     VectorDims blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
@@ -2038,7 +2038,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < static_cast<int>(dataRank); i++) {
-                    axes[i] = i;
+                    axes[i] = static_cast<int>(i);
                 }
             }
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
@@ -2111,7 +2111,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < static_cast<int>(dataRank); i++) {
-                    axes[i] = i;
+                    axes[i] = static_cast<int>(i);
                 }
             }
         }
@@ -2147,7 +2147,7 @@ void Interpolate::getSupportedDescriptors() {
     if (hasPad) {
         interpAttrs.NCHWAsNHWC = false;
         auto correctPad = [&](std::vector<int> pad, int rank) {
-            int padLen = pad.size();
+            int padLen = static_cast<int>(pad.size());
             if (padLen == rank) {
                 return pad;
             }
@@ -2631,7 +2631,7 @@ VectorDims Interpolate::getPaddedInputShape(const VectorDims& srcDims,
                                             const std::vector<int>& padBegin,
                                             const std::vector<int>& padEnd) {
     VectorDims paddedShape;
-    int dataRank = srcDims.size();
+    int dataRank = static_cast<int>(srcDims.size());
     for (int i = 0; i < dataRank; i++) {
         paddedShape.push_back(srcDims[i] + padBegin[i] + padEnd[i]);
     }

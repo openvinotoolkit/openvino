@@ -463,7 +463,7 @@ inline void DetectionOutput::confFilterCF(const float* pconf,
     int count = 0;
     for (int i = 0; i < numPriorsActual[n]; ++i) {
         if (pconf[i] > confidenceThreshold) {
-            pindices[count] = i;
+            pindices[count] = static_cast<int>(i);
             count++;
         }
     }
@@ -956,8 +956,8 @@ inline void DetectionOutput::generateOutput(const float* reorderedConfData,
                                             const float* decodedBboxesData,
                                             float* dstData) {
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
-    const int numResults = outDims[2];
-    const int DETECTION_SIZE = outDims[3];
+    const int numResults = static_cast<int>(outDims[2]);
+    const int DETECTION_SIZE = static_cast<int>(outDims[3]);
     if (DETECTION_SIZE != 7) {
         THROW_CPU_NODE_ERR("has unsupported output layout.");
     }

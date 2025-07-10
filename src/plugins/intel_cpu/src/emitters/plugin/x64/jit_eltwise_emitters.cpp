@@ -64,9 +64,9 @@ void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 template <x64::cpu_isa_t isa>
 void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vadd = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
@@ -123,11 +123,11 @@ template <x64::cpu_isa_t isa>
 void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_src2 = Vmm(in_vec_idxs[2]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_src2 = Vmm(static_cast<int>(in_vec_idxs[2]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vfmadd231_xmm = [this](Xmm vmm_dst, Xmm vmm_src0, Xmm vmm_src1, Xmm vmm_src2) {
         h->uni_vmovups(vmm_dst, vmm_src0);
@@ -226,9 +226,9 @@ template <x64::cpu_isa_t isa>
 void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vsub = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
@@ -287,9 +287,9 @@ template <x64::cpu_isa_t isa>
 void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vmul = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
@@ -347,9 +347,9 @@ template <x64::cpu_isa_t isa>
 void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                   const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vdiv = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
@@ -358,7 +358,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             break;
         }
         case ov::element::i32: {
-            auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+            auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
 
             // The opset doesn't contain vector instruction for integer divide operation
             // As WA we emulate its behavior via fp divide followed by rounding to zero
@@ -426,8 +426,8 @@ template <x64::cpu_isa_t isa>
 void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
     h->uni_vroundps(vmm_dst, vmm_src, 1);
 }
 
@@ -466,8 +466,8 @@ template <x64::cpu_isa_t isa>
 void jit_ceiling_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
     h->uni_vroundps(vmm_dst, vmm_src, 2);
 }
 
@@ -508,10 +508,10 @@ template <x64::cpu_isa_t isa>
 void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
 
     if (isa == x64::sse41) {
         if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
@@ -570,10 +570,10 @@ void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 template <x64::cpu_isa_t isa>
 void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
 
     if (isa == x64::sse41) {
         if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
@@ -628,9 +628,9 @@ template <x64::cpu_isa_t isa>
 void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vmax = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
@@ -689,9 +689,9 @@ template <x64::cpu_isa_t isa>
 void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vmin = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
@@ -753,9 +753,9 @@ template <x64::cpu_isa_t isa>
 void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto uni_vsqdiff = [this](Vmm vmm_dst, Vmm vmm_src0, Vmm vmm_src1) {
         switch (exec_prc_) {
@@ -824,9 +824,9 @@ template <x64::cpu_isa_t isa>
 void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                          const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     auto xmm0 = Xmm(0);
     auto xmm1 = Xmm(1);
@@ -848,9 +848,9 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
             if (x64::mayiuse(x64::avx512_core)) {
-                h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
+                h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
             } else {
-                h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
+                h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
             }
         }
     }
@@ -864,7 +864,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     // `host_isa::vecs_count`.
     h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
     for (size_t i = 2; i < get_max_vecs_count() + 2; ++i) {
-        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
+        h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(static_cast<int>(i - 2)));
     }
     h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_src0);  // src
     h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_src1);  // beta
@@ -890,14 +890,14 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     // restore vector registers
     for (size_t i = get_max_vecs_count() + 1; i >= 2; --i) {
-        h->uni_vmovups(Vmm(i - 2), h->ptr[h->rsp + i * get_vec_length()]);
+        h->uni_vmovups(Vmm(static_cast<int>(i - 2)), h->ptr[h->rsp + i * get_vec_length()]);
     }
     h->uni_vmovups(vmm_dst, h->ptr[h->rsp + 0 * get_vec_length()]);
     h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
     // restore k registers
     if (isa == x64::avx512_core) {
-        for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
+        for (int i = static_cast<int>(n_k_regs_to_save) - 1; i >= 0; --i) {
             if (x64::mayiuse(x64::avx512_core)) {
                 h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
             } else {
@@ -908,7 +908,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     }
 
     // restore gpr registers
-    for (int i = n_gprs_to_save - 1; i >= 0; --i) {
+    for (int i = static_cast<int>(n_gprs_to_save) - 1; i >= 0; --i) {
         h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
     }
     h->add(h->rsp, n_gprs_to_save * gpr_size);
@@ -953,11 +953,11 @@ template <x64::cpu_isa_t isa>
 void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1026,11 +1026,11 @@ template <x64::cpu_isa_t isa>
 void jit_not_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1097,11 +1097,11 @@ template <x64::cpu_isa_t isa>
 void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1170,11 +1170,11 @@ template <x64::cpu_isa_t isa>
 void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                          const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1240,11 +1240,11 @@ void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <x64::cpu_isa_t isa>
 void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1313,12 +1313,12 @@ template <x64::cpu_isa_t isa>
 void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1387,12 +1387,12 @@ template <x64::cpu_isa_t isa>
 void jit_logical_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
-    auto vmm_aux2 = Vmm(aux_vec_idxs[2]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
+    auto vmm_aux2 = Vmm(static_cast<int>(aux_vec_idxs[2]));
 
     if (isa == x64::sse41) {
         h->pxor(vmm_aux0, vmm_aux0);
@@ -1480,12 +1480,12 @@ template <x64::cpu_isa_t isa>
 void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
-    auto vmm_aux2 = Vmm(aux_vec_idxs[2]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
+    auto vmm_aux2 = Vmm(static_cast<int>(aux_vec_idxs[2]));
 
     if (isa == x64::sse41) {
         h->pxor(vmm_aux0, vmm_aux0);
@@ -1573,12 +1573,12 @@ template <x64::cpu_isa_t isa>
 void jit_logical_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
-    auto vmm_aux2 = Vmm(aux_vec_idxs[2]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
+    auto vmm_aux2 = Vmm(static_cast<int>(aux_vec_idxs[2]));
 
     if (isa == x64::sse41) {
         h->pxor(vmm_aux0, vmm_aux0);
@@ -1666,10 +1666,10 @@ template <x64::cpu_isa_t isa>
 void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->pxor(vmm_aux0, vmm_aux0);
@@ -1754,9 +1754,9 @@ template <x64::cpu_isa_t isa>
 void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                         const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
 
     auto xmm0 = Xmm(0);
     auto xmm1 = Xmm(1);
@@ -1838,9 +1838,9 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
             for (size_t i = 0; i < n_k_regs_to_save; ++i) {
                 if (x64::mayiuse(x64::avx512_core)) {
-                    h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
+                    h->kmovq(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
                 } else {
-                    h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(i));
+                    h->kmovw(h->ptr[h->rsp + i * k_mask_size], Opmask(static_cast<int>(i)));
                 }
             }
         }
@@ -1854,7 +1854,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         // `host_isa::vecs_count`.
         h->sub(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
         for (size_t i = 2; i < get_max_vecs_count() + 2; ++i) {
-            h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(i - 2));
+            h->uni_vmovups(h->ptr[h->rsp + i * get_vec_length()], Vmm(static_cast<int>(i - 2)));
         }
         h->uni_vmovups(h->ptr[h->rsp + 0 * get_vec_length()], vmm_dst);   // src
         h->uni_vmovups(h->ptr[h->rsp + 1 * get_vec_length()], vmm_aux0);  // beta
@@ -1880,14 +1880,14 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
         // restore vector registers
         for (size_t i = get_max_vecs_count() + 1; i >= 2; --i) {
-            h->uni_vmovups(Vmm(i - 2), h->ptr[h->rsp + i * get_vec_length()]);
+            h->uni_vmovups(Vmm(static_cast<int>(i - 2)), h->ptr[h->rsp + i * get_vec_length()]);
         }
         h->uni_vmovups(vmm_dst, h->ptr[h->rsp + 0 * get_vec_length()]);
         h->add(h->rsp, (get_max_vecs_count() + 2) * get_vec_length());
 
         // restore k registers
         if (isa == x64::avx512_core) {
-            for (int i = n_k_regs_to_save - 1; i >= 0; --i) {
+            for (int i = static_cast<int>(n_k_regs_to_save) - 1; i >= 0; --i) {
                 if (x64::mayiuse(x64::avx512_core)) {
                     h->kmovq(Opmask(i), h->ptr[h->rsp + i * k_mask_size]);
                 } else {
@@ -1898,7 +1898,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         }
 
         // restore gpr registers
-        for (int i = n_gprs_to_save - 1; i >= 0; --i) {
+        for (int i = static_cast<int>(n_gprs_to_save) - 1; i >= 0; --i) {
             h->mov(gprs_to_save[i], h->ptr[h->rsp + i * gpr_size]);
         }
         h->add(h->rsp, n_gprs_to_save * gpr_size);
@@ -1954,11 +1954,11 @@ template <x64::cpu_isa_t isa>
 void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
 
     if (isa == x64::sse41) {
         h->pxor(vmm_aux0, vmm_aux0);
@@ -2022,8 +2022,8 @@ void jit_sqrt_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <x64::cpu_isa_t isa>
 void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     h->uni_vsqrtps(vmm_dst, vmm_src0);
 }
@@ -2065,8 +2065,8 @@ template <x64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
     h->uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
     h->uni_vsubps(vmm_dst, vmm_dst, vmm_src);
 }
@@ -2109,12 +2109,12 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 template <x64::cpu_isa_t isa>
 void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
-    Vmm vmm_mask = need_vmm_mask() ? Vmm(aux_vec_idxs[0]) : Vmm();
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0 + static_cast<size_t>(need_vmm_mask())]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1 + static_cast<size_t>(need_vmm_mask())]);
+    Vmm vmm_mask = need_vmm_mask() ? Vmm(static_cast<int>(aux_vec_idxs[0])) : Vmm();
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0 + static_cast<size_t>(need_vmm_mask())]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1 + static_cast<size_t>(need_vmm_mask())]));
 
     auto compute_cmp_mask = [&](const Vmm& vmm_src, const Xbyak::Operand& compare_operand, int cmp_predicate) {
         if (host_isa_ == x64::avx512_core) {
@@ -2234,13 +2234,13 @@ void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 template <x64::cpu_isa_t isa>
 void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
-    auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
-    auto vmm_aux2 = Vmm(aux_vec_idxs[2]);
-    auto vmm_aux3 = Vmm(aux_vec_idxs[3]);
+    auto vmm_aux0 = Vmm(static_cast<int>(aux_vec_idxs[0]));
+    auto vmm_aux1 = Vmm(static_cast<int>(aux_vec_idxs[1]));
+    auto vmm_aux2 = Vmm(static_cast<int>(aux_vec_idxs[2]));
+    auto vmm_aux3 = Vmm(static_cast<int>(aux_vec_idxs[3]));
 
     // IMPORTANT: we use vmm_aux3 to save `x` as exp_compute does not use it.
     h->uni_vmovups(vmm_aux3, vmm_src);
@@ -2352,8 +2352,8 @@ template <x64::cpu_isa_t isa>
 void jit_soft_sign_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     h->uni_vmovups(vmm_dst, vmm_src);                             // y = x
     h->uni_vandps(vmm_src, vmm_src, table_val("positive_mask"));  // x = abs(x)
@@ -2370,10 +2370,10 @@ void jit_soft_sign_emitter::register_table_entries() {
 template <>
 void jit_is_finite_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& in_vec_idxs,
                                                        const std::vector<size_t>& out_vec_idxs) const {
-    auto vmm_src = Zmm(in_vec_idxs[0]);
-    auto vmm_dst = Zmm(out_vec_idxs[0]);
+    auto vmm_src = Zmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Zmm(static_cast<int>(out_vec_idxs[0]));
     const auto& ones_mask = h->k1;
-    auto reg32_one = Reg32(aux_gpr_idxs[0]);
+    auto reg32_one = Reg32(static_cast<int>(aux_gpr_idxs[0]));
 
     h->mov(reg32_one, CONST_1_F);
     h->vfpclassps(ones_mask, vmm_src, 0B10111001);
@@ -2385,8 +2385,8 @@ template <x64::cpu_isa_t isa>
 void jit_is_finite_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     h->uni_vandps(vmm_src, vmm_src, table_val("inf"));
     h->uni_vcmpps(vmm_src, vmm_src, table_val("inf"), 0B00000100);  // NEq
@@ -2425,12 +2425,12 @@ void jit_is_finite_emitter::register_table_entries() {
 template <>
 void jit_is_inf_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& in_vec_idxs,
                                                     const std::vector<size_t>& out_vec_idxs) const {
-    auto vmm_src = Zmm(in_vec_idxs[0]);
-    auto vmm_dst = Zmm(out_vec_idxs[0]);
+    auto vmm_src = Zmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Zmm(static_cast<int>(out_vec_idxs[0]));
 
     if (detect_negative || detect_positive) {
         const auto& ones_mask = h->k1;
-        auto reg32_one = Reg32(aux_gpr_idxs[0]);
+        auto reg32_one = Reg32(static_cast<int>(aux_gpr_idxs[0]));
         uint8_t imm = detect_negative ? 0B00010000 : 0B00000000;
         if (detect_positive) {
             imm |= 0B00001000;
@@ -2450,8 +2450,8 @@ void jit_is_inf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
 
     if (detect_negative || detect_positive) {
-        auto vmm_src = Vmm(in_vec_idxs[0]);
-        auto vmm_dst = Vmm(out_vec_idxs[0]);
+        auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+        auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
         if (detect_positive) {
             if (detect_negative) {
@@ -2472,7 +2472,7 @@ void jit_is_inf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->uni_vandps(vmm_dst, vmm_dst, table_val("one"));
         }
     } else {
-        auto vmm_dst = Vmm(out_vec_idxs[0]);
+        auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
         h->uni_vxorps(vmm_dst, vmm_dst, vmm_dst);
     }
 }
@@ -2502,10 +2502,10 @@ void jit_is_inf_emitter::register_table_entries() {
 template <>
 void jit_is_nan_emitter::emit_isa<x64::avx512_core>(const std::vector<size_t>& in_vec_idxs,
                                                     const std::vector<size_t>& out_vec_idxs) const {
-    auto vmm_src = Zmm(in_vec_idxs[0]);
-    auto vmm_dst = Zmm(out_vec_idxs[0]);
+    auto vmm_src = Zmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Zmm(static_cast<int>(out_vec_idxs[0]));
     const auto& ones_mask = h->k1;
-    auto reg32_one = Reg32(aux_gpr_idxs[0]);
+    auto reg32_one = Reg32(static_cast<int>(aux_gpr_idxs[0]));
 
     h->mov(reg32_one, CONST_1_F);
     h->vfpclassps(ones_mask, vmm_src, 0B10000001);
@@ -2516,8 +2516,8 @@ template <x64::cpu_isa_t isa>
 void jit_is_nan_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                   const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional<isa == x64::sse41, Xmm, Ymm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     h->uni_vcmpps(vmm_src, vmm_src, vmm_src, 0B00000100);
     if (isa == x64::avx2) {
@@ -2595,14 +2595,14 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_select_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                   const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_cond = Vmm(in_vec_idxs[0]);
-    auto vmm_src0 = Vmm(in_vec_idxs[1]);
-    auto vmm_src1 = Vmm(in_vec_idxs[2]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_cond = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[2]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     if (isa == x64::sse41) {
-        auto vmm_mask = Vmm(aux_vec_idxs[0]);
-        auto vmm_zero = Vmm(aux_vec_idxs[1]);
+        auto vmm_mask = Vmm(static_cast<int>(aux_vec_idxs[0]));
+        auto vmm_zero = Vmm(static_cast<int>(aux_vec_idxs[1]));
         h->uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
         h->uni_vcmpps(vmm_cond, vmm_cond, vmm_zero, 0x4);
         if (vmm_mask.getIdx() != vmm_cond.getIdx()) {
@@ -2613,7 +2613,7 @@ void jit_select_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         }
         h->uni_vblendvps(vmm_dst, vmm_dst, vmm_src0, vmm_mask);
     } else if (isa == x64::avx2) {
-        auto vmm_zero = Vmm(aux_vec_idxs[0]);
+        auto vmm_zero = Vmm(static_cast<int>(aux_vec_idxs[0]));
         h->uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
         h->uni_vcmpps(vmm_cond, vmm_cond, vmm_zero, 0x4);
         h->uni_vblendvps(vmm_dst, vmm_src1, vmm_src0, vmm_cond);
@@ -2661,9 +2661,9 @@ template <x64::cpu_isa_t isa>
 void jit_bitwise_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     if (isa == x64::sse41) {
         if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
@@ -2723,8 +2723,8 @@ template <x64::cpu_isa_t isa>
 void jit_bitwise_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src = Vmm(in_vec_idxs[0]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     if (isa == x64::sse41) {
         if (vmm_dst.getIdx() != vmm_src.getIdx()) {
@@ -2780,9 +2780,9 @@ template <x64::cpu_isa_t isa>
 void jit_bitwise_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     if (isa == x64::sse41) {
         if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
@@ -2834,9 +2834,9 @@ template <x64::cpu_isa_t isa>
 void jit_bitwise_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
     using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
-    auto vmm_src0 = Vmm(in_vec_idxs[0]);
-    auto vmm_src1 = Vmm(in_vec_idxs[1]);
-    auto vmm_dst = Vmm(out_vec_idxs[0]);
+    auto vmm_src0 = Vmm(static_cast<int>(in_vec_idxs[0]));
+    auto vmm_src1 = Vmm(static_cast<int>(in_vec_idxs[1]));
+    auto vmm_dst = Vmm(static_cast<int>(out_vec_idxs[0]));
 
     h->uni_vxorps(vmm_dst, vmm_src0, vmm_src1);
 }

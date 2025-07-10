@@ -89,14 +89,14 @@ void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_addr
     h->mov(h->r15, reinterpret_cast<size_t>(&start_address));
     h->cmp(h->qword[h->r15], 0);
     h->jne(label_set_address_current);
-    h->mov(h->qword[h->r15], Xbyak::Reg64(gpr_idx_for_mem_address));
+    h->mov(h->qword[h->r15], Xbyak::Reg64(static_cast<int>(gpr_idx_for_mem_address)));
     h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
-    h->mov(h->qword[h->r15], Xbyak::Reg64(gpr_idx_for_mem_address));
+    h->mov(h->qword[h->r15], Xbyak::Reg64(static_cast<int>(gpr_idx_for_mem_address)));
     h->jmp(label_set_address_end);
     h->L(label_set_address_current);
     {
         h->mov(h->r15, reinterpret_cast<size_t>(&current_address));
-        h->mov(h->qword[h->r15], Xbyak::Reg64(gpr_idx_for_mem_address));
+        h->mov(h->qword[h->r15], Xbyak::Reg64(static_cast<int>(gpr_idx_for_mem_address)));
     }
     h->L(label_set_address_end);
     // iteration++, 1 means first access

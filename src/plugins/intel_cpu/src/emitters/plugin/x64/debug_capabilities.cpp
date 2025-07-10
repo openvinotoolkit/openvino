@@ -115,13 +115,13 @@ void RegPrinter::restore_vmm(jit_generator& h) {
 void RegPrinter::save_reg(jit_generator& h) {
     h.sub(h.rsp, reg_len * reg_cnt);
     for (size_t i = 0; i < reg_cnt; i++) {
-        h.mov(h.ptr[h.rsp + i * reg_len], Reg64(i));
+        h.mov(h.ptr[h.rsp + i * reg_len], Reg64(static_cast<int>(i)));
     }
 }
 
 void RegPrinter::restore_reg(jit_generator& h) {
     for (size_t i = 0; i < reg_cnt; i++) {
-        h.mov(Reg64(i), h.ptr[h.rsp + i * reg_len]);
+        h.mov(Reg64(static_cast<int>(i)), h.ptr[h.rsp + i * reg_len]);
     }
     h.add(h.rsp, reg_len * reg_cnt);
 }

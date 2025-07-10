@@ -38,7 +38,7 @@ public:
     EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
     ~EmitABIRegSpills();
     [[nodiscard]] size_t get_num_spilled_regs() const {
-        return m_regs_to_spill.size();
+        return static_cast<int>(m_regs_to_spill.size());
     }
     /**
      * @brief Spills registers to stack

@@ -252,7 +252,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
                                                               nodeName,
                                                               "Result",
                                                               m_context);
-        CreateEdge(parentNode, outNode, port, 0);
+        CreateEdge(parentNode, outNode, static_cast<int>(port), 0);
         AddNode(outNode);
     }
 
@@ -769,7 +769,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
 
     auto notAllocatedPartitionEnd = std::partition(
         clusters.begin(),
-        clusters.begin() + remaining,
+        clusters.begin() + static_cast<std::ptrdiff_t>(remaining),
         [&allocateStringMemory, &allocateConstantEdge, &context](const EdgeCluster& cluster) {
             const auto& baseEdge = cluster.at(0);
 
@@ -844,7 +844,7 @@ static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
     };
 
     auto notAllocatedPartitionEnd =
-        std::partition(clusters.begin(), clusters.begin() + remaining, collectDynamicOutputMemBlocks);
+        std::partition(clusters.begin(), clusters.begin() + static_cast<std::ptrdiff_t>(remaining), collectDynamicOutputMemBlocks);
 
     remaining = std::distance(clusters.begin(), notAllocatedPartitionEnd);
 
@@ -1088,8 +1088,8 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
             auto&& desc = edge->getOriginalDesc();
 
             if (boxSize != -1 && desc.isDefined()) {
-                int64_t e_size =
-                    desc.getCurrentMemSize();  // size in bytes (from the beginning of data to the last element)
+                auto e_size = static_cast<int64_t>(
+                    desc.getCurrentMemSize());  // size in bytes (from the beginning of data to the last element)
                 boxSize = std::max(e_size, boxSize);
             } else {
                 boxSize = -1;
@@ -1736,7 +1736,7 @@ void Graph::SortTopologically() {
     // Sort in / out child edges by port index
     // Make first N (N == port_num) edge indexes match with port index
     for (auto& node : graphNodes) {
-        int port_num = node->outputShapes.size();
+        auto port_num = static_cast<int>(node->outputShapes.size());
         std::vector<EdgePtr> res(port_num);
 
         for (size_t i = 0; i < node->childEdges.size(); i++) {
@@ -1899,7 +1899,7 @@ void Graph::DropDWConvNode(const NodePtr& node) {
         const int inNum = p_edge->getInputNum();
         const int portCandidate = p_edge->getOutputNum();
         RemoveEdge(p_edge);
-        const int outNum = parentConv->parentEdges.size();
+        const auto outNum = static_cast<int>(parentConv->parentEdges.size());
 
         parentConv->inputShapes.push_back(node->getInputShapeAtPort(portCandidate));
         CreateEdge(parent, parentConv, inNum, outNum);

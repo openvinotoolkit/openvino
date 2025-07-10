@@ -380,14 +380,14 @@ void BrgemmCopyBKernel::execute(matmul::jit_brgemm_matmul_copy_b_t* kernel,
                                 size_t N,
                                 size_t K) {
     auto ctx = matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
-    ctx.current_N_blk = N;
+    ctx.current_N_blk = static_cast<dnnl::impl::dim_t>(N);
     ctx.src = src;
     ctx.tr_src = dst;
     ctx.compensation_ptr = comp;
     ctx.zp_a_compensation_ptr = nullptr;
     ctx.zp_a_neg_value_ptr = nullptr;
     ctx.current_K_start = 0;
-    ctx.current_K_iters = K;
+    ctx.current_K_iters = static_cast<dnnl::impl::dim_t>(K);
 
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "Kernel hasn't been created");
     (*kernel)(&ctx);
@@ -432,8 +432,8 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     auto init = [&](size_t& dim, size_t& blk, size_t idx) {
         OPENVINO_ASSERT(idx < planar_shape.size() && idx < in_subtensor.size(),
                         "Index must be less than shape/subtensor rank!");
-        dim = *(planar_shape.rbegin() + idx);
-        blk = *(in_subtensor.rbegin() + idx);
+        dim = *(planar_shape.rbegin() + static_cast<std::ptrdiff_t>(idx));
+        blk = *(in_subtensor.rbegin() + static_cast<std::ptrdiff_t>(idx));
         if (ov::snippets::utils::is_full_dim_value(blk)) {
             blk = dim;
         } else {
@@ -463,7 +463,7 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         dnnl_data_type_size(config.get_original_wei_dt());
 
-    config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, LDB);
+    config.update(static_cast<dnnl_dim_t>(N_dim), static_cast<dnnl_dim_t>(N_blk), static_cast<dnnl_dim_t>(K_dim), static_cast<dnnl_dim_t>(K_blk), static_cast<dnnl_dim_t>(copy_B_wei_stride), static_cast<dnnl_dim_t>(LDB));
 }
 
 void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executor, BrgemmCopyBKernel::call_args* args) {

@@ -189,16 +189,16 @@ void BatchToSpace::batchToSpaceKernel() {
         std::vector<size_t> begin(5, 0);
         std::vector<size_t> finish(5, 1);
         for (size_t i0 = indxStart[0]; i0 < indxEnd[0] + 1; ++i0) {
-            int64_t bIdx = i0 / outShape5D[0];
+            int64_t bIdx = static_cast<int64_t>(i0) / static_cast<int64_t>(outShape5D[0]);
             const size_t srcIdx0 = i0 * inBatchStep;
             const size_t dstIdx0 = (i0 - (bIdx * outShape5D[0])) * outBatchStep;
-            oAdd[4] = bIdx % blockShapeIn[dimsSize - 1] - cropsBeginIn[dimsSize - 1];
-            bIdx /= blockShapeIn[dimsSize - 1];
-            oAdd[3] = bIdx % blockShapeIn[dimsSize - 2] - cropsBeginIn[dimsSize - 2];
-            bIdx /= blockShapeIn[dimsSize - 2];
-            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0LU;
-            bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
-            oAdd[1] = bIdx % blockShapeIn[1] - cropsBeginIn[1];
+            oAdd[4] = (bIdx % static_cast<int64_t>(blockShapeIn[dimsSize - 1])) - static_cast<int64_t>(cropsBeginIn[dimsSize - 1]);
+            bIdx = bIdx / static_cast<int64_t>(blockShapeIn[dimsSize - 1]);
+            oAdd[3] = (bIdx % static_cast<int64_t>(blockShapeIn[dimsSize - 2])) - static_cast<int64_t>(cropsBeginIn[dimsSize - 2]);
+            bIdx = bIdx / static_cast<int64_t>(blockShapeIn[dimsSize - 2]);
+            oAdd[2] = dimsSize == 5 ? (bIdx % static_cast<int64_t>(blockShapeIn[2])) - static_cast<int64_t>(cropsBeginIn[2]) : static_cast<int64_t>(0LU);
+            bIdx = dimsSize == 5 ? bIdx / static_cast<int64_t>(blockShapeIn[2]) : bIdx;
+            oAdd[1] = (bIdx % static_cast<int64_t>(blockShapeIn[1])) - static_cast<int64_t>(cropsBeginIn[1]);
             if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4U, 5U)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
@@ -213,28 +213,28 @@ void BatchToSpace::batchToSpaceKernel() {
             finish[3] = (outShape5D[3] + blockShape[3] - 1 - oAdd[3]) / blockShape[3];
             begin[4] = (blockShape[4] - 1 - oAdd[4]) / blockShape[4];
             finish[4] = (outShape5D[4] + blockShape[4] - 1 - oAdd[4]) / blockShape[4];
-            const int64_t addTmpOC = blocked ? 0LU : oAdd[1];
-            const int64_t addTmpOc = blocked ? oAdd[1] : 0LU;
+            const int64_t addTmpOC = blocked ? static_cast<int64_t>(0LU) : oAdd[1];
+            const int64_t addTmpOc = blocked ? oAdd[1] : static_cast<int64_t>(0LU);
 
             const size_t firstI1 = i0 == 0 ? std::max(begin[1], indxStart[1]) : begin[1];
             const size_t lastI1 = i0 == indxEnd[0] ? std::min(indxEnd[1] + 1, finish[1]) : finish[1];
 
             for (size_t i1 = firstI1; i1 < lastI1; ++i1) {
                 const size_t block = i1 == finish[1] ? lastBlock : blockSize;
-                const int64_t tmpOC = i1 * blockShape[1] + addTmpOC;
+                const int64_t tmpOC = static_cast<int64_t>(i1 * blockShape[1]) + addTmpOC;
                 const size_t srcIdx1 = srcIdx0 + i1 * inSpatialStep * blockSize;
                 const size_t dstIdx1 = dstIdx0 + tmpOC * outSpatialStep * blockSize;
                 const size_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0LU;
                 for (size_t i2 = begin[2]; i2 < finish[2]; ++i2) {
-                    const int64_t tmpOd = i2 * blockShape[2] + oAdd[2];
+                    const int64_t tmpOd = static_cast<int64_t>(i2 * blockShape[2]) + oAdd[2];
                     const size_t srcIdx2 = srcIdx1 + i2 * inShape5D[3] * inShape5D[4] * blockSize;
                     const size_t dstIdx2 = dstIdx1 + tmpOd * outShape5D[3] * outShape5D[4] * blockSize;
                     for (size_t i3 = begin[3]; i3 < finish[3]; ++i3) {
-                        const int64_t tmpOh = i3 * blockShape[3] + oAdd[3];
+                        const int64_t tmpOh = static_cast<int64_t>(i3 * blockShape[3]) + oAdd[3];
                         const size_t srcIdx3 = srcIdx2 + i3 * inShape5D[4] * blockSize;
                         const size_t dstIdx3 = dstIdx2 + tmpOh * outShape5D[4] * blockSize;
                         for (size_t i4 = begin[4]; i4 < finish[4]; ++i4) {
-                            const int64_t tmpOw = i4 * blockShape[4] + oAdd[4];
+                            const int64_t tmpOw = static_cast<int64_t>(i4 * blockShape[4]) + oAdd[4];
                             const size_t srcIdx4 = srcIdx3 + i4 * blockSize;
                             const size_t dstIdx4 = dstIdx3 + tmpOw * blockSize;
                             for (size_t it = 0; it < itEnd + 1; ++it) {
@@ -242,7 +242,7 @@ void BatchToSpace::batchToSpaceKernel() {
                                 const size_t i5End =
                                     it == itEnd ? (block - 1) : ((it + 1) * blockSize - 1 - oAdd[1]) / blockShape[1];
                                 for (size_t i5 = i5Begin; i5 < i5End + 1; ++i5) {
-                                    const int64_t tmpOc = i5 * blockShape[1] + addTmpOc;
+                                    const int64_t tmpOc = static_cast<int64_t>(i5 * blockShape[1]) + addTmpOc;
                                     const size_t srcIdx5 = srcIdx4 + i5;
                                     const size_t dstIdx5 =
                                         dstIdx4 + it * outSpatialStep * blockSize + (tmpOc - it * blockSize);

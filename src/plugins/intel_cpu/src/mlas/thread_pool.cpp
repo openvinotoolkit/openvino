@@ -24,7 +24,7 @@ size_t OVMlasThreadPool::DegreeOfParallelism() {
 }
 
 void OVMlasThreadPool::TrySimpleParallelFor(const std::ptrdiff_t total, const std::function<void(std::ptrdiff_t)>& fn) {
-    ov::parallel_nt_static(threadNum, [&](const size_t ithr, const size_t nthr) {
+    ov::parallel_nt_static(static_cast<int>(threadNum), [&](const size_t ithr, const size_t nthr) {
         std::ptrdiff_t start = 0;
         std::ptrdiff_t end = 0;
         ov::splitter(total, nthr, ithr, start, end);

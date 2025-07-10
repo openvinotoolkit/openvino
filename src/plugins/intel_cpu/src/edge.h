@@ -86,7 +86,7 @@ public:
     [[nodiscard]] int getOutputNum() const;
 
     void setChildPort(const size_t port) {
-        child_port = port;
+        child_port = static_cast<int>(port);
     }
 
     void sharedMemFrom(const EdgePtr& edge);

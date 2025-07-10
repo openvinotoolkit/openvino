@@ -27,7 +27,7 @@ void JitTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::v
 
     const auto* srcData = src[0]->getDataAs<const uint8_t>();
     auto* dstData = dst[0]->getDataAs<uint8_t>();
-    const int MB = src[0]->getStaticDims()[0];
+    const auto MB = static_cast<int>(src[0]->getStaticDims()[0]);
 
     pKernel->execute(srcData, dstData, MB);
 }

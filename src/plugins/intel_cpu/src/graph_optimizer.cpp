@@ -468,7 +468,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
                 auto& targetNode = parentNode;
                 const auto& biasNode = parent;
                 auto biasOutputShape = biasNode->getOutputShapeAtPort(0);
-                int outNum = targetNode->getParentEdges().size();
+                auto outNum = static_cast<int>(targetNode->getParentEdges().size());
                 // ONEDNN Conv, Deconv, FC would need the bias to be flatten into 1D tensor.
                 // Usually the bias output shape would be normalized to align rank with Conv/Deconv/FC output.
                 // To avoid duplicate reshape WA code in nodes, here we flatten the shape.
@@ -604,7 +604,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
                     if (channelAxis != -1) {  // more than one axis is != 1
                         return -1;
                     }
-                    channelAxis = i;
+                    channelAxis = static_cast<int>(i);
                 }
             }
             return channelAxis;
@@ -708,7 +708,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
                 auto& parentEltwise = parentNode;
 
                 parentEltwise->inputShapes.push_back(parent->getOutputShapeAtPort(0));
-                graph.CreateEdge(parent, parentEltwise, inNum, parentEltwise->getParentEdges().size());
+                graph.CreateEdge(parent, parentEltwise, inNum, static_cast<int>(parentEltwise->getParentEdges().size()));
             }
         }
 
@@ -1336,11 +1336,11 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
         auto inDims = childNode->inputShapes[0].getStaticDims();
         auto outDims = childNode->outputShapes[0].getStaticDims();
-        int elemSize = childNode->getOriginalOutputPrecisionAtPort(0).size();
+        int elemSize = static_cast<int>(childNode->getOriginalOutputPrecisionAtPort(0).size());
 
-        int L3_cache_size = dnnl::utils::get_cache_size(3, false);
-        int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
-        int dw_conv_output_size = outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize;
+        auto L3_cache_size = static_cast<int>(dnnl::utils::get_cache_size(3, false));
+        auto dw_conv_input_size = static_cast<int>(inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize);
+        auto dw_conv_output_size = static_cast<int>(outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize);
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
         if (parentConvolutionNode == nullptr) {
@@ -1835,12 +1835,12 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         int childPort = 1;
         auto* mergedConvNode = dynamic_cast<Convolution*>(mergedConv.get());
         if (mergedConvNode != nullptr) {
-            childPort = mergedConvNode->getParentEdges().size();
+            childPort = static_cast<int>(mergedConvNode->getParentEdges().size());
         }
 
         auto* mergedBinConvNode = dynamic_cast<node::BinaryConvolution*>(mergedConv.get());
         if (mergedBinConvNode != nullptr) {
-            childPort = mergedBinConvNode->getParentEdges().size();
+            childPort = static_cast<int>(mergedBinConvNode->getParentEdges().size());
         }
 
         graph.CreateEdge(peerNode, mergedConv, peer_port, childPort);
@@ -2198,13 +2198,13 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                 } else {
                     EdgePtr& remEdge = p_edge;
                     int inNum = 0;
-                    int outNum = parentNode->getParentEdges().size();
+                    auto outNum = static_cast<int>(parentNode->getParentEdges().size());
                     if (remEdge) {
                         inNum = remEdge->getInputNum();
                         // Need to keep order for these algorithms
                         if (childNode->getAlgorithm() == Algorithm::EltwiseMulAdd ||
                             childNode->getAlgorithm() == Algorithm::EltwiseSelect) {
-                            outNum = initialParentInNum + remEdge->getOutputNum() - 1;
+                            outNum = static_cast<int>(initialParentInNum + remEdge->getOutputNum() - 1);
                         }
                         graph.RemoveEdge(remEdge);
                     }
@@ -2412,7 +2412,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
             if (parent->getType() != Type::Input || !parent->isConstant()) {
-                nonConstPorts.push_back(i);
+                nonConstPorts.push_back(static_cast<int>(i));
             }
         }
         // there are more than 1 nonconst port or missed
@@ -2733,7 +2733,7 @@ void GraphOptimizer::mergeTransposeReshapeReorder(Graph& graph,
         const auto& ord = castedTranspose->getOrder();
         srcPerm = std::vector<int>(ord.size());
         for (size_t i = 0; i < ord.size(); i++) {
-            srcPerm[ord[i]] = i;
+            srcPerm[ord[i]] = static_cast<int>(i);
         }
     }
 

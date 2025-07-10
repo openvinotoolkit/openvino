@@ -228,7 +228,7 @@ private:
         m_workspace = std::make_shared<MemoryBlockWithRelease>();
 
         for (const auto& box : boxes_to_process) {
-            int64_t offset = staticMemSolver.get_offset(box.id);
+            auto offset = staticMemSolver.get_offset(static_cast<int>(box.id));
             auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
             m_blocks[box.id] = std::move(memoryBlock);
         }
@@ -272,7 +272,7 @@ public:
                 if (itr_upper == syncInds.end()) {
                     box.finish = -1;
                 } else {
-                    box.finish = *itr_upper;
+                    box.finish = static_cast<int>(*itr_upper);
                 }
             }
         }
@@ -384,13 +384,13 @@ MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerIO& obj) {
                                       obj.m_blocks.end(),
                                       static_cast<size_t>(0),
                                       [](size_t acc, const MemoryManagerIO::BlockType& item) {
-                                          return acc + item.size();
+                                          return static_cast<int>(acc + item.size());
                                       });
     auto max_region_size = std::accumulate(obj.m_blocks.begin(),
                                            obj.m_blocks.end(),
                                            static_cast<size_t>(0),
                                            [](size_t acc, const MemoryManagerIO::BlockType& item) {
-                                               return std::max(acc, item.size());
+                                               return static_cast<int>(std::max(acc, item.size()));
                                            });
     return {MemoryManagerIO::getClassName(),
             obj.m_blocks.size(),  // as the number of blocks ie equal to regions
@@ -433,7 +433,7 @@ MemoryStatisticsRecord dumpStatisticsImpl(const MemoryManagerNonOverlappingSets&
         auto tmp_boxes = obj.m_boxes;
         for (auto&& box : tmp_boxes) {
             auto block = obj.m_internalBlocks.at(box.id);
-            box.size = block->size();
+            box.size = static_cast<int64_t>(block->size());
         }
         return calculateOptimalMemorySize(std::move(tmp_boxes));
     }();

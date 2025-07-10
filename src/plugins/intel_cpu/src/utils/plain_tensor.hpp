@@ -117,7 +117,7 @@ struct PlainTensor {
 
     [[nodiscard]] size_t size(int i) const {
         if (i < 0) {
-            i += m_rank;
+            i += static_cast<int>(m_rank);
         }
         assert(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
         return m_dims[i];
@@ -228,7 +228,7 @@ struct PlainTensor {
         for (auto idx : indices) {
             auto src_dim = m_dims[i_src];
             auto src_stride = m_strides[i_src];
-            idx.regularize(src_dim);
+            idx.regularize(static_cast<int>(src_dim));
             off += idx.start * src_stride;
             if (idx.slice_with_squeeze()) {
                 // no output dimension
@@ -288,7 +288,7 @@ struct PlainTensor {
     [[nodiscard]] bool is_dense() const {
         // check if it's dense tensor
         size_t stride = 1;
-        for (int i = m_rank - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(m_rank) - 1; i >= 0; i--) {
             if (m_strides[i] != stride) {
                 return false;
             }
@@ -358,7 +358,7 @@ struct PlainTensor {
         m_rank = new_dims.size();
         assert(m_rank <= PLAINTENSOR_RANK_MAX);
         size_t stride = 1;
-        for (int i = m_rank - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(m_rank) - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
             m_strides[i] = strides ? strides[i] : stride;
             stride *= new_dims[i];
@@ -407,7 +407,7 @@ struct PlainTensor {
 
     template <int dim>
     [[nodiscard]] int64_t offset() const {
-        return m_offset;
+        return static_cast<int64_t>(m_offset);
     }
     template <int dim, typename I>
     [[nodiscard]] int64_t offset(I i) const {
@@ -468,7 +468,7 @@ struct PlainTensor {
         auto* dst = reinterpret_cast<DT*>(m_ptr.get() + m_offset * m_element_size);
         while (true) {
             size_t off = 0;
-            for (int i = m_rank - 1; i >= 0; i--) {
+            for (int i = static_cast<int>(m_rank) - 1; i >= 0; i--) {
                 if (index[i] >= m_dims[i]) {
                     // carry on
                     if (i == 0) {

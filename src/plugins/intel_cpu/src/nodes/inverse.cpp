@@ -141,7 +141,7 @@ void Inverse::lu_decomposition(const float* data,
 
     parallel_for(m_side, [&](size_t i) {
         L[i * m_side + i] = 1.0F;
-        P[i] = i;
+        P[i] = static_cast<int>(i);
     });
 
     for (size_t k = 0; k < m_side; ++k) {

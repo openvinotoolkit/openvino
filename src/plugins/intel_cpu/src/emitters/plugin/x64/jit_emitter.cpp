@@ -43,21 +43,21 @@ size_t jit_emitter::get_vec_length() const {
 
 void jit_emitter::push_vec(const Xbyak::Address& addr, size_t vec_idx) const {
     if (host_isa_ == cpu::x64::sse41) {
-        h->uni_vmovups(addr, Xmm(vec_idx));
+        h->uni_vmovups(addr, Xmm(static_cast<int>(vec_idx)));
     } else if (host_isa_ == cpu::x64::avx2) {
-        h->uni_vmovups(addr, Ymm(vec_idx));
+        h->uni_vmovups(addr, Ymm(static_cast<int>(vec_idx)));
     } else {
-        h->uni_vmovups(addr, Zmm(vec_idx));
+        h->uni_vmovups(addr, Zmm(static_cast<int>(vec_idx)));
     }
 }
 
 void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address& addr) const {
     if (host_isa_ == cpu::x64::sse41) {
-        h->uni_vmovups(Xmm(vec_idx), addr);
+        h->uni_vmovups(Xmm(static_cast<int>(vec_idx)), addr);
     } else if (host_isa_ == cpu::x64::avx2) {
-        h->uni_vmovups(Ymm(vec_idx), addr);
+        h->uni_vmovups(Ymm(static_cast<int>(vec_idx)), addr);
     } else {
-        h->uni_vmovups(Zmm(vec_idx), addr);
+        h->uni_vmovups(Zmm(static_cast<int>(vec_idx)), addr);
     }
 }
 
@@ -190,12 +190,12 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     if (!entry_map_.empty()) {
         // last aux_gpr_idx is for p_table, we can use aux_gpr_idxs from idx 0 for other purpose
         OPENVINO_ASSERT(!aux_gpr_idxs.empty(), "No aux gprs available");
-        p_table = Reg64(aux_gpr_idxs[aux_gprs_count() - 1]);
+        p_table = Reg64(static_cast<int>(aux_gpr_idxs[aux_gprs_count() - 1]));
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
 
     for (uint64_t preserved_gpr_idx : preserved_gpr_idxs) {
-        h->push(Reg64(preserved_gpr_idx));
+        h->push(Reg64(static_cast<int>(preserved_gpr_idx)));
     }
 
     if (!preserved_vec_idxs.empty()) {
@@ -222,8 +222,8 @@ void jit_emitter::emitter_postamble() const {
         h->add(h->rsp, preserved_vec_idxs.size() * get_vec_length());
     }
 
-    for (int i = preserved_gpr_idxs.size() - 1; i >= 0; --i) {
-        h->pop(Reg64(preserved_gpr_idxs[i]));
+    for (int i = static_cast<int>(preserved_gpr_idxs.size()) - 1; i >= 0; --i) {
+        h->pop(Reg64(static_cast<int>(preserved_gpr_idxs[i])));
     }
 
     preserved_vec_idxs.clear();

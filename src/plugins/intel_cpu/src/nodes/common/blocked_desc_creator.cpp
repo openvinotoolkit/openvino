@@ -44,7 +44,7 @@ public:
         VectorDims blkDims = srcShape.getDims();
         if (srcShape.getRank() > 2) {
             auto moveElementBack = [](VectorDims& vector, size_t indx) {
-                auto itr = vector.begin() + indx;
+                auto itr = vector.begin() + static_cast<std::ptrdiff_t>(indx);
                 std::rotate(itr, itr + 1, vector.end());
             };
 

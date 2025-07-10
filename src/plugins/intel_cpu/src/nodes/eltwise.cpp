@@ -500,17 +500,17 @@ class EltwiseJitExecutor : public Eltwise::IEltwiseExecutor {
 public:
     static void offset_out_calc(VectorDims& offset, const VectorDims& dims) {
         int k = 1;
-        for (int i = offset.size() - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
             offset[i] = k;
-            k *= dims[i];
+            k *= static_cast<int>(dims[i]);
         }
     }
 
     static void offset_in_calc(VectorDims& offset, const VectorDims& dims_in, const VectorDims& dims_out) {
         int k = 1;
-        for (int i = offset.size() - 1; i >= 0; i--) {
+        for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
             offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
-            k *= dims_in[i];
+            k *= static_cast<int>(dims_in[i]);
         }
     }
 
@@ -528,7 +528,7 @@ public:
                 dims[dims.size() - 1] *= dims[i];
             }
 
-            for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            for (int i = static_cast<int>(dims.size()) - 2; i >= dimsToCollapse; i--) {
                 dims[i] = dims[i - dimsToCollapse];
             }
 
@@ -547,7 +547,7 @@ public:
                 }
             }
 
-            for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            for (int i = static_cast<int>(dims.size()) - 2; i >= dimsToCollapse; i--) {
                 dims[i] = dims[i - dimsToCollapse];
             }
 
@@ -607,9 +607,9 @@ public:
         std::fill(jep.oc_offsets.begin(), jep.oc_offsets.end(), 0);
         if (isFusedWith(Type::FakeQuantize)) {
             size_t offset_oc = 1;
-            for (int i = outOrder.size() - 1; i >= 0; i--) {
+            for (int i = static_cast<int>(outOrder.size()) - 1; i >= 0; i--) {
                 if (outOrder[i] == 1) {
-                    int oc_dim_idx = i + (jep.input_size - outOrder.size());
+                    auto oc_dim_idx = static_cast<int>(i + (jep.input_size - outOrder.size()));
                     jep.oc_offsets[oc_dim_idx] = offset_oc;
                     offset_oc *= jep.dims[oc_dim_idx];
                     if (oc_dim_idx + 1 !=
@@ -779,7 +779,7 @@ public:
                 (*_pKernel)(&args_ptrs, &args);
             };
 
-            parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+            parallel_nt_static(static_cast<int>(m_threads_num), [&](const int ithr, const int nthr) {
                 for_5d(ithr, nthr, dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], d6_loop);
             });
         } else {
@@ -791,7 +791,7 @@ public:
                     _schedulerWorkAmount *= dims_out[i];
                 }
             }
-            parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
+            parallel_nt(static_cast<int>(m_threads_num), [&](const int ithr, const int nthr) {
                 size_t start = 0;
                 size_t end = 0;
                 splitter(_schedulerWorkAmount, nthr, ithr, start, end);
@@ -800,7 +800,7 @@ public:
                 auto args = jit_eltwise_call_args_indexes();
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     size_t tmp = iwork;
-                    for (ptrdiff_t j = dims_out.size() - 2; j >= 0; j--) {
+                    for (ptrdiff_t j = static_cast<ptrdiff_t>(dims_out.size()) - 2; j >= 0; j--) {
                         counters[j] = tmp % dims_out[j];
                         tmp /= dims_out[j];
                     }
@@ -1027,7 +1027,7 @@ protected:
                   std::vector<T>& src_f,
                   T*& dst_ptr_f) {
         size_t tmp = iwork;
-        for (ptrdiff_t j = dims_out.size() - 1; j >= 0; j--) {
+        for (ptrdiff_t j = static_cast<ptrdiff_t>(dims_out.size()) - 1; j >= 0; j--) {
             counters[j] = tmp % dims_out[j];
             tmp /= dims_out[j];
         }
@@ -1965,10 +1965,10 @@ void Eltwise::createPrimitive() {
     start_offset_in.resize(inputNum);
     for (size_t i = 0; i < inputNum; i++) {
         const auto desc = getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>();
-        start_offset_in[i] = desc->getOffsetPadding() * desc->getPrecision().size();
+        start_offset_in[i] = static_cast<ptrdiff_t>(desc->getOffsetPadding() * desc->getPrecision().size());
     }
     const auto desc = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
-    start_offset_out = desc->getOffsetPadding() * desc->getPrecision().size();
+    start_offset_out = static_cast<ptrdiff_t>(desc->getOffsetPadding() * desc->getPrecision().size());
 
     for (size_t i = 0; i < inputNum; ++i) {
         inpPrc.push_back(getParentEdgeAt(i)->getMemory().getDesc().getPrecision());
@@ -2101,17 +2101,17 @@ void Eltwise::prepareParams() {
         // offsets recalculation
         auto offset_out_calc = [](VectorDims& offset, const VectorDims& dims) {
             int k = 1;
-            for (int i = offset.size() - 1; i >= 0; i--) {
+            for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
                 offset[i] = k;
-                k *= dims[i];
+                k *= static_cast<int>(dims[i]);
             }
         };
 
         auto offset_in_calc = [](VectorDims& offset, const VectorDims& dims_in, const VectorDims& dims_out) {
             int k = 1;
-            for (int i = offset.size() - 1; i >= 0; i--) {
+            for (int i = static_cast<int>(offset.size()) - 1; i >= 0; i--) {
                 offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
-                k *= dims_in[i];
+                k *= static_cast<int>(dims_in[i]);
             }
         };
 
@@ -2316,7 +2316,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
 
             // always align for legacy scale/shift post ops
             constexpr int bufferAlignment = 16;
-            int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+            auto bufferPaddingSize = static_cast<int>(rnd_up(channelSize, bufferAlignment) - channelSize);
             depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
         }
 
@@ -2454,7 +2454,7 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     };
 
     auto isSuitableChildNode = [](const Node* childNode) {
-        return childNode->getParentEdges().size() != 2;
+        return static_cast<int>(childNode->getParentEdges().size()) != 2;
     };
 
     if (!isSuitableParentNode(parentNode.get()) || !isSuitableChildNode(this)) {

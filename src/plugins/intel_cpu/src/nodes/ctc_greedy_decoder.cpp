@@ -93,7 +93,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const size_t T = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[0];
     const size_t B = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[1];
-    const int C = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2];
+    const int C = static_cast<int>(getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims()[2]);
     const size_t BC = B * C;
     const size_t CB1 = C * (B - 1);
 
@@ -174,10 +174,10 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
         const size_t sequenceLength = sequenceLengths[b];
         float* shiftedOut = outputSequences + b * T;
         for (size_t t = 0; t < sequenceLength; ++t) {
-            if (*shiftedOut < blankIndex && (!mergeRepeated || *shiftedOut != prevClassIdx)) {
+            if (*shiftedOut < static_cast<float>(blankIndex) && (!mergeRepeated || *shiftedOut != static_cast<float>(prevClassIdx))) {
                 outputSequences[outputIndex++] = *shiftedOut;
             }
-            prevClassIdx = *shiftedOut;
+            prevClassIdx = static_cast<int>(*shiftedOut);
             shiftedOut++;
         }
         std::fill(outputSequences + outputIndex, outputSequences + (b + 1) * T, -1.F);

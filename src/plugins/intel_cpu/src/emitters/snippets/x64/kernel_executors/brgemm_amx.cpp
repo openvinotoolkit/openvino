@@ -8,6 +8,7 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/c_types_map.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
 #include <cpu/x64/brgemm/brgemm_types.hpp>
@@ -208,7 +209,7 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
                                             config.get_K(),
                                             config.get_wei_K_blk(),
                                             K_tail,
-                                            copy_A_src_stride,
+                                            static_cast<dnnl_dim_t>(copy_A_src_stride),
                                             LDA);
             const auto result = cache->getOrCreate(key, brgemm_copy_a_builder);
             compiled_kernel->brgemm_copy_a_kernel = result.first;
@@ -243,9 +244,9 @@ void BrgemmAMXKernelExecutor::create_brgemm_copy_a_kernel(
     conf_.src_zp_type = dnnl::impl::cpu::x64::none;
     conf_.src_dt = dt;
     conf_.copy_A_src_stride = src_stride;
-    conf_.a_dt_sz = dnnl_data_type_size(conf_.src_dt);
+    conf_.a_dt_sz = static_cast<dnnl::impl::dim_t>(dnnl_data_type_size(conf_.src_dt));
     // copied A has the same precision of original
-    conf_.tr_a_dt_sz = dnnl_data_type_size(conf_.src_dt);
+    conf_.tr_a_dt_sz = static_cast<dnnl::impl::dim_t>(dnnl_data_type_size(conf_.src_dt));
     conf_.transposed_A = false;
     conf_.isa = isa;
 

@@ -166,7 +166,7 @@ void BlobDumper::dump(std::ostream& stream) const {
     header.scaling_data_size = 0;
 
     stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
-    stream.write(reinterpret_cast<char*>(data.data()), data.size());
+    stream.write(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
 }
 
 void BlobDumper::dumpAsTxt(std::ostream& stream) const {
@@ -287,8 +287,8 @@ BlobDumper BlobDumper::read(std::istream& stream) {
     const auto desc = parse_header(header);
 
     BlobDumper res(desc);
-    stream.seekg(header.data_offset, std::istream::beg);
-    stream.read(reinterpret_cast<char*>(res.getDataPtr()), header.data_size);
+    stream.seekg(static_cast<std::streamoff>(header.data_offset), std::istream::beg);
+    stream.read(reinterpret_cast<char*>(res.getDataPtr()), static_cast<std::streamoff>(header.data_size));
 
     return res;
 }

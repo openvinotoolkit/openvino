@@ -93,7 +93,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t maxTime = inDims[1];
     const size_t classesNum = inDims[2];
 
-    int blankIndex = classesNum - 1;
+    int blankIndex = static_cast<int>(classesNum - 1);
     if (inputShapes.size() > 4) {
         blankIndex = getSrcDataAtPortAs<const int>(4)[0];
     }
@@ -163,7 +163,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 }
                 targetD[decodedTargetLen++] = blankIndex;
             }
-            decodedTargetLenB[b] = decodedTargetLen;
+            decodedTargetLenB[b] = static_cast<int>(decodedTargetLen);
 
             auto& logProbabilities = logProbabilitiesB[b];
             logProbabilities.resize(actualLogitLen);
@@ -201,7 +201,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             return;
         }
         int64_t cw = 0;
-        int64_t st = start;
+        int64_t st = static_cast<int64_t>(start);
         for (; sB < batchNum; sB++) {
             cw += logitsLength[sB];
             if (cw >= st) {
@@ -226,7 +226,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                     expSum += std::exp(logits[btcT + c]);
                 }
                 for (size_t s = 0LU; s < decodedTargetLen; s++) {
-                    logProbabilities[t][s] = logits[btcT + targetD[s]] - std::log(expSum);
+                    logProbabilities[t][s] = static_cast<float>(logits[btcT + targetD[s]] - std::log(expSum));
                 }
                 btcT += classesNum;
                 if (++workCounter >= end) {

@@ -120,9 +120,9 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 
     Reg64 data_reg;
     if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
-        data_reg = Reg64(in_idxs[0]);
+        data_reg = Reg64(static_cast<int>(in_idxs[0]));
     } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
-        data_reg = Reg64(out_idxs[0]);
+        data_reg = Reg64(static_cast<int>(out_idxs[0]));
     } else {
         OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
     }
@@ -183,8 +183,8 @@ template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Reg64 in_reg(in[0]);
-    auto vmm_dst = Vmm(out[0]);
+    Reg64 in_reg(static_cast<int>(in[0]));
+    auto vmm_dst = Vmm(static_cast<int>(out[0]));
 
     // It doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for
     // `BroadcastLoad`, key point here is not to add post-increment, it might be fixed by some other approach in future

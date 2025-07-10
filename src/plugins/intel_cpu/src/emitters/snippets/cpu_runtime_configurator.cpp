@@ -108,11 +108,11 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
         const auto& data_sizes = loop_info->get_data_sizes();
 
         auto& loop_arg = cpu_config->loop_args[idx];
-        loop_arg = jit_snippets_call_args::loop_args_t(loop_info->get_work_amount(),
+        loop_arg = jit_snippets_call_args::loop_args_t(static_cast<int64_t>(loop_info->get_work_amount()),
                                                        loop_info->get_ptr_increments(),
                                                        loop_info->get_finalization_offsets());
         for (int64_t i = 0; i < loop_arg.m_num_data_ptrs; ++i) {
-            loop_arg.m_ptr_increments[i] *= (increment * data_sizes[i]);
+            loop_arg.m_ptr_increments[i] *= static_cast<int64_t>(increment * data_sizes[i]);
             loop_arg.m_finalization_offsets[i] *= data_sizes[i];
         }
     }

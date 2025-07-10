@@ -263,7 +263,7 @@ void Broadcast::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         size_t end = 0LU;
         VectorDims counters(dataDstRank, 0);
         splitter(workAmountDst, nthr, ithr, start, end);
-        for (int j = dataDstRank - 1, i = start; j >= 0; j--) {
+        for (int j = static_cast<int>(dataDstRank) - 1, i = start; j >= 0; j--) {
             counters[j] = i % dstDims[j];
             i /= dstDims[j];
         }

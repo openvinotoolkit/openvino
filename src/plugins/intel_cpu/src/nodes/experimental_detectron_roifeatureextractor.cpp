@@ -327,7 +327,7 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 }
 
 void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const int levels_num = inputShapes.size() - INPUT_FEATURES_START;
+    const int levels_num = static_cast<int>(inputShapes.size()) - INPUT_FEATURES_START;
     const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;

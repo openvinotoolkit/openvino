@@ -185,8 +185,8 @@ public:
         std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
         for (size_t i = 0; i < minDims.size(); i++) {
-            Dimension::value_type minDim = Shape::UNDEFINED_DIM == minDims[i] ? -1 : minDims[i];
-            Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
+            Dimension::value_type minDim = Shape::UNDEFINED_DIM == minDims[i] ? -1 : static_cast<Dimension::value_type>(minDims[i]);
+            Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : static_cast<Dimension::value_type>(maxDims[i]);
             nGraphDims.emplace_back(minDim, maxDim);
         }
         return {nGraphDims};
@@ -210,7 +210,7 @@ public:
         });
     }
 
-    enum : Dim { UNDEFINED_DIM = std::numeric_limits<Dim>::max() };
+    static constexpr Dim UNDEFINED_DIM = std::numeric_limits<Dim>::max();
 
 private:
     void initDims() {

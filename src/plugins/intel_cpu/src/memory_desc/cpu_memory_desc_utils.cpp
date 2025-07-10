@@ -102,7 +102,7 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
                                            byte_stride,
                                            " must be divisible by size of element ",
                                            element_type.size());
-                           return byte_stride / element_type.size();
+                           return static_cast<int>(byte_stride / element_type.size());
                        });
     }
 

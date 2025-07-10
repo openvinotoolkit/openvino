@@ -5,6 +5,7 @@
 #include "cpu_streams_calculation.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -49,7 +50,7 @@ void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::ve
     if (proc_type_table.size() > 1) {
         for (size_t i = 1; i < proc_type_table.size(); i++) {
             if (current_numa_node == proc_type_table[i][PROC_NUMA_NODE_ID]) {
-                std::rotate(proc_type_table.begin() + 1, proc_type_table.begin() + i, proc_type_table.end());
+                std::rotate(proc_type_table.begin() + 1, proc_type_table.begin() + static_cast<std::ptrdiff_t>(i), proc_type_table.end());
                 break;
             }
         }
@@ -94,8 +95,8 @@ std::vector<std::vector<int>> get_streams_info_table(
         stream_info[NUMBER_OF_STREAMS] = 0;
         int total_threads = stream_info[THREADS_PER_STREAM];
         int socket_id = stream_info[STREAM_SOCKET_ID];
-        int node_start = one_proc_table.size() == 1 ? 0 : 1;
-        int node_end = one_proc_table.size() == 1 ? 1 : one_proc_table.size();
+        int node_start = static_cast<int>(one_proc_table.size()) == 1 ? 0 : 1;
+        auto node_end = one_proc_table.size() == 1 ? 1 : static_cast<int>(one_proc_table.size());
         // When n_mode is 3, the following loop only selects CPUs on socket with the same id as current_socket_id.
         // When n_mode is 2, the following loop only selects CPUs on sockets with id different from current_socket_id.
         // When n_mode is 1, the following loop selects CPUs on all sockets.
@@ -639,7 +640,7 @@ int get_model_prefer_threads(const int num_streams,
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
+        const auto L2_cache_size = static_cast<float>(dnnl::utils::get_cache_size(2 /*level*/, true /*per core */));
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model,
                                                  L2_cache_size,
@@ -768,7 +769,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     auto streams_info_table = get_streams_info_table(config.streams,
                                                      config.streamsChanged,
                                                      config.threads,
-                                                     config.hintNumRequests,
+                                                     static_cast<int>(config.hintNumRequests),
                                                      model_prefer_threads,
                                                      config.enableTensorParallel,
                                                      ov::util::to_string(config.hintPerfMode),

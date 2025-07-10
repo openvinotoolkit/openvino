@@ -573,13 +573,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             if (bychannel) {
                 block_size += 2 * sizeof(float);
             } else {
-                head_size += sizeof(float) * 2 * group_num;
+                head_size += static_cast<int64_t>(sizeof(float) * 2 * group_num);
             }
         } else if (precision == ov::element::u4) {
             if (bychannel) {
                 block_size += 2 * sizeof(float) * 2;
             } else {
-                head_size += sizeof(float) * 2 * group_num * 2;
+                head_size += static_cast<int64_t>(sizeof(float) * 2 * group_num * 2);
             }
         }
     };

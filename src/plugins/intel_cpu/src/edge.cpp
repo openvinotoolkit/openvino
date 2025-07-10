@@ -118,7 +118,7 @@ void Edge::collectConsumers(std::vector<NodePtr>& result) const {
             for (size_t i = 0; i < conf.outConfs.size(); i++) {
                 const auto peerOutInPlacePort = conf.outConfs[i].inPlace();
                 if (peerOutInPlacePort == this->getOutputNum()) {
-                    for (auto&& childEdge : childNode->getChildEdgesAtPort(i)) {
+                    for (auto&& childEdge : childNode->getChildEdgesAtPort(static_cast<int>(i))) {
                         childEdge->collectConsumers(result);
                     }
                 }
@@ -660,7 +660,7 @@ NodePtr Edge::modifiedInPlace() const {
                 // Node can modify the memory
                 return childNode;
             }
-            for (auto&& edge : childNode->getChildEdgesAtPort(i)) {
+            for (auto&& edge : childNode->getChildEdgesAtPort(static_cast<int>(i))) {
                 // continue searching
                 if (auto result = edge->modifiedInPlace()) {
                     return result;

@@ -474,8 +474,8 @@ private:
     }
 
     void compute_planar() {
-        int src_type_size = jqp_.src_prc.size();
-        int dst_type_size = jqp_.dst_prc.size();
+        int src_type_size = static_cast<int>(jqp_.src_prc.size());
+        int dst_type_size = static_cast<int>(jqp_.dst_prc.size());
 
         mov(reg_from, ptr[param + GET_OFF(from)]);
         mov(reg_to, ptr[param + GET_OFF(to)]);
@@ -600,9 +600,9 @@ private:
     }
 
     void compute_generic() {
-        int src_type_size = jqp_.src_prc.size();
-        int wei_type_size = jqp_.wei_prc.size();
-        int dst_type_size = jqp_.dst_prc.size();
+        int src_type_size = static_cast<int>(jqp_.src_prc.size());
+        int wei_type_size = static_cast<int>(jqp_.wei_prc.size());
+        int dst_type_size = static_cast<int>(jqp_.dst_prc.size());
 
         mov(reg_from, ptr[param + GET_OFF(from)]);
         mov(reg_to, ptr[param + GET_OFF(to)]);
@@ -1735,8 +1735,8 @@ void FakeQuantize::executeReference() {
     auto d_str = dstMemory->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     const int N = srcDims[0];
-    const int C = srcDims.size() > 1 ? srcDims[1] : 1;
-    const int D = srcDims.size() == 5 ? srcDims[2] : 1;
+    const int C = static_cast<int>(srcDims.size()) > 1 ? srcDims[1] : 1;
+    const int D = static_cast<int>(srcDims.size()) == 5 ? srcDims[2] : 1;
     int H = 1, W = 1;
     if (srcDims.size() == 3) {
         H = srcDims[2];
@@ -1749,13 +1749,13 @@ void FakeQuantize::executeReference() {
 
     if (isBinarization()) {
         size_t tmp = s_str[s_str.size() - 1];
-        for (int i = s_str.size() - 1; i > 1; i--) {
+        for (int i = static_cast<int>(s_str.size()) - 1; i > 1; i--) {
             s_str[i] = s_str[i - 1];
         }
         s_str[1] = tmp;
 
         tmp = d_str[d_str.size() - 1];
-        for (int i = d_str.size() - 1; i > 1; i--) {
+        for (int i = static_cast<int>(d_str.size()) - 1; i > 1; i--) {
             d_str[i] = d_str[i - 1];
         }
         d_str[1] = tmp;
@@ -1859,7 +1859,7 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     auto srcMemDesc = srcMemory->getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> s_str = srcMemDesc->getStrides();
     size_t tmp = s_str[s_str.size() - 1];
-    for (int i = s_str.size() - 1; i > 1; i--) {
+    for (int i = static_cast<int>(s_str.size()) - 1; i > 1; i--) {
         s_str[i] = s_str[i - 1];
     }
     s_str[1] = tmp;
@@ -1918,7 +1918,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
     if (srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4U, 5U)) {
         size_t tmp = s_str[s_str.size() - 1];
-        for (int i = s_str.size() - 1; i > 1; i--) {
+        for (int i = static_cast<int>(s_str.size()) - 1; i > 1; i--) {
             s_str[i] = s_str[i - 1];
         }
         s_str[1] = tmp;
@@ -2125,7 +2125,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims& dims, const size
         quantizationData.insert(quantizationData.end(), outputShift.begin(), outputShift.end());
         quantizationDataSize = quantizationData.size();
 
-        int bufferPaddingSize = rnd_up(outputShift.size(), bufferAlignment) - outputShift.size();
+        int bufferPaddingSize = static_cast<int>(rnd_up(outputShift.size(), bufferAlignment) - outputShift.size());
         quantizationData.resize(quantizationDataSize + bufferPaddingSize, 0);
     }
 
@@ -2421,7 +2421,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
         }
     }
 
-    // return false before committing any change to DnnlPostOpsComposer
+    // return static_cast<int>(false before committing any change to DnnlPostOpsComposer
     if (!allowBinary) {
         if (f.ish.size() > 1) {
             return false;

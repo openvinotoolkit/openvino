@@ -1104,29 +1104,29 @@ DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const VectorDims dstDims = descVector[descVector.size() - 1]->getShape().getStaticDims();
 
     jcp.dg = defConvAttr.deformable_group;
-    jcp.ngroups = defConvAttr.group;
+    jcp.ngroups = static_cast<int>(defConvAttr.group);
 
-    jcp.mb = srcDims[0];
+    jcp.mb = static_cast<int>(srcDims[0]);
 
-    jcp.oc = dstDims[1] / jcp.ngroups;
-    jcp.ic = srcDims[1] / jcp.ngroups;
+    jcp.oc = static_cast<int>(dstDims[1]) / jcp.ngroups;
+    jcp.ic = static_cast<int>(srcDims[1]) / jcp.ngroups;
 
-    jcp.ih = srcDims[2];
-    jcp.iw = srcDims[3];
-    jcp.oh = dstDims[2];
-    jcp.ow = dstDims[3];
+    jcp.ih = static_cast<int>(srcDims[2]);
+    jcp.iw = static_cast<int>(srcDims[3]);
+    jcp.oh = static_cast<int>(dstDims[2]);
+    jcp.ow = static_cast<int>(dstDims[3]);
 
-    jcp.kh = weiDims[2];
-    jcp.kw = weiDims[3];
+    jcp.kh = static_cast<int>(weiDims[2]);
+    jcp.kw = static_cast<int>(weiDims[3]);
 
-    jcp.t_pad = defConvAttr.padL[0];
-    jcp.l_pad = defConvAttr.padL[1];
+    jcp.t_pad = static_cast<int>(defConvAttr.padL[0]);
+    jcp.l_pad = static_cast<int>(defConvAttr.padL[1]);
 
-    jcp.stride_h = defConvAttr.stride[0];
-    jcp.stride_w = defConvAttr.stride[1];
+    jcp.stride_h = static_cast<int>(defConvAttr.stride[0]);
+    jcp.stride_w = static_cast<int>(defConvAttr.stride[1]);
 
-    jcp.dilate_h = defConvAttr.dilation[0];
-    jcp.dilate_w = defConvAttr.dilation[1];
+    jcp.dilate_h = static_cast<int>(defConvAttr.dilation[0]);
+    jcp.dilate_w = static_cast<int>(defConvAttr.dilation[1]);
 
     jcp.with_bias = false;
     jcp.with_bi_pad = defConvAttr.with_bilinear_pad;
@@ -1247,7 +1247,7 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 
     parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
         dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
-            compKer(g, mb, oc, oh, ow);
+            compKer(static_cast<int>(g), static_cast<int>(mb), static_cast<int>(oc), static_cast<int>(oh), static_cast<int>(ow));
     });
 }
 
@@ -1299,12 +1299,12 @@ void DeformableConvolution::prepareParams() {
 
     DefConvKey key = {descVector, defConvAttr, getSelectedPrimitiveDescriptor()->getImplementationType()};
 
-    const int MB = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0];
-    const int OH = getChildEdgeAt(0)->getMemory().getStaticDims()[2];
-    const int OW = getChildEdgeAt(0)->getMemory().getStaticDims()[3];
+    const auto MB = static_cast<int>(getParentEdgeAt(DATA_ID)->getMemory().getStaticDims()[0]);
+    const auto OH = static_cast<int>(getChildEdgeAt(0)->getMemory().getStaticDims()[2]);
+    const auto OW = static_cast<int>(getChildEdgeAt(0)->getMemory().getStaticDims()[3]);
 
-    const int KH = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[2];
-    const int KW = getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[3];
+    const auto KH = static_cast<int>(getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[2]);
+    const auto KW = static_cast<int>(getParentEdgeAt(WEI_ID)->getMemory().getStaticDims()[3]);
 
     const int DG = defConvAttr.deformable_group;
 

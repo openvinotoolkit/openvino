@@ -45,7 +45,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc,
         OPENVINO_THROW("CpuBlockedMemoryDesc do not support undefined order.");
     }
 
-    if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
+    if (std::any_of(blockedDims.begin() + static_cast<std::ptrdiff_t>(shape.getRank()), blockedDims.end(), [](size_t val) {
             return val == Shape::UNDEFINED_DIM;
         })) {
         OPENVINO_THROW("CpuBlockedMemoryDesc doesn't support undefined blockedDims.");
@@ -299,7 +299,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) 
     }
 
     // TODO [DS]: add stride recalculation for strided blobs
-    for (int i = strides.size() - 2; i >= 0; i--) {
+    for (int i = static_cast<int>(strides.size()) - 2; i >= 0; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM) {
             break;
         }

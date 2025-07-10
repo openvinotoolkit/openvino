@@ -43,10 +43,10 @@ using namespace Xbyak::util;
     } else {                                                        \
         h->instruction(data_reg_new, __VA_ARGS__);                  \
         data_idx = aux_src_idx;                                     \
-        xmm = Xbyak::Xmm(data_idx);                                 \
-        ymm = Xbyak::Ymm(data_idx);                                 \
-        zmm = Xbyak::Zmm(data_idx);                                 \
-        vmm = Vmm(data_idx);                                        \
+        xmm = Xbyak::Xmm(static_cast<int>(data_idx));                                 \
+        ymm = Xbyak::Ymm(static_cast<int>(data_idx));                                 \
+        zmm = Xbyak::Zmm(static_cast<int>(data_idx));                                 \
+        vmm = Vmm(static_cast<int>(data_idx));                                        \
         data_reg_updated = true;                                    \
     }
 
@@ -121,9 +121,9 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                    emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type),
       name_("unknown"),
-      v_len_elt_(get_vec_length() / exec_prc.size()),
+      v_len_elt_(static_cast<int>(get_vec_length() / exec_prc.size())),
       load_num_(load_num),
-      load_size_(load_num * src_prc.size()),
+      load_size_(static_cast<int>(load_num * src_prc.size())),
       src_prc_(src_prc),
       dst_prc_(dst_prc),
       is_fill_(is_fill),
@@ -156,13 +156,13 @@ size_t jit_load_emitter::aux_gprs_count() const {
 
 void jit_load_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     // offset in load emitter is the offset of src gpr register, should be parsed from in_idxs.
-    const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
+    const int offset = static_cast<int>(in_idxs.size()) == 2 ? static_cast<int>(in_idxs[1]) : 0;
     if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
+        emit_isa<cpu::x64::sse41>(Reg64(static_cast<int>(in_idxs[0])), static_cast<int>(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx2) {
-        emit_isa<cpu::x64::avx2>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
+        emit_isa<cpu::x64::avx2>(Reg64(static_cast<int>(in_idxs[0])), static_cast<int>(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx512_core) {
-        emit_isa<cpu::x64::avx512_core>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
+        emit_isa<cpu::x64::avx512_core>(Reg64(static_cast<int>(in_idxs[0])), static_cast<int>(out_idxs[0]), offset);
     } else {
         OV_CPU_JIT_EMITTER_THROW("is performed on unsupported isa(at least x64::sse41).");
     }
@@ -182,25 +182,25 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
 
     // pure load
     if (src_prc_ == dst_prc_) {
-        load_bytes<Vmm>(Vmm(out_vec_idx), reg_src, offset, load_size_);
+        load_bytes<Vmm>(Vmm(static_cast<int>(out_vec_idx)), reg_src, offset, load_size_);
     } else {
         // "pure load" + convert. dst_prc must be FP32 or I32.
         switch (src_prc_) {
         case ov::element::f32:
         case ov::element::i32:
-            load_bytes<Vmm>(Vmm(out_vec_idx), reg_src, offset, load_size_);
+            load_bytes<Vmm>(Vmm(static_cast<int>(out_vec_idx)), reg_src, offset, load_size_);
             break;
         case ov::element::i8:
-            load_bytes_to_dword_extension<Vmm>(Vmm(out_vec_idx), reg_src, offset, true, load_size_);
+            load_bytes_to_dword_extension<Vmm>(Vmm(static_cast<int>(out_vec_idx)), reg_src, offset, true, load_size_);
             break;
         case ov::element::u8:
-            load_bytes_to_dword_extension<Vmm>(Vmm(out_vec_idx), reg_src, offset, false, load_size_);
+            load_bytes_to_dword_extension<Vmm>(Vmm(static_cast<int>(out_vec_idx)), reg_src, offset, false, load_size_);
             break;
         case ov::element::i16:
         case ov::element::u16:
         case ov::element::bf16:
         case ov::element::f16:
-            load_words_to_dword_extension<Vmm>(Vmm(out_vec_idx), reg_src, offset, src_prc_, load_size_);
+            load_words_to_dword_extension<Vmm>(Vmm(static_cast<int>(out_vec_idx)), reg_src, offset, src_prc_, load_size_);
             break;
         default:
             OV_CPU_JIT_EMITTER_THROW("has unsupported src precision to load.");
@@ -212,12 +212,12 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
         switch (dst_prc_) {
         case ov::element::f32:
             if (!src_prc_.is_real()) {
-                h->uni_vcvtdq2ps(Vmm(out_vec_idx), Vmm(out_vec_idx));
+                h->uni_vcvtdq2ps(Vmm(static_cast<int>(out_vec_idx)), Vmm(static_cast<int>(out_vec_idx)));
             }
             break;
         case ov::element::i32:
             if (src_prc_.is_real()) {
-                h->uni_vcvtps2dq(Vmm(out_vec_idx), Vmm(out_vec_idx));
+                h->uni_vcvtps2dq(Vmm(static_cast<int>(out_vec_idx)), Vmm(static_cast<int>(out_vec_idx)));
             }
             break;
         default:
@@ -226,8 +226,8 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
     }
 
     if (is_fill_) {
-        int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : (load_size_ / sizeof(float));
-        fill_with_default(Vmm(out_vec_idx), fill_value_, dword_num_loaded);
+        int dword_num_loaded = (src_prc_ != dst_prc_) ? static_cast<int>(load_num_) : static_cast<int>(load_size_ / sizeof(float));
+        fill_with_default(Vmm(static_cast<int>(out_vec_idx)), fill_value_, dword_num_loaded);
     }
 }
 
@@ -318,18 +318,18 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         case 0:
             break;
         case 1:
-            h->movzx(Reg32(aux_gpr_idxs[0]), addr(start_bytes));
-            h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
+            h->movzx(Reg32(static_cast<int>(aux_gpr_idxs[0])), addr(start_bytes));
+            h->uni_vmovq(xmm, Reg64(static_cast<int>(aux_gpr_idxs[0])));
             break;
         case 2:
-            h->movzx(Reg32(aux_gpr_idxs[0]), word_addr(start_bytes));
-            h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
+            h->movzx(Reg32(static_cast<int>(aux_gpr_idxs[0])), word_addr(start_bytes));
+            h->uni_vmovq(xmm, Reg64(static_cast<int>(aux_gpr_idxs[0])));
             break;
         case 3:
-            h->movzx(Reg32(aux_gpr_idxs[0]), addr(start_bytes + 2));
-            h->shl(Reg32(aux_gpr_idxs[0]), 16);
-            h->mov(Reg16(aux_gpr_idxs[0]), word_addr(start_bytes));
-            h->uni_vmovq(xmm, Reg64(aux_gpr_idxs[0]));
+            h->movzx(Reg32(static_cast<int>(aux_gpr_idxs[0])), addr(start_bytes + 2));
+            h->shl(Reg32(static_cast<int>(aux_gpr_idxs[0])), 16);
+            h->mov(Reg16(static_cast<int>(aux_gpr_idxs[0])), word_addr(start_bytes));
+            h->uni_vmovq(xmm, Reg64(static_cast<int>(aux_gpr_idxs[0])));
             break;
         case 4:
             h->uni_vmovss(xmm, addr(start_bytes));
@@ -422,8 +422,8 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         if (mayiuse(cpu::x64::avx512_core) && load_size > threshold_for_mask_emu_load) {
             uint64_t mask = 1;
             mask = (mask << load_size) - mask;
-            h->mov(Reg64(aux_gpr_idxs[0]), mask);
-            h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
+            h->mov(Reg64(static_cast<int>(aux_gpr_idxs[0])), mask);
+            h->kmovq(k_mask, Reg64(static_cast<int>(aux_gpr_idxs[0])));
             h->vmovdqu8(zmm | k_mask | T_z, addr(0));
         } else {
             load_byte_base();
@@ -511,8 +511,8 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm& vmm,
         if (is_zmm && load_size > threshold_for_mask_emu_load) {
             unsigned int mask = 1;
             mask = (mask << load_size) - mask;
-            h->mov(Reg32(aux_gpr_idxs[0]), mask);
-            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            h->mov(Reg32(static_cast<int>(aux_gpr_idxs[0])), mask);
+            h->kmovw(k_mask, Reg32(static_cast<int>(aux_gpr_idxs[0])));
             if (is_signed) {
                 h->uni_vpmovsxbd(vmm | k_mask | T_z, ptr[reg + offset]);
             } else {
@@ -637,8 +637,8 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
         if (is_zmm && load_size > threshold_for_mask_emu_load) {
             unsigned int mask = 1;
             mask = (mask << (load_size / 2)) - mask;
-            h->mov(Reg32(aux_gpr_idxs[0]), mask);
-            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            h->mov(Reg32(static_cast<int>(aux_gpr_idxs[0])), mask);
+            h->kmovw(k_mask, Reg32(static_cast<int>(aux_gpr_idxs[0])));
             if (is_bf16) {
                 h->uni_vpmovzxwd(vmm | k_mask | T_z, ptr[reg + offset]);
                 h->uni_vpslld(vmm, vmm, 16);
@@ -685,8 +685,8 @@ void jit_load_emitter::fill_with_default(const Vmm& vmm, const std::string& fill
     } else if (is_zmm) {
         uint64_t tail_mask = 1;
         tail_mask = ~((tail_mask << load_num) - tail_mask);
-        h->mov(Reg64(aux_gpr_idxs[0]), tail_mask);
-        h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
+        h->mov(Reg64(static_cast<int>(aux_gpr_idxs[0])), tail_mask);
+        h->kmovq(k_mask, Reg64(static_cast<int>(aux_gpr_idxs[0])));
         h->vblendmps(vmm | k_mask, vmm, table_val(fill_value));
     }
 }
@@ -714,9 +714,9 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
                                      emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type),
       name_("unknown"),
-      v_len_elt_(get_vec_length() / exec_prc.size()),
+      v_len_elt_(static_cast<int>(get_vec_length() / exec_prc.size())),
       store_num_(store_num),
-      store_size_(store_num * dst_prc.size()),
+      store_size_(static_cast<int>(store_num * dst_prc.size())),
       src_prc_(src_prc),
       dst_prc_(dst_prc),
       mode_(mode) {
@@ -789,13 +789,13 @@ void jit_store_emitter::emit_data() const {
 
 void jit_store_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     // offset in store emitter is the offset of dst gpr register, should be parsed from out_idxs.
-    const int offset = out_idxs.size() == 2 ? out_idxs[1] : 0;
+    const int offset = static_cast<int>(out_idxs.size()) == 2 ? static_cast<int>(out_idxs[1]) : 0;
     if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
+        emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(static_cast<int>(out_idxs[0])), offset);
     } else if (host_isa_ == cpu::x64::avx2) {
-        emit_isa<cpu::x64::avx2>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
+        emit_isa<cpu::x64::avx2>(static_cast<int>(in_idxs[0]), Reg64(static_cast<int>(out_idxs[0])), offset);
     } else if (host_isa_ == cpu::x64::avx512_core) {
-        emit_isa<cpu::x64::avx512_core>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
+        emit_isa<cpu::x64::avx512_core>(static_cast<int>(in_idxs[0]), Reg64(static_cast<int>(out_idxs[0])), offset);
     } else {
         OV_CPU_JIT_EMITTER_THROW("is performed on unsupported isa(at least x64::sse41).");
     }
@@ -818,7 +818,7 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_d
     data_idx = in_vec_idx;
     data_reg_updated = false;
     if (!aux_vec_idxs.empty()) {
-        aux_src_idx = aux_vec_idxs.back();  // to avoid src pollution
+        aux_src_idx = static_cast<int>(aux_vec_idxs.back());  // to avoid src pollution
     }
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
@@ -920,7 +920,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
             start_bytes += 32;
             bytes_to_store -= 32;
             // load upper bits from zmm into ymm
-            STORE_KEEP_SOURCE(vextractf64x4, ymm, Ymm(aux_src_idx), zmm, 1);
+            STORE_KEEP_SOURCE(vextractf64x4, ymm, Ymm(static_cast<int>(aux_src_idx)), zmm, 1);
         }
 
         if (bytes_to_store > 16) {
@@ -929,9 +929,9 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
             bytes_to_store -= 16;
             // load upper bits from ymm into xmm
             if (mayiuse(cpu::x64::avx512_core)) {
-                STORE_KEEP_SOURCE(vextractf32x4, xmm, Xmm(aux_src_idx), ymm, 1);  // evex used on avx512
+                STORE_KEEP_SOURCE(vextractf32x4, xmm, Xmm(static_cast<int>(aux_src_idx)), ymm, 1);  // evex used on avx512
             } else {
-                STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
+                STORE_KEEP_SOURCE(vextractf128, xmm, Xmm(static_cast<int>(aux_src_idx)), ymm, 1);
             }
         }
 
@@ -954,17 +954,17 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
         case 0:
             break;
         case 1:
-            h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
+            h->uni_vmovq(Reg64(static_cast<int>(aux_gpr_idxs[0])), xmm);
             store_one_byte(0, aux_gpr_idxs[0]);
             break;
         case 2:
-            h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
-            h->mov(addr(start_bytes), Reg16(aux_gpr_idxs[0]));
+            h->uni_vmovq(Reg64(static_cast<int>(aux_gpr_idxs[0])), xmm);
+            h->mov(addr(start_bytes), Reg16(static_cast<int>(aux_gpr_idxs[0])));
             break;
         case 3:
-            h->uni_vmovq(Reg64(aux_gpr_idxs[0]), xmm);
-            h->mov(addr(start_bytes), Reg16(aux_gpr_idxs[0]));
-            h->shr(Reg64(aux_gpr_idxs[0]), 16);
+            h->uni_vmovq(Reg64(static_cast<int>(aux_gpr_idxs[0])), xmm);
+            h->mov(addr(start_bytes), Reg16(static_cast<int>(aux_gpr_idxs[0])));
+            h->shr(Reg64(static_cast<int>(aux_gpr_idxs[0])), 16);
             store_one_byte(2, aux_gpr_idxs[0]);
             break;
         case 4:
@@ -1032,8 +1032,8 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
         if (mayiuse(cpu::x64::avx512_core) && store_size > threshold_for_mask_emu_store) {
             uint64_t mask = 1;
             mask = (mask << store_size) - mask;
-            h->mov(Reg64(aux_gpr_idxs[0]), mask);
-            h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
+            h->mov(Reg64(static_cast<int>(aux_gpr_idxs[0])), mask);
+            h->kmovq(k_mask, Reg64(static_cast<int>(aux_gpr_idxs[0])));
             h->vmovdqu8(addr(0), zmm | k_mask);
         } else {
             store_byte_base();
@@ -1083,44 +1083,44 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64& reg,
         if (is_zmm) {
             if (is_saturation()) {
                 if (is_signed) {
-                    STORE_KEEP_SOURCE(vpmovsdb, xmm, Xmm(aux_src_idx), vmm);
+                    STORE_KEEP_SOURCE(vpmovsdb, xmm, Xmm(static_cast<int>(aux_src_idx)), vmm);
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
+                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, zero);
                     h->vpmovusdb(xmm, vmm);
                 }
             } else {
-                STORE_KEEP_SOURCE(vpmovdb, xmm, Xmm(aux_src_idx), vmm);
+                STORE_KEEP_SOURCE(vpmovdb, xmm, Xmm(static_cast<int>(aux_src_idx)), vmm);
             }
         } else {
             if (is_saturation()) {
                 // db only available on avx512, need dw+wb to emulate
                 if (is_signed) {
-                    STORE_KEEP_SOURCE(uni_vpackssdw, vmm, Vmm(aux_src_idx), vmm, vmm);
+                    STORE_KEEP_SOURCE(uni_vpackssdw, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
                 } else {
-                    STORE_KEEP_SOURCE(uni_vpackusdw, vmm, Vmm(aux_src_idx), vmm, vmm);
+                    STORE_KEEP_SOURCE(uni_vpackusdw, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
                 }
                 // gather 2(cross lane) 64 bits into lower vmm to store when store_num > 4.
                 // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
                 if (is_ymm && (store_num > 4)) {
                     // 0x08:00001000
-                    STORE_KEEP_SOURCE(vpermq, ymm, Ymm(aux_src_idx), ymm, 0x08);
+                    STORE_KEEP_SOURCE(vpermq, ymm, Ymm(static_cast<int>(aux_src_idx)), ymm, 0x08);
                 }
 
                 if (is_signed) {
-                    STORE_KEEP_SOURCE(uni_vpacksswb, vmm, Vmm(aux_src_idx), vmm, vmm);
+                    STORE_KEEP_SOURCE(uni_vpacksswb, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
                 } else {
-                    STORE_KEEP_SOURCE(uni_vpackuswb, vmm, Vmm(aux_src_idx), vmm, vmm);
+                    STORE_KEEP_SOURCE(uni_vpackuswb, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
                 }
             } else {
                 // to avoid saturation
-                STORE_KEEP_SOURCE(vpand, vmm, Vmm(aux_src_idx), vmm, table_val("mask_truncation_byte"));
-                STORE_KEEP_SOURCE(uni_vpackssdw, vmm, Vmm(aux_src_idx), vmm, vmm);
+                STORE_KEEP_SOURCE(vpand, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, table_val("mask_truncation_byte"));
+                STORE_KEEP_SOURCE(uni_vpackssdw, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
                 if (is_ymm) {
-                    STORE_KEEP_SOURCE(vpermq, ymm, Ymm(aux_src_idx), ymm, 0x08);
+                    STORE_KEEP_SOURCE(vpermq, ymm, Ymm(static_cast<int>(aux_src_idx)), ymm, 0x08);
                 }
-                STORE_KEEP_SOURCE(uni_vpackuswb, vmm, Vmm(aux_src_idx), vmm, vmm);
+                STORE_KEEP_SOURCE(uni_vpackuswb, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
             }
         }
 
@@ -1136,7 +1136,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64& reg,
             } else {
                 Vmm zero(aux_vec_idxs[0]);
                 h->uni_vpxor(zero, zero, zero);
-                STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
+                STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, zero);
                 h->vpmovusdb(addr(0), vmm);
             }
         } else {
@@ -1151,7 +1151,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64& reg,
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    STORE_KEEP_SOURCE(uni_vpmaxsd, ymm, Ymm(aux_src_idx), ymm, zero);
+                    STORE_KEEP_SOURCE(uni_vpmaxsd, ymm, Ymm(static_cast<int>(aux_src_idx)), ymm, zero);
                     h->vpmovusdb(addr(0), ymm);
                 }
             } else {
@@ -1169,7 +1169,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64& reg,
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    STORE_KEEP_SOURCE(uni_vpmaxsd, xmm, Xmm(aux_src_idx), xmm, zero);
+                    STORE_KEEP_SOURCE(uni_vpmaxsd, xmm, Xmm(static_cast<int>(aux_src_idx)), xmm, zero);
                     h->vpmovusdb(addr(0), xmm);
                 }
             } else {
@@ -1183,15 +1183,15 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64& reg,
         if (is_zmm && store_num > threshold_for_mask_emu_store) {  // avx512F
             unsigned int mask = 1;
             mask = (mask << store_num) - mask;
-            h->mov(Reg32(aux_gpr_idxs[0]), mask);
-            h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+            h->mov(Reg32(static_cast<int>(aux_gpr_idxs[0])), mask);
+            h->kmovw(k_mask, Reg32(static_cast<int>(aux_gpr_idxs[0])));
             if (is_saturation()) {
                 if (is_signed) {
                     h->vpmovsdb(addr(0), vmm | k_mask);
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
+                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, zero);
                     h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             } else {
@@ -1246,32 +1246,32 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (is_saturation()) {
                 if (is_signed) {
                     // singed int32 saturate to signed int16.
-                    STORE_KEEP_SOURCE(vpmovsdw, ymm, Ymm(aux_src_idx), vmm);
+                    STORE_KEEP_SOURCE(vpmovsdw, ymm, Ymm(static_cast<int>(aux_src_idx)), vmm);
                 } else {
                     // unsinged int32 saturate to unsigned int16.
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
-                    STORE_KEEP_SOURCE(vpmovusdw, ymm, Ymm(aux_src_idx), vmm);
+                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, zero);
+                    STORE_KEEP_SOURCE(vpmovusdw, ymm, Ymm(static_cast<int>(aux_src_idx)), vmm);
                 }
             } else {
                 // by literally copy low 16 bit
-                STORE_KEEP_SOURCE(vpmovdw, ymm, Ymm(aux_src_idx), vmm);
+                STORE_KEEP_SOURCE(vpmovdw, ymm, Ymm(static_cast<int>(aux_src_idx)), vmm);
             }
         } else {
             // direct mov_dw available only on avx512
             if (is_saturation()) {  // emulate with pack_dw + permute + pure store for saturation mode
                 if (is_signed) {
-                    STORE_KEEP_SOURCE(uni_vpackssdw, vmm, Vmm(aux_src_idx), vmm, vmm);
+                    STORE_KEEP_SOURCE(uni_vpackssdw, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
                 } else {
-                    STORE_KEEP_SOURCE(uni_vpackusdw, vmm, Vmm(aux_src_idx), vmm, vmm);
+                    STORE_KEEP_SOURCE(uni_vpackusdw, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, vmm);
                 }
                 // gather 2/4(cross lane) 64 bits into lower vmm to store when store_num > 4
                 // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
                 // [  128  |  128  ] |--> [ 128   |  128  ]
                 if (is_ymm && (store_num > 4)) {
                     // 0x08:00001000
-                    STORE_KEEP_SOURCE(vpermq, ymm, Ymm(aux_src_idx), ymm, 0x08);
+                    STORE_KEEP_SOURCE(vpermq, ymm, Ymm(static_cast<int>(aux_src_idx)), ymm, 0x08);
                 }
             } else {  // emulate with AND + pure store for truncation mode
                 STORE_KEEP_SOURCE(vpand, vmm, Vmm(aux_src_idx), vmm, table_val("mask_truncation_word"));
@@ -1287,7 +1287,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             // to avoid src vmm pollution, this check means no precision convert happens, so data_idx is still
             // original_data_idx.
             if (src_prc_ == ov::element::f32) {
-                ymm = Ymm(aux_vec_idxs[0]);
+                ymm = Ymm(static_cast<int>(aux_vec_idxs[0]));
             }
             uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(zmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
             if (store_num == 16) {
@@ -1299,11 +1299,11 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
         } else {
             // to avoid src vmm pollution
             if (src_prc_ == ov::element::f32) {
-                xmm = Xmm(aux_vec_idxs[0]);
+                xmm = Xmm(static_cast<int>(aux_vec_idxs[0]));
             }
             // For sse41 mask register has to be Xmm(0) so we cannot use Xmm(0) as I/O vmm in uni_vcvtneps2bf16_
             if (host_isa_ == cpu::x64::sse41 && src_prc_ == ov::element::f32) {
-                auto xmm_aux1 = Xmm(aux_vec_idxs[1]);
+                auto xmm_aux1 = Xmm(static_cast<int>(aux_vec_idxs[1]));
                 h->uni_vmovups(xmm_aux1, vmm);
                 uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())},
                                               {static_cast<size_t>(vmm.getIdx())},
@@ -1322,7 +1322,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             // to avoid src vmm pollution
             if (src_prc_ == ov::element::f32) {
                 // since avx512, zmm(fp32) => ymm(fp16)
-                ymm = Ymm(aux_vec_idxs[0]);
+                ymm = Ymm(static_cast<int>(aux_vec_idxs[0]));
             }  // in I32 case, zmm&ymm is already in aux reg
 
             h->vcvtps2ph(ymm, zmm, 0x4);
@@ -1335,7 +1335,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
         } else if (mayiuse(cpu::x64::avx2)) {
             // to avoid src vmm pollution
             if (src_prc_ == ov::element::f32) {
-                xmm = Xmm(aux_vec_idxs[0]);
+                xmm = Xmm(static_cast<int>(aux_vec_idxs[0]));
             }
             h->vcvtps2ph(xmm, ymm, 0x4);
             if (store_num == 8) {
@@ -1356,7 +1356,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
+                    STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, zero);
                     h->vpmovusdw(ptr[reg + offset], vmm);  // unsinged int32 saturate to unsigned int16.
                 }
             } else {
@@ -1371,7 +1371,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        STORE_KEEP_SOURCE(uni_vpmaxsd, ymm, Ymm(aux_src_idx), ymm, zero);
+                        STORE_KEEP_SOURCE(uni_vpmaxsd, ymm, Ymm(static_cast<int>(aux_src_idx)), ymm, zero);
                         h->vpmovusdw(ptr[reg + offset], ymm);
                     }
                 } else {
@@ -1389,7 +1389,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        STORE_KEEP_SOURCE(uni_vpmaxsd, xmm, Xmm(aux_src_idx), xmm, zero);
+                        STORE_KEEP_SOURCE(uni_vpmaxsd, xmm, Xmm(static_cast<int>(aux_src_idx)), xmm, zero);
                         h->vpmovusdw(ptr[reg + offset], xmm);
                     }
                 } else {
@@ -1403,15 +1403,15 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (is_zmm && ((store_num * 2) > threshold_for_mask_emu_store)) {
                 unsigned int mask = 1;
                 mask = (mask << store_num) - mask;
-                h->mov(Reg32(aux_gpr_idxs[0]), mask);
-                h->kmovw(k_mask, Reg32(aux_gpr_idxs[0]));
+                h->mov(Reg32(static_cast<int>(aux_gpr_idxs[0])), mask);
+                h->kmovw(k_mask, Reg32(static_cast<int>(aux_gpr_idxs[0])));
                 if (is_saturation()) {
                     if (is_signed) {
                         h->vpmovsdw(ptr[reg + offset], vmm | k_mask);
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
+                        STORE_KEEP_SOURCE(uni_vpmaxsd, vmm, Vmm(static_cast<int>(aux_src_idx)), vmm, zero);
                         h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 } else {

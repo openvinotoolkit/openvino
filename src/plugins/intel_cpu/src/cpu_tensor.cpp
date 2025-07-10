@@ -95,7 +95,7 @@ void Tensor::update_strides() const {
     const auto& strides = blocked_desc->getStrides();
     m_strides.resize(strides.size());
     std::transform(strides.cbegin(), strides.cend(), m_strides.begin(), [this](const size_t stride) {
-        return stride * m_element_type.size();
+        return static_cast<int>(stride * m_element_type.size());
     });
 }
 

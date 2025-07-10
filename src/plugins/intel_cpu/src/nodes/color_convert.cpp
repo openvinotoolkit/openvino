@@ -207,7 +207,7 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
         auto genPermutationMask = [&](int offset) {
             std::array<uint8_t, N> mask{};
             for (size_t i = 0; i < mask.size(); ++i) {
-                mask[(i * 3 + offset) % mask.size()] = i;
+                mask[(i * 3 + offset) % mask.size()] = static_cast<int>(i);
             }
             return mask;
         };

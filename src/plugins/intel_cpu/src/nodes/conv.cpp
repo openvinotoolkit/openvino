@@ -599,7 +599,7 @@ void Convolution::createPrimitive() {
     for (const auto& entry : m_atoi) {
         const auto argumentId = entry.first;
         const auto inputId = entry.second;
-        m_memory[argumentId] = getSrcMemoryAtPort(inputId);
+        m_memory[static_cast<int>(argumentId)] = getSrcMemoryAtPort(inputId);
     }
 
     if (!m_attrs.withBias) {
@@ -797,13 +797,13 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
         // @todo padding should be updated by the graph optimizer / transformation
         for (size_t j = 0; j < m_attrs.paddingR.size(); j++) {
             int with_group = m_attrs.isGrouped ? 1 : 0;
-            int krn = weightDims[with_group + 2 + j];
-            int src = getInputShapeAtPort(0).getStaticDims()[2 + j];
-            int dst = fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j];
+            auto krn = static_cast<int>(weightDims[with_group + 2 + j]);
+            auto src = static_cast<int>(getInputShapeAtPort(0).getStaticDims()[2 + j]);
+            auto dst = static_cast<int>(fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j]);
 
-            krn = (krn - 1) * (m_attrs.dilation[j] + 1) + 1;
-            int calc_dst = (src - krn + m_attrs.paddingL[j]) / m_attrs.stride[j] + 1;
-            m_attrs.paddingR[j] = (dst - calc_dst) * m_attrs.stride[j];
+            krn = (krn - 1) * static_cast<int>(m_attrs.dilation[j] + 1) + 1;
+            auto calc_dst = static_cast<int>((src - krn + static_cast<int>(m_attrs.paddingL[j])) / static_cast<int>(m_attrs.stride[j]) + 1);
+            m_attrs.paddingR[j] = static_cast<ptrdiff_t>(dst - calc_dst) * static_cast<ptrdiff_t>(m_attrs.stride[j]);
         }
     }
 

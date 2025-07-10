@@ -110,8 +110,8 @@ void jit_fill_emitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
     if (one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core)) {
         uint64_t tail_mask = 1;
         tail_mask = ~((tail_mask << offset) - tail_mask);
-        h->mov(Reg64(aux_gpr_idxs[0]), tail_mask);
-        h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
+        h->mov(Reg64(static_cast<int>(aux_gpr_idxs[0])), tail_mask);
+        h->kmovq(k_mask, Reg64(static_cast<int>(aux_gpr_idxs[0])));
         h->vblendmps(dst_vmm | k_mask, src_vmm, table_val("value"));
     } else if (one_of(host_isa_, dnnl::impl::cpu::x64::avx2, dnnl::impl::cpu::x64::sse41)) {
         uint8 imm = 1;

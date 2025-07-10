@@ -267,7 +267,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     if (!evaluate_once) {
         apply_increments(are_ptr_increments_dynamic, GET_OFF_LOOP_ARGS(m_ptr_increments), ptr_increments, wa_increment);
 
-        auto reg_work_amount = Reg64(in.back());
+        auto reg_work_amount = Reg64(static_cast<int>(in.back()));
         h->sub(reg_work_amount, wa_increment);
         h->cmp(reg_work_amount, wa_increment);
         h->jge(*loop_begin_label, Xbyak::CodeGenerator::T_NEAR);

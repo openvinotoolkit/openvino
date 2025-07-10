@@ -208,11 +208,11 @@ void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const in
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data) {
     VectorDims dst_dims = jcp.dst_block_dims;
     if (permute_kernel) {
-        optimizedExecute(src_data, dst_data, dst_dims[0]);
+        optimizedExecute(src_data, dst_data, static_cast<int>(dst_dims[0]));
         return;
     }
 
-    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, dst_dims[0]);
+    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, static_cast<int>(dst_dims[0]));
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst_data, const int mb) {

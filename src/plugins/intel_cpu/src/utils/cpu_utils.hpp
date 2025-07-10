@@ -158,13 +158,13 @@ inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector
 
     auto alignedBuffer = buffer;
     if (align == -1) {
-        align = targetSize;
+        align = static_cast<int>(targetSize);
     }
     const size_t bufferSizeAligned = rnd_up(targetSize, align);
 
     alignedBuffer.resize(bufferSizeAligned, 0);
     if (buffer.size() == 1) {
-        std::fill(alignedBuffer.begin() + 1, alignedBuffer.begin() + targetSize, buffer[0]);
+        std::fill(alignedBuffer.begin() + 1, alignedBuffer.begin() + static_cast<std::ptrdiff_t>(targetSize), buffer[0]);
     }
     return alignedBuffer;
 }

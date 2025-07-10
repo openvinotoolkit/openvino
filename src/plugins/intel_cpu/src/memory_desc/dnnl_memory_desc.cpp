@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <common/c_types_map.hpp>
 #include <string>
 
 #include "cpu_types.h"
@@ -121,7 +122,7 @@ size_t DnnlMemoryDesc::getCurrentMemSizeImp() const {
 
 size_t DnnlMemoryDesc::getElementOffset(size_t elemNumber) const {
     dnnl::impl::memory_desc_wrapper wrapped(desc.get());
-    return wrapped.off_l(elemNumber);
+    return wrapped.off_l(static_cast<dnnl::impl::dim_t>(elemNumber));
 }
 
 bool DnnlMemoryDesc::isDefinedImp() const {

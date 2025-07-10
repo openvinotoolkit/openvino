@@ -1317,7 +1317,7 @@ bool Deconvolution::canFuseBias() const {
     // implementation on the fusing transformation stage. In the end, all the deconv should run with brg implement. And
     // in model zoo only limited deconv has bias or other post-ops in IR. Based on above, enable the bias fusing for all
     // deconv implementations.
-    return (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2);
+    return static_cast<int>((externOutShape ? getParentEdges().size() == 3 : getParentEdges().size()) == 2);
 }
 
 void Deconvolution::initSupportedPrimitiveDescriptors() {

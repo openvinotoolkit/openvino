@@ -202,7 +202,7 @@ static void nms_cf(const float* conf_data,
     int count = 0;
     for (int i = 0; i < boxes_num; ++i) {
         if (conf_data[i] > confidence_threshold) {
-            indices[count] = i;
+            indices[count] = static_cast<int>(i);
             count++;
         }
     }

@@ -33,7 +33,7 @@ namespace ov::intel_cpu {
 VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims& dims) {
     VectorDims strides(dims.size(), 1);
 
-    for (int i = strides.size() - 2; i >= 0; i--) {
+    for (int i = static_cast<int>(strides.size()) - 2; i >= 0; i--) {
         strides[i] = strides[i + 1] * dims[i + 1];
     }
 
@@ -59,8 +59,8 @@ void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const VectorDims& srcBl
     while (i < optimizedDims.size() - 1) {
         if (optimizedDims[i] == 1) {
             optimizedDims[i + 1] *= optimizedDims[i - 1];
-            optimizedDims.erase(optimizedDims.begin() + i - 1, optimizedDims.begin() + i + 1);
-            optimizedSrcStrides.erase(optimizedSrcStrides.begin() + i - 1, optimizedSrcStrides.begin() + i + 1);
+            optimizedDims.erase(optimizedDims.begin() + static_cast<std::ptrdiff_t>(i - 1), optimizedDims.begin() + static_cast<std::ptrdiff_t>(i + 1));
+            optimizedSrcStrides.erase(optimizedSrcStrides.begin() + static_cast<std::ptrdiff_t>(i - 1), optimizedSrcStrides.begin() + static_cast<std::ptrdiff_t>(i + 1));
         } else {
             i++;
         }

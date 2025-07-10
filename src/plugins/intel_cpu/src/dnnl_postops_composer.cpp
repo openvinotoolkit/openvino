@@ -5,12 +5,12 @@
 #include "dnnl_postops_composer.h"
 
 #include <oneapi/dnnl/dnnl_types.h>
+#include <common/c_types_map.hpp>
 
 #include <algorithm>
 #include <any>
 #include <array>
 #include <cmath>
-#include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -702,17 +702,17 @@ void DnnlPostOpsComposer::appendZeroPointsLegacy(const MemoryArgs& memory) {
 
     if (const auto arg = memory.find(ARG_ATTR_ZERO_POINTS | ARG_SRC); arg != memory.end()) {
         const auto mem = arg->second;
-        attr.set_input_zero_points(numElements(mem), mask);
+        attr.set_input_zero_points(static_cast<dnnl::impl::dim_t>(numElements(mem)), mask);
     }
 
     if (const auto arg = memory.find(ARG_ATTR_ZERO_POINTS | ARG_WEI); arg != memory.end()) {
         const auto mem = arg->second;
-        attr.set_weights_zero_points(numElements(mem), mask);
+        attr.set_weights_zero_points(static_cast<dnnl::impl::dim_t>(numElements(mem)), mask);
     }
 
     if (const auto arg = memory.find(ARG_ATTR_ZERO_POINTS | ARG_DST); arg != memory.end()) {
         const auto mem = arg->second;
-        attr.set_output_compensations(numElements(mem), mask);
+        attr.set_output_compensations(static_cast<dnnl::impl::dim_t>(numElements(mem)), mask);
     }
 }
 
@@ -757,10 +757,10 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
         return {};
     }
 
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
-    dnnl::memory::dim groupN = N / scaleDims[0];
-    dnnl::memory::dim groupK = K / scaleDims[1];
+    auto N = static_cast<int>(weiDims[weiDims.size() - 2]);
+    auto K = static_cast<int>(weiDims[weiDims.size() - 1]);
+    dnnl::memory::dim groupN = N / static_cast<dnnl::memory::dim>(scaleDims[0]);
+    dnnl::memory::dim groupK = K / static_cast<dnnl::memory::dim>(scaleDims[1]);
 
     return {groupK, groupN};
 }
@@ -768,8 +768,8 @@ static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDi
 static int getMask(const VectorDims& weiDims, const dnnl::memory::dims& groupDims) {
     const int maskN = 1 << (weiDims.size() - 1);
     const int maskK = 1 << (weiDims.size() - 2);
-    int N = weiDims[weiDims.size() - 2];
-    int K = weiDims[weiDims.size() - 1];
+    auto N = static_cast<int>(weiDims[weiDims.size() - 2]);
+    auto K = static_cast<int>(weiDims[weiDims.size() - 1]);
     int mask = 0;
     if (!groupDims.empty() && groupDims[1] != N) {
         mask += maskN;
@@ -891,7 +891,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const ScaleShiftPostOp& postOp
 
     // always align for legacy scale/shift post ops
     constexpr int bufferAlignment = 16;
-    int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+    int bufferPaddingSize = static_cast<int>(rnd_up(channelSize, bufferAlignment)) - static_cast<int>(channelSize);
     depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
 
     std::array<size_t, 2> offsets = {0};
@@ -941,15 +941,15 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const FakeQuantizePostOp& post
 
         if (postOp.isInputLowBroadcast()) {
             std::fill(binarizationThresholds.begin() + 1,
-                      binarizationThresholds.begin() + realAxisSize,
+                      binarizationThresholds.begin() + static_cast<std::ptrdiff_t>(realAxisSize),
                       binarizationThresholds[0]);
-            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.F);
+            std::fill(binarizationThresholds.begin() + static_cast<std::ptrdiff_t>(realAxisSize), binarizationThresholds.end(), 0.F);
         }
         if (postOp.isOutputHighBroadcast()) {
             std::fill(binarizationOutputMask.begin() + 1,
-                      binarizationOutputMask.begin() + realAxisSize,
+                      binarizationOutputMask.begin() + static_cast<std::ptrdiff_t>(realAxisSize),
                       binarizationOutputMask[0]);
-            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.F);
+            std::fill(binarizationThresholds.begin() + static_cast<std::ptrdiff_t>(realAxisSize), binarizationThresholds.end(), 0.F);
         }
 
         ops.append_binarization(dnnl::algorithm::binarization_depthwise,
@@ -1109,12 +1109,12 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
         }
 
         if (const auto* const conv = std::any_cast<DepthwiseConvolutionPostOp>(&postOp)) {
-            appendDepthwiseConvolution(conv->ih(),
-                                       conv->iw(),
-                                       conv->kernel()[1],
-                                       conv->kernel()[0],
-                                       conv->strides()[1],
-                                       conv->strides()[0],
+            appendDepthwiseConvolution(static_cast<int>(conv->ih()),
+                                       static_cast<int>(conv->iw()),
+                                       static_cast<int>(conv->kernel()[1]),
+                                       static_cast<int>(conv->kernel()[0]),
+                                       static_cast<int>(conv->strides()[1]),
+                                       static_cast<int>(conv->strides()[0]),
                                        dnnl::memory::data_type::f32);
             continue;
         }
