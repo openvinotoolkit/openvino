@@ -49,19 +49,17 @@ bool HostMemAllocator::is_equal(const HostMemAllocator& other) const {
 }
 
 void* HostMemSharedAllocator::allocate(const size_t /*bytes*/, const size_t /*alignment*/) noexcept {
-    size_t size = (_tensor->get_byte_size() + _alignment - 1) & ~(_alignment - 1);
-
     _ze_external_memory_import_system_memory_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
                                                                 nullptr,
                                                                 _tensor->data(),
-                                                                size};
+                                                                _tensor->get_byte_size()};
 
     void* data = nullptr;
 
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
                                      &memory_import,
                                      static_cast<ze_host_mem_alloc_flags_t>(_flag)};
-    auto result = zeMemAllocHost(_initStructs->getContext(), &desc, size, _alignment, &data);
+    auto result = zeMemAllocHost(_initStructs->getContext(), &desc, _tensor->get_byte_size(), _alignment, &data);
 
     if (result == ZE_RESULT_SUCCESS) {
         return data;
