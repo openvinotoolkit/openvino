@@ -198,7 +198,7 @@ public:
      * @brief Get a transformed model of the input model with specified configuration
      *
      * @param model OpenVINO Model to be transformed
-     * @param config Optional map of pairs: (config parameter name, config parameter value)
+     * @param properties Optional map of pairs: (property name, property value).
      * @return A shared pointer to the transformed ov::Model object
      */
     virtual std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<ov::Model>& model,
