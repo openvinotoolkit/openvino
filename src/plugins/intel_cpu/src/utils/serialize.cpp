@@ -6,16 +6,19 @@
 
 #include <cstddef>
 #include <cstring>
+#include <functional>
 #include <istream>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -25,7 +28,7 @@ namespace ov::intel_cpu {
 
 ////////// ModelSerializer //////////
 
-ModelSerializer::ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn)
+ModelSerializer::ModelSerializer(std::ostream& ostream, const CacheEncrypt& encrypt_fn)
     : ov::pass::StreamSerialize(
           ostream,
           [](std::ostream& stream) {
@@ -34,7 +37,7 @@ ModelSerializer::ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn)
               root.append_child("outputs");
               xml_doc.save(stream);
           },
-          std::move(encrypt_fn)) {};
+          encrypt_fn) {};
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
@@ -85,7 +88,7 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
 }
 
 void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
-                                      std::shared_ptr<ov::AlignedBuffer> model_buffer) {
+                                      const std::shared_ptr<ov::AlignedBuffer>& model_buffer) {
     // Note: Don't use seekg with mmaped stream. This may affect the performance of some models.
     // Get file size before seek content.
     // Blob from cache may have other header, so need to skip this.

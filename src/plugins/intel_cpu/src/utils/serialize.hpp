@@ -22,7 +22,7 @@ class ModelSerializer : private ov::pass::StreamSerialize {
 public:
     using CacheEncrypt = std::function<std::string(const std::string&)>;
 
-    ModelSerializer(std::ostream& ostream, CacheEncrypt encrypt_fn = {});
+    ModelSerializer(std::ostream& ostream, const CacheEncrypt& encrypt_fn = {});
 
     void operator<<(const std::shared_ptr<ov::Model>& model);
 
@@ -52,7 +52,7 @@ public:
 protected:
     static void set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model);
 
-    void process_model(std::shared_ptr<ov::Model>& model, std::shared_ptr<ov::AlignedBuffer> model_buffer);
+    void process_model(std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::AlignedBuffer>& model_buffer);
     void process_model(std::shared_ptr<ov::Model>& model, std::reference_wrapper<std::istream> model_stream);
 
     std::variant<std::shared_ptr<ov::AlignedBuffer>, std::reference_wrapper<std::istream>> m_model;
