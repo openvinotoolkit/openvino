@@ -102,6 +102,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     ov::intel_cpu::TbbPartitioner tbbPartitioner = ov::intel_cpu::TbbPartitioner::DEFAULT;
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
+    bool enableTensorParallel = false;
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;
