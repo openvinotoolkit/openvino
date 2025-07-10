@@ -11,7 +11,6 @@
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
-using ov::npuw::weights::RemoteContextManager;
 
 class BankManager {
 public:
@@ -36,29 +35,6 @@ private:
     std::unordered_map<std::string, std::weak_ptr<Bank>> m_bank_map;
     std::mutex m_mutex;
 };
-
-class RemoteContextManager {
-public:
-    ov::SoPtr<ov::IRemoteContext> getContext(const std::shared_ptr<const ov::ICore>& core, const std::string& device) {
-        std::lock_guard<std::mutex> guard(m_mutex);
-        auto it_ctx = m_context_map.find(device);
-        if (it_ctx == m_context_map.end()) {
-            auto ctx_ptr = core->get_default_context(device)._ptr;
-            it_ctx = m_context_map.insert({device, std::move(ctx_ptr)}).first;
-        }
-        return it_ctx->second;
-    }
-
-private:
-    std::unordered_map<std::string, ov::SoPtr<ov::IRemoteContext>> m_context_map;
-    std::mutex m_mutex;
-};
-
-Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
-    : m_core(core),
-      m_alloc_device(alloc_device),
-      m_bank_name(bank_name),
-      m_rcm(std::make_shared<RemoteContextManager>()) {}
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
@@ -316,6 +292,17 @@ ov::SoPtr<ov::IRemoteContext> Bank::get_context(const std::shared_ptr<const ov::
                                                 const std::string& device) {
     std::lock_guard<std::recursive_mutex> guard(m_mutex);
     return m_rcm->getContext(core, device);
+}
+
+ov::SoPtr<ov::IRemoteContext> Bank::RemoteContextManager::getContext(const std::shared_ptr<const ov::ICore>& core,
+                                                                     const std::string& device) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    auto it_ctx = m_context_map.find(device);
+    if (it_ctx == m_context_map.end()) {
+        auto ctx_ptr = core->get_default_context(device)._ptr;
+        it_ctx = m_context_map.insert({device, std::move(ctx_ptr)}).first;
+    }
+    return it_ctx->second;
 }
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
