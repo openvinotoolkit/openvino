@@ -1,4 +1,4 @@
-name: Linux ARM64 (Ubuntu 20.04, Python 3.11)
+name: Linux ARM64 (Ubuntu 22.04, Python 3.11)
 on:
   workflow_dispatch:
     inputs:
@@ -96,7 +96,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
-      os: 'ubuntu_20_04'
+      os: 'ubuntu_22_04'
       arch: 'arm64'
       build-js: true
       build-contrib: true
@@ -124,7 +124,7 @@ jobs:
     uses: ./.github/workflows/job_debian_packages.yml
     with:
       runner: 'aks-linux-4-cores-8gb-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 
   Samples:
     needs: [ Build, Docker, Smart_CI ]
@@ -154,7 +154,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
-      sccache-azure-key-prefix: 'ubuntu20_aarch64_onnxruntime'
+      sccache-azure-key-prefix: 'ubuntu22_aarch64_onnxruntime'
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
@@ -177,7 +177,7 @@ jobs:
       runner: 'aks-linux-8-cores-16gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      os: 'ubuntu_20_04'
+      os: 'ubuntu_22_04'
 
   Python_Unit_Tests:
     name: Python unit tests
