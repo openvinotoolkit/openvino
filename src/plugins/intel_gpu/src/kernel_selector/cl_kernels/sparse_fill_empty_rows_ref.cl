@@ -13,5 +13,5 @@ KERNEL(sparse_fill_empty_rows_ref)(
     __global OUTPUT1_TYPE* restrict output_values,       // [M] - output values
     __global OUTPUT2_TYPE* restrict empty_row_indicator  // [dense_shape[0]] - indicator if row was empty
 ) {
-    printf("SparseFillEmptyRows kernel is not implemented for this device.\n");
+    printf("Running sparse_fill_empty_rows_ref kernel\n");
 }

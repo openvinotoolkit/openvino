@@ -27,14 +27,11 @@ public:
         const auto& primitive = impl_param.typed_desc<sparse_fill_empty_rows>();
         auto params = get_default_params<kernel_selector::sparse_fill_empty_rows_params>(impl_param, shape_agnostic);
 
-        // Manually add all inputs except the first one
+        // Manually add all inputs/outputs except for the first ones
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
-
-        // Clear the outputs added by get_default_params and add all outputs manually
-        params.outputs.clear();
-        for (size_t i = 0; i < impl_param.output_layouts.size(); ++i) {
+        for (size_t i = 1; i < impl_param.output_layouts.size(); ++i) {
             params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(i)));
         }
         return params;

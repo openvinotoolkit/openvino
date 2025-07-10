@@ -90,6 +90,7 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
 
 JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_empty_rows_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+    jit.AddConstant(MakeJitConstant("INDICES_COUNT", params.inputs[0].LogicalSize() / 2));
     return jit;
 }
 

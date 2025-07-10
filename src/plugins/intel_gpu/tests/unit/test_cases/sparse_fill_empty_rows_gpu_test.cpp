@@ -122,7 +122,6 @@ public:
             {2}, helpers::ConverFloatVector<int64_t>(testParam.denseShapeData));
         ret.defaultValue = helpers::AllocateTensor<T>({}, {42.0f});
 
-        // Match output types as well
         ret.expectedIndicesOutput = helpers::AllocateTensor<int64_t>(
             {static_cast<ov::Dimension::value_type>(testParam.expectedIndicesOutput.size() / 2), 2},
             helpers::ConverFloatVector<int64_t>(testParam.expectedIndicesOutput));
@@ -159,9 +158,21 @@ public:
         network->set_input_data("denseShape", params.denseShape);
         network->set_input_data("default_value", params.defaultValue);
         auto outputs = network->execute();
-        auto output = outputs.at("sparse_fill_empty_rows").get_memory();
+        auto output_indices = outputs.at("sparse_fill_empty_rows").get_memory(0);
+        auto output_values = outputs.at("sparse_fill_empty_rows").get_memory(1);
+        auto output_empty_row_indicator = outputs.at("sparse_fill_empty_rows").get_memory(2);
 
-        helpers::CompareBuffers(output, params.expectedValuesOutput, get_test_stream());
+        // Debug: Print expected and actual output shapes
+        std::cout << "Expected Indices Output Shape: " << params.expectedIndicesOutput->get_layout().get_shape() << std::endl;
+        std::cout << "Actual Indices Output Shape: " << output_indices->get_layout().get_shape() << std::endl;
+        std::cout << "Expected Values Output Shape: " << params.expectedValuesOutput->get_layout().get_shape() << std::endl;
+        std::cout << "Actual Values Output Shape: " << output_values->get_layout().get_shape() << std::endl;
+        std::cout << "Expected Empty Row Indicator Output Shape: " << params.expectedEmptyRowIndicatorOutput->get_layout().get_shape() << std::endl;
+        std::cout << "Actual Empty Row Indicator Output Shape: " << output_empty_row_indicator->get_layout().get_shape() << std::endl;
+
+        helpers::CompareBuffers(output_indices, params.expectedIndicesOutput, get_test_stream());
+        helpers::CompareBuffers(output_values, params.expectedValuesOutput, get_test_stream());
+        helpers::CompareBuffers(output_empty_row_indicator, params.expectedEmptyRowIndicatorOutput, get_test_stream());
     }
 
 private:
