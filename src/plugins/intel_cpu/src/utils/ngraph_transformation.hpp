@@ -87,7 +87,7 @@ private:
         }
 
         if (config.dumpIR.format.filter[DebugCapsConfig::IrFormatFilter::Xml]) {
-            std::string xmlFile(pathAndName + ".xml");
+            const std::string xmlFile(pathAndName + ".xml");
 
             serializer.register_pass<ov::pass::Serialize>(xmlFile, NULL_STREAM);
         }

@@ -51,7 +51,7 @@ namespace ov::intel_cpu {
 
 struct ImmediateSerialExecutor : public ov::threading::ITaskExecutor {
     void run(ov::threading::Task task) override {
-        std::lock_guard<std::mutex> l{_mutex};
+        const std::lock_guard<std::mutex> l{_mutex};
         task();
     }
     std::mutex _mutex;
@@ -117,7 +117,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     m_optimized_single_stream = (executor_config.get_streams() == 1 && executor_config.get_threads() == 1);
 
-    int streams = std::max(1, executor_config.get_streams());
+    const int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
     tasks.resize(streams);
     m_graphs.resize(streams);
@@ -196,7 +196,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
             try {
                 GraphContext::Ptr ctx;
                 {
-                    std::lock_guard<std::mutex> lock{*m_mutex};
+                    const std::lock_guard<std::mutex> lock{*m_mutex};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
                     ctx = std::make_shared<GraphContext>(m_cfg,
@@ -416,7 +416,7 @@ void CompiledModel::export_model(std::ostream& modelStream) const {
 void CompiledModel::release_memory() {
     for (auto&& graph : m_graphs) {
         // try to lock mutex, since it may be already locked (e.g by an infer request)
-        std::unique_lock<std::mutex> lock(graph._mutex, std::try_to_lock);
+        const std::unique_lock<std::mutex> lock(graph._mutex, std::try_to_lock);
         OPENVINO_ASSERT(lock.owns_lock(),
                         "Attempt to call release_memory() on a compiled model in a busy state. Please ensure that all "
                         "infer requests are completed before releasing memory.");

@@ -172,7 +172,7 @@ private:
 
     struct PortMapHasher {
         std::size_t operator()(const std::pair<int, int>& p) const {
-            std::size_t seed = 0;
+            const std::size_t seed = 0;
             dnnl::impl::hash_combine(seed, p.first);
             dnnl::impl::hash_combine(seed, p.second);
             return seed;

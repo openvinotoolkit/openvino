@@ -121,7 +121,7 @@ template <typename T>
 void BatchToSpace::batchToSpaceKernel() {
     const auto* srcData = getSrcDataAtPortAs<const T>(0);
     const auto* blockShapesPtr = getSrcDataAtPortAs<int>(1);
-    size_t dataRank = getSrcMemoryAtPort(0)->getShape().getRank();
+    const size_t dataRank = getSrcMemoryAtPort(0)->getShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));

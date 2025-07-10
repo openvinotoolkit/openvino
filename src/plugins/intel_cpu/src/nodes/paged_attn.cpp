@@ -187,7 +187,7 @@ void PagedAttention::createPrimitive() {
     auto rtPrecision = getRuntimePrecision();
 
     // in one model, kvCachePrecision could not be changed so no need to care whether it may be changed.
-    PagedAttentionKey key = {rtPrecision};
+    const PagedAttentionKey key = {rtPrecision};
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
@@ -196,8 +196,8 @@ void PagedAttention::createPrimitive() {
         auto vCachePrecision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
         const auto& cpuConfig = context->getConfig();
 
-        bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
-        bool quantValuebyChannel =
+        const bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+        const bool quantValuebyChannel =
             isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
         return make_pa_executor(rtPrecision,
                                 kCachePrecision,
@@ -251,7 +251,7 @@ void PagedAttention::execute([[maybe_unused]] const dnnl::stream& strm) {
             len += pastLens[i];
         }
         len += outDims[0];
-        VectorDims scoreDims{len};
+        const VectorDims scoreDims{len};
         redefineOutputMemory({outDims, scoreDims});
     } else {
         redefineOutputMemory({outDims, {0}});

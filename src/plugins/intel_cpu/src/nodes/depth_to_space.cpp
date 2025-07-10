@@ -58,9 +58,9 @@ size_t DepthToSpace::DepthToSpaceAttrs::hash() const {
 }
 
 bool DepthToSpace::DepthToSpaceAttrs::operator==(const DepthToSpaceAttrs& rhs) const {
-    bool result = layoutType == rhs.layoutType && mode == rhs.mode && blockSize == rhs.blockSize &&
-                  blockStep == rhs.blockStep && dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
-                  srcBlockedDims == rhs.srcBlockedDims;
+    const bool result = layoutType == rhs.layoutType && mode == rhs.mode && blockSize == rhs.blockSize &&
+                        blockStep == rhs.blockStep && dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
+                        srcBlockedDims == rhs.srcBlockedDims;
 
     return result;
 }
@@ -138,7 +138,7 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
+    const ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
     impl_desc_type impl_type = impl_desc_type::ref;
     if (cpu::x64::mayiuse(cpu::x64::avx512_core)) {
@@ -295,8 +295,8 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
             orderShiftForBlocks = attrs.nSpatialDims + 4;
             orderShiftForDims = 3;
 
-            size_t newBlockSize = attrs.srcBlockedDims.back() / attrs.blockStep;
-            size_t newBlocksCount = attrs.srcBlockedDims[1] / attrs.blockStep;
+            const size_t newBlockSize = attrs.srcBlockedDims.back() / attrs.blockStep;
+            const size_t newBlocksCount = attrs.srcBlockedDims[1] / attrs.blockStep;
             params.src_block_dims[1] = newBlocksCount;
             params.src_block_dims[2] = attrs.srcBlockedDims[1] / newBlocksCount;
             params.src_block_dims[lastIdx - attrs.nSpatialDims] = newBlockSize;
@@ -311,13 +311,13 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     } else if (isChannelsFirst) {
         firstSpatialOrder = 1;
 
-        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + attrs.nSpatialDims + 1;
+        const size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + attrs.nSpatialDims + 1;
         params.order[lastIdx] = attrs.mode == Mode::DEPTH_FIRST ? attrs.nSpatialDims + 1 : lastIdx;
         params.src_block_dims[params.order[lastIdx]] = attrs.srcBlockedDims.back() / attrs.blockStep;
 
         reshapeAndSetPermOrder(firstSpatialOrder, shift, firstSpatialOrder, attrs.srcBlockedDims);
     } else {
-        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + 1;
+        const size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + 1;
         params.order[1] = attrs.mode == DEPTH_FIRST ? 1 : attrs.nSpatialDims + 1;
         params.src_block_dims[params.order[1]] = attrs.srcBlockedDims[1] / attrs.blockStep;
 
@@ -349,7 +349,7 @@ void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
 
-    int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
+    const int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB);
 }
 

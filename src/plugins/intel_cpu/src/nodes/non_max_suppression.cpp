@@ -165,14 +165,14 @@ void NonMaxSuppression::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputs_num);
     for (size_t i = 0; i < inputs_num; ++i) {
-        ov::element::Type inPrecision = i == NMS_MAX_OUTPUT_BOXES_PER_CLASS ? ov::element::i32 : ov::element::f32;
+        const ov::element::Type inPrecision = i == NMS_MAX_OUTPUT_BOXES_PER_CLASS ? ov::element::i32 : ov::element::f32;
         inDataConf.emplace_back(LayoutType::ncsp, inPrecision);
     }
 
     std::vector<PortConfigurator> outDataConf;
     outDataConf.reserve(outputShapes.size());
     for (size_t i = 0; i < outputShapes.size(); ++i) {
-        ov::element::Type outPrecision = i == NMS_SELECTED_SCORES ? ov::element::f32 : ov::element::i32;
+        const ov::element::Type outPrecision = i == NMS_SELECTED_SCORES ? ov::element::f32 : ov::element::i32;
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
 
@@ -302,9 +302,9 @@ void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     size_t start_offset = m_num_filtered_boxes[0][0];
     for (size_t b = 0LU; b < m_num_filtered_boxes.size(); b++) {
-        size_t batchOffset = b * m_classes_num * m_output_boxes_per_class;
+        const size_t batchOffset = b * m_classes_num * m_output_boxes_per_class;
         for (size_t c = (b == 0LU ? 1LU : 0LU); c < m_num_filtered_boxes[b].size(); c++) {
-            size_t offset = batchOffset + c * m_output_boxes_per_class;
+            const size_t offset = batchOffset + c * m_output_boxes_per_class;
             for (size_t i = 0LU; i < m_num_filtered_boxes[b][c]; i++) {
                 m_filtered_boxes[start_offset + i] = m_filtered_boxes[offset + i];
             }
@@ -328,7 +328,7 @@ void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const size_t stride = 3LU;
     if (!m_out_static_shape) {
-        VectorDims new_dims{valid_outputs, stride};
+        const VectorDims new_dims{valid_outputs, stride};
         redefineOutputMemory({new_dims, new_dims, {1}});
     }
 
@@ -401,12 +401,12 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                 sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
             }
         }
-        size_t sorted_boxes_size = sorted_boxes.size();
-        size_t maxSeletedBoxNum = std::min(sorted_boxes_size, m_output_boxes_per_class);
+        const size_t sorted_boxes_size = sorted_boxes.size();
+        const size_t maxSeletedBoxNum = std::min(sorted_boxes_size, m_output_boxes_per_class);
         selectedBoxes.reserve(maxSeletedBoxNum);
         if (maxSeletedBoxNum > 0) {
             // include first directly
-            boxInfo candidateBox = sorted_boxes.top();
+            const boxInfo candidateBox = sorted_boxes.top();
             sorted_boxes.pop();
             selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
             if (maxSeletedBoxNum > 1) {
@@ -428,7 +428,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                     arg.scale = (&m_scale);
                     while (selectedBoxes.size() < m_output_boxes_per_class && !sorted_boxes.empty()) {
                         boxInfo candidateBox = sorted_boxes.top();
-                        float origScore = candidateBox.score;
+                        const float origScore = candidateBox.score;
                         sorted_boxes.pop();
 
                         int candidateStatus =
@@ -452,7 +452,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                         }
                         if (candidateBox.score == origScore) {
                             selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
-                            int selectedSize = selectedBoxes.size();
+                            const int selectedSize = selectedBoxes.size();
                             boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
                             boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
                             boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
@@ -460,7 +460,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                         } else {
                             if (candidateBox.score == origScore) {
                                 selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
-                                int selectedSize = selectedBoxes.size();
+                                const int selectedSize = selectedBoxes.size();
                                 boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
                                 boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
                                 boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
@@ -475,7 +475,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                 } else {
                     while (selectedBoxes.size() < m_output_boxes_per_class && !sorted_boxes.empty()) {
                         boxInfo candidateBox = sorted_boxes.top();
-                        float origScore = candidateBox.score;
+                        const float origScore = candidateBox.score;
                         sorted_boxes.pop();
 
                         int candidateStatus =
@@ -483,7 +483,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                         for (int selected_idx = static_cast<int>(selectedBoxes.size()) - 1;
                              selected_idx >= candidateBox.suppress_begin_index;
                              selected_idx--) {
-                            float iou =
+                            const float iou =
                                 intersectionOverUnion(&boxesPtr[candidateBox.idx * m_coord_num],
                                                       &boxesPtr[selectedBoxes[selected_idx].box_index * m_coord_num]);
 
@@ -515,7 +515,8 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
             }
         }
         m_num_filtered_boxes[batch_idx][class_idx] = selectedBoxes.size();
-        size_t offset = batch_idx * m_classes_num * m_output_boxes_per_class + class_idx * m_output_boxes_per_class;
+        const size_t offset =
+            batch_idx * m_classes_num * m_output_boxes_per_class + class_idx * m_output_boxes_per_class;
         for (size_t i = 0; i < selectedBoxes.size(); i++) {
             filtBoxes[offset + i] = selectedBoxes[i];
         }
@@ -548,7 +549,8 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
                           [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                               return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                           });
-            int offset = batch_idx * m_classes_num * m_output_boxes_per_class + class_idx * m_output_boxes_per_class;
+            const int offset =
+                batch_idx * m_classes_num * m_output_boxes_per_class + class_idx * m_output_boxes_per_class;
             filtBoxes[offset + 0] = FilteredBox(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
             io_selection_size++;
             if (sortedBoxSize > 1LU) {
@@ -602,7 +604,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
                          candidate_idx++) {
                         int candidateStatus = NMSCandidateStatus::SELECTED;  // 0 for suppressed, 1 for selected
                         for (int selected_idx = io_selection_size - 1; selected_idx >= 0; selected_idx--) {
-                            float iou = intersectionOverUnion(
+                            const float iou = intersectionOverUnion(
                                 &boxesPtr[sorted_boxes[candidate_idx].second * m_coord_num],
                                 &boxesPtr[filtBoxes[offset + selected_idx].box_index * m_coord_num]);
                             if (iou >= m_iou_threshold) {
@@ -712,7 +714,7 @@ inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
     }
 
     std::sort(q + 1, q + num_in, [](const NonMaxSuppression::Point2D& A, const NonMaxSuppression::Point2D& B) -> bool {
-        float temp = cross_2d(A, B);
+        const float temp = cross_2d(A, B);
         if (std::abs(temp) < 1e-6F) {
             return dot_2d(A, A) < dot_2d(B, B);
         }
@@ -773,7 +775,7 @@ inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
     for (size_t i = 0LU; i < 4LU; i++) {
         for (size_t j = 0LU; j < 4LU; j++) {
             // Solve for 2x2 Ax=b
-            float det = cross_2d(vec2[j], vec1[i]);
+            const float det = cross_2d(vec2[j], vec1[i]);
 
             // This takes care of parallel lines
             if (std::abs(det) <= 1e-14F) {
@@ -974,14 +976,14 @@ float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float*
                           (std::max)(boxesJ[1], boxesJ[3])};
     }();
 
-    float areaI = (ymaxI - yminI) * (xmaxI - xminI);
-    float areaJ = (ymaxJ - yminJ) * (xmaxJ - xminJ);
+    const float areaI = (ymaxI - yminI) * (xmaxI - xminI);
+    const float areaJ = (ymaxJ - yminJ) * (xmaxJ - xminJ);
     if (areaI <= 0.F || areaJ <= 0.F) {
         return 0.F;
     }
 
-    float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ), 0.F) *
-                              (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ), 0.F);
+    const float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ), 0.F) *
+                                    (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ), 0.F);
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 

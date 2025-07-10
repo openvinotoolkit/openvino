@@ -103,7 +103,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
                                                                            data,
                                                                            outputPatternSize,
                                                                            ov::util::Cast<int64_t>());
-            std::vector<int64_t> originOutPattern = outPattern;
+            const std::vector<int64_t> originOutPattern = outPattern;
             std::vector<bool> removeMask(inputShapeSize, false);
             for (size_t i = 0; i < outputPatternSize; i++) {
                 if (outPattern[i] < 0) {
@@ -154,7 +154,7 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     std::unordered_set<int64_t> tmp(originOutPattern.begin(), originOutPattern.end());
     std::vector<int64_t> outPattern = std::vector<int64_t>(tmp.begin(), tmp.end());
     outputPatternSize = outPattern.size();
-    size_t outputShapeSize = inputShapeSize + outputPatternSize;
+    const size_t outputShapeSize = inputShapeSize + outputPatternSize;
     VectorDims outputShape(outputShapeSize, 0);
     bool existError = false;
     for (size_t i = 0; i < outputPatternSize; i++) {

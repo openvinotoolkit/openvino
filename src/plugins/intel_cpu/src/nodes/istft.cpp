@@ -119,9 +119,9 @@ void transpose_out4d(const uint8_t* in,
                        in_indexes[axes_order[0]] = i;
                        in_indexes[axes_order[1]] = j;
                        in_indexes[axes_order[2]] = k;
-                       size_t in_off =
+                       const size_t in_off =
                            ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3];
-                       size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
+                       const size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
                        cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
                    });
 }
@@ -211,8 +211,8 @@ void istft_impl(const float* in_data,
 
     parallel_for(batch_size, [&](size_t batch) {
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
-            size_t batch_in_start = batch * in_batch_single_step;
-            size_t batch_out_start = batch * signal_length;
+            const size_t batch_in_start = batch * in_batch_single_step;
+            const size_t batch_out_start = batch * signal_length;
 
             const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
             const auto out_frame_start = batch_out_start + frame_idx * frame_step;

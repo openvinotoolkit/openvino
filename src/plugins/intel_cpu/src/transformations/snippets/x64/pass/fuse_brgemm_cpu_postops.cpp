@@ -207,7 +207,7 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
     MATCHER_SCOPE(FuseScalarEltwise);
 
     // These predicates are used to skip the transformation in cases where a more optimized transformation is available
-    ov::pass::pattern::op::Predicate not_scale_shift_pattern(
+    const ov::pass::pattern::op::Predicate not_scale_shift_pattern(
         [](const Output<Node>& output) {
             if (!consumers_count(1)(output)) {
                 return true;
@@ -220,7 +220,7 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
             return true;
         },
         "not_scale_shift_pattern");
-    ov::pass::pattern::op::Predicate not_clip_pattern(
+    const ov::pass::pattern::op::Predicate not_clip_pattern(
         [](const Output<Node>& output) {
             if (!consumers_count(1)(output)) {
                 return true;

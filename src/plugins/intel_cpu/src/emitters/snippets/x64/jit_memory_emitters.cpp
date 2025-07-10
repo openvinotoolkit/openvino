@@ -116,7 +116,7 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     auto reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
-    Reg64 aux_gpr = is_offset_runtime ? Reg64(static_cast<int>(aux_gpr_idxs.back())) : Reg64();
+    const Reg64 aux_gpr = is_offset_runtime ? Reg64(static_cast<int>(aux_gpr_idxs.back())) : Reg64();
 
     Reg64 data_reg;
     if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
@@ -183,7 +183,7 @@ template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     using Vmm = typename dnnl::impl::utils::
         conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
-    Reg64 in_reg(in[0]);
+    const Reg64 in_reg(in[0]);
     auto vmm_dst = Vmm(out[0]);
 
     // It doesn't really matter if we broadcast or `movss` for vector tails so keep only one version for

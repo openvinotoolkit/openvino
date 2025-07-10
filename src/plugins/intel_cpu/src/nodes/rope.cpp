@@ -201,7 +201,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
-        ov::intel_cpu::PlainTensor t_sin_cos(inputs[1]);
+        const ov::intel_cpu::PlainTensor t_sin_cos(inputs[1]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
 
         auto batch_size = t_src.size(0);
@@ -251,7 +251,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
-        ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
+        const ov::intel_cpu::PlainTensor t_cos_sin(inputs[1]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
 
         // [seq_len, batch_size, (hidden_states_q + hidden_states_k + hidden_states_v)]
@@ -340,8 +340,8 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
-        ov::intel_cpu::PlainTensor t_cos(inputs[1]);   // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_sin(inputs[2]);   // [1, present-kv-length, 1, rotary_dims]
+        const ov::intel_cpu::PlainTensor t_cos(inputs[1]);  // [1, present-kv-length, 1, rotary_dims]
+        const ov::intel_cpu::PlainTensor t_sin(inputs[2]);  // [1, present-kv-length, 1, rotary_dims]
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);  // [batch, length, head_cnt, head_size]>
         ov::intel_cpu::PlainTensor gather;
 

@@ -222,7 +222,7 @@ private:
         const int xmm_block_size = xmm_size / jpp.dtype_size;
         const int offset = xmm_offset * jpp.SW * jpp.dtype_size * xmm_block_size;
         for (int i = 0; i < xmm_block_size; i++) {
-            Xbyak::Address addr = ptr[mem_base + i * jpp.SW * jpp.dtype_size + offset];
+            const Xbyak::Address addr = ptr[mem_base + i * jpp.SW * jpp.dtype_size + offset];
             switch (jpp.dtype_size) {
             case 4:
                 uni_vpinsrd(xmm_arg, xmm_arg, addr, i);
@@ -260,7 +260,7 @@ private:
         sub(reg_oh_count, reg_num_pads);
 
         Xbyak::Label ih_loop;
-        Xbyak::Label ih_tail;
+        const Xbyak::Label ih_tail;
         Xbyak::Label ih_exit;
         Xbyak::Label iw_loop;
         Xbyak::Label iw_tail;
@@ -383,8 +383,9 @@ size_t ExtractImagePatchesKey::hash() const {
 }
 
 bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const {
-    bool result = inDims == rhs.inDims && outDims == rhs.outDims && kSizes == rhs.kSizes && strides == rhs.strides &&
-                  rates == rhs.rates && padType == rhs.padType && prcSize == rhs.prcSize;
+    const bool result = inDims == rhs.inDims && outDims == rhs.outDims && kSizes == rhs.kSizes &&
+                        strides == rhs.strides && rates == rhs.rates && padType == rhs.padType &&
+                        prcSize == rhs.prcSize;
     return result;
 }
 }  // namespace
@@ -449,7 +450,7 @@ void ExtractImagePatches::prepareParams() {
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& out_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
-    ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
+    const ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
     const auto isJit = mayiuse(x64::sse41);
     auto buildExecutor = [&isJit](const ExtractImagePatchesKey& key) -> executorPtr {
         if (isJit) {
@@ -586,9 +587,9 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
                                    ? jpp.OW
                                    : std::ceil((jpp.IW - 1.F * iw_start) / jpp.SW);
 
-        size_t dst_offset =
+        const size_t dst_offset =
             ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3];
-        size_t src_offset =
+        const size_t src_offset =
             ob * istrides[0] + ic * istrides[1] + ih_start * istrides[2] + iw_start + ih_lpad * jpp.SH * jpp.IW;
 
         auto args = jit_extract_image_patches_args();
@@ -637,8 +638,8 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
         const int64_t ihStep = kSizes[0] + (rates[0] - 1) * (kSizes[0] - 1);
         const int64_t iwStep = kSizes[1] + (rates[1] - 1) * (kSizes[1] - 1);
 
-        int64_t PW = (std::ceil(1.F * jpp.IW / strides[1]) - 1) * strides[1] + iwStep - jpp.IW;
-        int64_t PH = (std::ceil(1.F * IH / strides[0]) - 1) * strides[0] + ihStep - IH;
+        const int64_t PW = (std::ceil(1.F * jpp.IW / strides[1]) - 1) * strides[1] + iwStep - jpp.IW;
+        const int64_t PH = (std::ceil(1.F * IH / strides[0]) - 1) * strides[0] + ihStep - IH;
 
         int64_t increment_sign = 0;
         if (padType == ExtImgPatcherPadType::SAME_LOWER) {

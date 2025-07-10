@@ -124,7 +124,7 @@ void Split::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    ov::element::Type inpPrecision = getOriginalInputPrecisionAtPort(0);
+    const ov::element::Type inpPrecision = getOriginalInputPrecisionAtPort(0);
     const auto axisPrecision = ov::element::i32;
 
     // Set plain and tailC formats
@@ -541,7 +541,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
 
     const auto outputPortsCount = outDescs.size();
 
-    uint8_t srcDataSize = inDesc->getPrecision().size();
+    const uint8_t srcDataSize = inDesc->getPrecision().size();
     const auto& srcDims = inDesc->getBlockDims();
     const auto getRank = srcDims.size();
 
@@ -570,7 +570,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
 }
 
 void Split::SplitOptimizedExecutor::exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) {
-    size_t execCountStrides = countStrides;
+    const size_t execCountStrides = countStrides;
 
     parallel_for2d(dstRawMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstRawMemPtrs[i];
@@ -589,8 +589,8 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
     const auto& config = selected_pd->getConfig();
-    size_t numberOfOutputs = config.outConfs.size();
-    size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
+    const size_t numberOfOutputs = config.outConfs.size();
+    const size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();
     auto baseDim = inputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM, "can not use inPlace memory with splitting on dynamic dimension");
     auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();

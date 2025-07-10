@@ -92,7 +92,7 @@ void Unique::initSupportedPrimitiveDescriptors() {
     dataTypeSize = dataPrecision.size();
     const ov::element::Type axisPrecision = ov::element::i32;
 
-    impl_desc_type implType = ref;
+    const impl_desc_type implType = ref;
 
     std::vector<PortConfigurator> inPortConfigs = {{LayoutType::ncsp, dataPrecision}};
     if (!flattened) {

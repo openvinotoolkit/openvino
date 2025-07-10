@@ -93,7 +93,7 @@ void ShapeOf::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inPtr = getSrcMemoryAtPort(0);
     auto outPtr = getDstMemoryAtPort(0);
     auto&& inDims = inPtr->getStaticDims();
-    size_t dimsCount = inDims.size();
+    const size_t dimsCount = inDims.size();
     if (outPtr->getStaticDims().size() != 1 || dimsCount != outPtr->getStaticDims()[0]) {
         THROW_CPU_NODE_ERR("has inconsistent input shape and output size");
     }

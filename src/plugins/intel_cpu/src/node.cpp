@@ -86,7 +86,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
                            getName());
         }
 
-        bool isScalar = shape.rank().get_length() == 0;
+        const bool isScalar = shape.rank().get_length() == 0;
         inputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
         originalInputPrecisions.emplace_back(op->get_input_element_type(i));
     }
@@ -106,7 +106,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
                                getName());
             }
 
-            bool isScalar = shape.rank().get_length() == 0;
+            const bool isScalar = shape.rank().get_length() == 0;
             outputShapes.emplace_back(isScalar ? ov::PartialShape{1} : shape);
             originalOutputPrecisions.emplace_back(op->get_output_element_type(i));
         }
@@ -154,7 +154,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
                                     defaultImplPriorities.end());
     }
 
-    std::string inputMemoryFormats = getInputMemoryFormats(op);
+    const std::string inputMemoryFormats = getInputMemoryFormats(op);
     if (!inputMemoryFormats.empty()) {
         std::istringstream stream(inputMemoryFormats);
         std::string str;
@@ -166,7 +166,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
         }
     }
 
-    std::string outputMemoryFormats = getOutputMemoryFormats(op);
+    const std::string outputMemoryFormats = getOutputMemoryFormats(op);
     if (!outputMemoryFormats.empty()) {
         std::istringstream stream(outputMemoryFormats);
         std::string str;
@@ -361,9 +361,9 @@ bool Node::isOneDimShape(const ov::PartialShape& pshape) {
 }
 
 bool Node::isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2) {
-    bool samePrec = desc1->getPrecision() == desc2->getPrecision();
-    bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
-    bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
+    const bool samePrec = desc1->getPrecision() == desc2->getPrecision();
+    const bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
+    const bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
     return !(isOneDimShape1 && isOneDimShape2 && samePrec);
 }
 
@@ -466,7 +466,7 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
 
     // loop kernel priority
     for (const auto& type : priority) {
-        int selectedPrimitive = selectSPDwithType(type);
+        const int selectedPrimitive = selectSPDwithType(type);
         if (selectedPrimitive >= 0) {
             selectPrimitiveDescriptorByIndex(selectedPrimitive);
             return;
@@ -1108,7 +1108,7 @@ void Node::initDescriptor(const NodeConfig& config) {
 }
 
 void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
-    size_t minSize = indx + 1;
+    const size_t minSize = indx + 1;
     if (internalBlobMemory.size() < minSize) {
         internalBlobMemory.resize(minSize);
     }
@@ -1124,7 +1124,7 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
 
     auto create = [&]() {
         auto newDesc = internalBlob->getDescPtr();
-        Memory memory{engine, newDesc, internalBlob->getData()};
+        const Memory memory{engine, newDesc, internalBlob->getData()};
 
         MemoryPtr _ptr = std::make_shared<Memory>(engine, intDesc);
         node::Reorder::reorderData(memory, *_ptr, context->getParamsCache());
@@ -1185,7 +1185,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     }
 
     auto create = [&]() {
-        Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
+        const Memory srcMemory{getEngine(), srcWeightDesc, edgeMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
@@ -1409,7 +1409,7 @@ PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig& config, size_t id
                        getParentEdgeAt(idx)->getParent()->getName());
     }
 
-    int num = getParentEdgeAt(idx)->getInputNum();
+    const int num = getParentEdgeAt(idx)->getInputNum();
     if (num >= 0) {
         auto parentConf = parentSelectedPD->getConfig().outConfs[num];
         const auto desc = parentConf.getMemDesc()->cloneWithNewPrecision(inConf.getMemDesc()->getPrecision());
@@ -1453,7 +1453,7 @@ PortDescBasePtr Node::getConsistentOutputDesc(const NodeConfig& config, size_t i
                        getChildEdgeAt(idx)->getChild()->getName());
     }
 
-    int num = getChildEdgeAt(idx)->getOutputNum();
+    const int num = getChildEdgeAt(idx)->getOutputNum();
     if (num >= 0) {
         auto childConf = childSelectedPD->getConfig().inConfs[num];
         const auto desc = childConf.getMemDesc()->cloneWithNewPrecision(outConf.getMemDesc()->getPrecision());

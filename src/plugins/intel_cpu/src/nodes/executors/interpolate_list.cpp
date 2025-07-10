@@ -18,7 +18,7 @@
 namespace ov::intel_cpu {
 
 const std::vector<InterpolateExecutorDesc>& getInterpolateExecutorsList() {
-    static std::vector<InterpolateExecutorDesc> descs = {
+    static const std::vector<InterpolateExecutorDesc> descs = {
         OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<ACLInterpolateExecutorBuilder>())};
 
     return descs;

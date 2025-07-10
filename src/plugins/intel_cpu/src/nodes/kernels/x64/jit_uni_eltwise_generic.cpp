@@ -185,8 +185,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
         L(unroll_loop_label);
         {
-            size_t loop_step = min_src_size;
-            size_t vec_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+            const size_t loop_step = min_src_size;
+            const size_t vec_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
 
             cmp(reg_work_amount, loop_step);
             jl(unroll_loop_end_label, T_NEAR);
@@ -209,7 +209,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
                 store_vector(ptr[reg_dst + j * vec_step * jep.dst_prc.size()], vmm_dst, exec_prc, jep.dst_prc);
             }
 
-            size_t tail_start = min_src_size - min_src_size % vec_step;
+            const size_t tail_start = min_src_size - min_src_size % vec_step;
             for (size_t j = tail_start; j < min_src_size; j++) {
                 for (size_t i = 0; i < jep.inputs_number; i++) {
                     if (jep.src_size[i] != 1) {
@@ -248,7 +248,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (min_src_size == jep.dst_size) {
         L(main_loop_label);
         {
-            size_t loop_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+            const size_t loop_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
 
             cmp(reg_work_amount, loop_step);
             jl(main_loop_end_label, T_NEAR);
@@ -285,7 +285,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     L(tail_loop_label);
     {
-        size_t loop_step = 1;
+        const size_t loop_step = 1;
 
         cmp(reg_work_amount, loop_step);
         jl(tail_loop_end_label, T_NEAR);
@@ -496,11 +496,11 @@ void jit_uni_eltwise_generic<isa>::apply_post_ops(bool is_scalar, int offset) {
             eltwise_post_op_idx++;
         } else if (ops_list_[i] == ov::intel_cpu::Type::FakeQuantize) {
             auto& p = post_ops_.get()->entry_[quantization_post_op_idx];
-            bool do_dequantization = p.quantization.alg == dnnl::impl::alg_kind::quantization_quantize_dequantize;
-            bool do_rounding = do_dequantization || jep_.dst_prc == ov::element::f32 || i != ops_list_.size() - 1;
-            int s_idx = vmm_dst.getIdx();
+            const bool do_dequantization = p.quantization.alg == dnnl::impl::alg_kind::quantization_quantize_dequantize;
+            const bool do_rounding = do_dequantization || jep_.dst_prc == ov::element::f32 || i != ops_list_.size() - 1;
+            const int s_idx = vmm_dst.getIdx();
 
-            size_t ptrs_table_off =
+            const size_t ptrs_table_off =
                 quantization_post_op_idx * quantization_injectors[quantization_post_op_idx]->memoryStep();
 
             quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(reg_post_op_ptrs + ptrs_table_off,

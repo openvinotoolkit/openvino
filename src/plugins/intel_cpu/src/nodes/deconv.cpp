@@ -204,7 +204,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             errorMessage = "Only v1 ConvolutionBackpropData and GroupConvolutionBackpropData operations are supported";
             return false;
         }
-        size_t ndims = op->get_input_partial_shape(0).rank().get_length();
+        const size_t ndims = op->get_input_partial_shape(0).rank().get_length();
         if ((ndims < 3) || (ndims > 5)) {
             errorMessage = "Only 3D, 4D and 5D blobs are supported as input";
             return false;
@@ -242,7 +242,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         for (size_t i : convBackprop->get_strides()) {
             deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i : convBackprop->get_dilations()) {
+        for (const size_t i : convBackprop->get_dilations()) {
             deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         deconvAttrs.paddingL = convBackprop->get_pads_begin();
@@ -264,7 +264,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         for (size_t i : groupConvBackprop->get_strides()) {
             deconvAttrs.stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (size_t i : groupConvBackprop->get_dilations()) {
+        for (const size_t i : groupConvBackprop->get_dilations()) {
             deconvAttrs.dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         deconvAttrs.paddingL = groupConvBackprop->get_pads_begin();
@@ -298,7 +298,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         }
     }
 
-    size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
+    const size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
     auto weightDimsReversItr = weightDims.crbegin();
     is1x1 = true;
     for (size_t i = 0; i < spatialRank; ++i) {
@@ -320,7 +320,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 }
 
 void Deconvolution::createDnnlCompatibleWeights() {
-    MemoryPtr blob = getSrcMemoryAtPort(1);
+    const MemoryPtr blob = getSrcMemoryAtPort(1);
 
     if (!blob) {
         THROW_CPU_NODE_ERR("Cannot get const weights blob.");
@@ -367,7 +367,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
         }
         // heuristicConst = 2^26
         // heuristicParam = IC^2 * SP
-        size_t heuristicConst = 67108864;
+        const size_t heuristicConst = 67108864;
         auto heuristicParam = IC * IC;
         for (size_t i = 2; i < inMaxDims.size(); i++) {
             heuristicParam *= inMaxDims[i];
@@ -384,7 +384,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     }
 
     // not supported in oneDNN
-    int channelBlock = [&]() {
+    const int channelBlock = [&]() {
         if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
             return 16;
         }
@@ -400,10 +400,10 @@ bool Deconvolution::canBeExecutedInInt8() const {
         return false;
     }
 
-    ov::element::Type inPrecision = getOriginalInputPrecisionAtPort(0);
+    const ov::element::Type inPrecision = getOriginalInputPrecisionAtPort(0);
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inPrecision);
 
-    ov::element::Type weiPrecision = getOriginalInputPrecisionAtPort(1);
+    const ov::element::Type weiPrecision = getOriginalInputPrecisionAtPort(1);
     auto weightsDataType = DnnlExtensionUtils::ElementTypeToDataType(weiPrecision);
 
     if (isDW && (inputDataType == dnnl_s8 || deconvAttrs.dilation.size() == 3)) {
@@ -656,7 +656,7 @@ void Deconvolution::getSupportedDescriptors() {
 
     if (isInt8) {
         const auto& rank = getInputShapeAtPort(0).getRank();
-        dnnl::memory::format_tag format = [&]() {
+        const dnnl::memory::format_tag format = [&]() {
             if (rank == 5) {
                 return dnnl::memory::format_tag::ndhwc;
             }
@@ -665,16 +665,16 @@ void Deconvolution::getSupportedDescriptors() {
             }
             return dnnl::memory::format_tag::nwc;
         }();
-        MemoryDescPtr in_candidate =
+        const MemoryDescPtr in_candidate =
             std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
-        MemoryDescPtr out_candidate =
+        const MemoryDescPtr out_candidate =
             std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, format);
         createDescriptor({in_candidate}, {out_candidate});
     } else {
         for (auto format : getAvailableFormatsForDims(getInputShapeAtPort(0))) {
-            MemoryDescPtr in_candidate =
+            const MemoryDescPtr in_candidate =
                 std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, format);
-            MemoryDescPtr out_candidate =
+            const MemoryDescPtr out_candidate =
                 std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, format);
             createDescriptor({in_candidate}, {out_candidate});
         }
@@ -683,11 +683,11 @@ void Deconvolution::getSupportedDescriptors() {
 
 void Deconvolution::initPaddingR(const Shape& inShape, const Shape& outShape) {
     for (size_t i = 0; i < deconvAttrs.paddingR.size(); i++) {
-        int with_group = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
+        const int with_group = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
         const auto& weightDims = getWeightDims();
         int krn = weightDims[with_group + 2 + i];
-        int src = outShape.getStaticDims()[2 + i];
-        int dst = inShape.getStaticDims()[2 + i];
+        const int src = outShape.getStaticDims()[2 + i];
+        const int dst = inShape.getStaticDims()[2 + i];
         krn = (krn - 1) * (deconvAttrs.dilation[i] + 1) + 1;
         deconvAttrs.paddingR[i] = (dst - 1) * deconvAttrs.stride[i] - (src - krn + deconvAttrs.paddingL[i]);
     }
@@ -725,7 +725,7 @@ void Deconvolution::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dim
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
-        bool isLastPostOp = (i == (fusedWith.size() - 1));
+        const bool isLastPostOp = (i == (fusedWith.size() - 1));
         // Abandon legacy post-ops invocation in deconv.
         // @todo: Remove the legacy post-ops implementations for conv_backward_data in the fork onednn
         if (auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get())) {
@@ -781,7 +781,7 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims& inDims, std::vect
                 }
                 outSpDimsVecShape = {outSpDims.size()};
                 inputShapesRefs.push_back(std::cref(outSpDimsVecShape));
-                CpuBlockedMemoryDesc desc(ov::element::i32, Shape(outSpDimsVecShape));
+                const CpuBlockedMemoryDesc desc(ov::element::i32, Shape(outSpDimsVecShape));
                 auto mem = std::make_shared<Memory>(getEngine(), desc, outSpDims.data());
                 inputValues[i] = mem;
                 break;
@@ -943,7 +943,7 @@ bool Deconvolution::isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims) 
     auto isZero = [](std::ptrdiff_t i) {
         return i == 0;
     };
-    size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
+    const size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
     if (is1x1 && std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero) &&
         std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero) &&
         std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero)) {
@@ -1030,7 +1030,7 @@ void Deconvolution::prepareParams() {
     if (!dnnlCompatibleWeights) {
         createDnnlCompatibleWeights();
     }
-    DnnlMemoryDescPtr wghDesc = dnnlCompatibleWeights->getDescWithType<DnnlMemoryDesc>();
+    const DnnlMemoryDescPtr wghDesc = dnnlCompatibleWeights->getDescWithType<DnnlMemoryDesc>();
 
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(biasPort);
@@ -1044,24 +1044,24 @@ void Deconvolution::prepareParams() {
         // Check implicit asymmetric padding case for dynamic case and runtime output shape.
         is1x1PaddingAsymmetric = isImplicit1x1PaddingAsymmetric(getSrcMemoryAtPort(0)->getShape().getStaticDims());
     }
-    DeconvKey key = {inMemoryDesc,
-                     wghDesc,
-                     biasDesc,
-                     outMemoryDesc,
-                     deconvAttrs.stride,
-                     deconvAttrs.dilation,
-                     deconvAttrs.paddingL,
-                     deconvAttrs.paddingR,
-                     weightIsConst,
-                     is1x1PaddingAsymmetric,
-                     *pAttrLocal,
-                     selected_pd->getImplementationType()};
+    const DeconvKey key = {inMemoryDesc,
+                           wghDesc,
+                           biasDesc,
+                           outMemoryDesc,
+                           deconvAttrs.stride,
+                           deconvAttrs.dilation,
+                           deconvAttrs.paddingL,
+                           deconvAttrs.paddingR,
+                           weightIsConst,
+                           is1x1PaddingAsymmetric,
+                           *pAttrLocal,
+                           selected_pd->getImplementationType()};
 
     auto engine = getEngine();
 
     auto builder = [&engine](const DeconvKey& key) -> executorPtr {
         dnnl::primitive_desc desc;
-        convolution_forward::primitive_desc fwd_conv_pd;
+        const convolution_forward::primitive_desc fwd_conv_pd;
         dnnl::memory::desc dnnlBiasDesc;
         const auto& weiDims = key.inp1->getShape().getStaticDims();
         const auto srcDataType = key.inp0->getDataType();
@@ -1089,7 +1089,7 @@ void Deconvolution::prepareParams() {
         executorPtr execPtr = nullptr;
 
         while (static_cast<bool>(itpd)) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+            const impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             // Skip the brgemm implemenation for asymmetric padding case because of the accuracy issue.
             if (key.isImplicit1x1PaddingAsymmetric && (impl_type & impl_desc_type::brgconv)) {
                 continue;
@@ -1206,15 +1206,15 @@ void Deconvolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc
         return;
     }
 
-    AttrPtr attr = initPrimitiveAttr();
+    const AttrPtr attr = initPrimitiveAttr();
     if (withBiases) {
-        memory::data_type bdt = memory::data_type::f32;
+        const memory::data_type bdt = memory::data_type::f32;
         bias_candidate =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(expectedBiasDims), bdt, memory::format_tag::any);
     }
-    dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(dnnlCompatibleWeiDims),
-                                     isInt8 ? memory::data_type::s8 : dnnlInDesc.getDataType(),
-                                     memory::format_tag::any);
+    const dnnl::memory::desc wgh_candidate(DnnlExtensionUtils::convertToDnnlDims(dnnlCompatibleWeiDims),
+                                           isInt8 ? memory::data_type::s8 : dnnlInDesc.getDataType(),
+                                           memory::format_tag::any);
     descs.emplace_back(createDescriptorInternal(in_candidate,
                                                 wgh_candidate,
                                                 bias_candidate,
@@ -1260,7 +1260,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(const dnnl::primitive_d
 ov::element::Type Deconvolution::getRuntimePrecision() const {
     std::vector<ov::element::Type> inputPrecisions;
     // Don't take bias precision into account
-    size_t inputsNumLimit = 2;
+    const size_t inputsNumLimit = 2;
     for (size_t i = 0; i < std::min(getParentEdges().size(), inputsNumLimit); i++) {
         auto parentEdge = getParentEdgeAt(i);
         if (parentEdge && parentEdge->getStatus() == Edge::Status::Validated) {

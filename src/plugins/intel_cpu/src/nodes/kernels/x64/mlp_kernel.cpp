@@ -47,19 +47,19 @@ void MKernel::generate_2x2() {
     auto reg_C_stride = abi_param6;
 #endif
 
-    Xbyak::Reg64 reg_ktiles = rax;
-    Xbyak::Reg64 reg_B_stride = r10;
-    Xbyak::Reg64 reg_A1_addr = r11;
-    Xbyak::Reg64 reg_prefetch = r12;
+    const Xbyak::Reg64 reg_ktiles = rax;
+    const Xbyak::Reg64 reg_B_stride = r10;
+    const Xbyak::Reg64 reg_A1_addr = r11;
+    const Xbyak::Reg64 reg_prefetch = r12;
 
-    Xbyak::Tmm tmmC00 = tmm0;
-    Xbyak::Tmm tmmC01 = tmm1;
-    Xbyak::Tmm tmmC10 = tmm2;
-    Xbyak::Tmm tmmC11 = tmm3;
-    Xbyak::Tmm tmmA0 = tmm4;
-    Xbyak::Tmm tmmA1 = tmm5;
-    Xbyak::Tmm tmmB0 = tmm6;
-    Xbyak::Tmm tmmB1 = tmm7;
+    const Xbyak::Tmm tmmC00 = tmm0;
+    const Xbyak::Tmm tmmC01 = tmm1;
+    const Xbyak::Tmm tmmC10 = tmm2;
+    const Xbyak::Tmm tmmC11 = tmm3;
+    const Xbyak::Tmm tmmA0 = tmm4;
+    const Xbyak::Tmm tmmA1 = tmm5;
+    const Xbyak::Tmm tmmB0 = tmm6;
+    const Xbyak::Tmm tmmB1 = tmm7;
 
     auto num_PFB = m_prefetch_Blines;
     int cur_PFB = 0;
@@ -210,15 +210,15 @@ void MKernel::generate_1x2() {
     auto reg_C_stride = abi_param6;
 #endif
 
-    Xbyak::Reg64 reg_ktiles = rax;
-    Xbyak::Reg64 reg_B_stride = r10;
+    const Xbyak::Reg64 reg_ktiles = rax;
+    const Xbyak::Reg64 reg_B_stride = r10;
     // Xbyak::Reg64 reg_prefetch = r12;
 
-    Xbyak::Tmm tmmC00 = tmm0;
-    Xbyak::Tmm tmmC01 = tmm1;
-    Xbyak::Tmm tmmA0 = tmm4;
-    Xbyak::Tmm tmmB0 = tmm6;
-    Xbyak::Tmm tmmB1 = tmm7;
+    const Xbyak::Tmm tmmC00 = tmm0;
+    const Xbyak::Tmm tmmC01 = tmm1;
+    const Xbyak::Tmm tmmA0 = tmm4;
+    const Xbyak::Tmm tmmB0 = tmm6;
+    const Xbyak::Tmm tmmB1 = tmm7;
 
     Xbyak::Label loop_over_ktiles;
     Xbyak::Label skip_load;
@@ -302,7 +302,7 @@ public:
     }
 
     void generate() override {
-        Xbyak::Label loop_begin;
+        const Xbyak::Label loop_begin;
         auto src = abi_param1;
         for (int i = 0; i < 16; i++) {
             vcvtph2ps(zmm0, ptr[src]);
@@ -319,7 +319,7 @@ public:
 template <typename Tdst>
 static std::enable_if_t<std::is_same_v<ov::bfloat16, Tdst> || std::is_same_v<ov::float16, Tdst>>
 repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
-    static FP16ToBF16Kernel fp16_to_bf16;
+    static const FP16ToBF16Kernel fp16_to_bf16;
     if (N == 16 && K == 32) {
         // SIMD optimized version
         ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(Tdst));
@@ -335,8 +335,8 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     Tdst zero(0.0F);
     for (; k < 32; k += 2) {
         int n = 0;
-        bool is_k0_valid = (k) < K;
-        bool is_k1_valid = (k + 1) < K;
+        const bool is_k0_valid = (k) < K;
+        const bool is_k1_valid = (k + 1) < K;
         auto* psrc = src + k;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
             *dst++ = is_k0_valid ? static_cast<Tdst>(psrc[0]) : zero;
@@ -359,10 +359,10 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
     assert(K <= 64);
     assert(N <= 16);
     for (int k = 0; k < 64; k += 4) {
-        bool is_k0_valid = (k) < K;
-        bool is_k1_valid = (k + 1) < K;
-        bool is_k2_valid = (k + 2) < K;
-        bool is_k3_valid = (k + 3) < K;
+        const bool is_k0_valid = (k) < K;
+        const bool is_k1_valid = (k + 1) < K;
+        const bool is_k2_valid = (k + 2) < K;
+        const bool is_k3_valid = (k + 3) < K;
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
@@ -583,7 +583,7 @@ void GateUpCombine::generate() {
     auto prefetch_dst = abi_param3;
     auto BN = abi_param4;
 
-    Xbyak::Reg64 loop_i = rax;
+    const Xbyak::Reg64 loop_i = rax;
     const auto zmm_gate = zmm5;
     const auto zmm_silu = zmm6;
     const auto zmm_up = zmm0;
@@ -650,7 +650,7 @@ void ReduceAdd2bh::generate() {
         mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
         mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
 
-        Xbyak::Reg64 loop_i = rax;
+        const Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
 
@@ -691,7 +691,7 @@ void ReduceAdd2bh::generate() {
         mov(prefetch_dst, ptr[abi_param1 + offsetof(CallArgs, prefetch_dst)]);
         mov(BN, ptr[abi_param1 + offsetof(CallArgs, num_cols)]);
 
-        Xbyak::Reg64 loop_i = rax;
+        const Xbyak::Reg64 loop_i = rax;
 
         Xbyak::Label loop_begin;
 

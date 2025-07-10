@@ -98,7 +98,7 @@ static DnnlBlockedMemoryDesc parse_header(IEB_HEADER& header) {
 
 void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data) {
     const auto& desc = memory->getDesc();
-    size_t data_size = desc.getShape().getElementsCount();
+    const size_t data_size = desc.getShape().getElementsCount();
     const auto size = data_size * desc.getPrecision().size();
     data.resize(size);
 
@@ -176,11 +176,11 @@ void BlobDumper::dumpAsTxt(std::ostream& stream) const {
 
     const auto& desc = memory->getDesc();
     const auto dims = desc.getShape().getStaticDims();
-    size_t data_size = desc.getShape().getElementsCount();
+    const size_t data_size = desc.getShape().getElementsCount();
 
     // Header like "U8 4D shape: 2 3 224 224 ()
     stream << memory->getDesc().getPrecision().get_type_name() << " " << dims.size() << "D " << "shape: ";
-    for (size_t d : dims) {
+    for (const size_t d : dims) {
         stream << d << " ";
     }
     stream << "(" << data_size << ")" << " by address" << std::hex << memory->getDataAs<const int64_t>() << std::dec
@@ -286,7 +286,7 @@ BlobDumper BlobDumper::read(std::istream& stream) {
 
     const auto desc = parse_header(header);
 
-    BlobDumper res(desc);
+    const BlobDumper res(desc);
     stream.seekg(header.data_offset, std::istream::beg);
     stream.read(reinterpret_cast<char*>(res.getDataPtr()), header.data_size);
 

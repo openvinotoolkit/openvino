@@ -138,7 +138,7 @@ namespace ov {
 
 #ifdef SNIPPETS_DEBUG_CAPS
 static bool is_load_emitter(const intel_cpu::jit_emitter* emitter) {
-    bool ret = false;
+    const bool ret = false;
     if (dynamic_cast<const intel_cpu::jit_load_memory_emitter*>(emitter) ||
         dynamic_cast<const intel_cpu::jit_load_broadcast_emitter*>(emitter)) {
         return true;
@@ -147,7 +147,7 @@ static bool is_load_emitter(const intel_cpu::jit_emitter* emitter) {
 }
 
 static bool is_store_emitter(const intel_cpu::jit_emitter* emitter) {
-    bool ret = false;
+    const bool ret = false;
     if (dynamic_cast<const intel_cpu::jit_store_memory_emitter*>(emitter)) {
         return true;
     }

@@ -141,7 +141,7 @@ struct SubgraphCodeGeneratorKey {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
 
-        size_t seed = get_attr_hash(0, attrs);
+        const size_t seed = get_attr_hash(0, attrs);
         return hash_combine(seed, broadcasting_mask);
     }
     bool operator==(const SubgraphCodeGeneratorKey& rhs) const {
@@ -289,7 +289,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 #if defined(OPENVINO_ARCH_ARM64)
                 size_t blockSize = 16;
 #else
-                size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
+                const size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
 #endif
 
                 VectorDims blocks = dims;
@@ -302,14 +302,14 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
-            VectorDims blocks = dims;
+            const VectorDims& blocks = dims;
             VectorDims order(blocks.size());
             std::iota(order.begin(), order.end(), 0);
 
             return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
         };
 
-        size_t offset = 0;
+        const size_t offset = 0;
         NodeConfig config;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
@@ -769,7 +769,7 @@ void Subgraph::prepareParams() {
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
         const auto& snippet = subgraph_attrs->snippet;
 
-        SubgraphBaseExecutor::BufferScratchpadAllocator allocator = [this](size_t size) {
+        const SubgraphBaseExecutor::BufferScratchpadAllocator allocator = [this](size_t size) {
             return getScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, intel_cpu::Shape{size}));
         };
 

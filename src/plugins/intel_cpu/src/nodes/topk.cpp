@@ -120,8 +120,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
         mov(reg_prc_idx, ptr[reg_params + GET_OFF(process_index)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        bool shape_agnostic_alg = jcp_.algorithm == TopKAlgorithm::topk_heap_sort ||
-                                  (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort && !jcp_.bubble_inplace);
+        const bool shape_agnostic_alg = jcp_.algorithm == TopKAlgorithm::topk_heap_sort ||
+                                        (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort && !jcp_.bubble_inplace);
 
         if (!shape_agnostic_alg) {
             mov(reg_table, l_table);
@@ -492,7 +492,7 @@ private:
     void bitonic_BLK_on_channel_load(int elt_num) {
         for (int i = 0; i < jcp_.axis_dim; i++) {
             for (int j = 0; j < elt_num; j++) {
-                int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size + j * jcp_.blk_size;
+                const int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size + j * jcp_.blk_size;
 
                 load_scalar(xmm_tmp, ptr[reg_src + offset * jcp_.data_size], data_type);
                 store_scalar(ptr[reg_prc + (i * jcp_.sort_stride + j) * jcp_.data_size], xmm_tmp, data_type);
@@ -508,7 +508,7 @@ private:
     void bitonic_BLK_on_channel_store(int elt_num) {
         for (int i = 0; i < jcp_.top_k; i++) {
             for (int j = 0; j < elt_num; j++) {
-                int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size + j * jcp_.blk_size;
+                const int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size + j * jcp_.blk_size;
 
                 load_scalar(xmm_tmp, ptr[reg_prc + (i * jcp_.sort_stride + j) * jcp_.data_size], data_type);
                 store_scalar(ptr[reg_dst + offset * jcp_.data_size], xmm_tmp, data_type);
@@ -1400,10 +1400,10 @@ private:
         if (isa == cpu::x64::sse41) {
             horize_top1();
         } else if (isa == cpu::x64::avx2) {
-            Xbyak::Ymm ymm_val_dst = Xbyak::Ymm(vmm_val(0).getIdx());
+            const Xbyak::Ymm ymm_val_dst = Xbyak::Ymm(vmm_val(0).getIdx());
             vextractf128(xmm_val(2), ymm_val_dst, 0);
             vextractf128(xmm_val(3), ymm_val_dst, 1);
-            Xbyak::Ymm ymm_idx_dst = Xbyak::Ymm(vmm_idx(0).getIdx());
+            const Xbyak::Ymm ymm_idx_dst = Xbyak::Ymm(vmm_idx(0).getIdx());
             vextractf128(xmm_idx(2), ymm_idx_dst, 0);
             vextractf128(xmm_idx(3), ymm_idx_dst, 1);
             bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
@@ -1411,10 +1411,10 @@ private:
             uni_vmovups(xmm_idx(0), xmm_idx(2));
             horize_top1();
         } else {
-            Xbyak::Zmm zmm_val_dst = Xbyak::Zmm(vmm_val(0).getIdx());
+            const Xbyak::Zmm zmm_val_dst = Xbyak::Zmm(vmm_val(0).getIdx());
             vextractf32x4(xmm_val(2), zmm_val_dst, 0);
             vextractf32x4(xmm_val(3), zmm_val_dst, 1);
-            Xbyak::Zmm zmm_idx_dst = Xbyak::Zmm(vmm_idx(0).getIdx());
+            const Xbyak::Zmm zmm_idx_dst = Xbyak::Zmm(vmm_idx(0).getIdx());
             vextractf32x4(xmm_idx(2), zmm_idx_dst, 0);
             vextractf32x4(xmm_idx(3), zmm_idx_dst, 1);
             bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
@@ -1604,7 +1604,7 @@ private:
     void topk_bubble_BLK_on_channel_inplace() {
         // load
         for (int i = 0; i < jcp_.top_k; i++) {
-            int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size;
+            const int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size;
             load_scalar(xmm_val(i), ptr[reg_src + offset * jcp_.data_size], data_type);
             uni_vmovdqu(xmm_idx(i), table_val(i));
         }
@@ -1615,7 +1615,7 @@ private:
             }
         }
         for (int i = jcp_.top_k; i < jcp_.axis_dim; i++) {
-            int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size;
+            const int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size;
             load_scalar(xmm_val(jcp_.top_k), ptr[reg_src + offset * jcp_.data_size], data_type);
             uni_vmovdqu(xmm_idx(jcp_.top_k), table_val(i));
             for (int j = jcp_.top_k; j > 0; j--) {
@@ -1631,7 +1631,7 @@ private:
         }
         // store
         for (int i = 0; i < jcp_.top_k; i++) {
-            int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size;
+            const int offset = i / jcp_.blk_size * blk_stride + i % jcp_.blk_size;
             store_scalar(ptr[reg_dst + offset * jcp_.data_size], xmm_val(i), data_type);
             store_scalar(ptr[reg_dst_idx + offset * sizeof(int)], xmm_idx(i), memory::data_type::s32);
         }
@@ -1983,7 +1983,7 @@ void TopK::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    impl_desc_type impl_type = [&]() {
+    const impl_desc_type impl_type = [&]() {
         if (mayiuse(cpu::x64::avx512_core)) {
             return impl_desc_type::jit_avx512;
         }
@@ -2020,11 +2020,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
+    const std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
 #if defined(OPENVINO_ARCH_X86_64)
-                                                              {LayoutType::nspc, LayoutType::nspc},
-                                                              {LayoutType::nCsp16c, LayoutType::nCsp16c},
-                                                              {LayoutType::nCsp8c, LayoutType::nCsp8c}
+                                                                    {LayoutType::nspc, LayoutType::nspc},
+                                                                    {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                                    {LayoutType::nCsp8c, LayoutType::nCsp8c}
 #endif
     };
 
@@ -2061,9 +2061,9 @@ void TopK::preset_params() {
         blk_size = 8;
     }
 
-    bool can_use_heap_sort =
+    const bool can_use_heap_sort =
         (layout == TopKLayoutType::topk_ncsp || layout == TopKLayoutType::topk_nspc) && topk_innermost;
-    bool use_bubble_sort = stable || !can_use_heap_sort;
+    const bool use_bubble_sort = stable || !can_use_heap_sort;
     if (isDynamicNode()) {
         if (use_bubble_sort) {
             algorithm = TopKAlgorithm::topk_bubble_sort;
@@ -2142,7 +2142,7 @@ void TopK::prepareParams() {
             } else {
                 auto log_axis_dim = log2(axis_dim);
                 auto alg_cost_bitonic = static_cast<size_t>((axis_dim / 4.0F) * log_axis_dim * (log_axis_dim + 1));
-                size_t alg_cost_bubble = top_k * (top_k - 1) / 2 + (axis_dim - top_k) * top_k;
+                const size_t alg_cost_bubble = top_k * (top_k - 1) / 2 + (axis_dim - top_k) * top_k;
                 if (alg_cost_bitonic < alg_cost_bubble) {
                     algorithm = TopKAlgorithm::topk_bitonic_sort;
                 } else {
@@ -2210,7 +2210,7 @@ void TopK::createPrimitive() {
         jcp.bitonic_k_idx_cnt = 0;
 
         if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
-            size_t src_count = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
+            const size_t src_count = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             vec_process_ptr.resize(src_count * data_size);
             vec_process_idx_ptr.resize(src_count * sizeof(int32_t));
 
@@ -2275,7 +2275,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
                 const uint8_t* in_ptr_a = in_ptr + (o * IA * I + i) * blk_size * data_size;
                 uint8_t* out_ptr_a = out_ptr + (o * OA * I + i) * blk_size * data_size;
                 uint8_t* out_idx_ptr_a = out_idx_ptr + (o * OA * I + i) * blk_size * sizeof(int32_t);
-                size_t work_amount = 1;
+                const size_t work_amount = 1;
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, nullptr, nullptr, work_amount);
             });
         } else if (algorithm == TopKAlgorithm::topk_bitonic_sort) {
@@ -2285,7 +2285,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
                 uint8_t* process_idx_ptr_a = process_idx_ptr + o * IA * I * blk_size * sizeof(int32_t);
                 uint8_t* out_ptr_a = out_ptr + o * OA * I * blk_size * data_size;
                 uint8_t* out_idx_ptr_a = out_idx_ptr + o * OA * I * blk_size * sizeof(int32_t);
-                size_t work_amount = I;
+                const size_t work_amount = I;
                 topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, process_ptr_a, process_idx_ptr_a, work_amount);
             });
         }
@@ -2296,7 +2296,7 @@ void TopK::topk_process(const uint8_t* in_ptr, uint8_t* out_ptr, uint8_t* out_id
             uint8_t* process_idx_ptr_a = process_idx_ptr + (o * A * I + k * blk_size) * sizeof(int32_t);
             uint8_t* out_ptr_a = out_ptr + (o * top_k * I + k * blk_size) * data_size;
             uint8_t* out_idx_ptr_a = out_idx_ptr + (o * top_k * I + k * blk_size) * sizeof(int32_t);
-            size_t work_amount = blk_size;
+            const size_t work_amount = blk_size;
             topk_kernel_process(in_ptr_a, out_ptr_a, out_idx_ptr_a, process_ptr_a, process_idx_ptr_a, work_amount);
         });
 
@@ -2339,18 +2339,18 @@ inline void TopK::topk_kernel_process(const uint8_t* in_p,
 }
 
 inline void TopK::prepare_original_idx() {
-    bool shape_agnostic_alg =
+    const bool shape_agnostic_alg =
         algorithm == TopKAlgorithm::topk_heap_sort || (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
-        bool use_idx_seq = stable
-                               ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (top_k == 1 && !stable))
-                               : topk_innermost;
+        const bool use_idx_seq =
+            stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (top_k == 1 && !stable))
+                   : topk_innermost;
         if (use_idx_seq) {
             if (vec_idx_seq.empty()) {
                 vec_idx_seq.resize(axis_dim);
                 std::iota(vec_idx_seq.begin(), vec_idx_seq.end(), 0);
             } else {
-                size_t pre_size = vec_idx_seq.size();
+                const size_t pre_size = vec_idx_seq.size();
                 if (pre_size != axis_dim) {
                     vec_idx_seq.resize(axis_dim);
                     for (size_t i = pre_size; i < axis_dim; i++) {
@@ -2359,7 +2359,7 @@ inline void TopK::prepare_original_idx() {
                 }
             }
         } else {
-            size_t blk_len = mayiuse(cpu::x64::avx2) ? blk_size : 4;
+            const size_t blk_len = mayiuse(cpu::x64::avx2) ? blk_size : 4;
             if (vec_idx_block.empty()) {
                 vec_idx_block.resize(axis_dim * blk_len);
                 for (size_t i = 0; i < axis_dim; i++) {
@@ -2368,7 +2368,7 @@ inline void TopK::prepare_original_idx() {
                     }
                 }
             } else {
-                size_t pre_size = vec_idx_block.size() / blk_len;
+                const size_t pre_size = vec_idx_block.size() / blk_len;
                 if (pre_size != axis_dim) {
                     vec_idx_block.resize(axis_dim * blk_len);
                     for (size_t i = pre_size; i < axis_dim; i++) {
@@ -2405,7 +2405,7 @@ inline void TopK::bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt
             }
             for (; sub_len > 0; sub_len >>= 1) {
                 for (int sub_start = start; sub_start < start + len; sub_start += sub_len) {
-                    int minor_len = sub_len >> 1;
+                    const int minor_len = sub_len >> 1;
                     // empty tail
                     for (int j = 0; sub_start + j + minor_len < n && j < minor_len; j++) {
                         vec[cnt++] = (sub_start + j) * sort_stride;
@@ -2425,7 +2425,7 @@ inline void TopK::bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt
     for (; sub_p > 0; sub_p >>= 1) {
         // support partial sort as well as full sort
         for (int sub_start = 0; (!cmp_val || (cmp_val && sub_start < n)) && sub_start < p; sub_start += sub_p) {
-            int minor_p = sub_p >> 1;
+            const int minor_p = sub_p >> 1;
             for (int j = 0; sub_start + j + minor_p < n && j < minor_p; j++) {
                 vec[cnt++] = (sub_start + j) * sort_stride;
                 vec[cnt++] = (sub_start + j + minor_p) * sort_stride;
@@ -2446,7 +2446,7 @@ void TopK::calc_bitonic_idx(size_t n, int& cnt, bool cmp_val) {
 
     // maximum times of bitonic comparison: (p / 4) * log_p * (log_p + 1)
     // each comparison need two indices
-    int max_cnt = (p >> 1) * log_p * (log_p + 1);
+    const int max_cnt = (p >> 1) * log_p * (log_p + 1);
     if (cmp_val) {
         vec_bitonic_idx.resize(max_cnt);
         bitonic_push_idx(p, n, vec_bitonic_idx, cnt, cmp_val);
@@ -2509,11 +2509,11 @@ void TopK::topk_ref_process(const float* src_data,
         int s_index = i0 * dim * after_num + i1;
 
         auto swap_func = [&](int index1, int index2) {
-            float tmp_value = max_values[index1];
+            const float tmp_value = max_values[index1];
             max_values[index1] = max_values[index2];
             max_values[index2] = tmp_value;
 
-            int tmp_index = max_indexes[index1];
+            const int tmp_index = max_indexes[index1];
             max_indexes[index1] = max_indexes[index2];
             max_indexes[index2] = tmp_index;
         };

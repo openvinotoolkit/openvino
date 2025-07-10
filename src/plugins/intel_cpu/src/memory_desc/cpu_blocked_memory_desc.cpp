@@ -199,7 +199,7 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
 size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
     VectorDims off_v = v;
 
-    size_t n_blocked_dims = order.size();
+    const size_t n_blocked_dims = order.size();
     if (blockedDims.size() != n_blocked_dims || strides.size() != n_blocked_dims) {
         OPENVINO_THROW("Cannot calculate offset. Incorrect primitive descriptor!");
     }
@@ -219,7 +219,7 @@ size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
 size_t CpuBlockedMemoryDesc::getElementOffset(size_t elemNumber) const {
     // TODO [DS]: rewrite to support dynamic shapes
     const auto& dims = shape.getStaticDims();
-    size_t n_dims = dims.size();
+    const size_t n_dims = dims.size();
     VectorDims pos(n_dims);
     for (size_t rd = 1; rd <= n_dims; ++rd) {
         const size_t d = n_dims - rd;
@@ -340,7 +340,7 @@ MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) 
 bool CpuBlockedMemoryDesc::blocksExtended() const {
     const size_t rank = shape.getRank();
     for (size_t i = rank; i < order.size(); i++) {
-        size_t idx = order[i];
+        const size_t idx = order[i];
         Dim paddedDim = 1;
         for (size_t j = rank; j < order.size(); j++) {
             if (order[j] == idx) {

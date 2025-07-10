@@ -326,7 +326,7 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    impl_desc_type impl_type = [&] {
+    const impl_desc_type impl_type = [&] {
         if (mayiuse(x64::avx512_core)) {
             return impl_desc_type::jit_avx512;
         }
@@ -372,7 +372,7 @@ void RegionYolo::createPrimitive() {
 }
 
 inline float RegionYolo::logistic_scalar(float src) {
-    int sign = ov::intel_cpu::bit_cast<int>(src) >> 31;
+    const int sign = ov::intel_cpu::bit_cast<int>(src) >> 31;
     if (sign == 0) {
         src *= -1;
     }
@@ -390,10 +390,10 @@ inline float RegionYolo::logistic_scalar(float src) {
 inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_t* dst_data) {
     auto dst_data_size = output_prec.size();
     if (logistic_kernel) {
-        int blocks_num = div_up(count, block_size);
+        const int blocks_num = div_up(count, block_size);
         parallel_for(blocks_num, [&](int ib) {
-            int idx = ib * block_size;
-            int work_amount = std::min(count - idx, block_size);
+            const int idx = ib * block_size;
+            const int work_amount = std::min(count - idx, block_size);
 
             auto arg = jit_args_logistic();
             arg.src = arg.dst = dst_data + dst_data_size * (start_index + idx);
@@ -421,12 +421,12 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
 void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& inShape = getParentEdgeAt(0)->getMemory().getShape();
     const auto& inDims = inShape.getStaticDims();
-    size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;
-    size_t IC = (inShape.getRank() > 1) ? inDims[1] : 1;
-    size_t IH = (inShape.getRank() > 2) ? inDims[2] : 1;
-    size_t IW = (inShape.getRank() > 3) ? inDims[3] : 1;
+    const size_t B = (inShape.getRank() > 0) ? inDims[0] : 1;
+    const size_t IC = (inShape.getRank() > 1) ? inDims[1] : 1;
+    const size_t IH = (inShape.getRank() > 2) ? inDims[2] : 1;
+    const size_t IW = (inShape.getRank() > 3) ? inDims[3] : 1;
 
-    size_t mask_size = mask.size();
+    const size_t mask_size = mask.size();
     int end_index = 0;
     int num_ = 0;
     size_t output_size = 0;
@@ -449,8 +449,8 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
                            getDstMemoryAtPort(0)->getShape().getElementsCount());
     }
 
-    size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
-    size_t total_size = 2 * IH * IW;
+    const size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
+    const size_t total_size = 2 * IH * IW;
 
     const auto* src_data = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dst_data = getDstDataAtPortAs<uint8_t>(0);
@@ -472,8 +472,8 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (do_softmax != 0.0F) {
-        int index = IW * IH * (coords + 1);
-        int batch_offset = inputs_size / num;
+        const int index = IW * IH * (coords + 1);
+        const int batch_offset = inputs_size / num;
         for (size_t b = 0; b < B * num; b++) {
             softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
                                     dst_data + output_prec.size() * (index + b * batch_offset),

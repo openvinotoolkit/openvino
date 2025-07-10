@@ -136,7 +136,7 @@ bool Edge::enforceReorder() {
         OPENVINO_THROW("Cannot make a decision about reorder. Primitive descriptors weren't selected.");
     }
 
-    bool in_place = inPlace();
+    const bool in_place = inPlace();
 
     if (in_place) {
         if (inPlace(LOOK_DOWN) && inPlace(LOOK_UP)) {
@@ -144,7 +144,7 @@ bool Edge::enforceReorder() {
         }
     }
 
-    int inNumber = getInputNum();
+    const int inNumber = getInputNum();
     const auto portChildEdges = parentNode->getChildEdgesAtPort(inNumber);
 
     if (portChildEdges.size() > 1) {
@@ -180,17 +180,18 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
     }
 
     // dims padding check
-    bool isZeroDimsPaddings = std::all_of(lhsBlockMemDesc->getOffsetPaddingToData().begin(),
-                                          lhsBlockMemDesc->getOffsetPaddingToData().end(),
-                                          [](size_t x) {
-                                              return x == 0;
-                                          }) &&
-                              std::all_of(rhsBlockMemDesc->getOffsetPaddingToData().begin(),
-                                          rhsBlockMemDesc->getOffsetPaddingToData().end(),
-                                          [](size_t x) {
-                                              return x == 0;
-                                          });
-    bool isSameElementsCount = lhsBlockMemDesc->getPaddedElementsCount() == rhsBlockMemDesc->getPaddedElementsCount();
+    const bool isZeroDimsPaddings = std::all_of(lhsBlockMemDesc->getOffsetPaddingToData().begin(),
+                                                lhsBlockMemDesc->getOffsetPaddingToData().end(),
+                                                [](size_t x) {
+                                                    return x == 0;
+                                                }) &&
+                                    std::all_of(rhsBlockMemDesc->getOffsetPaddingToData().begin(),
+                                                rhsBlockMemDesc->getOffsetPaddingToData().end(),
+                                                [](size_t x) {
+                                                    return x == 0;
+                                                });
+    const bool isSameElementsCount =
+        lhsBlockMemDesc->getPaddedElementsCount() == rhsBlockMemDesc->getPaddedElementsCount();
     if (!isZeroDimsPaddings || !isSameElementsCount) {
         return false;
     }
@@ -219,11 +220,11 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
 
     // this check needed to avoid inserting unnecessary reorders if the memory is used in place and the batch size is
     // equal to 1 in nodes like concate and split
-    size_t lhsSkipAxis = !lhsBlockDims.empty() && lhsBlockDims[0] == 1 ? 0 : Shape::UNDEFINED_DIM;
-    size_t rhsSkipAxis = !rhsBlockDims.empty() && rhsBlockDims[0] == 1 ? 0 : Shape::UNDEFINED_DIM;
+    const size_t lhsSkipAxis = !lhsBlockDims.empty() && lhsBlockDims[0] == 1 ? 0 : Shape::UNDEFINED_DIM;
+    const size_t rhsSkipAxis = !rhsBlockDims.empty() && rhsBlockDims[0] == 1 ? 0 : Shape::UNDEFINED_DIM;
 
-    bool isDenseTensor = dimsEqualStrong(lhsStridesDefault, lhsBlockMemDesc->getStrides(), lhsSkipAxis) &&
-                         dimsEqualStrong(rhsStridesDefault, rhsBlockMemDesc->getStrides(), rhsSkipAxis);
+    const bool isDenseTensor = dimsEqualStrong(lhsStridesDefault, lhsBlockMemDesc->getStrides(), lhsSkipAxis) &&
+                               dimsEqualStrong(rhsStridesDefault, rhsBlockMemDesc->getStrides(), rhsSkipAxis);
     if (!isDenseTensor) {
         return false;
     }
@@ -538,7 +539,7 @@ void Edge::init() {
         return;
     }
     DEBUG_LOG(*this);
-    EdgePtr edgePtr = getBaseEdge();
+    const EdgePtr edgePtr = getBaseEdge();
     if (edgePtr.get() == this) {
         DEBUG_LOG(*this, " getBaseEdge() return itself");
         changeStatus(Status::NeedAllocation);
@@ -611,14 +612,14 @@ EdgePtr Edge::getBaseEdge(int look) {
 }
 
 bool Edge::inPlace(LOOK look) const {
-    int inputNum = getInputNum();
+    const int inputNum = getInputNum();
     if (look & LOOK_UP) {
         if (getParent()->inPlaceOutPort(inputNum) >= 0) {
             return true;
         }
     }
 
-    int outputNum = getOutputNum();
+    const int outputNum = getOutputNum();
     if (look & LOOK_DOWN) {
         if (getChild()->inPlaceInputPort(outputNum) >= 0) {
             return true;

@@ -66,7 +66,7 @@ const ov::Shape& Tensor::get_shape() const {
     const auto& shape = m_memptr->getDescPtr()->getShape();
     OPENVINO_ASSERT(shape.isStatic(), "intel_cpu::Tensor has dynamic shape.");
 
-    std::lock_guard<std::mutex> guard(m_lock);
+    const std::lock_guard<std::mutex> guard(m_lock);
     m_shape = ov::Shape{shape.getStaticDims()};
     return m_shape;
 }
@@ -84,7 +84,7 @@ size_t Tensor::get_byte_size() const {
 const ov::Strides& Tensor::get_strides() const {
     OPENVINO_ASSERT(m_memptr->getDescPtr()->isDefined(), "intel_cpu::Tensor requires memory with defined strides.");
 
-    std::lock_guard<std::mutex> guard(m_lock);
+    const std::lock_guard<std::mutex> guard(m_lock);
     update_strides();
     return m_strides;
 }

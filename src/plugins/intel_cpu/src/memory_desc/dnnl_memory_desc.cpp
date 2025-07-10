@@ -58,7 +58,7 @@ bool DnnlMemoryDesc::isCompatible(const DnnlMemoryDesc& rhs) const {
 }
 
 std::string DnnlMemoryDesc::serializeFormat() const {
-    dnnl::impl::memory_desc_wrapper wrapped(desc.get());
+    const dnnl::impl::memory_desc_wrapper wrapped(desc.get());
     if (wrapped.is_wino_desc()) {
         switch (desc.get()->format_desc.wino_desc.wino_format) {
         case dnnl::impl::wino_memory_format_t::wino_wei_aaOio:
@@ -102,7 +102,7 @@ dnnl::memory::format_kind DnnlMemoryDesc::getFormatKind() const {
 }
 
 bool DnnlMemoryDesc::hasEmptyExtraData() const {
-    dnnl::impl::memory_desc_wrapper wrapped(desc.get());
+    const dnnl::impl::memory_desc_wrapper wrapped(desc.get());
     return wrapped.extra().flags == dnnl_memory_extra_flag_none;
 }
 
@@ -111,7 +111,7 @@ bool DnnlMemoryDesc::canComputeMemSizeZeroDims() const {
         return false;
     }
 
-    dnnl::impl::memory_desc_wrapper wrapped(desc.get());
+    const dnnl::impl::memory_desc_wrapper wrapped(desc.get());
     return getShape().hasZeroDims() && wrapped.offset0() != DNNL_RUNTIME_DIM_VAL;
 }
 
@@ -120,12 +120,12 @@ size_t DnnlMemoryDesc::getCurrentMemSizeImp() const {
 }
 
 size_t DnnlMemoryDesc::getElementOffset(size_t elemNumber) const {
-    dnnl::impl::memory_desc_wrapper wrapped(desc.get());
+    const dnnl::impl::memory_desc_wrapper wrapped(desc.get());
     return wrapped.off_l(elemNumber);
 }
 
 bool DnnlMemoryDesc::isDefinedImp() const {
-    dnnl::impl::memory_desc_wrapper wrappedThis(desc.get());
+    const dnnl::impl::memory_desc_wrapper wrappedThis(desc.get());
 
     if (wrappedThis.has_runtime_dims_or_strides()) {
         return false;
@@ -139,7 +139,7 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp([[maybe_unused]] const VectorD
 }
 
 size_t DnnlMemoryDesc::getOffsetPadding() const {
-    dnnl::impl::memory_desc_wrapper wrap(desc.get());
+    const dnnl::impl::memory_desc_wrapper wrap(desc.get());
     return DnnlExtensionUtils::convertToDim(wrap.offset0());
 }
 

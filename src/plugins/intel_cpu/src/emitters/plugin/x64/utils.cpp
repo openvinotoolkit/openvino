@@ -137,7 +137,7 @@ void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
     h->sub(h->rsp, m_bytes_to_spill);
     uint32_t byte_stack_offset = 0;
     for (const auto& reg : m_regs_to_spill) {
-        Xbyak::Address addr = h->ptr[h->rsp + byte_stack_offset];
+        const Xbyak::Address addr = h->ptr[h->rsp + byte_stack_offset];
         byte_stack_offset += reg.getBit() / 8;
         switch (reg.getKind()) {
         case Xbyak::Reg::REG:
@@ -169,7 +169,7 @@ void EmitABIRegSpills::postamble() {
     for (size_t i = m_regs_to_spill.size(); i > 0; i--) {
         const auto& reg = m_regs_to_spill[i - 1];
         byte_stack_offset -= reg.getBit() / 8;
-        Xbyak::Address addr = h->ptr[h->rsp + byte_stack_offset];
+        const Xbyak::Address addr = h->ptr[h->rsp + byte_stack_offset];
         switch (reg.getKind()) {
         case Xbyak::Reg::REG:
             h->mov(reg, addr);

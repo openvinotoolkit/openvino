@@ -120,8 +120,8 @@ void Convert::initSupportedPrimitiveDescriptors() {
     }
 
     auto supportedPrimitiveDescriptorsBuilder = [this](NodeConfig config) {
-        MemoryDescPtr srcMemoryDesc = config.inConfs[0].getMemDesc();
-        MemoryDescPtr dstMemoryDesc = config.outConfs[0].getMemDesc();
+        const MemoryDescPtr srcMemoryDesc = config.inConfs[0].getMemDesc();
+        const MemoryDescPtr dstMemoryDesc = config.outConfs[0].getMemDesc();
         convertParams.srcPrc = srcMemoryDesc->getPrecision();
         convertParams.dstPrc = dstMemoryDesc->getPrecision();
         auto factory =
@@ -185,8 +185,8 @@ void Convert::prepareParams() {
     convertParams.size = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     auto* selectedPD = getSelectedPrimitiveDescriptor();
-    MemoryDescPtr srcDesc = getSrcMemoryAtPort(0)->getDescPtr();
-    MemoryDescPtr dstDesc = getDstMemoryAtPort(0)->getDescPtr();
+    const MemoryDescPtr srcDesc = getSrcMemoryAtPort(0)->getDescPtr();
+    const MemoryDescPtr dstDesc = getDstMemoryAtPort(0)->getDescPtr();
     execPtr =
         selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams, srcDesc, dstDesc, {});
     selectedPD->setImplementationType(execPtr->implType());
@@ -207,8 +207,8 @@ void Convert::execute([[maybe_unused]] const dnnl::stream& strm) {
         THROW_CPU_NODE_ERR("has different elements number in input and output buffers");
     }
 
-    MemoryCPtr srcMemory = getSrcMemoryAtPort(0);
-    MemoryPtr dstMemory = getDstMemoryAtPort(0);
+    const MemoryCPtr srcMemory = getSrcMemoryAtPort(0);
+    const MemoryPtr dstMemory = getDstMemoryAtPort(0);
     execPtr->exec({srcMemory}, {dstMemory});
 }
 

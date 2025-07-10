@@ -584,12 +584,12 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc,
                                const MemoryDescPtr& childDesc,
                                const dnnl::engine& eng) {
     auto definedParentDesc = parentDesc->isDefined() ? parentDesc : MemoryDescUtils::makeDummyDesc(*parentDesc);
-    memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
+    const memory::desc srcMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedParentDesc)->getDnnlDesc();
 
     auto definedChildDesc = childDesc->isDefined() ? childDesc : MemoryDescUtils::makeDummyDesc(*childDesc);
-    memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
+    const memory::desc dstMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(definedChildDesc)->getDnnlDesc();
 
-    dnnl::primitive_attr attr;
+    const dnnl::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
     auto status = dnnl_reorder_primitive_desc_create(&result,
@@ -615,9 +615,9 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc,
 }
 
 void Graph::insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames) {
-    std::string basicLayerName = edge->getParent()->getName() + "_" +
-                                 node::Reorder::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
-                                 edge->getChild()->getName();
+    const std::string basicLayerName = edge->getParent()->getName() + "_" +
+                                       node::Reorder::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) +
+                                       "_" + edge->getChild()->getName();
     std::string layerName = basicLayerName;
     int idx = 0;
     while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
@@ -634,8 +634,8 @@ void Graph::insertConvert(EdgePtr& edge) {
     const auto& inDesc = edge->getInputDesc();
     const auto& outDesc = edge->getOutputDesc();
 
-    std::string convertName = edge->getParent()->getName() + "_" + inDesc.getPrecision().get_type_name() + "_" +
-                              outDesc.getPrecision().get_type_name();
+    const std::string convertName = edge->getParent()->getName() + "_" + inDesc.getPrecision().get_type_name() + "_" +
+                                    outDesc.getPrecision().get_type_name();
 
     auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(),
                                                        inDesc.getPrecision(),
@@ -709,7 +709,7 @@ void Graph::ResolveComplexInplaceConflicts() {
 
     // secondary pass to eliminate complex inplace conflicts
     auto needReorder = [](const EdgePtr& edge) -> bool {
-        int inNumber = edge->getInputNum();
+        const int inNumber = edge->getInputNum();
         const auto portChildEdges = edge->getParent()->getChildEdgesAtPort(inNumber);
         if (portChildEdges.size() > 1) {
             if (auto modifyingNode = edge->modifiedInPlace()) {
@@ -1080,15 +1080,15 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
             };
             // If node uses its input / output memory multiple times in scope of a single execution (i.e TensorIterator)
             // prolong the lifetime of a memory region till execution is finished
-            int e_start = usesInOutMemoryMultipleTimes(parent) ? globalExecIndex.at(parent).first
-                                                               : globalExecIndex.at(parent).second;
-            int e_finish = usesInOutMemoryMultipleTimes(child) ? globalExecIndex.at(child).second
-                                                               : globalExecIndex.at(child).first;
+            const int e_start = usesInOutMemoryMultipleTimes(parent) ? globalExecIndex.at(parent).first
+                                                                     : globalExecIndex.at(parent).second;
+            const int e_finish = usesInOutMemoryMultipleTimes(child) ? globalExecIndex.at(child).second
+                                                                     : globalExecIndex.at(child).first;
 
             auto&& desc = edge->getOriginalDesc();
 
             if (boxSize != -1 && desc.isDefined()) {
-                int64_t e_size =
+                const int64_t e_size =
                     desc.getCurrentMemSize();  // size in bytes (from the beginning of data to the last element)
                 boxSize = std::max(e_size, boxSize);
             } else {
@@ -1230,13 +1230,13 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
             auto actualDesc = edgeMemory.getDescPtr();
 
             if (actualDesc->getPrecision() == element::string) {
-                StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
+                const StringMemory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr);
                 edgeMemory.load(ext_mem, false, false);
             } else if (!actualDesc->isCompatible(*ext_tensor_desc)) {
-                Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
+                const Memory ext_mem(getEngine(), ext_tensor_desc, ext_data_ptr, false);
                 edgeMemory.load(ext_mem, false, false);
             } else {
-                size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
+                const size_t size_to_copy = ext_tensor_desc->getCurrentMemSize();
                 cpu_parallel_memcpy(inter_data_ptr, ext_data_ptr, size_to_copy);
             }
         }
@@ -1334,17 +1334,17 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         auto externDesc = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
         if (actualDesc->getPrecision() == element::string) {
-            StringMemory outBloMem(getEngine(), externDesc, ext_blob_ptr);
+            const StringMemory outBloMem(getEngine(), externDesc, ext_blob_ptr);
             outBloMem.load(intr_blob, false, false);
         } else if (!actualDesc->isCompatible(*externDesc) && !isScalarOutput) {
-            Memory outBloMem(getEngine(), externDesc, ext_blob_ptr, false);
+            const Memory outBloMem(getEngine(), externDesc, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false, false);
         } else {
             OPENVINO_ASSERT(srcPrec == dstPrec,
                             "The precision of the CPU output tensor index",
                             output_index,
                             " is different from the external one");
-            size_t size_to_copy = intr_blob.getSize();
+            const size_t size_to_copy = intr_blob.getSize();
             cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
     }
@@ -1736,12 +1736,12 @@ void Graph::SortTopologically() {
     // Sort in / out child edges by port index
     // Make first N (N == port_num) edge indexes match with port index
     for (auto& node : graphNodes) {
-        int port_num = node->outputShapes.size();
+        const int port_num = node->outputShapes.size();
         std::vector<EdgePtr> res(port_num);
 
         for (size_t i = 0; i < node->childEdges.size(); i++) {
             auto edge = node->getChildEdgeAt(i);
-            int port = edge->getInputNum();
+            const int port = edge->getInputNum();
             if (port < port_num && !res[port]) {
                 res[port] = edge;
             } else {
@@ -1757,7 +1757,7 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
         [&](std::vector<ov::ProfilingInfo>& perfMap, const NodePtr& node) {
             ov::ProfilingInfo pc;
             pc.node_name = node->getName();
-            uint64_t avg_time = node->PerfCounter().avg();
+            const uint64_t avg_time = node->PerfCounter().avg();
             pc.cpu_time = pc.real_time = std::chrono::microseconds(avg_time);
             pc.status = avg_time > 0 ? ov::ProfilingInfo::Status::EXECUTED : ov::ProfilingInfo::Status::NOT_RUN;
             pc.exec_type = node->getPrimitiveDescriptorType();

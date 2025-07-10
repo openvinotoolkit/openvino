@@ -205,8 +205,8 @@ void Inverse::lu_solve(float* output,
 
         // Backward substitution: Ux = y
         for (size_t i = 0; i < m_side; ++i) {
-            size_t i_adj = m_side - i - 1;
-            size_t i_idx = i_adj * m_side;
+            const size_t i_adj = m_side - i - 1;
+            const size_t i_idx = i_adj * m_side;
             X[i_adj] = Y[i_adj];
             for (size_t j = i_adj + 1; j < m_side; ++j) {
                 X[i_adj] = X[i_adj] - U[i_idx + j] * X[j];

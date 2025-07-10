@@ -309,7 +309,7 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& nod
         node->get_input_element_type(0) == ov::element::u8 && zp_weights_is_suitable;
 
     const auto conv_weights = child->get_input_node_shared_ptr(1);
-    bool second_conv_input_is_suitable =
+    const bool second_conv_input_is_suitable =
         ov::is_type<ov::op::v0::Constant>(conv_weights) && conv_weights->get_output_element_type(0) == ov::element::i8;
     return first_conv_input_is_suitable && second_conv_input_is_suitable;
 }

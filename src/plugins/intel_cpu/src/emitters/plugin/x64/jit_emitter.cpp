@@ -84,9 +84,9 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
                                    const std::vector<size_t>& pool_vec_idxs,
                                    const std::vector<size_t>& pool_gpr_idxs) const {
     using namespace Xbyak::util;
-    bool is_vec_input =
+    const bool is_vec_input =
         (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::vec_to_gpr);
-    bool is_vec_output =
+    const bool is_vec_output =
         (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::gpr_to_vec);
 
     for (auto idx : pool_vec_idxs) {
@@ -95,7 +95,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 
     // For sse41 mask register has to be Xmm(0)
     if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
-        size_t idx = 0;
+        const size_t idx = 0;
         if (is_vec_input) {
             OV_CPU_JIT_EMITTER_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(),
                                       "Xmm(0) cannot be input register in SSE41");
@@ -112,7 +112,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         // moving mask vector at the beginning of aux vectors list to simplify further processing
         for (size_t& aux_vec_idx : aux_vec_idxs) {
             if (aux_vec_idx == 0) {
-                size_t tmp = aux_vec_idxs[0];
+                const size_t tmp = aux_vec_idxs[0];
                 aux_vec_idxs[0] = aux_vec_idx;
                 aux_vec_idx = tmp;
                 break;
@@ -155,7 +155,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
 
     for (size_t gpr_idx = 0; gpr_idx <= Operand::R15; ++gpr_idx) {
-        size_t _idx = Operand::R15 - gpr_idx;  // we allocate from the end
+        const size_t _idx = Operand::R15 - gpr_idx;  // we allocate from the end
 
         if (aux_gpr_idxs.size() >= aux_gprs_count()) {
             break;
@@ -194,7 +194,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         aux_gpr_idxs.erase(aux_gpr_idxs.end() - 1);
     }
 
-    for (uint64_t preserved_gpr_idx : preserved_gpr_idxs) {
+    for (const uint64_t preserved_gpr_idx : preserved_gpr_idxs) {
         h->push(Reg64(preserved_gpr_idx));
     }
 

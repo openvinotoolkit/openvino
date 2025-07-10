@@ -186,9 +186,9 @@ inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const
     const float yMin = std::max(bbox1[1], bbox2[1]);
     const float xMax = std::min(bbox1[2], bbox2[2]);
     const float yMax = std::min(bbox1[3], bbox2[3]);
-    float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
-    float width = xMax - xMin + norm;
-    float height = yMax - yMin + norm;
+    const float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
+    const float width = xMax - xMin + norm;
+    const float height = yMax - yMin + norm;
     const float interArea = width * height;
     const float bbox1Area = boxArea(bbox1, normalized);
     const float bbox2Area = boxArea(bbox2, normalized);
@@ -228,7 +228,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
     iouMax[0] = 0.;
     ov::parallel_for(originalSize - 1, [&](size_t i) {
         float max_iou = 0.;
-        size_t actual_index = i + 1;
+        const size_t actual_index = i + 1;
         auto idx_a = candidateIndex[actual_index];
         for (size_t j = 0; j < actual_index; j++) {
             auto idx_b = candidateIndex[j];
@@ -293,7 +293,7 @@ void MatrixNms::prepareParams() {
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;
-    size_t real_num_classes = [&]() {
+    const size_t real_num_classes = [&]() {
         if (m_backgroundClass == -1 || static_cast<size_t>(m_backgroundClass) >= m_numClasses) {
             return m_numClasses;
         }
@@ -356,7 +356,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         const float* boxesPtr = boxes + batchIdx * m_numBoxes * 4;
         const float* scoresPtr = scores + batchIdx * (m_numClasses * m_numBoxes) + classIdx * m_numBoxes;
         size_t classNumDet = 0;
-        size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
+        const size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         classNumDet = nmsMatrix(boxesPtr,
                                 scoresPtr,
                                 m_filteredBoxes.data() + batchOffset + m_classOffset[classIdx],
@@ -366,7 +366,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     });
 
     ov::parallel_for(m_numBatches, [&](size_t batchIdx) {
-        size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
+        const size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         BoxInfo* batchFilteredBox = m_filteredBoxes.data() + batchOffset;
         auto& numPerClass = m_numPerBatchClass[batchIdx];
         auto numDet = std::accumulate(numPerClass.begin(), numPerClass.end(), static_cast<int64_t>(0));

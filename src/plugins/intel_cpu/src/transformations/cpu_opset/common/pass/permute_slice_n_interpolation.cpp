@@ -30,7 +30,7 @@ namespace ov {
 intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
     MATCHER_SCOPE(PermuteSliceAndInterpolation);
 
-    element::TypeVector param_precisions{element::i8, element::u8};
+    const element::TypeVector param_precisions{element::i8, element::u8};
     auto input_m = pass::pattern::wrap_type<op::v0::Parameter>(pass::pattern::type_matches_any(param_precisions));
     auto const_m = pass::pattern::wrap_type<op::v0::Constant>();
     auto slice_m = pass::pattern::wrap_type<op::v8::Slice>({input_m, const_m, const_m, const_m, const_m},
@@ -41,7 +41,7 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         {transpose_m, const_m, const_m, const_m},
         pass::pattern::consumers_count(1));
 
-    matcher_pass_callback callback = [=](pass::pattern::Matcher& m) {
+    const matcher_pass_callback callback = [=](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& input = pattern_map.at(input_m);

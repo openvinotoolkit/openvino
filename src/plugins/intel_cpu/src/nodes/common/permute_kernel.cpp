@@ -111,7 +111,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
 
         if (n + 1 == static_cast<int>(jcp.ndims)) {
             if (jcp.src_strides[n] == 1 && jcp.dst_strides[n] == 1) {
-                uint32_t step = vlen / jcp.data_size;
+                const uint32_t step = vlen / jcp.data_size;
 
                 L(main_loop_label);
                 {
@@ -239,8 +239,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         parallel_for(dst_dims[0], [&](int i0) {
             auto arg = jit_args_permute();
 
-            size_t dst_off = i0 * dst_strides[0];
-            size_t src_off = i0 * src_strides[0];
+            const size_t dst_off = i0 * dst_strides[0];
+            const size_t src_off = i0 * src_strides[0];
             arg.src = &src_data[src_off * jcp.data_size];
             arg.dst = &dst_data[dst_off * jcp.data_size];
 
@@ -251,8 +251,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
             auto arg = jit_args_permute();
 
-            size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
-            size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
+            const size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
+            const size_t src_off = i0 * src_strides[0] + i1 * src_strides[1];
             arg.src = &src_data[src_off * jcp.data_size];
             arg.dst = &dst_data[dst_off * jcp.data_size];
 
@@ -263,8 +263,8 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data, const uint8_t* dst
         parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
             auto arg = jit_args_permute();
 
-            size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
-            size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
+            const size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];
+            const size_t src_off = i0 * src_strides[0] + i1 * src_strides[1] + i2 * src_strides[2];
             arg.src = &src_data[src_off * jcp.data_size];
             arg.dst = &dst_data[dst_off * jcp.data_size];
 

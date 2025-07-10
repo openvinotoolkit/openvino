@@ -119,7 +119,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
 
     const auto& srcDims = node->getInputShapeAtPort(0).getDims();
     const auto& inDataShape = node->getInputShapeAtPort(0);
-    size_t outDataShapeRank = node->getOutputShapeAtPort(0).getRank();
+    const size_t outDataShapeRank = node->getOutputShapeAtPort(0).getRank();
 
     NodeConfig config;
     if (repeats.size() != outDataShapeRank && !repeats.empty()) {
@@ -239,7 +239,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node* node,
 
     VectorDims optimizedDstStrides = calculateDenseStrides(optimizedDims);
 
-    size_t dataSize =
+    const size_t dataSize =
         node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
     for (size_t i = 0; i < optimizedDims.size(); i++) {
         optimizedSrcStrides[i] *= dataSize;
@@ -299,8 +299,8 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
         cpu_convert(srcData, dstData, prc, prc, optimizedParams.copySize / prc.size());
     } else if (optimizedParams.srcStrides[5] == 0) {
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
-            size_t data_size = optimizedParams.dstStrides[5];
-            size_t elt_cnt = optimizedParams.dims[5];
+            const size_t data_size = optimizedParams.dstStrides[5];
+            const size_t elt_cnt = optimizedParams.dims[5];
             const auto* srcData_i32 = srcMemory->getDataAs<const int>();
             if (data_size == 1) {
                 memset(dstData, srcData[0], elt_cnt);

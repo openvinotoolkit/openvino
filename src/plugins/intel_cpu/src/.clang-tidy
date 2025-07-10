@@ -99,7 +99,6 @@ Checks: >
   -modernize-use-std-numbers,
   -modernize-use-trailing-return-type,
   -misc-header-include-cycle,
-  -misc-const-correctness,
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,

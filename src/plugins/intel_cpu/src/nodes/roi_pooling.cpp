@@ -96,7 +96,7 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
         store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
         store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
 
-        int nb_c_tail = jpp_.nb_c % jpp_.nb_c_blocking;
+        const int nb_c_tail = jpp_.nb_c % jpp_.nb_c_blocking;
         cmp(reg_c_blocks, jpp_.nb_c_blocking);
         jne(nb_c_tail ? tail_label : exit_label, T_NEAR);
 
@@ -190,7 +190,7 @@ private:
 
         const int src_c_off = jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_prc.size();
         for (int i = 0; i < c_blocks; i++) {
-            Vmm vmm_max = get_acc_reg(i);
+            const Vmm vmm_max = get_acc_reg(i);
 
             load_emitter->emit_code({static_cast<size_t>(reg_input.getIdx()), static_cast<size_t>(i) * src_c_off},
                                     {static_cast<size_t>(vmm_max.getIdx())},
@@ -206,8 +206,8 @@ private:
             L(w_loop_label);
             {
                 for (int i = 0; i < c_blocks; i++) {
-                    Vmm vmm_max = get_acc_reg(i);
-                    Vmm vmm_src = get_src_reg(i);
+                    const Vmm vmm_max = get_acc_reg(i);
+                    const Vmm vmm_src = get_src_reg(i);
 
                     load_emitter->emit_code(
                         {static_cast<size_t>(aux_reg_input1.getIdx()), static_cast<size_t>(i) * src_c_off},
@@ -244,7 +244,7 @@ private:
 
         const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
         for (int i = 0; i < c_blocks; i++) {
-            Vmm vmm_dst = get_acc_reg(i);
+            const Vmm vmm_dst = get_acc_reg(i);
 
             store_emitter->emit_code({static_cast<size_t>(vmm_dst.getIdx())},
                                      {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(i) * dst_c_off},
@@ -259,10 +259,10 @@ private:
         uni_vmovq(xmm_xf, reg_xf);
         uni_vbroadcastss(vmm_xf, xmm_xf);
 
-        Vmm vmm_src00 = get_src_reg(0);
-        Vmm vmm_src01 = get_src_reg(1);
-        Vmm vmm_src10 = get_src_reg(2);
-        Vmm vmm_src11 = get_src_reg(3);
+        const Vmm vmm_src00 = get_src_reg(0);
+        const Vmm vmm_src01 = get_src_reg(1);
+        const Vmm vmm_src10 = get_src_reg(2);
+        const Vmm vmm_src11 = get_src_reg(3);
 
         for (int i = 0; i < c_blocks; i++) {
             const int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_prc.size();
@@ -473,7 +473,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
     }
 
     auto format = mayiuse(avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
-    impl_desc_type impl_type = [&]() {
+    const impl_desc_type impl_type = [&]() {
         if (mayiuse(cpu::x64::avx512_core)) {
             return impl_desc_type::jit_avx512;
         }
@@ -569,7 +569,7 @@ void ROIPooling::prepareParams() {
     refParams.oh = outDims[2];
     refParams.ow = outDims[3];
 
-    RoiPoolingKey key = {refParams};
+    const RoiPoolingKey key = {refParams};
     auto builder = [](const RoiPoolingKey& key) {
         return ROIPoolingExecutor::createROIPoolingNewExecutor(key.refParams);
     };
@@ -621,12 +621,12 @@ private:
                                  const VectorDims& dst_strides,
                                  const size_t src_roi_step) {
         const auto& jpp = roi_pooling_kernel->jpp_;
-        int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
-        int MB = jpp.mb;
+        const int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
+        const int MB = jpp.mb;
 
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
-            size_t roi_off = real_rois * src_roi_step;
+            const size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
             auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
@@ -637,8 +637,8 @@ private:
 
         parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
             auto arg = jit_roi_pooling_call_args();
-            int cb = cbb * jpp.nb_c_blocking;
-            int cb_num = jpp.nb_c_blocking;
+            const int cb = cbb * jpp.nb_c_blocking;
+            const int cb_num = jpp.nb_c_blocking;
             arg.c_blocks = std::min(cb + cb_num, jpp.nb_c) - cb;
 
             if (n >= real_rois) {
@@ -646,7 +646,7 @@ private:
                 arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
                 (*roi_pooling_kernel)(&arg);
             } else {
-                size_t roi_off = n * src_roi_step;
+                const size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
                 auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
@@ -677,10 +677,10 @@ private:
                     arg.kh = hend - hstart;
                     arg.kw = wend - wstart;
                 } else {
-                    float roi_start_w_ = src_roi_ptr[1];
-                    float roi_start_h_ = src_roi_ptr[2];
-                    float roi_end_w_ = src_roi_ptr[3];
-                    float roi_end_h_ = src_roi_ptr[4];
+                    const float roi_start_w_ = src_roi_ptr[1];
+                    const float roi_start_h_ = src_roi_ptr[2];
+                    const float roi_end_w_ = src_roi_ptr[3];
+                    const float roi_end_h_ = src_roi_ptr[4];
 
                     auto [in_x, in_y] = getXYForBilinearMode(roi_start_h_,
                                                              roi_end_h_,
@@ -755,12 +755,12 @@ public:
                           const VectorDims& src_strides,
                           const VectorDims& dst_strides,
                           const size_t src_roi_step) {
-        int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
-        int MB = jpp.mb;
+        const int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
+        const int MB = jpp.mb;
 
         int real_rois = 0;
         for (; real_rois < MB; real_rois++) {
-            size_t roi_off = real_rois * src_roi_step;
+            const size_t roi_off = real_rois * src_roi_step;
 
             const auto* src_roi_ptr = &src_roi[roi_off];
             auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
@@ -770,12 +770,12 @@ public:
         }
 
         parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
-            int cb_num = jpp.nb_c_blocking;
-            int c_block = jpp.c_block;
+            const int cb_num = jpp.nb_c_blocking;
+            const int c_block = jpp.c_block;
 
             if (n >= real_rois) {
                 for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                    int ch_blk_cur = cbb * cb_num + cbb_cur;
+                    const int ch_blk_cur = cbb * cb_num + cbb_cur;
                     if (ch_blk_cur >= jpp.nb_c) {
                         break;  // current block work is done
                     }
@@ -785,7 +785,7 @@ public:
                     }
                 }
             } else {
-                size_t roi_off = n * src_roi_step;
+                const size_t roi_off = n * src_roi_step;
                 const auto* src_roi_ptr = &src_roi[roi_off];
 
                 auto roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
@@ -808,7 +808,7 @@ public:
                                                                              jpp.pooled_w);
 
                     for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                        int ch_blk_cur = cbb * cb_num + cbb_cur;
+                        const int ch_blk_cur = cbb * cb_num + cbb_cur;
                         if (ch_blk_cur >= jpp.nb_c) {
                             break;  // current block work is done
                         }
@@ -823,7 +823,7 @@ public:
                                              hstart * src_strides[2] + wstart * src_strides[3] + c];
                                 for (int h = hstart; h < hend; ++h) {
                                     for (int w = wstart; w < wend; ++w) {
-                                        float batch_data =
+                                        const float batch_data =
                                             src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
                                                      h * src_strides[2] + w * src_strides[3] + c];
                                         dst[pool_index] = std::fmax(batch_data, dst[pool_index]);
@@ -833,10 +833,10 @@ public:
                         }
                     }
                 } else {
-                    float roi_start_w_ = src_roi_ptr[1];
-                    float roi_start_h_ = src_roi_ptr[2];
-                    float roi_end_w_ = src_roi_ptr[3];
-                    float roi_end_h_ = src_roi_ptr[4];
+                    const float roi_start_w_ = src_roi_ptr[1];
+                    const float roi_start_h_ = src_roi_ptr[2];
+                    const float roi_end_w_ = src_roi_ptr[3];
+                    const float roi_end_h_ = src_roi_ptr[4];
 
                     auto [in_x, in_y] = getXYForBilinearMode(roi_start_h_,
                                                              roi_end_h_,
@@ -851,7 +851,7 @@ public:
 
                     if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                         for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            const int ch_blk_cur = cbb * cb_num + cbb_cur;
                             if (ch_blk_cur >= jpp.nb_c) {
                                 break;  // current block work is done
                             }
@@ -875,7 +875,7 @@ public:
                         }
 
                         for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            const int ch_blk_cur = cbb * cb_num + cbb_cur;
                             if (ch_blk_cur >= jpp.nb_c) {
                                 break;  // current block work is done
                             }
@@ -935,8 +935,8 @@ std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxM
                                                                                     const int ow,
                                                                                     const int pooled_h,
                                                                                     const int pooled_w) {
-    int roi_height = std::max(roi_end_h - roi_start_h + 1, 1);
-    int roi_width = std::max(roi_end_w - roi_start_w + 1, 1);
+    const int roi_height = std::max(roi_end_h - roi_start_h + 1, 1);
+    const int roi_width = std::max(roi_end_w - roi_start_w + 1, 1);
 
     int hstart = (oh * roi_height) / pooled_h;
     if ((hstart * pooled_h) > (oh * roi_height)) {
@@ -975,8 +975,8 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
                                                                              const int ow,
                                                                              const int pooled_h,
                                                                              const int pooled_w) {
-    float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
-    float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
+    const float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
+    const float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
 
     float in_y = NAN;
     float in_x = NAN;

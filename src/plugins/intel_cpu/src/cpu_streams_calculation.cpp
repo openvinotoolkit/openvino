@@ -93,9 +93,9 @@ std::vector<std::vector<int>> get_streams_info_table(
         streams_info_table.push_back(stream_info);
         stream_info[NUMBER_OF_STREAMS] = 0;
         int total_threads = stream_info[THREADS_PER_STREAM];
-        int socket_id = stream_info[STREAM_SOCKET_ID];
-        int node_start = one_proc_table.size() == 1 ? 0 : 1;
-        int node_end = one_proc_table.size() == 1 ? 1 : one_proc_table.size();
+        const int socket_id = stream_info[STREAM_SOCKET_ID];
+        const int node_start = one_proc_table.size() == 1 ? 0 : 1;
+        const int node_end = one_proc_table.size() == 1 ? 1 : one_proc_table.size();
         // When n_mode is 3, the following loop only selects CPUs on socket with the same id as current_socket_id.
         // When n_mode is 2, the following loop only selects CPUs on sockets with id different from current_socket_id.
         // When n_mode is 1, the following loop selects CPUs on all sockets.
@@ -314,7 +314,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                 check_threads_per_stream();
             }
         } else {
-            int base_type = (proc_type_table[0][MAIN_CORE_PROC] == 0) ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
+            const int base_type = (proc_type_table[0][MAIN_CORE_PROC] == 0) ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
             if (0 == model_prefer_threads) {
                 int n_proc = 0;
 
@@ -374,7 +374,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                 n_streams = input_infer_requests > 0 ? std::min(n_streams, input_infer_requests) : n_streams;
                 n_threads_per_stream = -1;
             } else {
-                int model_threads = [&]() {
+                const int model_threads = [&]() {
                     if (n_threads == 1) {
                         return 1;
                     }
@@ -395,7 +395,7 @@ std::vector<std::vector<int>> get_streams_info_table(
         }
     }
 
-    int total_streams = n_streams;
+    const int total_streams = n_streams;
 
     if (stream_info[PROC_TYPE] == INIT_VAL) {
         if ((n_streams == 1) && (proc_type_table.size() > 1) &&
@@ -582,7 +582,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
     std::vector<std::vector<int>> rank_table = {};
     num_sub_streams = 0;
     std::vector<int> init_rank = {};
-    int rank_level = input_rank_level == 0 ? 1 : input_rank_level;
+    const int rank_level = input_rank_level == 0 ? 1 : input_rank_level;
     init_rank.resize(rank_level, 0);
 
     for (const auto& row : streams_info_table) {
@@ -640,7 +640,7 @@ int get_model_prefer_threads(const int num_streams,
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
-        ov::MemBandwidthPressure networkToleranceForLowCache =
+        const ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model,
                                                  L2_cache_size,
                                                  memThresholdAssumeLimitedForISA,
@@ -712,17 +712,17 @@ int get_model_prefer_threads(const int num_streams,
                                    : proc_type_table[0][ALL_PROC];
             }
 #else
-            bool llm_related = has_matmul_with_compressed_weights(model);
-            bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || llm_related;
+            const bool llm_related = has_matmul_with_compressed_weights(model);
+            const bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model) || llm_related;
             const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
             const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
             // By default the latency case uses (faster) Big cores only, depending on the compute ratio
             // But on MTL detected by ov::get_number_of_blocked_cores(), use Big and Little cores together in Big
             // cores only cases except LLM.
-            bool use_all_cores =
+            const bool use_all_cores =
                 proc_type_table[0][MAIN_CORE_PROC] <=
                 (proc_type_table[0][EFFICIENT_CORE_PROC] / (int8_intensive ? int8_threshold : fp32_threshold));
-            bool use_big_and_little = !llm_related && (ov::get_number_of_blocked_cores() != 0);
+            const bool use_big_and_little = !llm_related && (ov::get_number_of_blocked_cores() != 0);
 
             if (use_all_cores || use_big_and_little) {
                 model_prefer = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
@@ -803,7 +803,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 
 void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config) {
     {
-        std::lock_guard<std::mutex> lock{_streams_executor_mutex};
+        const std::lock_guard<std::mutex> lock{_streams_executor_mutex};
         std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
 
         generate_stream_info(streams, -1, model, config, proc_type_table);

@@ -173,7 +173,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
-            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
+            static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name); /* NOLINT (misc-const-correctness)*/             \
             if (DEBUG_ENABLE_NAME) {                                                                               \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
@@ -260,7 +260,7 @@ struct EnforceInferPrcDebug {
     }
 
     bool enabled(const std::string& type, [[maybe_unused]] const std::string& name, const std::string& org_names) {
-        std::string tag = type + "@" + org_names;
+        const std::string tag = type + "@" + org_names;
         std::smatch match;
         bool matched = true;
         // filter using pos pattern

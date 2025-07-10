@@ -168,7 +168,7 @@ public:
                         ov::element::Type exec_prc = ov::element::f32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(n);
-        ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+        const ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
         if (approximationMode == ov::op::GeluApproximationMode::ERF) {
             kind = dnnl_eltwise_gelu_erf;
         } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {

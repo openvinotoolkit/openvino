@@ -63,18 +63,18 @@ static void refine_boxes(const float* boxes,
                          const int classes_num,
                          const float max_delta_log_wh,
                          float coordinates_offset) {
-    Indexer box_idx({rois_num, 4});
-    Indexer delta_idx({rois_num, classes_num, 4});
-    Indexer score_idx({rois_num, classes_num});
+    const Indexer box_idx({rois_num, 4});
+    const Indexer delta_idx({rois_num, classes_num, 4});
+    const Indexer score_idx({rois_num, classes_num});
 
-    Indexer refined_box_idx({classes_num, rois_num, 4});
-    Indexer refined_score_idx({classes_num, rois_num});
+    const Indexer refined_box_idx({classes_num, rois_num, 4});
+    const Indexer refined_score_idx({classes_num, rois_num});
 
     for (int roi_idx = 0; roi_idx < rois_num; ++roi_idx) {
-        float x0 = boxes[box_idx({roi_idx, 0})];
-        float y0 = boxes[box_idx({roi_idx, 1})];
-        float x1 = boxes[box_idx({roi_idx, 2})];
-        float y1 = boxes[box_idx({roi_idx, 3})];
+        const float x0 = boxes[box_idx({roi_idx, 0})];
+        const float y0 = boxes[box_idx({roi_idx, 1})];
+        const float x1 = boxes[box_idx({roi_idx, 2})];
+        const float y1 = boxes[box_idx({roi_idx, 3})];
 
         if (x1 - x0 <= 0 || y1 - y0 <= 0) {
             continue;
@@ -155,35 +155,35 @@ static inline float JaccardOverlap(const float* decoded_bbox,
                                    const int idx1,
                                    const int idx2,
                                    const float coordinates_offset = 1) {
-    float xmin1 = decoded_bbox[idx1 * 4 + 0];
-    float ymin1 = decoded_bbox[idx1 * 4 + 1];
-    float xmax1 = decoded_bbox[idx1 * 4 + 2];
-    float ymax1 = decoded_bbox[idx1 * 4 + 3];
+    const float xmin1 = decoded_bbox[idx1 * 4 + 0];
+    const float ymin1 = decoded_bbox[idx1 * 4 + 1];
+    const float xmax1 = decoded_bbox[idx1 * 4 + 2];
+    const float ymax1 = decoded_bbox[idx1 * 4 + 3];
 
-    float xmin2 = decoded_bbox[idx2 * 4 + 0];
-    float ymin2 = decoded_bbox[idx2 * 4 + 1];
-    float ymax2 = decoded_bbox[idx2 * 4 + 3];
-    float xmax2 = decoded_bbox[idx2 * 4 + 2];
+    const float xmin2 = decoded_bbox[idx2 * 4 + 0];
+    const float ymin2 = decoded_bbox[idx2 * 4 + 1];
+    const float ymax2 = decoded_bbox[idx2 * 4 + 3];
+    const float xmax2 = decoded_bbox[idx2 * 4 + 2];
 
     if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
         return 0.0F;
     }
 
-    float intersect_xmin = (std::max)(xmin1, xmin2);
-    float intersect_ymin = (std::max)(ymin1, ymin2);
-    float intersect_xmax = (std::min)(xmax1, xmax2);
-    float intersect_ymax = (std::min)(ymax1, ymax2);
+    const float intersect_xmin = (std::max)(xmin1, xmin2);
+    const float intersect_ymin = (std::max)(ymin1, ymin2);
+    const float intersect_xmax = (std::min)(xmax1, xmax2);
+    const float intersect_ymax = (std::min)(ymax1, ymax2);
 
-    float intersect_width = intersect_xmax - intersect_xmin + coordinates_offset;
-    float intersect_height = intersect_ymax - intersect_ymin + coordinates_offset;
+    const float intersect_width = intersect_xmax - intersect_xmin + coordinates_offset;
+    const float intersect_height = intersect_ymax - intersect_ymin + coordinates_offset;
 
     if (intersect_width <= 0 || intersect_height <= 0) {
         return 0.0F;
     }
 
-    float intersect_size = intersect_width * intersect_height;
-    float bbox1_size = bbox_sizes[idx1];
-    float bbox2_size = bbox_sizes[idx2];
+    const float intersect_size = intersect_width * intersect_height;
+    const float bbox1_size = bbox_sizes[idx1];
+    const float bbox2_size = bbox_sizes[idx2];
 
     return intersect_size / (bbox1_size + bbox2_size - intersect_size);
 }
@@ -207,7 +207,7 @@ static void nms_cf(const float* conf_data,
         }
     }
 
-    int num_output_scores = (pre_nms_topn == -1 ? count : (std::min)(pre_nms_topn, count));
+    const int num_output_scores = (pre_nms_topn == -1 ? count : (std::min)(pre_nms_topn, count));
 
     std::partial_sort_copy(indices,
                            indices + count,
@@ -222,7 +222,7 @@ static void nms_cf(const float* conf_data,
         bool keep = true;
         for (int k = 0; k < detections; ++k) {
             const int kept_idx = indices[k];
-            float overlap = JaccardOverlap(bboxes, sizes, idx, kept_idx);
+            const float overlap = JaccardOverlap(bboxes, sizes, idx, kept_idx);
             if (overlap > nms_threshold) {
                 keep = false;
                 break;
@@ -315,8 +315,8 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
     std::vector<float> refined_boxes(classes_num_ * rois_num * 4, 0);
     std::vector<float> refined_scores(classes_num_ * rois_num, 0);
     std::vector<float> refined_boxes_areas(classes_num_ * rois_num, 0);
-    Indexer refined_box_idx({classes_num_, rois_num, 4});
-    Indexer refined_score_idx({classes_num_, rois_num});
+    const Indexer refined_box_idx({classes_num_, rois_num, 4});
+    const Indexer refined_score_idx({classes_num_, rois_num});
 
     refine_boxes(boxes,
                  deltas,
@@ -357,10 +357,10 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
 
     int indices_offset = 0;
     for (int c = 0; c < classes_num_; ++c) {
-        int n = detections_per_class[c];
+        const int n = detections_per_class[c];
         for (int i = 0; i < n; ++i) {
-            int idx = indices[indices_offset + i];
-            float score = refined_scores[refined_score_idx({c, idx})];
+            const int idx = indices[indices_offset + i];
+            const float score = refined_scores[refined_score_idx({c, idx})];
             conf_index_class_map.emplace_back(score, std::make_pair(c, idx));
         }
         indices_offset += n;
@@ -383,9 +383,9 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
 
     int i = 0;
     for (const auto& detection : conf_index_class_map) {
-        float score = detection.first;
-        int cls = detection.second.first;
-        int idx = detection.second.second;
+        const float score = detection.first;
+        const int cls = detection.second.first;
+        const int idx = detection.second.second;
         output_boxes[4 * i + 0] = refined_boxes[refined_box_idx({cls, idx, 0})];
         output_boxes[4 * i + 1] = refined_boxes[refined_box_idx({cls, idx, 1})];
         output_boxes[4 * i + 2] = refined_boxes[refined_box_idx({cls, idx, 2})];

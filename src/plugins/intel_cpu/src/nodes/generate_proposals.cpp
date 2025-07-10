@@ -67,7 +67,7 @@ void refine_anchors(const float* deltas,
 
     parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
-            int a_idx = anchor_idx(h, w, anchor, 0);
+            const int a_idx = anchor_idx(h, w, anchor, 0);
             float x0 = anchors[a_idx + 0];
             float y0 = anchors[a_idx + 1];
             float x1 = anchors[a_idx + 2];
@@ -111,7 +111,7 @@ void refine_anchors(const float* deltas,
             const float box_w = x1 - x0 + coordinates_offset;
             const float box_h = y1 - y0 + coordinates_offset;
 
-            int p_idx = proposal_idx(h, w, anchor, 0);
+            const int p_idx = proposal_idx(h, w, anchor, 0);
             proposals[p_idx + 0] = x0;
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
@@ -277,7 +277,7 @@ void fill_output_blobs(const float* proposals,
     const float* src_score = proposals + 4 * num_proposals;
 
     parallel_for(num_rois, [&](size_t i) {
-        int index = roi_indices[i];
+        const int index = roi_indices[i];
         rois[i * 4 + 0] = src_x0[index];
         rois[i * 4 + 1] = src_y0[index];
         rois[i * 4 + 2] = src_x1[index];
@@ -358,7 +358,7 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
-        for (uint64_t anchorDim : anchorDims) {
+        for (const uint64_t anchorDim : anchorDims) {
             anchor_dims_size *= anchorDim;
         }
 
@@ -424,7 +424,7 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         std::vector<int> is_dead(pre_nms_topn);
 
         // Execute
-        size_t batch_size = scoreDims[0];
+        const size_t batch_size = scoreDims[0];
         size_t total_num_rois = 0;
         std::vector<float> roi_item;
         std::vector<float> score_item;
@@ -484,7 +484,7 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
                     post_nms_topn_,
                     coordinates_offset_);
 
-            size_t new_num_rois = total_num_rois + num_rois;
+            const size_t new_num_rois = total_num_rois + num_rois;
             roi_item.resize(new_num_rois * 4);
             score_item.resize(new_num_rois);
 

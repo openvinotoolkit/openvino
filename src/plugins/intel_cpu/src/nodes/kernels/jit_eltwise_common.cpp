@@ -58,7 +58,7 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
                        has_same_precision));
 
     for (size_t i = 1; i < eltwise_data.size(); ++i) {
-        std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
+        const std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
         std::set<std::vector<element::Type>> prcs_intersect = {};
 
         OPENVINO_ASSERT(std::all_of(prcs.begin(), prcs.end(), has_same_precision),

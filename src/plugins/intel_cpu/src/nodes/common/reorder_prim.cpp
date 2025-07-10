@@ -44,16 +44,17 @@ dnnl::reorder getReorderPrim(const MultiCachePtr& cache,
                              const dnnl::memory::desc& src,
                              const dnnl::memory::desc& dest) {
     auto builder = [&engine](const ReorderKey& key) {
-        dnnl::primitive_attr attr;
+        const dnnl::primitive_attr attr;
         DEBUG_LOG(key.src, "->", key.dest);
-        dnnl::reorder::primitive_desc pd = dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
+        const dnnl::reorder::primitive_desc pd =
+            dnnl::reorder::primitive_desc(engine, key.src, engine, key.dest, attr, true);
         if (!pd) {
             return dnnl::reorder();
         }
         return dnnl::reorder(pd);
     };
 
-    ReorderKey key = {src, dest};
+    const ReorderKey key = {src, dest};
     if (cache) {
         auto result = cache->getOrCreate(key, builder);
         return result.first;

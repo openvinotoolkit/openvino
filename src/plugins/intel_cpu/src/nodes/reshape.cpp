@@ -107,8 +107,8 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     }
 
     ov::element::Type inPrec = getOriginalInputPrecisionAtPort(0);
-    ov::element::Type outPrec = getOriginalOutputPrecisionAtPort(0);
-    ov::element::Type secondInPrc = ov::element::i32;
+    const ov::element::Type outPrec = getOriginalOutputPrecisionAtPort(0);
+    const ov::element::Type secondInPrc = ov::element::i32;
 
     // Current reshape implementation is simple memory reinterpret,
     // same precision on input and output is required

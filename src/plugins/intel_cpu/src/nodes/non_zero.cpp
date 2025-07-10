@@ -97,11 +97,11 @@ std::vector<size_t> NonZero::getNonZeroElementsCount(const T* src, const Shape& 
     T zero = 0;
     std::vector<size_t> counts;
     size_t inSize = inShape.getElementsCount();
-    size_t inRank = inShape.getRank();
+    const size_t inRank = inShape.getRank();
 
     switch (inRank) {
     case 0: {
-        size_t count = src[0] != zero ? 1 : 0;
+        const size_t count = src[0] != zero ? 1 : 0;
         counts.push_back(count);
         break;
     }
@@ -164,7 +164,7 @@ void NonZero::executeSpecified() {
     const T* src = getSrcDataAtPortAs<T>(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
     Shape inShape = getParentEdgeAt(0)->getMemory().getShape();
-    size_t inRank = inShape.getRank();
+    const size_t inRank = inShape.getRank();
     std::vector<size_t> nonZeroCounts = getNonZeroElementsCount(src, inShape);
     std::vector<size_t> destIndices(nonZeroCounts.size());
     size_t totalNonZeroCount = 0;
@@ -175,7 +175,7 @@ void NonZero::executeSpecified() {
     }
 
     if (isDynamicNode()) {
-        VectorDims newDims{inRank, totalNonZeroCount};
+        const VectorDims newDims{inRank, totalNonZeroCount};
         redefineOutputMemory({newDims});
     }
     auto* dst = dstMemPtr->getDataAs<int>();
@@ -241,7 +241,7 @@ void NonZero::executeSpecified() {
         break;
     }
     case 3: {
-        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+        const size_t x2totalNonZeroCount = totalNonZeroCount * 2;
 
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
 #define ELEMENTS_COUNT 96
@@ -288,8 +288,8 @@ void NonZero::executeSpecified() {
         break;
     }
     case 4: {
-        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
-        size_t x3totalNonZeroCount = totalNonZeroCount * 3;
+        const size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+        const size_t x3totalNonZeroCount = totalNonZeroCount * 3;
 
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
 #define ELEMENTS_COUNT 128
@@ -340,9 +340,9 @@ void NonZero::executeSpecified() {
         break;
     }
     case 5: {
-        size_t x2totalNonZeroCount = totalNonZeroCount * 2;
-        size_t x3totalNonZeroCount = totalNonZeroCount * 3;
-        size_t x4totalNonZeroCount = totalNonZeroCount * 4;
+        const size_t x2totalNonZeroCount = totalNonZeroCount * 2;
+        const size_t x3totalNonZeroCount = totalNonZeroCount * 3;
+        const size_t x4totalNonZeroCount = totalNonZeroCount * 4;
 
         parallel_nt(threadsCount, [&](int ithr, int nthr) {
 #define ELEMENTS_COUNT 160

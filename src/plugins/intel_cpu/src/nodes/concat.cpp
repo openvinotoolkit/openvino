@@ -250,10 +250,10 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     }
 
     std::map<LayoutType, size_t> formatFrequency;
-    std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp,
-                                                LayoutType::nspc,
-                                                LayoutType::nCsp8c,
-                                                LayoutType::nCsp16c};
+    const std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp,
+                                                      LayoutType::nspc,
+                                                      LayoutType::nCsp8c,
+                                                      LayoutType::nCsp16c};
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
         auto parent = parentEdge->getParent();
@@ -264,12 +264,12 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         }
 
         const auto& parent_config = parent_pdesc->getConfig();
-        int outputIndex = parentEdge->getInputNum();
+        const int outputIndex = parentEdge->getInputNum();
         if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size())) {
             THROW_CPU_NODE_ERR("Cannot find index of output node");
         }
         const auto& port_desc = parent_config.outConfs[outputIndex].getMemDesc();
-        for (auto& item : supportedLayouts) {
+        for (const auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
                 formatFrequency[item] += 1;
             }
@@ -284,12 +284,12 @@ void Concat::selectOptimalPrimitiveDescriptor() {
         }
 
         const auto& config = prim_desc->getConfig();
-        int inputIndex = childEdge->getOutputNum();
+        const int inputIndex = childEdge->getOutputNum();
         if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size())) {
             THROW_CPU_NODE_ERR("Cannot find index of output node");
         }
         const auto& port_desc = config.inConfs[inputIndex].getMemDesc();
-        for (auto& item : supportedLayouts) {
+        for (const auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
                 formatFrequency[item] += 1;
             }
@@ -520,7 +520,7 @@ void Concat::initOptimalPrimitiveDescriptor() {
     auto* primDesc = getSelectedPrimitiveDescriptor();
     auto* memDesc = primDesc->getConfig().outConfs[0].getMemDesc()->as<BlockedMemoryDesc>();
     auto rank = memDesc->getShape().getRank();
-    bool isBlocked = rank != memDesc->getBlockDims().size();
+    const bool isBlocked = rank != memDesc->getBlockDims().size();
     if (!isBlocked && rank <= MAX_RANK_REF) {
         canExecRef = true;
         nelemToCopy.resize(getParentEdges().size(), 0);
@@ -644,7 +644,7 @@ void Concat::execRef() {
                 std::memcpy(outputData, inData, nelemToCopy[a]);
             }
         } else {
-            int nthr = parallel_get_max_threads();
+            const int nthr = parallel_get_max_threads();
             parallel_nt(nthr, [&](int ithr, int nthr) {
                 for (size_t a = 0; a < srcPtrs.size(); ++a) {
                     size_t start = 0;
@@ -683,10 +683,11 @@ void Concat::execRef() {
                                return;
                            }
 
-                           size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2 +
-                                          inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
-                           size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2 +
-                                           outputStrides[3] * n3 + outputStrides[4] * n4;
+                           const size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 +
+                                                inputStrides[a][2] * n2 + inputStrides[a][3] * n3 +
+                                                inputStrides[a][4] * n4;
+                           const size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2 +
+                                                 outputStrides[3] * n3 + outputStrides[4] * n4;
                            const uint8_t* i = &srcPtrs[a][inOff];
                            uint8_t* o = &dstPtr[dstOffset[a] + outOff];
 
@@ -744,8 +745,8 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
         THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
     }
     const auto& config = selected_pd->getConfig();
-    size_t numberOfInputs = config.inConfs.size();
-    size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
+    const size_t numberOfInputs = config.inConfs.size();
+    const size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
     auto baseDim = outputShapes.front().getDims()[axis];
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM,
                     "can't use inPlace memory with concatenation on dynamic dimension");

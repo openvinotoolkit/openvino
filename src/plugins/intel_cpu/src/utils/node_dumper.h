@@ -33,7 +33,7 @@ public:
     }
 };
 
-#    define DUMP(...) DumpHelper __helper##__node(__VA_ARGS__);
+#    define DUMP(...) DumpHelper __helper##__node(__VA_ARGS__); /* NOLINT(misc-const-correctness) */
 }  // namespace ov::intel_cpu
 
 #else  // CPU_DEBUG_CAPS

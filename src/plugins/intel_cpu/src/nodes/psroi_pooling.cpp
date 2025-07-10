@@ -154,7 +154,7 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    impl_desc_type impl_type = [&]() {
+    const impl_desc_type impl_type = [&]() {
         if (mayiuse(cpu::x64::avx512_core)) {
             return impl_desc_type::jit_avx512;
         }
@@ -170,10 +170,10 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
     auto dataPrecision = getOriginalInputPrecisionAtPort(0) == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
 
     if (getAlgorithm() == Algorithm::PSROIPoolingAverage || getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
-        std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
-                                                                  {LayoutType::nspc, LayoutType::nspc},
-                                                                  {LayoutType::nCsp16c, LayoutType::nCsp16c},
-                                                                  {LayoutType::nCsp8c, LayoutType::nCsp8c}};
+        const std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
+                                                                        {LayoutType::nspc, LayoutType::nspc},
+                                                                        {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                                        {LayoutType::nCsp8c, LayoutType::nCsp8c}};
 
         for (const auto& df : dataFomats) {
             addSupportedPrimDesc({{df.first, dataPrecision}, {LayoutType::ncsp, ov::element::f32}},
@@ -199,15 +199,15 @@ inline float bilinearInterp(const inputType* data, const float x, const float y,
     auto x2 = static_cast<int>(std::ceil(x));
     auto y1 = static_cast<int>(std::floor(y));
     auto y2 = static_cast<int>(std::ceil(y));
-    float distX = x - x1;
-    float distY = y - y1;
+    const float distX = x - x1;
+    const float distY = y - y1;
 
-    float value11 = data[y1 * width_ + x1];
-    float value12 = data[y2 * width_ + x1];
-    float value21 = data[y1 * width_ + x2];
-    float value22 = data[y2 * width_ + x2];
-    float value = (1 - distX) * (1 - distY) * value11 + (1 - distX) * distY * value12 + distX * (1 - distY) * value21 +
-                  distX * distY * value22;
+    const float value11 = data[y1 * width_ + x1];
+    const float value12 = data[y2 * width_ + x1];
+    const float value21 = data[y1 * width_ + x2];
+    const float value22 = data[y2 * width_ + x2];
+    const float value = (1 - distX) * (1 - distY) * value11 + (1 - distX) * distY * value12 +
+                        distX * (1 - distY) * value21 + distX * distY * value22;
     return value;
 }
 
@@ -224,8 +224,8 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc,
                                 uint64_t& outputChannelsPadding) {
     const bool inpIsBlk = srcDesc.hasLayoutType(LayoutType::nCsp16c) || srcDesc.hasLayoutType(LayoutType::nCsp8c);
     const bool outIsBlk = dstDesc.hasLayoutType(LayoutType::nCsp16c) || dstDesc.hasLayoutType(LayoutType::nCsp8c);
-    size_t expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
-    size_t expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
+    const size_t expectedInBlockDimsSize = (inpIsBlk ? 5 : 4);
+    const size_t expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
     const auto& inBlkDims = srcDesc.getBlockDims();
     const auto& outBlkDims = dstDesc.getBlockDims();
     if (inBlkDims.size() != expectedInBlockDimsSize) {
@@ -315,8 +315,8 @@ void PSROIPooling::executeAverage(const inputType* srcData,
 
     auto avgPsroi =
         [&]([[maybe_unused]] int c, int h, int w, int binOffIn, int binOffOut, int inBlkRes, int outBlkRes) {
-            float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-            float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+            const float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+            const float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
             auto hStart = static_cast<int>(floor(static_cast<float>(h + 0) * binSizeH + roiStartH));
             auto hEnd = static_cast<int>(ceil(static_cast<float>(h + 1) * binSizeH + roiStartH));
@@ -331,7 +331,7 @@ void PSROIPooling::executeAverage(const inputType* srcData,
 
             const auto binArea = static_cast<float>((hEnd - hStart) * (wEnd - wStart));
 
-            size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
+            const size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
             dstData[dstIndex] = 0;
             if (binArea) {
                 float outSum = 0.0F;
@@ -365,8 +365,8 @@ void PSROIPooling::executeAverage(const inputType* srcData,
         });
     } else {  // nChw16c, nChw8c
         parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
-            int cStart = blkIdx * outBlockSize;
-            int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
+            const int cStart = blkIdx * outBlockSize;
+            const int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
             for (int c = cStart; c < cEnd; c++) {
                 const int gc = (c * groupSize + h) * groupSize + w;
                 const int inputBlockResidual = (srcDesc.hasLayoutType(LayoutType::ncsp) ? 0 : gc % inBlockSize);
@@ -415,14 +415,14 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
     const float roiEndH = bottomRois[4] * spatialScale;
     const float roiWidth = roiEndW - roiStartW;
     const float roiHeight = roiEndH - roiStartH;
-    size_t numBins = spatialBinsX * spatialBinsY;
+    const size_t numBins = spatialBinsX * spatialBinsY;
     const int binCount = nh * nw;
 
     auto bilinearPsroi = [&](int c, int h, int w, int binOffOut, int outBlkRes) {
         float accum = 0.0F;
         int binOffIn = 0;
         int inBlkRes = 0;
-        size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
+        const size_t dstIndex = binOffOut + h * hOutputStride + w * wOutputStride + outBlkRes;
         dstData[dstIndex] = 0;
 
         for (size_t binY = 0; binY < spatialBinsY; binY++) {
@@ -432,7 +432,7 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
             const float inY =
                 nh > 1 ? (h * heightScale + boxYmin * (height - 1)) : 0.5F * (boxYmin + boxYmax) * (height - 1);
             for (size_t binX = 0; binX < spatialBinsX; binX++) {
-                size_t gc = c + (binY * spatialBinsX + binX) * nc;
+                const size_t gc = c + (binY * spatialBinsX + binX) * nc;
                 if (srcDesc.hasLayoutType(LayoutType::nspc)) {
                     binOffIn = roiBatchInd * channels * height * width + gc;
                     inBlkRes = 0;
@@ -500,8 +500,8 @@ void PSROIPooling::executeBilinear(const inputType* srcData,
         });
     } else {  // nChw16c, nChw8c
         parallel_for3d(outBlockCount, nh, nw, [&](int blkIdx, int h, int w) {
-            int cStart = blkIdx * outBlockSize;
-            int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
+            const int cStart = blkIdx * outBlockSize;
+            const int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
             for (int c = cStart; c < cEnd; c++) {
                 const int outputBlockIdx = (c / inBlockSize) * inBlockSize;
                 const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
@@ -532,30 +532,30 @@ void PSROIPooling::executeBilinearDeformable(const inputType* srcData,
     const float roiWidth = std::max<float>(roiEndW - roiStartW, 0.1F);  // avoid 0
     const float roiHeight = std::max<float>(roiEndH - roiStartH, 0.1F);
     parallel_for3d(nc, nh, nw, [&](int c, int h, int w) {
-        size_t dstIndex = ((currentRoi * nc + c) * nh + h) * nw + w;
+        const size_t dstIndex = ((currentRoi * nc + c) * nh + h) * nw + w;
         dstData[dstIndex] = 0;
         // Compute w and h at bottom
-        float binSizeH = roiHeight / static_cast<float>(pooledHeight);
-        float binSizeW = roiWidth / static_cast<float>(pooledWidth);
+        const float binSizeH = roiHeight / static_cast<float>(pooledHeight);
+        const float binSizeW = roiWidth / static_cast<float>(pooledWidth);
 
-        float subBinSizeH = binSizeH / static_cast<float>(spatialBinsY);
-        float subBinSizeW = binSizeW / static_cast<float>(spatialBinsX);
+        const float subBinSizeH = binSizeH / static_cast<float>(spatialBinsY);
+        const float subBinSizeW = binSizeW / static_cast<float>(spatialBinsX);
 
-        int partH = h * partSize / pooledHeight;
-        int partW = w * partSize / pooledWidth;
-        int classId = c / channelsEachClass;
-        float transX =
+        const int partH = h * partSize / pooledHeight;
+        const int partW = w * partSize / pooledWidth;
+        const int classId = c / channelsEachClass;
+        const float transX =
             noTrans ? 0
                     : bottomTrans[(((currentRoi * numClasses + classId) * 2) * partSize + partH) * partSize + partW] *
                           transStd;
-        float transY =
+        const float transY =
             noTrans
                 ? 0
                 : bottomTrans[(((currentRoi * numClasses + classId) * 2 + 1) * partSize + partH) * partSize + partW] *
                       transStd;
 
-        float wStart = w * binSizeW + roiStartW + transX * roiWidth;
-        float hStart = h * binSizeH + roiStartH + transY * roiHeight;
+        const float wStart = w * binSizeW + roiStartW + transX * roiWidth;
+        const float hStart = h * binSizeH + roiStartH + transY * roiHeight;
 
         float sum = 0;
         int count = 0;
@@ -576,7 +576,7 @@ void PSROIPooling::executeBilinearDeformable(const inputType* srcData,
                 w1 = static_cast<float>((std::min)((std::max)(static_cast<double>(w1), 0.0), width - 1.0));
                 h1 = static_cast<float>((std::min)((std::max)(static_cast<double>(h1), 0.0), height - 1.0));
                 auto c1 = static_cast<int>((c * groupSize + gh) * groupSize + gw);
-                float val = bilinearInterp<inputType>(offsetBottomData + c1 * height * width, w1, h1, width);
+                const float val = bilinearInterp<inputType>(offsetBottomData + c1 * height * width, w1, h1, width);
 
                 sum += val;
                 count++;

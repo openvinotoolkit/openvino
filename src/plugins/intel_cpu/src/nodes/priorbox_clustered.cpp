@@ -126,12 +126,12 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     size_t var_size = variances.size();
     parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
-        float center_x = (w + offset) * step_w;
-        float center_y = (h + offset) * step_h;
+        const float center_x = (w + offset) * step_w;
+        const float center_y = (h + offset) * step_h;
 
         for (int s = 0; s < number_of_priors; ++s) {
-            float box_width = widths[s];
-            float box_height = heights[s];
+            const float box_width = widths[s];
+            const float box_height = heights[s];
 
             float xmin = (center_x - box_width / 2.0F) / img_width;
             float ymin = (center_y - box_height / 2.0F) / img_height;

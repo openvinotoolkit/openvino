@@ -115,7 +115,7 @@ std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArg
     const auto& biaDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_BIAS)->getDescPtr());
     const auto& dstDesc = MemoryDescUtils::convertToDnnlMemoryDesc(memory.at(ARG_DST)->getDescPtr());
 
-    Key dnnlMatMulKey{srcDesc, weiDesc, biaDesc, dstDesc, shapeAgnosticData->m_primAttrs.attr};
+    const Key dnnlMatMulKey{srcDesc, weiDesc, biaDesc, dstDesc, shapeAgnosticData->m_primAttrs.attr};
 
     auto builder = [&context](const Key& dnnlKey) {
         return std::make_shared<DnnlMatMulPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
@@ -136,7 +136,7 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
     auto wDims = weiDesc.get_dims();
     auto wDataType = weiDesc.get_data_type();
     std::swap(wDims[wDims.size() - 1], wDims[wDims.size() - 2]);
-    dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
+    const dnnl::memory::dims wDims2D = reshapeDownToRank<2>(wDims);
 
     const auto format = weightsNonTransposed ? dnnl::memory::format_tag::ab : dnnl::memory::format_tag::ba;
     const auto transposedWeiDesc = dnnl::memory::desc{wDims2D, wDataType, format};
@@ -258,8 +258,8 @@ static VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape) 
 }
 
 static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, const size_t out_rank) {
-    size_t activationRank = inShape.size();
-    size_t channelRank = wShape.size() - 1;
+    const size_t activationRank = inShape.size();
+    const size_t channelRank = wShape.size() - 1;
     // activation   weight    output_shape
     // NCHW         CoCHW     NCo
     // TNC          CoC       TNCo
@@ -268,8 +268,8 @@ static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDim
     // set Co
     outputShape.back() = wShape[0];
     // set batch dims
-    size_t batchRank = activationRank - channelRank;
-    size_t startIdx = out_rank - batchRank - 1;
+    const size_t batchRank = activationRank - channelRank;
+    const size_t startIdx = out_rank - batchRank - 1;
     for (size_t i = 0; i < batchRank; i++) {
         outputShape[i + startIdx] = inShape[i];
     }

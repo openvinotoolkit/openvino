@@ -148,7 +148,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
     auto sdp = sdp0 | sdp1 | sdp2 | sdp_trans0 | sdp_trans1 | sdp_trans2;
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    const ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);

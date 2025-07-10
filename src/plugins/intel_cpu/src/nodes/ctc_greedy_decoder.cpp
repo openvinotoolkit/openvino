@@ -71,12 +71,12 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+    const ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
     }
 
-    ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
+    const ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
     if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         THROW_CPU_NODE_ERR("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
     }
@@ -141,7 +141,7 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (size_t b = bStart; b < B; ++b) {
             size_t outputIndex = b * T + tStart;
             const float* probs = probabilities + b * C + BC * tStart;
-            size_t sequenceLength = sequenceLengths[b];
+            const size_t sequenceLength = sequenceLengths[b];
 
             for (size_t t = tStart; t < sequenceLength; ++t) {
                 int maxClassIdx = 0;

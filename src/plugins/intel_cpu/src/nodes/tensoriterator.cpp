@@ -131,7 +131,7 @@ public:
 
         full_mem = full_blob->getPrimitive();
         auto* const full_mem_handler = full_mem.get_data_handle();
-        dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
+        const dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
         auto elem_size = DnnlExtensionUtils::sizeOfDataType(chunk_desc.get_data_type());
 
@@ -494,7 +494,7 @@ void TensorIterator::createPrimitive() {
     for (const auto& desc : subgraphOp->get_output_descriptions()) {
         auto body_output_idx = desc->m_body_value_index;
 
-        std::string type_name = desc->get_type_info().name;
+        const std::string type_name = desc->get_type_info().name;
         if (type_name == "ConcatOutputDescription") {
             auto output_desc = ov::as_type_ptr<const ov::op::util::SubGraphOp::ConcatOutputDescription>(desc);
             CPU_NODE_ASSERT(output_desc != nullptr, "Incorrect type of the output description");
@@ -669,7 +669,7 @@ void TensorIterator::execute(const dnnl::stream& strm) {
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus() != 0;
-    int max_num_iter = trip_count_check->getStatus();
+    const int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
         mapper.second->execute(strm, -1);
@@ -703,7 +703,7 @@ void TensorIterator::executeDynamicImpl(const dnnl::stream& strm) {
     sub_graph.ResetInferCount();
 
     bool continue_cond = initial_cond_check->getStatus() != 0;
-    int max_num_iter = trip_count_check->getStatus();
+    const int max_num_iter = trip_count_check->getStatus();
 
     for (auto& mapper : first_mappers) {
         mapper.second->execute(strm, -1);

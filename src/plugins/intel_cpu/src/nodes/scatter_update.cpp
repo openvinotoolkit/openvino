@@ -113,7 +113,7 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
     // Create workaround by extracting information about rank directly from OV node.
     bool is_not_supported_input =
         ov::is_scalar(op->get_input_partial_shape(0)) || ov::is_scalar(op->get_input_partial_shape(1));
-    Type scatterUpdateType = getType();
+    const Type scatterUpdateType = getType();
     if (scatterUpdateType == Type::ScatterUpdate) {
         scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
         axisRelaxed = true;
@@ -207,10 +207,10 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     const auto& updateDim = getInputShapeAtPort(UPDATE_ID).getDims();
     const auto& dstDataDim = getOutputShapeAtPort(0).getDims();
 
-    size_t srcRank = srcDataDim.size();
-    size_t indicesRank = indicesDim.size();
+    const size_t srcRank = srcDataDim.size();
+    const size_t indicesRank = indicesDim.size();
     size_t updateRank = updateDim.size();
-    size_t dstRank = dstDataDim.size();
+    const size_t dstRank = dstDataDim.size();
 
     // common check
     if (srcRank != dstRank) {
@@ -238,13 +238,13 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
     case ScatterUpdateMode::ScatterNDUpdate: {
         if (indicesDim[indicesRank - 1] != Shape::UNDEFINED_DIM) {
-            size_t k = indicesDim[indicesRank - 1];
+            const size_t k = indicesDim[indicesRank - 1];
             if (k > srcRank) {
                 THROW_CPU_NODE_ERR("do not have an correct indices' last dimension value, ",
                                    "which should be smaller than or equal to input tensor rank");
             }
 
-            size_t tupleRank = indicesRank - 1;
+            const size_t tupleRank = indicesRank - 1;
             VectorDims expectUpdateShape(tupleRank + srcRank - k, 0);
             if (isUpdateScalar) {
                 // Workaround to properly identify rank of scalar
@@ -323,7 +323,7 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
     dataSize = dataPrec.size();
 
-    bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
+    const bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
     std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1},
                                                {LayoutType::ncsp, indicesPrec},
@@ -362,7 +362,7 @@ int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
 static std::vector<size_t> getBlockND(const VectorDims& shape) {
-    size_t shapeRank = shape.size();
+    const size_t shapeRank = shape.size();
     std::vector<size_t> blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
@@ -391,7 +391,7 @@ static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) 
 }
 
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
-    size_t shapeRank = shape.size();
+    const size_t shapeRank = shape.size();
     for (int i = shapeRank - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
@@ -710,7 +710,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
-    size_t updates_rank = indices_shape.size();
+    const size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
         axis += updates_rank;
@@ -878,7 +878,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    size_t srcRank = srcDataDim.size();
+    const size_t srcRank = srcDataDim.size();
 
     // 1d short vector scatter update optimized for shape inference subgraph
     if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
@@ -926,7 +926,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             size_t end = 0;
             splitter(indicesBlockND[0], nthr, ithr, start, end);
             for (size_t i = start; i < end; i++) {
-                int64_t idxValue = getIndicesValue(indicesPtr, i);
+                const int64_t idxValue = getIndicesValue(indicesPtr, i);
                 if (idxValue >= static_cast<int64_t>(srcDimAxis) ||
                     (idxValue < 0 && scatterUpdateMode != ScatterUpdateMode::ScatterElementsUpdate)) {
                     THROW_CPU_NODE_ERR("have indices value that points to non-existing output tensor element");
@@ -937,8 +937,8 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
         if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
             VectorDims indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
             VectorDims updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
-            size_t indicesRank = indicesDim.size();
-            size_t updateRank = updateDim.size();
+            const size_t indicesRank = indicesDim.size();
+            const size_t updateRank = updateDim.size();
             VectorDims expectUpdateShape(srcRank + indicesRank - 1, 0);
             int axisIter = 0;
             for (size_t rs = 0; rs < srcRank; rs++) {
@@ -972,7 +972,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             size_t start = 0;
             size_t end = 0;
             splitter(srcBlockND[0], nthr, ithr, start, end);
-            size_t size = (end - start) * dataSize;
+            const size_t size = (end - start) * dataSize;
             start *= dataSize;
             cpu_memcpy(dstPtr + start, srcPtr + start, size);
         });
@@ -1008,7 +1008,7 @@ void ScatterUpdate::scatterUpdate(uint8_t* indices, uint8_t* update, int axis, u
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
-    size_t indicesRank = indicesDim.size();
+    const size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
     std::vector<size_t> updateBlockND = getBlockND(updateDim);
@@ -1027,7 +1027,7 @@ void ScatterUpdate::scatterUpdate(uint8_t* indices, uint8_t* update, int axis, u
     size_t blockToUpdateSize = blockToUpdate * dataSize;
 
     parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
-        int64_t idxValue = getIndicesValue(indices, idx);
+        const int64_t idxValue = getIndicesValue(indices, idx);
         uint8_t* dstEntry = dstData + (b * srcBlockND[axis] + idxValue * blockToUpdate) * dataSize;
         uint8_t* updateEntry = update + (b * updateBlockND[axis] + idx * blockToUpdate) * dataSize;
         cpu_memcpy(dstEntry, updateEntry, blockToUpdateSize);
@@ -1064,7 +1064,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto elementsCount = getParentEdgeAt(DATA_ID)->getMemory().getShape().getElementsCount();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    size_t indicesRank = indicesDim.size();
+    const size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
 
@@ -1076,7 +1076,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
 
     size_t sizeToUpdate = srcBlockND[k] * dataSize;
     parallel_for(idxTupleNum, [&](size_t tupleIdx) {
-        size_t indicesOffset = tupleIdx * k;
+        const size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
         for (size_t i = 0; i < k; i++) {
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
@@ -1092,7 +1092,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                         " indices contain values that points to non-existing data tensor element");
 
         dstOffset *= dataSize;
-        size_t updateOffset = tupleIdx * sizeToUpdate;
+        const size_t updateOffset = tupleIdx * sizeToUpdate;
 
         cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
     });
@@ -1120,7 +1120,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     }
     const auto sizeToUpdate = srcBlockND[k];
     for (size_t tupleIdx = 0; tupleIdx < idxTupleNum; tupleIdx++) {
-        size_t indicesOffset = tupleIdx * k;
+        const size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
         for (size_t i = 0; i < k; i++) {
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);

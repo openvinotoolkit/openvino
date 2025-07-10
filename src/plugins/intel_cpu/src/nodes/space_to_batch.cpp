@@ -121,7 +121,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
     const auto& dstMem = getDstMemoryAtPort(0);
 
     const auto* blockShapesPtr = getSrcDataAtPortAs<int>(1);
-    size_t dataRank = srcMem->getShape().getRank();
+    const size_t dataRank = srcMem->getShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
@@ -218,7 +218,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
             const int64_t addTmpOC = blocked ? 0LU : oAdd[1];
             const int64_t addTmpOc = blocked ? oAdd[1] : 0LU;
             indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
-            int64_t lastI1 = [&] {
+            const int64_t lastI1 = [&] {
                 if (i0 == indxEnd[0]) {
                     return (indxEnd[1] > finish[1] ? finish[1] : indxEnd[1]);
                 }

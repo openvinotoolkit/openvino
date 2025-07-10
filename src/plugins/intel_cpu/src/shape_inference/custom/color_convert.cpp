@@ -42,7 +42,7 @@ Result ColorConvertShapeInfer::infer(const std::vector<std::reference_wrapper<co
 }
 
 ShapeInferPtr ColorConvertShapeInferFactory::makeShapeInfer() const {
-    bool isSinglePlain = m_op->get_input_size() == 1;
+    const bool isSinglePlain = m_op->get_input_size() == 1;
     return std::make_shared<ColorConvertShapeInfer>(isSinglePlain);
 }
 }  // namespace ov::intel_cpu::node

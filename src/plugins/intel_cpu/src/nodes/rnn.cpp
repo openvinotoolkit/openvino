@@ -779,7 +779,7 @@ void RNN::fillCellDesc() {
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::x));
 
     if (haveAttention(cell_type)) {
-        Shape shapeAttn{{N.minVal, 1}, {N.maxVal, 1}};
+        const Shape shapeAttn{{N.minVal, 1}, {N.maxVal, 1}};
         inCandidate.emplace_back(
             std::make_shared<DnnlBlockedMemoryDesc>(shapeAttn, inDataTypes[aIdx], memory::format_tag::nc));
     }
@@ -912,7 +912,7 @@ void RNN::fillSequenceDesc() {
         std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::nc));  // B
 
     if (haveAttention(cell_type)) {
-        Shape shapeAttn{{N.minVal, T.minVal, 1}, {N.maxVal, T.maxVal, 1}};
+        const Shape shapeAttn{{N.minVal, T.minVal, 1}, {N.maxVal, T.maxVal, 1}};
         inCandidate.emplace_back(
             std::make_shared<DnnlBlockedMemoryDesc>(shapeAttn, inDataTypes[aIdx], memory::format_tag::ntc));
     }
@@ -1042,7 +1042,7 @@ void RNN::fillBiases() {
                            DnnlExtensionUtils::DataTypeToElementType(inDataTypes[bIdx]));
     }
 
-    VectorDims dims_b = {L, D, Gb, SC};
+    const VectorDims dims_b = {L, D, Gb, SC};
 
     auto dnnl_type = DnnlExtensionUtils::ElementTypeToDataType(ET);
     auto w_bias_data_desc =
@@ -1098,7 +1098,7 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
     }
 
     auto create = [&]() {
-        Memory memory{getEngine(), m_initial_weights[idx]->getDescPtr(), m_initial_weights[idx]->getData()};
+        const Memory memory{getEngine(), m_initial_weights[idx]->getDescPtr(), m_initial_weights[idx]->getData()};
         MemoryPtr res_ptr = std::make_shared<Memory>(getEngine(), new_desc);
         node::Reorder::reorderData(memory, *res_ptr, context->getParamsCache());
         return res_ptr;
@@ -1410,7 +1410,7 @@ void RNN::prepareParams() {
     }
 
     const auto attr = initPrimitiveAttr();
-    RNNKey key = {inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction, *attr};
+    const RNNKey key = {inDataDescs, outDataDescs, wDescs, cell_type, cell_act, direction, *attr};
 
     auto engine = getEngine();
     auto builder = [&engine](const RNNKey& key) -> executorPtr {
@@ -1487,8 +1487,8 @@ void RNN::execute(const dnnl::stream& strm) {
     args[DNNL_ARG_SRC_LAYER] = src_data_mem->getPrimitive();
     args[DNNL_ARG_DST_LAYER] = dst_data_mem->getPrimitive();
 
-    int state_i_tags[]{DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
-    int state_o_tags[]{DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
+    const int state_i_tags[]{DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
+    const int state_o_tags[]{DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
     for (size_t s = 0; s < S; s++) {
         args[state_i_tags[s]] = getSrcMemoryAtPort(s + 1)->getPrimitive();
     }
@@ -1502,7 +1502,7 @@ void RNN::execute(const dnnl::stream& strm) {
             args[state_o_tags[s]] = getDstMemoryAtPort(s)->getPrimitive();
         }
     } else {
-        size_t n_ports_with_init_states = outputShapes.size() - 1;  // first is a sequence data
+        const size_t n_ports_with_init_states = outputShapes.size() - 1;  // first is a sequence data
         for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
             if (s < outputShapes.size()) {
                 args[state_o_tags[s]] = getDstMemoryAtPort(s + 1)->getPrimitive();

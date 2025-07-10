@@ -113,14 +113,15 @@ static void dumpInternalBlobs(const NodePtr& node, const DebugCapsConfig& config
 
     for (size_t i = 0; i < internalBlobs.size(); i++) {
         const auto& blb = internalBlobs[i];
-        std::string file_name = NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
+        const std::string file_name =
+            NameFromType(node->getType()) + "_" + nodeName + "_blb" + std::to_string(i) + ".ieb";
         auto dump_file = config.blobDumpDir + "/#" + std::to_string(node->getExecIndex()) + "_" + file_name;
 
         if (blb->getDesc().getPrecision() == ov::element::u1) {
             continue;
         }
 
-        BlobDumper dumper(blb);
+        const BlobDumper dumper(blb);
         dump(dumper, dump_file, config);
     }
 }
@@ -157,7 +158,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
             file_name = file_name.substr(file_name.size() - 240);
         }
 
-        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+        const std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
 
         std::cout << "Dump inputs: " << dump_file << '\n';
 
@@ -166,7 +167,7 @@ void dumpInputBlobs(const NodePtr& node, const DebugCapsConfig& config, int coun
             continue;
         }
 
-        BlobDumper dumper(prEdge->getMemoryPtr());
+        const BlobDumper dumper(prEdge->getMemoryPtr());
         dump(dumper, dump_file, config);
     }
 
@@ -194,7 +195,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
             file_name = file_name.substr(file_name.size() - 240);
         }
 
-        std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
+        const std::string dump_file = createDumpFilePath(config.blobDumpDir, file_name, node->getExecIndex());
 
         std::cout << "Dump outputs:  " << dump_file << '\n';
 
@@ -203,7 +204,7 @@ void dumpOutputBlobs(const NodePtr& node, const DebugCapsConfig& config, int cou
             continue;
         }
 
-        BlobDumper dumper(childEdge->getMemoryPtr());
+        const BlobDumper dumper(childEdge->getMemoryPtr());
         dump(dumper, dump_file, config);
     }
 }

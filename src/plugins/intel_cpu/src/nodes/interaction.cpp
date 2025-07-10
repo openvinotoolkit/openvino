@@ -98,7 +98,7 @@ private:
         mov(reg_in_aux, reg_in);
         mov(reg_out_aux, reg_out);
 
-        size_t tail_size = jcp_.input_size % vec_size;
+        const size_t tail_size = jcp_.input_size % vec_size;
         L(move_scale_loop_label);
         {
             cmp(reg_work_amount, vec_size);
@@ -125,7 +125,7 @@ private:
     }
 
     void load_scale_store(size_t step) {
-        bool is_tail = step < vec_size;
+        const bool is_tail = step < vec_size;
         load(vmm_in, reg_in_aux, jcp_.src_prc, runtime_prc, step, false);
 
         if (jcp_.with_scales) {
@@ -236,7 +236,7 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         inPortConfigs.emplace_back(LayoutType::ncsp, dataPrecision, getInputShapeAtPort(i), false, -1);
     }
     // initialize output port
-    std::vector<PortConfigurator> outPortConfigs = {
+    const std::vector<PortConfigurator> outPortConfigs = {
         PortConfigurator{LayoutType::ncsp, outputDataType, getOutputShapeAtPort(0), false, -1}};
     // add descriptor
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
@@ -270,9 +270,9 @@ void Interaction::execRef(const dnnl::stream& strm) {
         const auto* inPtr = getSrcDataAtPortAs<const uint8_t>(n);
         inputPtrs[n] = inPtr;
     }
-    std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
-                                            {DNNL_ARG_WEIGHTS, inputMemPtr->getPrimitive()},
-                                            {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
+    const std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
+                                                  {DNNL_ARG_WEIGHTS, inputMemPtr->getPrimitive()},
+                                                  {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
         cat(inputMemPtr->getDataAs<uint8_t>(), inputPtrs, featureSizes, start, dataPrecision.size());
@@ -284,13 +284,14 @@ void Interaction::execRef(const dnnl::stream& strm) {
         // in1 dense feature
         // in2 flatted interaction features
         if (moveFeatureKernel) {
-            jit_move_scale_call_args featArgs{inputPtrs[0] + (start * featureSize * dataPrecision.size()),
-                                              outFeaturesPtr + (start * outputFeaturesLen * outputDataType.size()),
-                                              scales};
+            const jit_move_scale_call_args featArgs{
+                inputPtrs[0] + (start * featureSize * dataPrecision.size()),
+                outFeaturesPtr + (start * outputFeaturesLen * outputDataType.size()),
+                scales};
             (*moveFeatureKernel)(&featArgs);
         }
         if (moveInteractKernel) {
-            jit_move_scale_call_args interArgs{
+            const jit_move_scale_call_args interArgs{
                 flatMemPtr->getData(),
                 outFeaturesPtr + ((start * outputFeaturesLen + featureSize) * outputDataType.size()),
                 scales};
@@ -315,17 +316,17 @@ void Interaction::prepareParams() {
     inputSizes = inputShapes.size();
     interactFeatureSize = inputSizes * (inputSizes - 1) / 2;
     outputFeaturesLen = interactFeatureSize + featureSize;
-    std::vector<int64_t> lhsShape({static_cast<int64_t>(inputSizes), static_cast<int64_t>(featureSize)});
-    std::vector<int64_t> lhsStride({static_cast<int64_t>(featureSize), 1});
-    std::vector<int64_t> rhsShape({static_cast<int64_t>(featureSize), static_cast<int64_t>(inputSizes)});
-    std::vector<int64_t> rhsStride({1, static_cast<int64_t>(featureSize)});
-    std::vector<int64_t> resShape({static_cast<int64_t>(inputSizes), static_cast<int64_t>(inputSizes)});
-    std::vector<int64_t> resStride({static_cast<int64_t>(inputSizes), 1});
+    const std::vector<int64_t> lhsShape({static_cast<int64_t>(inputSizes), static_cast<int64_t>(featureSize)});
+    const std::vector<int64_t> lhsStride({static_cast<int64_t>(featureSize), 1});
+    const std::vector<int64_t> rhsShape({static_cast<int64_t>(featureSize), static_cast<int64_t>(inputSizes)});
+    const std::vector<int64_t> rhsStride({1, static_cast<int64_t>(featureSize)});
+    const std::vector<int64_t> resShape({static_cast<int64_t>(inputSizes), static_cast<int64_t>(inputSizes)});
+    const std::vector<int64_t> resStride({static_cast<int64_t>(inputSizes), 1});
     auto dataType = DnnlExtensionUtils::ElementTypeToDataType(dataPrecision);
     auto src_md = memory::desc(lhsShape, dataType, lhsStride);
     auto weights_md = memory::desc(rhsShape, dataType, rhsStride);
     auto dst_md = memory::desc(resShape, dataType, resStride);
-    primitive_attr matmul_attr;
+    const primitive_attr matmul_attr;
     auto matmul_pd = matmul::primitive_desc(getEngine(), src_md, weights_md, dst_md, matmul_attr);
     prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);

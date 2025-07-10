@@ -235,7 +235,7 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (size_t pixD = dStart; pixD < dEnd; pixD++) {
             for (size_t pixH = hStart; pixH < hEnd; pixH++) {
                 for (size_t pixW = wStart; pixW < wEnd; pixW++) {
-                    float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+                    const float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
                     resIndex = (res < curr ? pixD * iHW + pixH * IW + pixW : resIndex);
                     res = std::max(res, curr);
                 }
@@ -263,7 +263,7 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
             for (size_t pixD = dStart; pixD < dEnd; pixD++) {
                 for (size_t pixH = hStart; pixH < hEnd; pixH++) {
                     for (size_t pixW = wStart; pixW < wEnd; pixW++) {
-                        float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
+                        const float curr = srcData[pixD * inStrides[2] + pixH * inStrides[3] + pixW * inStrides[4]];
                         sum = sum + curr;
                     }
                 }

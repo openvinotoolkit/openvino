@@ -67,7 +67,7 @@ void refine_anchors(const float* deltas,
 
     parallel_for2d(bottom_H, bottom_W, [&](int h, int w) {
         for (int anchor = 0; anchor < anchors_num; ++anchor) {
-            int a_idx = anchor_idx(h, w, anchor, 0);
+            const int a_idx = anchor_idx(h, w, anchor, 0);
             float x0 = anchors[a_idx + 0];
             float y0 = anchors[a_idx + 1];
             float x1 = anchors[a_idx + 2];
@@ -111,7 +111,7 @@ void refine_anchors(const float* deltas,
             const float box_w = x1 - x0 + coordinates_offset;
             const float box_h = y1 - y0 + coordinates_offset;
 
-            int p_idx = proposal_idx(h, w, anchor, 0);
+            const int p_idx = proposal_idx(h, w, anchor, 0);
             proposals[p_idx + 0] = x0;
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
@@ -276,7 +276,7 @@ void fill_output_blobs(const float* proposals,
     const float* src_score = proposals + 4 * num_proposals;
 
     parallel_for(num_rois, [&](size_t i) {
-        int index = roi_indices[i];
+        const int index = roi_indices[i];
         rois[i * 4 + 0] = src_x0[index];
         rois[i * 4 + 1] = src_y0[index];
         rois[i * 4 + 2] = src_x1[index];
@@ -354,13 +354,13 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
-        for (uint64_t anchorDim : anchorDims) {
+        for (const uint64_t anchorDim : anchorDims) {
             anchor_dims_size *= anchorDim;
         }
 
         size_t deltas_dims_size = 1;
         const auto& deltaDims = getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims();
-        for (uint64_t deltaDim : deltaDims) {
+        for (const uint64_t deltaDim : deltaDims) {
             deltas_dims_size *= deltaDim;
         }
         if (anchor_dims_size != deltas_dims_size) {
@@ -369,7 +369,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
-        for (uint64_t scoreDim : scoreDims) {
+        for (const uint64_t scoreDim : scoreDims) {
             score_dims_size *= scoreDim;
         }
         if (deltas_dims_size != (4 * score_dims_size)) {
@@ -426,7 +426,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
         std::vector<int> is_dead(pre_nms_topn);
 
         // Execute
-        int batch_size = 1;  // inputs[INPUT_DELTAS]->getTensorDesc().getDims()[0];
+        const int batch_size = 1;  // inputs[INPUT_DELTAS]->getTensorDesc().getDims()[0];
         for (int n = 0; n < batch_size; ++n) {
             refine_anchors(p_deltas_item,
                            p_scores_item,

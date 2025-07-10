@@ -77,7 +77,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     }
 
     // extract file name from __FILE__
-    std::string file_path(file);
+    const std::string file_path(file);
     std::string file_name(file);
     auto last_sep = file_path.find_last_of('/');
     if (last_sep == std::string::npos) {
@@ -87,7 +87,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
         file_name = file_path.substr(last_sep + 1);
     }
 
-    std::string file_name_with_line = file_name + ":" + std::to_string(line);
+    const std::string file_name_with_line = file_name + ":" + std::to_string(line);
     tag = file_name_with_line + " " + func + "()";
     if (name != nullptr) {
         tag += " ";
@@ -109,7 +109,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
         while (*p1 != ';' && *p1 != 0) {
             ++p1;
         }
-        std::string pattern(p0, p1 - p0);
+        const std::string pattern(p0, p1 - p0);
         if (pattern == file_name || pattern == func || pattern == tag || pattern == file_name_with_line ||
             (name != nullptr && pattern == name)) {
             match = true;
@@ -597,8 +597,8 @@ std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
 // so far we can only show correct delta on single stream configuration, which
 // is enough for debug purpose
 std::ostream& operator<<(std::ostream& os, const PrintableDelta& d) {
-    double us_last = d.us_last;
-    double us_all = d.us_all;
+    const double us_last = d.us_last;
+    const double us_all = d.us_all;
     os << "[+ " << std::setw(8) << std::setfill(' ') << std::fixed << std::setprecision(3) << us_last / 1000 << "/"
        << us_all / 1000 << " ms]";
     return os;

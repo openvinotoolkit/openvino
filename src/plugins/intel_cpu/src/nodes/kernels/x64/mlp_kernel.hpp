@@ -44,7 +44,7 @@ public:
         do_config(nullptr);
     }
     void do_config(void* cfg) {
-        static ov::Extensions::Cpu::TileConfiger configer;
+        static const ov::Extensions::Cpu::TileConfiger configer;
         if (cfg != last_cfg) {
             configer(cfg);
             last_cfg = cfg;

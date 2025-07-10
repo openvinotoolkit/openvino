@@ -221,7 +221,7 @@ void MultiClassNms::prepareParams() {
     m_numClasses = shared ? scores_dims[1] : scores_dims[0];
 
     int max_output_boxes_per_class = 0;
-    size_t real_num_classes = [&]() {
+    const size_t real_num_classes = [&]() {
         if (m_backgroundClass == -1 || static_cast<size_t>(m_backgroundClass) >= m_numClasses) {
             return m_numClasses;
         }
@@ -299,9 +299,9 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     m_numBoxOffset[0] = 0;
     for (size_t b = 0; b < m_numFiltBox.size(); b++) {
         size_t batchOffsetNew = 0;
-        size_t batchOffset = b * m_numClasses * m_nmsRealTopk;
+        const size_t batchOffset = b * m_numClasses * m_nmsRealTopk;
         for (size_t c = (b == 0 ? 1 : 0); c < m_numFiltBox[b].size(); c++) {
-            size_t offset = batchOffset + c * m_nmsRealTopk;
+            const size_t offset = batchOffset + c * m_nmsRealTopk;
             for (size_t i = 0; i < m_numFiltBox[b][c]; i++) {
                 m_filtBoxes[startOffset + i] = m_filtBoxes[offset + i];
             }
@@ -443,7 +443,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
                 }
                 // selected index from (M, C, 4)
                 selected_index = _flattened_index((offset + box_info.box_index), box_info.class_index, m_numClasses);
-                int idx = box_info.class_index * boxesStrides[0] + offset * boxesStrides[1];
+                const int idx = box_info.class_index * boxesStrides[0] + offset * boxesStrides[1];
                 const float* curboxes = boxes + idx;  // a slice of boxes of current class current image
                 selected_base[2] = curboxes[4 * box_info.box_index];
                 selected_base[3] = curboxes[4 * box_info.box_index + 1];
@@ -477,14 +477,14 @@ float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* box
         std::tuple<float, float, float, float>{boxesJ[0], boxesJ[1], boxesJ[2], boxesJ[3]};
     const auto norm = static_cast<float>(!normalized);
 
-    float areaI = (ymaxI - yminI + norm) * (xmaxI - xminI + norm);
-    float areaJ = (ymaxJ - yminJ + norm) * (xmaxJ - xminJ + norm);
+    const float areaI = (ymaxI - yminI + norm) * (xmaxI - xminI + norm);
+    const float areaJ = (ymaxJ - yminJ + norm) * (xmaxJ - xminJ + norm);
     if (areaI <= 0.F || areaJ <= 0.F) {
         return 0.F;
     }
 
-    float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ) + norm, 0.F) *
-                              (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ) + norm, 0.F);
+    const float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ) + norm, 0.F) *
+                                    (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ) + norm, 0.F);
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
@@ -518,7 +518,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
-            int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
+            const int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
             for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold) {  // algin with ref
                     sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
@@ -531,15 +531,15 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
                 while (max_out_box && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
-                    float origScore = currBox.score;
+                    const float origScore = currBox.score;
                     sorted_boxes.pop();
                     max_out_box--;
 
                     bool box_is_selected = true;
                     for (int idx = static_cast<int>(fb.size()) - 1; idx >= currBox.suppress_begin_index; idx--) {
-                        float iou = intersectionOverUnion(&boxesPtr[currBox.idx * 4],
-                                                          &boxesPtr[fb[idx].box_index * 4],
-                                                          m_normalized);
+                        const float iou = intersectionOverUnion(&boxesPtr[currBox.idx * 4],
+                                                                &boxesPtr[fb[idx].box_index * 4],
+                                                                m_normalized);
                         currBox.score *= func(iou, adaptive_threshold);
                         if (iou >= adaptive_threshold) {
                             box_is_selected = false;
@@ -566,7 +566,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 }
             }
             m_numFiltBox[batch_idx][class_idx] = fb.size();
-            size_t offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
+            const size_t offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
             for (size_t i = 0; i < fb.size(); i++) {
                 m_filtBoxes[offset + i] = fb[i];
             }
@@ -632,7 +632,7 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                 slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::vector<std::pair<float, int>> sorted_boxes;
-            int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
+            const int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
             for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold) {  // align with ref
                     sorted_boxes.emplace_back(scoresPtr[box_idx], box_idx);
@@ -646,18 +646,18 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                               [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                                   return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                               });
-                int offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
+                const int offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
                 m_filtBoxes[offset + 0] =
                     filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
                 io_selection_size++;
-                int max_out_box =
+                const int max_out_box =
                     (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
                 for (int box_idx = 1; box_idx < max_out_box; box_idx++) {
                     bool box_is_selected = true;
                     for (int idx = io_selection_size - 1; idx >= 0; idx--) {
-                        float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4],
-                                                          &boxesPtr[m_filtBoxes[offset + idx].box_index * 4],
-                                                          m_normalized);
+                        const float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4],
+                                                                &boxesPtr[m_filtBoxes[offset + idx].box_index * 4],
+                                                                m_normalized);
                         if (iou >= m_iouThreshold) {
                             box_is_selected = false;
                             break;

@@ -20,7 +20,7 @@ public:
     SubMemoryManager(int num_sub_streams) {
         assert(num_sub_streams);
         _num_sub_streams = num_sub_streams;
-        MemoryInfo memory_info;
+        const MemoryInfo memory_info;
         std::vector<MemoryInfo> memorys;
         memorys.assign(_num_sub_streams, memory_info);
         _memorys_table.assign(2, memorys);

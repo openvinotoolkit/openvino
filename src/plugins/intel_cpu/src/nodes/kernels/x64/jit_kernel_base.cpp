@@ -73,11 +73,11 @@ void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
     if (isValidIsa(x64::avx2)) {
         vpaddd(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        Xbyak::Xmm xmmDst(v_dst.getIdx());
+        const Xbyak::Xmm xmmDst(v_dst.getIdx());
         vmovups(v_dst, v_src);
         if (op.isYMM()) {
-            Xbyak::Ymm ymmOp(op.getIdx());
-            Xbyak::Xmm xmmOp(op.getIdx());
+            const Xbyak::Ymm ymmOp(op.getIdx());
+            const Xbyak::Xmm xmmOp(op.getIdx());
             paddd(xmmDst, xmmOp);
             vperm2f128(v_dst, v_dst, v_dst, 0x1);
             vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
@@ -116,11 +116,11 @@ void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
     if (isValidIsa(x64::avx2)) {
         vpsubd(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        Xbyak::Xmm xmmDst(v_dst.getIdx());
+        const Xbyak::Xmm xmmDst(v_dst.getIdx());
         vmovups(v_dst, v_src);
         if (op.isYMM()) {
-            Xbyak::Ymm ymmOp(op.getIdx());
-            Xbyak::Xmm xmmOp(op.getIdx());
+            const Xbyak::Ymm ymmOp(op.getIdx());
+            const Xbyak::Xmm xmmOp(op.getIdx());
             psubd(xmmDst, xmmOp);
             vperm2f128(v_dst, v_dst, v_dst, 0x1);
             vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
@@ -424,7 +424,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
     }
     Xbyak::Label lEnd;
     auto r32Ones = getReg32();
-    Xbyak::Reg64 r64Ones(r32Ones.getIdx());
+    const Xbyak::Reg64 r64Ones(r32Ones.getIdx());
     auto elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
 
     mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
@@ -454,8 +454,8 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
     Xbyak::Label lEnd;
     auto elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
     auto r32Ones = getReg32();
-    Xbyak::Reg64 r64Ones(r32Ones.getIdx());
-    Xbyak::Xmm xmmDstMask(ymmDstMask.getIdx());
+    const Xbyak::Reg64 r64Ones(r32Ones.getIdx());
+    const Xbyak::Xmm xmmDstMask(ymmDstMask.getIdx());
 
     mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
     uni_vpxor(ymmDstMask, ymmDstMask, ymmDstMask);
@@ -528,7 +528,7 @@ void JitKernelBase::load(const Xbyak::Ymm& v_dst,
     if (zeroFilling) {
         uni_vpxor(v_dst, v_dst, v_dst);
     }
-    Xbyak::Xmm xmmDst(v_dst.getIdx());
+    const Xbyak::Xmm xmmDst(v_dst.getIdx());
 
     for (size_t i = 0LU; i < 2LU; i++) {
         Xbyak::Label lPerm;
@@ -593,7 +593,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
         OPENVINO_THROW("Could not store data with type size ", typeSize);
     }
     Xbyak::Label lEnd;
-    Xbyak::Xmm xmmSrc(v_src.getIdx());
+    const Xbyak::Xmm xmmSrc(v_src.getIdx());
     const size_t elPerXmm = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
 
     for (int i = 0; i < 2; i++) {

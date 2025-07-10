@@ -284,7 +284,7 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         }},
         {ov::op::v7::Gelu::get_type_info_static(), [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              auto gelu = getNgraphOpAs<ov::op::v7::Gelu>(op);
-             ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+             const ov::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
              if (approximationMode == ov::op::GeluApproximationMode::ERF) {
                  node.algorithm = Algorithm::EltwiseGeluErf;
                  node.onednnAlgorithm = dnnl::algorithm::eltwise_gelu_erf;
@@ -571,7 +571,7 @@ public:
         }
 
         jit_eltwise_params jep = {};
-        size_t inputsNumber = inpDims.size();
+        const size_t inputsNumber = inpDims.size();
 
         jep.use_runtime_ptrs = useRuntimePtrs;
 
@@ -583,7 +583,7 @@ public:
             OPENVINO_THROW("Can not make Eltwise executor from empty block dims vector");
         }
 
-        size_t outRank = outBlkDims.size();
+        const size_t outRank = outBlkDims.size();
         for (size_t i = 0; i < outRank; i++) {
             jep.dims[jep.dims.size() - 1 - i] = outBlkDims[outRank - 1 - i];
         }
@@ -609,7 +609,7 @@ public:
             size_t offset_oc = 1;
             for (int i = outOrder.size() - 1; i >= 0; i--) {
                 if (outOrder[i] == 1) {
-                    int oc_dim_idx = i + (jep.input_size - outOrder.size());
+                    const int oc_dim_idx = i + (jep.input_size - outOrder.size());
                     jep.oc_offsets[oc_dim_idx] = offset_oc;
                     offset_oc *= jep.dims[oc_dim_idx];
                     if (oc_dim_idx + 1 !=
@@ -621,15 +621,15 @@ public:
             oc_size = jep.oc_offsets[jep.dims.size() - 1] != 0 ? jep.dims[jep.dims.size() - 1] : 1;
         }
 
-        int maxCollapsedDims = static_cast<int>(jep.dims.size()) - lastUnchangedAxis - 2;
+        const int maxCollapsedDims = static_cast<int>(jep.dims.size()) - lastUnchangedAxis - 2;
 
         size_t fullWorkAmount = 1;
-        for (size_t dim : jep.dims) {
+        for (const size_t dim : jep.dims) {
             fullWorkAmount *= dim;
         }
 
         m_threads_num = static_cast<size_t>(parallel_get_max_threads());
-        size_t minimalJitWorkAmount = 256;
+        const size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = jep.dims[jep.dims.size() - 1];
         int collapsedDims = 0;
 
@@ -665,7 +665,7 @@ public:
                 break;
             }
 
-            size_t nextJitWorkAmount = currentJitWorkAmount * jep.dims[jep.dims.size() - 2];
+            const size_t nextJitWorkAmount = currentJitWorkAmount * jep.dims[jep.dims.size() - 2];
             if (fullWorkAmount / nextJitWorkAmount >= m_threads_num) {
                 currentJitWorkAmount = nextJitWorkAmount;
                 collapsedDims++;
@@ -982,7 +982,7 @@ public:
         }
 
         _inputNum = inpDims.size();
-        size_t input_size = inpDims.front().size();
+        const size_t input_size = inpDims.front().size();
         _batchDimIdx = input_size - outBlkDims.size();
 
         _dims.resize(input_size, 1);
@@ -991,7 +991,7 @@ public:
         }
 
         _fullWorkAmount = 1;
-        for (size_t _dim : _dims) {
+        for (const size_t _dim : _dims) {
             _fullWorkAmount *= _dim;
         }
 
@@ -1102,7 +1102,7 @@ public:
             T* dst_ptr_f = reinterpret_cast<T*>(args_ptrs.dst_ptr);
 
             uint32_t count_of_power_values = 1;
-            for (uint64_t i : this->_inpDims[1]) {
+            for (const uint64_t i : this->_inpDims[1]) {
                 count_of_power_values *= i;
             }
 
@@ -1543,7 +1543,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     // if dim rank is greater than the maximum possible, we should use the reference execution
-    bool canUseOptimizedImpl = EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma());
+    const bool canUseOptimizedImpl = EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma());
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
     if (!canUseOptimizedImpl && !fusedWith.empty()) {
@@ -1749,7 +1749,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             if (lt == Blocked && shape.getRank() != 1 &&
                 (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
 #if defined(OPENVINO_ARCH_X86_64)
-                size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
+                const size_t blockSize = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
 #else
                 size_t blockSize = 1;
 #endif
@@ -1762,7 +1762,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             }
-            VectorDims blocks = dims;
+            const VectorDims& blocks = dims;
             VectorDims order(blocks.size());
             std::iota(order.begin(), order.end(), 0);
 
@@ -1770,7 +1770,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         };
 
         // TODO [DS]: inplace
-        size_t offset = 0;
+        const size_t offset = 0;
         NodeConfig config;
 
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -1805,7 +1805,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         config.outConfs.push_back(portConfig);
 
         if (useEltwiseExecutor) {
-            impl_desc_type impl_type = impl_desc_type::undef;
+            const impl_desc_type impl_type = impl_desc_type::undef;
 
             std::vector<MemoryDescPtr> srcMemoryDescs;
             srcMemoryDescs.reserve(config.inConfs.size());
@@ -2001,7 +2001,8 @@ void Eltwise::prepareParams() {
     const auto& outOrder = outBlockingDesc->getOrder();
     const auto& currentOutBlkDims = outBlockingDesc->getBlockDims();
 
-    size_t input_size = std::max(static_cast<size_t>(EltwiseJitExecutor::optimalTensorRank), currentOutBlkDims.size());
+    const size_t input_size =
+        std::max(static_cast<size_t>(EltwiseJitExecutor::optimalTensorRank), currentOutBlkDims.size());
 
     std::vector<VectorDims> dims_in;
     // init dims
@@ -2010,12 +2011,12 @@ void Eltwise::prepareParams() {
         dims_in[i].resize(input_size, 1);
     }
 
-    size_t outRank = currentOutBlkDims.size();
+    const size_t outRank = currentOutBlkDims.size();
 
     for (size_t i = 0; i < inputNum; i++) {
         auto inBlockingDesc = getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>();
         currentInBlkDims[i] = inBlockingDesc->getBlockDims();
-        size_t inRank = currentInBlkDims[i].size();
+        const size_t inRank = currentInBlkDims[i].size();
 
         // WA to normalize blocked and planar layouts
         const auto& inOrder = inBlockingDesc->getOrder();
@@ -2075,7 +2076,7 @@ void Eltwise::prepareParams() {
                                                 eltwise->getGamma()});
                 }
             } else if (node->getType() == Type::FakeQuantize) {
-                int channelAxis = 1;
+                const int channelAxis = 1;
                 node->appendPostOps(key.postOps, {}, fqDataPtrs, channelAxis);
             } else {
                 THROW_CPU_NODE_ERR("has unexpected fused op of type '", node->getTypeStr(), "'");
@@ -2232,7 +2233,7 @@ void Eltwise::fuseInto(NodePtr& parentNode) {
 
 void Eltwise::appendMemory(const std::vector<float>& data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem) {
     if (!memPtr) {
-        DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {data.size()});
+        const DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, {data.size()});
         memPtr = std::make_shared<Memory>(getEngine(), memoryDesc, data.data());
         postOpsMem.push_back(memPtr);
     }
@@ -2316,7 +2317,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
 
             // always align for legacy scale/shift post ops
             constexpr int bufferAlignment = 16;
-            int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
+            const int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
             depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
         }
 
@@ -2535,13 +2536,13 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return false;
     }
 
-    bool isIntegerNode = isIntegerComputeSupported(this);
+    const bool isIntegerNode = isIntegerComputeSupported(this);
     if (isIntegerNode && node->getType() != Type::Eltwise) {
         return false;
     }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
-    size_t addedInputEdgesNum = node->getType() != Type::FakeQuantize ? (node->getParentEdges().size() - 1) : 0;
+    const size_t addedInputEdgesNum = node->getType() != Type::FakeQuantize ? (node->getParentEdges().size() - 1) : 0;
     if (getParentEdges().size() + addedInputEdgesNum > MAX_ELTWISE_INPUTS) {
         return false;
     }
@@ -2551,7 +2552,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         // results we disable fusing cases which may lead to invalid precision conversions inside the kernel [TODO] We
         // need to rewrite support for different precisions at all to avoid implicit conversions to FP32 (all should be
         // handled via explicit convert operations)
-        bool isIntegerFusingNode = isIntegerComputeSupported(node.get());
+        const bool isIntegerFusingNode = isIntegerComputeSupported(node.get());
         if ((isIntegerNode && !isIntegerFusingNode) || (!isIntegerNode && isIntegerFusingNode)) {
             return false;
         }

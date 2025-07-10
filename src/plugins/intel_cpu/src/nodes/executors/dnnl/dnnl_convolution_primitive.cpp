@@ -759,20 +759,20 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
     OPENVINO_ASSERT(!cacheWeightsWithUndefData,
                     "dnnl convolution weights caching for dynamic shapes is not implemented");
 
-    ConvAttrs attrs{{1},
-                    {0},
-                    {0},
-                    {0},
-                    AutoPaddingType::None,
-                    fcAttrs.withBias,
-                    fcAttrs.weightsNonTransposed,
-                    false,
-                    false,
-                    true,
-                    false,
-                    {},
-                    {},
-                    fcAttrs.postOps};
+    const ConvAttrs attrs{{1},
+                          {0},
+                          {0},
+                          {0},
+                          AutoPaddingType::None,
+                          fcAttrs.withBias,
+                          fcAttrs.weightsNonTransposed,
+                          false,
+                          false,
+                          true,
+                          false,
+                          {},
+                          {},
+                          fcAttrs.postOps};
 
     const auto postOpData = createPrimitiveAttrs(attrs, memory, context);
     OPENVINO_ASSERT(postOpData.size() == 1, "Single attribute variant is expected when used as FC executor");
@@ -804,7 +804,7 @@ void DnnlConvolutionPrimitive::execute(dnnl_primitive_args& primArgs) {
     if (auto outputReorder = outputReorders.find(DNNL_ARG_DST); outputReorder != outputReorders.end()) {
         auto& [id, reorder] = *outputReorder;
         auto& [primitive, srcMemoryDesc] = reorder;
-        dnnl::memory srcMemory(srcMemoryDesc, m_stream.get_engine());
+        const dnnl::memory srcMemory(srcMemoryDesc, m_stream.get_engine());
         originalMemory[id] = primArgs[id];
         primArgs[id] = srcMemory;
     }
@@ -940,7 +940,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
     const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
-    bool isDepthWise = config.attrs.isGrouped && 1 == groupOC && 1 == groupIC;
+    const bool isDepthWise = config.attrs.isGrouped && 1 == groupOC && 1 == groupIC;
 
     if (isDepthWise) {
         // 1d equivalent cases are painfully slow
@@ -949,7 +949,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
 
     // it was empirically observed that the nspc convolutions perform much slower than the blocked ones if the
     // channels number more than the specific value
-    size_t spatialRank = ndims - 2;  // two means batch dim plus channels dim
+    const size_t spatialRank = ndims - 2;  // two means batch dim plus channels dim
 
     bool is1x1 = false;
 
@@ -985,7 +985,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         thresholdNumChannels = 512U;
     }
 
-    size_t OC = outDims[1];
+    const size_t OC = outDims[1];
     if (std::max(IC, OC) >= thresholdNumChannels) {
         return false;
     }

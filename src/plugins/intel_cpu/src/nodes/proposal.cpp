@@ -50,12 +50,12 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
         // transformed width & height for given ratio factors
         const auto [ratio_w, ratio_h] = [&]() {
             if (round_ratios) {
-                float rw = std::roundf(std::sqrt(base_area / ratios[ratio]));
-                float rh = std::roundf(rw * ratios[ratio]);
+                const float rw = std::roundf(std::sqrt(base_area / ratios[ratio]));
+                const float rh = std::roundf(rw * ratios[ratio]);
                 return std::make_pair(rw, rh);
             }
-            float rw = std::sqrt(base_area / ratios[ratio]);
-            float rh = rw * ratios[ratio];
+            const float rw = std::sqrt(base_area / ratios[ratio]);
+            const float rh = rw * ratios[ratio];
             return std::make_pair(rw, rh);
         }();
 

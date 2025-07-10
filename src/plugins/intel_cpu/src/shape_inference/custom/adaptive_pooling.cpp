@@ -44,7 +44,7 @@ Result AdaptivePoolingShapeInfer::infer(const std::vector<std::reference_wrapper
 }
 
 ShapeInferPtr AdaptivePoolingShapeInferFactory::makeShapeInfer() const {
-    size_t outputs_count = m_op->get_output_size();
+    const size_t outputs_count = m_op->get_output_size();
     return std::make_shared<AdaptivePoolingShapeInfer>(outputs_count);
 }
 

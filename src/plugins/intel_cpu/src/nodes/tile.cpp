@@ -204,7 +204,7 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         m_inner_dim *= inDims[i];
     }
 
-    int MB = srcMemory.getStaticDims()[0];
+    const int MB = srcMemory.getStaticDims()[0];
     if (axis > 0) {
         m_outer_dim /= inDims[0];
         m_outer_dim *= MB;

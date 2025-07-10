@@ -21,8 +21,8 @@ Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
                            [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const VectorDims& activationShape = input_shapes[0].get();
     const VectorDims& weightShape = input_shapes[1].get();
-    size_t activationRank = activationShape.size();
-    size_t channelRank = 1;
+    const size_t activationRank = activationShape.size();
+    const size_t channelRank = 1;
 
     // activation   weight    output_shape
     // NCHW         CoCHW     NCo
@@ -32,8 +32,8 @@ Result FCShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
     // set Co
     outputShape.back() = std::accumulate(weightShape.begin(), weightShape.end() - 1, 1, std::multiplies<>());
     // set batch dims
-    size_t batchRank = activationRank - channelRank;
-    size_t startIdx = out_rank - batchRank - 1;
+    const size_t batchRank = activationRank - channelRank;
+    const size_t startIdx = out_rank - batchRank - 1;
     for (size_t i = 0; i < batchRank; i++) {
         outputShape[i + startIdx] = activationShape[i];
     }

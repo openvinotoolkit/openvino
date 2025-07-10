@@ -31,7 +31,7 @@ static void dumpStatistics(std::ostream& os,
         return;
     }
     for (auto&& graph : graphs) {
-        CompiledModel::GraphGuard::Lock graph_lock{graph};
+        const CompiledModel::GraphGuard::Lock graph_lock{graph};
         os << "Memory stats for graph name: " << graph_lock._graph.GetName() << "\n\n";
         auto ctx = graph_lock._graph.getGraphContext();
         auto&& statistics = ctx->getAuxiliaryNetworkMemoryControl()->dumpStatistics();
@@ -62,7 +62,7 @@ static void dumpStatisticsCSV(std::ofstream& os,
                               std::deque<CompiledModel::GraphGuard>& graphs,
                               const SocketsWeights& weights_cache) {
     for (auto&& graph : graphs) {
-        CompiledModel::GraphGuard::Lock graph_lock{graph};
+        const CompiledModel::GraphGuard::Lock graph_lock{graph};
         os << "Memory stats for graph name: " << graph_lock._graph.GetName() << ";;;;;;\n";
         auto ctx = graph_lock._graph.getGraphContext();
         auto&& statistics = ctx->getAuxiliaryNetworkMemoryControl()->dumpStatistics();

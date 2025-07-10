@@ -137,7 +137,7 @@ bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(VectorDims permutations,
     auto check_moved_outwards = [&permutations](size_t cur, size_t moved_from) {
         // we start processing with the slot after the moved one, so the expected value is one less than the index
         size_t expected = cur - 1;
-        for (size_t end = permutations.size(); cur < end; ++cur) {
+        for (const size_t end = permutations.size(); cur < end; ++cur) {
             if (permutations[cur] != expected) {
                 return false;
             }
@@ -153,10 +153,10 @@ bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(VectorDims permutations,
     // axis was moved to, and equal to the index after that.
     // e.g. axis 1 moves inwards to 3 would be: 0, 2, 3, 1, 4
     auto check_moved_inwards = [&permutations](size_t cur, size_t& moved_to) {
-        size_t started_at = cur;
+        const size_t started_at = cur;
         size_t expected = cur + 1;
         moved_to = std::numeric_limits<size_t>::max();
-        for (size_t end = permutations.size(); cur < end; ++cur) {
+        for (const size_t end = permutations.size(); cur < end; ++cur) {
             if (permutations[cur] != expected) {
                 // if a single axis moved it must have come from the location we started at
                 if (started_at != permutations[cur]) {
@@ -172,7 +172,7 @@ bool MlasTransposeExecutor::IsTransposeMovingSingleAxis(VectorDims permutations,
     bool single_axis_moved = false;
     // check axis moving outwards (earlier entry in permutations)
     for (size_t i = 0, end = permutations.size(); i < end; ++i) {
-        size_t axis = permutations[i];
+        const size_t axis = permutations[i];
         if (axis != i) {
             if (check_moved_outwards(i + 1, axis)) {
                 single_axis_moved = true;

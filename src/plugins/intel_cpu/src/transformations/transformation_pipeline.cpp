@@ -517,16 +517,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         return map;
     };
 
-    type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert}};
+    const type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert}};
 
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
     if (config.inferencePrecision == ov::element::f16) {
-        precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
+        const precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
         type_to_fuse_map fuse_map = {};
 #else
-        type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
+        const type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
@@ -769,16 +769,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                         return false;
                     const auto num_groups = static_cast<size_t>(group_norm->get_num_groups());
                     const auto shape = group_norm->get_input_partial_shape(0).to_shape();
-                    size_t snippets_work_amount = shape[0] * num_groups;
-                    size_t concurrency = parallel_get_max_threads();
+                    const size_t snippets_work_amount = shape[0] * num_groups;
+                    const size_t concurrency = parallel_get_max_threads();
                     if (concurrency > snippets_work_amount)
                         return false;
                     size_t spatial_dim = 1;
                     for (size_t i = 2; i < shape.size(); ++i) {
                         spatial_dim = spatial_dim * shape[i];
                     }
-                    size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
-                    size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
+                    const size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
+                    const size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
                     if (snippets_tensor_size > cache_size_l1) {
                         return false;
                     }
@@ -1176,16 +1176,19 @@ void Transformations::MainSnippets() {
     //  - CPU Node Subgraph requires bf16 on output when inference precision is bf16.
     // To avoid situations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
-    bool mha_token_enable_transpose_on_output = one_of(config.inferencePrecision, element::f32, element::dynamic);
-    size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
-    if (concurrency == 0) {
-        concurrency = parallel_get_max_threads();
-    }
+    const bool mha_token_enable_transpose_on_output = one_of(config.inferencePrecision, element::f32, element::dynamic);
+    const size_t concurrency = [&]() {
+        const auto threads = config.streamExecutorConfig.get_threads_per_stream();
+        if (threads == 0) {
+            return parallel_get_max_threads();
+        }
+        return threads;
+    }();
 
     // Runtime caching should be enabled in case of dynamic Subgraphs in CPU Plugin: to reduce overheads of
     // ShapeInference and CodeGeneration If runtime cache capacity is zero, it means that rtCache won't be used and we
     // shouldn't tokenize dynamic Subgraphs - it will lead to performance degradations
-    bool is_dynamic_mha_token_enabled = config.snippetsCacheCapacity != 0;
+    const bool is_dynamic_mha_token_enabled = config.snippetsCacheCapacity != 0;
 #if defined(OPENVINO_ARCH_ARM64)
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform
     // register, 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
@@ -1196,7 +1199,7 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
-    size_t data_ptr_gpr_count = 11;
+    const size_t data_ptr_gpr_count = 11;
     auto supported_as_postop = [this](const std::shared_ptr<const ov::op::v0::MatMul>& matmul,
                                       const std::shared_ptr<const ov::Node>& node) {
         if (!pass::FuseBrgemmCPUPostops::can_be_fused_as_postop(node)) {
@@ -1218,10 +1221,10 @@ void Transformations::MainSnippets() {
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
     // Config::SnippetsMode::IgnoreCallback
-    bool split_m_dimension = !ignoreCallback;
+    const bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
-    std::set<size_t> mha_supported_transpose_ranks = {4};
-    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency,
+    const std::set<size_t> mha_supported_transpose_ranks = {4};
+    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, // NOLINT(misc-const-correctness)
                                                                      data_ptr_gpr_count,
                                                                      split_m_dimension,
                                                                      mha_token_enable_transpose_on_output,
@@ -1229,7 +1232,7 @@ void Transformations::MainSnippets() {
                                                                      mha_supported_transpose_ranks,
                                                                      supported_as_postop);
 
-    ov::pass::Manager snippetsManager("CPU:Snippets");
+    ov::pass::Manager snippetsManager("CPU:Snippets"); // NOLINT(misc-const-correctness)
     snippetsManager.set_per_pass_validation(false);
     // if callback needed for better perf, enable SnippetsMarkSkipped, and disable TokenizeFCSnippets.
     if (!ignoreCallback) {
