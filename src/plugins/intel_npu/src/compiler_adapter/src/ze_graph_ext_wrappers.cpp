@@ -369,7 +369,12 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                 // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
                 // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
                 // in case of dynamic dimensions
-                shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                if (id == 0) {
+                    // We need to kepp batch dimension dynamic
+                    shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
+                } else {
+                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                }
             }
         }
     }
