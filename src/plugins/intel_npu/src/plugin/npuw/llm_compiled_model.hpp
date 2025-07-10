@@ -17,6 +17,8 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
+    static const std::string output_embeds;
+
     struct KVCacheDesc {
         uint32_t max_prompt_size = 0u;
         uint32_t total_size = 0u;

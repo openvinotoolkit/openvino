@@ -200,7 +200,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
-    m_once_per_generate = std::make_unique<std::once_flag>();
+    m_generate_initialized = false;
 }
 
 void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
@@ -250,7 +250,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
         // TODO: Verification of removing of that line:
-        //fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+        // fill_tensor<ov::float16>(kvcache_in_tensor, 0);
 
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                  ? 3u
@@ -274,7 +274,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     LOG_DEBUG("Done.");
 }
 
-void ov::npuw::LLMInferRequest::add_to_kvcache() {
+void ov::npuw::LLMInferRequest::update_kvcache() {
     LOG_DEBUG("Update kv-cache with computed key and values for last input token.");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -347,8 +347,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_tail_mm_request) {
         LOG_DEBUG("Calling inference for tail model asynchronously...");
-        m_tail_mm_request->set_tensor(m_tail_embed_port,
-                                      m_prefill_request->get_tensor(m_prefill_out_ports.at("output_embed")));
+        m_tail_mm_request->set_tensor(
+            m_tail_embed_port,
+            m_prefill_request->get_tensor(m_prefill_out_ports.at(ov::npuw::LLMCompiledModel::output_embeds)));
         m_tail_mm_request->start_async();
         copy_kvcache();
         m_tail_mm_request->wait();
@@ -361,7 +362,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
     }
 
-    m_once_per_generate = std::make_unique<std::once_flag>();
+    m_generate_initialized = false;
 
     LOG_DEBUG("Done");
 }
@@ -372,7 +373,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
 
-    std::call_once(*m_once_per_generate, [this]() {
+    // TODO: Use another solution than flag if multithreading comes to play,
+    if (!m_generate_initialized) {
         LOG_DEBUG("Prepare attention mask pattern.");
         auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
         fill_tensor<int64_t>(kv_attn_mask, 0);
@@ -381,10 +383,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         kv_attn_mask->data<int64_t>()[m_npuw_llm_compiled_model->m_kvcache_desc.total_size - 1] = 1;
         if (m_tail_mm_request) {
             LOG_DEBUG("Set input tensor for tail inference request from generate model output.");
-            m_tail_mm_request->set_tensor(m_tail_embed_port,
-                                          m_kvcache_request->get_tensor(m_kvcache_out_ports.at("output_embed")));
+            m_tail_mm_request->set_tensor(
+                m_tail_embed_port,
+                m_kvcache_request->get_tensor(m_kvcache_out_ports.at(ov::npuw::LLMCompiledModel::output_embeds)));
         }
-    });
+
+        m_generate_initialized = true;
+    }
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     // NB: KV-cache is full, further generation is impossible
@@ -413,13 +418,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (m_tail_mm_request) {
         LOG_DEBUG("Calling inference for tail model asynchronously");
         m_tail_mm_request->start_async();
-        add_to_kvcache();
+        update_kvcache();
         m_tail_mm_request->wait();
         LOG_DEBUG("Calling inference for tail model -- done.");
 
         m_logits = m_tail_mm_request->get_tensor(m_tail_logits_port);
     } else {
-        add_to_kvcache();
+        update_kvcache();
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
     }

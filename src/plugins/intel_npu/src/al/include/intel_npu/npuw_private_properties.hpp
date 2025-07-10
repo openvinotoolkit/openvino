@@ -501,6 +501,14 @@ static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM
 
 /**
  * @brief
+ * Type: bool.
+ * Tell NPUW to switch ON/OFF 3-model pipeline mode..
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> three_model_pipeline{"NPUW_LLM_3_MODEL_PIPELINE"};
+
+/**
+ * @brief
  * Type: ov::AnyMap.
  * Configuration for compilation/execution of tail matmul model. If specified, it will override
  * default config, prepared by NPUW specifically for this model.

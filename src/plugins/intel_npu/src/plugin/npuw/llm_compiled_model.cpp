@@ -22,6 +22,8 @@
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
 
+const std::string ov::npuw::LLMCompiledModel::output_embeds = "npuw_output_embed";
+
 namespace opp = ov::pass::pattern;
 
 class RemoveEmptyKVTensors : public ov::pass::MatcherPass {
@@ -706,14 +708,14 @@ public:
             //        ICompiledModel::ICompiledModel().
             //        As a WA, setting the same name to output from MatMul
             //        avoids the issue.
-            matmul_first_source.set_names({"output_embed"});
-            matched_result->output(0).set_names({"output_embed"});
+            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_result->validate_and_infer_types();
 
             // Create an additional model after cut point:
             auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
                                                                      matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({"output_embed"});
+            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
             tail_vocab_mm_ref.get() = std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)},
@@ -789,7 +791,7 @@ void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, con
         if (new_shape[i].is_dynamic()) {
             new_shape[i] = 1;
             // Sanity check that only one left dimension is dynamic, as
-            // another one should contain embedding space rank 
+            // another one should contain embedding space rank
             break;
         }
     }
@@ -800,7 +802,7 @@ void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, con
 void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_dim) {
     std::shared_ptr<ov::Node> embed_result;
     for (auto&& output : model->outputs()) {
-        if (output.get_any_name() == "output_embed") {
+        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
             embed_result = output.get_node_shared_ptr();
         }
     }
@@ -814,23 +816,17 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_di
         if (shape.size() == 3) {
             uint32_t num_embeds_dim = 1 - batch_dim;
             if (shape[num_embeds_dim] > 1) {
-                std::vector<int32_t> start_pos {
-                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)),
-                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)),
-                    0 };
-                std::vector<int32_t> stop_pos {
-                    static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
-                    static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
-                    static_cast<int32_t>(shape[2]) };
-                auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                    ov::Shape{3},
-                                                                    start_pos);
-                auto stop =
-                    std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                        ov::Shape{3},
-                                                        stop_pos);
-                auto step =
-                    std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, std::vector<int32_t>{1, 1, 1});
+                std::vector<int32_t> start_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)),
+                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)),
+                                               0};
+                std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
+                                              static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
+                                              static_cast<int32_t>(shape[2])};
+                auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
+                auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
+                auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
+                                                                   ov::Shape{3},
+                                                                   std::vector<int32_t>{1, 1, 1});
 
                 auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
 
@@ -961,10 +957,6 @@ ov::AnyMap get_default_generate_config(const std::optional<NPUDesc>& npudesc,
     if (hint == ::intel_npu::npuw::llm::GenerateHint::FAST_COMPILE) {
         config.emplace("NPUW_UNFOLD_IREQS", "YES");
     }
-    // Specify NPUW DQ if Compiler DQ is not enabled
-    if (!npudesc.has_value() || !npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ", "YES");
-    }
     return config;
 }
 
@@ -975,10 +967,6 @@ ov::AnyMap get_default_tail_mm_config(const std::optional<NPUDesc>& npudesc) {
     config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     if (npudesc.has_value() && npudesc->arch == "4000") {
         config.emplace("NPU_TILES", 4);
-    }
-    // Specify NPUW DQ if Compiler DQ is not enabled
-    if (!npudesc.has_value() || !npudesc->compiler_dq) {
-        config.emplace("NPUW_DQ", "YES");
     }
     return config;
 }
@@ -1053,13 +1041,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // And only then do bf16 to f16 transformation
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
-    LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-    auto tail_mm_model = cut_tail_matmul(kvcache_model);
+
+    bool three_model_enabled = m_cfg.get<::intel_npu::NPUW_LLM_3_MODEL_PIPELINE>();
+    std::shared_ptr<ov::Model> tail_mm_model = nullptr;
+    if (three_model_enabled) {
+        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
+        tail_mm_model = cut_tail_matmul(kvcache_model);
+    }
     if (tail_mm_model) {
         LOG_INFO("Three-model pipeline will be created.");
     } else {
         LOG_INFO("Two-model pipeline will be created");
     }
+
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
@@ -1150,8 +1144,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (tail_mm_model) {
         auto tail_mm_config = get_default_tail_mm_config(npudesc);
         merge_config_with(tail_mm_config, other_props);
-        auto tail_mm_config_addition_value =
-            tail_mm_config_addition.has_value() ? tail_mm_config_addition.value().as<ov::AnyMap>() : ov::AnyMap{};
+        auto tail_mm_config_addition_value = tail_mm_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
 
         merge_config_with(tail_mm_config, tail_mm_config_addition_value);
         m_tail_mm_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
@@ -1529,11 +1522,12 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
 
     m_prop_to_opt.insert({BIND(npuw::llm::enabled, NPUW_LLM, get),
                           BIND(npuw::llm::batch_dim, NPUW_LLM_BATCH_DIM, get),
-                          BIND(npuw::llm::batch_dim, NPUW_LLM_SEQ_LEN_DIM, get),
+                          BIND(npuw::llm::seq_len_dim, NPUW_LLM_SEQ_LEN_DIM, get),
                           BIND(npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN, get),
                           BIND(npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN, get),
                           BIND(npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
-                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString)});
+                          BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
+                          BIND(npuw::llm::three_model_pipeline, NPUW_LLM_3_MODEL_PIPELINE, get)});
 #undef BIND
 }
