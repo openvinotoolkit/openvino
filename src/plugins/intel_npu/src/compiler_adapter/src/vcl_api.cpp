@@ -432,6 +432,7 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option) const {
         // The API is only supported in new version, just add log here
         _logger.debug("Exception in is_option_supported: %s", e.what());
     }
+    _logger.debug("option: %s is not supported", option.c_str());
     return false;
 }
 
