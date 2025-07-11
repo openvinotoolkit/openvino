@@ -130,16 +130,33 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
     network.shrink_to_fit();
     _logger.debug("parse end");
 
-    bool blobAligned = false;
-    if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13)) {
-        blobAligned = utils::memory_and_size_aligned_to_standard_page_size(blob.data(), blob.get_byte_size());
-    }
-
     ze_graph_handle_t graphHandle = nullptr;
+    bool blobAligned = false;
+
     if (_zeGraphExt) {
-        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
-                                                  blob.get_byte_size(),
-                                                  blobAligned);
+        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13)) {
+            blobAligned = utils::memory_and_size_aligned_to_standard_page_size(blob.data(), blob.get_byte_size());
+        }
+
+        if (blobAligned) {
+            try {  // in some specific cases(older OS version), this might fail if reading a READ-ONLY blob;
+                   // fall-back to pfnCreate in this case
+                graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
+                                                          blob.get_byte_size(),
+                                                          blobAligned);
+
+            } catch (const ov::Exception& ex) {
+                _logger.warning("Got an error during graph creation: %s\nTrying again with persistent flag unset",
+                                ex.what());
+                blobAligned = false;
+            }
+        }
+
+        if (!blobAligned) {
+            graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
+                                                      blob.get_byte_size(),
+                                                      blobAligned);
+        }
     }
 
     return std::make_shared<Graph>(_zeGraphExt,

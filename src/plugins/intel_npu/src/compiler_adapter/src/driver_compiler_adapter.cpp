@@ -219,8 +219,27 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(ov::Tensor blob,
     }
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()), blob.get_byte_size(), blobAligned);
+    ze_graph_handle_t graphHandle = nullptr;
+    if (blobAligned) {
+        try {  // in some specific cases(older OS version), this might fail if reading a READ-ONLY blob; fall-back to
+               // pfnCreate in this case
+            graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
+                                                      blob.get_byte_size(),
+                                                      blobAligned);
+
+        } catch (const ov::Exception& ex) {
+            _logger.warning("Got an error during graph creation: %s\nTrying again with persistent flag unset",
+                            ex.what());
+            blobAligned = false;
+        }
+    }
+
+    if (!blobAligned) {
+        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
+                                                  blob.get_byte_size(),
+                                                  blobAligned);
+    }
+
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
