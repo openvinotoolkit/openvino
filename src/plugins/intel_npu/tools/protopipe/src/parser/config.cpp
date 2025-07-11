@@ -10,6 +10,7 @@
 
 #include <filesystem>
 #include <map>
+#include <unordered_set>
 #include <string>
 #include <vector>
 
@@ -133,6 +134,60 @@ static std::string toPriority(const std::string& priority) {
 
 static ScenarioGraph buildGraph(const std::vector<OpDesc>& op_descs,
                                 const std::vector<std::vector<std::string>>& connections);
+
+namespace {
+    template <typename T, std::size_t N1, std::size_t N2>
+    constexpr std::array<T, N1 + N2> concat(std::array<T, N1> lhs, std::array<T, N2> rhs)
+    {
+        std::array<T, N1 + N2> result{};
+        std::size_t index = 0;
+
+        for (auto& el : lhs) {
+            result[index] = std::move(el);
+            ++index;
+        }
+        for (auto& el : rhs) {
+            result[index] = std::move(el);
+            ++index;
+        }
+
+        return result;
+    }
+
+    template <typename T, std::size_t N1, std::size_t N2, std::size_t N3>
+    constexpr std::array<T, N1 + N2 + N3> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3) {
+        return concat(concat(a1, a2), a3);
+    }
+
+    template <typename T, std::size_t N1, std::size_t N2, std::size_t N3, std::size_t N4>
+    constexpr std::array<T, N1 + N2 + N3 + N4> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3, std::array<T, N4> a4) {
+        return concat(concat(a1, a2, a3), a4);
+    }
+    
+    template <typename T, std::size_t N1, std::size_t N2, std::size_t N3, std::size_t N4, std::size_t N5>
+    constexpr std::array<T, N1 + N2 + N3 + N4 + N5> concat(std::array<T, N1> a1, std::array<T, N2> a2, std::array<T, N3> a3, std::array<T, N4> a4, std::array<T, N5> a5) {
+        return concat(concat(a1, a2, a3, a4), a5);
+    }
+
+    void validateNodeKeys(const YAML::Node& node, const std::set<std::string>& supported_keys, std::string position_name)
+    {
+        for (const auto& nodeChild : node) {
+            const auto key = nodeChild.first.as<std::string>();
+            if (supported_keys.find(key) == supported_keys.end()) {
+                const auto mark = node[key].Mark();
+                std::stringstream ss;
+                ss << "Unsupported key: '" << key << "' for " << position_name << "!";
+                THROW_ERROR(ss.str());
+            }
+        }
+    }
+
+    template <std::size_t N>
+    void validateNodeKeys(const YAML::Node& node, const std::array<const char *, N>& supported_keys, std::string position_name) {
+        std::set<std::string> supported_keys_set(supported_keys.begin(), supported_keys.end());
+        validateNodeKeys(node, supported_keys_set, position_name);
+    }
+}
 
 namespace YAML {
 
@@ -278,6 +333,10 @@ struct convert<IAccuracyMetric::Ptr> {
 template <>
 struct convert<GlobalOptions> {
     static bool decode(const Node& node, GlobalOptions& opts) {
+        const std::set<std::string> parameters = {"blob_dir", "compiler_type", "device_name", 
+        "disable_high_resolution_waitable_timer", "log_level", "metric", "model_dir", "multi_inference", 
+        "random", "save_validation_outputs"};
+        validateNodeKeys(node, parameters, "global options");
         if (node["model_dir"]) {
             if (!node["model_dir"]["local"]) {
                 THROW_ERROR("\"model_dir\" must contain \"local\" key!");
@@ -403,6 +462,8 @@ struct convert<ONNXRTParams::EP> {
     static bool decode(const Node& node, ONNXRTParams::EP& ep) {
         const auto ep_name = node["name"].as<std::string>();
         if (ep_name == "OV") {
+            const std::set<std::string> parameters = { "name", "params", "device_type"};
+            validateNodeKeys(node, parameters, std::string("node with \"name: ") + ep_name + "\"");
             ep = node.as<ONNXRTParams::OpenVINO>();
         } else {
             THROW_ERROR("Unsupported \"ep name\" value: " << ep_name);
@@ -432,16 +493,25 @@ struct convert<ONNXRTParams> {
 template <>
 struct convert<Network> {
     static bool decode(const Node& node, Network& network) {
+        const std::array networkParametersArr = {"name", "framework", "random", "metric", "input_data", "output_data"};
+        const std::array openVINOParamsArr = {"name", "path", "device", "ip", "op", "il", "ol", "iml", 
+            "oml","reshape", "config", "priority", "nireq"};
+        const std::array onnxRTParamsArr = {"name", "session_options", "ep", "opt_level"};
+
+        validateNodeKeys(node, concat(networkParametersArr, openVINOParamsArr, onnxRTParamsArr), std::string("network node"));
         // NB: Take path stem as network tag
         // Note that at this point, it's fine if names aren't unique
+
         const auto name = node["name"].as<std::string>();
         network.tag = std::filesystem::path{name}.stem().string();
         // NB: OpenVINO is default to keep back compatibility for config syntax
         const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
         if (framework == "openvino") {
             // NB: Parse OpenVINO model parameters such as path, device, precision, etc
+            validateNodeKeys(node, concat(networkParametersArr, openVINOParamsArr), std::string("node with \"framework: ") + framework + "\"");
             network.params = node.as<OpenVINOParams>();
         } else if (framework == "onnxrt") {
+            validateNodeKeys(node, concat(networkParametersArr, onnxRTParamsArr), std::string("node with \"framework: ") + framework + "\"");
             network.params = node.as<ONNXRTParams>();
         } else {
             THROW_ERROR("Unsupported \"framework:\" value: " << framework);
@@ -506,6 +576,17 @@ struct convert<InferOp> {
 template <>
 struct convert<OpDesc> {
     static bool decode(const Node& node, OpDesc& opdesc) {
+        const std::array opDescParametersArr = { "tag", "type", "repeat_count", "framework", "connections", "op_desc" };
+        const std::array inferOpParamsArr = { "framework", "random", "metric", "input_data", "output_data" };
+        const std::array openVINOParamsArr = { "name", "path", "device", "ip", "op", "il", "ol", "iml", "oml",
+            "reshape", "config", "priority", "nireq" };
+        const std::array onnxRTParams = { "name", "path", "session_options", "ep", "opt_level" };
+        const std::array cpuParamsArr = { "time_in_us" };
+
+        auto opDescAllParametersArr = concat(opDescParametersArr, inferOpParamsArr, openVINOParamsArr, onnxRTParams, 
+            cpuParamsArr);
+        validateNodeKeys(node, opDescAllParametersArr, std::string("op_desc node"));
+
         opdesc.tag = node["tag"].as<std::string>();
         auto type = node["type"] ? node["type"].as<std::string>() : "Infer";
         auto repeat_count = node["repeat_count"] ? node["repeat_count"].as<uint64_t>() : 1u;
@@ -515,10 +596,25 @@ struct convert<OpDesc> {
             type = "Compound";
         }
         if (type == "Infer") {
+            auto inferAllParametersArr = concat(opDescParametersArr, inferOpParamsArr, openVINOParamsArr, onnxRTParams);
+            validateNodeKeys(node, inferAllParametersArr, std::string("node with \"type: ") + type + "\"");
             opdesc.op = node.as<InferOp>();
+            const auto framework = node["framework"] ? node["framework"].as<std::string>() : "openvino";
+            if (framework == "openvino") {
+                validateNodeKeys(node, concat(opDescParametersArr, inferOpParamsArr, openVINOParamsArr), 
+                    std::string("node with \"type: ") + type + "\"");
+            } else if (framework == "onnxrt") {
+                validateNodeKeys(node, concat(opDescParametersArr, inferOpParamsArr, onnxRTParams), 
+                    std::string("node with \"type: ") + type + "\" and \"framework: " + framework + "\"");
+            } else {
+                THROW_ERROR("Unsupported \"framework:\" value: " << framework);
+            }
         } else if (type == "CPU") {
+            validateNodeKeys(node, concat(opDescParametersArr, cpuParamsArr),
+                std::string("node with \"type: ") + type +"\"");
             opdesc.op = node.as<CPUOp>();
         } else if (type == "Compound") {
+            validateNodeKeys(node, opDescAllParametersArr, std::string("node with \"type: ") + type +"\"");
             std::vector<std::vector<std::string>> connections;
             if (node["connections"]) {
                 connections = node["connections"].as<std::vector<std::vector<std::string>>>();
@@ -648,7 +744,9 @@ static InferenceParams adjustParams(InferenceParams&& params, const GlobalOption
 static StreamDesc parseStream(const YAML::Node& node, const GlobalOptions& opts, const std::string& default_name,
                               const ReplaceBy& replace_by) {
     StreamDesc stream;
-
+    const std::set<std::string> parameters = {"delay_in_us", "exec_time_in_secs", "frames_interval_in_ms",
+    "iteration_count", "name", "network", "target_fps", "target_latency_in_ms"};
+    validateNodeKeys(node, parameters, "node at stream level");
     // FIXME: Create a function for the duplicate code below
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
     stream.frames_interval_in_us = 0u;
@@ -776,6 +874,9 @@ static StreamDesc parseAdvancedStream(const YAML::Node& node, const GlobalOption
     StreamDesc stream;
 
     // FIXME: Create a function for the duplicate code below
+    const std::set<std::string> parameters = {"name", "frames_interval_in_ms", "target_fps", "target_latency_in_ms", 
+        "exec_time_in_secs", "iteration_count", "op_desc", "connections"};
+    validateNodeKeys(node, parameters, "");
     stream.name = node["name"] ? node["name"].as<std::string>() : default_name;
     stream.frames_interval_in_us = 0u;
     if (node["frames_interval_in_ms"]) {
@@ -850,6 +951,8 @@ static std::vector<ScenarioDesc> parseScenarios(const YAML::Node& node, const Gl
                                                 const ReplaceBy& replace_by) {
     std::vector<ScenarioDesc> scenarios;
     for (const auto& subnode : node) {
+        const std::set<std::string> parameters = {"input_stream_list", "name"};
+        validateNodeKeys(subnode, parameters, "node at scenario level");
         ScenarioDesc scenario;
         scenario.name = subnode["name"] ? subnode["name"].as<std::string>()
                                         : "multi_inference_" + std::to_string(scenarios.size());
