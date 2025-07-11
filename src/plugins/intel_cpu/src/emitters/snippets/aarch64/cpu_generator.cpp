@@ -21,8 +21,8 @@
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
 #ifdef OV_CPU_WITH_KLEIDIAI
-#include "emitters/snippets/aarch64/jit_gemm_copy_b_emitter.hpp"
-#include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
+#    include "emitters/snippets/aarch64/jit_gemm_copy_b_emitter.hpp"
+#    include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
 #endif
 #include "emitters/snippets/aarch64/jit_horizon_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
