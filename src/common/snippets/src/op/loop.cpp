@@ -23,7 +23,6 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
-
 LoopBase::LoopBase(const std::vector<Output<Node>>& args) : Op(args) {}
 
 LoopBegin::LoopBegin() {
@@ -230,4 +229,45 @@ void LoopEnd::set_id(size_t id) {
     m_id = id;
 }
 
+std::shared_ptr<Node> ParallelLoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
+    OPENVINO_ASSERT(inputs.empty(), "ParallelLoopBegin should not contain inputs");
+    return std::make_shared<ParallelLoopBegin>();
+}
+
+ParallelLoopEnd::ParallelLoopEnd(const Output<Node>& loop_begin,
+                                 size_t work_amount,
+                                 size_t work_amount_increment,
+                                 std::vector<bool> is_incremented,
+                                 std::vector<int64_t> ptr_increments,
+                                 std::vector<int64_t> finalization_offsets,
+                                 std::vector<int64_t> element_type_sizes,
+                                 size_t input_num,
+                                 size_t output_num,
+                                 size_t id)
+    : LoopEnd(loop_begin,
+              work_amount,
+              work_amount_increment,
+              std::move(is_incremented),
+              std::move(ptr_increments),
+              std::move(finalization_offsets),
+              std::move(element_type_sizes),
+              input_num,
+              output_num,
+              id) {}
+
+std::shared_ptr<Node> ParallelLoopEnd::clone_with_new_inputs(const OutputVector& inputs) const {
+    check_new_args_count(this, inputs);
+    const auto loop_end = std::make_shared<ParallelLoopEnd>(inputs.at(0),
+                                                            m_work_amount,
+                                                            m_work_amount_increment,
+                                                            m_is_incremented,
+                                                            m_ptr_increments,
+                                                            m_finalization_offsets,
+                                                            m_element_type_sizes,
+                                                            m_input_num,
+                                                            m_output_num,
+                                                            m_id);
+    loop_end->m_evaluate_once = m_evaluate_once;
+    return loop_end;
+}
 }  // namespace ov::snippets::op

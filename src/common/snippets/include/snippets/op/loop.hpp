@@ -16,7 +16,6 @@
 #include "openvino/op/op.hpp"
 
 namespace ov::snippets::op {
-
 /**
  * @interface LoopBase
  * @brief Base class for LoopBegin and LoopEnd
@@ -125,4 +124,28 @@ protected:
     bool m_evaluate_once = false;
 };
 
+class ParallelLoopBegin : public LoopBegin {
+public:
+    OPENVINO_OP("ParallelLoopBegin", "SnippetsOpset", LoopBegin);
+    ParallelLoopBegin() = default;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+};
+
+class ParallelLoopEnd : public LoopEnd {
+public:
+    OPENVINO_OP("ParallelLoopEnd", "SnippetsOpset", LoopEnd);
+    ParallelLoopEnd() = default;
+    ParallelLoopEnd(const Output<Node>& loop_begin,
+                    size_t work_amount,
+                    size_t work_amount_increment,
+                    std::vector<bool> is_incremented,
+                    std::vector<int64_t> ptr_increments,
+                    std::vector<int64_t> finalization_offsets,
+                    std::vector<int64_t> element_type_sizes,
+                    size_t input_num,
+                    size_t output_num,
+                    size_t id);
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+};
 }  // namespace ov::snippets::op
