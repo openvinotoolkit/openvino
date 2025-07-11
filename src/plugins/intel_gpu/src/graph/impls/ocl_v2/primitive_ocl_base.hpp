@@ -24,6 +24,68 @@
 
 namespace ov::intel_gpu::ocl {
 
+// inline bool requires_shape_canonicalization(const RuntimeParams& impl_params) {
+//     auto extend_output = impl_params.output_layouts[0].get_partial_shape().size() < 4;
+//     auto extend_attn_mask = false;
+
+//     // According to SDPA specification, attention mask should have 2-dimensions or more or empty
+//     const auto attn_mask_idx = 3;
+//     if (impl_params.input_layouts.size() > attn_mask_idx) {
+//         const auto& attn_mask_shape = impl_params.get_input_layout(attn_mask_idx).get_partial_shape();
+//         extend_attn_mask = attn_mask_shape.size() != 0 && attn_mask_shape.size() < 4;
+//     }
+
+//     return extend_output || extend_attn_mask;
+// }
+
+// inline ov::PartialShape extend_shape_to_rank_from_begin(const ov::PartialShape& pshape, size_t rank = 4) {
+//     if (pshape.size() >= rank) {
+//         return pshape;
+//     }
+//     ov::PartialShape extended_pshape(std::vector<int64_t>(rank - pshape.size(), 1));
+//     extended_pshape.insert(extended_pshape.end(), pshape.begin(), pshape.end());
+//     return extended_pshape;
+// }
+
+// inline ov::PartialShape extend_shape_to_rank_from_end(ov::PartialShape pshape, size_t rank = 4) {
+//     if (pshape.size() >= rank) {
+//         return pshape;
+//     }
+//     pshape.insert(pshape.end(), rank - pshape.size(), ov::Dimension(1));
+//     return pshape;
+// }
+// inline RuntimeParams do_static_canonicalize_shapes(const RuntimeParams& impl_params) {
+//     auto updated_impl_params = impl_params;
+
+//     auto extend_pshape_to_rank_in_num_heads_dim = [](ov::PartialShape pshape, size_t rank = 4) {
+//         if (pshape.size() == rank) {
+//             return pshape;
+//         }
+//         const size_t num_heads_dim = 1;
+//         pshape.insert(pshape.begin() + num_heads_dim, ov::Dimension(1));
+//         return pshape;
+//     };
+
+//     const auto attn_mask_idx = 3;
+//     if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
+//         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
+//         updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));
+//     }
+
+//     // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
+//     for (auto& input_layout : updated_impl_params.input_layouts) {
+//         std::cout << "do_static_canonicalize_shapes: input_layout.get_partial_shape() = " << input_layout.get_partial_shape().to_string() << std::endl;
+//         input_layout.set_partial_shape(input_layout.get_partial_shape().size() <= 1 ?
+//                                        extend_shape_to_rank_from_end(input_layout.get_partial_shape()) :
+//                                        extend_pshape_to_rank_in_num_heads_dim(input_layout.get_partial_shape()));
+//     }
+
+//     auto& output_layout = updated_impl_params.output_layouts[0];
+//     output_layout.set_partial_shape(extend_pshape_to_rank_in_num_heads_dim(output_layout.get_partial_shape()));
+
+//     return updated_impl_params;
+// }
+
 class Stage {
 public:
     using Ptr = std::unique_ptr<Stage>;
@@ -118,6 +180,12 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     }
 
     void update(cldnn::primitive_inst& inst, const RuntimeParams& impl_params) override {
+        // auto new_impl_params = requires_shape_canonicalization(impl_params) ? do_static_canonicalize_shapes(impl_params) : impl_params;
+        // std::cout << "PrimitiveImplOCL::update: requires_shape_canonicalization(impl_params) = "
+        // << requires_shape_canonicalization(impl_params) << std::endl;
+        // std::cout << "\t impl_params.input_layouts[0] = " << impl_params.input_layouts[0].to_string() << std::endl;
+        // std::cout << "\t new_impl_params.input_layouts[0] = " << new_impl_params.input_layouts[0].to_string() << std::endl;
+        // inst.update_shape_info_tensor(new_impl_params);
         inst.update_shape_info_tensor(impl_params);
     }
 

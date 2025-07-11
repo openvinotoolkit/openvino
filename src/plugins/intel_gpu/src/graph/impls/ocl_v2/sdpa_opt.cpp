@@ -49,36 +49,51 @@ public:
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {}
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-
+        std::cout << "SDPAOptImpl: start.................." << std::endl;
         if (params.is_dynamic()) {
+            std::cout << "SDPAOptImpl: params is dynamic" << std::endl;
             add_stage(regular_single_token, params);
+            std::cout << "SDPAOptImpl: params is dynamic---regular_single_token" << std::endl;
             add_stage(indirect_single_token, params);
-
+            std::cout << "SDPAOptImpl: params is dynamic---indirect_single_token" << std::endl;
             add_stage(regular_multi_tokens, params);
+            std::cout << "SDPAOptImpl: params is dynamic---regular_multi_tokens" << std::endl;
             add_stage(indirect_multi_tokens, params);
+            std::cout << "SDPAOptImpl: params is dynamic---indirect_multi_tokens" << std::endl;
 
             add_stage(regular_finalization, params);
+            std::cout << "SDPAOptImpl: params is dynamic---regular_finalization" << std::endl;
             add_stage(indirect_finalization, params);
+            std::cout << "SDPAOptImpl: params is dynamic, add stage done" << std::endl;
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (SDPAOpt::supports_micro_sdpa(params)) {
+                std::cout << "regular_micro_single_token...1" << std::endl;
                 add_stage(regular_micro_single_token, params);
+                std::cout << "regular_micro_single_token...2" << std::endl;
                 add_stage(regular_micro_multi_tokens, params);
+                std::cout << "regular_micro_multi_tokens...3" << std::endl;
             }
+            std::cout << "regular_micro_single_token...done" << std::endl;
 #endif
         } else {
             auto is_indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
-            if (is_prefill_stage(params)) {
-                if (indirect) {
+            std::cout << "SDPAOptImpl: is_indirect = " << is_indirect << std::endl;
+            if (is_prefill_stage(params) || unaligned_head_size(params)) {
+                if (is_indirect) {
                     add_stage(indirect_multi_tokens, params);
+                    std::cout << "SDPAOptImpl: add indirect_multi_tokens kernels" << std::endl;
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 } else if (SDPAOpt::supports_micro_sdpa(params)) {
+                    std::cout << "SDPAOptImpl: add micro kernels" << std::endl;
                     add_stage(regular_micro_single_token, params);
                     add_stage(regular_micro_multi_tokens, params);
 #endif
                 } else {
+                    std::cout << "SDPAOptImpl: add regular_multi_tokens kernels" << std::endl;
                     add_stage(regular_multi_tokens, params);
                 }
             } else {
+                std::cout << "SDPAOptImpl: add single_tokens kernels" << std::endl;
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
                 if (!SDPAOpt::supports_micro_sdpa(params) || is_ARL_H) {
@@ -99,9 +114,11 @@ public:
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
+        std::cout << "execute: " << std::endl;
         bool is_prefill = is_prefill_stage(params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
 
+        std::cout << "execute: is_indirect = " << is_indirect << ", is_prefill = " << is_prefill << std::endl;
         update_rt_params(instance);
 #ifdef ENABLE_ONEDNN_FOR_GPU
         const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
@@ -115,11 +132,20 @@ public:
             }
         }
 #endif
-        if (is_prefill) {
+        // TODO: Unaligned head size is currently supported by only multi tokens kernel.
+        // So far this case was observed only from the non-lm models such as vision embedding model.
+        // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
+        // we'll need to fix single_token kernel to support unaligned head size.
+        std::cout << "execute: is_prefill = " << is_prefill << std::endl;
+        //is_indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
+        if (is_prefill || unaligned_head_size(params)) {
+            std::cout << "execute regular_multi_tokens: is_indirect = " << is_indirect << std::endl;
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
-        const auto num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
+        auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
+        const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
 
+        std::cout << "execute regular_single_token: is_indirect = " << is_indirect << std::endl;
         auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
         if (num_of_partitions > 1) {
             ev = execute_stage({ev}, instance, is_indirect ? indirect_finalization : regular_finalization);
@@ -132,12 +158,19 @@ public:
 
         auto desc = params.typed_desc<scaled_dot_product_attention>();
 
-        const auto& q_l = params.input_layouts[0];
+        std::cout << "get_internal_buffer_descs: " << std::endl;
+        // const auto& q_l = params.input_layouts[0];
+        // const auto head_size = extract_channel(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order), q_l);
+        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+        auto params_canonicalization = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
+        const auto head_size = get_head_size(params_canonicalization.get_input_layout(0), extended_input_q_transpose_order);
 
-        const auto head_size = extract_channel(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order), q_l);
+        std::cout << "get_internal_buffer_descs: head_size = " << head_size << std::endl;
 
-        const auto num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
-        const auto is_prefill = is_prefill_stage(params);
+        const auto num_of_partitions = get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN);
+        const auto is_prefill = is_prefill_stage(params_canonicalization);
+
+        std::cout << "get_internal_buffer_descs: num_of_partitions = " << num_of_partitions << std::endl;
 
         const size_t buf_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
         const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() * num_of_partitions;
@@ -159,6 +192,8 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
 
+    std::cout << "SDPAOpt::supports_micro_sdpa: " << std::endl;
+
     const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
     if (device_info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
         return false;
@@ -169,15 +204,30 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     const auto& v_layout = params.get_input_layout(2);
 
     auto desc = params.typed_desc<scaled_dot_product_attention>();
-    if (desc->is_causal) {
-        return false;
-    }
 
-    auto Q_num_heads_dim = get_num_heads(q_layout, desc->input_q_transpose_order);
-    auto K_num_heads_dim = get_num_heads(k_layout, desc->input_k_transpose_order);
-    auto V_num_heads_dim = get_num_heads(v_layout, desc->input_v_transpose_order);
+    // If is indirect_axis and has beam table, then it should support.
+    // if (desc->indirect_axis != -1) {
+    //     std::cout << "SDPAOpt::supports_micro_sdpa: does not support indirect axis = " << desc->indirect_axis << std::endl;
+    //     // Micro kernel does not support indirect axis
+    //     return false;
+    // }
 
-    if (desc->input_q_transpose_order[3] != 3 || desc->input_k_transpose_order[3] != 3 || desc->input_v_transpose_order[3] != 3) {
+    auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+    auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+    auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+    // auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
+
+    ov::Dimension Q_num_heads_dim = get_num_heads(q_layout, extended_input_q_transpose_order);
+    ov::Dimension K_num_heads_dim = get_num_heads(k_layout, extended_input_k_transpose_order);
+    ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
+
+    std::cout << "K_num_heads_dim = " << K_num_heads_dim << ", V_num_heads_dim = " << V_num_heads_dim << std::endl;
+
+    // const size_t order_idx = desc->input_q_transpose_order.size() - 1;
+    if (extended_input_q_transpose_order[3] != 3 ||
+        extended_input_k_transpose_order[3] != 3 ||
+        extended_input_v_transpose_order[3] != 3) {
+        std::cout << "SDPAOpt::supports_micro_sdpa: q_transpose_order is none" << std::endl;
         return false;
     }
 
@@ -185,20 +235,36 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
         return false;
     }
 
-    if (q_layout.get_partial_shape()[3].get_length() > 256) {
+    auto K_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
+    auto V_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
+
+    std::cout << "K_head_size = " << K_head_size << ", V_head_size = " << V_head_size << std::endl;
+
+    if (K_head_size != V_head_size || K_head_size > 256 || V_head_size > 256) {
+        return false;
+    }
+
+    auto data_inputs_num = get_data_inputs_num(*desc);
+    // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
+    const auto mask_idx = 3lu;
+    if (!desc->attn_mask_val.has_value() && data_inputs_num > mask_idx && !params.get_input_layout(mask_idx).is_dynamic() &&
+        params.get_input_layout(mask_idx).count() == 1) {
+        return false;
+    }
+    if (q_layout.get_partial_shape()[mask_idx].get_length() > 256) {
         return false;
     }
 
     // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
     // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
-    const bool is_output_rank_4d = params.output_layouts[0].get_partial_shape().size() == 4;
+    const bool is_output_rank_4d = desc->output_transpose_order.size() == 4;
     if (!is_output_rank_4d)
         return false;
 
-    auto data_inputs_num = get_data_inputs_num(*desc);
-
+    std::cout << "SDPAOpt::supports_micro_sdpa: params.get_input_layout(2) = " << params.get_input_layout(2).to_string() << std::endl;
     // Do not use sdpa_micro kernel with a scalar-value mask
-    return data_inputs_num <= 3 || params.get_input_layout(3).is_dynamic() || params.get_input_layout(3).count() != 1;
+    // return data_inputs_num <= 3 || params.get_input_layout(3).is_dynamic() || params.get_input_layout(3).count() != 1;
+    return true;
 #else
     return false;
 #endif

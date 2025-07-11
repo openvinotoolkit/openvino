@@ -29,7 +29,7 @@ struct SDPAOpt : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        constexpr size_t subgroup_size = 16;
+        // constexpr size_t subgroup_size = 16;
 
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
         static constexpr std::array supported_q_types = {
@@ -58,10 +58,34 @@ struct SDPAOpt : public ImplementationManager {
             return false;
         }
 
-        const auto head_size = q_layout.get_partial_shape()[3].get_length();
-        if (head_size < 1 || head_size % subgroup_size != 0) {
+        auto order_to_string = [](const std::vector<int64_t>& order) {
+            std::ostringstream oss;
+            oss << "[";
+            for (size_t i = 0; i < order.size(); ++i) {
+                oss << order[i];
+                if (i < order.size() - 1) {
+                    oss << ", ";
+                }
+            }
+            oss << "]";
+            return oss.str();
+        };
+        std::cout << "k_layout.get_partial_shape() = " << k_layout.get_partial_shape().to_string() << std::endl;
+        std::cout << "desc->input_k_transpose_order.size() = " << desc->input_k_transpose_order.size() << std::endl;
+        std::cout << "\t" << order_to_string(desc->input_k_transpose_order) << std::endl;
+        std::cout << "\t desc->indirect_axis = " << desc->indirect_axis << std::endl;
+
+        // const auto k_head_size = k_layout.get_partial_shape()[3].get_length();
+        // if (k_head_size < 1 || head_size % subgroup_size != 0) {
+        // auto k_head_size = get_head_size(k_layout, desc->input_k_transpose_order).get_length();
+
+        auto dim_size = desc->input_k_transpose_order.size();
+        auto k_head_size =  k_layout.get_partial_shape()[desc->input_k_transpose_order[dim_size - 1]];
+        if (k_head_size.is_dynamic()) {
             return false;
         }
+
+        // std::cout << "k_head_size = " << k_head_size << std::endl;
 
         const bool use_asymmetric_quantization =
             desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;

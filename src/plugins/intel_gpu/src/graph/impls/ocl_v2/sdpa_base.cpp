@@ -92,7 +92,30 @@ std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& p
         const auto key_shape = transpose_pshape(params.get_input_layout(1).get_partial_shape(), desc->input_k_transpose_order);
         const auto value_shape = transpose_pshape(params.get_input_layout(2).get_partial_shape(), desc->input_v_transpose_order);
 
-        OPENVINO_ASSERT(key_shape == value_shape, "[GPU] The shapes of key and value inputs are expected to be equal");
+        // auto order_to_string = [](const std::vector<int64_t>& order) {
+        //         std::ostringstream oss;
+        //         oss << "[";
+        //         for (size_t i = 0; i < order.size(); ++i) {
+        //             oss << order[i];
+        //             if (i < order.size() - 1) {
+        //                 oss << ", ";
+        //             }
+        //         }
+        //         oss << "]";
+        //         return oss.str();
+        // };
+        // std::cout << "SDPABase::get_gqa_params:" << std::endl;
+        // std::cout << " \tinput Q transpose order: " << order_to_string(desc->input_q_transpose_order) << "\n";
+        // std::cout << " \tinput K transpose order: " << order_to_string(desc->input_k_transpose_order) << "\n";
+        // std::cout << " \tinput V transpose order: " << order_to_string(desc->input_v_transpose_order) << "\n";
+        // std::cout << " \toutput transpose order: " << order_to_string(desc->output_transpose_order) << "\n";
+
+        // std::cout << "\tquery shape: " << query_shape.to_string() << ", desc->input_q_transpose_order = " << desc->input_q_transpose_order[0] << ", "
+        //           << desc->input_q_transpose_order[1] << "," << desc->input_q_transpose_order[2] << std::endl;
+        // std::cout << "\tkey shape: " << key_shape.to_string() << ", desc->input_k_transpose_order = " << desc->input_k_transpose_order[0] << ", "
+        //           << desc->input_k_transpose_order[1] << "," << desc->input_k_transpose_order[2] << std::endl;
+        // std::cout << "\tvalue shape: " << value_shape.to_string() << ", desc->input_v_transpose_order = " << desc->input_v_transpose_order[0] << ", "
+        //           << desc->input_v_transpose_order[1] << "," << desc->input_v_transpose_order[2] << std::endl;
 
         const auto num_heads_dim = 1;
         int64_t broadcast_axis = -1;
@@ -104,6 +127,7 @@ std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& p
             }
         }
 
+        // std::cout << "SDPABase::get_gqa_params: done" << std::endl;
         return {broadcast_axis, group_size};
     }
     if (params.is_type<paged_attention>()) {
@@ -159,6 +183,8 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     if (value_shape[value_shape.size() - 1].is_static())
         config.v_head_size = value_shape[value_shape.size() - 1].get_length();
 
+    // std::cout << "SDPABase::get_sdpa_configuration: value_shape = " << value_shape.to_string() << ",  v_head_size = " << config.v_head_size << std::endl;
+
     config.is_causal = desc->is_causal;
 
     if (desc->scale_val.has_value()) {
@@ -196,6 +222,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
     auto jit = make_base_jit_constants(params);
     auto [broadcast_axis, group_size] = get_gqa_params(params);
+    std::cout << "SDPABase::get_jit_constants: broadcast_axis = " << broadcast_axis << ", group_size = " << group_size << std::endl;
     if (broadcast_axis != -1) {
         jit.make("BROADCAST_GROUP_SIZE", group_size);
         jit.make("DO_BROADCAST_KEY_VALUE", get_broadcast_input_str(params.input_layouts[0].get_rank(), broadcast_axis, group_size));
@@ -207,19 +234,21 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         const auto& desc = params.typed_desc<scaled_dot_product_attention>();
         auto data_inputs_num = get_data_inputs_num(*desc);
 
+        std::cout << "SDPABase::get_jit_constants: -----1" << std::endl;
         const size_t attn_mask_id = 3;
-        const size_t scale_id = attn_mask_id + 1;
+        // const size_t scale_id = attn_mask_id + 1;
 
         jit.make("IS_CAUSAL", desc->is_causal);
         if (desc->attn_mask_val.has_value()) {
-            jit.make("STATIC_ATTENTION_MASK_VALUE", desc->attn_mask_val.value());
-            jit.make("HAS_ATTENTION_MASK", 0);
+            jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", desc->attn_mask_val.value());
+            jit.make("HAS_ATTN_MASK_INPUT", 0);
         } else {
-            jit.make("HAS_ATTENTION_MASK", data_inputs_num > attn_mask_id);
+            jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
         }
 
-        jit.make("HAS_SCALE_INPUT", data_inputs_num > scale_id);
+        // jit.make("HAS_SCALE_INPUT", data_inputs_num > scale_id);
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
+         std::cout << "SDPABase::get_jit_constants: desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         if (desc->is_kv_compressed) {
@@ -256,7 +285,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         // copy broadcast_axis as we can't capture structure binding in cpp17
         auto use_index_calc_func = [&, gqa_axis = broadcast_axis](const std::vector<int64_t> order, bool is_query = false) {
-            if (!desc->input_q_transpose_order.empty() && !is_default_order(desc->input_q_transpose_order)) {
+            if (!order.empty() && !is_default_order(order)) {
                 return true;
             }
 
@@ -271,35 +300,95 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             return false;
         };
 
+        std::cout << "SDPABase::get_jit_constants: -----3" << std::endl;
         if (m_indirect) {
             const auto beam_table_id = get_beam_table_id(desc);
             jit.add(make_layout_jit_constants("BEAM_TABLE", params.input_layouts[beam_table_id], in_offsets_map.at(beam_table_id)));
         }
 
-        if (use_index_calc_func(desc->input_q_transpose_order, true)) {
-            jit.make("INPUT0_DIMS_ORDER", get_dims_order(desc->input_q_transpose_order));
+        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+        auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+        auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
+
+        std::cout << "SDPABase::get_jit_constants: -----4" << std::endl;
+        if (use_index_calc_func(extended_input_q_transpose_order, true)) {
+            jit.make("INPUT0_DIMS_ORDER", get_dims_order(extended_input_q_transpose_order));
         }
 
-        if (use_index_calc_func(desc->input_k_transpose_order)) {
-            jit.make("INPUT1_DIMS_ORDER", get_dims_order(desc->input_k_transpose_order));
+        if (use_index_calc_func(extended_input_k_transpose_order)) {
+            jit.make("INPUT1_DIMS_ORDER", get_dims_order(extended_input_k_transpose_order));
         }
 
-        if (use_index_calc_func(desc->input_v_transpose_order)) {
-            jit.make("INPUT2_DIMS_ORDER", get_dims_order(desc->input_v_transpose_order));
+        if (use_index_calc_func(extended_input_v_transpose_order)) {
+            jit.make("INPUT2_DIMS_ORDER", get_dims_order(extended_input_v_transpose_order));
         }
+        std::cout << "SDPABase::get_jit_constants: -----5" << std::endl;
 
-        LayoutJitter q_jitter(params.input_layouts[0], in_offsets_map.at(0));
-        jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order)));
-        jit.make("HEAD_SIZE", q_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order)));
-        jit.make("NUM_HEADS", q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_q_transpose_order)));
+        auto updated_params = static_canonicalize_shapes(params);
+        LayoutJitter q_jitter(updated_params.input_layouts[0], in_offsets_map.at(0));
+        jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
+        // jit.make("HEAD_SIZE", q_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order)));
+        // jit.make("NUM_HEADS", q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_q_transpose_order)));
 
-        LayoutJitter k_jitter(params.input_layouts[1], in_offsets_map.at(1));
-        jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, desc->input_k_transpose_order)));
-        jit.make("NUM_KV_HEADS", k_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_k_transpose_order)));
-        jit.make("K_HEAD_SIZE", k_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_k_transpose_order)));
+        // std::cout << "SDPABase::get_jit_constants: -----6" << std::endl;
+        LayoutJitter k_jitter(updated_params.input_layouts[1], in_offsets_map.at(1));
+        jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
+        // jit.make("NUM_KV_HEADS", k_jitter.dim(get_transposed_channel(ChannelName::FEATURE, desc->input_k_transpose_order)));
+        // jit.make("K_HEAD_SIZE", k_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_k_transpose_order)));
+        // std::cout << "SDPABase::get_jit_constants: -----7" << std::endl;
 
-        LayoutJitter v_jitter(params.input_layouts[2], in_offsets_map.at(2));
-        jit.make("V_HEAD_SIZE", v_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_v_transpose_order)));
+        // LayoutJitter v_jitter(params.input_layouts[2], in_offsets_map.at(2));
+        // jit.make("V_HEAD_SIZE", v_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_v_transpose_order)));
+
+        auto order_to_string = [](const std::vector<int64_t>& order) {
+                std::ostringstream oss;
+                oss << "[";
+                for (size_t i = 0; i < order.size(); ++i) {
+                    oss << order[i];
+                    if (i < order.size() - 1) {
+                        oss << ", ";
+                    }
+                }
+                oss << "]";
+                return oss.str();
+        };
+        std::cout << " input Q transpose order: " << order_to_string(desc->input_q_transpose_order)
+                  << "->" <<order_to_string(extended_input_q_transpose_order) << "\n";
+        std::cout << " input K transpose order: " << order_to_string(desc->input_k_transpose_order)
+                  << "->" <<order_to_string(extended_input_k_transpose_order) << "\n";
+        std::cout << " input V transpose order: " << order_to_string(desc->input_v_transpose_order)
+                  << "->" <<order_to_string(extended_input_v_transpose_order) << "\n";
+        std::cout << " output transpose order: " << order_to_string(desc->output_transpose_order)
+                  << "->" <<order_to_string(extended_output_transpose_order) << "\n";
+
+        std::cout << " query: " << params.get_input_layout(0).to_string() << std::endl;
+        std::cout << " key: " << params.get_input_layout(1).to_string() << std::endl;
+        std::cout << " value: " << params.get_input_layout(2).to_string() << std::endl;
+        // std::cout << " query: " << params.get_input_layout(0).to_string() << std::endl;
+
+        const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto q_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto q_num_head = get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+        const auto k_seq_len = get_seq_length(params.get_input_layout(1), extended_input_k_transpose_order);
+        const auto k_num_head = get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order);
+        const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+        //jit.make("TARGET_SEQ_LEN", q_seq_len);
+        jit.make("HEAD_SIZE", q_head_size);
+        jit.make("NUM_HEADS", q_num_head);
+        //jit.make("SOURCE_SEQ_LEN", k_seq_len);
+        jit.make("K_HEAD_SIZE", k_head_size);
+        jit.make("NUM_KV_HEADS", k_num_head);
+        jit.make("V_HEAD_SIZE", v_head_size);
+
+        std::cout << "q_seq_len = " << q_seq_len << ", q_num_head = " << q_num_head << ", q_head_size = " << q_head_size << std::endl;
+        std::cout << "k_seq_len = " << k_seq_len << ", k_num_head = " << k_num_head << ", k_head_size = " << k_head_size << std::endl;
+        std::cout << "v_head_size = " << v_head_size << std::endl;
+
+        std::cout << "SDPABase::get_jit_constants: -----7" << std::endl;
+        // auto v_head_size = v_jitter.dim(get_transposed_channel(ChannelName::X, desc->input_v_transpose_order));
+        // std::cout << "SDPABase::get_jit_constants: v_head_size = " << v_head_size << std::endl;
 
     } else if (params.is_type<paged_attention>()) {
         // For micro/sdpa kernel shared between SDPAs and Paged Attention
@@ -354,6 +443,7 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
 
     // For scale of 1D tensor or attention_mask of empty shape, use extend_shape_to_rank_from_end as before
     for (auto& input_layout : updated_impl_params.input_layouts) {
+        std::cout << "static_canonicalize_shapes: input_layout.get_partial_shape() = " << input_layout.get_partial_shape().to_string() << std::endl;
         input_layout.set_partial_shape(input_layout.get_partial_shape().size() <= 1 ? extend_shape_to_rank_from_end(input_layout.get_partial_shape())
                                                                                     : extend_pshape_to_rank_in_num_heads_dim(input_layout.get_partial_shape()));
     }
@@ -361,7 +451,67 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
     auto& output_layout = updated_impl_params.output_layouts[0];
     output_layout.set_partial_shape(extend_pshape_to_rank_in_num_heads_dim(output_layout.get_partial_shape()));
 
+    // const auto& desc = impl_params.typed_desc<scaled_dot_product_attention>();
+    // auto order_to_string = [](const std::vector<int64_t>& order) {
+    //         std::ostringstream oss;
+    //         oss << "[";
+    //         for (size_t i = 0; i < order.size(); ++i) {
+    //             oss << order[i];
+    //             if (i < order.size() - 1) {
+    //                 oss << ", ";
+    //             }
+    //         }
+    //         oss << "]";
+    //         return oss.str();
+    // };
+    // std::cout << " input Q transpose order: " << order_to_string(desc->input_q_transpose_order) << "\n";
+    // std::cout << " input K transpose order: " << order_to_string(desc->input_k_transpose_order) << "\n";
+    // std::cout << " input V transpose order: " << order_to_string(desc->input_v_transpose_order) << "\n";
+    // std::cout << " output transpose order: " << order_to_string(desc->output_transpose_order) << "\n";
+
+    // auto& updated_desc = reinterpret_cast<scaled_dot_product_attention&>(updated_impl_params);
+    // auto extend_order_in_num_heads_dim = [](const std::vector<int64_t>& order, size_t rank = 4) {
+    //     if (order.size() == rank) {
+    //         return order;
+    //     }
+
+    //     std::vector<int64_t> extended_order(rank, 0);
+    //     const size_t num_heads_dim = 1;
+    //     // For 3D dimension, extend it to 4D by adding 1 for num_heads_dim
+    //     for (size_t i = 0, j = 0; i < rank; ++i) {
+    //         if (i == num_heads_dim) {
+    //             extended_order[num_heads_dim] = 1;
+    //         } else {
+    //             extended_order[i] = (static_cast<size_t>(order[j]) < num_heads_dim) ? order[j] : order[j] + 1;
+    //             j++;
+    //         }
+    //     }
+    //     return extended_order;
+    // };
+    // updated_desc.input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+    // updated_desc.input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+    // updated_desc.input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+    // updated_desc.output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
+
+    // std::cout << "Extended input Q transpose order: " << order_to_string(desc->input_q_transpose_order) << "->"
+    //         << order_to_string(updated_desc.input_q_transpose_order) << "\n";
+    // std::cout << "Extended input K transpose order: " << order_to_string(desc->input_k_transpose_order) << "->"
+    //         << order_to_string(updated_desc.input_k_transpose_order) << "\n";
+    // std::cout << "Extended input V transpose order: " << order_to_string(desc->input_v_transpose_order) << "->"
+    //         << order_to_string(updated_desc.input_v_transpose_order) << "\n";
+    // std::cout << "Extended output transpose order: " << order_to_string(desc->output_transpose_order) << "->"
+    //         << order_to_string(updated_desc.output_transpose_order) << "\n";
+
     return updated_impl_params;
+}
+
+void SDPAImplBase::update(cldnn::primitive_inst& inst, const RuntimeParams& impl_params) {
+    auto new_impl_params = SDPABase::requires_shape_canonicalization(impl_params) ? SDPABase::static_canonicalize_shapes(impl_params) : impl_params;
+    // std::cout << "SDPAImplBase::update: requires_shape_canonicalization(impl_params) = "
+    // << SDPABase::requires_shape_canonicalization(impl_params) << std::endl;
+    // std::cout << "\t impl_params.input_layouts[0] = " << impl_params.input_layouts[0].to_string() << std::endl;
+    // std::cout << "\t new_impl_params.input_layouts[0] = " << new_impl_params.input_layouts[0].to_string() << std::endl;
+    inst.update_shape_info_tensor(new_impl_params);
 }
 
 }  // namespace ov::intel_gpu::ocl

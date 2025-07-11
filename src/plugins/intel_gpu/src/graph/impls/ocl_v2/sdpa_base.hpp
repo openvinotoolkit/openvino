@@ -78,6 +78,8 @@ public:
     explicit SDPAImplBase(const std::string& name) : PrimitiveImplOCL(name) {}
     explicit SDPAImplBase(const ov::DiscreteTypeInfo& info) : PrimitiveImplOCL(std::string(info.name)) {}
 
+    void update(cldnn::primitive_inst& inst, const RuntimeParams& impl_params) override;
+
     static size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attention>& primitive) {
         return primitive->input_size() - 1;
     }
