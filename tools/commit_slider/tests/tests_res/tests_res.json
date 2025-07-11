@@ -75,7 +75,8 @@
                     },
                     "mode" : "nop",
                     "traversal" : "bruteForce",
-                    "msg" : "cfg #0"
+                    "msg" : "cfg #0",
+                    "onlyMsg" : true
                 }
             },
             {
@@ -92,7 +93,8 @@
                     },
                     "mode" : "nop",
                     "traversal" : "bruteForce",
-                    "msg" : "cfg #1"
+                    "msg" : "cfg #1",
+                    "onlyMsg" : true
                 }
             },
             {
@@ -109,7 +111,8 @@
                     },
                     "mode" : "nop",
                     "traversal" : "bruteForce",
-                    "msg" : "cfg #2"
+                    "msg" : "cfg #2",
+                    "onlyMsg" : true
                 }
             }
         ]
@@ -197,7 +200,8 @@
                             "cfg #1",
                             "cfg #2"
                         ]
-                    }
+                    },
+                    "onlyMsg" : true
                 }
             }
     },
@@ -222,7 +226,8 @@
                     "msg" : {
                         "multiplication_type": "dot_product",
                         "multiplication_key": ["cfg #1", "cfg #2", "cfg #3"]
-                    }
+                    },
+                    "onlyMsg" : true
                 }
             }
     },
@@ -500,6 +505,165 @@
                 "mode" : "checkOutput",
                 "traversal" : "firstFixedVersion",
                 "stopPattern" : "(.)*failed(.)*"
+            }
+        }
+    },
+    "BrokenCompilation": {
+        "repoName": "brokenCompilation",
+        "patchedFile": "tests_res/broken_comp_main.cpp",
+        "testCfg": {
+                "commandList" : [
+                    {"cmd" : "git checkout -- .", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+                    {"cmd" : "git clean -fxd", "path" : "{gitPath}", "tag" : "clean"},
+                    {"cmd" : "mkdir -p build", "path" : "{gitPath}"},
+                    {"cmd" : "git checkout {commit}", "catchMsg" : "(.)*error: (.)*", "path" : "{gitPath}"},
+                    {"cmd" : "git submodule init", "path" : "{gitPath}"},
+                    {"cmd" : "git submodule update --recursive", "path" : "{buildPath}"},
+                    {"cmd" : "{makeCmd}", "catchMsg" : "CMake Error", "path" : "{buildPath}"}
+                ],
+            "appCmd" : "make --jobs=4",
+            "appPath": "{buildPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": true,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "checkOutput",
+                "traversal" : "firstFixedVersion",
+                "stopPattern" : "(.)*\\[100%]\\ Built\\ target(.)*"
+            }
+        }
+    },
+    "TemplateBrokenCompilation": {
+        "repoName": "brokenCompilation",
+        "patchedFile": "tests_res/broken_comp_main.cpp",
+        "testCfg": {
+            "template": {
+                "name": "broken_comp",
+                "gitPath":"{gitPath}",
+                "buildPath":"{buildPath}",
+                "c": "{start}..{end}"
+            }
+        }
+    },
+    "CfgCrossCheckBadApplication": {
+        "repoName": "cfgCrossCheckBadApplication",
+        "patchedFile": "tests_res/fbv_main.cpp",
+        "testCfg": {
+            "appCmd" : ["echo first model", "{appCmd}", "echo second model", "{appCmd}"],
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "explicitList" : [ "{start}", "{end}" ]
+                },
+                "mode" : "nop",
+                "traversal" : "bruteForce"
+            }
+        }
+    },
+    "CfgCrossCheckBadModel": {
+        "repoName": "cfgCrossCheckBadApplication",
+        "patchedFile": "tests_res/cross_check.cpp",
+        "testCfg": {
+            "appCmd" : ["echo first model", "{appCmd} -m good_model", "echo second model", "{appCmd} -m bad_model"],
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "explicitList" : [ "{start}", "{end}" ]
+                },
+                "mode" : "nop",
+                "traversal" : "bruteForce"
+            }
+        }
+    },
+    "CfgCrossCheckPerformance": {
+        "repoName": "cfgCrossCheckBadApplication",
+        "patchedFile": "tests_res/fbv_bm_stable_main.cpp",
+        "testCfg": {
+            "appCmd" : ["echo first model", "{appCmd}", "echo second model", "{appCmd}"],
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "explicitList" : [ "{start}", "{end}" ]
+                },
+                "mode" : "nop",
+                "traversal" : "bruteForce"
+            }
+        }
+    },
+    "CfgCrossCheckPerformanceSeparateMode": {
+        "repoName": "cfgCrossCheckBadApplication",
+        "patchedFile": "tests_res/fbv_bm_stable_main.cpp",
+        "testCfg": {
+            "appCmd" : "{actualPar}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "explicitList" : [ "{start}", "{end}" ]
+                },
+                "mode" : "crossCheck",
+                "par_1" : "{appCmd}",
+                "par_2" : "{appCmd}",
+                "traversal" : "bruteForce"
+            }
+        }
+    },
+    "CfgCrossCheckPerformanceSeparateTemplate": {
+        "repoName": "crossCheckSeparateTemplate",
+        "patchedFile": "tests_res/fbv_bm_stable_main.cpp",
+        "testCfg": {
+            "template" : {
+                "name" : "bm_cc",
+                "gitPath":"{gitPath}",
+                "buildPath":"{buildPath}",
+                "appPath":"{buildPath}",
+                "c": "{start}..{end}",
+                "verboseOutput": false,
+                "appCmd" : ["{appCmd} -m first_model.xml", "{appCmd} -m second_model.xml"]
+            }
+        }
+    },
+    "CfgTableTemplate": {
+        "repoName": "tableTemplate",
+        "patchedFile": "tests_res/fbv_model_comp.cpp",
+        "testCfg": {
+            "template" : {
+                "name" : "model_comp_table",
+                "gitPath":"{gitPath}",
+                "buildPath":"{buildPath}",
+                "appPath":"{buildPath}",
+                "c": "{start}..{end}",
+                "verboseOutput": false,
+                "appCmd" : ["{appCmd} -m first_model.xml", "{appCmd} -m second_model.xml"]
+            }
+        }
+    },
+    "CrossCheckPerformanceSeparateTemplateBadModel": {
+        "repoName": "crossCheckSeparateTemplateBadModel",
+        "patchedFile": "tests_res/cross_check_perf.cpp",
+        "testCfg": {
+            "template" : {
+                "name" : "bm_cc",
+                "gitPath":"{gitPath}",
+                "buildPath":"{buildPath}",
+                "appPath":"{buildPath}",
+                "c": "{start}..{end}",
+                "verboseOutput": false,
+                "appCmd" : ["{appCmd} -m good_model.xml", "{appCmd} -m bad_model.xml"]
             }
         }
     },
