@@ -63,7 +63,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_riscv_xuantie\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\", \"ubuntu_22_04_arm64\":\"mock\", \"ubuntu_22_04_riscv_xuantie\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -94,7 +94,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_20_04_arm64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_build\":{\"ubuntu_22_04_arm64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -106,7 +106,7 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_20_04_arm64
+            ov_build/ubuntu_22_04_arm64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -187,7 +187,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb-arm
     container:
-      image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_20_04_arm64 }}
+      image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
