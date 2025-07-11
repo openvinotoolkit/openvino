@@ -79,8 +79,10 @@
 #endif
 
 #if OV_GPU_WITH_COMMON
-#    define OV_GPU_GET_INSTANCE_COMMON(prim, ...) EXPAND(GET_INSTANCE(prim, cldnn::impl_types::common, __VA_ARGS__))
+#    define OV_GPU_CREATE_INSTANCE_COMMON(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
+#    define OV_GPU_GET_INSTANCE_COMMON(prim, ...) EXPAND(SELECT(COUNT(__VA_ARGS__), prim, impl_types::ocl, __VA_ARGS__))
 #else
+#    define OV_GPU_CREATE_INSTANCE_COMMON(...)
 #    define OV_GPU_GET_INSTANCE_COMMON(...)
 #endif
 
@@ -138,6 +140,7 @@ REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
+REGISTER_IMPLS(loop);
 REGISTER_IMPLS(lora);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
@@ -162,7 +165,6 @@ REGISTER_IMPLS(col2im);
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(condition, COMMON_S, COMMON_D);
-REGISTER_DEFAULT_IMPLS(loop, COMMON_S, COMMON_D);
 REGISTER_DEFAULT_IMPLS(input_layout, COMMON_S, COMMON_D);
 REGISTER_DEFAULT_IMPLS(non_max_suppression_gather, CPU_S);
 REGISTER_DEFAULT_IMPLS(proposal, CPU_S, CPU_D);
