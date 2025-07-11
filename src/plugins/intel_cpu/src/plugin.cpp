@@ -20,6 +20,7 @@
 #include "cpu/x64/xbyak/xbyak_util.h"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
+#include "internal_properties.hpp"
 #include "itt.h"
 #include "node.h"
 #include "openvino/core/except.hpp"
@@ -416,6 +417,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RW_property(ov::intel_cpu::denormals_optimization.name()),
             RW_property(ov::log::level.name()),
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
             RW_property(ov::key_cache_precision.name()),
@@ -433,17 +435,15 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     }
 
     if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type {
+        return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
 #if !defined(OPENVINO_ARCH_ARM) && !(defined(__APPLE__) || defined(__MACOSX))
-                ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
-                ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-                ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-                ov::PropertyName {
-                ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO
-            }
-        };
+            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
+                             ov::PropertyMutability::RO}};
     }
     if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
@@ -489,6 +489,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             engConfig.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        return static_cast<decltype(ov::intel_cpu::enable_tensor_parallel)::value_type>(engConfig.enableTensorParallel);
     }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};

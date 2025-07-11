@@ -34,7 +34,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.3";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.4";
 
 // Forward declaration
 namespace intel_npu {
@@ -93,8 +93,8 @@ using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemor
 
 struct CompiledContext {
     CompiledContext(bool _encrypted,
-                    std::function<std::string(const std::string&)> _encrypt,
-                    std::function<std::string(const std::string&)> _decrypt,
+                    const std::function<std::string(const std::string&)>& _encrypt,
+                    const std::function<std::string(const std::string&)>& _decrypt,
                     const BF16Cache& _bf16_consts = {})
         : encrypted(_encrypted),
           encrypt(_encrypt),

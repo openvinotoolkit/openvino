@@ -163,18 +163,21 @@ void imaging_resample_horizontal(T* im_out,
     double ss;
     int x, xmin, xmax;
     double* k;
+    const auto im_out_shape_d0 = im_out_shape[0];
+    const auto im_out_shape_d1 = im_out_shape[1];
+    const auto im_in_shape_d1 = im_in_shape[1];
 
-    for (size_t yy = 0; yy < im_out_shape[0]; yy++) {
-        for (size_t xx = 0; xx < im_out_shape[1]; xx++) {
+    for (size_t yy = 0; yy < im_out_shape_d0; yy++) {
+        for (size_t xx = 0; xx < im_out_shape_d1; xx++) {
             xmin = bounds[xx * 2 + 0];
             xmax = bounds[xx * 2 + 1];
             k = &kk[xx * ksize];
             ss = 0.0;
             for (x = 0; x < xmax; x++) {
-                size_t in_idx = (yy + offset) * im_in_shape[1] + (x + xmin);
+                size_t in_idx = (yy + offset) * im_in_shape_d1 + (x + xmin);
                 ss += im_in[in_idx] * k[x];
             }
-            size_t out_idx = yy * im_out_shape[1] + xx;
+            size_t out_idx = yy * im_out_shape_d1 + xx;
             if (std::is_integral<T>()) {
                 im_out[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
             } else {
@@ -196,18 +199,21 @@ void imaging_resample_vertical(T* im_out,
     double ss;
     int y, ymin, ymax;
     double* k;
+    const auto im_out_shape_d0 = im_out_shape[0];
+    const auto im_out_shape_d1 = im_out_shape[1];
+    const auto im_in_shape_d1 = im_in_shape[1];
 
-    for (size_t yy = 0; yy < im_out_shape[0]; yy++) {
+    for (size_t yy = 0; yy < im_out_shape_d0; yy++) {
         ymin = bounds[yy * 2 + 0];
         ymax = bounds[yy * 2 + 1];
         k = &kk[yy * ksize];
-        for (size_t xx = 0; xx < im_out_shape[1]; xx++) {
+        for (size_t xx = 0; xx < im_out_shape_d1; xx++) {
             ss = 0.0;
             for (y = 0; y < ymax; y++) {
-                size_t in_idx = (y + ymin) * im_in_shape[1] + xx;
+                size_t in_idx = (y + ymin) * im_in_shape_d1 + xx;
                 ss += im_in[in_idx] * k[y];
             }
-            size_t out_idx = yy * im_out_shape[1] + xx;
+            size_t out_idx = yy * im_out_shape_d1 + xx;
             if (std::is_integral<T>()) {
                 im_out[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
             } else {
