@@ -13,7 +13,7 @@
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest : public ov::ISyncInferRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
 
@@ -30,8 +30,8 @@ public:
         return {};
     }
 
-private:
-    void prepare_for_new_conversation();
+protected:
+    virtual void prepare_for_new_conversation();
     void init_tensor(const ov::Output<const ov::Node>& port);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
