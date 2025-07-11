@@ -46,7 +46,7 @@ void jit_uni_dft_kernel_f32<isa>::generate() {
 
     uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
 
-    int step = vlen / 8;
+    const int step = vlen / 8;
 
     L(main_loop_label);
     {

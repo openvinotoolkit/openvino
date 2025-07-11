@@ -52,6 +52,6 @@ void FusedMulAdd::validate_and_infer_types() {
 }
 
 const ov::op::AutoBroadcastSpec& FusedMulAdd::get_autob() const {
-    static ov::op::AutoBroadcastSpec autob_spec(ov::op::AutoBroadcastType::NUMPY);
+    static const ov::op::AutoBroadcastSpec autob_spec(ov::op::AutoBroadcastType::NUMPY);
     return autob_spec;
 }

@@ -44,7 +44,7 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
     };
     auto concat_m = ov::pass::pattern::wrap_type<ov::op::v0::Concat>(concat_matches);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto concat = m.get_match_root();
         const auto& inputs = concat->input_values();
 

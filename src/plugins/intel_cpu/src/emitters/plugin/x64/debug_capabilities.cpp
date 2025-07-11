@@ -168,7 +168,7 @@ void RegPrinter::print_vmm(jit_generator& h, REG_T vmm, const char* name) {
     h.push(abi_param2);
     h.push(abi_param3);
     {
-        int vlen = [&]() {
+        const int vlen = [&]() {
             if (vmm.isZMM()) {
                 return 64;
             }

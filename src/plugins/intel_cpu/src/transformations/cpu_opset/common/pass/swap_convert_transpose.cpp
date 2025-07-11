@@ -22,14 +22,14 @@
 
 ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
     MATCHER_SCOPE(SwapConvertTranspose);
-    ov::element::TypeVector param_precisions{ov::element::i8, ov::element::u8};
+    const ov::element::TypeVector param_precisions{ov::element::i8, ov::element::u8};
     auto input_m =
         ov::pass::pattern::wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::type_matches_any(param_precisions));
     auto convert_m =
         ov::pass::pattern::wrap_type<ov::op::v0::Convert>({input_m}, ov::pass::pattern::type_matches(ov::element::f32));
     auto transpose_m = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({convert_m, ov::pass::pattern::any_input()});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // Swap
         // Input -> [i8/u8] -> Convert -> [f32] -> Transpose -> [f32]
         // to

@@ -67,7 +67,7 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
     auto bias_m = any_input();
     auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({data_m, weights_input_m, bias_m});
 
-    ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         const auto fully_connected = m.get_match_root();
         const auto weights_path = fully_connected->get_input_node_shared_ptr(1);
         const bool with_transpose = ov::is_type<ov::op::v1::Transpose>(weights_path);
