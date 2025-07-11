@@ -255,6 +255,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     m_need_copy_kvcache = true;
 
     m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
+    if (m_prefill_out_ports.find("hidden_states") != m_prefill_out_ports.end()) {
+        m_hidden_states = m_prefill_request->get_tensor(m_prefill_out_ports.at("hidden_states"));
+    }
 
     LOG_DEBUG("Done");
 }
@@ -335,6 +338,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     m_kvcache_request->infer();
     m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("logits"));
+    if (m_kvcache_out_ports.find("hidden_states") != m_kvcache_out_ports.end()) {
+        m_hidden_states = m_kvcache_request->get_tensor(m_kvcache_out_ports.at("hidden_states"));
+    }
     kvcache_desc.num_stored_tokens += 1;
 
     if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
@@ -400,6 +406,9 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
     // NB: If asked for logits...
     if (port == get_outputs()[0]) {
         return m_logits;
+    }
+    if (get_outputs().size() > 1 && port == get_outputs()[1]) {
+        return m_hidden_states;
     }
     return ov::ISyncInferRequest::get_tensor(port);
 }
