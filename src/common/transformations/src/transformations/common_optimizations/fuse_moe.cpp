@@ -210,12 +210,12 @@ auto gen_expert_pattern(std::shared_ptr<ov::Node> final_hidden_states,
         config.topk = topk;
         config.weight_type = consts.gates[0]->get_element_type();
         OPENVINO_ASSERT(consts.ups[0]->get_element_type() == config.weight_type,
-                        "precision of up wight must be same with gate, gate: ",
+                        "precision of up weight must be same with gate, gate: ",
                         config.weight_type,
                         ", up: ",
                         consts.ups[0]->get_element_type());
         OPENVINO_ASSERT(consts.downs[0]->get_element_type() == config.weight_type,
-                        "precision of down wight must be same with gate, gate: ",
+                        "precision of down weight must be same with gate, gate: ",
                         config.weight_type,
                         ", down: ",
                         consts.downs[0]->get_element_type());

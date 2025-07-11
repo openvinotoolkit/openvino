@@ -435,7 +435,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // moe expert requires onednn enabled which needs in order queue.
-        if (config.get_queue_type() == QueueTypes::in_order) {
+        if (device_info.supports_immad) {
             manager.register_pass<ov::pass::FuseMOE>();
             pass_config->set_callback<ov::pass::FuseMOERouter>([](const_node_ptr& node) -> bool {
                 auto moe = as_type_ptr<const ov::op::internal::MOE>(node);

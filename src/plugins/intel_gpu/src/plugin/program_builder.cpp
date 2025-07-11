@@ -324,19 +324,6 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     m_topology->add_primitive(prim);
 }
 
-std::shared_ptr<cldnn::primitive> ProgramBuilder::get_primitive(const ov::Node& op) {
-    auto id = layer_type_name_ID(&op);
-    std::string prim_id;
-
-    auto id_item = primitive_ids.find(id);
-    if (id_item != primitive_ids.end()) {
-        prim_id = id_item->second;
-    } else {
-        return nullptr;
-    }
-    return m_topology->get_primitives().find(prim_id)->second;
-}
-
 int64_t ProgramBuilder::get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const {
     return m_model->get_parameter_index(parameter);
 }

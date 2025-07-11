@@ -23,14 +23,14 @@ public:
     MOE() = default;
 
     struct Config {
-        size_t topk = 0;
-        size_t expert_num = 0;
-        size_t hidden_size = 0;
-        size_t intermediate_size = 0;
-        size_t group_size = 0;  // quantized group size, 0 for no group size. same for gate/up/down
-        ov::element::Type weight_type = ov::element::dynamic;  // same for gate/up/down
-        ov::element::Type scale_type = ov::element::dynamic;   // same for gate/up/down
-        ov::element::Type zp_type = ov::element::dynamic;      // same for gate/up/down
+        size_t topk{};
+        size_t expert_num{};
+        size_t hidden_size{};
+        size_t intermediate_size{};
+        size_t group_size{};              // quantized group size, 0 for no group size. same for gate/up/down
+        ov::element::Type weight_type{};  // same for gate/up/down
+        ov::element::Type scale_type{};   // same for gate/up/down
+        ov::element::Type zp_type{};      // same for gate/up/down
         bool operator==(const Config& rhs) const {
             return std::tie(topk,
                             expert_num,
