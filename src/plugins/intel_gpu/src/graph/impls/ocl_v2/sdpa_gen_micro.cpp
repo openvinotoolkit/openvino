@@ -783,24 +783,6 @@ std::string SDPAMicroGenerator::get_build_options(const kernel_impl_params& para
 void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_param, sdpa_configuration& sdpa_config) {
     if (impl_param.is_type<scaled_dot_product_attention>()) {
         const auto& desc = impl_param.typed_desc<scaled_dot_product_attention>();
-        // auto extend_order_in_num_heads_dim = [](const std::vector<int64_t>& order, size_t rank = 4) {
-        //     if (order.size() == rank) {
-        //         return order;
-        //     }
-
-        //     std::vector<int64_t> extended_order(rank, 0);
-        //     const size_t num_heads_dim = 1;
-        //     // For 3D dimension, extend it to 4D by adding 1 for num_heads_dim
-        //     for (size_t i = 0, j = 0; i < rank; ++i) {
-        //         if (i == num_heads_dim) {
-        //             extended_order[num_heads_dim] = 1;
-        //         } else {
-        //             extended_order[i] = (static_cast<size_t>(order[j]) < num_heads_dim) ? order[j] : order[j] + 1;
-        //             j++;
-        //         }
-        //     }
-        //     return extended_order;
-        // };
         auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
         auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
@@ -1169,24 +1151,6 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.add(convert_strides("DST", "OUTPUT", default_order));
 
     } else {
-        // auto extend_order_in_num_heads_dim = [](const std::vector<int64_t>& order, size_t rank = 4) {
-        //     if (order.size() == rank) {
-        //         return order;
-        //     }
-
-        //     std::vector<int64_t> extended_order(rank, 0);
-        //     const size_t num_heads_dim = 1;
-        //     // For 3D dimension, extend it to 4D by adding 1 for num_heads_dim
-        //     for (size_t i = 0, j = 0; i < rank; ++i) {
-        //         if (i == num_heads_dim) {
-        //             extended_order[num_heads_dim] = 1;
-        //         } else {
-        //             extended_order[i] = (static_cast<size_t>(order[j]) < num_heads_dim) ? order[j] : order[j] + 1;
-        //             j++;
-        //         }
-        //     }
-        //     return extended_order;
-        // };
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
         auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
@@ -1208,9 +1172,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.add(unit_parameters("MSK"));
     }
 
-    for (auto it : jit) {
-        std::cout << "jit[" << it.name << "] = " << it.value << std::endl;
-    }
+    // for (auto it : jit) {
+    //     GPU_DEBUG_TRACE_DETAIL << "jit[" << it.name << "] = " << it.value << std::endl;
+    // }
 
     return jit;
 }
@@ -1349,8 +1313,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const ov::Dimension n_values = ov::Dimension(v_head_size);
     const auto batch = out_ps[0] * out_ps[1];
 
-    std::cout << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch<< std::endl;
-    std::cout << "n_keys = " << n_keys.to_string() << ", n_queries = " << n_queries.to_string() << ", n_values = " << n_values.to_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch << "\n";
+    GPU_DEBUG_TRACE_DETAIL << "n_keys = " << n_keys.to_string() << ", n_queries = " << n_queries.to_string() << ", n_values = " << n_values.to_string() << "\n";
 
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t* config = nullptr;
@@ -1366,7 +1330,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         is_paged_attention = true;
     }
 
-    std::cout << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << ", thin_q = " << thin_q << ", is_quantized = " << is_quantized << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
+    GPU_DEBUG_TRACE_DETAIL << "thin_q = " << thin_q << ", is_quantized = " << is_quantized << "\n";
     switch (device_info.arch) {
     case gpu_arch::xe_hpg: {
         config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(nkeys_v), thin_q, is_quantized, is_paged_attention);
@@ -1413,7 +1378,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     // desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
 
     const auto key_cache_id = micro_get_key_cache_id(params);
-    std::cout << "kq: key_cache_id = " << key_cache_id << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
     if (configuration.is_kv_compressed && !kq_common_scales) {
         const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
         const auto scale_dt = convert_type(key_cache_comp_scale.data_type);
@@ -1456,9 +1421,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     sizes.k = static_cast<int64_t>(k_head_size);
     sizes.batch = batch.is_dynamic() ? 0 : batch.get_length();
 
-    std::cout << "kq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
-    std::cout << "config->wg_m_kq = " << config->wg_m_kq << ", config->wg_n_kq = " << config->wg_n_kq << std::endl;
-    std::cout << "config->unroll_m_kq = " << config->unroll_m_kq << ", config->unroll_n_kq = " << config->unroll_n_kq << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "kq: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+    GPU_DEBUG_TRACE_DETAIL << "config->wg_m_kq = " << config->wg_m_kq << ", config->wg_n_kq = " << config->wg_n_kq << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "config->unroll_m_kq = " << config->unroll_m_kq << ", config->unroll_n_kq = " << config->unroll_n_kq << std::endl;
 
     /* Set up microkernel requirements */
     std::vector<micro::StrategyRequirement> reqs_kq;
@@ -1486,7 +1451,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.A.layout = micro::MatrixLayout::N;
 
     const auto value_cache_id = micro_get_value_cache_id(params);
-    std::cout << "vs: value_cache_id = " << value_cache_id << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
     if (configuration.is_kv_compressed && !vs_common_scales) {
         const auto& value_cache_comp_scale = params.input_layouts[value_cache_id];
         auto scale_dt = convert_type(value_cache_comp_scale.data_type);
@@ -1494,7 +1459,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_vs.A_scale.setAlignment(scale_dt.size());
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
         problem_vs.aScale2D = true;
-        std::cout << "vs: value_cache_comp_scale = " << value_cache_comp_scale.to_string() << ", scale_dt = " << scale_dt << std::endl;
     }
 
     if (configuration.is_kv_compressed && use_asymmetric_quantization) {
@@ -1505,7 +1469,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_vs.AO.layout = micro::MatrixLayout::N;
         problem_vs.aoPtrDims = vs_common_zp ? 0 : 2;
         problem_vs.aOffset = micro::ABOffset::Calc;
-        std::cout << "vs: value_cache_comp_zp = " << value_cache_comp_zp.to_string() << ", zp_dt = " << zp_dt << std::endl;
     }
 
     if (configuration.is_kv_compressed) {
@@ -1525,7 +1488,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     sizes.n = gemm_kq.getSetting("wg_tile_n");
     sizes.k = gemm_kq.getSetting("wg_tile_m");
 
-    std::cout << "vs: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
+    GPU_DEBUG_TRACE_DETAIL << "vs: sizes = {" << sizes.m << ", " << sizes.n << ", " << sizes.k << ", " << sizes.batch << "}\n";
 
     /* Set up special kernel requirements */
     std::vector<micro::StrategyRequirement> reqs_vs;

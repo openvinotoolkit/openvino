@@ -20,7 +20,6 @@ inline size_t get_data_inputs_num(const cldnn::scaled_dot_product_attention& des
 
     if (desc.is_kv_compressed) {
         data_inputs_num -= 2;
-
         if (desc.get_compression_zp_inputs_num() > 0) {
             data_inputs_num -= 2;
         }
@@ -95,7 +94,6 @@ inline int64_t get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t
     // 4D - BHLS
     // 3D - BLS and H=1
     auto const order_rank = order.size();
-    // std::cout << "get_num_heads: order_rank = " << order_rank << std::endl;
     if  (order_rank == 3) {
         return 1;
     } else {
@@ -110,10 +108,6 @@ inline int64_t get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t
 inline int64_t get_head_size(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     auto const order_rank = order.size();
     auto& dim = qkv.get_partial_shape()[order[order_rank - 1]];
-    // std::cout << "get_head_size: order_rank = " << order_rank << std::endl;
-    // std::cout << "\t shape = " << qkv.get_partial_shape().to_string() << std::endl;
-    // std::cout << "\t order[order_rank - 1] = " << order[order_rank - 1] << std::endl;
-    // std::cout << "\t get dim = " << dim.to_string() << std::endl;
     if (dim.is_dynamic())
         return -1;
     else
@@ -123,10 +117,6 @@ inline int64_t get_head_size(const cldnn::layout& qkv, const std::vector<int64_t
 inline int64_t get_seq_length(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     auto const order_rank = order.size();
     auto& dim = qkv.get_partial_shape()[order[order_rank - 2]];
-    // std::cout << "get_seq_length: order_rank = " << order_rank << std::endl;
-    // std::cout << "\t shape = " << qkv.get_partial_shape().to_string() << std::endl;
-    // std::cout << "\t order[order_rank - 2] = " << order[order_rank - 2] << std::endl;
-    // std::cout << "\t get dim = " << dim.to_string() << std::endl;
     if (dim.is_dynamic()) {
         return -1;
     } else {
@@ -161,9 +151,6 @@ inline bool is_prefill_stage(const RuntimeParams& params) {
     auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
     // const auto target_seq_len = extract_channel(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
     const auto target_seq_len = get_seq_length(params.get_input_layout(0), desc->input_q_transpose_order);
-
-    std::cout << "is_prefill_stage(): target_seq_len = " << target_seq_len << std::endl;
-    std::cout << "params.input_layouts[0] = " << params.input_layouts[0].to_string() << std::endl;
 
     return target_seq_len > 1;
 }

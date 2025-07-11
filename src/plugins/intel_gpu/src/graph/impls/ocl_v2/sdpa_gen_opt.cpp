@@ -49,14 +49,12 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         }
     }
 
-    std::cout << "SDPAOptGeneratorBase::get_jit_constants_base------1" << std::endl;
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
     constexpr size_t subgroup_size = 16;
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
     auto [broadcast_axis, group_size] = get_gqa_params(params);
-    std::cout << "SDPAOptGeneratorBase::get_jit_constants_base------2" << std::endl;
     int64_t v_head_size = -1, k_head_size = -1;
 
     if (is_paged_attention) {
@@ -77,21 +75,15 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             jit.make("HAS_SCORE_AGGREGATION", 1);
         }
     } else {
-        std::cout << "SDPAOptGeneratorBase::get_jit_constants_base------3" << std::endl;
         auto desc = params.typed_desc<scaled_dot_product_attention>();
-        std::cout << "SDPAOptGeneratorBase::get_jit_constants_base------4" << std::endl;
         const auto& k_layout = params.get_input_layout(1);
         const auto& v_layout = params.get_input_layout(2);
-        // v_head_size = v_layout.get_partial_shape()[3].get_length();
-        // k_head_size = k_layout.get_partial_shape()[3].get_length();
 
-        std::cout << "SDPAOptGeneratorBase::get_jit_constants_base:" << std::endl;
         auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
         k_head_size = get_head_size(k_layout, extended_input_k_transpose_order);
         v_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
-
-        std::cout << "SDPAOptGeneratorBase::get_jit_constants_base(): k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
         auto get_input_num = [&]() {
             size_t data_inputs_num = get_data_inputs_num(*desc);
@@ -142,9 +134,7 @@ Arguments SDPAOptGeneratorBase::get_arguments_desc_impl(const kernel_impl_params
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
     }
 
-    std::cout << "SDPAOptGeneratorBase::get_arguments_desc_impl()" << std::endl;
     auto desc = params.typed_desc<scaled_dot_product_attention>();
-
     size_t data_inputs_num = get_data_inputs_num(*desc);
     auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
 
@@ -189,7 +179,6 @@ Arguments SDPAOptGeneratorBase::get_arguments_desc_impl(const kernel_impl_params
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
     }
 
-    std::cout << "SDPAOptGeneratorBase::get_arguments_desc_impl()..done" << std::endl;
     return args;
 }
 
@@ -217,33 +206,20 @@ DispatchDataFunc SDPAOptGeneratorSingleToken::get_dispatch_data_func() const {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         if (!params.is_dynamic()) {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
-
-            // const auto& out_l = params.output_layouts[0];
-            // const auto& q_l = params.input_layouts[0];
-            // //const auto& v_l = params.input_layouts[2];
-
-            // const auto batch_size = extract_channel(get_transposed_channel(ChannelName::BATCH, desc->output_transpose_order), out_l);
-            // const auto heads_num = extract_channel(get_transposed_channel(ChannelName::FEATURE, desc->output_transpose_order), out_l);
-            // const auto target_seq_len = extract_channel(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), q_l);
-
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
             auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
-            std::cout << "SDPAOptGeneratorSingleToken::get_dispatch_data_func()" << std::endl;
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
-            std::cout << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << std::endl;
-
-            //const auto head_size = v_l.get_partial_shape()[3].get_length();
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
-
-            // const auto& v_layout = params.get_input_layout(2);
-            // const auto head_size = get_head_size(v_layout, desc->input_v_transpose_order).get_length();
             const auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
-
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::SINGLE_TOKEN);
+            GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num  << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "sg_num_scale = " << sg_num_scale << "\n";
+
             wgs.global = {batch_size * heads_num, target_seq_len, head_size * num_of_partitions * sg_num_scale};
             wgs.local = {1, 1, head_size * sg_num_scale};
         }
@@ -255,11 +231,9 @@ Arguments SDPAOptGeneratorMultiToken::get_arguments_desc(const kernel_impl_param
 }
 
 JitConstants SDPAOptGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
-    std::cout << "SDPAOptGeneratorMultiToken::get_jit_constants...\n:";
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::MULTI_TOKENS);
     jit.make("SDPA_STAGE_0", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", get_target_seq_len_block_size());
-    std::cout << "SDPAOptGeneratorMultiToken::get_jit_constants...done\n:";
 
     // std::cout << "SDPAOptGeneratorMultiToken::get_jit_constants\n";
     // for (auto& item : jit) {
@@ -273,41 +247,28 @@ JitConstants SDPAOptGeneratorMultiToken::get_jit_constants(const kernel_impl_par
 DispatchDataFunc SDPAOptGeneratorMultiToken::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
-
-        std::cout << "SDPAOptGeneratorMultiToken::DispatchDataFunc...\n:";
-
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         if (!params.is_dynamic()) {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
-
-            // const auto& out_l = params.output_layouts[0];
-            // const auto& q_l = params.input_layouts[0];
-            // const auto& k_l = params.input_layouts[2];
-            // const auto batch_size = extract_channel(get_transposed_channel(ChannelName::BATCH, desc->output_transpose_order), out_l);
-            // const auto heads_num = extract_channel(get_transposed_channel(ChannelName::FEATURE, desc->output_transpose_order), out_l);
-            // const auto target_seq_len = extract_channel(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), q_l);
 
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
             auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
-            std::cout << "SDPAOptGeneratorMultiToken::get_dispatch_data_func()" << std::endl;
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
-            std::cout << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << std::endl;
-
             const size_t target_seq_len_block_size = get_target_seq_len_block_size();
-            // const auto head_size = k_l.get_partial_shape()[3].get_length();
             const auto head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
-
             const size_t sg_num_scale = get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
-            std::cout << "sg_num_scale = " << sg_num_scale << ", head_size = " << head_size << std::endl;
+
+            GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num  << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", sg_num_scale = " << sg_num_scale  << "\n";
+
             const size_t subgroup_size = 16;
             wgs.global = {batch_size * heads_num, ceil_div(target_seq_len, target_seq_len_block_size), align_to(head_size * sg_num_scale, subgroup_size)};
             wgs.local = {1, 1, align_to(head_size * sg_num_scale, subgroup_size)};
         }
-        std::cout << "SDPAOptGeneratorMultiToken::DispatchDataFunc...done\n:";
     }};
 }
 
@@ -328,42 +289,29 @@ DispatchDataFunc SDPAOptGeneratorFinalization::get_dispatch_data_func() const {
         auto& scalars = kd.params.scalars;
         scalars.clear();
 
-        std::cout << "SDPAOptGeneratorFinalization::DispatchDataFunc...\n:";
         ScalarDescriptor num_of_partitions_scalar;
         num_of_partitions_scalar.t = ScalarDescriptor::Types::UINT32;
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
         if (!params.is_dynamic()) {
             auto desc = params.typed_desc<scaled_dot_product_attention>();
 
-            // const auto& out_l = params.output_layouts[0];
-            // const auto& q_l = params.input_layouts[0];
-            // const auto& k_l = params.input_layouts[2];
-
-            // const auto batch_size = extract_channel(get_transposed_channel(ChannelName::BATCH, desc->output_transpose_order), out_l);
-            // const auto heads_num = extract_channel(get_transposed_channel(ChannelName::FEATURE, desc->output_transpose_order), out_l);
-            // const auto target_seq_len = extract_channel(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), q_l);
-
             auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
             auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
             auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
-
-            std::cout << "SDPAOptGeneratorFinalization::get_dispatch_data_func()" << std::endl;
             const size_t batch_size = get_batch_size(params.get_output_layout(0), extended_output_transpose_order);
             const size_t target_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
             const size_t heads_num = get_num_heads(params.get_output_layout(0), extended_output_transpose_order);
-            std::cout << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num << std::endl;
-
             const size_t num_of_partitions = get_partitions_num(params, SDPAStage::SINGLE_TOKEN);
-            // const auto head_size = static_cast<size_t>(k_l.get_partial_shape()[3].get_length());
             const size_t head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
+
+            GPU_DEBUG_TRACE_DETAIL << "batch_size = " << batch_size << ", target_seq_len = " << target_seq_len << ", heads_num = " << heads_num  << "\n";
+            GPU_DEBUG_TRACE_DETAIL << "head_size = " << head_size << ", num_of_partitions = " << num_of_partitions << "\n";
 
             wgs.global = {batch_size * heads_num, target_seq_len, head_size};
             wgs.local = {1, 1, head_size};
-
             num_of_partitions_scalar.v.u32 = static_cast<uint32_t>(num_of_partitions);
             scalars.push_back(num_of_partitions_scalar);
         }
-        std::cout << "SDPAOptGeneratorFinalization::DispatchDataFunc...done\n:";
     }};
 }
 

@@ -127,8 +127,7 @@ public:
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         update_rt_params(instance);
 
-        // OPENVINO_ASSERT(false, "DONT choose sdpa reference kernel..................");
-
+        // OPENVINO_ASSERT(false, "Shouldn't choose sdpa reference kernel..................");
         if (need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance))) {
             return execute_stage(events, instance, indirect);
         }
@@ -146,13 +145,6 @@ public:
             const auto& q_shape = q_l.get_shape();
             const auto& k_shape = k_l.get_shape();
             const size_t buf_size = q_l.count() / q_shape[desc->input_q_transpose_order[3]] * k_shape[desc->input_k_transpose_order[2]];
-
-            std::cout << "desc->input_q_transpose_order[3] = " << desc->input_q_transpose_order[3] << std::endl;
-            std::cout << "desc->input_k_transpose_order[2] = " << desc->input_k_transpose_order[2] << std::endl;
-            std::cout << "q_shape = { " << q_shape[0] << ", " << q_shape[1] << ", " << q_shape[2] << ", " << q_shape[3] << " }" << std::endl;
-            std::cout << "k_shape = { " << k_shape[0] << ", " << k_shape[1] << ", " << k_shape[2] << ", " << k_shape[3] << " }" << std::endl;
-            std::cout << "q_l.count() = " << q_l.count() << ", buf_size = " << buf_size << std::endl;
-
             internal_buffers.emplace_back(buf_size, q_l.data_type);
         } else {
             internal_buffers.emplace_back(1, q_l.data_type);
