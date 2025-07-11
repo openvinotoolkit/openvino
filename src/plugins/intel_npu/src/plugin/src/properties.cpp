@@ -353,6 +353,8 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_dir, CACHE_DIR);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::compiled_blob, COMPILED_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::weights_path, WEIGHTS_PATH);
@@ -556,6 +558,7 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::model, MODEL_PTR);

@@ -36,6 +36,12 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
         zeDescriptorName = zeDescriptorName.substr(ASSIGN_PREFIX.length());
     } else if (isShapeTensorName(zeDescriptorName)) {
         zeDescriptorName = zeDescriptorName.substr(SHAPE_TENSOR_PREFIX.length());
+    } else if (isInitInputWeightsName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
+    } else if (isInitOutputWeightsName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
+    } else if (isMainInputWeightsName(zeDescriptorName)) {
+        zeDescriptorName = zeDescriptorName.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
     }
 
     OPENVINO_ASSERT(ioDescriptor.nameFromCompiler == zeDescriptorName,
@@ -553,6 +559,10 @@ void ZeroInferRequest::infer_async() {
     size_t inputIndex = 0;
     for (const auto& userTensor : _userInputTensors) {
         const IODescriptor inputDescriptor = _metadata.inputs.at(inputIndex);
+
+        OPENVINO_ASSERT(!inputDescriptor.isInitInputWeights,
+                        "This path should not be used for running inferences for the \"init\" model");
+
         if (inputDescriptor.isShapeTensor) {
             OPENVINO_ASSERT(inputDescriptor.relatedDescriptorIndex.has_value(),
                             "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
@@ -606,6 +616,11 @@ void ZeroInferRequest::infer_async() {
             }
 
             ++inputIndex;
+            continue;
+        }
+
+        if (inputDescriptor.isMainInputWeights) {
+            // These values were set while running the "WeightlessGraph::init" method
             continue;
         }
 
