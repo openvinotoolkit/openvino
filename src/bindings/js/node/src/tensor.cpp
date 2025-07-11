@@ -44,6 +44,26 @@ void TensorWrap::copy_to(void* destination, size_t byte_size) const {
     }
     std::memcpy(destination, _tensor.data(), byte_size);
 }
+Napi::Value TensorWrap::js_copy_to(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (info.Length() != 1 || !info[0].IsTypedArray()) {
+        reportError(env, "copyTo() requires exactly one TypedArray argument.");
+        return env.Undefined();
+    }
+
+    Napi::TypedArray typed_array = info[0].As<Napi::TypedArray>();
+    size_t size = typed_array.ByteLength();
+    void* buffer_ptr = typed_array.ArrayBuffer().Data();
+
+    try {
+        this->copy_to(buffer_ptr, size);
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+    }
+
+    return env.Undefined();
+}
 
 
 Napi::Function TensorWrap::get_class(Napi::Env env) {
@@ -54,6 +74,7 @@ Napi::Function TensorWrap::get_class(Napi::Env env) {
                         InstanceMethod("getShape", &TensorWrap::get_shape),
                         InstanceMethod("getElementType", &TensorWrap::get_element_type),
                         InstanceMethod("getSize", &TensorWrap::get_size),
+                        InstanceMethod("copyTo", &TensorWrap::js_copy_to),
                         InstanceMethod("isContinuous", &TensorWrap::is_continuous)});
 }
 
