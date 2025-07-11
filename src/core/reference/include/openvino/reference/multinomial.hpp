@@ -44,6 +44,8 @@ void multinomial(const T* probs,
                  const Shape& probs_shape,
                  const U* num_samples,
                  const Shape& num_samples_shape,
+                 const T* random_samples,
+                 const Shape& random_samples_shape,
                  V* output,
                  const Shape& output_shape,
                  const bool with_replacement,
@@ -95,20 +97,28 @@ void multinomial(const T* probs,
 
     // Generate random probability samples
     std::vector<T> uniform_samples(total_output_elements_count);
-    const T zero = 0;
-    const T one = 1;
-    const ov::Shape output_shape_shape{output_shape.size()};
-    const std::vector<uint64_t> output_shape_u64(output_shape.begin(), output_shape.end());
-    const std::pair<uint64_t, uint64_t> initial_state(0, 0);
-    random_uniform(output_shape_u64.data(),
-                   reinterpret_cast<const char*>(&zero),
-                   reinterpret_cast<const char*>(&one),
-                   reinterpret_cast<char*>(uniform_samples.data()),
-                   output_shape_shape,
-                   ov::element::from<T>(),
-                   global_seed,
-                   op_seed,
-                   initial_state);
+
+    if (random_samples == nullptr) {
+        const T zero = 0;
+        const T one = 1;
+        const ov::Shape output_shape_shape{output_shape.size()};
+        const std::vector<uint64_t> output_shape_u64(output_shape.begin(), output_shape.end());
+        const std::pair<uint64_t, uint64_t> initial_state(0, 0);
+        random_uniform(output_shape_u64.data(),
+                       reinterpret_cast<const char*>(&zero),
+                       reinterpret_cast<const char*>(&one),
+                       reinterpret_cast<char*>(uniform_samples.data()),
+                       output_shape_shape,
+                       ov::element::from<T>(),
+                       global_seed,
+                       op_seed,
+                       initial_state);
+    } else {
+        const auto random_samples_count = shape_size<Shape>(random_samples_shape);
+        OPENVINO_ASSERT(random_samples_count == total_output_elements_count,
+                        "Multinomial random_samples count is not equal to output_shape size");
+        uniform_samples.assign(random_samples, random_samples + random_samples_count);
+    }
 
     auto batch_size = probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[0]) : static_cast<size_t>(1);
     auto class_size =
