@@ -44,6 +44,7 @@
 
 using namespace ov::gen_pattern;
 using namespace ov::pass;
+using namespace ov::op;
 
 ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
 
@@ -349,38 +350,41 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     MATCHER_SCOPE(RoPEFusionCosSinPreprocess);
 
-    auto cos_const = makePattern<opset1::Constant>({});  // "f32[1,1,2048,24]"
-    auto sin_const = makePattern<opset1::Constant>({});  // "f32[1,1,2048,24]"
+    auto cos_const =
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[1,1,2048,24]"));
+    auto sin_const =
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[1,1,2048,24]"));
 
-    auto node_batch_size = makePattern("i32[1]");
-    auto tile_batch = makePattern("i32[1]");
-    auto gather_positions = makePattern("i32[?,?,?,?]");
+    auto node_batch_size = pattern::any_input(pattern::type_matches(element::i32) && pattern::shape_matches("[1]"));
+    auto tile_batch = pattern::any_input(pattern::type_matches(element::i32) && pattern::shape_matches("[1]"));
+    auto gather_positions = pattern::any_input(pattern::type_matches(element::i32) && pattern::rank_equals(4));
 
     auto prepare_cos_sin_gptneox = [&](std::shared_ptr<Node> const_tab) {
-        auto slice = makePattern<ov::opset8::Slice>({const_tab, {0}, node_batch_size, {1}, {0}});
-        auto strided_slice = GenStridedSlice(const_tab, {0}, node_batch_size, {1}, 0);
-        return makePattern<opset6::GatherElements>({strided_slice | slice, gather_positions}, {{"axis", 2}});
+        auto slice = pattern::wrap_type<v8::Slice>({const_tab, {0}, node_batch_size, {1}, {0}});
+        auto strided_slice = NewGenStridedSlice(const_tab, {0}, node_batch_size, {1}, 0);
+        return pattern::wrap_type<v6::GatherElements>({strided_slice | slice, gather_positions}, {{"axis", 2}});
     };
 
-    auto seq_len = makePattern("i32[1]");
-    auto gather_positions_2d = makePattern("i32[?,?]");
+    auto seq_len = pattern::any_input(pattern::type_matches(element::i32) && pattern::shape_matches("[1]"));
+    auto gather_positions_2d = pattern::any_input(pattern::type_matches(element::i32) && pattern::rank_equals(2));
 
-    auto head_dims = ov::gen_pattern::Symbol("head_dims");
     auto prepare_cos_sin_llama = [&](std::shared_ptr<Node> const_tab) {
-        auto ScatterUpdate = makePattern<opset3::ScatterUpdate>({{0, 0, 0}, 2, seq_len, 0});
-        auto slice_Slice = makePattern<ov::opset8::Slice>({const_tab, {0}, seq_len, {1}, {2}});
-        auto slice_StridedSlice = GenStridedSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
-        auto squeeze = makePattern<opset1::Reshape>({slice_StridedSlice | slice_Slice, {-1, head_dims}});
-        auto index_Gather = makePattern<opset8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
+        auto ScatterUpdate = pattern::wrap_type<v3::ScatterUpdate>({{0, 0, 0}, 2, seq_len, 0});
+        auto slice_Slice = pattern::wrap_type<v8::Slice>({const_tab, {0}, seq_len, {1}, {2}});
+        auto slice_StridedSlice = NewGenStridedSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
+        auto squeeze = pattern::wrap_type<v1::Reshape>({slice_StridedSlice | slice_Slice, pattern::any_input()},
+                                                       pattern::shape_matches("[-1, head_dims]"));
+        auto index_Gather = pattern::wrap_type<v8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
         // another simplified pattern for gathering at position_ids
-        auto slice_Slice2 = makePattern<ov::opset8::Slice>({const_tab, {0}, seq_len, {1}, {0}});
-        auto slice_StridedSlice2 = GenStridedSlice(const_tab, {0}, seq_len, {1}, 0);
-        auto index_Gather2 = makePattern<opset8::Gather>({slice_Slice2 | slice_StridedSlice2, gather_positions_2d, 0},
-                                                         {{"batch_dims", 0}});
+        auto slice_Slice2 = pattern::wrap_type<v8::Slice>({const_tab, {0}, seq_len, {1}, {0}});
+        auto slice_StridedSlice2 = NewGenStridedSlice(const_tab, {0}, seq_len, {1}, 0);
+        auto index_Gather2 = pattern::wrap_type<v8::Gather>({slice_Slice2 | slice_StridedSlice2, gather_positions_2d, 0},
+                                                            {{"batch_dims", 0}});
 
-        auto unsqueeze = makePattern<opset1::Reshape>({index_Gather | index_Gather2, {1, 1, -1, head_dims}});
-        auto unsqueeze2 = makePattern<opset1::Unsqueeze>({index_Gather2, 1});
+        auto unsqueeze = pattern::wrap_type<v1::Reshape>({index_Gather | index_Gather2},
+                                                          pattern::shape_matches("[1, 1, -1, head_dims]"));
+        auto unsqueeze2 = pattern::wrap_type<v0::Unsqueeze>({index_Gather2, 1});
 
         return unsqueeze2 | unsqueeze;
     };
@@ -388,14 +392,10 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto cos_tab = prepare_cos_sin_gptneox(cos_const) | prepare_cos_sin_llama(cos_const);
     auto sin_tab = prepare_cos_sin_gptneox(sin_const) | prepare_cos_sin_llama(sin_const);
 
-    auto x = makePattern(ov::Rank(4));
-    auto rope = makePattern<op::internal::RoPE>({x, cos_tab, sin_tab});
+    auto x = pattern::any_input(pattern::rank_equals(4));
+    auto rope = pattern::wrap_type<op::internal::RoPE>({x, cos_tab, sin_tab});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
