@@ -339,10 +339,10 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  const std::vector<MemoryPtr>& inputs,
                  const std::vector<MemoryPtr>& outputs) override {
-        ov::intel_cpu::PlainTensor t_src(inputs[0]);   // [batch, length, head_cnt*head_size * 3]
+        ov::intel_cpu::PlainTensor t_src(inputs[0]);        // [batch, length, head_cnt*head_size * 3]
         const ov::intel_cpu::PlainTensor t_cos(inputs[1]);  // [1, present-kv-length, 1, rotary_dims]
         const ov::intel_cpu::PlainTensor t_sin(inputs[2]);  // [1, present-kv-length, 1, rotary_dims]
-        ov::intel_cpu::PlainTensor t_dst(outputs[0]);  // [batch, length, head_cnt, head_size]>
+        ov::intel_cpu::PlainTensor t_dst(outputs[0]);       // [batch, length, head_cnt, head_size]>
         ov::intel_cpu::PlainTensor gather;
 
         auto rotary_dims = t_cos.size(3);

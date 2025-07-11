@@ -777,7 +777,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                     for (size_t i = 2; i < shape.size(); ++i) {
                         spatial_dim = spatial_dim * shape[i];
                     }
-                    const size_t snippets_tensor_size = spatial_dim * shape[1] / num_groups * node->get_element_type().size();
+                    const size_t snippets_tensor_size =
+                        spatial_dim * shape[1] / num_groups * node->get_element_type().size();
                     const size_t cache_size_l1 = dnnl::utils::get_cache_size(1, true);
                     if (snippets_tensor_size > cache_size_l1) {
                         return false;
@@ -1215,9 +1216,9 @@ void Transformations::MainSnippets() {
         return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
 #else
-    size_t data_ptr_gpr_count = 0;
+    const size_t data_ptr_gpr_count = 0;
     const bool is_dynamic_mha_token_enabled = false;
-    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
+    const snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is
@@ -1225,7 +1226,7 @@ void Transformations::MainSnippets() {
     const bool split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     const std::set<size_t> mha_supported_transpose_ranks = {4};
-    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, // NOLINT(misc-const-correctness)
+    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency,  // NOLINT(misc-const-correctness)
                                                                      data_ptr_gpr_count,
                                                                      split_m_dimension,
                                                                      mha_token_enable_transpose_on_output,
