@@ -5,6 +5,7 @@
 #pragma once
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "primitive_inst.h"
+#include "openvino/op/parameter.hpp"
 
 #include <string>
 
@@ -19,11 +20,13 @@ class typed_primitive_inst<custom_gpu_primitive> : public typed_primitive_inst_b
 
 public:
     template<typename ShapeType>
-    static std::vector<layout> calc_output_layouts(custom_gpu_primitive_node const& /*node*/, const kernel_impl_params& impl_param) {
+    static std::vector<layout> calc_output_layouts(custom_gpu_primitive_node const& node, const kernel_impl_params& impl_param) {
         assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
                "Output data type forcing is not supported for "
                "custom_gpu_primitive_node!");
         layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;
+
+        typed_primitive_inst<custom_gpu_primitive>::update_output_shape(impl_param, output_layout);
 
         // if the output layout format was set to any, it means the layer output format will be the same as the first input
         if (output_layout.format == format::any) {
@@ -38,6 +41,8 @@ public:
                "custom_gpu_primitive_node!");
         layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;
 
+        typed_primitive_inst<custom_gpu_primitive>::update_output_shape(impl_param, output_layout);
+
         // if the output layout format was set to any, it means the layer output format will be the same as the first
         // input
         if (output_layout.format == format::any) {
@@ -50,6 +55,32 @@ public:
 
 public:
     typed_primitive_inst(network& network, custom_gpu_primitive_node const& node);
+
+private:
+    static void update_output_shape(const kernel_impl_params& impl_param, layout& output_layout) {
+        bool is_dynamic_input = false;
+        const auto inp_sz = impl_param.get_input_layout_size();
+        for (size_t i = 0; i < inp_sz; i++) {
+            if (impl_param.get_input_layout(i).is_dynamic()) {
+                is_dynamic_input = true;
+                break;
+            }
+        }
+
+        if (!is_dynamic_input && output_layout.is_dynamic()) {
+            ov::OutputVector new_inputs;
+            for (size_t i = 0; i < inp_sz; i++) {
+                auto input = std::make_shared<ov::op::v0::Parameter>(impl_param.get_input_layout(i).data_type, impl_param.get_input_layout(i).get_shape());
+                new_inputs.emplace_back(input);
+            }
+
+            auto op = impl_param.typed_desc<custom_gpu_primitive>()->op;
+            auto new_op = op->clone_with_new_inputs(new_inputs);
+            new_op->validate_and_infer_types();
+            auto new_outp_shape = new_op->get_output_shape(0);
+            output_layout.set_partial_shape(new_outp_shape);
+        }
+    }
 };
 
 using custom_gpu_primitive_inst = typed_primitive_inst<custom_gpu_primitive>;
