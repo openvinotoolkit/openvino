@@ -21,12 +21,5 @@ namespace ze {
 
 static constexpr uint64_t default_timeout = std::numeric_limits<uint64_t>::max();
 
-void* find_ze_symbol(const char *symbol);
-
-template <typename F>
-F find_ze_symbol(const char *symbol) {
-    return (F)find_ze_symbol(symbol);
-}
-
 }  // namespace ze
 }  // namespace cldnn

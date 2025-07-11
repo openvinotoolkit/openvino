@@ -23,17 +23,6 @@ namespace ze {
 
 namespace {
 
-void func_zeModuleCreate(ze_context_handle_t hContext,
-                         ze_device_handle_t hDevice, const ze_module_desc_t *desc,
-                         ze_module_handle_t *phModule,
-                         ze_module_build_log_handle_t *phBuildLog) {
-    static auto f = find_ze_symbol<decltype(&zeModuleCreate)>("zeModuleCreate");
-
-    if (!f)
-        throw std::runtime_error("zeModuleCreate was not found");
-    ZE_CHECK(f(hContext, hDevice, desc, phModule, phBuildLog));
-}
-
 ze_module_handle_t ze_create_module_with_level_zero(const cldnn::ze::ze_engine& engine, std::vector<uint8_t> binary) {
     auto desc = ze_module_desc_t();
     desc.stype = ZE_STRUCTURE_TYPE_MODULE_DESC;
@@ -47,7 +36,7 @@ ze_module_handle_t ze_create_module_with_level_zero(const cldnn::ze::ze_engine& 
 
     auto ze_device = engine.get_device();
     auto ze_ctx = engine.get_context();
-    func_zeModuleCreate(ze_ctx, ze_device, &desc, &ze_module, nullptr);
+    zeModuleCreate(ze_ctx, ze_device, &desc, &ze_module, nullptr);
     return ze_module;
 }
 
