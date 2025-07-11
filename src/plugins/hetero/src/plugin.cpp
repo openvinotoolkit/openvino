@@ -310,7 +310,7 @@ ov::hetero::Plugin::QueryResult ov::hetero::Plugin::query_model_update(std::shar
         }
     };
     res.model = model;
-    if (all_same_gpu_type(device_names)) {
+    if (all_same_gpu_type(device_names) && hetero_query_model_by_device) {
         auto& first_device_config = properties_per_device.at(device_names[0]);
         res.model = get_core()->get_transformed_model(model, device_names[0], first_device_config);
         res.is_transformed = true;
