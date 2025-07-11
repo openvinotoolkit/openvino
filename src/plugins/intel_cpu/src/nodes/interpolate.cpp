@@ -1774,9 +1774,9 @@ inline VectorDims to5Dim(VectorDims casesDim) {
     if (caseSize > 4) {
         dim5[2] = casesDim[2];
     }
-    if (caseSize == 3) {  // nhw -> ncw
-        dim5[1] = dim5[3];
-        dim5[3] = 1LU;
+    if (caseSize == 3) {  // nhw -> dhw
+        dim5[2] = dim5[0];
+        dim5[0] = 1LU;
     }
     return dim5;
 }
@@ -1930,7 +1930,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
     : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        dataRank = getInputShapeAtPort(DATA_ID).getRank();
+        const auto& inputDataShape = getInputShapeAtPort(DATA_ID);
+        dataRank = inputDataShape.getRank();
         if (const auto interp = ov::as_type_ptr<const ov::op::v4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
@@ -2030,9 +2031,28 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID))
                            ->cast_vector<int>();
             } else {
-                axes.resize(dataRank);
-                for (int i = 0; i < static_cast<int>(dataRank); i++) {
-                    axes[i] = i;
+                auto outputShape = getOutputShapeAtPort(0);
+                auto avoidReorder = [](const auto& inputDataShape, const auto& outputShape) {
+                    auto lastInDim = inputDataShape.getDims().back();
+                    // When the lowest dimension of the operator does not change,
+                    // we can avoid reordering the input data.
+                    if (lastInDim == 1) {
+                        return true;
+                    }
+                    auto lastOutDim = outputShape.getDims().back();
+                    if (lastOutDim == lastInDim) {
+                        return true;
+                    }
+                    return false;
+                };
+                if (dataRank == 4 && avoidReorder(inputDataShape, outputShape)) {
+                    interpAttrs.NCHWAsNHWC = true;
+                    axes = {0, 2, 3, 1};  // NHWC
+                } else {
+                    axes.resize(dataRank);
+                    for (int i = 0; i < static_cast<int>(dataRank); i++) {
+                        axes[i] = i;
+                    }
                 }
             }
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
@@ -2328,17 +2348,29 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
             // blk and by_channel JIT kernel on sse41 or above machine
             if (dataRank == 4 || (dataRank == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
                 if (mayiuse(cpu::x64::avx512_core)) {
-                    pushDesc(LayoutType::nspc, jit_avx512, false);
+                    if (interpAttrs.NCHWAsNHWC) {
+                        pushDesc(LayoutType::ncsp, jit_avx512, false);
+                    } else {
+                        pushDesc(LayoutType::nspc, jit_avx512, false);
+                    }
                     if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp16c, jit_avx512, false);
                     }
                 } else if (mayiuse(cpu::x64::avx2)) {
-                    pushDesc(LayoutType::nspc, jit_avx2, false);
+                    if (interpAttrs.NCHWAsNHWC) {
+                        pushDesc(LayoutType::ncsp, jit_avx2, false);
+                    } else {
+                        pushDesc(LayoutType::nspc, jit_avx2, false);
+                    }
                     if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp8c, jit_avx2, false);
                     }
                 } else {
-                    pushDesc(LayoutType::nspc, jit_sse42, false);
+                    if (interpAttrs.NCHWAsNHWC) {
+                        pushDesc(LayoutType::ncsp, jit_sse42, false);
+                    } else {
+                        pushDesc(LayoutType::nspc, jit_sse42, false);
+                    }
                     if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp8c, jit_sse42, false);
                     }
@@ -2473,7 +2505,7 @@ void Interpolate::prepareParams() {
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (!interpAttrs.NCHWAsNHWC &&
-        (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.F || dataScales[1] != 1.F))) {
+        (getOutputShapeAtPort(0).getRank() > 3 && (dataScales[0] != 1.F || dataScales[1] != 1.F))) {
         CPU_NODE_THROW("only supports resize on spatial dimensions(depth, height and width)");
     }
 
@@ -4275,7 +4307,7 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
       srcDataSize(interpAttrs.inPrc.size()),
       dstDataSize(interpAttrs.outPrc.size()),
       dataRank(srcDims.size()),
-      spatialDimSize(getSpatialDimsNum(dataRank)) {
+      spatialDimSize(getSpatialDimsNum(srcDims, dstDims)) {
     switch (mode) {
     case InterpolateMode::nearest: {
         buildTblNN(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout, interpAttrs.nearestMode);
@@ -4329,7 +4361,7 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     jcp.IW = srcDimPad5d[4];
     jcp.IH = srcDimPad5d[3];
     jcp.ID = srcDimPad5d[2];
-    jcp.spatial_dim_size = getSpatialDimsNum(srcDims.size());
+    jcp.spatial_dim_size = getSpatialDimsNum(srcDims, dstDims);
     jcp.layout = interpAttrs.layout;
     if (mode == InterpolateMode::bilinear_pillow || mode == InterpolateMode::bicubic_pillow) {
         jcp.filterLenX = auxTable[0];
@@ -4475,11 +4507,21 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     }
 }
 
-size_t Interpolate::getSpatialDimsNum(const Dim rank) {
-    switch (rank) {
+size_t Interpolate::getSpatialDimsNum(const VectorDims& srcDims, const VectorDims& dstDims) {
+    switch (srcDims.size()) {
     case 1:
-    case 3:
         return 1;
+    case 3: {
+        // Find first different element in src and dst dims
+        size_t spatialDims = 3;
+        for (size_t i = 0; i < srcDims.size(); ++i) {
+            if (srcDims[i] != dstDims[i]) {
+                break;
+            }
+            spatialDims--;
+        }
+        return spatialDims;
+    }
     case 2:
     case 4:
         return 2;
