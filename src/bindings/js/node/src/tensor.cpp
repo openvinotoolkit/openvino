@@ -35,6 +35,16 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
         reportError(info.Env(), e.what());
     }
 }
+void TensorWrap::copy_to(void* destination, size_t byte_size) const {
+    if (!_tensor.is_continuous()) {
+        throw std::runtime_error("Tensor data is not continuous.");
+    }
+    if (byte_size != _tensor.get_byte_size()) {
+        throw std::runtime_error("Destination buffer size mismatch.");
+    }
+    std::memcpy(destination, _tensor.data(), byte_size);
+}
+
 
 Napi::Function TensorWrap::get_class(Napi::Env env) {
     return DefineClass(env,
