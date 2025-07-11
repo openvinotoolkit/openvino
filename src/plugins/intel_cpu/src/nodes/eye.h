@@ -49,7 +49,7 @@ private:
     void executeSpecified();
     template <typename T>
     struct EyeExecute;
-    const size_t getRowNum() const {
+    size_t getRowNum() const {
         auto rowMem = getSrcMemoryAtPort(ROWS_NUM);
         if (rowMem == nullptr) {
             THROW_CPU_NODE_ERR("doesn't contain row_count data");
@@ -58,7 +58,7 @@ private:
 
         return rowPtr[0];
     }
-    const size_t getColNum() const {
+    size_t getColNum() const {
         auto colMem = getSrcMemoryAtPort(COLS_NUM);
         if (colMem == nullptr) {
             THROW_CPU_NODE_ERR("doesn't contain col_count data");
@@ -67,7 +67,7 @@ private:
 
         return colPtr[0];
     }
-    const int getDiagIndex() const {
+    int getDiagIndex() const {
         auto diagIndMem = getSrcMemoryAtPort(DIAGONAL_INDEX);
         if (diagIndMem == nullptr) {
             THROW_CPU_NODE_ERR("doesn't contain diag_index data");
@@ -76,7 +76,7 @@ private:
 
         return diagIndexPtr[0];
     }
-    const std::vector<int> getBatchShape() const {
+    std::vector<int> getBatchShape() const {
         if (withBatchShape) {
             const auto batchShapeSize =
                 static_cast<const int>(getSrcMemoryAtPort(BATCH_SHAPE)->getShape().getElementsCount());
@@ -88,7 +88,7 @@ private:
         return std::vector<int>{};
     }
 
-    static const size_t getBatchVolume(const std::vector<int>& batchShape) {
+    static size_t getBatchVolume(const std::vector<int>& batchShape) {
         return std::accumulate(begin(batchShape), end(batchShape), 1, std::multiplies<>());
     }
     bool withBatchShape = false;

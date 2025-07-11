@@ -40,13 +40,13 @@ public:
     [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
     [[nodiscard]] size_t get_scratch_b_size() const;
-    [[nodiscard]] static const size_t get_mblk_size() {
+    [[nodiscard]] static size_t get_mblk_size() {
         return matmulOptimalM;
     }
-    [[nodiscard]] const size_t get_k_blk() const {
+    [[nodiscard]] size_t get_k_blk() const {
         return K_blk;
     }
-    [[nodiscard]] static const size_t get_wsp_size() {
+    [[nodiscard]] static size_t get_wsp_size() {
         return 4 * 1024;
     }
 

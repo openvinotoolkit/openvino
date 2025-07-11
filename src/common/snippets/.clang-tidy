@@ -45,7 +45,6 @@
 # -misc-header-include-cycle,
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
-# -readability-const-return-type
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # -readability-isolate-declaration
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
@@ -103,7 +102,6 @@ Checks: >
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
-  -readability-const-return-type,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
   -readability-isolate-declaration,

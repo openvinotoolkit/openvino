@@ -76,7 +76,7 @@ public:
         return implPriorities;
     }
 
-    [[nodiscard]] const WeightsSharing::Ptr getWeightsCache() const {
+    [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
     }
 

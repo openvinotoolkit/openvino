@@ -136,7 +136,7 @@ public:
     const std::vector<float>& getOutputShift() const {
         return outputShift;
     }
-    const size_t getLevels() const {
+    size_t getLevels() const {
         return levels;
     }
 

@@ -110,11 +110,11 @@ public:
         return m_name;
     }
 
-    [[nodiscard]] const ExecutorType type() const {
+    [[nodiscard]] ExecutorType type() const {
         return m_type;
     }
 
-    [[nodiscard]] const OperationType operationType() const {
+    [[nodiscard]] OperationType operationType() const {
         return m_operationType;
     }
 

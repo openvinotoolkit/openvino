@@ -153,10 +153,10 @@ private:
     Vmm get_vmm_acc(int idx) {
         return Vmm(idx + jcp_.ur_w + 1);
     }
-    Ymm get_ymm_acc(int idx) {
+    Xbyak::Ymm get_ymm_acc(int idx) {
         return Ymm(idx + jcp_.ur_w + 1);
     }
-    Xmm get_xmm_acc(int idx) {
+    Xbyak::Xmm get_xmm_acc(int idx) {
         return Xmm(idx + jcp_.ur_w + 1);
     }
 
