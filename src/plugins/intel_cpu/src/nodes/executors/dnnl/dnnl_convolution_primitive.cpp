@@ -879,8 +879,12 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
 
 DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                                            const DnnlMemoryDescPtr& dstDesc,
-                                                                           bool weightsNonTransposed) {
-    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, weightsNonTransposed);
+                                                                           const ConvAttrs& attrs) {
+    FCAttrs fcAttrs{};
+    fcAttrs.withBias = attrs.withBias;
+    fcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
+
+    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, fcAttrs);
 }
 
 std::tuple<size_t, size_t, size_t, size_t> DnnlConvolutionPrimitive::getChannelParams(const ConvConfig& config) {
