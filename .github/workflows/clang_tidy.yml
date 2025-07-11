@@ -76,7 +76,6 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
-            ov_build/ubuntu_22_04_arm64
             ov_build/ubuntu_22_04_riscv_xuantie
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
