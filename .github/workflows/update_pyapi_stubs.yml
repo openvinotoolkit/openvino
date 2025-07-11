@@ -42,23 +42,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
       - name: Download OpenVINO wheels artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: openvino-stubs-update-wheels
           path: ./wheels
-
-      - name: Set up Python
-        uses: actions/setup-python@0ae58361cdfd39e2950bed97a1e26aa20c3d8955  # v4
-        with:
-          python-version: '3.10'
-
-  update-stubs:
-    runs-on: ubuntu-latest
-    needs: openvino-provider-job
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Set up Python
         uses: actions/setup-python@0ae58361cdfd39e2950bed97a1e26aa20c3d8955  # v4
