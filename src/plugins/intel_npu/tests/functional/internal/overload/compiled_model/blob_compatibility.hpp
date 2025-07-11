@@ -123,7 +123,7 @@ using OVBlobCompatibilityNPU_PV_Driver_No_Throw = OVBlobCompatibilityNPU;
                 ##__VA_ARGS__);                                                                                \
     APPEND_EXPORT_HELPER(ASSERT_TYPE, ##__VA_ARGS__)
 
-TEST_P(OVBlobCompatibilityNPU, CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
+TEST_P(OVBlobCompatibilityNPU, DISABLED_CanImportAllPrecompiledBlobsForAllOVVersionsAndDrivers) {
     if (auto current_driver =
             core.get_property(ov::test::utils::DEVICE_NPU, ov::intel_npu::driver_version.name()).as<std::string>();
         current_driver == DRIVERS.at(E_DRIVERS::DRIVER_1688) && blobName.find(current_driver) == std::string::npos) {

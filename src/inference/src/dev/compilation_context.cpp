@@ -197,4 +197,36 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     return stream;
 }
 
+namespace {
+inline std::string getline_from_buffer(const char* buffer, size_t size, size_t& pos, char delim = '\n') {
+    if (pos >= size) {
+        return {};
+    }
+
+    const char* start = buffer + pos;
+    const char* end = buffer + size;
+    const char* newline = std::find(start, end, delim);
+
+    size_t line_length = (newline == end) ? (end - start) : (newline - start);
+    std::string line(start, line_length);
+
+    // Update position (skip the delimiter if found)
+    pos += line_length + (newline != end ? 1 : 0);
+
+    return line;
+}
+}  // namespace
+
+void CompiledBlobHeader::read_from_buffer(const char* buffer, size_t buffer_size, size_t& pos) {
+    std::string xmlStr = ov::getline_from_buffer(buffer, buffer_size, pos);
+
+    pugi::xml_document document;
+    pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
+    OPENVINO_ASSERT(res.status == pugi::status_ok, "Error reading compiled blob header");
+
+    pugi::xml_node compiledBlobNode = document.document_element();
+    m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
+    m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
+    m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
+}
 }  // namespace ov
