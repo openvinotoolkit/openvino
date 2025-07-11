@@ -1,3 +1,4 @@
+
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
@@ -22,6 +23,9 @@ public:
      * @throw Exception if params are of invalid type.
      */
     void copy_to(void* destination, size_t byte_size) const;
+
+    Napi::Value js_copy_to(const Napi::CallbackInfo& info);
+
 
     TensorWrap(const Napi::CallbackInfo& info);
 
