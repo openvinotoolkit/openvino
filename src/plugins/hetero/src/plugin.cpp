@@ -285,35 +285,30 @@ ov::hetero::Plugin::QueryResult ov::hetero::Plugin::query_model_update(std::shar
     model->add_results(new_outputs);
     auto all_same_gpu_type = [&](const std::vector<std::string>& device_names) -> bool {
         if (device_names.empty())
-            return true;
+            return false;
+        else if (device_names.size() == 1) {
+            return device_names[0].find("GPU") != 0 ? false : true;
+        }
         try {
             const auto& ref = device_names[0];
-            if (ref.find("GPU") != 0)
-                return false;
-
+            ov::Core core;
             const auto ref_arch = get_core()->get_property(ref, ov::device::architecture);
             const auto ref_name = get_core()->get_property(ref, ov::device::full_name);
-
-            for (size_t i = 1; i < device_names.size(); ++i) {
-                const auto& dev = device_names[i];
-                if (dev.find("GPU") != 0)
-                    return false;
-
-                if (get_core()->get_property(dev, ov::device::architecture) != ref_arch ||
-                    get_core()->get_property(dev, ov::device::full_name) != ref_name) {
-                    return false;
-                }
-            }
-            return true;
-        } catch (...) {
+            return std::all_of(device_names.begin() + 1, device_names.end(), [&](const std::string& dev) {
+                return dev.find("GPU") == 0 && get_core()->get_property(dev, ov::device::architecture) == ref_arch &&
+                       get_core()->get_property(dev, ov::device::full_name) == ref_name;
+            });
+        } catch (const ov::Exception&) {
             return false;
         }
     };
-    res.model = model;
+    
     if (all_same_gpu_type(device_names) && hetero_query_model_by_device) {
         auto& first_device_config = properties_per_device.at(device_names[0]);
         res.model = get_core()->get_transformed_model(model, device_names[0], first_device_config);
         res.is_transformed = true;
+    } else {
+        res.model = model;
     }
 
     for (const auto& device_name : device_names) {
