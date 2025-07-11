@@ -201,7 +201,7 @@ public:
      * @param properties Optional map of pairs: (property name, property value).
      * @return A shared pointer to the transformed ov::Model object
      */
-    virtual std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<ov::Model>& model,
+    virtual std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<const ov::Model>& model,
                                                              const ov::AnyMap& properties) const;
 
     /**

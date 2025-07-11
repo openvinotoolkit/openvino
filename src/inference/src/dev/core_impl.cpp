@@ -977,7 +977,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
     return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
-std::shared_ptr<ov::Model> ov::CoreImpl::get_transformed_model(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<ov::Model> ov::CoreImpl::get_transformed_model(const std::shared_ptr<const ov::Model>& model,
                                                                const std::string& device_name,
                                                                const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::get_transformed_model");

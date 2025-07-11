@@ -53,7 +53,7 @@ public:
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const;
 
-    std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<ov::Model>& model,
+    std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<const ov::Model>& model,
                                                      const ov::AnyMap& properties) const;
 
     SoPtr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;

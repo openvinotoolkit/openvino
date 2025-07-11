@@ -69,7 +69,7 @@ ov::SupportedOpsMap ov::Plugin::query_model(const std::shared_ptr<const ov::Mode
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->query_model(model, properties));
 }
 
-std::shared_ptr<ov::Model> ov::Plugin::get_transformed_model(const std::shared_ptr<ov::Model>& model,
+std::shared_ptr<ov::Model> ov::Plugin::get_transformed_model(const std::shared_ptr<const ov::Model>& model,
                                                              const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_transformed_model(model, properties));
 }

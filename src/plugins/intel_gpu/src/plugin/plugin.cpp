@@ -309,7 +309,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::Model> Plugin::get_transformed_model(const std::shared_ptr< ov::Model>& model, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::Model> Plugin::get_transformed_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const {
     std::string device_id = get_device_id(properties);
 
     auto ctx = get_default_context(device_id);

@@ -351,7 +351,7 @@ public:
                                     const std::string& device_name,
                                     const ov::AnyMap& config) const override;
 
-    std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<ov::Model>& model,
+    std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<const ov::Model>& model,
                                                      const std::string& device_name,
                                                      const ov::AnyMap& config) const override;
 
