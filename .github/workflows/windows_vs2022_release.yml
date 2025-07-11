@@ -111,8 +111,8 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-            Expand-Archive openvino_package.zip -DestinationPath .
-            Expand-Archive openvino_tests.zip -DestinationPath .
+            Expand-Archive openvino_package.zip -DestinationPath . -Verbose
+            Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python and install wheels actions
@@ -201,7 +201,7 @@ jobs:
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_js_package.zip -DestinationPath .
+        run: Expand-Archive openvino_js_package.zip -DestinationPath . -Verbose
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
@@ -288,7 +288,7 @@ jobs:
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath .
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python and install wheels actions
@@ -431,7 +431,7 @@ jobs:
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath .
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python and install wheels actions

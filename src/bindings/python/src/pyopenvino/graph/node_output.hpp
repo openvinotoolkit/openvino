@@ -92,8 +92,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
                R"(
                 The tensor names associated with this output.
 
-                :return: Set of tensor names.
-                :rtype: Set[str]
+                :return: set of tensor names.
+                :rtype: set[str]
                )");
     output.def("get_element_type",
                &ov::Output<VT>::get_element_type,
@@ -127,8 +127,8 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 A set containing handles for all inputs, targeted by the output,
                 referenced by this output handle.
 
-                :return: Set of Inputs.
-                :rtype: Set[openvino.Input]
+                :return: set of Inputs.
+                :rtype: set[openvino.Input]
                )");
     output.def("_from_node", [](const std::shared_ptr<ov::Node>& node) {
                return ov::Output<ov::Node>(node);
