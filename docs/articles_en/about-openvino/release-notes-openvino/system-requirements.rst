@@ -166,6 +166,10 @@ Operating systems and developer environment
 
    OpenVINO Python binaries are built with and redistribute oneTBB libraries.
 
+.. note::
+
+   OpenVINO is available for eLxr Server 12. See `Using OpenVINO with eLxr 12 tutorial <https://docs.elxr.dev/elxr-openvino-tutorial/source/index.html>`__ for details.
+
 OpenVINO Distributions
 ######################
 
