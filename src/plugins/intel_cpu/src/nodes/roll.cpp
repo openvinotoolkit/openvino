@@ -217,9 +217,9 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
 
     for (size_t dim = 0; dim < axesLength; ++dim) {
-        int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
-        int32_t shiftSum = shiftsVector[currentAxis] + shift[dim];
-        int32_t dimSize = dataDims[currentAxis];
+        const int32_t currentAxis = axes[dim] < 0 ? axes[dim] + numOfDims : axes[dim];
+        const int32_t shiftSum = shiftsVector[currentAxis] + shift[dim];
+        const int32_t dimSize = dataDims[currentAxis];
         shiftsVector[currentAxis] = (shiftSum % dimSize + dimSize) % dimSize;
     }
 
@@ -229,14 +229,14 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
 
     const auto strides = dataMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto calculateShiftOffset = [](size_t dataOffset, size_t dimShift, size_t segmentSize, size_t dimSize) {
-        size_t pos = dataOffset / segmentSize % dimSize;
-        size_t shift = (pos + dimShift) % dimSize - pos;
+        const size_t pos = dataOffset / segmentSize % dimSize;
+        const size_t shift = (pos + dimShift) % dimSize - pos;
 
         return dataOffset + shift * segmentSize;
     };
 
     parallel_for(numOfIterations, [&, this](size_t iter) {
-        size_t start = iter * blockSize;
+        const size_t start = iter * blockSize;
         size_t leftBlockStartOffset = start;
         size_t rightBlockStartOffset = start + leftBlockSize;
 

@@ -152,8 +152,8 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
 
         for (size_t i = 0; i < pr_edges.size(); i++) {
             auto edge = node->getParentEdgeAt(i);
-            int pr_port = edge->getInputNum();
-            int ch_port = edge->getOutputNum();
+            const int pr_port = edge->getInputNum();
+            const int ch_port = edge->getOutputNum();
             auto pr_node = edge->getParent();
 
             OPENVINO_ASSERT(node2layer.count(pr_node) == 1);
@@ -261,7 +261,7 @@ void serialize(const Graph& graph) {
         serializeToCout(graph);
     } else if (!path.compare(path.size() - 4, 4, ".xml")) {
         static int g_idx = 0;
-        std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
+        const std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
         serializeToXML(graph, xmlPath);
     } else {
         OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
@@ -308,7 +308,7 @@ void summary_perf(const Graph& graph) {
     double total_avg = 0;
     uint64_t total = 0;
     for (const auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
-        double avg = node->PerfCounter().avg();
+        const double avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
 
         total += node->PerfCounter().count() * avg;
@@ -408,7 +408,7 @@ void average_counters(const Graph& graph) {
     }
 
     static int graphIndex = 0;
-    std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
+    const std::string fileName = path + "_" + std::to_string(graphIndex++) + ".csv";
 
     std::ofstream file;
     file.open(fileName);

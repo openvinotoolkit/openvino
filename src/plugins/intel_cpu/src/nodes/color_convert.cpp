@@ -586,7 +586,7 @@ public:
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
             auto u_v = uv + batch * stride_uv + (h / 2) * width;
-            typename jit_uni_converter::Params args{
+            const typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,
                 u_v,
                 u_v,
@@ -622,7 +622,7 @@ public:
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
             auto u_v = uv + batch * stride_uv + (h / 2) * width;
-            typename jit_uni_converter::Params args{
+            const typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,
                 u_v,
                 u_v,
@@ -925,7 +925,7 @@ public:
         const size_t stride_uv = height * width * 3 / 2;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args{
+            const typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,                // y
                 u + batch * stride_uv + (h / 2) * (width / 2),   // u
                 v + batch * stride_uv + (h / 2) * (width / 2),   // v
@@ -962,7 +962,7 @@ public:
         const size_t stride_uv = height * width / 4;
 
         ov::parallel_for2d(batch_size, height, [&](int batch, int h) {
-            typename jit_uni_converter::Params args{
+            const typename jit_uni_converter::Params args{
                 y + batch * stride_y + h * width,                // y
                 u + batch * stride_uv + (h / 2) * (width / 2),   // u
                 v + batch * stride_uv + (h / 2) * (width / 2),   // v

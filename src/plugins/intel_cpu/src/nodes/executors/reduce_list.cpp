@@ -18,7 +18,7 @@
 namespace ov::intel_cpu {
 
 const std::vector<ReduceExecutorDesc>& getReduceExecutorsList() {
-    static std::vector<ReduceExecutorDesc> descs = {
+    static const std::vector<ReduceExecutorDesc> descs = {
         OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<AclReduceExecutorBuilder>())};
 
     return descs;

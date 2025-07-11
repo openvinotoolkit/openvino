@@ -228,7 +228,7 @@ private:
         m_workspace = std::make_shared<MemoryBlockWithRelease>();
 
         for (const auto& box : boxes_to_process) {
-            int64_t offset = staticMemSolver.get_offset(box.id);
+            const int64_t offset = staticMemSolver.get_offset(box.id);
             auto memoryBlock = std::make_shared<StaticPartitionMemoryBlock>(m_workspace, offset * alignment);
             m_blocks[box.id] = std::move(memoryBlock);
         }

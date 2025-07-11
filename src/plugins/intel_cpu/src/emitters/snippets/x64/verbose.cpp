@@ -48,8 +48,9 @@ std::string get_emitter_type_name(const jit_emitter* emitter) {
     std::string name = typeid(*emitter).name();
 #    ifndef _WIN32
     int status = 0;
-    std::unique_ptr<char, void (*)(void*)> demangled_name(abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
-                                                          std::free);
+    const std::unique_ptr<char, void (*)(void*)> demangled_name(
+        abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status),
+        std::free);
     name = demangled_name.get();
 #    endif
     return name;
@@ -64,21 +65,21 @@ std::string init_info_jit_memory_emitter(const jit_memory_emitter* emitter) {
 
 static std::string init_info_jit_load_memory_emitter(const jit_load_memory_emitter* emitter) {
     std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
+    const std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
     ss << "Emitter_type_name:jit_load_memory_emitter" << memory_emitter_info;
     return ss.str();
 }
 
 static std::string init_info_jit_load_broadcast_emitter(const jit_load_broadcast_emitter* emitter) {
     std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
+    const std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
     ss << "Emitter_type_name:jit_load_broadcast_emitter" << memory_emitter_info;
     return ss.str();
 }
 
 static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emitter* emitter) {
     std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
+    const std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
     ss << "Emitter_type_name:jit_store_memory_emitter" << memory_emitter_info;
     return ss.str();
 }

@@ -43,7 +43,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::findOrCreate(const std::string
     MemoryInfo::Ptr ptr;
     MemoryPtr newPtr;
     {
-        std::unique_lock<std::mutex> lock(guard);
+        const std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
 
         auto isCached = [&]() -> bool {
@@ -75,7 +75,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) co
     MemoryInfo::Ptr ptr;
     MemoryPtr newPtr;
     {
-        std::unique_lock<std::mutex> lock(guard);
+        const std::unique_lock<std::mutex> lock(guard);
         auto found = sharedWeights.find(key);
 
         if (found == sharedWeights.end()) {
@@ -98,7 +98,7 @@ WeightsSharing::SharedMemory::Ptr WeightsSharing::get(const std::string& key) co
 }
 
 SocketsWeights::SocketsWeights() {
-    int num_sockets = get_num_sockets();
+    const int num_sockets = get_num_sockets();
     for (int socket_id = 0; socket_id < num_sockets; socket_id++) {
         _cache_map[socket_id] = std::make_shared<WeightsSharing>();
     }
@@ -124,7 +124,7 @@ const WeightsSharing::Ptr& SocketsWeights::operator[](int socket_id) const {
 WeightsSharing::Statistics WeightsSharing::dumpStatistics() const {
     Statistics retVal = {0, 0};
 
-    std::lock_guard<std::mutex> lock(guard);
+    const std::lock_guard<std::mutex> lock(guard);
 
     for (const auto& item : sharedWeights) {
         auto memory = item.second->sharedMemory.lock();

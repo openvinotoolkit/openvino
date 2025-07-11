@@ -56,7 +56,7 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
     auto n_groups = grouped_works.size();
     // allocate 1 worker for each group
     std::vector<int> g_workers(n_groups, 1);
-    size_t left_workers = n_workers - n_groups;
+    const size_t left_workers = n_workers - n_groups;
 
     for (size_t i = 0; i < left_workers; i++) {
         // which group is working hardest?
@@ -90,9 +90,9 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     WeightBuffer wbuffer;
 
     Executor(QKVProjection* pnode, DnnlScratchPadPtr scrachPad) : m_node(pnode), m_scrachPad(std::move(scrachPad)) {
-        PlainTensor w0(pnode->getSrcMemoryAtPort(1));
-        PlainTensor w1(pnode->getSrcMemoryAtPort(2));
-        PlainTensor w2(pnode->getSrcMemoryAtPort(3));
+        const PlainTensor w0(pnode->getSrcMemoryAtPort(1));
+        const PlainTensor w1(pnode->getSrcMemoryAtPort(2));
+        const PlainTensor w2(pnode->getSrcMemoryAtPort(3));
 
         // in quantized mode, weights are already quantized in per-OC mode into INT8
         // and activations will be dynamically per-token quantized and using AMX-INT8 to get the result
@@ -229,7 +229,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         auto* psrc0 = input->getDataAs<uint8_t>();
-        int M = shape_size(ishape) / ishape[ishape.size() - 1];
+        const int M = shape_size(ishape) / ishape[ishape.size() - 1];
         auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<T>();
         auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<T>();
         auto* dst2 = m_node->getDstMemoryAtPort(2)->getDataAs<T>();
@@ -252,7 +252,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         const auto& dstStrides1 = m_node->getDstMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto& dstStrides2 = m_node->getDstMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int stride_src = srcStrides[1] * sizeof(T);
+        const int stride_src = srcStrides[1] * sizeof(T);
         auto stride_dst_0 = dstStrides0[1];
         auto stride_dst_1 = dstStrides1[1];
         auto stride_dst_2 = dstStrides2[1];
@@ -453,7 +453,7 @@ bool QKVProjection::isSupportedOperation([[maybe_unused]] const std::shared_ptr<
                     return false;
                 }
                 // NOLINTNEXTLINE(bugprone-integer-division)
-                float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
+                const float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
                 if (unbalance_ratio > 0.2F) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
                     return false;

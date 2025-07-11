@@ -201,7 +201,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             return;
         }
         int64_t cw = 0;
-        int64_t st = start;
+        const int64_t st = start;
         for (; sB < batchNum; sB++) {
             cw += logitsLength[sB];
             if (cw >= st) {

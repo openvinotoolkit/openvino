@@ -30,12 +30,12 @@
 
 ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
     MATCHER_SCOPE(AlignMatMulInputRanks);
-    ov::OutputVector twoInputs = {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
+    const ov::OutputVector twoInputs = {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                        ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
 
     auto matmulPattern = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>(twoInputs);
 
-    ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(m.get_match_root());
 
         if (!matmul || transformation_callback(matmul)) {
@@ -103,7 +103,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             matmul->set_transpose_a(false);
             matmul->set_transpose_b(false);
         } else if (input0shape.size() < input1shape.size()) {
-            std::shared_ptr<ov::Node> unsqueezeInput0 = getUnsqueeze(input0, input1);
+            const std::shared_ptr<ov::Node> unsqueezeInput0 = getUnsqueeze(input0, input1);
             matmul_new_inputs[0] = unsqueezeInput0;
             new_ops.push_back(unsqueezeInput0);
 
@@ -111,7 +111,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
                 matmul->set_transpose_a(false);
             }
         } else if (input0shape.size() > input1shape.size()) {
-            std::shared_ptr<ov::Node> unsqueezeInput1 = getUnsqueeze(input1, input0);
+            const std::shared_ptr<ov::Node> unsqueezeInput1 = getUnsqueeze(input1, input0);
             matmul_new_inputs[1] = unsqueezeInput1;
             new_ops.push_back(unsqueezeInput1);
 
@@ -120,7 +120,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             }
         }
 
-        std::shared_ptr<ov::Node> matmul_new = matmul->clone_with_new_inputs(matmul_new_inputs);
+        const std::shared_ptr<ov::Node> matmul_new = matmul->clone_with_new_inputs(matmul_new_inputs);
         new_ops.push_back(matmul_new);
 
         if (matmul_new->get_output_partial_shape(0) != output_shape) {

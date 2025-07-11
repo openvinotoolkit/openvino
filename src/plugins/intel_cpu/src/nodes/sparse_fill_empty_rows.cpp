@@ -92,18 +92,18 @@ void SparseFillEmptyRows::executeDynamicImpl(const dnnl::stream& strm) {
     const auto numRows = static_cast<size_t>(denseShapePtr[0]);
 
     std::unordered_set<int32_t> existingRows;
-    size_t indicesCount = indicesShape.getElementsCount() / 2;  // Divide by 2 because indices is [M, 2]
+    const size_t indicesCount = indicesShape.getElementsCount() / 2;  // Divide by 2 because indices is [M, 2]
 
     const auto* indicesPtr = getSrcDataAtPortAs<const int32_t>(2);
     for (size_t i = 0; i < indicesCount; i++) {
         existingRows.insert(indicesPtr[i * 2]);
     }
 
-    size_t emptyRowsCount = numRows - existingRows.size();
-    size_t valuesCount = valuesShape.getElementsCount();
-    ov::Shape outputIndicesShape{valuesCount + emptyRowsCount, 2};
-    ov::Shape outputValuesShape{valuesCount + emptyRowsCount};
-    ov::Shape emptyRowIndicatorShape{numRows};
+    const size_t emptyRowsCount = numRows - existingRows.size();
+    const size_t valuesCount = valuesShape.getElementsCount();
+    const ov::Shape outputIndicesShape{valuesCount + emptyRowsCount, 2};
+    const ov::Shape outputValuesShape{valuesCount + emptyRowsCount};
+    const ov::Shape emptyRowIndicatorShape{numRows};
 
     redefineOutputMemory({outputIndicesShape, outputValuesShape, emptyRowIndicatorShape});
     execute(strm);

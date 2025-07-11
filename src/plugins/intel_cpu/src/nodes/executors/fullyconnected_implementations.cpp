@@ -214,8 +214,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 auto getOffset0 = [](const MemoryDescPtr& desc) {
-                    DnnlMemoryDescCPtr dnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(desc);
-                    dnnl::impl::memory_desc_wrapper wrapped(dnnlDesc->getDnnlDesc().get());
+                    const DnnlMemoryDescCPtr dnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(desc);
+                    const dnnl::impl::memory_desc_wrapper wrapped(dnnlDesc->getDnnlDesc().get());
                     return wrapped.offset0();
                 };
 
@@ -253,9 +253,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 // currently nwc mapping in brg::
                 //  when input is 2D tensor -> widthInConv will map to 'w', 'n' will be 1
                 //  when input is 3D tensor -> widthInConv will map to 'w', 'n' will be minibatch
-                Dim widthInConv = inDims[inRank - 2];
-                Dim K = inDims[inRank - 1];
-                Dim N = weightDims[0];
+                const Dim widthInConv = inDims[inRank - 2];
+                const Dim K = inDims[inRank - 1];
+                const Dim N = weightDims[0];
 
                 const auto& weightsSize = memory.at(ARG_WEI)->getDesc().getCurrentMemSize();
                 // Disable Conv1x1 when weight size >= 16M to avoid different weight layout when having different input
@@ -278,7 +278,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
 
                         const bool fcSemantic = true;
-                        ConvAttrs convAttrs{{1}, {0}, {0}, {0},
+                        const ConvAttrs convAttrs{{1}, {0}, {0}, {0},
                                             AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
                                             false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
                         
@@ -425,7 +425,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         [[maybe_unused]] const FCAttrs& attrs,
                         const ExecutorContext::CPtr& context,
                         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
-                        MatMulAttrs matMulAttrs{false,
+                        const MatMulAttrs matMulAttrs{false,
                                                 false};
                         auto primitive =
                             DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(

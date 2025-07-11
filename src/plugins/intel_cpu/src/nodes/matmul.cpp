@@ -194,7 +194,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, [[ma
         outputDataType = outDataDesc->getDataType();
     }
 
-    bool isINT8 = canBeExecutedInInt8();
+    const bool isINT8 = canBeExecutedInInt8();
 
     DnnlPostOpsComposerLegacy dnnlpoc(getEngine(),
                                       attr,
@@ -209,7 +209,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, [[ma
 
     for (size_t i = 0; i < fusedWith.size(); ++i) {
         auto& node = fusedWith[i];
-        bool isLastPostOp = (i == (fusedWith.size() - 1));
+        const bool isLastPostOp = (i == (fusedWith.size() - 1));
 
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
             eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType);
@@ -656,12 +656,12 @@ void MatMul::prepareParams() {
         dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
     }
 
-    MatMulKey key = {src0TransposedDesc,
-                     src1TransposedDesc,
-                     dnnlBiasMemDesc,
-                     dstDnnlDesc,
-                     *attr,
-                     selected_pd->getImplementationType()};
+    const MatMulKey key = {src0TransposedDesc,
+                           src1TransposedDesc,
+                           dnnlBiasMemDesc,
+                           dstDnnlDesc,
+                           *attr,
+                           selected_pd->getImplementationType()};
 
     auto engine = getEngine();
 

@@ -568,8 +568,8 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                             memDims.push_back(dim != Shape::UNDEFINED_DIM ? dim : 0);
                         }
 
-                        dnnl::engine eng(dnnl::engine::kind::cpu, 0);
-                        CpuBlockedMemoryDescPtr desc =
+                        const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+                        const CpuBlockedMemoryDescPtr desc =
                             std::make_shared<CpuBlockedMemoryDesc>(model_prec, Shape{memDims});
                         auto memory = std::make_shared<StringMemory>(eng, desc);
 
@@ -625,7 +625,7 @@ void SyncInferRequest::push_input_data(Graph& graph) {
 }
 
 SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type& precision, const Shape& shape) {
-    dnnl::engine eng(dnnl::engine::kind::cpu, 0);
+    const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
     m_buffers[m_buffIndx] = std::make_shared<MemoryBlockWithReuse>();
     m_proxyMemBlock = std::make_shared<ProxyMemoryBlock>(m_buffers[m_buffIndx]);
 
@@ -638,20 +638,20 @@ SyncInferRequest::OutputControlBlock::OutputControlBlock(const ov::element::Type
         memDims = shape.getStaticDims();
     }
 
-    CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{memDims});
+    const CpuBlockedMemoryDescPtr desc = std::make_shared<CpuBlockedMemoryDesc>(precision, Shape{memDims});
 
     auto memory = std::make_shared<Memory>(eng, desc, m_proxyMemBlock);
     m_tensor = std::make_shared<Tensor>(memory);
 }
 
 void SyncInferRequest::sub_streams_infer() {
-    std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> input_tensors;
+    const std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> input_tensors;
     auto message = ov::threading::message_manager();
     auto requests = m_asyncRequest->getSubInferRequest();
     auto inputs = get_inputs();
     auto outputs = get_outputs();
 
-    size_t requests_num = requests.size();
+    const size_t requests_num = requests.size();
 
     if (!requests.empty()) {
         for (const auto& output : outputs) {
@@ -665,7 +665,7 @@ void SyncInferRequest::sub_streams_infer() {
             }
 
             requests[i]->set_callback([message]([[maybe_unused]] const std::exception_ptr& ptr) {
-                ov::threading::MessageInfo msg_info{ov::threading::MsgType::CALL_BACK};
+                const ov::threading::MessageInfo msg_info{ov::threading::MsgType::CALL_BACK};
                 message->send_message(msg_info);
             });
         }

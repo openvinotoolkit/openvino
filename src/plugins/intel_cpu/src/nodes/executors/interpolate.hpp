@@ -69,7 +69,7 @@ inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
                                       const std::vector<int>& padBegin,
                                       const std::vector<int>& padEnd) {
     VectorDims paddedShape;
-    int dataRank = srcDims.size();
+    const int dataRank = srcDims.size();
     for (int i = 0; i < dataRank; i++) {
         paddedShape.push_back(srcDims[i] + padBegin[i] + padEnd[i]);
     }
@@ -97,7 +97,7 @@ inline size_t getSpatialDimsNum(const Dim rank) {
 
 // w/hw/ncw/nchw/ncdhw to ncdhw
 inline VectorDims to5Dim(VectorDims casesDim) {
-    size_t caseSize = casesDim.size();
+    const size_t caseSize = casesDim.size();
     VectorDims dim5(5, 1lu);
     dim5[4] = casesDim[caseSize - 1];
     if (caseSize > 1) {

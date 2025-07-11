@@ -62,17 +62,17 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
     void execute([[maybe_unused]] const dnnl::stream& strm,
                  intel_cpu::Node* pnode,
                  [[maybe_unused]] const intel_cpu::CausalMaskPreprocessNode::Config& config) override {
-        ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
-        ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
-        ov::intel_cpu::PlainTensor t_cache_positions(pnode->getSrcMemoryAtPort(2));
-        ov::intel_cpu::PlainTensor t_kvLen(pnode->getSrcMemoryAtPort(3));
+        const ov::intel_cpu::PlainTensor t_attention_mask(pnode->getSrcMemoryAtPort(0));
+        const ov::intel_cpu::PlainTensor t_batch_size(pnode->getSrcMemoryAtPort(1));
+        const ov::intel_cpu::PlainTensor t_cache_positions(pnode->getSrcMemoryAtPort(2));
+        const ov::intel_cpu::PlainTensor t_kvLen(pnode->getSrcMemoryAtPort(3));
 
         auto mask_length = t_attention_mask.size(-1);
         auto batch_size = static_cast<size_t>(*t_batch_size.ptr<int32_t>(0));
         auto kvLen = static_cast<size_t>(*t_kvLen.ptr<int32_t>(0));
         auto qLen = t_cache_positions.size(0);
 
-        VectorDims newDims{batch_size, 1, qLen, kvLen};
+        const VectorDims newDims{batch_size, 1, qLen, kvLen};
         pnode->redefineOutputMemory({newDims});
         ov::intel_cpu::PlainTensor t_dst(pnode->getDstMemoryAtPort(0));
 
@@ -97,14 +97,14 @@ struct CausalMaskPreprocess::ExecutorCausalMaskPreprocess : public CausalMaskPre
             auto row = static_cast<size_t>(prow[i]);
             size_t j = 0;
             for (; j < mask_length; j++) {
-                bool cmask_eq0 = (j <= row);
-                bool amask_eq0 = (pamask[j] == 0);
-                bool padding_mask = (cmask_eq0 && amask_eq0);
+                const bool cmask_eq0 = (j <= row);
+                const bool amask_eq0 = (pamask[j] == 0);
+                const bool padding_mask = (cmask_eq0 && amask_eq0);
                 pdst[j] =
                     (static_cast<int>(padding_mask) | static_cast<int>(!cmask_eq0)) ? min_dtype : static_cast<T>(0);
             }
             for (; j < kvLen; j++) {
-                bool cmask_eq0 = (j <= row);
+                const bool cmask_eq0 = (j <= row);
                 pdst[j] = cmask_eq0 ? static_cast<T>(0) : min_dtype;
             }
         });

@@ -361,7 +361,7 @@ void Pad::PadExecutor::workPartition() {
         return;
     }
 
-    size_t nDims = params.srcDims.size();
+    const size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
     params.dstStrides.resize(nDims, 1);
     for (int i = nDims - 2; i >= 0; i--) {
@@ -402,7 +402,7 @@ void Pad::PadExecutor::workPartition() {
 
     params.srcDimsForReflectOrSymmetric.clear();
     if (params.attrs.padMode == REFLECT || params.attrs.padMode == SYMMETRIC) {
-        int shift = params.attrs.padMode == SYMMETRIC ? 1 : 0;
+        const int shift = params.attrs.padMode == SYMMETRIC ? 1 : 0;
         for (size_t i = 0; i < params.srcDims.size(); ++i) {
             params.srcDimsForReflectOrSymmetric.push_back(params.srcDims[i] + params.srcODims[i] - 2 + shift);
         }
@@ -610,7 +610,7 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
-                size_t shift = [&]() {
+                const size_t shift = [&]() {
                     if (indexes[idx] < params.attrs.padsBegin[idx]) {
                         return size_t(0);
                     }
@@ -666,7 +666,7 @@ void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr,
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
             for (size_t i = 0; i < params.nDimsForWork; ++i) {
-                size_t idx = [&]() -> size_t {
+                const size_t idx = [&]() -> size_t {
                     if (indexes[i] < params.attrs.padsBegin[i]) {
                         return params.attrs.padsBegin[i] - indexes[i] - shift;
                     }

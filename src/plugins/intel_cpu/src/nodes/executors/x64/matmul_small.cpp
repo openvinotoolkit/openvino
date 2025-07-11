@@ -110,8 +110,8 @@ void MatMulSmallExecutor::prepare_binary_args(const std::unordered_map<int, dnnl
 }
 
 DnnlMemoryDescPtr MatMulSmallExecutor::getScratchPadDesc() const {
-    dnnl::memory::dims dims;
-    dnnl::memory::desc zero_md{dims, dnnl::memory::data_type::u8, dnnl::memory::format_tag::undef};
+    const dnnl::memory::dims dims;
+    const dnnl::memory::desc zero_md{dims, dnnl::memory::data_type::u8, dnnl::memory::format_tag::undef};
     return DnnlExtensionUtils::makeDescriptor(zero_md);
 }
 

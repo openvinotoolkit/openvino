@@ -247,12 +247,16 @@ public:
 #define OV_ITT_SCOPE_IMPL_0(...)
 #define OV_ITT_SCOPE_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPE, __VA_ARGS__)
 
-#define OV_ITT_SCOPE_1(domain)                                            \
-    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)( \
+#define OV_ITT_SCOPE_1(domain)                                                       \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(/* NOLINT(misc-const-correctness) */ \
+                                                ittScopedTask,                       \
+                                                __LINE__)(                           \
         openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(ITT_FUNCTION_NAME));
 
-#define OV_ITT_SCOPE_2(domain, taskOrTaskName)                            \
-    openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)( \
+#define OV_ITT_SCOPE_2(domain, taskOrTaskName)                                       \
+    openvino::itt::ScopedTask<domain> OV_PP_CAT(/* NOLINT(misc-const-correctness) */ \
+                                                ittScopedTask,                       \
+                                                __LINE__)(                           \
         openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName));
 
 /**
@@ -291,20 +295,22 @@ public:
 #define OV_ITT_SCOPE_CHAIN_IMPL_0(...)
 #define OV_ITT_SCOPE_CHAIN_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPE_CHAIN, __VA_ARGS__)
 
-#define OV_ITT_SCOPE_CHAIN_2(chainId, domain)                                                           \
-    openvino::itt::TaskChain<domain> chainId(                                                           \
-        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(std::string(ITT_FUNCTION_NAME) + "_1"), \
-        ITT_FUNCTION_NAME);
+#define OV_ITT_SCOPE_CHAIN_2(chainId, domain)                                                         \
+    openvino::itt::TaskChain<domain> chainId(/* NOLINT(misc-const-correctness) */                     \
+                                             openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>( \
+                                                 std::string(ITT_FUNCTION_NAME) + "_1"),              \
+                                             ITT_FUNCTION_NAME);
 
-#define OV_ITT_SCOPE_CHAIN_3(chainId, domain, prefix)                                        \
-    openvino::itt::TaskChain<domain> chainId(                                                \
-        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(std::string(prefix) + "_1"), \
-        prefix);
-
-#define OV_ITT_SCOPE_CHAIN_4(chainId, domain, prefix, taskName)                                        \
-    openvino::itt::TaskChain<domain> chainId(                                                          \
-        openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(std::string(prefix) + "_" + taskName), \
-        prefix);
+#define OV_ITT_SCOPE_CHAIN_3(chainId, domain, prefix)                                                 \
+    openvino::itt::TaskChain<domain> chainId(/* NOLINT(misc-const-correctness) */                     \
+                                             openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>( \
+                                                 std::string(prefix) + "_1"),                         \
+                                             prefix);
+#define OV_ITT_SCOPE_CHAIN_4(chainId, domain, prefix, taskName)                                       \
+    openvino::itt::TaskChain<domain> chainId(/* NOLINT(misc-const-correctness) */                     \
+                                             openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>( \
+                                                 std::string(prefix) + "_" + taskName),               \
+                                             prefix);
 
 /**
  * @endcond

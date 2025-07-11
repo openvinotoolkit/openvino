@@ -70,7 +70,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
     auto out_transpose_node = wrap_type<op::v1::Transpose>({sdpa_node, out_transpose_order_node});
     auto out_reshape_node = wrap_type<op::v1::Reshape>({out_transpose_node, wrap_type<op::v0::Constant>()});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto sdpa = as_type_ptr<op::v13::ScaledDotProductAttention>(pattern_map.at(sdpa_node).get_node_shared_ptr());
         if (sdpa == nullptr || transformation_callback(sdpa)) {
@@ -158,7 +158,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
             return false;
         }
 
-        OutputVector args = {q_reshape->input_value(0), k_reshape->input_value(0), v_reshape->input_value(0)};
+        const OutputVector args = {q_reshape->input_value(0), k_reshape->input_value(0), v_reshape->input_value(0)};
 
         // Config
         intel_cpu::SDPAWithTransposeReshape::Config config;
@@ -182,15 +182,15 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
 
         auto new_sdpa = std::make_shared<intel_cpu::SDPAWithTransposeReshape>(args, config);
         new_sdpa->set_friendly_name(sdpa->get_friendly_name() + "/fused_reshape_transpose");
-        NodeVector replaced_nodes = {q_reshape,
-                                     k_reshape,
-                                     v_reshape,
-                                     qkv_transpose[0],
-                                     qkv_transpose[1],
-                                     qkv_transpose[2],
-                                     sdpa,
-                                     out_tranpose,
-                                     out_reshape};
+        const NodeVector replaced_nodes = {q_reshape,
+                                           k_reshape,
+                                           v_reshape,
+                                           qkv_transpose[0],
+                                           qkv_transpose[1],
+                                           qkv_transpose[2],
+                                           sdpa,
+                                           out_tranpose,
+                                           out_reshape};
         copy_runtime_info(replaced_nodes, new_sdpa);
         ov::replace_node(out_reshape, new_sdpa);
         return true;

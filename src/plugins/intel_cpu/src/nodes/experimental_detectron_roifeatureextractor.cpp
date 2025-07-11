@@ -73,7 +73,7 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     // deal with: inverse elements are out of feature map boundary
                     if (y < -1.0 || y > height || x < -1.0 || x > width) {
                         // empty
-                        PreCalc<T> pc{0, 0, 0, 0, 0, 0, 0, 0};
+                        const PreCalc<T> pc{0, 0, 0, 0, 0, 0, 0, 0};
                         pre_calc.at(pre_calc_index) = pc;
                         pre_calc_index += 1;
                         continue;
@@ -115,14 +115,14 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     T w4 = ly * lx;
 
                     // save weights and indices
-                    PreCalc<T> pc{(y_low * width) + x_low,
-                                  (y_low * width) + x_high,
-                                  (y_high * width) + x_low,
-                                  (y_high * width) + x_high,
-                                  w1,
-                                  w2,
-                                  w3,
-                                  w4};
+                    const PreCalc<T> pc{(y_low * width) + x_low,
+                                        (y_low * width) + x_high,
+                                        (y_high * width) + x_low,
+                                        (y_high * width) + x_high,
+                                        w1,
+                                        w2,
+                                        w3,
+                                        w4};
                     pre_calc[pre_calc_index] = pc;
 
                     pre_calc_index += 1;
@@ -145,12 +145,12 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                 const T* bottom_rois,
                                 const bool aligned,
                                 T* top_data) {
-    int roi_cols = 4;
+    const int roi_cols = 4;
 
-    int n_rois = nthreads / channels / pooled_width / pooled_height;
+    const int n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
     parallel_for(n_rois, [&](size_t n) {
-        int index_n = n * channels * pooled_width * pooled_height;
+        const int index_n = n * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
         const T* offset_bottom_rois = bottom_rois + n * roi_cols;
@@ -174,10 +174,10 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
         T bin_size_w = roi_width / static_cast<T>(pooled_width);
 
         // We use roi_bin_grid to sample the grid and mimic integral
-        int roi_bin_grid_h = (sampling_ratio > 0)
-                                 ? sampling_ratio
-                                 : static_cast<int>(std::ceil(roi_height / pooled_height));  // e.g., = 2
-        int roi_bin_grid_w =
+        const int roi_bin_grid_h = (sampling_ratio > 0)
+                                       ? sampling_ratio
+                                       : static_cast<int>(std::ceil(roi_height / pooled_height));  // e.g., = 2
+        const int roi_bin_grid_w =
             (sampling_ratio > 0) ? sampling_ratio : static_cast<int>(std::ceil(roi_width / pooled_width));
 
         // We do average (integral) pooling inside a bin
@@ -201,18 +201,18 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
                                           pre_calc);
 
         for (int c = 0; c < channels; c++) {
-            int index_n_c = index_n + c * pooled_width * pooled_height;
+            const int index_n_c = index_n + c * pooled_width * pooled_height;
             const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height * width;
             int pre_calc_index = 0;
 
             for (int ph = 0; ph < pooled_height; ph++) {
                 for (int pw = 0; pw < pooled_width; pw++) {
-                    int index = index_n_c + ph * pooled_width + pw;
+                    const int index = index_n_c + ph * pooled_width + pw;
 
                     T output_val = 0.;
                     for (int iy = 0; iy < roi_bin_grid_h; iy++) {
                         for (int ix = 0; ix < roi_bin_grid_w; ix++) {
-                            PreCalc<T> pc = pre_calc[pre_calc_index];
+                            const PreCalc<T> pc = pre_calc[pre_calc_index];
                             output_val += pc.w1 * offset_bottom_data[pc.pos1] + pc.w2 * offset_bottom_data[pc.pos2] +
                                           pc.w3 * offset_bottom_data[pc.pos3] + pc.w4 * offset_bottom_data[pc.pos4];
 
@@ -266,7 +266,7 @@ void reord(const float* src_data, const int* ranks, const int n, const int step,
 void split_points(const std::vector<int>& ids, std::vector<int>& rois_per_level, const int levels_num) {
     rois_per_level.clear();
     rois_per_level.resize(levels_num, 0);
-    for (int id : ids) {
+    for (const int id : ids) {
         rois_per_level[id]++;
     }
     for (int i = 1; i < levels_num; ++i) {

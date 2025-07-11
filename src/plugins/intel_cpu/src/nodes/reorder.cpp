@@ -202,7 +202,7 @@ void Reorder::prepareReorderAsTranspose(const MemoryDescPtr& parentDesc, const M
                                                               std::vector<MemoryDescPtr>{parentDesc},
                                                               std::vector<MemoryDescPtr>{transposedDesc},
                                                               transpose_context);
-    dnnl::primitive_attr attr;
+    const dnnl::primitive_attr attr;
     transposeExecutor = factory->makeExecutor(transposeParams, {parentDesc}, {transposedDesc}, attr);
     getSelectedPrimitiveDescriptor()->setImplementationType(transposeExecutor->implType());
 }
@@ -549,7 +549,7 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
                             input.getSize() / input.getDesc().getPrecision().size());
 
                 auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
-                Memory tmpMem(engine, tmpDesc, tmpBuff.data());
+                const Memory tmpMem(engine, tmpDesc, tmpBuff.data());
 
                 srcMemory = tmpMem.getPrimitive();
                 reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
@@ -562,7 +562,7 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
             }
         }
         if (reorder) {
-            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+            const dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
             reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
         } else {
             OPENVINO_THROW("Could not make onednn reorder.");

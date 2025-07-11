@@ -59,9 +59,9 @@ size_t SpaceToDepth::SpaceToDepthAttrs::hash() const {
 }
 
 bool SpaceToDepth::SpaceToDepthAttrs::operator==(const SpaceToDepthAttrs& rhs) const {
-    bool result = layoutType == rhs.layoutType && mode == rhs.mode && blockSize == rhs.blockSize &&
-                  blockStep == rhs.blockStep && dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
-                  srcBlockedDims == rhs.srcBlockedDims && destBlockedDims == rhs.destBlockedDims;
+    const bool result = layoutType == rhs.layoutType && mode == rhs.mode && blockSize == rhs.blockSize &&
+                        blockStep == rhs.blockStep && dataSize == rhs.dataSize && nSpatialDims == rhs.nSpatialDims &&
+                        srcBlockedDims == rhs.srcBlockedDims && destBlockedDims == rhs.destBlockedDims;
 
     return result;
 }
@@ -137,7 +137,7 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
+    const ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
     impl_desc_type impl_type = impl_desc_type::ref;
     if (cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
@@ -246,7 +246,7 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
     const auto& srcBlockedDims = attrs.srcBlockedDims;
     const auto& dstBlockedDims = attrs.destBlockedDims;
 
-    size_t nDims = srcBlockedDims.size();
+    const size_t nDims = srcBlockedDims.size();
 
     const size_t reshapedRank =
         nDims + attrs.nSpatialDims + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
@@ -295,7 +295,7 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
             orderShiftForBlocks = 3;
             orderShiftForDims = attrs.nSpatialDims + 4;
 
-            size_t extraBlockSize = srcBlockedDims.back() / attrs.blockStep;
+            const size_t extraBlockSize = srcBlockedDims.back() / attrs.blockStep;
             params.src_block_dims[1] = srcBlockedDims[1];
             params.src_block_dims[lastIdx] = extraBlockSize;
             params.src_block_dims[lastIdx - 1] = attrs.blockStep;
@@ -309,13 +309,13 @@ SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs
     } else if (isChannelsFirst) {
         firstSpatialOrder = 1;
 
-        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + attrs.nSpatialDims + 1;
+        const size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + attrs.nSpatialDims + 1;
         params.order[attrs.mode == Mode::DEPTH_FIRST ? attrs.nSpatialDims + 1 : lastIdx] = lastIdx;
         params.src_block_dims[lastIdx] = srcBlockedDims.back();
 
         reshapeAndSetPermOrder(firstSpatialOrder, shift, firstSpatialOrder, dstBlockedDims);
     } else {
-        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + 1;
+        const size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + 1;
         params.order[attrs.mode == Mode::DEPTH_FIRST ? 1 : attrs.nSpatialDims + 1] = 1;
         params.src_block_dims[1] = srcBlockedDims[1];
 

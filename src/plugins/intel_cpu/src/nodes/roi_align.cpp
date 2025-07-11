@@ -269,7 +269,7 @@ private:
         uni_vpinsrq(xmm_args_pool, xmm_args_pool, reg_tmp_64, 1);
 
         if (jcp_.layout == ROIAlignLayoutType::nspc) {
-            int src_stride = v_step * jcp_.data_size;
+            const int src_stride = v_step * jcp_.data_size;
             mov(reg_src_stride, src_stride);
         } else if (jcp_.layout == ROIAlignLayoutType::blk) {
             mov(reg_src_stride, ptr[reg_params + GET_OFF(src_stride)]);
@@ -352,7 +352,7 @@ private:
             }
             L(in_loop_main_end_label);
 
-            int tail_step = 1;
+            const int tail_step = 1;
             L(in_loop_tail_label);
             {
                 cmp(reg_tmp_64, tail_step);
@@ -367,7 +367,7 @@ private:
                 }
                 store_buffer(vmm_buf, reg_buf, tail_step);
 
-                int tail_src_stride = tail_step * jcp_.data_size;
+                const int tail_src_stride = tail_step * jcp_.data_size;
                 add(reg_src0, tail_src_stride);
                 add(reg_src1, tail_src_stride);
                 add(reg_src2, tail_src_stride);
@@ -399,11 +399,11 @@ private:
 
         reg64_t reg_dst_stride = reg_src1;
         if (jcp_.layout == ROIAlignLayoutType::nspc) {
-            int dst_stride = v_step * jcp_.data_size;
+            const int dst_stride = v_step * jcp_.data_size;
             mov(reg_dst_stride, dst_stride);
         } else if (jcp_.layout == ROIAlignLayoutType::blk) {
-            int blk_size = (isa == cpu::x64::sse41) ? v_step * 2 : v_step;
-            int dst_stride = blk_size * jcp_.pooled_h * jcp_.pooled_w * jcp_.data_size;
+            const int blk_size = (isa == cpu::x64::sse41) ? v_step * 2 : v_step;
+            const int dst_stride = blk_size * jcp_.pooled_h * jcp_.pooled_w * jcp_.data_size;
             mov(reg_dst_stride, dst_stride);
         }
 
@@ -442,7 +442,7 @@ private:
         }
         L(store_loop_main_end_label);
 
-        int tail_step = 1;
+        const int tail_step = 1;
         L(store_loop_tail_label);
         {
             cmp(reg_work_amount, tail_step);
@@ -839,7 +839,7 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
-    impl_desc_type impl_type = [&]() {
+    const impl_desc_type impl_type = [&]() {
         if (mayiuse(cpu::x64::avx512_core)) {
             return impl_desc_type::jit_avx512;
         }
@@ -1000,19 +1000,19 @@ void ROIAlign::executeSpecified() {
     }
 
     parallel_for(realRois, [&](size_t n) {
-        int roiOff = n * 4;
+        const int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
-        int roiBatchInd = srcRoiIdx[n];
+        const int roiBatchInd = srcRoiIdx[n];
         if (roiBatchInd < -1) {  // -1 means switched off region
             THROW_CPU_NODE_ERR("Batch index cannot be less, than -1");
         } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
             THROW_CPU_NODE_ERR("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
         }
 
-        float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
-        float y1 = (srcRoiPtr[1] + offset_src) * spatialScale + offset_dst;
-        float x2 = (srcRoiPtr[2] + offset_src) * spatialScale + offset_dst;
-        float y2 = (srcRoiPtr[3] + offset_src) * spatialScale + offset_dst;
+        const float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
+        const float y1 = (srcRoiPtr[1] + offset_src) * spatialScale + offset_dst;
+        const float x2 = (srcRoiPtr[2] + offset_src) * spatialScale + offset_dst;
+        const float y2 = (srcRoiPtr[3] + offset_src) * spatialScale + offset_dst;
 
         float roiHeight = y2 - y1;
         float roiWidth = x2 - x1;
@@ -1020,19 +1020,19 @@ void ROIAlign::executeSpecified() {
             roiHeight = std::max(roiHeight, 1.0F);
             roiWidth = std::max(roiWidth, 1.0F);
         }
-        float binHeight = roiHeight / pooledH;
-        float binWidth = roiWidth / pooledW;
+        const float binHeight = roiHeight / pooledH;
+        const float binWidth = roiWidth / pooledW;
 
         auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(ceil(binWidth)) : samplingRatio;
         auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
 
-        uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
+        const uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
         numSamples[n] = numSamplesInBin;
 
-        float sampleDistanceX = binWidth / samplingRatioX;
-        float sampleDistanceY = binHeight / samplingRatioY;
+        const float sampleDistanceX = binWidth / samplingRatioX;
+        const float sampleDistanceY = binHeight / samplingRatioY;
         // prepare arrays for sampling points and weights
-        size_t paramsSize = BLIParamsNum * numSamplesInBin * binCount;
+        const size_t paramsSize = BLIParamsNum * numSamplesInBin * binCount;
         weightsTbl[n] = std::vector<float>(paramsSize, 0.F);
         if (!isPlainFmt) {
             srcAddressListTbl[n] = std::vector<size_t>(paramsSize, 0);
@@ -1040,7 +1040,7 @@ void ROIAlign::executeSpecified() {
             srcIndexTbl[n] = std::vector<int>(paramsSize, 0);
         }
 
-        size_t batchSrcOffset = roiBatchInd * batchInputStride;
+        const size_t batchSrcOffset = roiBatchInd * batchInputStride;
         int idxIter = 0;
 
         // |__|__|     |     |
@@ -1139,13 +1139,13 @@ void ROIAlign::executeSpecified() {
     if (roi_align_kernel) {
         if (!isPlainFmt) {
             std::vector<float> workingBuf;
-            int bufSize = rnd_up(C, 16);
-            size_t threadsNum = parallel_get_max_threads();
+            const int bufSize = rnd_up(C, 16);
+            const size_t threadsNum = parallel_get_max_threads();
             workingBuf.resize(bufSize * threadsNum, 0.F);
             auto rhw_loop = [&](int n, int yBinInd, int xBinInd) {
-                int numSamplesROI = numSamples[n];
+                const int numSamplesROI = numSamples[n];
                 // each sample have 4 values for srcAddressList and weight
-                size_t binOffset =
+                const size_t binOffset =
                     numSamplesROI * BLIParamsNum * pooledW * yBinInd + numSamplesROI * BLIParamsNum * xBinInd;
 
                 auto arg = jit_roi_align_call_args();
@@ -1153,13 +1153,14 @@ void ROIAlign::executeSpecified() {
                 arg.weights = static_cast<const float*>(&weightsTbl[n][binOffset]);
                 arg.work_amount = C;
                 arg.num_samples = numSamplesROI;
-                float numSamplesInBinInvert = 1.F / numSamplesROI;
-                arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
+                const float numSamplesInBinInvert = 1.F / numSamplesROI;
+                arg.scale = (&numSamplesInBinInvert);
                 auto* threadBuf = static_cast<float*>(
                     &workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
                 memset(threadBuf, 0, bufSize * sizeof(float));
                 arg.buffer = threadBuf;
-                size_t dstOffset = n * batchOutputStride + yBinInd * pooledW * lastBlockDim + xBinInd * lastBlockDim;
+                const size_t dstOffset =
+                    n * batchOutputStride + yBinInd * pooledW * lastBlockDim + xBinInd * lastBlockDim;
                 arg.dst = static_cast<void*>(&dst[dstOffset]);
                 arg.src_stride = lastBlockDim * W * H;  // only valid for blk, nspc generate inside
                 (*roi_align_kernel)(&arg);
@@ -1171,12 +1172,12 @@ void ROIAlign::executeSpecified() {
         } else {
             // one lane for one sample generation, then pooling all samples.
             parallel_for4d(realRois, C, pooledH, pooledW, [&](int n, int cIdx, int yBinInd, int xBinInd) {
-                size_t batchSrcOffset = srcRoiIdx[n] * batchInputStride;
-                size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;
-                size_t binOffset = yBinInd * pooledW + xBinInd;
-                size_t binDstOffset = n * batchOutputStride + cIdx * binCount + binOffset;
-                int numSamplesROI = numSamples[n];
-                size_t paramOffset = binOffset * BLIParamsNum * numSamplesROI;
+                const size_t batchSrcOffset = srcRoiIdx[n] * batchInputStride;
+                const size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;
+                const size_t binOffset = yBinInd * pooledW + xBinInd;
+                const size_t binDstOffset = n * batchOutputStride + cIdx * binCount + binOffset;
+                const int numSamplesROI = numSamples[n];
+                const size_t paramOffset = binOffset * BLIParamsNum * numSamplesROI;
 
                 auto arg = jit_roi_align_call_args();
                 arg.src = static_cast<const void*>(&srcData[channelSrcOffset]);
@@ -1184,8 +1185,8 @@ void ROIAlign::executeSpecified() {
                 // buffer with absolute index
                 arg.buffer = static_cast<void*>(&srcIndexTbl[n][paramOffset]);
                 arg.weights = static_cast<const float*>(&weightsTbl[n][paramOffset]);
-                float numSamplesInBinInvert = 1.F / numSamplesROI;
-                arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
+                const float numSamplesInBinInvert = 1.F / numSamplesROI;
+                arg.scale = (&numSamplesInBinInvert);
                 arg.num_samples = numSamplesROI;
                 (*roi_align_kernel)(&arg);
             });
@@ -1193,23 +1194,23 @@ void ROIAlign::executeSpecified() {
     } else {
         // ref with planar
         parallel_for4d(realRois, C, pooledH, pooledW, [&](int n, int cIdx, int yBinInd, int xBinInd) {
-            int numSamplesROI = numSamples[n];
-            size_t batchSrcOffset = srcRoiIdx[n] * batchInputStride;
-            size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;
-            size_t binOffset = yBinInd * pooledW + xBinInd;
-            size_t binDstOffset = n * batchOutputStride + cIdx * binCount + binOffset;
+            const int numSamplesROI = numSamples[n];
+            const size_t batchSrcOffset = srcRoiIdx[n] * batchInputStride;
+            const size_t channelSrcOffset = batchSrcOffset + cIdx * H * W;
+            const size_t binOffset = yBinInd * pooledW + xBinInd;
+            const size_t binDstOffset = n * batchOutputStride + cIdx * binCount + binOffset;
             int paramOffset = binOffset * BLIParamsNum * numSamplesROI;
-            float numSamplesInBinInvert = 1.F / numSamplesROI;
+            const float numSamplesInBinInvert = 1.F / numSamplesROI;
 
             float pooledValue = 0;
             for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
-                float src0 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset]];
-                float src1 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 1]];
-                float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];
-                float src3 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 3]];
+                const float src0 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset]];
+                const float src1 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 1]];
+                const float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];
+                const float src3 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 3]];
 
-                float sampleValue = weightsTbl[n][paramOffset] * src0 + weightsTbl[n][paramOffset + 1] * src1 +
-                                    weightsTbl[n][paramOffset + 2] * src2 + weightsTbl[n][paramOffset + 3] * src3;
+                const float sampleValue = weightsTbl[n][paramOffset] * src0 + weightsTbl[n][paramOffset + 1] * src1 +
+                                          weightsTbl[n][paramOffset + 2] * src2 + weightsTbl[n][paramOffset + 3] * src3;
                 paramOffset += BLIParamsNum;
 
                 switch (getAlgorithm()) {

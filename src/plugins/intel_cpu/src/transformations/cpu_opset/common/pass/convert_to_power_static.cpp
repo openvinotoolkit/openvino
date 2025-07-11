@@ -96,7 +96,7 @@ template <class BaseOp>
 std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
     const int constPort = getConstPort(node);
     const int nonConstPort = 1 - constPort;
-    std::shared_ptr<ov::op::v0::Constant> powerNode =
+    const std::shared_ptr<ov::op::v0::Constant> powerNode =
         ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(constPort));
     const float value = powerNode->cast_vector<float>()[0];
     if (std::is_same_v<BaseOp, ov::op::v1::Power>) {
@@ -141,8 +141,8 @@ std::shared_ptr<ov::Node> convert(const std::shared_ptr<BaseOp>& node) {
 
 ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     MATCHER_SCOPE(ConvertToPowerStatic);
-    ov::OutputVector twoInputs = {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
-                                  ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
+    const ov::OutputVector twoInputs = {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
+                                        ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank())};
     // Decompression/dequantization nodes are not converted to PowerStatic because
     // they are always fused into other operations or constant folded in CPU graph optimizations
     // If these constants converted into PowerStatic, we would have to handle these specific cases in plugin fusings
@@ -155,7 +155,7 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     auto mult = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(twoInputs, not_dequantization_or_decompression);
     const auto candidate = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{power, add, sub, mult});
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
         std::shared_ptr<ov::Node> toReplace = node;

@@ -527,7 +527,7 @@ public:
 
     const variable& operator=(const type& rhs) const {
         const type& cref = base::_kernel.constant(rhs);
-        variable<const type*, register_tag> creg(base::_kernel);
+        const variable<const type*, register_tag> creg(base::_kernel);
         creg = &cref;
         base::_kernel.uni_vmovdqu(base::reg(), base::_kernel.ptr[creg]);
         return *this;

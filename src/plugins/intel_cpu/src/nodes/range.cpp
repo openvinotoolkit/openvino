@@ -68,7 +68,7 @@ Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
         THROW_CPU_NODE_ERR("has delta scalar with more than 1 value");
     }
 
-    size_t dstRank = op->get_output_partial_shape(0).size();
+    const size_t dstRank = op->get_output_partial_shape(0).size();
     if (dstRank > 1) {
         THROW_CPU_NODE_ERR("has unsupported rank for output: ", dstRank);
     }
@@ -162,7 +162,7 @@ Range::StatusCode Range::rangeKernel() {
     data_t delta = 0;
     size_t work_amount_dst = getWorkAmount<data_t>(&start, nullptr, &delta);
     if (isDynamicNode()) {
-        VectorDims newOutputShape{work_amount_dst};
+        const VectorDims newOutputShape{work_amount_dst};
         redefineOutputMemory({newOutputShape});
     }
     auto* dst_data = getDstDataAtPortAs<data_t>(0);

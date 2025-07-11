@@ -71,7 +71,7 @@ void GridSampleKernel<isa>::generate() {
 template <>
 void GridSampleKernel<x64::avx512_core>::initVectors() {
     auto rAux = getReg64();
-    Xbyak::Reg32 r32Aux(rAux.getIdx());
+    const Xbyak::Reg32 r32Aux(rAux.getIdx());
 
     if (jcp.dynamicShapes) {
         regChannelNum = getReg64();
@@ -381,9 +381,9 @@ void GridSampleKernel<x64::avx2>::getCoordinates(const Vmm& vHCoord, const Vmm& 
 template <x64::cpu_isa_t isa>  // Works for AVX, SSE41
 void GridSampleKernel<isa>::getCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
     auto vAux = getVmm();
-    Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
-    Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
-    Xbyak::Xmm xmmAux(vAux.getIdx());
+    const Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
+    const Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
+    const Xbyak::Xmm xmmAux(vAux.getIdx());
     const uint64_t xmmVlen = x64::cpu_isa_traits<x64::sse41>::vlen;
 
     uni_vmovups(xmmWCoord, ptr[regGrid]);
@@ -400,8 +400,8 @@ void GridSampleKernel<isa>::getCoordinates(const Vmm& vHCoord, const Vmm& vWCoor
     add(regGrid, xmmVlen);
 
     if (isa == x64::avx) {
-        Xbyak::Ymm ymmWCoord(vWCoord.getIdx());
-        Xbyak::Ymm ymmHCoord(vHCoord.getIdx());
+        const Xbyak::Ymm ymmWCoord(vWCoord.getIdx());
+        const Xbyak::Ymm ymmHCoord(vHCoord.getIdx());
 
         vperm2f128(ymmWCoord, ymmWCoord, ymmWCoord, 0x1);
         vperm2f128(ymmHCoord, ymmHCoord, ymmHCoord, 0x1);
@@ -451,7 +451,7 @@ void GridSampleKernel<x64::avx512_core>::getTailCoordinates(const Vmm& vHCoord, 
         fillRestWorkMask(kTailMask, rAux);
         uni_vmovups(Vmm(vAux) | kTailMask, ptr[regGrid]);
         vpermd(vAux, vGridPermMask, vAux);
-        Xbyak::Ymm ymmAux(vAux.getIdx());
+        const Xbyak::Ymm ymmAux(vAux.getIdx());
         vshuff64x2(vWCoord, vWCoord, vAux, 0B01000100);  // Extract X component
         vshuff64x2(vHCoord, vHCoord, vAux, 0B11100100);  // Extract Y component
 
@@ -538,8 +538,8 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
     Xbyak::Label lLoop2End;
     Xbyak::Label lEnd;
 
-    Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
-    Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
+    const Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
+    const Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
 
     auto rGridRest = getReg64();
     mov(rGridRest, regWorkAmount);
@@ -1760,7 +1760,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
         for (int h = 0; h < 4; h++) {
             // (y - 1 + h; x - 1)
             if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
-                Xbyak::Opmask maskH = kMaskH;
+                const Xbyak::Opmask maskH = kMaskH;
                 vcmpps(kMaskH, vHCoord, vSrcHeightF, CMP_LT_PS);
                 // NOLINTNEXTLINE(misc-redundant-expression)
                 vcmpps(maskH | maskH, vZeros, vHCoord, CMP_LE_PS);
@@ -2027,7 +2027,7 @@ void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& 
     }
     auto vCY0 = getVmm();
     auto vCY1 = getVmm();
-    Vmm vCY[4] = {vCY0, vCY1, vHCoord, vWCoord};
+    const Vmm vCY[4] = {vCY0, vCY1, vHCoord, vWCoord};
     for (int h = 0; h < 4; h++) {
         bicubicCoefficients(vCY[h], vDY, h);
     }

@@ -133,7 +133,7 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         auto lrn = ov::as_type_ptr<const ov::op::v0::LRN>(op);
         auto axes =
             ov::as_type_ptr<const ov::op::v0::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
-        bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
+        const bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
@@ -200,7 +200,7 @@ void Lrn::prepareParams() {
     dnnl::primitive_attr attr;
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-    LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta, attr};
+    const LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta, attr};
     auto engine = getEngine();
 
     auto builder = [&engine](const LrnKey& key) -> executorPtr {
@@ -249,7 +249,7 @@ bool Lrn::created() const {
 void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                            [[maybe_unused]] const std::vector<MemoryDescPtr>& outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
-    DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
+    const DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
     auto desc = dnnl::lrn_forward::primitive_desc(getEngine(),

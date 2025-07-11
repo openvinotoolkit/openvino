@@ -23,7 +23,7 @@ static inline void softmax_many_batches(const float* src_data, float* dst_data, 
 
         float max = psrc[i];
         for (int c = 0; c < C; c++) {
-            float val = psrc[c * H * W + i];
+            const float val = psrc[c * H * W + i];
             if (val > max) {
                 max = val;
             }

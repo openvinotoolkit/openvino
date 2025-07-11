@@ -30,7 +30,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
         {ov::pass::pattern::any_input(ov::pass::pattern::has_static_rank()),
          ov::pass::pattern::wrap_type<ov::op::v0::Constant>()});
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto tile = ov::as_type_ptr<ov::op::v0::Tile>(m.get_match_root());
         if (!tile) {
             return false;
@@ -84,7 +84,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
 
         auto tiles_it = tiles.rbegin();
         while (tiles_it != tiles.rend()) {
-            int64_t tile_dim = *tiles_it;
+            const int64_t tile_dim = *tiles_it;
             if (tile_dim != 1) {
                 std::vector<int64_t> dims(input_shape_rank, 1);
                 dims[cur_dim_id] = tile_dim;

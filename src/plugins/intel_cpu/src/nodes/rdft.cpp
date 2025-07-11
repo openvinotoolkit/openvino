@@ -311,8 +311,8 @@ static void adjustInputSize(VectorDims& inputShape,
                             bool isInverse) {
     for (size_t i = 0; i < axes.size(); i++) {
         auto axis = axes[i];
-        size_t inputSize = inputShape[axis];
-        size_t signalSize = signalSizes[i];
+        const size_t inputSize = inputShape[axis];
+        const size_t signalSize = signalSizes[i];
         if (signalSize <= inputSize) {
             inputShape[axis] = signalSize;
         } else if (!isInverse) {
@@ -474,7 +474,7 @@ static void fftCopyInverseInputData(float* dst, float* src, size_t inputSize, si
                 dst[2 * i] = src[2 * i];
                 dst[2 * i + 1] = src[2 * i + 1];
             } else {
-                size_t src_idx = 2 * inputSize - 2 - i;
+                const size_t src_idx = 2 * inputSize - 2 - i;
                 dst[2 * i] = src[2 * src_idx];
                 dst[2 * i + 1] = -src[2 * src_idx + 1];
             }
@@ -534,18 +534,18 @@ void RDFTExecutor::fft(float* input,
     size_t blockSize = 0;
 
     auto blockIteration = [&](size_t block) {
-        size_t inputOffset = block * blockSize;
-        size_t outputOffset = block * blockSize / 2;
-        float cos = twiddlesPtr[2 * block];
+        const size_t inputOffset = block * blockSize;
+        const size_t outputOffset = block * blockSize / 2;
+        const float cos = twiddlesPtr[2 * block];
         float sin = twiddlesPtr[2 * block + 1];
         if (isInverse) {
             sin = -sin;
         }
         for (size_t pair = 0; pair < blockSize / 2; pair++) {
-            float evenReal = inputPtr[2 * (inputOffset + pair)];
-            float evenImag = inputPtr[2 * (inputOffset + pair) + 1];
-            float oddReal = inputPtr[2 * (inputOffset + blockSize / 2 + pair)];
-            float oddImag = inputPtr[2 * (inputOffset + blockSize / 2 + pair) + 1];
+            const float evenReal = inputPtr[2 * (inputOffset + pair)];
+            const float evenImag = inputPtr[2 * (inputOffset + pair) + 1];
+            const float oddReal = inputPtr[2 * (inputOffset + blockSize / 2 + pair)];
+            const float oddImag = inputPtr[2 * (inputOffset + blockSize / 2 + pair) + 1];
             outputPtr[2 * (outputOffset + pair)] = evenReal + cos * oddReal - sin * oddImag;
             outputPtr[2 * (outputOffset + pair) + 1] = evenImag + cos * oddImag + sin * oddReal;
             outputPtr[2 * (outputOffset + signalSize / 2 + pair)] = evenReal - cos * oddReal + sin * oddImag;
@@ -654,7 +654,7 @@ void RDFTExecutor::dftOnAxis(enum dft_type type,
 
     bool useFFT = canUseFFT(signalSize);
 
-    size_t totalWorkSize =
+    const size_t totalWorkSize =
         std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<>()) / iterationRange[axis];
     bool parallelizeOuterAxes = totalWorkSize > signalSize;
 
@@ -769,8 +769,8 @@ void RDFTExecutor::irdftNd(float* inputPtr,
 
     float* output = outputPtr;
     std::vector<float> tmp;
-    size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
-    size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
+    const size_t inputShapeSize = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
+    const size_t outputShapeSize = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
     if (inputShapeSize > outputShapeSize) {
         tmp.resize(inputShapeSize);
         output = tmp.data();
@@ -814,7 +814,7 @@ std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
     std::vector<float> twiddles;
     for (size_t numBlocks = 1; numBlocks < N; numBlocks *= 2) {
         for (size_t block = 0; block < numBlocks; block++) {
-            double angle = 2 * PI * block / (numBlocks * 2);
+            const double angle = 2 * PI * block / (numBlocks * 2);
             twiddles.push_back(std::cos(angle));
             twiddles.push_back(-std::sin(angle));
         }
@@ -839,8 +839,8 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
     twiddles.reserve(axes.size());
     for (size_t i = 0; i < axes.size(); i++) {
         auto axis = axes[i];
-        size_t N = signalSizes[i];
-        size_t K = outputShape[axis];
+        const size_t N = signalSizes[i];
+        const size_t K = outputShape[axis];
         auto type = complex_to_complex;
         if (i == axes.size() - 1) {
             type = isInverse ? complex_to_real : real_to_complex;
@@ -852,7 +852,7 @@ std::vector<std::vector<float>> RDFTExecutor::generateTwiddles(const std::vector
 #if defined(OPENVINO_ARCH_X86_64)
 struct RDFTJitExecutor : public RDFTExecutor {
     RDFTJitExecutor(bool inverse, NodeDesc* primDesc) : RDFTExecutor(inverse) {
-        enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
+        const enum dft_type rdftType = isInverse ? complex_to_real : real_to_complex;
         if (mayiuse(cpu::x64::avx512_core)) {
             rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, rdftType);
             dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::avx512_core>>(isInverse, complex_to_complex);
@@ -896,17 +896,17 @@ struct RDFTJitExecutor : public RDFTExecutor {
         parallel_for2d(outputSize / simdSize, inputSize, [&](size_t K, size_t n) {
             if (type == real_to_complex) {
                 for (int k = 0; k < simdSize; k++) {
-                    double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
+                    const double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[((K * inputSize + n) * simdSize + k) * 2] = std::cos(angle);
                     twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = -std::sin(angle);
                 }
             } else if (type == complex_to_real || type == complex_to_complex) {
                 for (int k = 0; k < simdSize; k++) {
-                    double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
+                    const double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[(K * inputSize + n) * 2 * simdSize + k] = std::cos(angle);
                 }
                 for (int k = 0; k < simdSize; k++) {
-                    double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
+                    const double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] =
                         isInverse ? std::sin(angle) : -std::sin(angle);
                 }
@@ -916,7 +916,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
             size_t start = (outputSize / simdSize) * simdSize;
             parallel_for2d(outputSize - start, inputSize, [&](size_t k, size_t n) {
                 k += start;
-                double angle = 2 * PI * k * n / inputSize;
+                const double angle = 2 * PI * k * n / inputSize;
                 twiddles[2 * (k * inputSize + n)] = std::cos(angle);
                 twiddles[2 * (k * inputSize + n) + 1] = isInverse ? std::sin(angle) : -std::sin(angle);
             });
@@ -991,8 +991,8 @@ private:
             float real = 0;
             float imag = 0;
             for (size_t n = 0; n < inputSize; n++) {
-                float cos = twiddlesPtr[2 * (k * inputSize + n)];
-                float sin = twiddlesPtr[2 * (k * inputSize + n) + 1];
+                const float cos = twiddlesPtr[2 * (k * inputSize + n)];
+                const float sin = twiddlesPtr[2 * (k * inputSize + n) + 1];
                 real += inputPtr[n] * cos;
                 imag += inputPtr[n] * sin;
             }
@@ -1019,20 +1019,20 @@ private:
             float real = 0;
             float imag = 0;
             for (size_t n = 0; n < inputSize; n++) {
-                float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                float inputReal = inputPtr[2 * n];
-                float inputImag = inputPtr[2 * n + 1];
+                const float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                const float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                const float inputReal = inputPtr[2 * n];
+                const float inputImag = inputPtr[2 * n + 1];
                 real += inputReal * cos - inputImag * sin;
                 imag += inputImag * cos + inputReal * sin;
             }
             if (isInverse) {
                 float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
                 for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inp[0];
-                    float inputImag = -inp[1];
+                    const float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                    const float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                    const float inputReal = inp[0];
+                    const float inputImag = -inp[1];
                     real += inputReal * cos - inputImag * sin;
                     imag += inputImag * cos + inputReal * sin;
                 }
@@ -1061,19 +1061,19 @@ private:
         auto dftIteration = [&](size_t k) {
             float real = 0;
             for (size_t n = 0; n < inputSize; n++) {
-                float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                float inputReal = inputPtr[2 * n];
-                float inputImag = inputPtr[2 * n + 1];
+                const float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                const float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                const float inputReal = inputPtr[2 * n];
+                const float inputImag = inputPtr[2 * n + 1];
                 real += inputReal * cos - inputImag * sin;
             }
             if (isInverse) {
                 float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
                 for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inp[0];
-                    float inputImag = inp[1];
+                    const float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                    const float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                    const float inputReal = inp[0];
+                    const float inputImag = inp[1];
                     real += inputReal * cos + inputImag * sin;
                 }
                 real /= outputSize;

@@ -832,10 +832,10 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto xmm1 = Xmm(1);
 
     // caller obligation to save gprs as callee may use them
-    size_t gpr_size = 8;
-    Xbyak::Operand gprs_to_save[] =
+    const size_t gpr_size = 8;
+    const Xbyak::Operand gprs_to_save[] =
         {h->r8, h->r9, h->r10, h->r11, h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-    size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+    const size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
     h->sub(h->rsp, n_gprs_to_save * gpr_size);
     for (size_t i = 0; i < n_gprs_to_save; ++i) {
@@ -843,7 +843,7 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     }
 
     // caller obligation to save k-regs as callee may use them
-    size_t n_k_regs_to_save = 8;
+    const size_t n_k_regs_to_save = 8;
     if (isa == x64::avx512_core) {
         h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
         for (size_t i = 0; i < n_k_regs_to_save; ++i) {
@@ -1822,10 +1822,10 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->uni_vmovups(vmm_aux0, table_val("power"));
 
         // caller obligation to save gprs as callee may use them
-        size_t gpr_size = 8;
-        Xbyak::Operand gprs_to_save[] =
+        const size_t gpr_size = 8;
+        const Xbyak::Operand gprs_to_save[] =
             {h->r8, h->r9, h->r10, h->r11, h->rax, h->rcx, h->rdx, h->rdi, h->rsi, h->rbp, h->rbx};
-        size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
+        const size_t n_gprs_to_save = sizeof(gprs_to_save) / sizeof(gprs_to_save[0]);
 
         h->sub(h->rsp, n_gprs_to_save * gpr_size);
         for (size_t i = 0; i < n_gprs_to_save; ++i) {
@@ -1833,7 +1833,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         }
 
         // caller obligation to save k-regs as callee may use them
-        size_t n_k_regs_to_save = 8;
+        const size_t n_k_regs_to_save = 8;
         if (isa == x64::avx512_core) {
             h->sub(h->rsp, n_k_regs_to_save * k_mask_size);
             for (size_t i = 0; i < n_k_regs_to_save; ++i) {

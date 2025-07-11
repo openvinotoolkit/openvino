@@ -32,7 +32,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
 
     auto readvalue_pattern = pass::pattern::wrap_type<ov::op::v6::ReadValue>();
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    const ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto readvalue = as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(readvalue_pattern).get_node_shared_ptr());
         if (!readvalue || readvalue->get_input_size() != 1U) {
@@ -48,7 +48,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         std::unordered_set<std::shared_ptr<ov::Node>> visited_path_to_output;  // Cache nodes which connect to Output.
         std::unordered_set<std::shared_ptr<ov::Node>> visited_path_to_rv;  // Cache nodes which connect to ReadValue.
         NodeVector inputs = {};
-        OutputVector outputs = {};
+        const OutputVector outputs = {};
 
         // DFS, Check if current node's final successor is only ReadValue.
         std::function<void(std::shared_ptr<ov::Node>, bool&)> dfs = [&](const std::shared_ptr<ov::Node>& node,

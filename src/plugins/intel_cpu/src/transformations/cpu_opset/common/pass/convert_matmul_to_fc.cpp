@@ -49,7 +49,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     auto matmul_m = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m},
                                                                      ov::pass::pattern::has_static_rank());
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_m).get_node_shared_ptr());
@@ -97,7 +97,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             [shape_a, shape_b, rank_a, rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a);
             ov::PartialShape shape_b_aligned(shape_b);
-            size_t max_size = std::max(rank_a, rank_b);
+            const size_t max_size = std::max(rank_a, rank_b);
             for (size_t i = 0, cnt = max_size - rank_a; i < cnt; ++i) {
                 shape_a_aligned.insert(shape_a_aligned.begin(), 1);
             }

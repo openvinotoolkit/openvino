@@ -163,7 +163,7 @@ void RMSNorm::createPrimitive() {
     size_t data_size = data_dims[data_dims.size() - 1];
     size_t scale_size = shape_size(getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getBlockDims());
 
-    RMSNormKey key = {precision, data_size, scale_size, m_eps};
+    const RMSNormKey key = {precision, data_size, scale_size, m_eps};
 
     auto builder = [&]([[maybe_unused]] const RMSNormKey& key) -> std::shared_ptr<Executor> {
 #ifdef OPENVINO_ARCH_X86_64

@@ -75,7 +75,7 @@ void DnnlPostOpsComposerLegacy::updateWeiScales() {
     DEBUG_LOG("Set weight scales mask ", "DNNL_ARG: ", DNNL_ARG_WEIGHTS, " mask: ", wei_scale_mask);
     attr.set_scales_mask(DNNL_ARG_WEIGHTS, wei_scale_mask);
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({wei_scale_values.size()}));
+    const DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({wei_scale_values.size()}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), wei_scale_values.data(), wei_scale_values.size() * sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS] = mem;
@@ -89,7 +89,7 @@ void DnnlPostOpsComposerLegacy::updateDestScales() {
     DEBUG_LOG("Set dest scale mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", 0);
     attr.set_scales_mask(DNNL_ARG_DST, 0);
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
+    const DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
     auto mem = std::make_shared<Memory>(engine, memoryDesc);
     memcpy(mem->getData(), &dst_scale_val, sizeof(float));
     args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
@@ -104,7 +104,7 @@ void DnnlPostOpsComposerLegacy::appendBinary(const dnnl::algorithm alg, const st
 
     DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg));
 
-    DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
+    const DnnlBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
     // copy the data as args

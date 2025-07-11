@@ -28,7 +28,7 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     MATCHER_SCOPE(ConvertBroadcastToTiles);
     auto broadcast = ov::pass::pattern::wrap_type<ov::op::v1::Broadcast>();
 
-    ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
         auto broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
@@ -48,7 +48,7 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         auto output_shape = shape_node->cast_vector<int64_t>();
         auto input_shape = data_node.get_shape();
         int64_t cur_dim_id = output_shape.size() - 1;
-        size_t dims_count = output_shape.size();
+        const size_t dims_count = output_shape.size();
 
         auto last_node = data_node;
 
@@ -86,8 +86,8 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         auto input_shape_it = input_shape.rbegin();
         auto output_shape_it = output_shape.rbegin();
         while (output_shape_it != output_shape.rend() && input_shape_it != input_shape.rend()) {
-            int64_t in_dim = *input_shape_it;
-            int64_t out_dim = *output_shape_it;
+            const int64_t in_dim = *input_shape_it;
+            const int64_t out_dim = *output_shape_it;
             if (in_dim != out_dim) {
                 if (in_dim != 1) {
                     return false;

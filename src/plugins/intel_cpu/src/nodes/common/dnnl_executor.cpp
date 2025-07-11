@@ -59,7 +59,7 @@ void DnnlExecutorLegacy::reorder_exec(std::unordered_map<int, dnnl::memory> prim
     std::unordered_map<int, dnnl::memory> outputMem;
     for (auto& outReorder : outputReorders) {
         if (primArgs.count(outReorder.first)) {
-            dnnl::memory memSrc(outReorder.second.getSrcDesc(), strm.get_engine());
+            const dnnl::memory memSrc(outReorder.second.getSrcDesc(), strm.get_engine());
             outputMem[outReorder.first] = primArgs[outReorder.first];
             primArgs[outReorder.first] = memSrc;
         } else {

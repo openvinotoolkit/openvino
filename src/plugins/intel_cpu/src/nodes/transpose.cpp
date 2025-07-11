@@ -70,7 +70,7 @@ Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         order = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
 
         if (order.empty()) {
-            size_t rank = getInputShapeAtPort(INPUT_DATA_IDX).getRank();
+            const size_t rank = getInputShapeAtPort(INPUT_DATA_IDX).getRank();
             for (size_t i = 1LU; i <= rank; ++i) {
                 order.emplace_back(rank - i);
             }
@@ -209,7 +209,7 @@ void Transpose::prepareParams() {
     auto engine = getEngine();
     auto builder =
         [&srcDesc, &dstDesc, this]([[maybe_unused]] const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
-        dnnl::primitive_attr attr;
+        const dnnl::primitive_attr attr;
         auto* selectedPD = getSelectedPrimitiveDescriptor();
         auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
                                                                                                    {srcDesc},

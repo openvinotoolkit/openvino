@@ -458,7 +458,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
                     graph.CreateEdge(parent, child, inNum, outNum);
                 }
             } else {
-                EdgePtr& remEdge = p_edge;
+                const EdgePtr& remEdge = p_edge;
                 int inNum = 0;
                 if (remEdge) {
                     inNum = remEdge->getInputNum();
@@ -468,7 +468,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
                 auto& targetNode = parentNode;
                 const auto& biasNode = parent;
                 auto biasOutputShape = biasNode->getOutputShapeAtPort(0);
-                int outNum = targetNode->getParentEdges().size();
+                const int outNum = targetNode->getParentEdges().size();
                 // ONEDNN Conv, Deconv, FC would need the bias to be flatten into 1D tensor.
                 // Usually the bias output shape would be normalized to align rank with Conv/Deconv/FC output.
                 // To avoid duplicate reshape WA code in nodes, here we flatten the shape.
@@ -698,7 +698,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
                     graph.CreateEdge(parent, child, inNum, outNum);
                 }
             } else {
-                EdgePtr& remEdge = p_edge;
+                const EdgePtr& remEdge = p_edge;
                 int inNum = 0;
                 if (remEdge) {
                     inNum = remEdge->getInputNum();
@@ -909,8 +909,9 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
 
     auto isSuitablePattern = [](const NodePtr& parent) {
-        bool res = parent->getType() == Type::Transpose && parent->getChildEdges().size() == 1 &&
-                   parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected && parent->isConstant();
+        const bool res = parent->getType() == Type::Transpose && parent->getChildEdges().size() == 1 &&
+                         parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected &&
+                         parent->isConstant();
         return res;
     };
 
@@ -1078,8 +1079,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
                     for (size_t kd = 0; kd < KD; kd++) {
                         for (size_t kh = 0; kh < KH; kh++) {
                             for (size_t kw = 0; kw < KW; kw++) {
-                                size_t widx = g * OC * IC * KD * KH * KW + oc * IC * KD * KH * KW + ic * KD * KH * KW +
-                                              kd * KH * KW + kh * KW + kw;
+                                const size_t widx = g * OC * IC * KD * KH * KW + oc * IC * KD * KH * KW +
+                                                    ic * KD * KH * KW + kd * KH * KW + kh * KW + kw;
 
                                 auto w = static_cast<int32_t>(weightsPtr[widx]);
 
@@ -1240,7 +1241,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         const auto& paddings = conv->getPaddingL();
         const auto& inDims = node->getInputShapeAtPort(0).getDims();
         const auto& outDims = node->getOutputShapeAtPort(0).getDims();
-        bool isSupportedParams =
+        const bool isSupportedParams =
             conv->getGroupNum() == 1 && inDims.size() == 4 &&
             dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
             dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
@@ -1303,11 +1304,11 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
             return false;
         }
 
-        bool withBias = convChild->getOriginalInputPrecisions().size() == 3;
+        const bool withBias = convChild->getOriginalInputPrecisions().size() == 3;
 
         const auto weightRank = convChild->getWeightDims().size();
         const auto stridesSize = convChild->getStride().size();
-        bool isSupportedParams =
+        const bool isSupportedParams =
             dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
             convChild->outputShapes[0].getDims()[1] != 1 &&
             everyone_is(3U,
@@ -1336,11 +1337,11 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
         auto inDims = childNode->inputShapes[0].getStaticDims();
         auto outDims = childNode->outputShapes[0].getStaticDims();
-        int elemSize = childNode->getOriginalOutputPrecisionAtPort(0).size();
+        const int elemSize = childNode->getOriginalOutputPrecisionAtPort(0).size();
 
-        int L3_cache_size = dnnl::utils::get_cache_size(3, false);
-        int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
-        int dw_conv_output_size = outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize;
+        const int L3_cache_size = dnnl::utils::get_cache_size(3, false);
+        const int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
+        const int dw_conv_output_size = outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize;
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
         if (parentConvolutionNode == nullptr) {
@@ -1627,7 +1628,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         }
 
         // TODO: Enlarge to several inputs
-        bool isSuitableNode = graphNode->getParentEdges().size() == 2;
+        const bool isSuitableNode = graphNode->getParentEdges().size() == 2;
         if (!isSuitableNode) {
             continue;
         }
@@ -1766,8 +1767,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         const auto& dims2 = shape2.getDims();
         bool dynamic_bcast_pattern = false;
         for (size_t d = 2; d < shape1.getRank(); d++) {
-            bool cond1 = (dims1[d] == Shape::UNDEFINED_DIM) && (dims2[d] == 1U);
-            bool cond2 = (dims2[d] == Shape::UNDEFINED_DIM) && (dims1[d] == 1U);
+            const bool cond1 = (dims1[d] == Shape::UNDEFINED_DIM) && (dims2[d] == 1U);
+            const bool cond2 = (dims2[d] == Shape::UNDEFINED_DIM) && (dims1[d] == 1U);
             if (cond1 || cond2) {
                 dynamic_bcast_pattern = true;
                 break;
@@ -1817,7 +1818,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             // Merged with DW_conv. Shape may change
             mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
         } else {
-            size_t secondTermPort = sum->getFusingPort() == 0 ? 1 : 0;
+            const size_t secondTermPort = sum->getFusingPort() == 0 ? 1 : 0;
             mergedConv->inputShapes.push_back(sum->getInputShapeAtPort(secondTermPort));
         }
 
@@ -1845,12 +1846,12 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
         graph.CreateEdge(peerNode, mergedConv, peer_port, childPort);
 
-        std::vector<EdgeWeakPtr> edges_to_reconnect = lastNode->getChildEdges();
-        for (auto& edge_w : edges_to_reconnect) {
+        const std::vector<EdgeWeakPtr> edges_to_reconnect = lastNode->getChildEdges();
+        for (const auto& edge_w : edges_to_reconnect) {
             auto edge = edge_w.lock();
             auto child = edge->getChild();
-            int idxParent = edge->getInputNum();
-            int idxChild = edge->getOutputNum();
+            const int idxParent = edge->getInputNum();
+            const int idxChild = edge->getOutputNum();
 
             // reconnect after  activation/sum. Port index must be 0
             OPENVINO_ASSERT(idxParent == 0);
@@ -2196,7 +2197,7 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                         graph.CreateEdge(parent, child, inNum, outNum);
                     }
                 } else {
-                    EdgePtr& remEdge = p_edge;
+                    const EdgePtr& remEdge = p_edge;
                     int inNum = 0;
                     int outNum = parentNode->getParentEdges().size();
                     if (remEdge) {
@@ -2315,8 +2316,8 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
                 OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
             }
 
-            NodePtr p = n->getParentEdgeAt(0)->getParent();
-            NodePtr c = nn->getChildEdgeAt(0)->getChild();
+            const NodePtr p = n->getParentEdgeAt(0)->getParent();
+            const NodePtr c = nn->getChildEdgeAt(0)->getChild();
 
             auto oldEdgeNum = n->getParentEdgeAt(0)->getInputNum();
 
@@ -2336,7 +2337,7 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
                 OPENVINO_THROW("Inappropriate graph processing");
             }
 
-            std::string layerName = edge->getParent()->getName() + "_ScaleReorder_" + edge->getChild()->getName();
+            const std::string layerName = edge->getParent()->getName() + "_ScaleReorder_" + edge->getChild()->getName();
             graph.InsertReorder(edge, layerName, n->getInput(), nn->getOutput(), false);
             graph.RemoveEdge(edge);
         }
@@ -2494,7 +2495,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
         shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
-        for (float i : scalesBuffer) {
+        for (const float i : scalesBuffer) {
             if (i == 0.F) {
                 return false;
             }
@@ -2511,11 +2512,11 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         std::vector<float> newInputShift(scalesBuffer.size());
 
         for (size_t i = 0; i < newCropLow.size(); i++) {
-            float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
-            float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
+            const float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
+            const float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
 
-            float newCL = (cl - shiftsBuffer[i]) / scalesBuffer[i];
-            float newCH = (ch - shiftsBuffer[i]) / scalesBuffer[i];
+            const float newCL = (cl - shiftsBuffer[i]) / scalesBuffer[i];
+            const float newCH = (ch - shiftsBuffer[i]) / scalesBuffer[i];
 
             newCropLow[i] = std::min(newCL, newCH);
             newCropHigh[i] = std::max(newCL, newCH);
@@ -2535,14 +2536,14 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         };
 
         for (size_t i = 0; i < newInputScale.size(); i++) {
-            float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
+            const float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
 
             newInputScale[i] = isc * scalesBuffer[i];
             if (isSubnormal(newInputScale[i])) {
                 newInputScale[i] = 0.F;
                 // zero value have to be shifted if it's not in input range
-                float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
-                float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
+                const float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
+                const float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
                 if (0.F < cl) {
                     zeroShift[i] = isc * cl;
                 }
@@ -2553,8 +2554,8 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
         }
 
         for (size_t i = 0; i < newInputShift.size(); i++) {
-            float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
-            float ish = inputShiftData.size() == 1 ? inputShiftData[0] : inputShiftData[i];
+            const float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
+            const float ish = inputShiftData.size() == 1 ? inputShiftData[0] : inputShiftData[i];
 
             newInputShift[i] = ish + shiftsBuffer[i] * isc + zeroShift[i];
             if (isSubnormal(newInputShift[i])) {
@@ -2753,9 +2754,9 @@ void GraphOptimizer::mergeTransposeReshapeReorder(Graph& graph,
     // If precisions don't match, another reorder must be inserted to perform conversion
     auto reorder_last = reorder_layout;
     if (reorderOutDesc->getPrecision() != finalDesc->getPrecision()) {
-        std::string reorderLayerName2 = reorder_layout->getName() + "_" +
-                                        Reorder::getReorderArgs(*reorderOutDesc, *finalDesc) + "_" +
-                                        nodeAfterSequence->getName();
+        const std::string reorderLayerName2 = reorder_layout->getName() + "_" +
+                                              Reorder::getReorderArgs(*reorderOutDesc, *finalDesc) + "_" +
+                                              nodeAfterSequence->getName();
 
         reorder_last =
             std::make_shared<node::Reorder>(*reorderOutDesc, *finalDesc, reorderLayerName2, graph.getGraphContext());
@@ -2921,7 +2922,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
 
         const auto transposeNode = std::dynamic_pointer_cast<Transpose>(parentNode);
         const auto reorderNode = std::dynamic_pointer_cast<Reorder>(childNode);
-        std::shared_ptr<Reshape> reshapeNode =
+        const std::shared_ptr<Reshape> reshapeNode =
             intermNode != nullptr ? std::dynamic_pointer_cast<Reshape>(intermNode) : nullptr;
         if (!transposeNode || !reorderNode || (intermNode && !reshapeNode)) {
             continue;
@@ -3051,7 +3052,7 @@ void GraphOptimizer::MergeReorderAndTranspose(Graph& graph) {
 
         auto transposeNode = std::dynamic_pointer_cast<Transpose>(childNode);
         auto reorderNode = std::dynamic_pointer_cast<Reorder>(parentNode);
-        std::shared_ptr<Reshape> reshapeNode =
+        const std::shared_ptr<Reshape> reshapeNode =
             intermNode != nullptr ? std::dynamic_pointer_cast<Reshape>(intermNode) : nullptr;
         if (!transposeNode || !reorderNode || (intermNode && !reshapeNode)) {
             continue;
