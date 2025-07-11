@@ -108,10 +108,10 @@ void SpaceToBatch::initSupportedPrimitiveDescriptors() {
 static std::vector<int64_t> getShape5D(const VectorDims& shape) {
     std::vector<int64_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
-        shape5D[i] = shape[i];
-        shape5D[4 - i] = shape[shape.size() - 1 - i];
+        shape5D[i] = static_cast<int64_t>(shape[i]);
+        shape5D[4 - i] = static_cast<int64_t>(shape[shape.size() - 1 - i]);
     }
-    shape5D[2] = shape.size() == 5 ? shape[2] : shape5D[2];
+    shape5D[2] = shape.size() == 5 ? static_cast<int64_t>(shape[2]) : shape5D[2];
     return shape5D;
 }
 
@@ -160,9 +160,9 @@ void SpaceToBatch::SpaceToBatchKernel() {
     }
 
     const auto outBlkDims = dstMem->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    const int64_t blockSize = blocked ? outBlkDims.back() : 1LU;
-    const int64_t blockCountInput = outBlkDims[1];
-    const int64_t blockCountOutput = srcMem->getDescWithType<BlockedMemoryDesc>()->getBlockDims()[1];
+    const int64_t blockSize = blocked ? static_cast<int64_t>(outBlkDims.back()) : static_cast<int64_t>(1LU);
+    const auto blockCountInput = static_cast<int64_t>(outBlkDims[1]);
+    const int64_t blockCountOutput = static_cast<int64_t>(srcMem->getDescWithType<BlockedMemoryDesc>()->getBlockDims()[1]);
     const int64_t blockRemainder = inShape5D[1] % blockSize;
     const int64_t lastBlock = blockRemainder == 0 ? blockSize : blockRemainder;
 
@@ -196,13 +196,13 @@ void SpaceToBatch::SpaceToBatchKernel() {
             int64_t bIdx = i0 / outShape5D[0];
             const int64_t srcIdx0 = (i0 - (bIdx * outShape5D[0])) * outBatchStep;
             const int64_t dstIdx0 = i0 * inBatchStep;
-            oAdd[4] = bIdx % blockShapeIn[dimsSize - 1] - padsBeginIn[dimsSize - 1];
-            bIdx /= blockShapeIn[dimsSize - 1];
-            oAdd[3] = bIdx % blockShapeIn[dimsSize - 2] - padsBeginIn[dimsSize - 2];
-            bIdx /= blockShapeIn[dimsSize - 2];
-            oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0LU;
-            bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
-            oAdd[1] = bIdx % blockShapeIn[1] - padsBeginIn[1];
+            oAdd[4] = bIdx % static_cast<int64_t>(blockShapeIn[dimsSize - 1]) - static_cast<int64_t>(padsBeginIn[dimsSize - 1]);
+            bIdx /= static_cast<int64_t>(blockShapeIn[dimsSize - 1]);
+            oAdd[3] = bIdx % static_cast<int64_t>(blockShapeIn[dimsSize - 2]) - static_cast<int64_t>(padsBeginIn[dimsSize - 2]);
+            bIdx /= static_cast<int64_t>(blockShapeIn[dimsSize - 2]);
+            oAdd[2] = dimsSize == 5 ? bIdx % static_cast<int64_t>(blockShapeIn[2]) - static_cast<int64_t>(padsBeginIn[2]) : static_cast<int64_t>(0LU);
+            bIdx = dimsSize == 5 ? bIdx / static_cast<int64_t>(blockShapeIn[2]) : bIdx;
+            oAdd[1] = bIdx % static_cast<int64_t>(blockShapeIn[1]) - static_cast<int64_t>(padsBeginIn[1]);
             if (srcMem->getDesc().hasLayoutType(LayoutType::nspc)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
@@ -215,8 +215,8 @@ void SpaceToBatch::SpaceToBatchKernel() {
             finish[3] = (outShape5D[3] - 1 - oAdd[3]) / blockShape[3];
             begin[4] = (blockShape[4] - 1 - oAdd[4]) / blockShape[4];
             finish[4] = (outShape5D[4] - 1 - oAdd[4]) / blockShape[4];
-            const int64_t addTmpOC = blocked ? 0LU : oAdd[1];
-            const int64_t addTmpOc = blocked ? oAdd[1] : 0LU;
+            const int64_t addTmpOC = blocked ? static_cast<int64_t>(0LU) : oAdd[1];
+            const int64_t addTmpOc = blocked ? oAdd[1] : static_cast<int64_t>(0LU);
             indxStart[1] = begin[1] > indxStart[1] ? begin[1] : indxStart[1];
             int64_t lastI1 = [&] {
                 if (i0 == indxEnd[0]) {
@@ -229,7 +229,7 @@ void SpaceToBatch::SpaceToBatchKernel() {
                 const int64_t tmpOC = indxStart[1] * blockShape[1] + addTmpOC;
                 const int64_t srcIdx1 = srcIdx0 + tmpOC * outSpatialStep * blockSize;
                 const int64_t dstIdx1 = dstIdx0 + indxStart[1] * inSpatialStep * blockSize;
-                const int64_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : 0LU;
+                const int64_t itEnd = blocked ? ((block - 1) * blockShape[1] + oAdd[1]) / blockSize : static_cast<int64_t>(0LU);
                 for (int64_t i2 = begin[2]; i2 < finish[2] + 1; ++i2) {
                     const int64_t tmpOd = i2 * blockShape[2] + oAdd[2];
                     const int64_t srcIdx2 = srcIdx1 + tmpOd * outShape5D[3] * outShape5D[4] * blockSize;

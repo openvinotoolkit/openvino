@@ -128,13 +128,13 @@ public:
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
 
-        wbuffer.alloc(works, weight_element_size);
+        wbuffer.alloc(works, static_cast<int>(weight_element_size));
 
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (is_quantized) {
-                    work.setup(wbuffer.get<int8_t>(ithr), reinterpret_cast<int8_t*>(p_weight), stride, true);
+                    work.setup(wbuffer.get<int8_t>(ithr), reinterpret_cast<int8_t*>(p_weight), static_cast<int>(stride), true);
                 } else {
                     work.setup(wbuffer.get<T>(ithr), reinterpret_cast<ov::float16*>(p_weight), stride);
                 }
@@ -167,9 +167,9 @@ public:
                     ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(M,
                                                                            work.BN,
                                                                            reinterpret_cast<int32_t*>(ptr_c),
-                                                                           stride_c,
+                                                                           static_cast<int>(stride_c),
                                                                            ptr_c,
-                                                                           stride_c,
+                                                                           static_cast<int>(stride_c),
                                                                            src_dq.scale,
                                                                            src_dq.zp,
                                                                            ptr_wsum,
@@ -268,7 +268,7 @@ public:
 
             start_blkN += blkN;
         }
-        wbuffer.alloc(works, weight_element_size);
+        wbuffer.alloc(works, static_cast<int>(weight_element_size));
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
@@ -278,7 +278,7 @@ public:
                     work.setup(wbuffer.get<int8_t>(ithr),
                                reinterpret_cast<int8_t*>(p_weight_gate),
                                reinterpret_cast<int8_t*>(p_weight_up),
-                               stride,
+                               static_cast<int>(stride),
                                true);
                 } else {
                     work.setup(wbuffer.get<T>(ithr),
@@ -317,9 +317,9 @@ public:
                     ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(M,
                                                                            work.BN,
                                                                            reinterpret_cast<int32_t*>(ptr_c),
-                                                                           stride_c,
+                                                                           static_cast<int>(stride_c),
                                                                            ptr_c,
-                                                                           stride_c,
+                                                                           static_cast<int>(stride_c),
                                                                            src_dq.scale,
                                                                            src_dq.zp,
                                                                            p_wsum,
@@ -402,7 +402,7 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
             }
         }
 
-        m_N = N;
+        m_N = static_cast<int>(N);
     }
 
     void setM(int M) {
@@ -461,9 +461,9 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         auto* pA = input->getDataAs<uint8_t>();
         const auto& srcStrides = input->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int strideA = srcStrides[srcStrides.size() - 2];
+        int strideA = static_cast<int>(srcStrides[srcStrides.size() - 2]);
         int strideA_in_bytes = strideA * sizeof(T);
-        int M = shape_size(ishape) / ishape[ishape.size() - 1];
+        int M = static_cast<int>(shape_size(ishape) / ishape[ishape.size() - 1]);
 
         auto output = m_pnode->getDstMemoryAtPort(0);
         auto* dstC = output->getDataAs<T>();

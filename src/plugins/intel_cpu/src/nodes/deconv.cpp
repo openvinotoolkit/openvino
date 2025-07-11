@@ -450,8 +450,8 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                 const auto& dims = shape.getDims();
                 for (size_t i = 0; i < dims.size() - 2; ++i) {
                     lastOutputSpatialDims[i] =
-                        static_cast<int64_t>(dims[i + 2]) == Shape::UNDEFINED_DIM
-                            ? std::min(maxDims[i + 2], std::max(minDims[i + 2], static_cast<Dim>(64)))
+                        dims[i + 2] == Shape::UNDEFINED_DIM
+                            ? static_cast<Dim>(std::min(maxDims[i + 2], std::max(minDims[i + 2], static_cast<Dim>(64))))
                             : dims[i + 2];
                 }
             }
@@ -1317,7 +1317,7 @@ bool Deconvolution::canFuseBias() const {
     // implementation on the fusing transformation stage. In the end, all the deconv should run with brg implement. And
     // in model zoo only limited deconv has bias or other post-ops in IR. Based on above, enable the bias fusing for all
     // deconv implementations.
-    return (externOutShape ? (getParentEdges().size() == 3) : (getParentEdges().size() == 2)) ? 1 : 0;
+    return (externOutShape ? (getParentEdges().size() == 3) : (getParentEdges().size() == 2)) ? true : false;
 }
 
 void Deconvolution::initSupportedPrimitiveDescriptors() {

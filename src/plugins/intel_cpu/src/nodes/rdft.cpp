@@ -66,7 +66,7 @@ bool RDFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
 static void normalizeAxes(std::vector<int>& axes, size_t rank) {
     for (auto& axis : axes) {
         if (axis < 0) {
-            axis += rank;
+            axis += static_cast<int>(rank);
         }
     }
 }
@@ -81,10 +81,10 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape,
         if (inputShape[axis] == Shape::UNDEFINED_DIM) {
             return {};
         }
-        signalSizes.push_back(inputShape[axis]);
+        signalSizes.push_back(static_cast<int>(inputShape[axis]));
     }
     if (inverse) {
-        signalSizes[signalSizes.size() - 1] = 2 * (inputShape[axes.back()] - 1);
+        signalSizes[signalSizes.size() - 1] = static_cast<int>(2 * (inputShape[axes.back()] - 1));
     }
 
     return signalSizes;
@@ -211,7 +211,7 @@ void RDFT::prepareParams() {
         const auto* axesPtr = axesMem->getDataAs<const int>();
         auto inputRank = inputShapes[DATA_INDEX].getRank() - static_cast<size_t>(inverse);
         for (size_t i = 0; i < axes.size(); i++) {
-            axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
+            axes[i] = axesPtr[i] < 0 ? axesPtr[i] + static_cast<int>(inputRank) : axesPtr[i];
         }
     }
     if (signalSizesChanged()) {
@@ -221,12 +221,12 @@ void RDFT::prepareParams() {
             }
             const auto& inputShape = getParentEdgeAt(DATA_INDEX)->getMemory().getStaticDims();
             for (size_t i = 0; i < axes.size() - 1; i++) {
-                signalSizes[i] = inputShape[axes[i]];
+                signalSizes[i] = static_cast<int>(inputShape[axes[i]]);
             }
             if (inverse) {
-                signalSizes.back() = 2 * (inputShape[axes.back()] - 1);
+                signalSizes.back() = static_cast<int>(2 * (inputShape[axes.back()] - 1));
             } else {
-                signalSizes.back() = inputShape[axes.back()];
+                signalSizes.back() = static_cast<int>(inputShape[axes.back()]);
             }
         } else {
             const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);

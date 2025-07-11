@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl.h>
 
 #include <algorithm>
+#include <vector>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -108,7 +109,7 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
     OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
-    config->update(N, N, K, K, copy_wei_stride, LDB);
+    config->update(static_cast<dnnl_dim_t>(N), static_cast<dnnl_dim_t>(N), static_cast<dnnl_dim_t>(K), static_cast<dnnl_dim_t>(K), static_cast<dnnl_dim_t>(copy_wei_stride), static_cast<dnnl_dim_t>(LDB));
     executor->update_by_config(*config);
 }
 
@@ -174,7 +175,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         // In parallel impl, each thread needs buffer with only inner blocked shape to store repacking datata
         if (is_impl_parallel) {
             const auto batch_count = planar_shape.size() - brgemm_kernel_rank;
-            std::fill(planar_shape.begin(), planar_shape.begin() + batch_count, 1);
+            std::fill(planar_shape.begin(), planar_shape.begin() + static_cast<std::ptrdiff_t>(batch_count), 1);
         }
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());

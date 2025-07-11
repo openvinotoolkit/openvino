@@ -88,7 +88,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         Xbyak::Label tail_loop_label;
         Xbyak::Label exit_label;
 
-        int step = vlen / sizeof(float);
+        auto step = static_cast<int>(vlen / sizeof(float));
         L(main_loop_label);
         {
             cmp(reg_work_amount, step);
@@ -205,7 +205,7 @@ private:
     }
 
     const struct vals_for_logistic_activate_type {
-        int mask_sign = 0x80000000;  // 0 //  mask to extract sign
+        int mask_sign = static_cast<int>(0x80000000);  // 0 //  mask to extract sign
         int float_1 = 0x3f800000;    // 1 //  1.0f
     } vals_for_logistic_activate;
 
@@ -296,9 +296,9 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
 
     const auto regionYolo = ov::as_type_ptr<const ov::op::v0::RegionYolo>(op);
-    classes = regionYolo->get_num_classes();
-    coords = regionYolo->get_num_coords();
-    num = regionYolo->get_num_regions();
+    classes = static_cast<size_t>(regionYolo->get_num_classes());
+    coords = static_cast<size_t>(regionYolo->get_num_coords());
+    num = static_cast<size_t>(regionYolo->get_num_regions());
     do_softmax = static_cast<float>(regionYolo->get_do_softmax());
     mask = regionYolo->get_mask();
     block_size = 1;
@@ -432,13 +432,13 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     size_t output_size = 0;
     if (do_softmax != 0.0F) {
         // Region layer (Yolo v2)
-        end_index = IW * IH;
-        num_ = num;
+        end_index = static_cast<int>(IW * IH);
+        num_ = static_cast<int>(num);
         output_size = B * IH * IW * IC;  // different shape combinations with the same overall size;
     } else {
         // Yolo layer (Yolo v3)
-        end_index = IW * IH * (classes + 1);
-        num_ = mask_size;
+        end_index = static_cast<int>(IW * IH * (classes + 1));
+        num_ = static_cast<int>(mask_size);
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
@@ -450,7 +450,7 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
-    size_t total_size = 2 * IH * IW;
+    int total_size = static_cast<int>(2 * IH * IW);
 
     const auto* src_data = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dst_data = getDstDataAtPortAs<uint8_t>(0);
@@ -472,8 +472,8 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (do_softmax != 0.0F) {
-        int index = IW * IH * (coords + 1);
-        int batch_offset = inputs_size / num;
+        int index = static_cast<int>(IW * IH * (coords + 1));
+        int batch_offset = static_cast<int>(inputs_size / num);
         for (size_t b = 0; b < B * num; b++) {
             softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
                                     dst_data + output_prec.size() * (index + b * batch_offset),

@@ -90,8 +90,8 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const Grap
 
     auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
-    attrs.axis = shuffleChannels->get_axis();
-    attrs.dataRank = getInputShapeAtPort(0).getRank();
+    attrs.axis = static_cast<int>(shuffleChannels->get_axis());
+    attrs.dataRank = static_cast<int>(getInputShapeAtPort(0).getRank());
     if (attrs.axis < 0) {
         attrs.axis += attrs.dataRank;
     }
@@ -318,7 +318,7 @@ void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
 
-    int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
+    int MB = (attrs.axis != 0) ? static_cast<int>(getSrcMemoryAtPort(0)->getStaticDims()[0]) : -1;
 
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);

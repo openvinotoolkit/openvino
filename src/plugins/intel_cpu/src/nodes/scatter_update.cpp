@@ -364,7 +364,7 @@ int64_t ScatterUpdate::getIndicesValue(uint8_t* indices, size_t offset) const {
 static std::vector<size_t> getBlockND(const VectorDims& shape) {
     size_t shapeRank = shape.size();
     std::vector<size_t> blockND(shapeRank + 1, 1);
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    for (int i = static_cast<int>(shapeRank) - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
     }
     return blockND;
@@ -392,7 +392,7 @@ static T reduction_neutral_value(const ScatterUpdate::Reduction reduction_type) 
 
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
     size_t shapeRank = shape.size();
-    for (int i = shapeRank - 1; i >= 0; i--) {
+    for (int i = static_cast<int>(shapeRank) - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
     }
@@ -429,7 +429,7 @@ struct TensorIterator {
     void increment(std::array<size_t, 2>& offsets,
                    const std::vector<size_t>& dataBlockND,
                    const std::vector<size_t>& indicesBlockND) {
-        for (int64_t j = m_squashed_shape.size() - 1; j >= 0; j--) {
+        for (int64_t j = static_cast<int64_t>(m_squashed_shape.size()) - 1; j >= 0; j--) {
             m_tensorIter[j]++;
             if (m_tensorIter[j] < m_squashed_shape[j]) {  // no need check if (j != axis) as it is squashed
                 offsets[0] += dataBlockND[j + 1];
@@ -584,7 +584,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     const size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
-        axis += updates_rank;
+        axis += static_cast<int>(updates_rank);
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
@@ -713,7 +713,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     size_t updates_rank = indices_shape.size();
 
     if (axis < 0) {
-        axis += updates_rank;
+        axis += static_cast<int>(updates_rank);
     }
     CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
 
@@ -784,7 +784,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 for (const auto& counter : mean_reduction_counters) {
                     auto dst = &dataPtr[offsets[0] + counter.first * dataBlock_axisplus1];
                     const auto N = counter.second + static_cast<int32_t>(use_init_val);
-                    *dst = static_cast<DataType>(static_cast<double>(*dst) / N);
+                    *dst = static_cast<DataType>(static_cast<double>(*dst) / static_cast<double>(N));
                 }
 
                 // increment
@@ -911,13 +911,13 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             axis = *axisPtr32;
         } else {
             auto* axisPtr64 = reinterpret_cast<int64_t*>(axisPtr);
-            axis = *axisPtr64;
+            axis = static_cast<int>(*axisPtr64);
         }
 
         if (axis >= static_cast<int>(srcRank) || axis < (static_cast<int>(srcRank) * -1)) {
             THROW_CPU_NODE_ERR("should have axis value in range [-r, r - 1], where r is the rank of input data");
         }
-        axis = axis < 0 ? (axis + srcRank) : axis;
+        axis = axis < 0 ? (axis + static_cast<int>(srcRank)) : axis;
 
         size_t srcDimAxis = srcDataDim[axis];
         std::vector<size_t> indicesBlockND = getBlockND(indicesDim);
@@ -1082,7 +1082,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
                 // Negative value for indices means counting backwards from the end.
-                idxValue += srcDataDim[i];
+                idxValue += static_cast<int64_t>(srcDataDim[i]);
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
@@ -1126,7 +1126,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
                 // Negative value for indices means counting backwards from the end.
-                idxValue += srcDataDim[i];
+                idxValue += static_cast<int64_t>(srcDataDim[i]);
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }

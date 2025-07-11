@@ -344,7 +344,7 @@ void SpaceToDepth::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);
-    const int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
+    const int MB = static_cast<int>(getSrcMemoryAtPort(0)->getStaticDims()[0]);
     execPtr->exec(srcData, dstData, MB);
 }
 

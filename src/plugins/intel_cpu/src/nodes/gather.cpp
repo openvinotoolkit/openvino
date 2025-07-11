@@ -161,7 +161,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
-        axisDim = dataDims[axis];
+        axisDim = static_cast<int>(dataDims[axis]);
         beforeAxisSize = std::accumulate(dataDims.begin(), dataDims.begin() + axis, 1LU, std::multiplies<>());
         betweenBatchAndAxisSize =
             std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1LU, std::multiplies<>());
@@ -415,7 +415,7 @@ void Gather::prepareParams() {
 
     if (!isDataShapeStat || !isAxisInputConst) {
         const auto& dataDims = dataMemPtr->getStaticDims();
-        axisDim = dataDims[axis];
+        axisDim = static_cast<int>(dataDims[axis]);
         beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1LU, std::multiplies<>());
         betweenBatchAndAxisSize =
             std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1LU, std::multiplies<>());

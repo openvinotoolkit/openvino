@@ -225,9 +225,9 @@ void copyDataToOutputWithSignalSize(const float* input,
         iterationRange[index] = std::min(inputShape[index], outputShape[index]);
     }
 
-    const std::vector<size_t> inputStridesRange(inputStrides.begin(), inputStrides.begin() + iterationRange.size());
-    const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + iterationRange.size());
-    const size_t blockSize = std::accumulate(inputShape.begin() + lastChangedDim + 1,
+    const std::vector<size_t> inputStridesRange(inputStrides.begin(), inputStrides.begin() + static_cast<std::vector<size_t>::difference_type>(iterationRange.size()));
+    const std::vector<size_t> outputStridesRange(outputStrides.begin(), outputStrides.begin() + static_cast<std::vector<size_t>::difference_type>(iterationRange.size()));
+    const size_t blockSize = std::accumulate(inputShape.begin() + static_cast<std::vector<size_t>::difference_type>(lastChangedDim + 1),
                                              inputShape.end(),
                                              static_cast<size_t>(1),
                                              std::multiplies<>());
@@ -299,7 +299,7 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
             std::vector<float> outputData(nComplex * 2);
             const float* resultBufPtr = nullptr;
 
-            fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
+            fft(dst, outputData.data(), static_cast<int64_t>(nComplex * 2), inverse, true, &resultBufPtr);
 
             if (resultBufPtr != dst) {
                 cpu_memcpy(dst, resultBufPtr, nComplex * 2 * sizeof(float));
@@ -340,7 +340,7 @@ void DFT::dftNd(float* output,
                                      outputShape,
                                      outputStrides);
                     const float* resultBufPtr = nullptr;
-                    fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
+                    fft(gatheredData.data(), gatheredData.data() + outputLen, static_cast<int64_t>(outputLen), inverse, false, &resultBufPtr);
                     applyBufferND(resultBufPtr,
                                   output,
                                   currentAxis,
@@ -373,8 +373,8 @@ void DFT::fft(float* inBuffer,
               bool inverse,
               bool parallelize,
               const float** resultBuf) const {
-    static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
-    static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
+    static auto cacheSizeL3 = static_cast<int>(dnnl::utils::get_cache_size(3, false));
+    static auto elementsPerCacheLine = static_cast<int>(cacheSizeL3 / sizeof(float));
     size_t nComplex = dataLength / 2;
 
     std::function<void(const size_t, const size_t, const size_t)> blockIteration;
@@ -438,7 +438,7 @@ void DFT::fft(float* inBuffer,
     }
     if (inverse) {
         for (int64_t k = 0; k < dataLength; k++) {
-            inBuffer[k] /= nComplex;
+            inBuffer[k] /= static_cast<float>(nComplex);
         }
     }
 
@@ -448,7 +448,7 @@ void DFT::fft(float* inBuffer,
 void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     std::vector<float> outputBuffer(dataLength);
     const size_t nComplex = dataLength / 2;
-    const float reciprocalNComplex = 1.0F / nComplex;
+    const float reciprocalNComplex = 1.0F / static_cast<float>(nComplex);
     auto twiddlesIter = twiddlesMapDFT.find(nComplex);
     if (twiddlesIter == twiddlesMapDFT.end()) {
         THROW_CPU_NODE_ERR("Twiddles for nComplex=", nComplex, " not found");
@@ -543,7 +543,7 @@ void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
 
             blockNum++;
 
-            float angle = PI * blockNum / numBlocks;
+            float angle = PI * static_cast<float>(blockNum) / static_cast<float>(numBlocks);
             auto complexReal = std::cos(angle);
             auto complexImag = std::sin(angle) * inverseMultiplier;
 
@@ -566,7 +566,7 @@ std::vector<int32_t> DFT::getAxes() const {
     if (in_shape_rank > 0) {
         for (auto& axis : axes_tmp) {
             if (axis < 0) {
-                axis += in_shape_rank - 1;
+                axis += static_cast<int32_t>(in_shape_rank) - 1;
             }
         }
     }

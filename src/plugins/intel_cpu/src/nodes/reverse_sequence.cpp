@@ -72,13 +72,13 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
         THROW_CPU_NODE_ERR("has input/output rank mismatch");
     }
 
-    seq_axis = revSeq->get_sequence_axis();
+    seq_axis = static_cast<int>(revSeq->get_sequence_axis());
 
     if (seq_axis < 0 || seq_axis >= static_cast<int>(dataRank)) {
         THROW_CPU_NODE_ERR("has incorrect 'seq_axis' parameters dimensions and axis number!");
     }
 
-    batch_axis = revSeq->get_batch_axis();
+    batch_axis = static_cast<int>(revSeq->get_batch_axis());
 
     if (batch_axis < 0 || batch_axis >= static_cast<int>(dataRank)) {
         THROW_CPU_NODE_ERR("has incorrect 'batch_axis' parameters dimensions and axis number!");
@@ -148,7 +148,7 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
 
     srcStrides.resize(dataDims.size());
     srcStrides[srcStrides.size() - 1] = 1;
-    for (int i = srcStrides.size() - 2; i >= 0; --i) {
+    for (int i = static_cast<int>(srcStrides.size()) - 2; i >= 0; --i) {
         srcStrides[i] = srcStrides[i + 1] * dataDims[i + 1];
     }
 
@@ -177,9 +177,9 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
         size_t srcIdx = 0;
         VectorDims counters(srcDims.size(), 0);
         splitter(workAmountDst, nthr, ithr, start, end);
-        for (int j = srcDims.size() - 1, i = start; j >= 0; --j) {
+        for (int j = static_cast<int>(srcDims.size()) - 1, i = static_cast<int>(start); j >= 0; --j) {
             counters[j] = i % srcDims[j];
-            i /= srcDims[j];
+            i /= static_cast<int>(srcDims[j]);
         }
 
         for (size_t iwork = start; iwork < end; ++iwork) {
@@ -192,7 +192,7 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
                 srcIdx += idx * srcStrides[i];
             }
             dstData[iwork] = srcData[srcIdx];
-            for (int j = srcDims.size() - 1; j >= 0; --j) {
+            for (int j = static_cast<int>(srcDims.size()) - 1; j >= 0; --j) {
                 counters[j] = (counters[j] + 1) % srcDims[j];
                 if (counters[j] != 0) {
                     break;

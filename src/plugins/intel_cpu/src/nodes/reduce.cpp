@@ -1251,9 +1251,9 @@ private:
     const struct aux_vals_type {
         int float_one = 0x3f800000;  // 1.0f
         int float_abs = 0x7fffffff;  // mask to make positive
-        int float_min = 0xff7fffff;  // float minimum
+        int float_min = static_cast<int>(0xff7fffff);  // float minimum
         int float_max = 0x7f7fffff;  // float maximum
-        int int32_min = 0xcf000000;  // -2^31 presented in float
+        int int32_min = static_cast<int>(0xcf000000);  // -2^31 presented in float
         int int32_max = 0x4effffff;  // 2^31-1 presented in float
         int int32_one = 0x00000001;  // integer 1
     } aux_vals;
@@ -2602,7 +2602,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     size_t IK = outer_size / blk_size;
                     std::vector<int> index_buf(blk_size);
                     for (size_t i = 0; i < blk_size; i++) {
-                        index_buf[i] = i * work_amount * src_data_size;
+                        index_buf[i] = static_cast<int>(i * work_amount * src_data_size);
                     }
                     parallel_for(IK, [&](size_t ik) {
                         size_t ok = ik;
@@ -3065,7 +3065,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
                                           size_t reduce_w,
                                           size_t work_batch,
                                           const int* tab_idx) {
-    const float divisor = apply_division ? static_cast<float>(IB * IC * ID * IH * IW) / (OB * OC * OD * OH * OW) : 1;
+    const float divisor = apply_division ? static_cast<float>(IB * IC * ID * IH * IW) / static_cast<float>(OB * OC * OD * OH * OW) : 1;
     auto arg = jit_reduce_call_args();
     arg.src = static_cast<const void*>(in_p);
     arg.idx = tab_idx;
@@ -3119,7 +3119,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             (*reduce_post_kernel)(&arg);
         };
 
-        parallel_nt_static(num_threads, [&](const int ithr, const int nthr) {
+        parallel_nt_static(static_cast<int>(num_threads), [&](const int ithr, const int nthr) {
             for_1d(ithr, nthr, OP, op_loop);
         });
     } else {
@@ -3481,7 +3481,7 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
     axes_for_reduction.clear();
     for (auto& axis : reduce_axes) {
         if (axis < 0) {
-            axis += src_dims.size();
+            axis += static_cast<int>(src_dims.size());
         }
         if (static_cast<size_t>(axis) > src_dims.size()) {
             THROW_CPU_NODE_ERR("exceeds data tensor dimension on index to reduce");
@@ -3688,7 +3688,7 @@ void Reduce::reduce_ref_process(const float* in_ptr,
         size_t end = 0;
         VectorDims dst_counters(process_dst_dims.size(), 0);
         splitter(work_amount_dst, nthr, ithr, start, end);
-        for (j = process_dst_dims.size() - 1, i = start; j >= 0; j--) {
+        for (j = static_cast<int>(process_dst_dims.size()) - 1, i = start; j >= 0; j--) {
             dst_counters[j] = i % process_dst_dims[j];
             i /= process_dst_dims[j];
         }
@@ -3705,7 +3705,7 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                     update_idx = false;
                 }
                 reduce_prod = func(reduce_prod, in_ptr[src_idx]);
-                for (j = axes_for_reduction.size() - 1; j >= 0; j--) {
+                for (j = static_cast<int>(axes_for_reduction.size()) - 1; j >= 0; j--) {
                     src_counters[axes_for_reduction[j]]++;
                     if (src_counters[axes_for_reduction[j]] < src_dims[axes_for_reduction[j]]) {
                         src_idx += src_strides[axes_for_reduction[j]];
@@ -3716,7 +3716,7 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                 }
             }
             out_ptr[dst_idx] = reduce_prod;
-            for (j = process_dst_dims.size() - 1; j >= 0; j--) {
+            for (j = static_cast<int>(process_dst_dims.size()) - 1; j >= 0; j--) {
                 dst_counters[j]++;
                 if (dst_counters[j] < process_dst_dims[j]) {
                     break;
@@ -3753,7 +3753,7 @@ inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_
         break;
     case Algorithm::ReduceMean:
         parallel_for(work_amount_dst, [&](size_t i) {
-            out_ptr[i] /= reduced_dims_work_amount;
+            out_ptr[i] /= static_cast<float>(reduced_dims_work_amount);
         });
         break;
     default:

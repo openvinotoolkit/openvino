@@ -1650,7 +1650,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
                          m_key_quant_param.groupSize,
                          m_value_quant_param.groupSize);
         } else {
-            attn_memcpy(cur_k, cur_v, new_pastk.slice(2, L0, L0 + L1), new_pastv.slice(2, L0, L0 + L1));
+            attn_memcpy(cur_k, cur_v, new_pastk.slice(2, static_cast<int>(L0), static_cast<int>(L0 + L1)), new_pastv.slice(2, static_cast<int>(L0), static_cast<int>(L0 + L1)));
         }
 
         m_k_state->assign_internal_state(new_internal_mem_k);
@@ -1671,8 +1671,8 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
 
         for (size_t b = 0; b < B; b++) {
             for (size_t l = 0; l < L0 + L1; l++) {
-                new_beam_table_k.at<int32_t>({b, l}) = b;
-                new_beam_table_v.at<int32_t>({b, l}) = b;
+                new_beam_table_k.at<int32_t>({b, l}) = static_cast<int>(b);
+                new_beam_table_v.at<int32_t>({b, l}) = static_cast<int>(b);
             }
         }
 
@@ -1815,8 +1815,8 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     if (L0 == 0 || is_reset) {
         for (size_t b = 0; b < B; b++) {
             for (size_t l = 0; l < L0 + L1; l++) {
-                beam_table_k.at<int32_t>({b, l}) = b;
-                beam_table_v.at<int32_t>({b, l}) = b;
+                beam_table_k.at<int32_t>({b, l}) = static_cast<int>(b);
+                beam_table_v.at<int32_t>({b, l}) = static_cast<int>(b);
             }
         }
         return;
@@ -1853,8 +1853,8 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     // second token itself
     for (size_t i = 0; i < B; i++) {
         for (size_t j = 0; j < L1; j++) {
-            beam_table_k.at<int32_t>({i, L0 + j}) = i;
-            beam_table_v.at<int32_t>({i, L0 + j}) = i;
+            beam_table_k.at<int32_t>({i, static_cast<size_t>(L0) + j}) = static_cast<int>(i);
+            beam_table_v.at<int32_t>({i, static_cast<size_t>(L0) + j}) = static_cast<int>(i);
         }
     }
 }
@@ -2105,7 +2105,7 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
                      m_key_quant_param.groupSize,
                      m_value_quant_param.groupSize);
     } else {
-        attn_memcpy(cur_k, cur_v, past_k.slice(2, L0, L0 + L1), past_v.slice(2, L0, L0 + L1));
+        attn_memcpy(cur_k, cur_v, past_k.slice(2, static_cast<int>(L0), static_cast<int>(L0 + L1)), past_v.slice(2, static_cast<int>(L0), static_cast<int>(L0 + L1)));
     }
 }
 

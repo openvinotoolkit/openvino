@@ -142,7 +142,7 @@ void istft_impl(const float* in_data,
     const size_t batch_size = is_data_3D ? 1 : data_shape[0];
 
     const auto sqrt_frame_size = static_cast<float>(std::sqrt(frame_size));
-    const auto num_frames = static_cast<std::ptrdiff_t>(data_shape[frames_axis]);
+    const auto num_frames = static_cast<size_t>(data_shape[frames_axis]);
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
     int64_t final_signal_length = [&]() -> int64_t {
@@ -158,25 +158,25 @@ void istft_impl(const float* in_data,
 
     std::vector<float> mid_result(batch_size * signal_length, 0.F);
 
-    const auto fft_results_dim = static_cast<std::ptrdiff_t>(data_shape[data_shape.size() - 3]);
+    const auto fft_results_dim = static_cast<size_t>(data_shape[data_shape.size() - 3]);
     OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
 
     const auto frame_size_dim = static_cast<size_t>(frame_size);
     const auto fft_out_shape = ov::Shape{fft_results_dim, 2};
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
-    std::vector<float> pad_window(frame_size, 0);
-    std::copy(window, window + window_shape[0], pad_window.begin() + static_cast<std::ptrdiff_t>((frame_size_dim - window_length) / 2));
-    std::vector<float> pow_window(frame_size, 0);
+    std::vector<float> pad_window(static_cast<size_t>(frame_size), 0);
+    std::copy(window, window + window_shape[0], pad_window.begin() + static_cast<size_t>((frame_size_dim - window_length) / 2));
+    std::vector<float> pow_window(static_cast<size_t>(frame_size), 0);
     std::transform(pad_window.begin(), pad_window.end(), pow_window.begin(), [](float win_val) {
         return win_val * win_val;
     });
 
     std::vector<float> data_t(shape_size(data_shape));
-    const auto stft_transp_out_shape = ov::Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
+    const auto stft_transp_out_shape = ov::Shape{batch_size, static_cast<size_t>(num_frames), fft_out_shape[0], fft_out_shape[1]);
     transpose_out4d(reinterpret_cast<const uint8_t*>(in_data),
                     reinterpret_cast<uint8_t*>(data_t.data()),
-                    ov::Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]},
+                    ov::Shape{batch_size, fft_out_shape[0], static_cast<size_t>(num_frames), fft_out_shape[1]},
                     stft_transp_out_shape,
                     sizeof(float));
 
@@ -215,9 +215,9 @@ void istft_impl(const float* in_data,
             size_t batch_out_start = batch * signal_length;
 
             const auto in_frame_start = batch_in_start + frame_idx * fft_out_shape_size;
-            const auto out_frame_start = batch_out_start + frame_idx * frame_step;
+            const auto out_frame_start = batch_out_start + frame_idx * static_cast<size_t>(frame_step);
 
-            std::vector<float> frame_signal(frame_size);
+            std::vector<float> frame_signal(static_cast<size_t>(frame_size));
             rdft_executor->execute(data_t.data() + in_frame_start,
                                    frame_signal.data(),
                                    twiddles,
