@@ -122,16 +122,15 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
     size_t outDataShapeRank = node->getOutputShapeAtPort(0).getRank();
 
     NodeConfig config;
-    if (repeats.size() != outDataShapeRank && !repeats.empty()) {
-        OPENVINO_THROW(node->getTypeStr(),
-                       " node with name ",
-                       node->getName(),
-                       " has incorrect Repeats vector."
-                       "Repeats rank must be equal to output shape rank. Repeats rank: ",
-                       repeats.size(),
-                       ", output shape rank: ",
-                       outDataShapeRank);
-    }
+    OPENVINO_ASSERT(repeats.size() == outDataShapeRank || repeats.empty(),
+                    node->getTypeStr(),
+                    " node with name ",
+                    node->getName(),
+                    " has incorrect Repeats vector."
+                    "Repeats rank must be equal to output shape rank. Repeats rank: ",
+                    repeats.size(),
+                    ", output shape rank: ",
+                    outDataShapeRank);
 
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
