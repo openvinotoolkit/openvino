@@ -3,15 +3,23 @@
 //
 
 #include <gtest/gtest.h>
+#include <cstddef>
+#include <memory>
 #include <regex>
 
 #include "cpu_test_utils.hpp"
 
+#include "cpu_shape.h"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "utils/general_utils.h"
+#include "utils/quantization_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include "utils/transformations/insert_fake_quantize.hpp"
+#include "utils/transformations/insert_requantize.hpp"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak_util.h>
 #endif
@@ -354,17 +362,40 @@ CPUTestsBase::CPUInfo CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_for
     return cpuInfo;
 }
 
+static void quantize(const std::shared_ptr<ov::Model>& model, const QuantizationInfo& qinfo) {
+    ov::pass::Manager manager;
+
+    for (const auto& [inputId, qData] : qinfo.inputs) {
+        manager.register_pass<InsertFakeQuantize>(inputId,
+                                                  qData);
+    }
+
+    for (const auto& [outputId, qData] : qinfo.outputs) {
+        manager.register_pass<InsertRequantize>(outputId,
+                                                qData);
+    }
+
+    manager.run_passes(model);
+}
+
 std::shared_ptr<ov::Model> CPUTestsBase::makeNgraphFunction(const ov::element::Type& ngPrc,
                                                             ov::ParameterVector& params,
                                                             const std::shared_ptr<ov::Node>& lastNode,
-                                                            std::string name) {
+                                                            std::string name,
+                                                            const QuantizationInfo& qinfo) {
     auto newLastNode = modifyGraph(ngPrc, params, lastNode);
     ov::ResultVector results;
 
     for (size_t i = 0; i < newLastNode->get_output_size(); i++)
         results.push_back(std::make_shared<ov::op::v0::Result>(newLastNode->output(i)));
 
-    return std::make_shared<ov::Model>(results, params, name);
+    auto model = std::make_shared<ov::Model>(results, params, name);
+
+    if (!qinfo.empty()) {
+        quantize(model, qinfo);
+    }
+
+    return model;
 }
 
 std::shared_ptr<ov::Node> CPUTestsBase::modifyGraph(const ov::element::Type& ngPrc,
@@ -556,6 +587,41 @@ bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& format
         }
     }
     return true;
+}
+
+InputGenerateDataMap updateInputRanges(const QuantizationInfo& quantizationInfo,
+                                       size_t numParams) {
+    if (quantizationInfo.empty()) {
+        return {};  // default will be used
+    }
+
+    InputGenerateDataMap inputGenerateData;
+
+    for (const auto& [inputId, qData] : quantizationInfo.inputs) {
+        inputGenerateData[inputId] =
+            ov::test::utils::InputGenerateData{qData.il, static_cast<uint32_t>(qData.ih - qData.il), 32};
+    }
+
+    return inputGenerateData;
+}
+
+static bool areAllElementsEqual(const void* data, size_t element_size, size_t n) {
+    // empty or single element -> true; else compare block [1..n-1] to [0..n-2]
+    return n < 2 ||
+        0 == std::memcmp(static_cast<const char*>(data) + element_size, // start at element 1
+                         data,                                          // start at element 0
+                         element_size * (n - 1));                       // compare (n-1) elements
+}
+
+void checkAllElementsAreEqual(ov::InferRequest& inferRequest, size_t numOutputs) {
+    for (size_t i = 0; i < numOutputs; ++i) {
+        const auto& tensor = inferRequest.get_output_tensor(i);
+        // @todo add proper comparison for the real numbers if necessary
+        ASSERT_FALSE(areAllElementsEqual(tensor.data(), tensor.get_element_type().size(), tensor.get_size()))
+            << "All output values are the same."
+            "This may indicate that the quantization parameters are not set correctly"
+            "and accuracy cannot be properly validated";
+    }
 }
 
 }  // namespace CPUTestUtils
