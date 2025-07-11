@@ -1428,7 +1428,7 @@ void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& de
     }
 }
 
-std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
+std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_base_infer_request() const {
     // Synchronous infer request implementation may vary based on the
     // selected strategy
     auto* non_const_this = const_cast<ov::npuw::CompiledModel*>(this);  // because of const in API
@@ -1456,19 +1456,25 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infe
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
-    std::shared_ptr<ov::ISyncInferRequest> result;
+    std::shared_ptr<ov::npuw::IBaseInferRequest> result;
     if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack()) {
-        result.reset(new ov::npuw::UnfoldInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
-        result.reset(new ov::npuw::JustInferRequest(non_const_this_sptr));
+        result = std::make_shared<ov::npuw::JustInferRequest>(non_const_this_sptr);
     }
     NPUW_ASSERT(result);
     return result;
 }
 
-std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
-    auto internal_request = create_sync_infer_request();
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::CompiledModel::create_sync_infer_request() const {
+    return create_base_infer_request();
+}
+std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel ::wrap_async_infer_request(
+    std::shared_ptr<ov::npuw::IBaseInferRequest> internal_request) const {
     return std::make_shared<ov::IAsyncInferRequest>(internal_request, get_task_executor(), get_callback_executor());
+}
+std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_request() const {
+    return wrap_async_infer_request(create_base_infer_request());
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
@@ -1719,6 +1725,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::funcall_outs_reuse, NPUW_FUNCALL_OUTS_REUSE),
                           BIND(npuw::unfold_ireqs, NPUW_UNFOLD_IREQS),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC),
@@ -1726,6 +1733,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                           BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
                           BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
+
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
                           BIND(npuw::dump::full, NPUW_DUMP_FULL),
                           BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
