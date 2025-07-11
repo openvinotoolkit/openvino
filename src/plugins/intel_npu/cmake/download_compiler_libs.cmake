@@ -41,6 +41,42 @@ function(download_and_extract url dest_dir zip_file extracted_dir modify_proxy)
             file(ARCHIVE_EXTRACT INPUT "${zip_file}" DESTINATION "${extracted_dir}")
         elseif("${zip_file}" MATCHES "\\.deb$")
             execute_process(COMMAND dpkg-deb -x "${zip_file}" "${extracted_dir}")
+        elseif("${zip_file}" MATCHES "\\.exe$")
+            set(WINRAR_PATHS
+                "C:/Program Files/WinRAR"
+                "C:/Program Files (x86)/WinRAR"
+            )
+
+            set(WINRAR_FOUND FALSE)
+            set(WINRAR_EXECUTABLE "")
+
+            foreach(PATH ${WINRAR_PATHS})
+                if(EXISTS "${PATH}/WinRAR.exe")
+                    set(WINRAR_FOUND TRUE)
+                    set(WINRAR_EXECUTABLE "${PATH}/WinRAR.exe")
+                    break()
+                endif()
+            endforeach()
+
+            if(WINRAR_FOUND)
+                message(STATUS "WinRAR found at: ${WINRAR_EXECUTABLE} and extract ${zip_file} to ${extracted_dir}")
+                file(MAKE_DIRECTORY "${extracted_dir}")
+                execute_process(
+                    COMMAND "${WINRAR_EXECUTABLE}" x -y -o+ "${zip_file}" "${extracted_dir}"
+                    RESULT_VARIABLE result
+                    OUTPUT_VARIABLE output
+                    ERROR_VARIABLE error
+                )
+
+                if(result EQUAL 0)
+                    message(STATUS "Extraction successful: ${output}")
+                else()
+                    #file(REMOVE_RECURSE "${extracted_dir}")
+                    message(STATUS "Extraction failed: ${error}")
+                endif()
+            else()
+                message(FATAL_ERROR "WinRAR not found. Please install WinRAR to proceed.")
+            endif()
         else()
             message(FATAL_ERROR "Unsupported file extension for extraction: ${zip_file}")
         endif()
@@ -57,12 +93,13 @@ if(ENABLE_VCL_FOR_COMPILER)
         message(STATUS "Downloading prebuilt NPU VCL compiler libraries")
         if(WIN32)
             set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_lib/win")
-            set(VCL_COMPILER_LIBS_URL "https://downloadmirror.intel.com/854488/npu_win_32.0.100.4023.zip")
-            set(VCL_COMPILER_LIBS_ZIP "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4023.zip")
-            set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4023")
+            set(VCL_COMPILER_LIBS_URL "https://downloadmirror.intel.com/859199/npu_win_32.0.100.4082.exe")
+            set(VCL_COMPILER_LIBS_EXE "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4082.exe")
+            set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4082")
 
-            download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_ZIP}" "${VCL_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
-            set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/")
+            download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_EXE}" "${VCL_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
+            set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/NPU/")
+
             configure_file(
                 ${VCL_COMPILER_LIB_PATH}/npu_driver_compiler.dll
                 ${VCL_COMPILER_LIB_PATH}/npu_vcl_compiler.dll
@@ -83,9 +120,9 @@ if(ENABLE_VCL_FOR_COMPILER)
                     if(OS_VERSION STREQUAL "22.04")
                         # Ubuntu 22.04-specific settings or actions
                         set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_libs/ubuntu22.04")
-                        set(VCL_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.17.0/intel-driver-compiler-npu_1.17.0.20250508-14912879441_ubuntu22.04_amd64.deb")
-                        set(VCL_COMPILER_LIBS_DEB "${VCL_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.17.0.20250508-14912879441_ubuntu22.04_amd64.deb")
-                        set(VCL_COMPILER_LIBS_DIR_EXTRACTED "${VCL_COMPILER_LIBS_DIR}/prebuilt_VCL_libs_from_1.17.0.20250508-14912879441_ubuntu22.04")
+                        set(VCL_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DEB "${VCL_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DIR_EXTRACTED "${VCL_COMPILER_LIBS_DIR}/prebuilt_VCL_libs_from_1.19.0.20250707-16111289554_ubuntu22.04")
 
                         download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
 
@@ -103,9 +140,9 @@ if(ENABLE_VCL_FOR_COMPILER)
                         message(STATUS "This is Ubuntu 24.04")
                         # Ubuntu 24.04-specific settings or actions
                         set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_libs/ubuntu24.04")
-                        set(VCL_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.17.0/intel-driver-compiler-npu_1.17.0.20250508-14912879441_ubuntu24.04_amd64.deb")
-                        set(VCL_COMPILER_LIBS_DEB "${VCL_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.17.0.20250508-14912879441_ubuntu24.04_amd64.deb")
-                        set(VCL_COMPILER_LIBS_DIR_EXTRACTED "${VCL_COMPILER_LIBS_DIR}/prebuilt_VCL_libs_from_1.17.0.20250508-14912879441_ubuntu24.04")
+                        set(VCL_COMPILER_LIBS_URL "https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DEB "${VCL_COMPILER_LIBS_DIR}/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu24.04_amd64.deb")
+                        set(VCL_COMPILER_LIBS_DIR_EXTRACTED "${VCL_COMPILER_LIBS_DIR}/prebuilt_VCL_libs_from_1.19.0.20250707-16111289554_ubuntu24.04")
 
                         download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_DEB}" "${VCL_COMPILER_LIBS_DIR_EXTRACTED}" "NONE")
 
