@@ -115,12 +115,16 @@ struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
     dnnl_status_t create_kernel() override {
         return dnnl_status_t::dnnl_success;
     }
-    [[nodiscard]] const dnnl::impl::cpu::x64::jit_generator* get_jit_generator() const override {
+    [[nodiscard]] const dnnl::impl::cpu::x64::jit_generator_t* get_jit_generator() const override {
         OV_CPU_JIT_EMITTER_THROW("get_jit_generator should not be called for reference kernel");
         return nullptr;
     }
+    [[nodiscard]] const dnnl::impl::cpu::x64::brgemm_desc_t& get_brg() const override {
+        return brg;
+    }
 
 private:
+    dnnl::impl::cpu::x64::brgemm_desc_t brg;
     BrgemmKernelConfig m_config;
 };
 #endif
