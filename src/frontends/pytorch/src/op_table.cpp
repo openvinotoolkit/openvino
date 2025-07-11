@@ -19,6 +19,7 @@ namespace op {
 using namespace ov::frontend;
 
 // TorchScript translations
+OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_abs);
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_avg_pool2d);
@@ -722,6 +723,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
+        {"aten::relu6", op::translate_relu6},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::take_along_dim", op::translate_take_along_dim},
