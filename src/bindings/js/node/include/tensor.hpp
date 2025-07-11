@@ -21,6 +21,8 @@ public:
      * @param info[2] Tensor data as TypedArray
      * @throw Exception if params are of invalid type.
      */
+    void copy_to(void* destination, size_t byte_size) const;
+
     TensorWrap(const Napi::CallbackInfo& info);
 
     /**
