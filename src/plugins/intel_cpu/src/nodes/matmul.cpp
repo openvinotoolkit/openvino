@@ -201,7 +201,7 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, [[ma
                                       ops,
                                       postOpsArgs,
                                       dims,
-                                      dims.size() - 1,
+                                      static_cast<int>(dims.size()) - 1,
                                       isINT8,
                                       1 << (dims.size() - 1),
                                       getDQScales(),
@@ -346,7 +346,7 @@ void MatMul::getSupportedDescriptors() {
         THROW_CPU_NODE_ERR("has invalid dims count");
     }
 
-    const int nDims = inputShape0.getRank();
+    const auto nDims = static_cast<int>(inputShape0.getRank());
     const auto xAxis = nDims - 1;
     const auto yAxis = nDims - 2;
     const auto xAxis0 = transposeIn[0] ? yAxis : xAxis;
@@ -573,7 +573,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
 }
 
 MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    auto desc = idx > 0 ? prim_desc.weights_desc(idx - 1) : prim_desc.src_desc(idx);
+    auto desc = idx > 0 ? prim_desc.weights_desc(static_cast<int>(idx) - 1) : prim_desc.src_desc(static_cast<int>(idx));
 
     if (idx < 2) {  // inputs
         return std::make_shared<CpuBlockedMemoryDesc>(

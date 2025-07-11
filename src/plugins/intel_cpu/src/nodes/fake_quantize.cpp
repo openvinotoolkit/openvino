@@ -474,8 +474,8 @@ private:
     }
 
     void compute_planar() {
-        int src_type_size = static_cast<int>(jqp_.src_prc.size());
-        int dst_type_size = static_cast<int>(jqp_.dst_prc.size());
+        auto src_type_size = static_cast<int>(jqp_.src_prc.size());
+        auto dst_type_size = static_cast<int>(jqp_.dst_prc.size());
 
         mov(reg_from, ptr[param + GET_OFF(from)]);
         mov(reg_to, ptr[param + GET_OFF(to)]);
@@ -600,9 +600,9 @@ private:
     }
 
     void compute_generic() {
-        int src_type_size = static_cast<int>(jqp_.src_prc.size());
-        int wei_type_size = static_cast<int>(jqp_.wei_prc.size());
-        int dst_type_size = static_cast<int>(jqp_.dst_prc.size());
+        auto src_type_size = static_cast<int>(jqp_.src_prc.size());
+        auto wei_type_size = static_cast<int>(jqp_.wei_prc.size());
+        auto dst_type_size = static_cast<int>(jqp_.dst_prc.size());
 
         mov(reg_from, ptr[param + GET_OFF(from)]);
         mov(reg_to, ptr[param + GET_OFF(to)]);
@@ -1182,7 +1182,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isInputLowBroadcasted = (ov::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
         if (!isInputLowBroadcasted) {
             axis = inputLowAxis;
-            axisSize = ilShape[inputLowAxis];
+            axisSize = static_cast<int>(ilShape[inputLowAxis]);
         }
 
         const auto ihShape = getNormalizedDimsBySize(fq->get_input_shape(2), dataRank);
@@ -1190,7 +1190,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isInputHighBroadcasted = (ov::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
         if (!isInputHighBroadcasted) {
             axis = inputHighAxis;
-            axisSize = ihShape[inputHighAxis];
+            axisSize = static_cast<int>(ihShape[inputHighAxis]);
         }
 
         const auto olShape = getNormalizedDimsBySize(fq->get_input_shape(3), dataRank);
@@ -1198,7 +1198,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isOutputLowBroadcasted = (ov::is_scalar(olShape) || olShape[outputLowAxis] == 1);
         if (!isOutputLowBroadcasted) {
             axis = outputLowAxis;
-            axisSize = olShape[outputLowAxis];
+            axisSize = static_cast<int>(olShape[outputLowAxis]);
         }
 
         const auto ohShape = getNormalizedDimsBySize(fq->get_input_shape(4), dataRank);
@@ -1206,7 +1206,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isOutputHighBroadcasted = (ov::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
         if (!isOutputHighBroadcasted) {
             axis = outputHighAxis;
-            axisSize = ohShape[outputHighAxis];
+            axisSize = static_cast<int>(ohShape[outputHighAxis]);
         }
 
         auto inputLowAxisSize = ov::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
@@ -1378,8 +1378,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
                 inputScale[i] = (levels - 1.0) / (static_cast<double>(ih) - il);
                 inputShift[i] = -il * (levels - 1.0) / (static_cast<double>(ih) - il);
 #else
-                inputScale[i] = (levels - 1) / (ih - il);
-                inputShift[i] = -il * (levels - 1) / (ih - il);
+                inputScale[i] = static_cast<float>(levels - 1) / (ih - il);
+                inputShift[i] = -il * static_cast<float>(levels - 1) / (ih - il);
 #endif
             }
 
@@ -1395,7 +1395,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 #ifdef FQ_DOUBLE_PRECISION
                 outputScale[i] = (static_cast<double>(oh) - ol) / (levels - 1.0);
 #else
-                outputScale[i] = (oh - ol) / (levels - 1);
+                outputScale[i] = (oh - ol) / static_cast<float>(levels - 1);
 #endif
 
                 if (outputScale[i] != 1.F) {
@@ -1618,18 +1618,18 @@ void FakeQuantize::prepareParams() {
             if (isInputLowBroadcasted && axisSize != currentAxisSize) {
                 binarizationThresholds.resize(newPaddedSize);
                 std::fill(binarizationThresholds.begin() + 1,
-                          binarizationThresholds.begin() + axisSize,
+                          binarizationThresholds.begin() + static_cast<std::ptrdiff_t>(axisSize),
                           binarizationThresholds[0]);
-                std::fill(binarizationThresholds.begin() + axisSize, binarizationThresholds.end(), 0.F);
+                std::fill(binarizationThresholds.begin() + static_cast<std::ptrdiff_t>(axisSize), binarizationThresholds.end(), 0.F);
                 needUpdThr = true;
             }
 
             if (isOutputHighBroadcasted && axisSize != currentAxisSize) {
                 binarizationOutputMask.resize(newPaddedSize);
                 std::fill(binarizationOutputMask.begin() + 1,
-                          binarizationOutputMask.begin() + axisSize,
+                          binarizationOutputMask.begin() + static_cast<std::ptrdiff_t>(axisSize),
                           binarizationOutputMask[0]);
-                std::fill(binarizationOutputMask.begin() + axisSize, binarizationOutputMask.end(), 0);
+                std::fill(binarizationOutputMask.begin() + static_cast<std::ptrdiff_t>(axisSize), binarizationOutputMask.end(), 0);
                 needUpdMask = true;
             }
 
@@ -1976,8 +1976,8 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
             auto arg = jit_quantize_call_args();
 
             const int c = static_cast<int>(cb * blk_size);
-            const int h = static_cast<int>(b * batch_size / W);
-            const int w = static_cast<int>(b * batch_size % W);
+            const auto h = static_cast<int>(b * batch_size / W);
+            const auto w = static_cast<int>(b * batch_size % W);
 
             const size_t data_off = srcDims.size() == 3 || srcDims.size() == 4
                                         ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w
@@ -2010,7 +2010,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd_legacy(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
             auto arg = jit_quantize_call_args();
 
-            int c = static_cast<int>(cb * blk_size);
+            auto c = static_cast<int>(cb * blk_size);
 
             size_t data_off = 0;
             if (srcDims.size() == 2) {

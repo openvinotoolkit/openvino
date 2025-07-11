@@ -130,7 +130,7 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
         spatialBinsX = static_cast<size_t>(defPsroi->get_spatial_bins_x());
         spatialBinsY = static_cast<size_t>(defPsroi->get_spatial_bins_y());
         transStd = defPsroi->get_trans_std();
-        partSize = static_cast<size_t>(defPsroi->get_part_size());
+        partSize = static_cast<int>(defPsroi->get_part_size());
         // temporary workaround due to incorrect usage of group_size in the nGraph operation for the
         // DeformablePSROIPooling
         pooledHeight = groupSize;

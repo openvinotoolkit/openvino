@@ -45,7 +45,7 @@ public:
     }
 
     [[nodiscard]] int getFusingAxis() const override {
-        return getOutputShapeAtPort(0).getRank() - 1;
+        return static_cast<int>(getOutputShapeAtPort(0).getRank()) - 1;
     }
 
     void prepareParams() override;

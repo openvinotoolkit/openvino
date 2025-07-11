@@ -190,7 +190,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     }
 
     MemoryCPtr scalesPtr = memory.count(ARG_WEI | ARG_ATTR_SCALES) ? memory.at(ARG_WEI | ARG_ATTR_SCALES) : nullptr;
-    int ic = static_cast<int>(weightsDesc->getShape().getStaticDims()[1]);
+    auto ic = static_cast<int>(weightsDesc->getShape().getStaticDims()[1]);
 
     if (ic < static_cast<int>(simdWidth)) {
         return false;
@@ -207,7 +207,7 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
 
     if (zpPtr && zpPtr->getShape().getRank() != 1) {
         auto zpDims = zpPtr->getShape().getStaticDims();
-        int groupsNum = static_cast<int>(zpDims[1]);
+        auto groupsNum = static_cast<int>(zpDims[1]);
         size_t groupSize = ic / groupsNum;
         if (groupsNum != 1 && groupSize % dqGroupSize) {
             return false;

@@ -98,11 +98,11 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
     clipAfterNMS = attributes.clip_after_nms;
     decreaseClassId = attributes.decrease_label_id;
     normalized = attributes.normalized;
-    imgHeight = attributes.input_height;
-    imgWidth = attributes.input_width;
+    imgHeight = static_cast<int>(attributes.input_height);
+    imgWidth = static_cast<int>(attributes.input_width);
     priorSize = normalized ? 4 : 5;
     coordOffset = normalized ? 0 : 1;
-    cacheSizeL3 = utils::get_cache_size(3, true);
+    cacheSizeL3 = static_cast<int>(utils::get_cache_size(3, true));
 
     withAddBoxPred = getOriginalInputsNumber() == 5;
     objScore = attributes.objectness_score;
@@ -463,7 +463,7 @@ inline void DetectionOutput::confFilterCF(const float* pconf,
     int count = 0;
     for (int i = 0; i < numPriorsActual[n]; ++i) {
         if (pconf[i] > confidenceThreshold) {
-            pindices[count] = static_cast<int>(i);
+            pindices[count] = i;
             count++;
         }
     }
@@ -507,7 +507,7 @@ inline void DetectionOutput::confFilterMX(const float* confData,
             if (maxCIdx > 0) {
                 // include this prior
                 mtx.lock();
-                indicesData[detectionsData[0]] = maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
+                indicesData[detectionsData[0]] = maxCIdx * priorsNum + static_cast<int>(p);  // de-refer to get prior and class id.
                 detectionsData[0]++;
                 mtx.unlock();
             }
@@ -524,7 +524,7 @@ inline void DetectionOutput::confFilterMX(const float* confData,
             if (maxCIdx > 0) {
                 // include this prior and class with max conf
                 mtx.lock();
-                indicesData[detectionsData[0]] = maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
+                indicesData[detectionsData[0]] = maxCIdx * priorsNum + static_cast<int>(p);  // de-refer to get prior and class id.
                 detectionsData[0]++;
                 mtx.unlock();
             }
@@ -578,7 +578,7 @@ inline void DetectionOutput::confReorderDense(const float* confData,
     }
     // withAddBoxPred is false
     parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
-        const int offset = n * priorsNum * classesNum;
+        const int offset = static_cast<int>(n) * priorsNum * classesNum;
         for (int p = 0; p < priorsNum; ++p) {
             reorderedConfData[offset + c * priorsNum + p] = confData[offset + p * classesNum + c];
         }
@@ -599,7 +599,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
         const int offH = n * confInfoLen * classesNum;  // horizontal info
         // reset count
         parallel_for(classesNum, [&](size_t c) {
-            const int countIdx = offH + c * confInfoLen + priorsNum;
+            const int countIdx = offH + static_cast<int>(c) * confInfoLen + priorsNum;
             reorderedConfDataIndices[countIdx] = 0;
         });
 
@@ -612,7 +612,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 if (isShareLoc) {
                     confInfoForPrior[offV + p] = -1;
                 }
-                int confIdxPrior = off + p * classesNum;
+                int confIdxPrior = off + static_cast<int>(p) * classesNum;
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (isARMPrior) {
@@ -623,7 +623,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                         reorderedConfData[idx + p] = conf;
                         mtx.lock();
                         reorderedConfDataIndices[idx + priorsNum]++;
-                        reorderedConfDataIndices[idx + priorsNum + reorderedConfDataIndices[idx + priorsNum]] = p;
+                        reorderedConfDataIndices[idx + priorsNum + reorderedConfDataIndices[idx + priorsNum]] = static_cast<int>(p);
                         mtx.unlock();
 
                         // vertical info for isShareLoc(flag to decode for each prior)
@@ -637,7 +637,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 if (isShareLoc) {
                     confInfoForPrior[offV + p] = -1;
                 }
-                int confIdxPrior = off + p * classesNum;
+                int confIdxPrior = off + static_cast<int>(p) * classesNum;
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (conf > confidenceThreshold) {
@@ -645,7 +645,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                         reorderedConfData[idx + p] = conf;
                         mtx.lock();
                         reorderedConfDataIndices[idx + priorsNum]++;
-                        reorderedConfDataIndices[idx + priorsNum + reorderedConfDataIndices[idx + priorsNum]] = p;
+                        reorderedConfDataIndices[idx + priorsNum + reorderedConfDataIndices[idx + priorsNum]] = static_cast<int>(p);
                         mtx.unlock();
 
                         if (!priorStatusSet && isShareLoc) {
@@ -662,7 +662,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
             if (c == static_cast<size_t>(backgroundClassId)) {  // Ignore background class
                 return;
             }
-            const int countIdx = offH + c * confInfoLen + priorsNum;
+            const int countIdx = offH + static_cast<int>(c) * confInfoLen + priorsNum;
             const int count = reorderedConfDataIndices[countIdx];
             const int k = (topK == -1 ? count : (std::min)(topK, count));
 
@@ -698,7 +698,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
             }
             float maxConf = -1;
             int maxCIdx = 0;
-            int confIdxPrior = off + p * classesNum;
+            int confIdxPrior = off + static_cast<int>(p) * classesNum;
             for (int c = 0; c < classesNum; ++c) {
                 float conf = confData[confIdxPrior + c];
                 if (withAddBoxPred && isARMPrior) {
@@ -725,7 +725,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
             if (maxCIdx > 0) {
                 mtx.lock();
                 indicesData[off + detectionsData[n * classesNum]] =
-                    maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
+                    maxCIdx * priorsNum + static_cast<int>(p);  // de-refer to get prior and class id.
                 detectionsData[n * classesNum]++;
                 mtx.unlock();
             }
@@ -784,10 +784,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         float locYMax = locData[4 * p * locNumForClasses + 3];
 
         if (!normalized) {
-            priorXMin /= imgWidth;
-            priorYMin /= imgHeight;
-            priorXMax /= imgWidth;
-            priorYMax /= imgHeight;
+            priorXMin /= static_cast<float>(imgWidth);
+            priorYMin /= static_cast<float>(imgHeight);
+            priorXMax /= static_cast<float>(imgWidth);
+            priorYMax /= static_cast<float>(imgHeight);
         }
 
         if (codeType == CodeType::CORNER) {
@@ -956,19 +956,19 @@ inline void DetectionOutput::generateOutput(const float* reorderedConfData,
                                             const float* decodedBboxesData,
                                             float* dstData) {
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
-    const int numResults = static_cast<int>(outDims[2]);
-    const int DETECTION_SIZE = static_cast<int>(outDims[3]);
+    const auto numResults = static_cast<int>(outDims[2]);
+    const auto DETECTION_SIZE = static_cast<int>(outDims[3]);
     if (DETECTION_SIZE != 7) {
         THROW_CPU_NODE_ERR("has unsupported output layout.");
     }
 
     int dstDataSize = 0;
     if (keepTopK > 0) {
-        dstDataSize = imgNum * keepTopK * DETECTION_SIZE * sizeof(float);
+        dstDataSize = static_cast<int>(imgNum * keepTopK * DETECTION_SIZE * sizeof(float));
     } else if (topK > 0) {
-        dstDataSize = imgNum * topK * classesNum * DETECTION_SIZE * sizeof(float);
+        dstDataSize = static_cast<int>(imgNum * topK * classesNum * DETECTION_SIZE * sizeof(float));
     } else {
-        dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
+        dstDataSize = static_cast<int>(imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float));
     }
 
     if (static_cast<size_t>(dstDataSize) > getChildEdgeAt(0)->getMemory().getSize()) {

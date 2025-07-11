@@ -540,7 +540,7 @@ private:
             }
         };
         auto store_tails = [&](size_t step) {
-            int vmm_id = get_tile_vr_id(step);
+            int vmm_id = get_tile_vr_id(static_cast<int>(step));
             if (jcp_.normalize_variance) {
                 uni_vmovups(ptr[reg_variance], Vmm(ur_base + 4 + vmm_id));
                 add(reg_variance, step * sizeof(float));
@@ -1918,7 +1918,7 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             // 5D: axes: [1,2,3,4], [2,3,4]
             auto axesVal = axesOp->cast_vector<int>();
             for (int& axe : axesVal) {
-                axe = axe < 0 ? axe + inDataRank : axe;
+                axe = axe < 0 ? axe + static_cast<int>(inDataRank) : axe;
             }
             std::sort(axesVal.begin(), axesVal.end());
             if (inDataRank == 1) {
@@ -1932,8 +1932,8 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                     errorMessage = "Unsupported axes.";
                     return false;
                 }
-                int value = inDataRank - 1;
-                for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                int value = static_cast<int>(inDataRank) - 1;
+                for (int i = static_cast<int>(axesVal.size()) - 1; i >= 0; i--, value--) {
                     if (axesVal[i] != value) {
                         errorMessage = "Unsupported axes.";
                         return false;
@@ -1973,7 +1973,7 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         }
     } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
-        mvnAttrs.epsValue_ = mvnOp->get_eps();
+        mvnAttrs.epsValue_ = static_cast<float>(mvnOp->get_eps());
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
@@ -2141,8 +2141,8 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, [[maybe_unused]] c
     auto jcp = jit_mvn_config_params();
     jcp.src_prc = mvnAttrs.src_prc;
     jcp.dst_prc = mvnAttrs.dst_prc;
-    jcp.src_data_size = src_data_size;
-    jcp.dst_data_size = dst_data_size;
+    jcp.src_data_size = static_cast<int>(src_data_size);
+    jcp.dst_data_size = static_cast<int>(dst_data_size);
     jcp.layout = mvnAttrs.layout;
     jcp.normalize_variance = mvnAttrs.normalizeVariance_;
     jcp.across_channels = mvnAttrs.execAcrossChannels_;
@@ -2651,7 +2651,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
 
         // kernel_type: 0 for mean, 1 for variance, 2 for normalization
         auto worker = [&](const bool across_channel, const int kernel_type) {
-            parallel_nt(threads_num, [&](const int ithr, const int nthr) {
+            parallel_nt(static_cast<int>(threads_num), [&](const int ithr, const int nthr) {
                 size_t start = 0;
                 size_t end = 0;
                 splitter(D * H * W, nthr, ithr, start, end);
@@ -2743,7 +2743,7 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
         }
     };
 
-    parallel_nt_static(threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt_static(static_cast<int>(threads_num), [&](const int ithr, const int nthr) {
         for_1d(ithr, nthr, N, b_loop);
     });
 }
@@ -2914,7 +2914,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                 }
             };
 
-            parallel_nt_static(threads_num, [&](const int ithr, const int nthr) {
+            parallel_nt_static(static_cast<int>(threads_num), [&](const int ithr, const int nthr) {
                 for_2d(ithr, nthr, D, H, dh_loop);
             });
 
@@ -2950,7 +2950,7 @@ void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,
                     }
                 };
 
-                parallel_nt_static(threads_num, [&](const int ithr, const int nthr) {
+                parallel_nt_static(static_cast<int>(threads_num), [&](const int ithr, const int nthr) {
                     for_2d(ithr, nthr, D, H, dh_loop);
                 });
 
@@ -3014,7 +3014,7 @@ bool MVN::canFuse(const NodePtr& node) const {
     }
     // limit post ops to unary when shape transformed on channel
     // 1D only fused with unary
-    int inputRank = getInputShapeAtPort(0).getRank();
+    auto inputRank = static_cast<int>(getInputShapeAtPort(0).getRank());
     bool unaryEltwise = isUnaryEltwise(node);
     if ((inputRank == 1 && !unaryEltwise) || (inputRank == 2 && !unaryEltwise && mvnAttrs.initAcrossChannels_)) {
         return false;

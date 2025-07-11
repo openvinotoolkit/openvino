@@ -228,7 +228,7 @@ void MultiClassNms::prepareParams() {
         return m_numClasses - 1;
     }();
     if (m_nmsTopK) {
-        max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes : std::min(m_nmsTopK, static_cast<int>(m_numBoxes));
+        max_output_boxes_per_class = (m_nmsTopK == -1) ? static_cast<int>(m_numBoxes) : std::min(m_nmsTopK, static_cast<int>(m_numBoxes));
         m_filtBoxes.resize(max_output_boxes_per_class * m_numBatches * m_numClasses);
     }
     m_nmsRealTopk = max_output_boxes_per_class;
@@ -316,7 +316,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     // sort element before go through keep_top_k
     parallel_sort(
         m_filtBoxes.begin(),
-        m_filtBoxes.begin() + startOffset,
+        m_filtBoxes.begin() + static_cast<std::ptrdiff_t>(startOffset),
         [](const filteredBoxes& l, const filteredBoxes& r) {
             return ((l.batch_index < r.batch_index) ||
                     ((l.batch_index == r.batch_index) &&
@@ -359,7 +359,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         if (m_sortResultType == MulticlassNmsSortResultType::SCORE) {
             parallel_sort(
                 m_filtBoxes.begin(),
-                m_filtBoxes.begin() + startOffset,
+                m_filtBoxes.begin() + static_cast<std::ptrdiff_t>(startOffset),
                 [](const filteredBoxes& l, const filteredBoxes& r) {
                     return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
                            (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
@@ -369,7 +369,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         } else if (m_sortResultType == MulticlassNmsSortResultType::CLASSID) {
             parallel_sort(
                 m_filtBoxes.begin(),
-                m_filtBoxes.begin() + startOffset,
+                m_filtBoxes.begin() + static_cast<std::ptrdiff_t>(startOffset),
                 [](const filteredBoxes& l, const filteredBoxes& r) {
                     return (l.class_index < r.class_index) ||
                            (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
@@ -381,7 +381,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (m_sortResultType == MulticlassNmsSortResultType::CLASSID) {
         parallel_sort(
             m_filtBoxes.begin(),
-            m_filtBoxes.begin() + startOffset,
+            m_filtBoxes.begin() + static_cast<std::ptrdiff_t>(startOffset),
             [](const filteredBoxes& l, const filteredBoxes& r) {
                 return ((l.batch_index < r.batch_index) ||
                         ((l.batch_index == r.batch_index) &&
@@ -426,12 +426,12 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             const auto& box_info = m_filtBoxes[original_index];
 
             auto* selected_base = selected_outputs + (output_offset + j) * 6;
-            selected_base[0] = box_info.class_index;
+            selected_base[0] = static_cast<float>(box_info.class_index);
             selected_base[1] = box_info.score;
 
             auto& selected_index = selected_indices[j + output_offset];
             if (shared) {
-                selected_index = _flattened_index(box_info.batch_index, box_info.box_index, m_numBoxes);
+                selected_index = _flattened_index(box_info.batch_index, box_info.box_index, static_cast<int>(m_numBoxes));
                 selected_base[2] = boxes[selected_index * 4];
                 selected_base[3] = boxes[selected_index * 4 + 1];
                 selected_base[4] = boxes[selected_index * 4 + 2];
@@ -442,8 +442,8 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
                     offset += roisnum[i];
                 }
                 // selected index from (M, C, 4)
-                selected_index = _flattened_index((offset + box_info.box_index), box_info.class_index, m_numClasses);
-                int idx = box_info.class_index * boxesStrides[0] + offset * boxesStrides[1];
+                selected_index = _flattened_index(static_cast<int>(offset + box_info.box_index), box_info.class_index, static_cast<int>(m_numClasses));
+                auto idx = static_cast<int>(box_info.class_index) * boxesStrides[0] + static_cast<int>(offset) * boxesStrides[1];
                 const float* curboxes = boxes + idx;  // a slice of boxes of current class current image
                 selected_base[2] = curboxes[4 * box_info.box_index];
                 selected_base[3] = curboxes[4 * box_info.box_index + 1];
@@ -457,11 +457,11 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
                         (selectedBoxesNum_perBatch - real_boxes) * 6,
                         -1.F);
             std::fill_n(selected_indices + (output_offset + real_boxes), selectedBoxesNum_perBatch - real_boxes, -1);
-            output_offset += selectedBoxesNum_perBatch;
-            original_offset += real_boxes;
+            output_offset += static_cast<int64_t>(selectedBoxesNum_perBatch);
+            original_offset += static_cast<int64_t>(real_boxes);
         } else {
-            output_offset += real_boxes;
-            original_offset += real_boxes;
+            output_offset += static_cast<int64_t>(real_boxes);
+            original_offset += static_cast<int64_t>(real_boxes);
         }
     }
 }
@@ -518,7 +518,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                 slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
-            int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
+            int cur_numBoxes = shared ? static_cast<int>(m_numBoxes) : static_cast<int>(roisnum[batch_idx]);
             for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold) {  // algin with ref
                     sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
@@ -528,7 +528,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
             if (!sorted_boxes.empty()) {
                 auto adaptive_threshold = m_iouThreshold;
                 int max_out_box =
-                    (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
+                    (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? static_cast<int>(sorted_boxes.size()) : m_nmsRealTopk;
                 while (max_out_box && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
                     float origScore = currBox.score;
@@ -550,7 +550,7 @@ void MultiClassNms::nmsWithEta(const float* boxes,
                         }
                     }
 
-                    currBox.suppress_begin_index = fb.size();
+                    currBox.suppress_begin_index = static_cast<int>(fb.size());
                     if (box_is_selected) {
                         if (m_nmsEta < 1 && adaptive_threshold > 0.5) {
                             adaptive_threshold *= m_nmsEta;
@@ -632,7 +632,7 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                 slice_class(batch_idx, class_idx, scores, scoresStrides, false, roisnum, roisnumStrides, shared);
 
             std::vector<std::pair<float, int>> sorted_boxes;
-            int cur_numBoxes = shared ? m_numBoxes : roisnum[batch_idx];
+            int cur_numBoxes = shared ? static_cast<int>(m_numBoxes) : static_cast<int>(roisnum[batch_idx]);
             for (int box_idx = 0; box_idx < cur_numBoxes; box_idx++) {
                 if (scoresPtr[box_idx] >= m_scoreThreshold) {  // align with ref
                     sorted_boxes.emplace_back(scoresPtr[box_idx], box_idx);
@@ -646,12 +646,12 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
                               [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                                   return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                               });
-                int offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
+                auto offset = static_cast<int>(batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk);
                 m_filtBoxes[offset + 0] =
                     filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
                 io_selection_size++;
                 int max_out_box =
-                    (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
+                    (static_cast<size_t>(m_nmsRealTopk) > sorted_boxes.size()) ? static_cast<int>(sorted_boxes.size()) : m_nmsRealTopk;
                 for (int box_idx = 1; box_idx < max_out_box; box_idx++) {
                     bool box_is_selected = true;
                     for (int idx = io_selection_size - 1; idx >= 0; idx--) {

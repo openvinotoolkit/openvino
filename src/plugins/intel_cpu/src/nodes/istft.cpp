@@ -142,7 +142,7 @@ void istft_impl(const float* in_data,
     const size_t batch_size = is_data_3D ? 1 : data_shape[0];
 
     const auto sqrt_frame_size = static_cast<float>(std::sqrt(frame_size));
-    const auto num_frames = data_shape[frames_axis];
+    const auto num_frames = static_cast<std::ptrdiff_t>(data_shape[frames_axis]);
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
     int64_t final_signal_length = [&]() -> int64_t {
@@ -150,15 +150,15 @@ void istft_impl(const float* in_data,
             return length;
         }
         if (center) {
-            return signal_length - (frame_size & ~1);
+            return static_cast<int64_t>(signal_length) - (frame_size & ~1);
         }
-        return signal_length;
+        return static_cast<int64_t>(signal_length);
     }();
     std::fill(final_result, final_result + batch_size * final_signal_length, 0.F);
 
     std::vector<float> mid_result(batch_size * signal_length, 0.F);
 
-    const auto fft_results_dim = data_shape[data_shape.size() - 3];
+    const auto fft_results_dim = static_cast<std::ptrdiff_t>(data_shape[data_shape.size() - 3]);
     OPENVINO_ASSERT(fft_results_dim == static_cast<size_t>((frame_size / 2) + 1));
 
     const auto frame_size_dim = static_cast<size_t>(frame_size);
@@ -166,7 +166,7 @@ void istft_impl(const float* in_data,
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
     std::vector<float> pad_window(frame_size, 0);
-    std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
+    std::copy(window, window + window_shape[0], pad_window.begin() + static_cast<std::ptrdiff_t>((frame_size_dim - window_length) / 2));
     std::vector<float> pow_window(frame_size, 0);
     std::transform(pad_window.begin(), pad_window.end(), pow_window.begin(), [](float win_val) {
         return win_val * win_val;
@@ -203,7 +203,7 @@ void istft_impl(const float* in_data,
     const auto fft_out_shape_size = shape_size(fft_out_shape);
     const auto in_batch_single_step = num_frames * fft_out_shape_size;
     const int64_t margin = center ? (frame_size / 2) : 0;
-    const int64_t data_end = signal_length - margin;
+    const int64_t data_end = static_cast<int64_t>(signal_length) - margin;
     const int64_t copy_end = final_signal_length < data_end ? final_signal_length : data_end;
 
     std::vector<float> window_sum(batch_size * signal_length);
@@ -240,7 +240,7 @@ void istft_impl(const float* in_data,
         float* result = mid_result.data() + (batch * signal_length);
         std::transform(result,
                        result + signal_length,
-                       window_sum.begin() + batch * signal_length,
+                       window_sum.begin() + static_cast<std::ptrdiff_t>(batch * signal_length),
                        result,
                        postprocess_func);
         auto* const result_start = result + margin;

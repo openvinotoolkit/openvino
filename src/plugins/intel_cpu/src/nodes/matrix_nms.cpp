@@ -108,7 +108,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     m_normalized = attrs.normalized;
     if (m_decayFunction == MatrixNmsDecayFunction::LINEAR) {
         m_decay_fn = [](float iou, float max_iou, [[maybe_unused]] float sigma) -> float {
-            return (1. - iou) / (1. - max_iou + 1e-10F);
+            return static_cast<float>((1. - iou) / (1. - max_iou + 1e-10F));
         };
     } else {
         m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
@@ -246,7 +246,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
         filterBoxes[0].box.y1 = box[1];
         filterBoxes[0].box.x2 = box[2];
         filterBoxes[0].box.y2 = box[3];
-        filterBoxes[0].index = batchIdx * m_numBoxes + box_index;
+        filterBoxes[0].index = static_cast<int64_t>(batchIdx) * static_cast<int64_t>(m_numBoxes) + box_index;
         filterBoxes[0].score = scoresData[candidateIndex[0]];
         filterBoxes[0].batchIndex = batchIdx;
         filterBoxes[0].classIndex = classIdx;
@@ -271,7 +271,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
         filterBoxes[numDet].box.y1 = box[1];
         filterBoxes[numDet].box.x2 = box[2];
         filterBoxes[numDet].box.y2 = box[3];
-        filterBoxes[numDet].index = batchIdx * m_numBoxes + boxIndex;
+        filterBoxes[numDet].index = static_cast<int64_t>(batchIdx) * static_cast<int64_t>(m_numBoxes) + boxIndex;
         filterBoxes[numDet].score = ds;
         filterBoxes[numDet].batchIndex = batchIdx;
         filterBoxes[numDet].classIndex = classIdx;
@@ -300,9 +300,9 @@ void MatrixNms::prepareParams() {
         return m_numClasses - 1;
     }();
     if (m_nmsTopk >= 0) {
-        max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
+        max_output_boxes_per_class = static_cast<int64_t>(std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk)));
     } else {
-        max_output_boxes_per_class = m_numBoxes;
+        max_output_boxes_per_class = static_cast<int64_t>(m_numBoxes);
     }
 
     m_maxBoxesPerBatch = max_output_boxes_per_class * real_num_classes;
@@ -324,7 +324,7 @@ void MatrixNms::prepareParams() {
         if (i == static_cast<size_t>(m_backgroundClass)) {
             continue;
         }
-        m_classOffset[i] = (count++) * m_realNumBoxes;
+        m_classOffset[i] = static_cast<int>(count++) * static_cast<int>(m_realNumBoxes);
     }
 }
 
@@ -360,9 +360,9 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         classNumDet = nmsMatrix(boxesPtr,
                                 scoresPtr,
                                 m_filteredBoxes.data() + batchOffset + m_classOffset[classIdx],
-                                batchIdx,
-                                classIdx);
-        m_numPerBatchClass[batchIdx][classIdx] = classNumDet;
+                                static_cast<int64_t>(batchIdx),
+                                static_cast<int64_t>(classIdx));
+        m_numPerBatchClass[batchIdx][classIdx] = static_cast<int64_t>(classNumDet);
     });
 
     ov::parallel_for(m_numBatches, [&](size_t batchIdx) {
@@ -457,7 +457,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
             auto* selectedBase = selectedOutputs + (outputOffset + j) * 6;
-            selectedBase[0] = m_filteredBoxes[originalIndex].classIndex;
+            selectedBase[0] = static_cast<float>(m_filteredBoxes[originalIndex].classIndex);
             selectedBase[1] = m_filteredBoxes[originalIndex].score;
             selectedBase[2] = m_filteredBoxes[originalIndex].box.x1;
             selectedBase[3] = m_filteredBoxes[originalIndex].box.y1;
@@ -468,7 +468,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
         if (m_outStaticShape) {
             std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.F);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
-            outputOffset += m_maxBoxesPerBatch;
+            outputOffset += static_cast<int64_t>(m_maxBoxesPerBatch);
             originalOffset += real_boxes;
         } else {
             outputOffset += real_boxes;

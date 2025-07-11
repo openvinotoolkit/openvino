@@ -203,12 +203,12 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
             if (reverse) {
                 if (exclusive) {
                     outputStart[offset * (shape[axis] - 1)] = 0;
-                    for (int64_t i = shape[axis] - 2; i >= 0; i--) {
+                    for (int64_t i = static_cast<int64_t>(shape[axis]) - 2; i >= 0; i--) {
                         outputStart[i * offset] = inputStart[(i + 1) * offset] + outputStart[(i + 1) * offset];
                     }
                 } else {
                     outputStart[offset * (shape[axis] - 1)] = inputStart[offset * (shape[axis] - 1)];
-                    for (int64_t i = shape[axis] - 2; i >= 0; i--) {
+                    for (int64_t i = static_cast<int64_t>(shape[axis]) - 2; i >= 0; i--) {
                         outputStart[i * offset] = inputStart[i * offset] + outputStart[(i + 1) * offset];
                     }
                 }

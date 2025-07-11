@@ -802,7 +802,7 @@ void Convolution::addFusedNode(const NodePtr& fusingNode) {
             auto dst = static_cast<int>(fusingNode->getOutputShapeAtPort(0).getStaticDims()[2 + j]);
 
             krn = (krn - 1) * static_cast<int>(m_attrs.dilation[j] + 1) + 1;
-            auto calc_dst = static_cast<int>((src - krn + static_cast<int>(m_attrs.paddingL[j])) / static_cast<int>(m_attrs.stride[j]) + 1);
+            auto calc_dst = (src - krn + static_cast<int>(m_attrs.paddingL[j])) / static_cast<int>(m_attrs.stride[j]) + 1;
             m_attrs.paddingR[j] = static_cast<ptrdiff_t>(dst - calc_dst) * static_cast<ptrdiff_t>(m_attrs.stride[j]);
         }
     }

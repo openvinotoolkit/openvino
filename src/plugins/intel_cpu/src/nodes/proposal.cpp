@@ -42,8 +42,8 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
 
     // base box's width & height & center location
     const auto base_area = static_cast<float>(base_size * base_size);
-    const float half_base_size = base_size * 0.5F;
-    const float center = 0.5F * (base_size - coordinates_offset);
+    const float half_base_size = static_cast<float>(base_size) * 0.5F;
+    const float center = 0.5F * (static_cast<float>(base_size) - coordinates_offset);
 
     // enumerate all transformed boxes
     for (size_t ratio = 0; ratio < num_ratios; ++ratio) {
@@ -118,8 +118,8 @@ Proposal::Proposal(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     conf.feat_stride_ = proposalAttrs.feat_stride;
     conf.base_size_ = proposalAttrs.base_size;
     conf.min_size_ = proposalAttrs.min_size;
-    conf.pre_nms_topn_ = proposalAttrs.pre_nms_topn;
-    conf.post_nms_topn_ = proposalAttrs.post_nms_topn;
+    conf.pre_nms_topn_ = static_cast<int>(proposalAttrs.pre_nms_topn);
+    conf.post_nms_topn_ = static_cast<int>(proposalAttrs.post_nms_topn);
     conf.nms_thresh_ = proposalAttrs.nms_thresh;
     conf.box_coordinate_scale_ = proposalAttrs.box_coordinate_scale;
     conf.box_size_scale_ = proposalAttrs.box_size_scale;
