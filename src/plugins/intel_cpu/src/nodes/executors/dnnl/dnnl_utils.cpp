@@ -41,6 +41,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                 context->getRuntimeCache(),
                                 context->getWeightsCache(),
                                 privateWeightCache,
+                                context->getThreadPool(),
                                 needShiftSignedToUnsigned);
 }
 
@@ -51,6 +52,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                                const MultiCachePtr& rtCache,
                                const WeightsSharing::Ptr& globalWeightCache,
                                const std::shared_ptr<std::unordered_map<std::string, MemoryPtr>>& privateWeightCache,
+                               const std::shared_ptr<ThreadPool>& threadPool,
                                bool needShiftSignedToUnsigned) {
     const auto format = dstWeightDesc->serializeFormat();
     if (privateWeightCache) {
@@ -71,7 +73,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
             // prevent reorderData from doing conversion
             Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
             MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-            node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+            node::Reorder::reorderData(srcMemory, *_ptr, rtCache, threadPool);
 
             // do shift
             auto count = _ptr->getSize() / _ptr->getDesc().getPrecision().size();
@@ -95,7 +97,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
 
         Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+        node::Reorder::reorderData(srcMemory, *_ptr, rtCache, threadPool);
 
         return _ptr;
     };

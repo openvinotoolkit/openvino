@@ -196,6 +196,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
+        } else if (key == ov::intel_cpu::tbb_partitioner.name()) {
+            try {
+                tbbPartitioner = val.as<ov::intel_cpu::TbbPartitioner>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::intel_cpu::tbb_partitioner.name(),
+                               ". Expected only ov::intel_cpu::TbbPartitioner::STATIC/AUTO");
+            }
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
                 fcDynamicQuantizationGroupSizeSetExplicitly = true;

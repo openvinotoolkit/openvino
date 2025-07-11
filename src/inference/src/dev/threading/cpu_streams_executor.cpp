@@ -26,7 +26,7 @@ namespace ov {
 namespace threading {
 struct CPUStreamsExecutor::Impl {
     struct Stream {
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         struct Observer : public custom::task_scheduler_observer {
             CpuSet _mask;
             int _ncpus = 0;
@@ -49,6 +49,23 @@ struct CPUStreamsExecutor::Impl {
             }
             ~Observer() override = default;
         };
+        struct ProcObserver : public custom::task_scheduler_observer {
+            CpuSet _set_mask;
+            CpuSet _mask;
+            int _ncpus = 0;
+            ProcObserver(custom::task_arena& arena, CpuSet set_mask, CpuSet mask, int ncpus)
+                : custom::task_scheduler_observer(arena),
+                  _set_mask{std::move(set_mask)},
+                  _mask{std::move(mask)},
+                  _ncpus(ncpus) {}
+            void on_scheduler_entry(bool) override {
+                pin_current_thread_by_mask(_ncpus, _set_mask);
+            }
+            void on_scheduler_exit(bool) override {
+                pin_current_thread_by_mask(_ncpus, _mask);
+            }
+            ~ProcObserver() override = default;
+        };
 #endif
         explicit Stream(Impl* impl) : _impl(impl) {
             {
@@ -66,7 +83,7 @@ struct CPUStreamsExecutor::Impl {
                                                ((_impl->_config.get_streams() + _impl->_usedNumaNodes.size() - 1) /
                                                 _impl->_usedNumaNodes.size()))
                     : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
             if (_impl->_config.get_streams_info_table().size() > 0) {
                 init_stream();
             }
@@ -91,21 +108,25 @@ struct CPUStreamsExecutor::Impl {
                 std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
                 _impl->_streamIdQueue.push(_streamId);
             }
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
             if (nullptr != _observer) {
                 _observer->observe(false);
+            }
+            if (nullptr != _proc_observer) {
+                _proc_observer->observe(false);
             }
 #endif
         }
 
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         void create_tbb_task_arena(const int stream_id,
                                    const StreamCreateType stream_type,
                                    const int concurrency,
                                    const int core_type,
                                    const int numa_node_id,
                                    const int socket_id,
-                                   const int max_threads_per_core) {
+                                   const int max_threads_per_core,
+                                   const bool pin_pecores) {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
@@ -155,6 +176,16 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
             }
+            if (pin_pecores) {
+                CpuSet mask;
+                int ncpus = 0;
+                std::tie(mask, ncpus) = get_process_mask();
+                CpuSet setMask = get_pecore_mask(stream_processors[0], ncpus);
+                if (nullptr != mask) {
+                    _proc_observer.reset(new ProcObserver{*_taskArena, std::move(setMask), std::move(mask), ncpus});
+                    _proc_observer->observe(true);
+                }
+            }
         }
         void init_stream() {
             int concurrency;
@@ -162,6 +193,7 @@ struct CPUStreamsExecutor::Impl {
             int numa_node_id;
             int socket_id;
             int max_threads_per_core;
+            bool pin_pecores = false;
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
             int streams_num = _impl->_config.get_streams();
@@ -176,7 +208,8 @@ struct CPUStreamsExecutor::Impl {
                                 cpu_core_type,
                                 numa_node_id,
                                 socket_id,
-                                max_threads_per_core);
+                                max_threads_per_core,
+                                pin_pecores);
             if (concurrency <= 0) {
                 return;
             }
@@ -186,7 +219,8 @@ struct CPUStreamsExecutor::Impl {
                                   cpu_core_type,
                                   numa_node_id,
                                   socket_id,
-                                  max_threads_per_core);
+                                  max_threads_per_core,
+                                  pin_pecores);
         }
 #endif
 
@@ -197,9 +231,10 @@ struct CPUStreamsExecutor::Impl {
         bool _execute = false;
         std::vector<int> _rank;
         std::queue<Task> _taskQueue;
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
+        std::unique_ptr<ProcObserver> _proc_observer;
         std::vector<int> _cpu_ids;
 #elif OV_THREAD == OV_THREAD_SEQ
         CpuSet _mask = nullptr;
@@ -386,7 +421,7 @@ struct CPUStreamsExecutor::Impl {
     }
 
     void Execute(const Task& task, Stream& stream) {
-#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         auto& arena = stream._taskArena;
         if (nullptr != arena) {
             arena->execute(std::move(task));
