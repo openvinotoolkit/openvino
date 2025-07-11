@@ -43,6 +43,7 @@ async function removeDirectory(path) {
 async function checkIfPathExists(path) {
   try {
     await fs.access(path);
+
     return true;
   } catch (error) {
     if (error.code === codeENOENT) {
@@ -63,15 +64,17 @@ async function checkIfPathExists(path) {
  * @returns {Promise<string>} - Path to downloaded file.
  */
 function downloadFile(url, destination, filename, proxy = null) {
-  console.log(`Downloading file by link: ${url} to ${destination}`
-    + `with filename: ${filename}`);
+  console.log(
+    `Downloading file by link: ${url} to ${destination}` +
+      `with filename: ${filename}`,
+  );
 
   const timeout = 5000;
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 
   if (new URL(url).protocol === 'http:')
-    throw new Error('Http link doesn\'t support');
+    throw new Error("Http link doesn't support");
 
   let agent;
 

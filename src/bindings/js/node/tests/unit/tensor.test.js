@@ -180,7 +180,9 @@ describe('ov.Tensor tests', () => {
     it('third argument of a tensor cannot be an ArrayBuffer', () => {
       assert.throws(
         () => new ov.Tensor(ov.element.f32, shape, new ArrayBuffer(1234)),
-        { message: /Third argument of a tensor must be TypedArray./ },
+        {
+          message: /Third argument of a tensor must be TypedArray./,
+        },
       );
     });
 
@@ -209,7 +211,9 @@ describe('ov.Tensor tests', () => {
     it('array argument to create ov::Shape can only contain numbers', () => {
       assert.throws(
         () => new ov.Tensor(ov.element.f32, ['1', 3, 224, 224], data),
-        { message: /Passed array must contain only numbers/ },
+        {
+          message: /Passed array must contain only numbers/,
+        },
       );
     });
 
