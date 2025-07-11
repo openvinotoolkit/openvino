@@ -669,6 +669,46 @@ interface PartialShape {
   getDimensions(): Dimension[];
 }
 
+interface AsyncInferQueue {
+  /**
+ * Creates AsyncInferQueue.
+ * @param compiledModel The compiledModel that will be used
+ * to create InferRequests in the pool.
+ * @param jobs Number of InferRequest objects in the pool.
+ */
+  new(compiledModel: CompiledModel, jobs: number): AsyncInferQueue;
+  /**
+   * Sets unified callback on all InferRequests from queue's pool.
+   * Signature of such function should have two arguments, where
+   * The first argument is {@link InferRequest} object and second one
+   * is any userdata connected to {@link InferRequest}
+   * from the AsyncInferQueue's pool.
+   * @param callback - Any function that matches callback's requirements.
+   */
+  setCallback(
+    callback: (
+      inferRequest: InferRequest,
+      userData: object,
+      error?: Error) => void,
+  ): void;
+  /**
+   * It starts asynchronous inference for the specified input data.
+   * @param inputData An object with the key-value pairs where the key is the
+   * input name and value is a tensor or an array with tensors.
+   * @param userData User data that will be passed to the callback.
+   * @returns A Promise that can be used to track the callback completion.
+   */
+  startAsync(
+    inputData: { [inputName: string]: Tensor } | Tensor[], userData: object
+  ): Promise<object>;
+  /**
+   * Releases resources associated with this AsyncInferQueue instance.
+   * Call this method after all `startAsync` requests have completed
+   * and the AsyncInferQueue is no longer needed.
+   */
+  release(): void;
+}
+
 declare enum element {
   u8,
   u32,
@@ -697,6 +737,7 @@ export interface NodeAddon {
   InferRequest: InferRequest;
   Output: Output;
   PartialShape: PartialShape;
+  AsyncInferQueue: AsyncInferQueue;
 
   preprocess: {
     resizeAlgorithm: typeof resizeAlgorithm;
