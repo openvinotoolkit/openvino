@@ -403,11 +403,11 @@ As the prerequisite for accuracy validation it's useful to have a mechanism that
 Use additional parameters to configure `reference` mode:
 - `input_data` - **Required**. Path that contain input data for the model, if entity under the path is empty, input data will be generated randomly and dumped into the path specified.
 - `output_data` - **Required**. Path where to dump reference output data.
-- `random` - **Optional**. Initializer to generate input data randomly. (Default: ` { dist: uniform, low: 0.0, high: 255 }`)
+- `random` - **Optional**. Initializer to generate input data randomly. (Default: ` { dist: uniform, low: 0.0, high: 255, seed: -1 }`)
 
 Examples:
 ```
-random: { dist: uniform, low: -1.0, high: 1.0 } # specified globally for all models
+random: { dist: uniform, low: -1.0, high: 1.0, seed: 4 } # specified globally for all models
 multi_inference:
 - input_stream_list:
   - network:

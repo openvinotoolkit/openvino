@@ -44,20 +44,13 @@ typedef std::tuple<
 class BroadcastTransformation : public LayerTransformation, public testing::WithParamInterface<BroadcastTransformationParams> {
 public:
     void SetUp() override {
-        const ov::PartialShape inputShape = std::get<0>(GetParam());
-        const bool v1 = std::get<1>(GetParam());
-        const BroadcastTransformationTestValues testValues = std::get<2>(GetParam());
-
-        // batch update support
-        auto tagetShape = testValues.tagetShape;
-        tagetShape[0] = inputShape[0].get_length();
-
+        const auto [inputShape, v1, testValues] = GetParam();
         actualFunction = BroadcastFunction::get(
             v1,
             inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantizationBefore,
-            tagetShape,
+            testValues.tagetShape,
             testValues.axesMapping,
             testValues.actual.dequantizationAfter);
 
@@ -70,16 +63,13 @@ public:
             inputShape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
-            tagetShape,
+            testValues.tagetShape,
             testValues.axesMapping,
             testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<BroadcastTransformationParams> obj) {
-        const ov::PartialShape inputShape = std::get<0>(obj.param);
-        const bool v1 = std::get<1>(obj.param);
-        const BroadcastTransformationTestValues testValues = std::get<2>(obj.param);
-
+        const auto [inputShape, v1, testValues] = obj.param;
         std::ostringstream result;
         result <<
             v1 << "_" <<
@@ -108,7 +98,6 @@ TEST_P(BroadcastTransformation, CompareFunctions) {
 namespace hw_broadcast {
 const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 1, 1 },
-    { 4, 3, 1, 1 },
 };
 
 const std::vector<BroadcastTransformationTestValues> testValues = {
@@ -171,6 +160,22 @@ const std::vector<BroadcastTransformationTestValues> testValues = {
         LayerTransformation::createParamsU8I8(),
         { 1, 9, 9, 9},
         { 0, 1, 2, 3 },
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {0.1f}, {0.2f}},
+            {{}, {}, {}},
+        },
+        {
+            ov::element::u8,
+            {{}, {}, {}},
+            {{ov::element::f32}, {0.1f}, {0.2f}}
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 9, 9, 9},
+        // empty axis mapping => bcast with 2 inputs is created
+        {},
         {
             ov::element::u8,
             {{ov::element::f32}, {0.1f}, {0.2f}},

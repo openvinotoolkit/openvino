@@ -171,7 +171,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             !has_conflict(it->second._users, restrictions))) {
             it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, layout_bytes_count)));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
-            GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+            ret_mem->from_memory_pool = true;
             return ret_mem;
         } else {
             ++it;
@@ -217,7 +217,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 !has_conflict(rec_list._users, restrictions)) {
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
                 rec_list._users.insert({MEM_USER(unique_id, network_id, prim_id, ret_mem->size())});
-                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
+                ret_mem->from_memory_pool = true;
                 return ret_mem;
             }
         }

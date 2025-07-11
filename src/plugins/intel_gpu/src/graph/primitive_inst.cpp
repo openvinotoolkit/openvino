@@ -1013,6 +1013,12 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+
+            if (need_reset_output_memory() && !can_be_optimized() &&
+                _outputs[i]->from_memory_pool && _outputs[i]->get_layout().data_padding) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
+                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
+            }
         }
     }
 

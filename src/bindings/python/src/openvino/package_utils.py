@@ -9,11 +9,7 @@ from typing import Any, Optional
 from pathlib import Path
 import importlib.util
 from types import ModuleType
-
-if sys.version_info >= (3, 9):
-    from collections.abc import Callable
-else:
-    from typing import Callable
+from collections.abc import Callable
 
 
 def _add_openvino_libs_to_search_path() -> None:

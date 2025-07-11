@@ -20,9 +20,11 @@ enum LoraType { SINGLE = 0, HORIZONTAL_FUSED };
 
 enum SingleKernelTypes {
     REFERENCE = 0,
+    FIRST_TOKEN_A_REF,
     FIRST_TOKEN_A_SMALL,
     FIRST_TOKEN_A_MEDIUM,
     FIRST_TOKEN_A_LARGE,
+    FIRST_TOKEN_B_REF,
     FIRST_TOKEN_B_MEDIUM,
     FIRST_TOKEN_B_LARGE,
     SECOND_TOKEN_A,
@@ -31,10 +33,12 @@ enum SingleKernelTypes {
 };
 
 enum FusedKernelTypes {
-    HF_REFERENCE = 9,
+    HF_REFERENCE = 11,
+    HF_FIRST_TOKEN_A_REF,
     HF_FIRST_TOKEN_A_SMALL,
     HF_FIRST_TOKEN_A_MEDIUM,
     HF_FIRST_TOKEN_A_LARGE,
+    HF_FIRST_TOKEN_B_REF,
     HF_FIRST_TOKEN_B_SMALL,
     HF_FIRST_TOKEN_B_MEDIUM,
     HF_FIRST_TOKEN_B_LARGE,
@@ -784,19 +788,24 @@ std::vector<size_t> get_stages_execution_order_single_lora(const cldnn::primitiv
                 const auto& state_alpha_lo = instance.get_input_layout(3);
                 size_t lora_rank = extract_channel(ChannelName::FEATURE, state_alpha_lo);
 
-                if (lora_rank == 128 || lora_rank == 256) {
-                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_A_LARGE);
-                } else if (lora_rank == 64) {
-                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_A_MEDIUM);
-                } else {
-                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_A_SMALL);
-                }
-
                 const auto& lora_input = instance.get_input_layout(1);
                 size_t batch = extract_channel(ChannelName::BATCH, lora_input);
                 size_t feature = extract_channel(ChannelName::FEATURE, lora_input);
+                size_t acc_batch = batch * feature;
 
-                if (batch * feature < 256) {
+                if ((lora_rank == 128 || lora_rank == 256) && acc_batch >= 16) {
+                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_A_LARGE);
+                } else if (lora_rank == 64 && acc_batch >= 8) {
+                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_A_MEDIUM);
+                } else if (acc_batch >= 4) {
+                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_A_SMALL);
+                } else {
+                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_A_REF);
+                }
+
+                if (acc_batch < 8) {
+                    stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_B_REF);
+                } else if (acc_batch < 256) {
                     stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_B_MEDIUM);
                 } else {
                     stages_order.emplace_back(SingleKernelTypes::FIRST_TOKEN_B_LARGE);
@@ -826,7 +835,8 @@ std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_in
     const auto& lora_input = instance.get_input_layout(1);
     size_t batch = extract_channel(ChannelName::BATCH, lora_input);
     size_t feature = extract_channel(ChannelName::FEATURE, lora_input);
-    bool is_first_token = batch * feature > 1;
+    size_t acc_batch = batch * feature;
+    bool is_first_token = acc_batch > 1;
 
     if (is_first_token) {
         const auto& state_alpha_lo = instance.get_input_layout(3);
@@ -834,14 +844,14 @@ std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_in
         size_t lora_count = LoraRefBase<>::get_lora_count(params);
         size_t max_workgroup_size = params.get_device_info().max_work_group_size;
 
-        if (batch * feature > 1000 && lora_rank > 16) {
+        if (acc_batch > 1000 && lora_rank > 16) {
             stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_LARGE);
+        } else if (acc_batch < 8) {
+            stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_REF);
+        } else if (lora_rank * lora_count > max_workgroup_size) {
+            stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_MEDIUM);
         } else {
-            if (lora_rank * lora_count > max_workgroup_size) {
-                stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_MEDIUM);
-            } else {
-                stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_SMALL);
-            }
+            stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_A_SMALL);
         }
 
         size_t subgroup_size = LoraOptBase<>::get_subgroup_size(params);
@@ -857,14 +867,14 @@ std::vector<size_t> get_stages_execution_order_hf_lora(const cldnn::primitive_in
             output_state = fused_mlp_output + q_state;
         }
 
-        if (output_state % (2 * subgroup_size) == 0) {
-            if (batch * feature < 256) {
-                stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_MEDIUM);
-            } else {
-                stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_LARGE);
-            }
-        } else {
+        if (acc_batch < 8) {
+            stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_REF);
+        } else if (output_state % (2 * subgroup_size) != 0) {
             stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_SMALL);
+        } else if (acc_batch < 256) {
+            stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_MEDIUM);
+        } else {
+            stages_order.emplace_back(FusedKernelTypes::HF_FIRST_TOKEN_B_LARGE);
         }
     } else {
         stages_order.emplace_back(FusedKernelTypes::HF_SECOND_TOKEN_A);
@@ -879,9 +889,11 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::LoraImpl)
 
     Stage::Ptr lora_ref = make_stage<LoraRef<SINGLE>>();
+    Stage::Ptr lora_opt_first_token_a_ref = make_stage<LoraOptFirstTokenA<SINGLE>>("ref", 1, 1);
     Stage::Ptr lora_opt_first_token_a_small = make_stage<LoraOptFirstTokenA<SINGLE>>("small", 4, 1);
     Stage::Ptr lora_opt_first_token_a_medium = make_stage<LoraOptFirstTokenA<SINGLE>>("medium", 8, 2);
     Stage::Ptr lora_opt_first_token_a_large = make_stage<LoraOptFirstTokenA<SINGLE>>("large", 16, 2);
+    Stage::Ptr lora_opt_first_token_b_ref = make_stage<LoraOptFirstTokenB<SINGLE>>("ref", 1, 2, 8);
     Stage::Ptr lora_opt_first_token_b_medium = make_stage<LoraOptFirstTokenB<SINGLE>>("medium", 8, 2, 16);
     Stage::Ptr lora_opt_first_token_b_large = make_stage<LoraOptFirstTokenB<SINGLE>>("large", 16, 2, 8);
     Stage::Ptr lora_opt_second_token_a = make_stage<LoraOptSecondTokenA<SINGLE>>();
@@ -889,9 +901,11 @@ public:
     Stage::Ptr fused_ops = make_stage<LoraFusedOps>();
 
     Stage::Ptr lora_hf_ref = make_stage<LoraRef<HORIZONTAL_FUSED>>();
+    Stage::Ptr lora_opt_hf_first_token_a_ref = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("ref", 1, 1);
     Stage::Ptr lora_opt_hf_first_token_a_small = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("small", 8, 1);
     Stage::Ptr lora_opt_hf_first_token_a_medium = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("medium", 8, 2);
     Stage::Ptr lora_opt_hf_first_token_a_large = make_stage<LoraOptFirstTokenA<HORIZONTAL_FUSED>>("large", 16, 2);
+    Stage::Ptr lora_opt_hf_first_token_b_ref = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("ref", 1, 1, 8);
     Stage::Ptr lora_opt_hf_first_token_b_small = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("small", 8, 1, 8);
     Stage::Ptr lora_opt_hf_first_token_b_medium = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("medium", 8, 2, 16);
     Stage::Ptr lora_opt_hf_first_token_b_large = make_stage<LoraOptFirstTokenB<HORIZONTAL_FUSED>>("large", 16, 2, 8);
@@ -904,9 +918,11 @@ public:
 
         if (lora_count == 1) {
             add_stage(lora_ref, params);
+            add_stage(lora_opt_first_token_a_ref, params);
             add_stage(lora_opt_first_token_a_small, params);
             add_stage(lora_opt_first_token_a_medium, params);
             add_stage(lora_opt_first_token_a_large, params);
+            add_stage(lora_opt_first_token_b_ref, params);
             add_stage(lora_opt_first_token_b_medium, params);
             add_stage(lora_opt_first_token_b_large, params);
             add_stage(lora_opt_second_token_a, params);
@@ -914,9 +930,11 @@ public:
             add_stage(fused_ops, params);
         } else {
             add_stage(lora_hf_ref, params);
+            add_stage(lora_opt_hf_first_token_a_ref, params);
             add_stage(lora_opt_hf_first_token_a_small, params);
             add_stage(lora_opt_hf_first_token_a_medium, params);
             add_stage(lora_opt_hf_first_token_a_large, params);
+            add_stage(lora_opt_hf_first_token_b_ref, params);
             add_stage(lora_opt_hf_first_token_b_small, params);
             add_stage(lora_opt_hf_first_token_b_medium, params);
             add_stage(lora_opt_hf_first_token_b_large, params);
