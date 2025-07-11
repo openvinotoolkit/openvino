@@ -106,15 +106,15 @@ TEST(ElementIteratorTest, write_u2_data) {
 
     std::copy(input.begin(), input.end(), iter);
 
-    EXPECT_THAT(output, ElementsAre(0x87, 0x0f, 0x66, 0xe4));
+    EXPECT_THAT(output, ElementsAre(0b11010010, 0b11110000, 0b10011001, 0b00011011));
 }
 
 TEST(ElementIteratorTest, read_const_u2_data) {
     constexpr auto elements_count = 16;
-    constexpr auto input = std::array<int8_t, get_buffer_size(2, elements_count)>{static_cast<int8_t>(0x87),
-                                                                                  0x0f,
-                                                                                  0x66,
-                                                                                  static_cast<int8_t>(0xe4)};
+    constexpr auto input = std::array<int8_t, get_buffer_size(2, elements_count)>{static_cast<int8_t>(0b11010010),
+                                                                                  static_cast<int8_t>(0b11110000),
+                                                                                  static_cast<int8_t>(0b10011001),
+                                                                                  static_cast<int8_t>(0b00011011)};
     auto iter = element::iterator<element::u2>(input.data());
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count),
@@ -123,10 +123,10 @@ TEST(ElementIteratorTest, read_const_u2_data) {
 
 TEST(ElementIteratorTest, read_non_const_u2_data) {
     constexpr auto elements_count = 16;
-    auto input = std::array<int8_t, get_buffer_size(2, elements_count)>{static_cast<int8_t>(0x87),
-                                                                        0x0f,
-                                                                        0x66,
-                                                                        static_cast<int8_t>(0xe4)};
+    auto input = std::array<int8_t, get_buffer_size(2, elements_count)>{static_cast<int8_t>(0b11010010),
+                                                                        static_cast<int8_t>(0b11110000),
+                                                                        static_cast<int8_t>(0b10011001),
+                                                                        static_cast<int8_t>(0b00011011)};
     auto iter = element::iterator<element::u2>(input.data());
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count),
@@ -134,31 +134,39 @@ TEST(ElementIteratorTest, read_non_const_u2_data) {
 }
 
 TEST(ElementIteratorTest, read_u2_data_increment_decrement_iterator) {
-    auto input = std::array<int8_t, 2>{0x33, static_cast<int8_t>(0x93)};
+    auto input = std::array<int8_t, 2>{static_cast<int8_t>(0b00100111), static_cast<int8_t>(0b10011011)};
     auto iter = element::iterator<element::u2>(input.data() + 1);
 
-    EXPECT_EQ(*iter--, 2);  // 2nd byte 1st half-nibble
-    EXPECT_EQ(*iter++, 3);  // 1st byte 4th half-nibble
-    EXPECT_EQ(*++iter, 1);  // 2nd byte 2nd half-nibble
-    EXPECT_EQ(*iter--, 1);  // 2nd byte 2nd half-nibble
-    EXPECT_EQ(*--iter, 3);  // 1st byte 4th half-nibble
+    EXPECT_EQ(*iter--, 3);  // 2nd byte 4th half-nibble
+    EXPECT_EQ(*iter++, 0);  // 1st byte 1st half-nibble
+    EXPECT_EQ(*++iter, 2);  // 2nd byte 3rd half-nibble
+    EXPECT_EQ(*iter--, 2);  // 2nd byte 3rdt half-nibble
+    EXPECT_EQ(*--iter, 0);  // 1st byte 1st half-nibble
+    EXPECT_EQ(*--iter, 2);  // 1st byte 2nd half-nibble
 }
 
 TEST(ElementIteratorTest, read_u2_data_iterator_with_offset) {
-    auto input = std::array<int8_t, 3>{0x43, static_cast<int8_t>(0x93), 0x41};
+    auto input = std::array<int8_t, 3>{0b01000011, static_cast<int8_t>(0b100010011), 0b01000001};
     auto iter = element::iterator<element::u2>(input.data() + 1);
 
-    EXPECT_EQ(*iter, 2);                // 2nd byte 1st half-nibble
-    EXPECT_EQ(*(iter - 3), 0);          // 1st byte 2nd half-nibble
-    EXPECT_EQ(*(iter - 4), 1);          // 1st byte 1st half-nibble
-    EXPECT_EQ(*(iter + 1), 1);          // 2nd byte 2nd half-nibble
-    EXPECT_EQ(*(iter + 7), 1);          // 3rd byte 4th half-nibble
-    EXPECT_EQ(*std::prev(iter, 1), 3);  // 1st byte 4th half-nibble
-    EXPECT_EQ(*std::next(iter, 2), 0);  // 2nd byte 3rd half-nibble
+    EXPECT_EQ(*iter, 3);                // 2nd byte 4th half-nibble
+    EXPECT_EQ(*(iter - 0), 3);          // 2nd byte 4th half-nibble
+    EXPECT_EQ(*(iter - 1), 1);          // 1st byte 1st half-nibble
+    EXPECT_EQ(*(iter - 2), 0);          // 1st byte 2nd half-nibble
+    EXPECT_EQ(*(iter - 3), 0);          // 1st byte 3rd half-nibble
+    EXPECT_EQ(*(iter - 4), 3);          // 1st byte 4th half-nibble
+    EXPECT_EQ(*(iter + 0), 3);          // 2nd byte 4th half-nibble
+    EXPECT_EQ(*(iter + 1), 0);          // 2nd byte 3rd half-nibble
+    EXPECT_EQ(*(iter + 7), 1);          // 3rd byte 1st half-nibble
+    EXPECT_EQ(*std::prev(iter, 1), 1);  // 1st byte 4th half-nibble
+    EXPECT_EQ(*std::next(iter, 2), 1);  // 2nd byte 2nd half-nibble
+
+    --iter;
+    EXPECT_EQ(*(iter - 1), 0);  // 1st byte 2nd half-nibble
 }
 
 TEST(ElementIteratorTest, u2_value_to_output_stream) {
-    constexpr auto value = static_cast<int8_t>(0x80);
+    constexpr auto value = static_cast<int8_t>(0x02);
     auto iter = element::iterator<element::u2>(&value);
 
     std::stringstream s;
@@ -168,9 +176,10 @@ TEST(ElementIteratorTest, u2_value_to_output_stream) {
 }
 
 TEST(ElementIteratorTest, read_u2_from_tensor) {
-    auto input = std::array<int8_t, 4>{0x32, static_cast<int8_t>(0xa3), 0x41, 0x11};
+    const auto input =
+        std::array<int8_t, 4>{static_cast<int8_t>(0b10001100), static_cast<int8_t>(0b11001010), 0b01000001, 0b01000100};
     auto t = ov::Tensor(element::u2, Shape{4, 4}, input.data());
-    auto iter = element::iterator<element::u2>(static_cast<int8_t*>(t.data(element::u2)));
+    auto iter = element::iterator<element::u2>(static_cast<const int8_t*>(std::as_const(t).data(element::u2)));
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()),
                 ElementsAre(0, 3, 0, 2, 2, 2, 0, 3, 1, 0, 0, 1, 0, 1, 0, 1));
@@ -211,9 +220,11 @@ TEST(ElementIteratorTest, read_u3_data_iterator_with_offset) {
     auto iter = element::iterator<element::u3>(input.data() + 3);
 
     EXPECT_EQ(*iter, 2);
+    EXPECT_EQ(*(iter - 0), 2);
     EXPECT_EQ(*(iter - 3), 6);
     EXPECT_EQ(*(iter - 4), 1);
     EXPECT_EQ(*(iter - 5), 6);
+    EXPECT_EQ(*(iter + 0), 2);
     EXPECT_EQ(*(iter + 1), 3);
     EXPECT_EQ(*(iter + 5), 5);
     EXPECT_EQ(*(iter + 7), 7);

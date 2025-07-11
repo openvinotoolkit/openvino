@@ -19,6 +19,7 @@
 #include "graph.h"
 #include "graph_context.h"
 #include "infer_request.h"
+#include "internal_properties.hpp"
 #include "low_precision/low_precision.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
@@ -39,6 +40,9 @@
 #include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/runtime/IScheduler.h>
+#    include <arm_compute/runtime/Scheduler.h>
+
 #    include "nodes/executors/acl/acl_ie_scheduler.hpp"
 #endif
 
@@ -300,6 +304,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RO_property(ov::intel_cpu::tbb_partitioner.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
@@ -380,6 +385,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        const auto& enable_tensor_parallel = config.enableTensorParallel;
+        return enable_tensor_parallel;
     }
     if (name == ov::intel_cpu::tbb_partitioner) {
         const auto tbb_partitioner = config.tbbPartitioner;
