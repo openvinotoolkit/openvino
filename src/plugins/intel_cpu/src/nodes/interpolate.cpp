@@ -1752,7 +1752,7 @@ bool InterpolateKey::operator==(const InterpolateKey& rhs) const {
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
 inline VectorDims getBlockND(const VectorDims& shape) {
-    int shapeRank = static_cast<int>(shape.size());
+    auto shapeRank = static_cast<int>(shape.size());
     VectorDims blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
         blockND[i] = shape[i] * blockND[i + 1];
@@ -2038,7 +2038,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < static_cast<int>(dataRank); i++) {
-                    axes[i] = static_cast<int>(i);
+                    axes[i] = i;
                 }
             }
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
@@ -2111,7 +2111,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else {
                 axes.resize(dataRank);
                 for (int i = 0; i < static_cast<int>(dataRank); i++) {
-                    axes[i] = static_cast<int>(i);
+                    axes[i] = i;
                 }
             }
         }
@@ -2147,7 +2147,7 @@ void Interpolate::getSupportedDescriptors() {
     if (hasPad) {
         interpAttrs.NCHWAsNHWC = false;
         auto correctPad = [&](std::vector<int> pad, int rank) {
-            int padLen = static_cast<int>(pad.size());
+            auto padLen = static_cast<int>(pad.size());
             if (padLen == rank) {
                 return pad;
             }
@@ -2161,8 +2161,8 @@ void Interpolate::getSupportedDescriptors() {
             return result;
         };
 
-        interpAttrs.padBegin = correctPad(interpAttrs.padBegin, dataRank);
-        interpAttrs.padEnd = correctPad(interpAttrs.padEnd, dataRank);
+        interpAttrs.padBegin = correctPad(interpAttrs.padBegin, static_cast<int>(dataRank));
+        interpAttrs.padEnd = correctPad(interpAttrs.padEnd, static_cast<int>(dataRank));
     }
 }
 
@@ -2631,7 +2631,7 @@ VectorDims Interpolate::getPaddedInputShape(const VectorDims& srcDims,
                                             const std::vector<int>& padBegin,
                                             const std::vector<int>& padEnd) {
     VectorDims paddedShape;
-    int dataRank = static_cast<int>(srcDims.size());
+    auto dataRank = static_cast<int>(srcDims.size());
     for (int i = 0; i < dataRank; i++) {
         paddedShape.push_back(srcDims[i] + padBegin[i] + padEnd[i]);
     }
@@ -2791,7 +2791,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
             uint8_t* out_ptr = out_ptr_ + (OW * OH * OD * C * b) * dstDataSize;
             std::vector<int> index_w_kernel(OW);
             for (int ox = 0; ox < OW; ox++) {
-                index_w_kernel[ox] = index_w[ox] * C * srcDataSize;
+                index_w_kernel[ox] = static_cast<int>(index_w[ox] * C * srcDataSize);
             }
             parallel_for2d(OD, OH, [&](size_t d, size_t h) {
                 // kernel for C * OW
@@ -2813,7 +2813,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
             uint8_t* out_ptr = out_ptr_ + (OW * OH * OD * CB * blk_size * b) * dstDataSize;
             std::vector<int> index_w_kernel(OW);
             for (int ox = 0; ox < OW; ox++) {
-                index_w_kernel[ox] = index_w[ox] * blk_size * srcDataSize;
+                index_w_kernel[ox] = static_cast<int>(index_w[ox] * blk_size * srcDataSize);
             }
             parallel_for2d(CB, OD, [&](size_t cb, size_t d) {
                 uint8_t* out_ptr_cbd = out_ptr + (blk_size * OW * OH * OD * cb + blk_size * OW * OH * d) * dstDataSize;
@@ -2852,11 +2852,11 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
     std::vector<int> index_kernel(OH + OW);
     // index_h * IW * srcDataSize to reduce and simplify redundant compute
     for (int oh = 0; oh < OH; oh++) {
-        index_kernel[oh] = index_h[oh] * IW * srcDataSize;
+        index_kernel[oh] = static_cast<int>(index_h[oh] * IW * srcDataSize);
     }
     // index_w * srcDataSize
     for (int ow = 0; ow < OW; ow++) {
-        index_kernel[OH + ow] = index_w[ow] * srcDataSize;
+        index_kernel[OH + ow] = static_cast<int>(index_w[ow] * srcDataSize);
     }
 
     parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t od) {
@@ -3028,10 +3028,10 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
         int ix = xOrigin[w];
         for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
             int yInRange = std::max(0, std::min(y, IH - 1));
-            yInRange = yInRange * CGatherLen * IW * srcDataSize;
+            yInRange = yInRange * static_cast<int>(CGatherLen * IW * srcDataSize);
             for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
                 int xInRange = std::max(0, std::min(x, IW - 1));
-                xInRange = yInRange + xInRange * CGatherLen * srcDataSize;
+                xInRange = yInRange + xInRange * static_cast<int>(CGatherLen * srcDataSize);
                 kernelIndex[i * CUBIC_GRID_LEN + j] = xInRange;
             }
         }
@@ -3127,7 +3127,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_
         (*interpolateKernel)(&arg);
     };
 
-    parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt_static(static_cast<int>(m_threads_num), [&](const int ithr, const int nthr) {
         for_1d(ithr, nthr, B, b_loop);
     });
 }
@@ -3140,7 +3140,7 @@ void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPa
                                                       const std::vector<float>& dataScales,
                                                       [[maybe_unused]] InterpolateLayoutType layout,
                                                       InterpolateNearestMode nearestMode) {
-    const int dimSize = dataRank;
+    const auto dimSize = static_cast<int>(dataRank);
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.F;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
@@ -3156,19 +3156,19 @@ void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPa
     bool isHDownsample = fy < 1;
     bool isWDownsample = fx < 1;
     for (size_t oz = 0; oz < OD; oz++) {
-        float iz = coordTransToInput(oz, fz, ID, OD);
+        float iz = coordTransToInput(static_cast<int>(oz), fz, static_cast<int>(ID), static_cast<int>(OD));
         auxTable[oz] = nearestRound(iz, isDDownsample, nearestMode);
-        auxTable[oz] = clipCoord(auxTable[oz], ID);
+        auxTable[oz] = clipCoord(auxTable[oz], static_cast<int>(ID));
     }
     for (size_t oy = 0; oy < OH; oy++) {
-        float iy = coordTransToInput(oy, fy, IH, OH);
+        float iy = coordTransToInput(static_cast<int>(oy), fy, static_cast<int>(IH), static_cast<int>(OH));
         auxTable[OD + oy] = nearestRound(iy, isHDownsample, nearestMode);
-        auxTable[OD + oy] = clipCoord(auxTable[OD + oy], IH);
+        auxTable[OD + oy] = clipCoord(auxTable[OD + oy], static_cast<int>(IH));
     }
     for (size_t ox = 0; ox < OW; ox++) {
-        float ix = coordTransToInput(ox, fx, IW, OW);
+        float ix = coordTransToInput(static_cast<int>(ox), fx, static_cast<int>(IW), static_cast<int>(OW));
         auxTable[OD + OH + ox] = nearestRound(ix, isWDownsample, nearestMode);
-        auxTable[OD + OH + ox] = clipCoord(auxTable[OD + OH + ox], IW);
+        auxTable[OD + OH + ox] = clipCoord(auxTable[OD + OH + ox], static_cast<int>(IW));
     }
 }
 
@@ -3180,15 +3180,15 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
                                                               int inShape,
                                                               int outShape) const {
     if (scale == 1.0F || (inShape == outShape)) {
-        return outCoord;
+        return static_cast<float>(outCoord);
     }
     switch (coordTransMode) {
     case InterpolateCoordTransMode::half_pixel: {
-        return (outCoord + 0.5F) / scale - 0.5F;
+        return (static_cast<float>(outCoord) + 0.5F) / scale - 0.5F;
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
         if (outShape > 1) {
-            return (outCoord + 0.5F) / scale - 0.5F;
+            return (static_cast<float>(outCoord) + 0.5F) / scale - 0.5F;
         }
         return 0;
     }
@@ -3196,11 +3196,11 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
         return static_cast<float>(outCoord) / scale;
     }
     case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
-        return (outCoord + 0.5F) / scale;
+        return (static_cast<float>(outCoord) + 0.5F) / scale;
     }
     case InterpolateCoordTransMode::align_corners: {
         if (outShape > 1) {
-            return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
+            return static_cast<float>(outCoord) * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
         }
         return 0;
     }
@@ -3216,7 +3216,7 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
                                                        InterpolateNearestMode nearestMode) {
     switch (nearestMode) {
     case InterpolateNearestMode::round_prefer_floor: {
-        if (originCoord == (static_cast<int>(originCoord) + 0.5F)) {
+        if (originCoord == (static_cast<float>(static_cast<int>(originCoord)) + 0.5F)) {
             return static_cast<int>(std::floor(originCoord));
         }
         return static_cast<int>(std::round(originCoord));
@@ -3256,8 +3256,8 @@ void Interpolate::InterpolateExecutorBase::linearOnnxCF(int outCoord,
     index0 = std::min(static_cast<int>(inCoord), inShape - 1);
     index1 = std::min(index0 + 1, inShape - 1);
 
-    weight1 = std::fabs(inCoord - index0);
-    weight0 = std::fabs(inCoord - index1);
+    weight1 = std::fabs(inCoord - static_cast<float>(index0));
+    weight0 = std::fabs(inCoord - static_cast<float>(index1));
     if (index0 == index1) {
         weight0 = 0.5F;
         weight1 = 0.5F;
@@ -3268,16 +3268,16 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
                                                               const VectorDims& dstDim5d,
                                                               const std::vector<float>& dataScales,
                                                               InterpolateLayoutType layout) {
-    int dimSize = dataRank;
+    auto dimSize = static_cast<int>(dataRank);
     float fz = (spatialDimSize > 2) ? dataScales[dimSize - 3] : 1.F;
     float fy = (spatialDimSize > 1) ? dataScales[dimSize - 2] : 1.F;
     float fx = dataScales[dimSize - 1];
-    int ID = srcDimPad5d[2];
-    int IH = srcDimPad5d[3];
-    int IW = srcDimPad5d[4];
-    int OD = dstDim5d[2];
-    int OH = dstDim5d[3];
-    int OW = dstDim5d[4];
+    auto ID = static_cast<int>(srcDimPad5d[2]);
+    auto IH = static_cast<int>(srcDimPad5d[3]);
+    auto IW = static_cast<int>(srcDimPad5d[4]);
+    auto OD = static_cast<int>(dstDim5d[2]);
+    auto OH = static_cast<int>(dstDim5d[3]);
+    auto OW = static_cast<int>(dstDim5d[4]);
 
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, nullptr);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, nullptr);
@@ -3316,7 +3316,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
             weightPtr[4] = reinterpret_cast<float*>(&auxTable[scratchLen + 4 * OW * OH * OD]);
             weightPtr[5] = reinterpret_cast<float*>(&auxTable[scratchLen + 5 * OW * OH * OD]);
         }
-        int scale = mayiuse(cpu::x64::sse41) ? srcDataSize : 1;
+        auto scale = static_cast<int>(mayiuse(cpu::x64::sse41) ? srcDataSize : 1);
 
         for (int oz = 0; oz < OD; oz++) {
             int izF = 0;
@@ -3402,7 +3402,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
                                                           const std::vector<float>& dataScales,
                                                           int kernel_width,
                                                           bool antialias) {
-    int dimSize = dataRank;
+    auto dimSize = static_cast<int>(dataRank);
     float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.F;
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
@@ -3425,9 +3425,9 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         int diaOD = 2 * rz + 1;
         int diaOH = 2 * ry + 1;
         int diaOW = 2 * rx + 1;
-        int sizeOD = OD * diaOD;
-        int sizeOH = OH * diaOH;
-        int sizeOW = OW * diaOW;
+        auto sizeOD = static_cast<int>(OD * diaOD);
+        auto sizeOH = static_cast<int>(OH * diaOH);
+        auto sizeOW = static_cast<int>(OW * diaOW);
         auxTable.resize((sizeOD + sizeOH + sizeOW) * 2);
         auto* weightTable = reinterpret_cast<float*>(auxTable.data());
         auto* weightOD = (&weightTable[0]);
@@ -3440,40 +3440,40 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
         auto* idxOW = (&idxTable[sizeOD + sizeOH]);
 
         for (size_t oz = 0; oz < OD; oz++) {
-            float iz = coordTransToInput(oz, fz, ID, OD);
+            float iz = coordTransToInput(static_cast<int>(oz), fz, static_cast<int>(ID), static_cast<int>(OD));
             auto iz_r = static_cast<int>(std::round(iz));
             for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
                 idxOD[oz * diaOD + i] = r;
                 if (r < 0 || r >= static_cast<int>(ID)) {
                     weightOD[oz * diaOD + i] = 0.F;
                 } else {
-                    float dz = iz - r;
+                    float dz = iz - static_cast<float>(r);
                     weightOD[oz * diaOD + i] = az * triangleCoeff(az * dz);
                 }
             }
         }
         for (size_t oy = 0; oy < OH; oy++) {
-            float iy = coordTransToInput(oy, fy, IH, OH);
+            float iy = coordTransToInput(static_cast<int>(oy), fy, static_cast<int>(IH), static_cast<int>(OH));
             auto iy_r = static_cast<int>(std::round(iy));
             for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
                 idxOH[oy * diaOH + i] = r;
                 if (r < 0 || r >= static_cast<int>(IH)) {
                     weightOH[oy * diaOH + i] = 0.F;
                 } else {
-                    float dy = iy - r;
+                    float dy = iy - static_cast<float>(r);
                     weightOH[oy * diaOH + i] = ay * triangleCoeff(ay * dy);
                 }
             }
         }
         for (size_t ox = 0; ox < OW; ox++) {
-            float ix = coordTransToInput(ox, fx, IW, OW);
+            float ix = coordTransToInput(static_cast<int>(ox), fx, static_cast<int>(IW), static_cast<int>(OW));
             auto ix_r = static_cast<int>(std::round(ix));
             for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
                 idxOW[ox * diaOW + i] = r;
                 if (r < 0 || r >= static_cast<int>(IW)) {
                     weightOW[ox * diaOW + i] = 0.F;
                 } else {
-                    float dx = ix - r;
+                    float dx = ix - static_cast<float>(r);
                     weightOW[ox * diaOW + i] = ax * triangleCoeff(ax * dx);
                 }
             }
@@ -3485,10 +3485,10 @@ std::vector<float> Interpolate::InterpolateExecutorBase::getCubicCoeffs(float ma
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.F);
 
-    coeffs[0] = a * (m - 1.0) * (m - 1.0) * m;
-    coeffs[1] = ((a + 2.0) * m - (a + 3.0)) * m * m + 1.0;
-    coeffs[2] = (((-a - 2.0) * m + (2.0 * a + 3.0)) * m - a) * m;
-    coeffs[3] = -a * m * m * (m - 1.0);
+    coeffs[0] = a * (m - 1.0F) * (m - 1.0F) * m;
+    coeffs[1] = ((a + 2.0F) * m - (a + 3.0F)) * m * m + 1.0F;
+    coeffs[2] = (((-a - 2.0F) * m + (2.0F * a + 3.0F)) * m - a) * m;
+    coeffs[3] = -a * m * m * (m - 1.0F);
     return coeffs;
 }
 
@@ -3500,13 +3500,13 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
                                                          const std::vector<float>& dataScales,
                                                          float cubicCoeff,
                                                          InterpolateLayoutType layout) {
-    int dimSize = dataRank;
+    auto dimSize = static_cast<int>(dataRank);
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    int IH = srcDimPad5d[3];
-    int IW = srcDimPad5d[4];
-    int OH = dstDim5d[3];
-    int OW = dstDim5d[4];
+    auto IH = static_cast<int>(srcDimPad5d[3]);
+    auto IW = static_cast<int>(srcDimPad5d[4]);
+    auto OH = static_cast<int>(dstDim5d[3]);
+    auto OW = static_cast<int>(dstDim5d[4]);
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;
@@ -3526,7 +3526,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
         float ix = coordTransToInput(ox, fx, IW, OW);
         auto ix_r = static_cast<int>(std::floor(ix));
         xOrigin[ox] = ix_r;
-        float m = ix - ix_r;
+        float m = ix - static_cast<float>(ix_r);
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
         xFactor[CUBIC_GRID_LEN * ox] = coffes[0];
         xFactor[CUBIC_GRID_LEN * ox + 1] = coffes[1];
@@ -3542,7 +3542,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
         float iy = coordTransToInput(oy, fy, IH, OH);
         auto iy_r = static_cast<int>(std::floor(iy));
         yOrigin[oy] = iy_r;
-        float m = iy - iy_r;
+        float m = iy - static_cast<float>(iy_r);
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
         yFactor[CUBIC_GRID_LEN * oy] = coffes[0];
         yFactor[CUBIC_GRID_LEN * oy + 1] = coffes[1];
@@ -3558,8 +3558,8 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
         for (int h = 0; h < OH; ++h) {
             int offset = h * OW;
             for (int w = 0; w < OW; ++w) {
-                sequenceOH[offset + w] = h * sizeof(int);
-                sequenceOW[offset + w] = w * sizeof(int);
+                sequenceOH[offset + w] = static_cast<int>(h * sizeof(int));
+                sequenceOW[offset + w] = static_cast<int>(w * sizeof(int));
             }
         }
     }
@@ -3581,7 +3581,7 @@ float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
         m = -m;
     }
     if (m < 1.0) {
-        return ((a + 2.0) * m - (a + 3.0)) * m * m + 1.0;
+        return ((a + 2.0F) * m - (a + 3.0F)) * m * m + 1.0F;
     }
     if (m < 2.0F) {
         return (((m - 5) * m + 8) * m - 4) * a;
@@ -3594,13 +3594,13 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
                                                           const std::vector<float>& dataScales,
                                                           [[maybe_unused]] float cubicCoeff,
                                                           [[maybe_unused]] InterpolateLayoutType layout) {
-    int dimSize = dataRank;
+    auto dimSize = static_cast<int>(dataRank);
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
-    int IH = srcDimPad5d[3];
-    int IW = srcDimPad5d[4];
-    int OH = dstDim5d[3];
-    int OW = dstDim5d[4];
+    auto IH = static_cast<int>(srcDimPad5d[3]);
+    auto IW = static_cast<int>(srcDimPad5d[4]);
+    auto OH = static_cast<int>(dstDim5d[3]);
+    auto OW = static_cast<int>(dstDim5d[4]);
 
     struct filterArgs {
         float (*weightGen)(float m);
@@ -3628,17 +3628,17 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
     filterArgs filterArgsY = generateArgs(1.0F / fy);
 
     // index with Run Length Coding(start+len for each ow/oh)
-    size_t weightLen = filterArgsX.filterLen * OW + filterArgsY.filterLen * OH;
+    size_t weightLen = static_cast<size_t>(filterArgsX.filterLen) * static_cast<size_t>(OW) + static_cast<size_t>(filterArgsY.filterLen) * static_cast<size_t>(OH);
     size_t boundLen = 2 * OW + 2 * OH;
     auxTable.resize(2 + weightLen + boundLen);
     size_t offset = 0;
-    auxTable[offset] = filterArgsX.filterLen;
-    auxTable[offset + 1] = filterArgsY.filterLen;
+    auxTable[offset] = static_cast<int>(filterArgsX.filterLen);
+    auxTable[offset + 1] = static_cast<int>(filterArgsY.filterLen);
     offset += 2;
     auto* weightX = reinterpret_cast<float*>(&auxTable[offset]);
-    offset += filterArgsX.filterLen * OW;
+    offset += static_cast<size_t>(filterArgsX.filterLen) * static_cast<size_t>(OW);
     auto* weightY = reinterpret_cast<float*>(&auxTable[offset]);
-    offset += filterArgsY.filterLen * OH;
+    offset += static_cast<size_t>(filterArgsY.filterLen) * static_cast<size_t>(OH);
     auto* indexX = static_cast<int*>(&auxTable[offset]);
     offset += 2 * OW;
     auto* indexY = static_cast<int*>(&auxTable[offset]);
@@ -3662,12 +3662,12 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
             idxTbl[2 * ox] = min;
             idxTbl[2 * ox + 1] = max;
 
-            size_t offset = ox * args.filterLen;
+            size_t offset = static_cast<size_t>(ox) * static_cast<size_t>(args.filterLen);
             float weightSum = 0;
             int ix = 0;
             for (ix = 0; ix < max; ix++) {
                 // use distance to center as a parameter to compute weight
-                float w = args.weightGen((ix + min - ixCenter + 0.5) * args.ScaleClipReciprocal);
+                float w = args.weightGen((static_cast<float>(ix) + static_cast<float>(min) - ixCenter + 0.5F) * args.ScaleClipReciprocal);
                 weightTbl[offset + ix] = w;
                 weightSum += w;
             }
@@ -3678,7 +3678,7 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
             }
 
             // filterlen is maximum possible len, set others to 0 for possible uniform process(vector)
-            for (; ix < args.filterLen; ix++) {
+            for (; ix < static_cast<int>(args.filterLen); ix++) {
                 weightTbl[offset + ix] = 0.F;
             }
         }
@@ -4162,7 +4162,7 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
         }
     };
 
-    parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt_static(static_cast<int>(m_threads_num), [&](const int ithr, const int nthr) {
         for_2d(ithr, nthr, B, C, bc_loop);
     });
 }
@@ -4268,7 +4268,7 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
         }
     };
 
-    parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+    parallel_nt_static(static_cast<int>(m_threads_num), [&](const int ithr, const int nthr) {
         for_1d(ithr, nthr, B, b_loop);
     });
 }
@@ -4306,7 +4306,7 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
       srcDataSize(interpAttrs.inPrc.size()),
       dstDataSize(interpAttrs.outPrc.size()),
       dataRank(srcDims.size()),
-      spatialDimSize(getSpatialDimsNum(dataRank)) {
+      spatialDimSize(static_cast<int>(getSpatialDimsNum(dataRank))) {
     switch (mode) {
     case InterpolateMode::nearest: {
         buildTblNN(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout, interpAttrs.nearestMode);
@@ -4350,17 +4350,17 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     jcp.mode = mode;
     jcp.src_prc = interpAttrs.inPrc;
     jcp.dst_prc = interpAttrs.outPrc;
-    jcp.src_data_size = jcp.src_prc.size();
-    jcp.dst_data_size = jcp.dst_prc.size();
+    jcp.src_data_size = static_cast<int>(jcp.src_prc.size());
+    jcp.dst_data_size = static_cast<int>(jcp.dst_prc.size());
     jcp.indices_size = sizeof(int);
-    jcp.C = dstDim5d[1];
-    jcp.OW = dstDim5d[4];
-    jcp.OH = dstDim5d[3];
-    jcp.OD = dstDim5d[2];
-    jcp.IW = srcDimPad5d[4];
-    jcp.IH = srcDimPad5d[3];
-    jcp.ID = srcDimPad5d[2];
-    jcp.spatial_dim_size = getSpatialDimsNum(srcDims.size());
+    jcp.C = static_cast<int>(dstDim5d[1]);
+    jcp.OW = static_cast<int>(dstDim5d[4]);
+    jcp.OH = static_cast<int>(dstDim5d[3]);
+    jcp.OD = static_cast<int>(dstDim5d[2]);
+    jcp.IW = static_cast<int>(srcDimPad5d[4]);
+    jcp.IH = static_cast<int>(srcDimPad5d[3]);
+    jcp.ID = static_cast<int>(srcDimPad5d[2]);
+    jcp.spatial_dim_size = static_cast<int>(getSpatialDimsNum(srcDims.size()));
     jcp.layout = interpAttrs.layout;
     if (mode == InterpolateMode::bilinear_pillow || mode == InterpolateMode::bicubic_pillow) {
         jcp.filterLenX = auxTable[0];
@@ -4407,32 +4407,32 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
     switch (mode) {
     case InterpolateMode::nearest: {
         if (configured_for_layout == InterpolateLayoutType::planar) {
-            NNPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            NNPlanar(in_ptr_, out_ptr_, post_ops_data_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(ID), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OD), static_cast<int>(OH), static_cast<int>(OW));
         } else {
-            NNCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            NNCGathered(in_ptr_, out_ptr_, post_ops_data_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(ID), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OD), static_cast<int>(OH), static_cast<int>(OW));
         }
         break;
     }
     case InterpolateMode::linear_onnx: {
         if (configured_for_layout == InterpolateLayoutType::planar) {
-            linearOnnxPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            linearOnnxPlanar(in_ptr_, out_ptr_, post_ops_data_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(ID), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OD), static_cast<int>(OH), static_cast<int>(OW));
         } else {
-            linearOnnxCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, ID, IH, IW, OD, OH, OW);
+            linearOnnxCGathered(in_ptr_, out_ptr_, post_ops_data_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(ID), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OD), static_cast<int>(OH), static_cast<int>(OW));
         }
         break;
     }
     case InterpolateMode::cubic: {
         if (configured_for_layout == InterpolateLayoutType::planar) {
-            cubicPlanar(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+            cubicPlanar(in_ptr_, out_ptr_, post_ops_data_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OH), static_cast<int>(OW));
         } else {
-            cubicCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+            cubicCGathered(in_ptr_, out_ptr_, post_ops_data_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OH), static_cast<int>(OW));
         }
         break;
     }
     case InterpolateMode::bilinear_pillow:
     case InterpolateMode::bicubic_pillow: {
         if (configured_for_layout == InterpolateLayoutType::by_channel) {
-            pillowCGathered(in_ptr_, out_ptr_, post_ops_data_, N, C, IH, IW, OH, OW);
+            pillowCGathered(in_ptr_, out_ptr_, post_ops_data_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OH), static_cast<int>(OW));
         } else {
             OPENVINO_THROW("Only channel_first jit kernel is supported for pillow mode", mode);
         }
@@ -4458,15 +4458,15 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
 
     switch (mode) {
     case InterpolateMode::nearest: {
-        NNRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+        NNRef(in_ptr_, out_ptr_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(ID), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OD), static_cast<int>(OH), static_cast<int>(OW));
         break;
     }
     case InterpolateMode::linear_onnx: {
-        linearOnnxRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
+        linearOnnxRef(in_ptr_, out_ptr_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(ID), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OD), static_cast<int>(OH), static_cast<int>(OW));
         break;
     }
     case InterpolateMode::cubic: {
-        cubicRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+        cubicRef(in_ptr_, out_ptr_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OH), static_cast<int>(OW));
         break;
     }
     case InterpolateMode::linear: {
@@ -4478,17 +4478,17 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
         int kernel_width = 2;
         linearInterpolation(in_ptr_,
                             out_ptr_,
-                            N,
-                            C,
-                            ID,
-                            IH,
-                            IW,
+                            static_cast<int>(N),
+                            static_cast<int>(C),
+                            static_cast<int>(ID),
+                            static_cast<int>(IH),
+                            static_cast<int>(IW),
                             fx,
                             fy,
                             fz,
-                            OD,
-                            OH,
-                            OW,
+                            static_cast<int>(OD),
+                            static_cast<int>(OH),
+                            static_cast<int>(OW),
                             kernel_width,
                             isDownsample && antialias);
         break;
@@ -4496,9 +4496,9 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     case InterpolateMode::bilinear_pillow:
     case InterpolateMode::bicubic_pillow: {
         if (refInterpAttrs.NCHWAsNHWC) {
-            pillowRefNCHWAsNHWC(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+            pillowRefNCHWAsNHWC(in_ptr_, out_ptr_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OH), static_cast<int>(OW));
         } else {
-            pillowRef(in_ptr_, out_ptr_, N, C, IH, IW, OH, OW);
+            pillowRef(in_ptr_, out_ptr_, static_cast<int>(N), static_cast<int>(C), static_cast<int>(IH), static_cast<int>(IW), static_cast<int>(OH), static_cast<int>(OW));
         }
         break;
     }

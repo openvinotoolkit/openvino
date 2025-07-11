@@ -343,8 +343,8 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
             *dst++ = is_k1_valid ? static_cast<Tdst>(psrc[1]) : zero;
         }
         for (; n < 16; n++) {
-            *dst++ = 0;
-            *dst++ = 0;
+            *dst++ = zero;
+            *dst++ = zero;
         }
     }
 }
@@ -366,16 +366,16 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? static_cast<int8_t>(psrc[0]) : 0;
-            *dst++ = is_k1_valid ? static_cast<int8_t>(psrc[1]) : 0;
-            *dst++ = is_k2_valid ? static_cast<int8_t>(psrc[2]) : 0;
-            *dst++ = is_k3_valid ? static_cast<int8_t>(psrc[3]) : 0;
+            *dst++ = is_k0_valid ? psrc[0] : static_cast<int8_t>(0);
+            *dst++ = is_k1_valid ? psrc[1] : static_cast<int8_t>(0);
+            *dst++ = is_k2_valid ? psrc[2] : static_cast<int8_t>(0);
+            *dst++ = is_k3_valid ? psrc[3] : static_cast<int8_t>(0);
         }
         for (; n < 16; n++) {
-            *dst++ = 0;
-            *dst++ = 0;
-            *dst++ = 0;
-            *dst++ = 0;
+            *dst++ = static_cast<int8_t>(0);
+            *dst++ = static_cast<int8_t>(0);
+            *dst++ = static_cast<int8_t>(0);
+            *dst++ = static_cast<int8_t>(0);
         }
     }
 }

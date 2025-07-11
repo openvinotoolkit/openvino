@@ -433,13 +433,13 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
         jle(lEnd, T_NEAR);
 
         if (typeSize == 1) {
-            pinsrb(xmmDstMask, r32Ones, i);
+            pinsrb(xmmDstMask, r32Ones, static_cast<int>(i));
         } else if (typeSize == 2) {
-            pinsrw(xmmDstMask, r32Ones, i);
+            pinsrw(xmmDstMask, r32Ones, static_cast<int>(i));
         } else if (typeSize == 4) {
-            pinsrd(xmmDstMask, r32Ones, i);
+            pinsrd(xmmDstMask, r32Ones, static_cast<int>(i));
         } else if (typeSize == 8) {
-            pinsrq(xmmDstMask, r64Ones, i);
+            pinsrq(xmmDstMask, r64Ones, static_cast<int>(i));
         }
     }
     L(lEnd);
@@ -466,13 +466,13 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
             jle(i == 0 ? lEnd : lPerm, T_NEAR);
 
             if (typeSize == 1) {
-                pinsrb(xmmDstMask, r32Ones, j);
+                pinsrb(xmmDstMask, r32Ones, static_cast<int>(j));
             } else if (typeSize == 2) {
-                pinsrw(xmmDstMask, r32Ones, j);
+                pinsrw(xmmDstMask, r32Ones, static_cast<int>(j));
             } else if (typeSize == 4) {
-                pinsrd(xmmDstMask, r32Ones, j);
+                pinsrd(xmmDstMask, r32Ones, static_cast<int>(j));
             } else if (typeSize == 8) {
-                pinsrq(xmmDstMask, r64Ones, j);
+                pinsrq(xmmDstMask, r64Ones, static_cast<int>(j));
             }
         }
         cmp(rWorkRest, elPerVec);
@@ -541,13 +541,13 @@ void JitKernelBase::load(const Xbyak::Ymm& v_dst,
 
             const size_t offset = offset0 + j * typeSize;
             if (typeSize == 1) {
-                pinsrb(xmmDst, ptr[srcAddr.getRegExp() + offset], j);
+                pinsrb(xmmDst, ptr[srcAddr.getRegExp() + offset], static_cast<int>(j));
             } else if (typeSize == 2) {
-                pinsrw(xmmDst, ptr[srcAddr.getRegExp() + offset], j);
+                pinsrw(xmmDst, ptr[srcAddr.getRegExp() + offset], static_cast<int>(j));
             } else if (typeSize == 4) {
-                pinsrd(xmmDst, ptr[srcAddr.getRegExp() + offset], j);
+                pinsrd(xmmDst, ptr[srcAddr.getRegExp() + offset], static_cast<int>(j));
             } else if (typeSize == 8) {
-                pinsrq(xmmDst, ptr[srcAddr.getRegExp() + offset], j);
+                pinsrq(xmmDst, ptr[srcAddr.getRegExp() + offset], static_cast<int>(j));
             }
         }
 
@@ -573,13 +573,13 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
 
         const size_t offset = i * typeSize;
         if (typeSize == 1) {
-            uni_vpextrb(ptr[dstAddr.getRegExp() + offset], v_src, i);
+            uni_vpextrb(ptr[dstAddr.getRegExp() + offset], v_src, static_cast<int>(i));
         } else if (typeSize == 2) {
-            uni_vpextrw(ptr[dstAddr.getRegExp() + offset], v_src, i);
+            uni_vpextrw(ptr[dstAddr.getRegExp() + offset], v_src, static_cast<int>(i));
         } else if (typeSize == 4) {
-            uni_vpextrd(ptr[dstAddr.getRegExp() + offset], v_src, i);
+            uni_vpextrd(ptr[dstAddr.getRegExp() + offset], v_src, static_cast<int>(i));
         } else if (typeSize == 8) {
-            uni_vpextrq(ptr[dstAddr.getRegExp() + offset], v_src, i);
+            uni_vpextrq(ptr[dstAddr.getRegExp() + offset], v_src, static_cast<int>(i));
         }
     }
     L(lEnd);
@@ -607,13 +607,13 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
 
             const size_t offset = offset0 + j * typeSize;
             if (typeSize == 8) {
-                uni_vpextrq(ptr[dstAddr.getRegExp() + offset], xmmSrc, j);
+                uni_vpextrq(ptr[dstAddr.getRegExp() + offset], xmmSrc, static_cast<int>(j));
             } else if (typeSize == 4) {
-                uni_vpextrd(ptr[dstAddr.getRegExp() + offset], xmmSrc, j);
+                uni_vpextrd(ptr[dstAddr.getRegExp() + offset], xmmSrc, static_cast<int>(j));
             } else if (typeSize == 2) {
-                uni_vpextrw(ptr[dstAddr.getRegExp() + offset], xmmSrc, j);
+                uni_vpextrw(ptr[dstAddr.getRegExp() + offset], xmmSrc, static_cast<int>(j));
             } else if (typeSize == 1) {
-                uni_vpextrb(ptr[dstAddr.getRegExp() + offset], xmmSrc, j);
+                uni_vpextrb(ptr[dstAddr.getRegExp() + offset], xmmSrc, static_cast<int>(j));
             }
         }
 

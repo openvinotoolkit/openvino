@@ -263,13 +263,13 @@ private:
         if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             auto idx = simdSet.getUnused(requestedIdx);
             simdSet.setAsUsed(idx);
-            return idx;
+            return static_cast<int>(idx);
         }
         if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
             std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
             auto idx = generalSet.getUnused(requestedIdx);
             generalSet.setAsUsed(idx);
-            return idx;
+            return static_cast<int>(idx);
         }
         if (std::is_same<TReg, Xbyak::Opmask>::value) {
             return getFreeOpmask(requestedIdx);
@@ -333,7 +333,7 @@ public:
     int getFreeOpmask(int requestedIdx) override {
         auto idx = opmaskSet.getUnused(requestedIdx);
         opmaskSet.setAsUsed(idx);
-        return idx;
+        return static_cast<int>(idx);
     }
 
     void returnOpmaskToPool(int idx) override {

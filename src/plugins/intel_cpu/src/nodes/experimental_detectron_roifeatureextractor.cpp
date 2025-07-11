@@ -63,10 +63,10 @@ void pre_calc_for_bilinear_interpolate(const int height,
         for (int pw = 0; pw < pooled_width; pw++) {
             for (int iy = 0; iy < iy_upper; iy++) {
                 const T yy = roi_start_h + ph * bin_size_h +
-                             static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                             static_cast<T>(static_cast<float>(iy) + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
                 for (int ix = 0; ix < ix_upper; ix++) {
                     const T xx = roi_start_w + pw * bin_size_w +
-                                 static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                                 static_cast<T>(static_cast<float>(ix) + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
 
                     T x = xx;
                     T y = yy;
@@ -150,7 +150,7 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
     int n_rois = nthreads / channels / pooled_width / pooled_height;
     // (n, c, ph, pw) is an element in the pooled output
     parallel_for(n_rois, [&](size_t n) {
-        int index_n = n * channels * pooled_width * pooled_height;
+        int index_n = static_cast<int>(n) * channels * pooled_width * pooled_height;
 
         // roi could have 4 or 5 columns
         const T* offset_bottom_rois = bottom_rois + n * roi_cols;
@@ -302,9 +302,9 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
 
     const auto roiFeatureExtractor = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto& attr = roiFeatureExtractor->get_attrs();
-    output_dim_ = attr.output_size;
+    output_dim_ = static_cast<int>(attr.output_size);
     pyramid_scales_ = attr.pyramid_scales;
-    sampling_ratio_ = attr.sampling_ratio;
+    sampling_ratio_ = static_cast<int>(attr.sampling_ratio);
     aligned_ = attr.aligned;
     pooled_height_ = output_dim_;
     pooled_width_ = output_dim_;
@@ -328,8 +328,8 @@ void ExperimentalDetectronROIFeatureExtractor::initSupportedPrimitiveDescriptors
 
 void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int levels_num = static_cast<int>(inputShapes.size()) - INPUT_FEATURES_START;
-    const int num_rois = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    const int channels_num = getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1];
+    const int num_rois = static_cast<int>(getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0]);
+    const int channels_num = static_cast<int>(getParentEdgeAt(INPUT_FEATURES_START)->getMemory().getStaticDims()[1]);
     const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
 
     const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
@@ -355,11 +355,11 @@ void ExperimentalDetectronROIFeatureExtractor::execute([[maybe_unused]] const dn
         const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
         if (level_rois_num > 0) {
             const auto* featuremap = getSrcDataAtPortAs<const float>(INPUT_FEATURES_START + i);
-            const int featuremap_height = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2];
-            const int featuremap_width = getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3];
+            const int featuremap_height = static_cast<int>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[2]);
+            const int featuremap_width = static_cast<int>(getParentEdgeAt(INPUT_FEATURES_START + i)->getMemory().getStaticDims()[3]);
             ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
                                               featuremap,
-                                              1.0F / pyramid_scales_[i],
+                                              1.0F / static_cast<float>(pyramid_scales_[i]),
                                               channels_num,
                                               featuremap_height,
                                               featuremap_width,

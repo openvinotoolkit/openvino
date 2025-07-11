@@ -552,7 +552,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
         if (gridTypeSize == 4) {
             pinsrd(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
         } else if (gridTypeSize == 2) {
-            pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
+            pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], static_cast<int>(i / 2));
         }
 
         add(regGrid, gridTypeSize);
@@ -572,7 +572,7 @@ void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vm
         if (gridTypeSize == 4) {
             pinsrd(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
         } else if (gridTypeSize == 2) {
-            pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
+            pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], static_cast<int>(i / 2));
         }
 
         add(regGrid, gridTypeSize);

@@ -117,7 +117,7 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
             proposals[p_idx + 4] = score;
-            proposals[p_idx + 5] = static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * 1.0;
+            proposals[p_idx + 5] = static_cast<float>(static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h));
         }
     });
 }
@@ -323,8 +323,8 @@ GenerateProposals::GenerateProposals(const std::shared_ptr<ov::Node>& op, const 
 
     min_size_ = proposalAttrs.min_size;
     nms_thresh_ = proposalAttrs.nms_threshold;
-    pre_nms_topn_ = proposalAttrs.pre_nms_count;
-    post_nms_topn_ = proposalAttrs.post_nms_count;
+    pre_nms_topn_ = static_cast<int>(proposalAttrs.pre_nms_count);
+    post_nms_topn_ = static_cast<int>(proposalAttrs.post_nms_count);
     coordinates_offset_ = proposalAttrs.normalized ? 0.F : 1.F;
 
     roi_indices_.resize(post_nms_topn_);
@@ -392,11 +392,11 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto* p_anchors_item = getSrcDataAtPortAs<const float>(INPUT_ANCHORS);
         const auto* p_img_info_cpu = getSrcDataAtPortAs<const float>(INPUT_IM_INFO);
 
-        const int anchors_num = scoreDims[1];
+        const auto anchors_num = static_cast<int>(scoreDims[1]);
 
         // bottom shape: N x (num_anchors) x H x W
-        const int bottom_H = deltaDims[2];
-        const int bottom_W = deltaDims[3];
+        const auto bottom_H = static_cast<int>(deltaDims[2]);
+        const auto bottom_W = static_cast<int>(deltaDims[3]);
 
         // number of all proposals = num_anchors * H * W
         const int num_proposals = anchors_num * bottom_H * bottom_W;

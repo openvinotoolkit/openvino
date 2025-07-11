@@ -275,7 +275,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
         autoPad = one_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     }
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
-        deconvAttrs.kernel.push_back(weightDims[static_cast<int>(withGroups) + 2 + i]);
+        deconvAttrs.kernel.push_back(static_cast<int>(weightDims[static_cast<int>(withGroups) + 2 + i]));
     }
 #if defined(OV_CPU_WITH_ACL)
     deconvAttrs.aclFastMath = context->getConfig().aclFastMath;
@@ -450,7 +450,7 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                 const auto& dims = shape.getDims();
                 for (size_t i = 0; i < dims.size() - 2; ++i) {
                     lastOutputSpatialDims[i] =
-                        dims[i + 2] == Shape::UNDEFINED_DIM
+                        static_cast<int>(dims[i + 2]) == Shape::UNDEFINED_DIM
                             ? std::min(maxDims[i + 2], std::max(minDims[i + 2], static_cast<Dim>(64)))
                             : dims[i + 2];
                 }
@@ -685,10 +685,10 @@ void Deconvolution::initPaddingR(const Shape& inShape, const Shape& outShape) {
     for (size_t i = 0; i < deconvAttrs.paddingR.size(); i++) {
         int with_group = getAlgorithm() == Algorithm::DeconvolutionGrouped ? 1 : 0;
         const auto& weightDims = getWeightDims();
-        int krn = weightDims[with_group + 2 + i];
-        int src = outShape.getStaticDims()[2 + i];
-        int dst = inShape.getStaticDims()[2 + i];
-        krn = (krn - 1) * (deconvAttrs.dilation[i] + 1) + 1;
+        int krn = static_cast<int>(weightDims[with_group + 2 + i]);
+        int src = static_cast<int>(outShape.getStaticDims()[2 + i]);
+        int dst = static_cast<int>(inShape.getStaticDims()[2 + i]);
+        krn = (krn - 1) * static_cast<int>(deconvAttrs.dilation[i] + 1) + 1;
         deconvAttrs.paddingR[i] = (dst - 1) * deconvAttrs.stride[i] - (src - krn + deconvAttrs.paddingL[i]);
     }
 }
@@ -1242,7 +1242,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
                                                       Shape(getInputShapeAtPort(idx).getStaticDims()));
     }
     // idx =0 case
-    auto desc = prim_desc.src_desc(idx);
+    auto desc = prim_desc.src_desc(static_cast<int>(idx));
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
@@ -1250,7 +1250,7 @@ std::shared_ptr<MemoryDesc> Deconvolution::getSrcMemDesc(const dnnl::primitive_d
 }
 
 std::shared_ptr<MemoryDesc> Deconvolution::getDstMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const {
-    auto desc = prim_desc.dst_desc(idx);
+    auto desc = prim_desc.dst_desc(static_cast<int>(idx));
     if (getOutputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
     }
@@ -1317,7 +1317,7 @@ bool Deconvolution::canFuseBias() const {
     // implementation on the fusing transformation stage. In the end, all the deconv should run with brg implement. And
     // in model zoo only limited deconv has bias or other post-ops in IR. Based on above, enable the bias fusing for all
     // deconv implementations.
-    return static_cast<int>((externOutShape ? getParentEdges().size() == 3 : getParentEdges().size()) == 2);
+    return (externOutShape ? (getParentEdges().size() == 3) : (getParentEdges().size() == 2)) ? 1 : 0;
 }
 
 void Deconvolution::initSupportedPrimitiveDescriptors() {

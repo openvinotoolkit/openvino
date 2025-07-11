@@ -1770,7 +1770,7 @@ void FakeQuantize::executeReference() {
 
         parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
-            for (int c = cb * nbits, shift = 0; c < std::min(static_cast<dim_t>(C), (cb + 1) * nbits); c++, shift++) {
+            for (int c = static_cast<int>(cb * nbits), shift = 0; c < std::min(static_cast<dim_t>(C), static_cast<dim_t>((cb + 1) * nbits)); c++, shift++) {
                 size_t src_off = n * s_str[0] + c * s_str[1];
                 if (srcDims.size() == 4) {
                     src_off += h * s_str[2] + w * s_str[3];
@@ -1944,7 +1944,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, [[maybe_unused]] dim_t d) {
             auto arg = jit_quantize_call_args();
 
-            int c = cb * blk_size;
+            int c = static_cast<int>(cb * blk_size);
 
             size_t data_off = n * s_str[0] + c * s_str[1];
 
@@ -1975,9 +1975,9 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
             auto arg = jit_quantize_call_args();
 
-            const int c = cb * blk_size;
-            const int h = b * batch_size / W;
-            const int w = b * batch_size % W;
+            const int c = static_cast<int>(cb * blk_size);
+            const int h = static_cast<int>(b * batch_size / W);
+            const int w = static_cast<int>(b * batch_size % W);
 
             const size_t data_off = srcDims.size() == 3 || srcDims.size() == 4
                                         ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w
@@ -2010,7 +2010,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd_legacy(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
             auto arg = jit_quantize_call_args();
 
-            int c = cb * blk_size;
+            int c = static_cast<int>(cb * blk_size);
 
             size_t data_off = 0;
             if (srcDims.size() == 2) {
@@ -2067,22 +2067,22 @@ void FakeQuantize::initializePostOpData(const VectorDims& dims, const size_t buf
     }
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
-        const auto realAxisSize = dims[dims.size() > 1 ? 1 : 0];
-        const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
+        const size_t realAxisSize = dims[dims.size() > 1 ? 1 : 0];
+        const size_t axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
         binarizationThresholds.resize(axisPaddedSize, 0);
         binarizationOutputMask.resize(axisPaddedSize, 0);
 
         if (isInputLowBroadcasted) {
             std::fill(binarizationThresholds.begin() + 1,
-                      binarizationThresholds.begin() + realAxisSize,
+                      binarizationThresholds.begin() + static_cast<ptrdiff_t>(realAxisSize),
                       binarizationThresholds[0]);
-            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.F);
+            std::fill(binarizationThresholds.begin() + static_cast<ptrdiff_t>(realAxisSize), binarizationThresholds.end(), 0.F);
         }
         if (isOutputHighBroadcasted) {
             std::fill(binarizationOutputMask.begin() + 1,
-                      binarizationOutputMask.begin() + realAxisSize,
+                      binarizationOutputMask.begin() + static_cast<ptrdiff_t>(realAxisSize),
                       binarizationOutputMask[0]);
-            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.F);
+            std::fill(binarizationThresholds.begin() + static_cast<ptrdiff_t>(realAxisSize), binarizationThresholds.end(), 0.F);
         }
     } else {
         updateOptimizedFormula(doRounding);
@@ -2097,23 +2097,23 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims& dims, const size
     }
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
-        const auto realAxisSize = dims[dims.size() > 1 ? 1 : 0];
-        const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
+        const size_t realAxisSize = dims[dims.size() > 1 ? 1 : 0];
+        const size_t axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
 
         binarizationThresholds.resize(axisPaddedSize, 0);
         binarizationOutputMask.resize(axisPaddedSize, 0);
 
         if (isInputLowBroadcasted) {
             std::fill(binarizationThresholds.begin() + 1,
-                      binarizationThresholds.begin() + realAxisSize,
+                      binarizationThresholds.begin() + static_cast<ptrdiff_t>(realAxisSize),
                       binarizationThresholds[0]);
-            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.F);
+            std::fill(binarizationThresholds.begin() + static_cast<ptrdiff_t>(realAxisSize), binarizationThresholds.end(), 0.F);
         }
         if (isOutputHighBroadcasted) {
             std::fill(binarizationOutputMask.begin() + 1,
-                      binarizationOutputMask.begin() + realAxisSize,
+                      binarizationOutputMask.begin() + static_cast<ptrdiff_t>(realAxisSize),
                       binarizationOutputMask[0]);
-            std::fill(binarizationThresholds.begin() + realAxisSize, binarizationThresholds.end(), 0.F);
+            std::fill(binarizationThresholds.begin() + static_cast<ptrdiff_t>(realAxisSize), binarizationThresholds.end(), 0.F);
         }
 
     } else {
@@ -2125,7 +2125,7 @@ void FakeQuantize::initializePostOpDataLegacy(const VectorDims& dims, const size
         quantizationData.insert(quantizationData.end(), outputShift.begin(), outputShift.end());
         quantizationDataSize = quantizationData.size();
 
-        int bufferPaddingSize = static_cast<int>(rnd_up(outputShift.size(), bufferAlignment) - outputShift.size());
+        size_t bufferPaddingSize = rnd_up(outputShift.size(), bufferAlignment) - outputShift.size();
         quantizationData.resize(quantizationDataSize + bufferPaddingSize, 0);
     }
 

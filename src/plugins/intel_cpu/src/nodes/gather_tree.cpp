@@ -187,12 +187,12 @@ void GatherTree::GatherTreeExecutor::exec(const MemoryPtr& stepIdxMemPtr,
         int32_t maxSequenceInBeam = std::min<int32_t>(maxTime, static_cast<int32_t>(maxSeqLen[batch]));
         if (maxSequenceInBeam > 0) {
             int32_t time = (maxTime - 1);
-            int32_t idx = (maxTime - 1) * bbSize + batch * beamWidth;
-            for (; time >= maxSequenceInBeam; time--, idx -= bbSize) {
+            int32_t idx = (maxTime - 1) * static_cast<int32_t>(bbSize) + static_cast<int32_t>(batch) * static_cast<int32_t>(beamWidth);
+            for (; time >= maxSequenceInBeam; time--, idx -= static_cast<int32_t>(bbSize)) {
                 finalIdx[idx + beam] = endToken;
             }
 
-            for (auto parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= bbSize) {
+            for (auto parent = static_cast<int32_t>(beam); time >= 0; time--, idx -= static_cast<int32_t>(bbSize)) {
                 if (parent < 0 || parent >= static_cast<int32_t>(beamWidth) ||
                     static_cast<size_t>(idx) + parent >= parentIdxSize) {
                     incorrectResult = true;

@@ -227,12 +227,12 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                    brgemm_row_major,
                                    1.F,
                                    ctx.beta,
-                                   ctx.LDA,
-                                   ctx.LDB,
-                                   ctx.LDC,
-                                   ctx.M,
-                                   ctx.N,
-                                   ctx.K,
+                                   static_cast<dnnl_dim_t>(ctx.LDA),
+                                   static_cast<dnnl_dim_t>(ctx.LDB),
+                                   static_cast<dnnl_dim_t>(ctx.LDC),
+                                   static_cast<dnnl_dim_t>(ctx.M),
+                                   static_cast<dnnl_dim_t>(ctx.N),
+                                   static_cast<dnnl_dim_t>(ctx.K),
                                    nullptr);
     if (status != dnnl_success) {
         THROW_ERROR("cannot be executed due to invalid brgemm params");
@@ -280,27 +280,26 @@ void BrgemmKernel::init_brgemm_copy_a(
     size_t copy_A_src_stride) {
     brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_tag = dnnl_abcd;
-    brgCopyKernelConf.K = K;
-    brgCopyKernelConf.K_tail = K_tail;
-    brgCopyKernelConf.K_blk = K_blk;
+    brgCopyKernelConf.K = static_cast<dnnl_dim_t>(K);
+    brgCopyKernelConf.K_tail = static_cast<dnnl_dim_t>(K_tail);
+    brgCopyKernelConf.K_blk = static_cast<dnnl_dim_t>(K_blk);
     brgCopyKernelConf.use_buffer_a_tail_only = false;
     // padding K tail to K_blk, LDA is the stride for target tensor
-    brgCopyKernelConf.LDA = LDA;
+    brgCopyKernelConf.LDA = static_cast<dnnl_dim_t>(LDA);
     brgCopyKernelConf.has_zero_point_b = false;
     brgCopyKernelConf.s8s8_compensation_required = false;
     brgCopyKernelConf.wei_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_zp_type = dnnl::impl::cpu::x64::none;
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
-    brgCopyKernelConf.copy_A_src_stride = copy_A_src_stride;
+    brgCopyKernelConf.copy_A_src_stride = static_cast<dnnl_dim_t>(copy_A_src_stride);
     // copy_a_kernel assumes that in/out tensor has same data type except f16
     // copy_a_kernel has special path for f16: assuming input(f16) -> output(f32)
-    brgCopyKernelConf.a_dt_sz = is_avx_f16_only
+    brgCopyKernelConf.a_dt_sz = static_cast<dnnl_dim_t>(is_avx_f16_only
                                     ? sizeof(ov::float16)
-                                    : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+                                    : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0)));
     // copied A has the same precision of original
-    brgCopyKernelConf.tr_a_dt_sz =
-        is_avx_f16_only ? sizeof(float)
-                        : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+    brgCopyKernelConf.tr_a_dt_sz = static_cast<dnnl_dim_t>(is_avx_f16_only ? sizeof(float)
+                        : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0)));
     brgCopyKernelConf.transposed_A = transpose;
     brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
     brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
@@ -324,29 +323,29 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
     brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
-    brgCopyKernelConf.wei_n_blk = N_blk;
+    brgCopyKernelConf.wei_n_blk = static_cast<int>(N_blk);
     brgCopyKernelConf.wei_tag = transpose ? dnnl_ba : dnnl_ab;
-    brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
+    brgCopyKernelConf.copy_B_wei_stride = static_cast<dnnl_dim_t>(copy_B_wei_stride);
     brgCopyKernelConf.transposed_B = transpose;
 
     // LDB here is for the target tensor, not source tensor
-    brgCopyKernelConf.LDB = LDB;
-    brgCopyKernelConf.N = N;
-    brgCopyKernelConf.N_tail = N_tail;
-    brgCopyKernelConf.N_blk = N_blk;
-    brgCopyKernelConf.K = K;
-    brgCopyKernelConf.K_blk = K;
+    brgCopyKernelConf.LDB = static_cast<dnnl_dim_t>(LDB);
+    brgCopyKernelConf.N = static_cast<dnnl_dim_t>(N);
+    brgCopyKernelConf.N_tail = static_cast<dnnl_dim_t>(N_tail);
+    brgCopyKernelConf.N_blk = static_cast<dnnl_dim_t>(N_blk);
+    brgCopyKernelConf.K = static_cast<dnnl_dim_t>(K);
+    brgCopyKernelConf.K_blk = static_cast<dnnl_dim_t>(K);
     brgCopyKernelConf.K_tail = 0;
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
     // f16 is computed by upconverting. in(f16) -> out(f32)
-    brgCopyKernelConf.b_dt_sz =
+    brgCopyKernelConf.b_dt_sz = static_cast<dnnl_dim_t>(
         is_avx_f16_only
             ? sizeof(ov::float16)
-            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
-    brgCopyKernelConf.tr_b_dt_sz =
+            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt)));
+    brgCopyKernelConf.tr_b_dt_sz = static_cast<dnnl_dim_t>(
         is_avx_f16_only
             ? sizeof(float)
-            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt)));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
     if (is_with_amx) {
@@ -382,14 +381,14 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
             auto ctx = jit_brgemm_matmul_copy_b_t::ctx_t();
 
             const bool is_N_tail = (N - nb * N_blk < N_blk);
-            ctx.current_N_blk = is_N_tail ? N_tail : N_blk;
+            ctx.current_N_blk = static_cast<dnnl_dim_t>(is_N_tail ? N_tail : N_blk);
             ctx.src = pCopyKernel0In;
             ctx.tr_src = pCopyKernel0Out;
             ctx.compensation_ptr = nullptr;
             ctx.zp_a_compensation_ptr = nullptr;
             ctx.zp_a_neg_value_ptr = nullptr;
             ctx.current_K_start = 0;
-            ctx.current_K_iters = K;
+            ctx.current_K_iters = static_cast<dnnl_dim_t>(K);
             (*brgCopyBKernel)(&ctx);
         }
     }
@@ -415,7 +414,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
 
         auto ctx = jit_brgemm_matmul_copy_a_t::ctx_t();
 
-        ctx.current_M_blk = cur_M_blk;
+        ctx.current_M_blk = static_cast<dnnl_dim_t>(cur_M_blk);
         ctx.zp_b_compensation_buffer_ptr = nullptr;
         ctx.zp_a_compensation_result_ptr = nullptr;
         ctx.zp_b_neg_value_ptr = nullptr;
@@ -423,7 +422,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
         ctx.src = pCopyKernelIn;
         ctx.tr_src = pCopyKernelOut;
         ctx.current_K_start = 0;
-        ctx.current_K_blk = K % K_blk;
+        ctx.current_K_blk = static_cast<dnnl_dim_t>(K % K_blk);
 
         (*brgCopyAKernel)(&ctx);
     }

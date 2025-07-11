@@ -124,8 +124,8 @@ void SubgraphBaseExecutor::init_parallel_domain(const std::vector<size_t>& maste
     domain.resize(tensor_rank, 1);
     std::fill(domain.begin(), domain.end(), 1);
     std::copy(master_shape.cbegin(),
-              master_shape.cbegin() + (master_shape.size() - tile_rank),
-              domain.begin() + (tensor_rank - master_shape.size()));
+              master_shape.cbegin() + static_cast<std::ptrdiff_t>(master_shape.size() - tile_rank),
+              domain.begin() + static_cast<std::ptrdiff_t>(tensor_rank - master_shape.size()));
 }
 
 void SubgraphBaseExecutor::init_parallel_domain(const std::shared_ptr<CPURuntimeConfig>& snippet_config,

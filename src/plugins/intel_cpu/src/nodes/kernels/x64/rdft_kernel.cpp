@@ -32,14 +32,14 @@ void jit_dft_kernel_f32<isa>::generate() {
     switch (kernel_type_) {
     case real_to_complex:
         input_type_size = type_size;
-        output_type_size = complex_type_size<float>();
+        output_type_size = static_cast<int>(complex_type_size<float>());
         break;
     case complex_to_complex:
-        input_type_size = complex_type_size<float>();
-        output_type_size = complex_type_size<float>();
+        input_type_size = static_cast<int>(complex_type_size<float>());
+        output_type_size = static_cast<int>(complex_type_size<float>());
         break;
     case complex_to_real:
-        input_type_size = complex_type_size<float>();
+        input_type_size = static_cast<int>(complex_type_size<float>());
         output_type_size = type_size;
         break;
     default:
@@ -70,15 +70,15 @@ void jit_dft_kernel_f32<isa>::generate() {
     lea(output_ptr, ptr[output_ptr + output_type_size * output_start]);
 
     size_t reg_idx = 0;
-    auto xmm_signal_size = Xmm(reg_idx);
-    auto vmm_signal_size = Vmm(reg_idx);
+    auto xmm_signal_size = Xmm(static_cast<int>(reg_idx));
+    auto vmm_signal_size = Vmm(static_cast<int>(reg_idx));
     if (is_inverse_) {
         reg_idx++;
         uni_vbroadcastss(vmm_signal_size, ptr[param1 + GET_OFF(signal_size)]);
         uni_vcvtdq2ps(vmm_signal_size, vmm_signal_size);
     }
 
-    auto neg_mask = Xmm(reg_idx);
+    auto neg_mask = Xmm(static_cast<int>(reg_idx));
     if (kernel_type_ == complex_to_complex) {
         reg_idx++;
         uni_vpxor(neg_mask, neg_mask, neg_mask);
@@ -104,9 +104,9 @@ void jit_dft_kernel_f32<isa>::generate() {
     mov(rax, reinterpret_cast<uint64_t>(perm_high_values.data()));
     uni_vmovups(perm_high, ptr[rax]);
 
-    auto xmm_input = Xbyak::Xmm(reg_idx++);
-    auto xmm_twiddles = Xbyak::Xmm(reg_idx++);
-    auto xmm_output = Xbyak::Xmm(reg_idx++);
+    auto xmm_input = Xbyak::Xmm(static_cast<int>(reg_idx++));
+    auto xmm_twiddles = Xbyak::Xmm(static_cast<int>(reg_idx++));
+    auto xmm_output = Xbyak::Xmm(static_cast<int>(reg_idx++));
 
     mov(rax, signal_size);
     and_(rax, 1);

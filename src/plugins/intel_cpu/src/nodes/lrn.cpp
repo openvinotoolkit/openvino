@@ -137,7 +137,7 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
-        k = static_cast<float>(lrn->get_bias());
+        k = static_cast<int>(lrn->get_bias());
         size = lrn->get_nsize();
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -175,9 +175,9 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_
         return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), getInputShapeAtPort(idx));
     }
     if (getInputShapeAtPort(idx).isDynamic()) {
-        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(idx), getInputShapeAtPort(idx));
+        return DnnlExtensionUtils::makeUndefinedDesc(prim_desc.src_desc(static_cast<int>(idx)), getInputShapeAtPort(idx));
     }
-    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(idx));
+    return DnnlExtensionUtils::makeDescriptor(prim_desc.src_desc(static_cast<int>(idx)));
 }
 
 void Lrn::prepareParams() {
@@ -209,10 +209,10 @@ void Lrn::prepareParams() {
                                                            key.alg,
                                                            key.inp0->getDnnlDesc(),
                                                            key.inp0->getDnnlDesc(),
-                                                           key.size,
+                                                           static_cast<dnnl::memory::dim>(key.size),
                                                            key.alpha,
                                                            key.beta,
-                                                           key.k,
+                                                           static_cast<float>(key.k),
                                                            key.attr);
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
@@ -257,10 +257,10 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                   alg,
                                                   in_candidate,
                                                   in_candidate,
-                                                  size,
+                                                  static_cast<dnnl::memory::dim>(size),
                                                   alpha,
                                                   beta,
-                                                  k);
+                                                  static_cast<float>(k));
 
     descs.push_back(desc);
 }

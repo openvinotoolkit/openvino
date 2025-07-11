@@ -37,7 +37,7 @@ If::PortMapHelper::PortMapHelper(MemoryPtr from, std::deque<MemoryPtr> to, [[may
     : srcMemPtr(std::move(from)),
       dstMemPtrs(std::move(to)) {
     if (srcMemPtr->getDesc().isDefined()) {
-        size = srcMemPtr->getShape().getElementsCount();
+        size = static_cast<ptrdiff_t>(srcMemPtr->getShape().getElementsCount());
     }
 
     // Backup dstMemPtrs
@@ -68,7 +68,7 @@ void If::PortMapHelper::redefineTo() {
             dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
 
-        size = srcMemPtr->getShape().getElementsCount();
+        size = static_cast<ptrdiff_t>(srcMemPtr->getShape().getElementsCount());
     }
 }
 
@@ -249,7 +249,7 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
 
 std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) {
     std::deque<MemoryPtr> memories;
-    for (const auto& edge : node->getChildEdgesAtPort(port)) {
+    for (const auto& edge : node->getChildEdgesAtPort(static_cast<int>(port))) {
         memories.push_back(edge->getMemoryPtr());
     }
     return memories;

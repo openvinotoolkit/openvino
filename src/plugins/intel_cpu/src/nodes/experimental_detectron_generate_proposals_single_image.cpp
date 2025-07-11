@@ -116,7 +116,7 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
-            proposals[p_idx + 4] = static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * score;
+            proposals[p_idx + 4] = static_cast<float>(static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h)) * score;
         }
     });
 }
@@ -325,8 +325,8 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
 
     min_size_ = proposalAttrs.min_size;
     nms_thresh_ = proposalAttrs.nms_threshold;
-    pre_nms_topn_ = proposalAttrs.pre_nms_count;
-    post_nms_topn_ = proposalAttrs.post_nms_count;
+    pre_nms_topn_ = static_cast<int>(proposalAttrs.pre_nms_count);
+    post_nms_topn_ = static_cast<int>(proposalAttrs.post_nms_count);
 
     coordinates_offset = 0.0F;
 
@@ -385,11 +385,11 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
         auto* p_roi_item = getDstDataAtPortAs<float>(OUTPUT_ROIS);
         auto* p_roi_score_item = getDstDataAtPortAs<float>(OUTPUT_SCORES);
 
-        const int anchors_num = scoreDims[0];
+        const auto anchors_num = static_cast<int>(scoreDims[0]);
 
         // bottom shape: (num_anchors) x H x W
-        const int bottom_H = deltaDims[1];
-        const int bottom_W = deltaDims[2];
+        const auto bottom_H = static_cast<int>(deltaDims[1]);
+        const auto bottom_W = static_cast<int>(deltaDims[2]);
 
         // input image height & width
         const float img_H = p_img_info_cpu[0];

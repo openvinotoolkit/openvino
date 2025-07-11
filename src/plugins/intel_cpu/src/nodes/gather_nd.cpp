@@ -133,18 +133,18 @@ void GatherND::prepareParams() {
 
 GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
     : batchSize(std::accumulate(attrs.srcDims.begin(),
-                                attrs.srcDims.begin() + attrs.batchDims,
+                                attrs.srcDims.begin() + static_cast<std::ptrdiff_t>(attrs.batchDims),
                                 static_cast<size_t>(1),
                                 std::multiplies<>())),
       dataSize(attrs.dataSize),
       sliceRank(attrs.sliceRank),
-      dataLength(std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims,
+      dataLength(std::accumulate(attrs.srcDims.begin() + static_cast<std::ptrdiff_t>(sliceRank + attrs.batchDims),
                                  attrs.srcDims.end(),
                                  static_cast<size_t>(1),
                                  std::multiplies<>())),
       cycles(attrs.dstElementCount / (dataLength * batchSize)),
       workAmount(batchSize * cycles),
-      srcBatchStride(std::accumulate(attrs.srcDims.begin() + attrs.batchDims,
+      srcBatchStride(std::accumulate(attrs.srcDims.begin() + static_cast<std::ptrdiff_t>(attrs.batchDims),
                                      attrs.srcDims.end(),
                                      static_cast<size_t>(1),
                                      std::multiplies<>())),
@@ -154,7 +154,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
       srcDims(attrs.srcDims) {
     srcShifts.resize(attrs.sliceRank, 0);
     for (size_t i = 0; i < attrs.sliceRank; i++) {
-        srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * (dataLength > 1 ? dataSize : 1);
+        srcShifts[i] = attrs.srcStrides[i + static_cast<size_t>(attrs.batchDims)] * (dataLength > 1 ? dataSize : 1);
     }
 
     // optimized implementation 'blocks' via memcpy
