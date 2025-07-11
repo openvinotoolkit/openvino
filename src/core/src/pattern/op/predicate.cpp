@@ -4,6 +4,8 @@
 
 #include "openvino/pass/pattern/op/predicate.hpp"
 
+#include "openvino/core/log_util.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov::pass::pattern {
@@ -87,9 +89,9 @@ constexpr bool symbol_true_predicate(pass::pattern::PatternSymbolMap&, const Out
 Predicate::Predicate() : m_name("always_true"), m_pred(symbol_true_predicate) {}
 Predicate::Predicate(std::nullptr_t) : Predicate() {}
 
-bool Predicate::operator()(pass::pattern::PatternSymbolMap& m, const Output<Node>& output) const {
-    bool result = m_pred(m, output);
-    OPENVINO_DEBUG("Predicate `", m_name, "` has ", (result ? "passed" : "failed"), ". Applied to ", output);
+bool Predicate::operator()(Matcher* m, const Output<Node>& output) const {
+    bool result = m_pred(m->get_symbols(), output);
+    OPENVINO_LOG_PREDICATE1(m, m_name, result);
     return result;
 }
 

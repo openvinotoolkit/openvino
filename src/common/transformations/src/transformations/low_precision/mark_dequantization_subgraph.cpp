@@ -27,11 +27,14 @@ using namespace ov::pass::pattern;
 namespace {
 
 ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& precisions) {
+    std::string prec_str;
+    for (auto& p : precisions)
+        prec_str += p.to_string() + " ";
     return ov::pass::pattern::op::Predicate(
         [=](const Output<Node>& output) -> bool {
             return std::find(precisions.begin(), precisions.end(), output.get_element_type()) != precisions.end();
         },
-        "check_precision");
+        "check_precision( " + prec_str + ")");
 }
 
 using RTInfoSetter = std::function<void(const std::shared_ptr<ov::Node>& node)>;

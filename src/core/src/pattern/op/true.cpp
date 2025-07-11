@@ -11,6 +11,6 @@
 bool ov::pass::pattern::op::True::match_value(Matcher* matcher,
                                               const Output<Node>& pattern_value,
                                               const Output<Node>& graph_value) {
-    OPENVINO_LOG_TRUE1(matcher);
+    OPENVINO_LOG_TRUE1(matcher, pattern_value);
     return true;
 }
