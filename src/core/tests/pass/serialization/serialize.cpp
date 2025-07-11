@@ -13,6 +13,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
@@ -163,6 +164,26 @@ TEST_P(SerializationTest, SaveModelByPath) {
     const auto out_xml_path = std::filesystem::path(m_out_xml_path);
     CompareSerialized([&out_xml_path](const auto& m) {
         ov::save_model(m, out_xml_path, false);
+    });
+}
+
+TEST_P(SerializationTest, SerializeWithNormalPass) {
+    CompareSerialized([this](const auto& m) {
+        std::stringstream xmlStringStream;
+        std::stringstream weightsStream;
+        ov::pass::Serialize(xmlStringStream, weightsStream).run_on_model(m);
+        // Read model with the xml and weights map
+        std::string weights = weightsStream.str();
+        std::vector<uint8_t> weightsData(weights.size() + 1);
+        strcpy(reinterpret_cast<char*>(weightsData.data()), weights.c_str());
+        weightsData[weights.size()] = '\0';  // Null-terminate the string
+
+        ov::Tensor weightsTensor = ov::Tensor(ov::element::u8,
+                                              {static_cast<size_t>(weightsData.size())},
+                                              reinterpret_cast<uint8_t*>(weightsData.data()));
+        ov::Core core;
+        auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);
+        ov::serialize(modelNew, m_out_xml_path, m_out_bin_path);
     });
 }
 
