@@ -38,28 +38,28 @@
 #include <typeindex>
 
 static bool is_non_value_modifying_node(const std::shared_ptr<ov::Node>& node) {
-    static const std::unordered_map<std::type_index, bool> node_behavior_registry = {
-        {typeid(ov::op::v1::Reshape), true},
-        {typeid(ov::op::v1::Transpose), true},
-        {typeid(ov::op::util::ScatterBase), true},
-        {typeid(ov::op::util::ScatterNDBase), true},
-        {typeid(ov::op::util::ScatterElementsUpdateBase), true},
-        {typeid(ov::op::v8::Slice), true},
-        {typeid(ov::op::v1::Broadcast), true},
-        {typeid(ov::op::v0::Concat), true},
-        {typeid(ov::op::v1::Split), true},
-        {typeid(ov::op::v1::StridedSlice), true},
-        {typeid(ov::op::v0::Tile), true},
-        {typeid(ov::op::v16::Identity), true},
-        {typeid(ov::op::v1::Pad), true},
-        {typeid(ov::op::util::GatherNDBase), true},
-        {typeid(ov::op::util::GatherBase), true},
-        {typeid(ov::op::v15::Squeeze), true},
-        {typeid(ov::op::v0::Unsqueeze), true},
+    static const std::unordered_map<std::string, bool> node_behavior_registry = {
+        {ov::op::v1::Reshape::get_type_info_static().name, true},
+        {ov::op::v1::Transpose::get_type_info_static().name, true},
+        {ov::op::util::ScatterBase::get_type_info_static().name, true},
+        {ov::op::util::ScatterNDBase::get_type_info_static().name, true},
+        {ov::op::util::ScatterElementsUpdateBase::get_type_info_static().name, true},
+        {ov::op::v8::Slice::get_type_info_static().name, true},
+        {ov::op::v1::Broadcast::get_type_info_static().name, true},
+        {ov::op::v0::Concat::get_type_info_static().name, true},
+        {ov::op::v1::Split::get_type_info_static().name, true},
+        {ov::op::v1::StridedSlice::get_type_info_static().name, true},
+        {ov::op::v0::Tile::get_type_info_static().name, true},
+        {ov::op::v16::Identity::get_type_info_static().name, true},
+        {ov::op::v1::Pad::get_type_info_static().name, true},
+        {ov::op::util::GatherNDBase::get_type_info_static().name, true},
+        {ov::op::util::GatherBase::get_type_info_static().name, true},
+        {ov::op::v15::Squeeze::get_type_info_static().name, true},
+        {ov::op::v0::Unsqueeze::get_type_info_static().name, true},
         // Add more node types as needed
     };
 
-    auto it = node_behavior_registry.find(typeid(*node));
+    auto it = node_behavior_registry.find(node->get_type_info().name);
     return it != node_behavior_registry.end() && it->second;
 }
 
