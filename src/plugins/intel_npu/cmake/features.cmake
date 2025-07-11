@@ -13,3 +13,6 @@ endif()
 ov_dependent_option(ENABLE_IMD_BACKEND "Enable InferenceManagerDemo based NPU AL backend" OFF "NOT WIN32;NOT CMAKE_CROSSCOMPILING" OFF)
 
 ov_dependent_option(ENABLE_INTEL_NPU_PROTOPIPE "Enable Intel NPU Protopipe tool" ON "ENABLE_INTEL_NPU_INTERNAL" OFF)
+
+ov_option(ENABLE_VCL_FOR_COMPILER "Enable VCL for NPU compiler" ON)
+ov_option(ENABLE_SYSTEM_NPU_VCL_COMPILER "Use system VCL compiler libraries" OFF)
