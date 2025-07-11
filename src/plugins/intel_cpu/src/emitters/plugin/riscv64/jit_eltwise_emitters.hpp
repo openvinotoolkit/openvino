@@ -541,7 +541,7 @@ private:
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
-///Greater///
+/// Greater///
 class jit_greater_emitter : public jit_emitter {
 public:
     jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
@@ -562,7 +562,7 @@ private:
 
     void register_table_entries() override;
 };
-///Sub
+/// Sub
 class jit_subtract_emitter : public jit_emitter {
 public:
     jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator* host,

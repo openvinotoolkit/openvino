@@ -1514,7 +1514,7 @@ std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisio
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
-///Greater///
+/// Greater///
 jit_greater_emitter::jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
@@ -1533,7 +1533,8 @@ size_t jit_greater_emitter::aux_fp_gprs_count() const {
     return 0;
 }
 
-void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -1542,7 +1543,8 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, cons
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
     VReg lhs = VReg(in_vec_idxs[0]);
     VReg rhs = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
@@ -1557,7 +1559,7 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const
 void jit_greater_emitter::register_table_entries() {}
 
 std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>&) {
-    return { {element::f32, element::f32} };
+    return {{element::f32, element::f32}};
 }
 
 /// SQRT ///
