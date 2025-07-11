@@ -8,7 +8,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
-#include "openvino/pass/pattern/op/predicate.hpp"
 
 namespace ov::pass::pattern {
 namespace op {
