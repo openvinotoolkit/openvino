@@ -330,7 +330,7 @@ private:
                                           const std::vector<int>& padBegin,
                                           const std::vector<int>& padEnd);
     std::vector<float> getScales(const VectorDims& srcDimPad, const VectorDims& dstDim);
-    static size_t getSpatialDimsNum(Dim rank);
+    static size_t getSpatialDimsNum(const VectorDims& srcDims, const VectorDims& dstDims);
 
     bool hasPad = false;
 
