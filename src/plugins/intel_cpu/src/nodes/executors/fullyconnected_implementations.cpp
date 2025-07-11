@@ -266,36 +266,42 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                struct ConvolutionInstantiator {
-                    std::shared_ptr<DnnlConvolutionPrimitive> operator()(
-                        const MemoryArgs& memory,
-                        const FCAttrs& attrs,
-                        const ExecutorContext::CPtr& context,
-                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
+                // struct ConvolutionInstantiator {
+                //     std::shared_ptr<DnnlConvolutionPrimitive> operator()(
+                //         const MemoryArgs& memory,
+                //         const FCAttrs& attrs,
+                //         const ExecutorContext::CPtr& context,
+                //         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
 
-                        const bool fcSemantic = true;
-                        ConvAttrs convAttrs{{1}, {0}, {0}, {0},
-                                            AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
-                                            false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
+                //         const bool fcSemantic = true;
+                //         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
+                //                             AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
+                //                             false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
                         
-                        auto primitive =
-                            DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
-                            memory,
-                            convAttrs,
-                            context,
-                            shareAgnosticData);
+                //         auto primitive =
+                //             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
+                //             memory,
+                //             convAttrs,
+                //             context,
+                //             shareAgnosticData);
 
-                        if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
-                            // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
-                            return nullptr;
-                        }
-                        return primitive;
-                    }
-                };
+                //         if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
+                //             // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
+                //             return nullptr;
+                //         }
+                //         return primitive;
+                //     }
+                // };
+
+                const bool fcSemantic = true;
+                ConvAttrs convAttrs{{1}, {0}, {0}, {0},
+                                    AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
+                                    false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
 
                 return std::make_shared<
-                    DnnlExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
-                    attrs,
+                    // DnnlExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
+                    DnnlExecutor<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData, DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>>>(
+                    convAttrs,
                     memory,
                     context,
                     false);
@@ -417,27 +423,15 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                struct MatMulInstantiator {
-                    std::shared_ptr<DnnlMatMulPrimitive> operator()(
-                        const MemoryArgs& memory,
-                        [[maybe_unused]] const FCAttrs& attrs,
-                        const ExecutorContext::CPtr& context,
-                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
-                        MatMulAttrs matMulAttrs{false,
-                                                false};
-                        auto primitive =
-                            DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(
-                            memory,
-                            matMulAttrs,
-                            context,
-                            shareAgnosticData);
-                        return primitive;
-                    }
-                };
-
+                MatMulAttrs matMulAttrs{false,
+                                        false};
+                matMulAttrs.postOps = attrs.postOps;
+                matMulAttrs.transposeB = attrs.weightsNonTransposed;
+                
                 return std::make_shared<
-                    DnnlExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
-                    attrs,
+                    DnnlExecutor<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData,
+                                 DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>>>(
+                    matMulAttrs,
                     memory,
                     context,
                     false);

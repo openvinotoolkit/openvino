@@ -29,18 +29,15 @@ class VariableExecutor : public Executor {
 public:
     using ExecutorImplementationRef = std::reference_wrapper<const ExecutorImplementation<Attrs>>;
 
-    VariableExecutor(const MemoryArgs& memory,
+    VariableExecutor([[maybe_unused]] const MemoryArgs& memory,
                      Attrs attrs,
                      ExecutorContext::CPtr context,
                      std::vector<ExecutorImplementationRef> suitableImplementations)
         : m_attrs(std::move(attrs)),
           m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
-          m_executors(m_suitableImplementations.size()) {
-        const size_t implId = select(memory, 0);
-        m_executors[implId] = create(implId, memory);
-        m_implId = implId;
-    }
+          m_executors(m_suitableImplementations.size()),
+          m_implId(0) {}
 
     bool update(const MemoryArgs& memory) override {
         for (auto implId = select(memory, 0); implId < m_suitableImplementations.size();
