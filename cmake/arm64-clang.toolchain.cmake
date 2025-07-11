@@ -42,3 +42,14 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
 # Don't use GNU pkg-config for cross-compilation
 # set(PKG_CONFIG_EXECUTABLE aarch64-linux-gnu-pkg-config CACHE PATH "Path to ARM64 pkg-config")
+
+# Disable components that have issues with cross-compilation
+# MLAS uses assembly syntax that is incompatible with LLVM assembler for ARM64
+set(ENABLE_MLAS_FOR_CPU OFF CACHE BOOL "Disable MLAS due to assembly syntax incompatibility with LLVM" FORCE)
+
+# KleidiAI requires specific ARM assembly instructions that fail with LLVM cross-compilation
+set(ENABLE_KLEIDIAI_FOR_CPU OFF CACHE BOOL "Disable KleidiAI due to assembly syntax issues" FORCE)
+
+# TensorFlow Lite frontend builds flatc compiler for target architecture instead of host
+# This causes "Exec format error" when trying to run ARM64 flatc on x86_64 host during build
+set(ENABLE_OV_TF_LITE_FRONTEND OFF CACHE BOOL "Disable TF Lite frontend due to flatc cross-compilation issues" FORCE)
