@@ -16,10 +16,10 @@ public:
         : m_default_partitioner(partitioner),
           m_default_multiplier(multiplier) {}
 
-    ov::intel_cpu::TbbPartitioner get_partitioner() const {
+    [[nodiscard]] ov::intel_cpu::TbbPartitioner get_partitioner() const {
         return m_default_partitioner;
     }
-    size_t get_multiplier() {
+    size_t get_multiplier() const {
         return m_default_multiplier;
     }
 
@@ -57,8 +57,9 @@ public:
         if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount)
+        if (static_cast<size_t>(virtual_threads) > work_amount) {
             virtual_threads = static_cast<int>(work_amount);
+        }
         if (virtual_threads == 1) {
             for_1d(0, 1, D0, func);
         } else {
@@ -94,8 +95,9 @@ public:
         if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount)
+        if (static_cast<size_t>(virtual_threads) > work_amount) {
             virtual_threads = static_cast<int>(work_amount);
+        }
         if (virtual_threads == 1) {
             for_2d(0, 1, D0, D1, func);
         } else {
@@ -132,8 +134,9 @@ public:
         if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * multiplier;
         }
-        if (static_cast<size_t>(virtual_threads) > work_amount)
+        if (static_cast<size_t>(virtual_threads) > work_amount) {
             virtual_threads = static_cast<int>(work_amount);
+        }
         if (virtual_threads == 1) {
             for_3d(0, 1, D0, D1, D2, func);
         } else {
@@ -168,10 +171,12 @@ public:
         auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO)
+        if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * multiplier;
-        if (static_cast<size_t>(virtual_threads) > work_amount)
+        }
+        if (static_cast<size_t>(virtual_threads) > work_amount) {
             virtual_threads = static_cast<int>(work_amount);
+        }
         if (virtual_threads == 1) {
             for_4d(0, 1, D0, D1, D2, D3, func);
         } else {
@@ -207,10 +212,12 @@ public:
         auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO)
+        if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * multiplier;
-        if (static_cast<size_t>(virtual_threads) > work_amount)
+        }
+        if (static_cast<size_t>(virtual_threads) > work_amount) {
             virtual_threads = static_cast<int>(work_amount);
+        }
         if (virtual_threads == 1) {
             for_5d(0, 1, D0, D1, D2, D3, D4, func);
         } else {
@@ -247,10 +254,12 @@ public:
         auto work_amount = static_cast<size_t>(D0 * D1 * D2 * D3 * D4 * D5);
         const int nthr = parallel_get_max_threads();
         int virtual_threads = nthr;
-        if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO)
+        if (partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
             virtual_threads = 1 == nthr ? 1 : nthr * multiplier;
-        if (static_cast<size_t>(virtual_threads) > work_amount)
+        }
+        if (static_cast<size_t>(virtual_threads) > work_amount) {
             virtual_threads = static_cast<int>(work_amount);
+        }
         if (virtual_threads == 1) {
             for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
         } else {

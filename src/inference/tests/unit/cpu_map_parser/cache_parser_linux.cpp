@@ -1615,6 +1615,7 @@ LinuxCpuMapTestCase cache_1sockets_4cores_2 = {
     1,
     1,
     4,
+    0,
     {{4, 4, 0, 0, 0, 0, 0}},
     {
         {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},

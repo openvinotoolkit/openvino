@@ -22,19 +22,19 @@ private:
 
 public:
     ThreadPool() = default;
-    ThreadPool(const std::shared_ptr<CpuParallel> cpu_parallel) : m_cpu_parallel(cpu_parallel) {
-        m_partitoner = m_cpu_parallel->get_partitioner();
-        m_multiplier = m_cpu_parallel->get_multiplier();
-    }
-    int get_num_threads() const override {
+    ThreadPool(const std::shared_ptr<CpuParallel>& cpu_parallel)
+        : m_cpu_parallel(cpu_parallel),
+          m_partitoner(m_cpu_parallel->get_partitioner()),
+          m_multiplier(m_cpu_parallel->get_multiplier()) {}
+    [[nodiscard]] int get_num_threads() const override {
         int num = m_partitoner == ov::intel_cpu::TbbPartitioner::STATIC ? parallel_get_max_threads()
                                                                         : parallel_get_max_threads() * m_multiplier;
         return num;
     }
-    bool get_in_parallel() const override {
-        return 0;
+    [[nodiscard]] bool get_in_parallel() const override {
+        return false;
     }
-    uint64_t get_flags() const override {
+    [[nodiscard]] uint64_t get_flags() const override {
         return 0;
     }
     void parallel_for(int n, const std::function<void(int, int)>& fn) override {
