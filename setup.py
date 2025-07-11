@@ -6,7 +6,6 @@ import os.path
 import sys
 import errno
 import subprocess  # nosec
-import typing
 import platform
 import re
 import shutil
@@ -791,7 +790,7 @@ PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
 os.makedirs(PACKAGE_DIR, exist_ok=True)
 
 packages = find_namespace_packages(PACKAGE_DIR)
-package_data: typing.Dict[str, list] = {}
+package_data: dict[str, list] = {}
 ext_modules = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 entry_points = find_entry_points(PY_INSTALL_CFG)
 
