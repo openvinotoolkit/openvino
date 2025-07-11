@@ -562,4 +562,27 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
+class jit_tanh_emitter : public jit_emitter {
+public:
+    jit_tanh_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, ov::element::Type exec_prc);
+    jit_tanh_emitter(jit_generator* host, cpu_isa_t host_isa, ov::element::Type exec_prc);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+    size_t aux_vecs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    void register_table_entries() override;
+    void emit_data() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node);
+
+protected:
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    std::unique_ptr<jit_exp_emitter> jit_exp_emitter_;
+};
+
 }  // namespace ov::intel_cpu::riscv64
