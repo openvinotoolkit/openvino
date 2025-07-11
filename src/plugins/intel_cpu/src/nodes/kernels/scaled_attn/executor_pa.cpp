@@ -2652,7 +2652,7 @@ struct MHAHelper {
                     (precision_of<DATA_TYPE>::value == ov::element::Type_t::f32 ? _block_size : _block_size / 2) *
                         k_blk;
 
-#ifdef OV_CPU_WITH_KLEIDIAI
+#        ifdef OV_CPU_WITH_KLEIDIAI
                 KleidiGemm qkKernel(q_cnt, _block_size, S, H * S, _block_size, _score_stride);
                 PlainTensor packedB_k;
                 packedB_k.resize<float16_t>({qkKernel.get_packed_rhs_size()});
@@ -2660,9 +2660,9 @@ struct MHAHelper {
                                bias_qk.ptr<float16_t>(0),
                                packedB_k.ptr<float16_t>(0));
                 qkKernel.executeGemm(q_ptr, packedB_k.ptr<float16_t>(0), qk_out_ptr);
-#else
+#        else
                 OPENVINO_THROW("KleidiAI is not enabled in this build");
-#endif
+#        endif
             }
 
             for (size_t m = q_start; m < q_end; m++) {
@@ -2741,14 +2741,14 @@ struct MHAHelper {
             DATA_TYPE* v_ptr;
             v_ptr = wv_scratch_b.ptr<DATA_TYPE>(hk, 0);
             PlainTensor packedB;
-#ifdef OV_CPU_WITH_KLEIDIAI
+#        ifdef OV_CPU_WITH_KLEIDIAI
             KleidiGemm wvKernel(q_cnt, SV, _block_size * cur_kv_len_blocks, _score_stride, SV, H * SV);
             packedB.resize<float16_t>({wvKernel.get_packed_rhs_size()});
             wvKernel.packB(reinterpret_cast<float16_t*>(v_ptr), bias_wv.ptr<float16_t>(0), packedB.ptr<float16_t>(0));
             wvKernel.executeGemm(reinterpret_cast<float16_t*>(w_ptr), packedB.ptr<float16_t>(0), out_ptr);
-#else
+#        else
             OPENVINO_THROW("KleidiAI is not enabled in this build");
-#endif
+#        endif
         }
     }
 #    endif
