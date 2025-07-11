@@ -18,7 +18,6 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-        --no-install-recommends \
         curl \
         git \
         ca-certificates \
@@ -62,8 +61,6 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-RUN apt-get purge -y python3-pip
-
 # Set gcc-11 as a default compiler
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 30 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 30
@@ -90,7 +87,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Use Python 3.11 as default instead of Python 3.8
+# Use Python 3.11 as default instead of Python 3.10
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
