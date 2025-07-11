@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/single_op/log_softmax.hpp"
 #include "openvino/op/log_softmax.hpp"
 
@@ -33,6 +33,20 @@ std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<lo
     result << "trgDev=" << target_device;
 
     return result.str();
+}
+
+void LogSoftmaxLayerTest::generate_inputs(const std::vector<ov::Shape>& target_shapes) {
+    inputs.clear();
+    const auto& func_inputs = function->inputs();
+    auto& data_input = func_inputs[0];
+
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 5;
+    in_data.range = 15;
+    in_data.resolution = 1000;
+
+    ov::Tensor data_tensor = ov::test::utils::create_and_fill_tensor(data_input.get_element_type(), data_input.get_shape(), in_data);
+    inputs.insert({data_input.get_node_shared_ptr(), data_tensor});
 }
 
 void LogSoftmaxLayerTest::SetUp() {

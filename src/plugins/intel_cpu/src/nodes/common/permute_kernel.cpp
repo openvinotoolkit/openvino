@@ -4,28 +4,33 @@
 
 #include "permute_kernel.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <string>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "nodes/executors/common/ref_transpose.hpp"
 #include "nodes/executors/transpose.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/xbyak/xbyak.h>
+
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <memory>
+
+#    include "cpu/x64/jit_generator.hpp"
+
+using namespace Xbyak;
+using namespace dnnl::impl::cpu::x64;
+#endif
+
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
-using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
 

@@ -12,14 +12,14 @@
 namespace kernel_selector {
 bool ConvolutionKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CONVOLUTION) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
