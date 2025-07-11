@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <common/dnnl_thread.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -24,6 +25,7 @@
 #include <new>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <set>
 #include <string>
 #include <tuple>
@@ -70,13 +72,14 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "perf_count.h"
 #include "proxy_mem_blk.h"
+#include "thread_pool_imp.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
 #    include <tbb/task.h>
 #endif
 
@@ -118,7 +121,7 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getThreadPool());
 
     this->_name = std::move(name);
 
@@ -377,7 +380,7 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     }
 
     m_context = context;
-    m_stream = dnnl::stream(getEngine());
+    m_stream = make_stream(getEngine(), m_context->getThreadPool());
 
     Replicate(model, inputConfigs, outputConfigs);
 
@@ -557,6 +560,9 @@ void Graph::CreatePrimitivesAndExecConstants() const {
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+            dnnl::impl::threadpool_utils::activate_threadpool(getThreadPool().get());
+#endif
             node->createPrimitive();
         }
 
@@ -1396,7 +1402,8 @@ private:
 using UpdateNodes = UpdateNodesSeq;
 #endif
 
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_OMP)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO || \
+     OV_THREAD == OV_THREAD_OMP)
 
 class UpdateNodesBase {
 public:
@@ -1443,7 +1450,7 @@ protected:
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
-#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
+#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO || OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO)
 #        if (TBB_VERSION_MAJOR > 2020)
 template <typename Body>
 class AsyncTask : public tbb::detail::d1::task {

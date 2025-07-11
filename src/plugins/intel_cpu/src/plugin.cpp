@@ -418,6 +418,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RW_property(ov::log::level.name()),
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
             RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
+            RW_property(ov::intel_cpu::tbb_partitioner.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
             RW_property(ov::key_cache_precision.name()),
@@ -492,6 +493,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     }
     if (name == ov::intel_cpu::enable_tensor_parallel) {
         return static_cast<decltype(ov::intel_cpu::enable_tensor_parallel)::value_type>(engConfig.enableTensorParallel);
+    }
+    if (name == ov::intel_cpu::tbb_partitioner) {
+        return static_cast<decltype(ov::intel_cpu::tbb_partitioner)::value_type>(engConfig.tbbPartitioner);
     }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
