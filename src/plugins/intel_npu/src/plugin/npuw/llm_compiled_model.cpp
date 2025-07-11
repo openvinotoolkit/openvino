@@ -776,68 +776,6 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
     model->reshape(new_shapes);
 }
 
-void reshape_sliced_tail_to_static(std::shared_ptr<ov::Model> tail_mm_model, const uint32_t& batch_dim) {
-    // We have only one input with dynamic shapes: output of Slice operation, and this output
-    // should have "1" for dimension representing number of embeddings to send to the matmul.
-    // Batch size should be also equal "1" for NPU.
-    const auto& input = tail_mm_model->input(0);
-    const auto& partial_shape = input.get_partial_shape();
-    NPUW_ASSERT(partial_shape.size() == 3);
-
-    ov::PartialShape new_shape = partial_shape;
-    new_shape[batch_dim] = 1;
-    // Left dynamic axis will be for number of embeddings
-    for (auto i = 0; i < new_shape.rank().get_length(); i++) {
-        if (new_shape[i].is_dynamic()) {
-            new_shape[i] = 1;
-            // Sanity check that only one left dimension is dynamic, as
-            // another one should contain embedding space rank
-            break;
-        }
-    }
-
-    tail_mm_model->reshape(new_shape);
-}
-
-void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_dim) {
-    std::shared_ptr<ov::Node> embed_result;
-    for (auto&& output : model->outputs()) {
-        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
-            embed_result = output.get_node_shared_ptr();
-        }
-    }
-
-    if (embed_result) {
-        auto shape = embed_result->input(0).get_shape();
-        // If shape.size() is 3, then last axis should be the Vocab size.
-        // But 1st and 2nd axis can mean different things.
-        // 1st axis can represent the batch size, while 2nd - the number of embeddings,
-        // or vice-versa (in chatglm)
-        if (shape.size() == 3) {
-            uint32_t num_embeds_dim = 1 - batch_dim;
-            if (shape[num_embeds_dim] > 1) {
-                std::vector<int32_t> start_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)),
-                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)),
-                                               0};
-                std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                              static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
-                                              static_cast<int32_t>(shape[2])};
-                auto start = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, start_pos);
-                auto stop = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{3}, stop_pos);
-                auto step = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
-                                                                   ov::Shape{3},
-                                                                   std::vector<int32_t>{1, 1, 1});
-
-                auto slice = std::make_shared<ov::op::v8::Slice>(embed_result->input_value(0), start, stop, step);
-
-                embed_result->input(0).replace_source_output(slice);
-                embed_result->validate_and_infer_types();
-                model->validate_nodes_and_infer_types();
-            }
-        }
-    }
-}
-
 bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "group_size"};
     if (!model->has_rt_info(rt_info_path)) {
@@ -1042,18 +980,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
     ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(kvcache_model);
 
-    bool three_model_enabled = m_cfg.get<::intel_npu::NPUW_LLM_3_MODEL_PIPELINE>();
-    std::shared_ptr<ov::Model> tail_mm_model = nullptr;
-    if (three_model_enabled) {
-        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        tail_mm_model = cut_tail_matmul(kvcache_model);
-    }
-    if (tail_mm_model) {
-        LOG_INFO("Three-model pipeline will be created.");
-    } else {
-        LOG_INFO("Two-model pipeline will be created");
-    }
-
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
@@ -1069,18 +995,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     LOG_DEBUG("Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
+
+    bool three_model_enabled = m_cfg.get<::intel_npu::NPUW_LLM_3_MODEL_PIPELINE>();
+    std::shared_ptr<ov::Model> tail_mm_model = nullptr;
+    if (three_model_enabled) {
+        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication from generate model into the additional one.");
+        tail_mm_model = cut_tail_matmul(kvcache_model);
+    }
     if (tail_mm_model) {
-        LOG_DEBUG("As pipeline contains separate tail model, apply Slice to static prefill model "
-                  "at given stage, so tail model can be reshaped to working shape with prefill and "
-                  "kvcache models.");
-        // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
-        // the Prefill model:
-        slice_out_embeds(prefill_model, axes.batch);
-        LOG_DEBUG("Make tail matmul model with static shapes");
-        reshape_sliced_tail_to_static(tail_mm_model, axes.batch);
+        LOG_INFO("Three-model pipeline for the generate model will be created.");
+    } else {
+        LOG_INFO("Two-model pipeline will be created.");
     }
 
-    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
+    LOG_DEBUG("Decompose GroupQueryAttention OP");
     decompose_GQA(prefill_model, true);
     decompose_GQA(kvcache_model, false);
 
@@ -1147,9 +1075,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         auto tail_mm_config_addition_value = tail_mm_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
 
         merge_config_with(tail_mm_config, tail_mm_config_addition_value);
-        m_tail_mm_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
+        m_kvcache_tail_mm_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
             ov::npuw::ICompiledModel::create(tail_mm_model, plugin, tail_mm_config));
-        NPUW_ASSERT(m_tail_mm_compiled);
+        NPUW_ASSERT(m_kvcache_tail_mm_compiled);
     }
 
     implement_properties();
@@ -1261,10 +1189,10 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         CompiledContext enc_ctx(false, nullptr, nullptr, m_bf16_consts);
         m_kvcache_compiled->serialize(model_stream, enc_ctx);
         m_prefill_compiled->serialize(model_stream, enc_ctx);
-        bool is_tail_mm_present = m_tail_mm_compiled != nullptr;
+        bool is_tail_mm_present = m_kvcache_tail_mm_compiled != nullptr;
         write(model_stream, is_tail_mm_present);
         if (is_tail_mm_present) {
-            m_tail_mm_compiled->serialize(model_stream, enc_ctx);
+            m_kvcache_tail_mm_compiled->serialize(model_stream, enc_ctx);
         }
     };
 
@@ -1455,7 +1383,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         bool is_tail_mm_present = false;
         read(model_stream, is_tail_mm_present);
         if (is_tail_mm_present) {
-            compiled->m_tail_mm_compiled =
+            compiled->m_kvcache_tail_mm_compiled =
                 ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
         }
         return compiled;

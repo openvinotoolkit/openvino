@@ -47,7 +47,7 @@ private:
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
     // This infer request is optional, so can be null.
-    std::shared_ptr<ov::IAsyncInferRequest> m_tail_mm_request;
+    std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_tail_mm_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
 

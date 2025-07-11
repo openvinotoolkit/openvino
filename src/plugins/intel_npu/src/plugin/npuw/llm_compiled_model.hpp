@@ -71,7 +71,7 @@ private:
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
-    std::shared_ptr<ov::npuw::CompiledModel> m_tail_mm_compiled;
+    std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_tail_mm_compiled;
 };
 
 }  // namespace npuw
