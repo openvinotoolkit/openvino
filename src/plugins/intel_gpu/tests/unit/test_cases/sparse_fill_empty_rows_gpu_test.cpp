@@ -150,9 +150,6 @@ public:
             input_info("default_value"),
         };
         topology.add(sparse_fill_empty_rows("sparse_fill_empty_rows", inputs));
-        topology.add(reorder("output_indices", input_info("sparse_fill_empty_rows", 0), format::bfyx, data_types::i64));
-        topology.add(reorder("output_values", input_info("sparse_fill_empty_rows", 1), format::bfyx, params.values->get_layout().data_type));
-        topology.add(reorder("output_empty_row_indicator", input_info("sparse_fill_empty_rows", 2), format::bfyx, data_types::i64));
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
 
@@ -161,9 +158,9 @@ public:
         network->set_input_data("denseShape", params.denseShape);
         network->set_input_data("default_value", params.defaultValue);
         auto outputs = network->execute();
-        auto output_indices = outputs.at("output_indices").get_memory();
-        auto output_values = outputs.at("output_values").get_memory();
-        auto output_empty_row_indicator = outputs.at("output_empty_row_indicator").get_memory();
+        auto output_indices = outputs.at("sparse_fill_empty_rows").get_memory(0);
+        auto output_values = outputs.at("sparse_fill_empty_rows").get_memory(1);
+        auto output_empty_row_indicator = outputs.at("sparse_fill_empty_rows").get_memory(2);
 
         // Debug: Print expected and actual output shapes
         std::cout << "Expected Indices Output Shape: " << params.expectedIndicesOutput->get_layout().get_shape() << std::endl;
