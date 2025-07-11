@@ -10,6 +10,8 @@
 #include <unordered_map>
 
 #include "einsum_shape_inference.hpp"
+#include "openvino/reference/einsum.hpp"
+
 #include "itt.hpp"
 
 namespace ov {
@@ -207,5 +209,16 @@ std::shared_ptr<Node> op::v7::Einsum::clone_with_new_inputs(const OutputVector& 
 void op::v7::Einsum::set_equation(std::string equation) {
     remove_whitespaces(equation);
     m_equation = std::move(equation);
+}
+
+bool op::v7::Einsum::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+    OV_OP_SCOPE(v7_Einsum_evaluate);
+    ov::reference::einsum(outputs, inputs, m_equation);
+    return true;
+}
+
+bool op::v7::Einsum::has_evaluate() const {
+    OV_OP_SCOPE(v7_Einsum_has_evaluate);
+    return true;
 }
 }  // namespace ov
