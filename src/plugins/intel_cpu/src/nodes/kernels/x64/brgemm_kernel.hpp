@@ -33,6 +33,8 @@ public:
                  ov::element::Type inType = ov::element::bf16,
                  bool b_accumulate = false);
 
+    virtual ~BrgemmKernel() = default;
+
     // execute all M
     void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute by m_blk
@@ -167,6 +169,9 @@ public:
                           ov::element::Type DType,
                           ScaleType bScaleType,
                           bool b_accumulate);
+
+    ~BrgemmKernelQuantized() final = default;
+
     // execute by m_blk + scale
     void executeGemmWithScale(bool is_M_tail,
                               void* a,

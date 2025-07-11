@@ -578,7 +578,15 @@ void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
                                         float* scale_b,
                                         void* wsp,
                                         void* scratch_a) {
-    OPENVINO_THROW("[Brgemm]cannot call executeGemmWithScale with no quantized kernel");
+    OPENVINO_THROW("[Brgemm]cannot call executeGemmWithScale with no quantized kernel args: ",
+                   is_M_tail,
+                   a,
+                   b,
+                   c,
+                   d,
+                   scale_b,
+                   wsp,
+                   scratch_a);
 }
 
 BrgemmKernelQuantized::BrgemmKernelQuantized(size_t M,
