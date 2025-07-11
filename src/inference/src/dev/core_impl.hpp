@@ -235,7 +235,7 @@ private:
 
     void try_to_register_plugin_extensions(const ov::util::Path& path) const {
         try {
-            auto plugin_extensions = ov::detail::load_extensions(path.native());
+            auto plugin_extensions = ov::detail::load_extensions(path);
             add_extensions_unsafe(plugin_extensions);
         } catch (const std::runtime_error&) {
             // in case of shared library is not opened
@@ -343,7 +343,15 @@ public:
                                                const std::string& device_name = {},
                                                const ov::AnyMap& config = {}) const override;
 
+    ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& model,
+                                               const std::string& device_name = {},
+                                               const ov::AnyMap& config = {}) const override;
+
     ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
+                                               const ov::SoPtr<ov::IRemoteContext>& context,
+                                               const ov::AnyMap& config) const override;
+
+    ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& modelTensor,
                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                const ov::AnyMap& config) const override;
 

@@ -147,6 +147,10 @@ public:
                                                        const std::string& device_name,
                                                        const ov::AnyMap& config = {}) const = 0;
 
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& model,
+                                                       const std::string& device_name,
+                                                       const ov::AnyMap& config = {}) const = 0;
+
     /**
      * @brief Creates a compiled model from a previously exported model
      * @param model model stream
@@ -156,6 +160,10 @@ public:
      * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
+                                                       const ov::AnyMap& config = {}) const = 0;
+
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& modelTensor,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config = {}) const = 0;
 
@@ -244,7 +252,9 @@ public:
      * @param keep_core_property Whether to return core-level properties
      * @return map of properties that are supported by device
      */
-    virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties, const bool keep_core_property = true) const = 0;
+    virtual AnyMap get_supported_property(const std::string& full_device_name,
+                                          const AnyMap& properties,
+                                          const bool keep_core_property = true) const = 0;
 
     virtual bool device_supports_model_caching(const std::string& device_name) const = 0;
 

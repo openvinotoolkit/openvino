@@ -540,6 +540,8 @@ public:
                                const std::string& device_name,
                                const AnyMap& properties = {});
 
+    CompiledModel import_model(ov::Tensor& model_tensor, const std::string& device_name, const AnyMap& properties = {});
+
     /**
      * @brief Imports a compiled model from the previously exported one.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
@@ -557,6 +559,13 @@ public:
         return import_model(model_stream, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(ov::Tensor& model_tensor,
+                                                                          const std::string& device_name,
+                                                                          Properties&&... properties) {
+        return import_model(model_tensor, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
      * @param model_stream std::istream input stream containing a model previously exported from
@@ -568,6 +577,8 @@ public:
      * @return A compiled model.
      */
     CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& properties = {});
+
+    CompiledModel import_model(ov::Tensor& model_tensor, const RemoteContext& context, const AnyMap& properties = {});
 
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
@@ -583,6 +594,13 @@ public:
                                                                           const RemoteContext& context,
                                                                           Properties&&... properties) {
         return import_model(model_stream, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(ov::Tensor& model_tensor,
+                                                                          const RemoteContext& context,
+                                                                          Properties&&... properties) {
+        return import_model(model_tensor, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
     /**

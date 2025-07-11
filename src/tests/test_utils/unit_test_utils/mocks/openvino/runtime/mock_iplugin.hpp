@@ -36,9 +36,14 @@ public:
     MOCK_METHOD(ov::SoPtr<ov::IRemoteContext>, get_default_context, (const ov::AnyMap&), (const));
 
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model, (std::istream&, const ov::AnyMap&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model, (ov::Tensor&, const ov::AnyMap&), (const));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
                 (std::istream&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
+                import_model,
+                (ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(ov::SupportedOpsMap,
                 query_model,

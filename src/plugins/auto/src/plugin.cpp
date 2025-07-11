@@ -3,75 +3,74 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <string>
-#include <vector>
-#include <memory>
+#include "plugin.hpp"
+
 #include <map>
+#include <memory>
+#include <string>
+#include <transformations/utils/utils.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
-#include <transformations/utils/utils.hpp>
-
+#include "auto_compiled_model.hpp"
+#include "auto_schedule.hpp"
+#include "cumulative_compiled_model.hpp"
+#include "cumulative_schedule.hpp"
+#include "itt.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
-#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
-#include "plugin.hpp"
-#include "auto_schedule.hpp"
-#include "auto_compiled_model.hpp"
-#include "cumulative_compiled_model.hpp"
-#include "cumulative_schedule.hpp"
-#include "itt.hpp"
 
 namespace {
-    const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {
-        bool is_int_model = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
-        if (is_int_model) {
-            return "INT8";
-        }
-        for (auto & node : model->get_ordered_ops()) {
-            if (ov::as_type_ptr<ov::op::v1::Convolution>(node) ||
-                ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
-                ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
-                ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node)) {
-                auto layer_type = node->input(1).get_element_type().get_type_name();
-                if (layer_type == "f32")
-                    return "FP32";
-                if (layer_type == "f16")
-                    return "FP16";
-            }
-        }
-        return "FP32";
+const std::string get_model_precision(const std::shared_ptr<const ov::Model>& model) {
+    bool is_int_model = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+    if (is_int_model) {
+        return "INT8";
     }
-    int map_priority_value(ov::hint::Priority priority) {
-        switch (priority) {
-            case ov::hint::Priority::HIGH:
-                return 0;
-            case ov::hint::Priority::MEDIUM:
-                return 1;
-            case ov::hint::Priority::LOW:
-                return 2;
-            default:
-                return 1;
+    for (auto& node : model->get_ordered_ops()) {
+        if (ov::as_type_ptr<ov::op::v1::Convolution>(node) || ov::as_type_ptr<ov::op::v1::GroupConvolution>(node) ||
+            ov::as_type_ptr<ov::op::v1::GroupConvolutionBackpropData>(node) ||
+            ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(node)) {
+            auto layer_type = node->input(1).get_element_type().get_type_name();
+            if (layer_type == "f32")
+                return "FP32";
+            if (layer_type == "f16")
+                return "FP16";
         }
     }
-    template <typename T>
-    T inter_section(const T& lhs, const T& rhs) {
-        T result;
-        const auto& min_set = (lhs.size() < rhs.size()) ? lhs : rhs;
-        const auto& max_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
-        for (auto&& val : min_set) {
-            if (max_set.find(val) != max_set.end()) {
-                result.insert(val);
-            }
-        }
-        return result;
+    return "FP32";
+}
+int map_priority_value(ov::hint::Priority priority) {
+    switch (priority) {
+    case ov::hint::Priority::HIGH:
+        return 0;
+    case ov::hint::Priority::MEDIUM:
+        return 1;
+    case ov::hint::Priority::LOW:
+        return 2;
+    default:
+        return 1;
     }
+}
+template <typename T>
+T inter_section(const T& lhs, const T& rhs) {
+    T result;
+    const auto& min_set = (lhs.size() < rhs.size()) ? lhs : rhs;
+    const auto& max_set = (lhs.size() >= rhs.size()) ? lhs : rhs;
+    for (auto&& val : min_set) {
+        if (max_set.find(val) != max_set.end()) {
+            result.insert(val);
+        }
+    }
+    return result;
+}
 }  // namespace
 
 namespace ov {
@@ -88,12 +87,21 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& remo
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
-                                                         const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model, const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
@@ -115,49 +123,48 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
 
     // parsing the string and splitting to tokens
     std::vector<std::string> devices_with_requests = m_plugin_config.parse_priorities_devices(priorities);
-    auto set_default_hint = [&](const std::string& target_device,
-                              ov::AnyMap& device_config,
-                              const ov::AnyMap& properties) {
-        auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
-        auto is_set_device_properties = false;
-        auto item = properties.find(ov::device::properties.name());
-        if (item != properties.end()) {
-            ov::AnyMap devicesProperties;
-            std::stringstream strConfigs(item->second.as<std::string>());
-            // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
-            auto it = devicesProperties.find(target_device);
-            if (it != devicesProperties.end()) {
-                is_set_device_properties = true;
+    auto set_default_hint =
+        [&](const std::string& target_device, ov::AnyMap& device_config, const ov::AnyMap& properties) {
+            auto is_set_perfhint = properties.find(ov::hint::performance_mode.name()) != properties.end();
+            auto is_set_device_properties = false;
+            auto item = properties.find(ov::device::properties.name());
+            if (item != properties.end()) {
+                ov::AnyMap devicesProperties;
+                std::stringstream strConfigs(item->second.as<std::string>());
+                // Parse the device properties to common property into deviceConfigs.
+                ov::util::Read<ov::AnyMap>{}(strConfigs, devicesProperties);
+                auto it = devicesProperties.find(target_device);
+                if (it != devicesProperties.end()) {
+                    is_set_device_properties = true;
+                }
             }
-        }
-        if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
-            // setting latency as the default performance mode if
-            // 1. no hints setting for AUTO plugin
-            // 2. no ov::device::properties(secondary properties) setting for target device
-            device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
-            return;
-        }
-
-        if (get_device_name() == "MULTI") {
-            auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
-            auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
-            if (!is_set_perfhint && !is_set_numthreads && !is_set_device_properties&& !is_set_numstreams) {
-                // setting tput as the default performance mode if
-                // 1. no hints setting for MULTI plugin
-                // 2. no inference_num_threads setting for MULTI plugin
-                // 3. no ov::device::properties(secondary properties) setting for target device
-                // 4. no ov::num_streams setting for target device
-                device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+            if (get_device_name() == "AUTO" && !is_set_perfhint && !is_set_device_properties) {
+                // setting latency as the default performance mode if
+                // 1. no hints setting for AUTO plugin
+                // 2. no ov::device::properties(secondary properties) setting for target device
+                device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
+                return;
             }
-        }
-    };
 
-    auto get_device_config = [&] (const DeviceName & device_with_id) {
+            if (get_device_name() == "MULTI") {
+                auto is_set_numstreams = properties.find(ov::num_streams.name()) != properties.end();
+                auto is_set_numthreads = properties.find(ov::inference_num_threads.name()) != properties.end();
+                if (!is_set_perfhint && !is_set_numthreads && !is_set_device_properties && !is_set_numstreams) {
+                    // setting tput as the default performance mode if
+                    // 1. no hints setting for MULTI plugin
+                    // 2. no inference_num_threads setting for MULTI plugin
+                    // 3. no ov::device::properties(secondary properties) setting for target device
+                    // 4. no ov::num_streams setting for target device
+                    device_config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::THROUGHPUT;
+                }
+            }
+        };
+
+    auto get_device_config = [&](const DeviceName& device_with_id) {
         auto device_config = get_core()->get_supported_property(device_with_id, properties);
         set_default_hint(device_with_id, device_config, properties);
         // only in case of cumulative, update to tput for hardware device
-        auto && iter = device_config.find(ov::hint::performance_mode.name());
+        auto&& iter = device_config.find(ov::hint::performance_mode.name());
         if (iter != device_config.end() && iter->second.as<std::string>() == "CUMULATIVE_THROUGHPUT")
             iter->second = ov::hint::PerformanceMode::THROUGHPUT;
         // validate the device validity
@@ -174,7 +181,7 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             return "";
         }
     };
-    auto check_priority_config = [&] (const std::string& pri_string) {
+    auto check_priority_config = [&](const std::string& pri_string) {
         if (pri_string.empty())
             return false;
         std::string::size_type pos = 0;
@@ -185,17 +192,17 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
                 return true;
             pos = endpos + 1;
         }
-        if (pri_string.substr(pos, pri_string.length() - pos).find("-") != 0 )
+        if (pri_string.substr(pos, pri_string.length() - pos).find("-") != 0)
             return true;
         return false;
     };
     unsigned int device_priority = 0;
     auto prioritiesIter = properties.find(ov::device::priorities.name());
     // if AUTO:-***,-***...., also do not need to enable device priority
-    bool enable_device_priority = (prioritiesIter != properties.end()) &&
-                                check_priority_config(prioritiesIter->second.as<std::string>());
+    bool enable_device_priority =
+        (prioritiesIter != properties.end()) && check_priority_config(prioritiesIter->second.as<std::string>());
 
-    for (auto && d : devices_with_requests) {
+    for (auto&& d : devices_with_requests) {
         auto opening_bracket = d.find_first_of('(');
         auto closing_bracket = d.find_first_of(')', opening_bracket);
         auto device_name = d.substr(0, opening_bracket);
@@ -272,7 +279,9 @@ std::vector<DeviceInformation> Plugin::parse_meta_devices(const std::string& pri
             }
 
             LOG_DEBUG_TAG("deviceNameWithID:%s, defaultDeviceID:%s, uniqueName:%s",
-                    device_name_with_id.c_str(), default_device_id.c_str(), unique_name.c_str());
+                          device_name_with_id.c_str(),
+                          default_device_id.c_str(),
+                          unique_name.c_str());
             // create meta device
             try {
                 meta_devices.push_back({device_name_with_id,
@@ -303,7 +312,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::internal::supported_properties.name()) {
         return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name) {
-        return decltype(ov::device::full_name)::value_type {get_device_name()};
+        return decltype(ov::device::full_name)::value_type{get_device_name()};
     } else if (name == ov::device::capabilities.name()) {
         if (arguments.count(ov::device::priorities.name())) {
             // By default, all devices are assumed to support caching ability when Core checks caching ability for AUTO.
@@ -315,7 +324,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
                                                    : get_core()->get_available_devices();
 
         std::vector<std::string> capabilities;
-        for (auto const& device : device_list) {
+        for (const auto& device : device_list) {
             try {
                 auto dev_capabilities = get_core()->get_property(device, ov::device::capabilities);
                 capabilities.insert(capabilities.end(), dev_capabilities.begin(), dev_capabilities.end());
@@ -350,8 +359,8 @@ Plugin::Plugin() {
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                              const ov::AnyMap& properties,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context) const {
+                                                          const ov::AnyMap& properties,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -371,7 +380,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
                                                                const ov::AnyMap& properties,
                                                                const std::string& model_precision) const {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::compile_model");
-    OPENVINO_ASSERT(get_core() , "OpenVINO Core is missing!");
+    OPENVINO_ASSERT(get_core(), "OpenVINO Core is missing!");
     if (model_path.empty() && model == nullptr)
         OPENVINO_THROW("OpenVino Model is empty!");
     bool work_mode_auto = get_device_name() == "AUTO";
@@ -486,9 +495,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     auto_s_context->m_mtx = m_mtx;
     auto_s_context->m_priority_map = m_priority_map;
     std::shared_ptr<ov::ICompiledModel> impl;
-    std::shared_ptr<Schedule> scheduler =
-        is_cumulative ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>())
-                      : std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
+    std::shared_ptr<Schedule> scheduler = is_cumulative
+                                              ? std::static_pointer_cast<Schedule>(std::make_shared<CumuSchedule>())
+                                              : std::static_pointer_cast<Schedule>(std::make_shared<AutoSchedule>());
     scheduler->launch(auto_s_context);
     ov::SoPtr<ov::IRemoteContext> device_context;
     try {
@@ -520,7 +529,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
 }
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
-                                    const ov::AnyMap& properties) const {
+                                        const ov::AnyMap& properties) const {
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
     OPENVINO_ASSERT(get_core(), "Core is missing!");
     ov::SupportedOpsMap res;
@@ -531,10 +540,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     queryconfig.apply_user_properties();
     auto full_property = queryconfig.get_full_properties();
     auto priorities = full_property.find(ov::device::priorities.name());
-    if (priorities!= full_property.end() && !priorities->second.empty()) {
+    if (priorities != full_property.end() && !priorities->second.empty()) {
         auto meta_devices = parse_meta_devices(priorities->second.as<std::string>(), full_property);
         if (meta_devices.empty()) {
-            OPENVINO_THROW(get_device_name(), ": cannot parse valid device from ", priorities->second.as<std::string>());
+            OPENVINO_THROW(get_device_name(),
+                           ": cannot parse valid device from ",
+                           priorities->second.as<std::string>());
         }
         std::unordered_set<std::string> supported_layers;
         for (auto&& value : meta_devices) {
@@ -543,9 +554,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
             for (auto&& layer_qm : device_qm) {
                 device_supported_layers.emplace(layer_qm.first);
             }
-            supported_layers = supported_layers.empty()
-                            ? std::move(device_supported_layers) : (device_supported_layers.empty()
-                            ? supported_layers : inter_section(supported_layers, device_supported_layers));
+            supported_layers =
+                supported_layers.empty()
+                    ? std::move(device_supported_layers)
+                    : (device_supported_layers.empty() ? supported_layers
+                                                       : inter_section(supported_layers, device_supported_layers));
         }
         for (auto&& iter : supported_layers) {
             res[iter] = get_device_name();
@@ -556,9 +569,8 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::list<DeviceInformation> Plugin::get_valid_device(
-    const std::vector<DeviceInformation>& meta_devices,
-    const std::string& model_precision) const {
+std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
+                                                      const std::string& model_precision) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to select in ", get_device_name());
     }
@@ -638,7 +650,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(
 }
 
 DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& meta_devices,
-        const std::string& model_precision, unsigned int priority) {
+                                        const std::string& model_precision,
+                                        unsigned int priority) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
@@ -671,7 +684,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
     }
 
-    DeviceInformation* ptr_select_device =  NULL;
+    DeviceInformation* ptr_select_device = NULL;
     if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
@@ -680,7 +693,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         // select the first device in the rest of available devices.
         ptr_select_device = &valid_devices.front();
     }
-    //recode the device priority
+    // recode the device priority
     register_priority(priority, ptr_select_device->unique_name);
     return *ptr_select_device;
 }
@@ -755,8 +768,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 std::string blobId;
 
                 if (model)
-                    blobId = ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(model),
-                                                          dev_properties);
+                    blobId =
+                        ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(model), dev_properties);
                 else
                     blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
                 std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
@@ -798,7 +811,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
             auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& dev_item) {
                 std::string device_name = device;
                 std::string::size_type real_end_pos = 0;
-                if ((real_end_pos = device_name.find('.')) != std::string::npos && dev_item.find('.') == std::string::npos) {
+                if ((real_end_pos = device_name.find('.')) != std::string::npos &&
+                    dev_item.find('.') == std::string::npos) {
                     device_name = device_name.substr(0, real_end_pos);
                 }
                 return dev_item.find(device_name) != std::string::npos;
@@ -816,7 +830,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 if (device.find("GPU") != std::string::npos) {
                     device_architecture = get_gpu_architecture(device);
                 }
-                if (is_any_dev_with_empty_merged(device, devices_to_be_deleted) || !m_plugin_config.is_supported_device(device, device_architecture))
+                if (is_any_dev_with_empty_merged(device, devices_to_be_deleted) ||
+                    !m_plugin_config.is_supported_device(device, device_architecture))
                     continue;
                 devices_merged.push_back(device);
             }
@@ -854,7 +869,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 }
                 if (!is_any_dev(device, device_list)) {
                     auto iter = std::find(devices_merged.begin(), devices_merged.end(), parsed.get_device_name());
-                    if (iter != devices_merged.end() && parsed.get_device_name() != device && parsed.get_device_id() == "0")
+                    if (iter != devices_merged.end() && parsed.get_device_name() != device &&
+                        parsed.get_device_id() == "0")
                         // The device is the device with default device ID (eg. GPU.0) and
                         // its wide name (eg. GPU) has been in device candidate list.
                         continue;
@@ -866,7 +882,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                         auto real_device = device_with_default_id(item);
                         if (is_any_dev(real_device, devices_to_be_deleted) || item.find(device) == std::string::npos)
                             continue;
-                        auto iter = std::find(devices_merged.begin(), devices_merged.end(), device_with_default_id(item));
+                        auto iter =
+                            std::find(devices_merged.begin(), devices_merged.end(), device_with_default_id(item));
                         // Remove the device with default device id from candidate device list (eg. GPU.0)
                         // if its wide name is a single device (eg. GPU).
                         ov::DeviceIDParser parsed{item};
@@ -907,7 +924,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
 }
 
 std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInformation>& meta_devices,
-        const ov::AnyMap& properties) const {
+                                                     const ov::AnyMap& properties) const {
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
@@ -965,8 +982,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
 
     std::vector<std::string> stateful_node_names;
     for (auto& op : model->get_ops()) {
-        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
-            ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
+        if (ov::as_type_ptr<ov::op::util::AssignBase>(op) || ov::as_type_ptr<ov::op::util::ReadValueBase>(op)) {
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }
@@ -992,5 +1008,5 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
 std::string Plugin::get_log_tag() const noexcept {
     return get_device_name();
 }
-} // namespace auto_plugin
-} // namespace ov
+}  // namespace auto_plugin
+}  // namespace ov
