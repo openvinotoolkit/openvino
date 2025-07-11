@@ -45,7 +45,7 @@ void multinomial(const T* probs,
                  const U* num_samples,
                  const Shape& num_samples_shape,
                  const T* random_samples,
-                 const PartialShape& random_samples_shape,
+                 const Shape& random_samples_shape,
                  V* output,
                  const Shape& output_shape,
                  const bool with_replacement,
@@ -114,12 +114,10 @@ void multinomial(const T* probs,
                        op_seed,
                        initial_state);
     } else {
-        if (random_samples_shape.is_static()) {
-            const auto random_samples_count = shape_size<Shape>(random_samples_shape.to_shape());
-            OPENVINO_ASSERT(random_samples_count == total_output_elements_count,
-                            "Multinomial random_samples count is not equal to output_shape size");
-        }
-        uniform_samples.assign(random_samples, random_samples + total_output_elements_count);
+        const auto random_samples_count = shape_size<Shape>(random_samples_shape);
+        OPENVINO_ASSERT(random_samples_count == total_output_elements_count,
+                        "Multinomial random_samples count is not equal to output_shape size");
+        uniform_samples.assign(random_samples, random_samples + random_samples_count);
     }
 
     auto batch_size = probs_shape.size() == 2 ? static_cast<size_t>(probs_shape[0]) : static_cast<size_t>(1);

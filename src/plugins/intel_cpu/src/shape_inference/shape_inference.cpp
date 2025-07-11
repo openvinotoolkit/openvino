@@ -595,7 +595,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(op::v14::MaxPool, ShapeInferPaddingTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(op::v14::AvgPool, ShapeInferPaddingTA, util::bit::mask()),
     // opset13
-    OV_OP_SHAPE_INFER_MASK_REG(op::v13::Multinomial, ShapeInferTA, util::bit::mask(1)),
+    OV_OP_SHAPE_INFER_MASK_REG(op::v13::Multinomial, ShapeInferTA, util::bit::mask(1, 2)),
     OV_OP_SHAPE_INFER_MASK_REG(op::v13::ScaledDotProductAttention, ShapeInferTA, util::bit::mask(3, 5)),
     // opset12
     OV_OP_SHAPE_INFER_MASK_REG(op::v12::Pad, ShapeInferTA, util::bit::mask(1, 2)),

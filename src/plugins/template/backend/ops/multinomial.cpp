@@ -16,17 +16,17 @@ inline void evaluate_output_t(const std::shared_ptr<ov::op::v13::Multinomial>& o
     using T3 = typename ov::element_type_traits<OUTPUT_T>::value_type;
 
     const auto tensor_acc = make_tensor_accessor(inputs);
-    const std::vector<ov::PartialShape> input_shapes{op->get_input_shape(0), op->get_input_shape(1)};
+    const std::vector<ov::PartialShape> input_shapes{inputs[0].get_shape(), inputs[1].get_shape()};
     const auto out_shape = ov::op::v13::shape_infer(op.get(), input_shapes, tensor_acc).front().to_shape();
     outputs[0].set_shape(out_shape);
 
     if (inputs.size() == 2) {
         ov::reference::multinomial::multinomial<T1, T2, T3>(inputs[0].data<const T1>(),
-                                                            op->get_input_shape(0),
+                                                            inputs[0].get_shape(),
                                                             inputs[1].data<const T2>(),
-                                                            op->get_input_shape(1),
+                                                            inputs[1].get_shape(),
                                                             nullptr,
-                                                            ov::PartialShape({0}),
+                                                            ov::Shape({0}),
                                                             outputs[0].data<T3>(),
                                                             out_shape,
                                                             op->get_with_replacement(),
@@ -35,11 +35,11 @@ inline void evaluate_output_t(const std::shared_ptr<ov::op::v13::Multinomial>& o
                                                             op->get_op_seed());
     } else if (inputs.size() == 3) {
         ov::reference::multinomial::multinomial<T1, T2, T3>(inputs[0].data<const T1>(),
-                                                            op->get_input_shape(0),
+                                                            inputs[0].get_shape(),
                                                             inputs[1].data<const T2>(),
-                                                            op->get_input_shape(1),
+                                                            inputs[1].get_shape(),
                                                             inputs[2].data<const T1>(),
-                                                            op->get_input_partial_shape(2),
+                                                            inputs[2].get_shape(),
                                                             outputs[0].data<T3>(),
                                                             out_shape,
                                                             op->get_with_replacement(),
