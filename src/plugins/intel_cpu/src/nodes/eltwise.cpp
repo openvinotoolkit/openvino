@@ -909,6 +909,7 @@ public:
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
+                    Algorithm::EltwiseGreater,
                     Algorithm::EltwiseSqrt,
                     Algorithm::EltwiseSubtract)) {
             return false;
