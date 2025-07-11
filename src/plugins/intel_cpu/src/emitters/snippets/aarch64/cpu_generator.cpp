@@ -20,8 +20,10 @@
 #include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
+#ifdef OV_CPU_WITH_KLEIDIAI
 #include "emitters/snippets/aarch64/jit_gemm_copy_b_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
+#endif
 #include "emitters/snippets/aarch64/jit_horizon_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
@@ -306,10 +308,12 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = CREATE_CPU_EMITTER(jit_sqrt_emitter);
     jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_CPU_EMITTER(jit_swish_emitter);
     jitters[ov::op::v0::Tanh::get_type_info_static()] = CREATE_CPU_EMITTER(jit_tanh_emitter);
+#ifdef OV_CPU_WITH_KLEIDIAI
     jitters[ov::intel_cpu::aarch64::GemmCPU::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(jit_gemm_emitter, configurator->get_kernel_executor_table());
     jitters[ov::intel_cpu::aarch64::GemmCopyB::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(jit_gemm_copy_b_emitter, configurator->get_kernel_executor_table());
+#endif
 #ifdef SNIPPETS_LIBXSMM_TPP
     // brgemm
     jitters[ov::intel_cpu::tpp::op::BrgemmTPP::get_type_info_static()] =
@@ -418,9 +422,11 @@ std::shared_ptr<snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
+#ifdef OV_CPU_WITH_KLEIDIAI
     if (is_type_any_of<intel_cpu::aarch64::GemmCPU, intel_cpu::aarch64::GemmCopyB>(op)) {
         return ov::snippets::RegType::gpr;
     }
+#endif
     if (ov::is_type_any_of<intel_cpu::FusedMulAdd, intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
     }

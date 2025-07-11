@@ -251,6 +251,17 @@ elseif(NOT TARGET arm_compute::arm_compute)
             CC=${c_compiler}
             CXX=${cxx_compiler})
         list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix="${compiler_prefix}/")
+        
+        # Handle cross-compilation with clang
+        if(CMAKE_CROSSCOMPILING AND OV_COMPILER_IS_CLANG)
+            if(CMAKE_C_COMPILER_TARGET)
+                set(extra_cc_flags "${extra_cc_flags} --target=${CMAKE_C_COMPILER_TARGET}")
+            endif()
+            if(CMAKE_CXX_COMPILER_TARGET)
+                set(extra_cxx_flags "${extra_cxx_flags} --target=${CMAKE_CXX_COMPILER_TARGET}")
+                set(extra_link_flags "${extra_link_flags} --target=${CMAKE_CXX_COMPILER_TARGET}")
+            endif()
+        endif()
     elseif(EMSCRIPTEN)
         set(cmake_build_env
             CC=emcc

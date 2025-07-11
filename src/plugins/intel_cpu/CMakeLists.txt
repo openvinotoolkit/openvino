@@ -207,6 +207,20 @@ else()
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
+# Exclude KLEIDIAI files when disabled
+if(NOT ENABLE_KLEIDIAI_FOR_CPU)
+    list(APPEND EXCLUDE_PATHS 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/kai/*
+        # These files depend on KLEIDIAI headers and can be excluded
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/jit_gemm_emitter.*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/jit_gemm_copy_b_emitter.*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/kernel_executors/gemm.*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/kernel_executors/gemm_copy_b.*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/pass/lowered/expressions/gemm_copy_b_buffer_expressions.*
+    )
+endif()
+
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*

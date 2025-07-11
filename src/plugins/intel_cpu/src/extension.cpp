@@ -153,6 +153,12 @@ private:
 #    define OP_EXTENSION_ARM64(x)
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_KLEIDIAI)
+#    define OP_EXTENSION_ARM64_KLEIDIAI(x) x,
+#else
+#    define OP_EXTENSION_ARM64_KLEIDIAI(x)
+#endif
+
 #if defined(SNIPPETS_DEBUG_CAPS)
 #    define OP_EXTENSION_SNIPPETS_DEBUG_CAPS(x) x,
 #else
@@ -197,8 +203,8 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertTruncation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCPU>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCopyB>>())
-    OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCPU>>())
-    OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCopyB>>())
+    OP_EXTENSION_ARM64_KLEIDIAI(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCPU>>())
+    OP_EXTENSION_ARM64_KLEIDIAI(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCopyB>>())
     // clang-format on
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),
