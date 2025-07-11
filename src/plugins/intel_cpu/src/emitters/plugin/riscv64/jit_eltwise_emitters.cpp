@@ -1600,6 +1600,140 @@ std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisi
     return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
+/// Erf ///
+jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator *host,
+                                 ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                 const std::shared_ptr<ov::Node> &node,
+                                 ov::element::Type exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, node, exec_prc);
+}
+
+jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator *host,
+                                 ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                 ov::element::Type exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
+}
+
+size_t jit_erf_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_erf_emitter::aux_gprs_count() const {
+    return exp_emitter->aux_gprs_count();
+}
+
+size_t jit_erf_emitter::aux_vecs_count() const {
+    return std::max<size_t>(exp_emitter->aux_vecs_count() + 1, 4);
+}
+
+size_t jit_erf_emitter::aux_fp_gprs_count() const {
+    return std::max<size_t>(exp_emitter->aux_fp_gprs_count(), 1);
+}
+
+void
+jit_erf_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template<ov::intel_cpu::riscv64::cpu_isa_t isa>
+void
+jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+
+    auto aux0 = VReg(aux_vec_idxs[0]);
+    auto aux1 = VReg(aux_vec_idxs[1]);
+    auto aux2 = VReg(aux_vec_idxs[2]);
+    auto aux3 = VReg(aux_vec_idxs[3]);
+    auto fp0 = FReg(aux_fp_gpr_idxs[0]);
+
+    // store x in aux3
+    h->vmv_v_v(aux3, src);
+
+    // -exp(-x*x)
+    h->vfmul_vv(dst, src, src);
+    h->vfneg_v(dst, dst);
+
+    // remove the already used aux3
+    auto exp_aux_vec_idxs = aux_vec_idxs;
+    exp_aux_vec_idxs.erase(
+            std::find(exp_aux_vec_idxs.begin(), exp_aux_vec_idxs.end(), static_cast<size_t>(aux3.getIdx())));
+    exp_emitter->emit_code({static_cast<size_t>(dst.getIdx())}, {static_cast<size_t>(dst.getIdx())},
+                           exp_aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
+    h->vfneg_v(dst, dst);
+
+    // save sign in aux0
+    h->vmv_v_v(aux0, aux3);
+
+    // aux1 = abs(x)
+    h->vfabs_v(aux1, aux3);
+
+    // t = 1 / (p*|x| + 1)
+    load_table_val("erf_approx_const", fp0);
+    h->vfmul_vf(aux2, aux1, fp0); // aux2 = p * |x|
+    load_table_val("one", fp0);
+    h->vfadd_vf(aux2, aux2, fp0); // aux2 = p * |x| + 1
+    h->vfmv_v_f(aux1, fp0);
+    h->vfdiv_vv(aux1, aux1, aux2); // aux1 = 1 / (p * |x| + 1)
+
+    // dst = - t * exp(-x*x)
+    h->vfmul_vv(dst, dst, aux1);
+
+    // compute polynomial r
+    load_table_val("erf_pol4", fp0);
+    h->vfmv_v_f(aux3, fp0); // aux3 = c4
+    load_table_val("erf_pol5", fp0);
+    h->vfmacc_vf(aux3, fp0, aux1); // aux3 = c5 * t + c4
+
+    load_table_val("erf_pol3", fp0);
+    h->vfmv_v_f(aux2, fp0); // aux2 = c3
+    h->vfmacc_vv(aux2, aux3, aux1); // aux2 = c5 * t^2 + c4 * t + c3
+
+    load_table_val("erf_pol2", fp0);
+    h->vfmv_v_f(aux3, fp0); // aux3 = c2
+    h->vfmacc_vv(aux3, aux2, aux1); // aux3 = c5 * t^3 + c4 * t^2 + c3 * t + c2
+
+    load_table_val("erf_pol1", fp0);
+    h->vfmv_v_f(aux2, fp0); // aux2 = c1
+    h->vfmacc_vv(aux2, aux3, aux1); // aux2 = c5 * t^4 + c4 * t^3 + c3 * t^2 + c2 * t + c1
+
+    // erf = sign * (1 - r * t * exp(-x * x))
+    load_table_val("one", fp0);
+    h->vfmv_v_f(aux3, fp0); // aux3 = 1
+    h->vfmacc_vv(aux3, aux2, dst); // aux3 = 1 - r * t * exp(-x * x)
+    // add signs back
+    h->vfsgnj_vv(dst, aux3, aux0);
+}
+
+std::set<std::vector<element::Type>>
+jit_erf_emitter::get_supported_precisions(const std::shared_ptr<ov::Node> &node) {
+    return {{element::f32}};
+}
+
+void jit_erf_emitter::register_table_entries() {
+    push_arg_entry_of("one", CONST_1_F);
+    push_arg_entry_of("erf_approx_const", 0x3ea7ba05);  // 0.3275911
+
+    push_arg_entry_of("erf_pol1", 0x3e827906);  // p1 = 0.254829592f
+    push_arg_entry_of("erf_pol2", 0xbe91a98e);  // p2 = -0.284496736f
+    push_arg_entry_of("erf_pol3", 0x3fb5f0e3);  // p3 = 1.421413741f
+    push_arg_entry_of("erf_pol4", 0xbfba00e3);  // p4 = -1.453152027f
+    push_arg_entry_of("erf_pol5", 0x3f87dc22);  // p5 = 1.061405429f
+}
+
+void jit_erf_emitter::emit_data() const {
+    jit_emitter::emit_data();
+    exp_emitter->emit_data();
+}
+
 #undef CONST_1_F
 
 }  // namespace ov::intel_cpu::riscv64
