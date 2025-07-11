@@ -15,6 +15,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "metadata.hpp"
 #include "npuw/compiled_model.hpp"
@@ -22,6 +23,7 @@
 #include "npuw/serialization.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -126,6 +128,26 @@ static ov::intel_npu::CompilerType resolveCompilerType(const FilteredConfig& bas
     // if there is no compiler_type provided = use base_config value
     return base_conf.get<COMPILER_TYPE>();
 }
+
+struct CustomNpuAllocator {
+public:
+    CustomNpuAllocator(const size_t align_size) : _align_size(align_size) {}
+
+    void* allocate(const size_t bytes, const size_t /*alignment*/) {
+        return ::operator new(bytes, std::align_val_t(_align_size));
+    }
+
+    void deallocate(void* handle, const size_t /*bytes*/, const size_t /*alignment*/) noexcept {
+        ::operator delete(handle, std::align_val_t(_align_size));
+    }
+
+    bool is_equal(const CustomNpuAllocator&) const {
+        return true;
+    }
+
+private:
+    const size_t _align_size;
+};
 
 }  // namespace
 
@@ -667,7 +689,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             blobSize = storedMeta->get_blob_size();
         }
         if (tensorFromProperty == false) {  // tensor was not received from ov::compiled_blob property, copy from stream
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
+            ov::Allocator customAllocator{CustomNpuAllocator{utils::STANDARD_PAGE_SIZE}};
+            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
             if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
                 OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
             }

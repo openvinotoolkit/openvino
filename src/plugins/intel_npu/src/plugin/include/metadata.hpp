@@ -34,6 +34,8 @@ public:
 
     virtual uint64_t get_blob_size() const = 0;
 
+    virtual size_t get_medata_size() const = 0;
+
     virtual ~MetadataBase() = default;
 
     static std::streampos getFileSize(std::istream& stream);
@@ -127,6 +129,8 @@ public:
 
     uint16_t get_patch() const;
 
+    size_t get_openvino_version_size() const;
+
     bool operator!=(const OpenvinoVersion& version);
 };
 
@@ -178,6 +182,8 @@ public:
     bool is_compatible() override;
 
     uint64_t get_blob_size() const override;
+
+    size_t get_medata_size() const override;
 };
 
 /**

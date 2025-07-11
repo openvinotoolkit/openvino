@@ -316,11 +316,35 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
     return graphHandle;
 }
 
-ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, size_t blobSize) const {
+ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData,
+                                                     size_t blobSize,
+                                                     const bool blobAligned) const {
     ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
+    }
+
+    if (blobAligned) {
+        uint32_t flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
+
+        ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                                  nullptr,
+                                  ZE_GRAPH_FORMAT_NATIVE,
+                                  blobSize,
+                                  &blobData,
+                                  nullptr,
+                                  flags};
+
+        _logger.debug("getGraphHandle - perform pfnCreate2 with ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT flag set");
+
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
+                                                                     _zeroInitStruct->getDevice(),
+                                                                     &desc,
+                                                                     &graphHandle);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+
+        return graphHandle;
     }
 
     ze_graph_desc_t desc =
