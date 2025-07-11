@@ -341,17 +341,20 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
             attention_mask_data[i] = 1;
         }
 
-        std::cout << "Set " << kvcache_desc.max_prompt_size - chunk_prompt_len << " to " << kvcache_desc.max_prompt_size - chunk_prompt_len + current_prompts_len - 1 << " to 1 in mask"<< std::endl;
+        std::cout << "Set " << kvcache_desc.max_prompt_size - current_prompts_len << " to " << kvcache_desc.max_prompt_size - 1 << " to 1 in mask"<< std::endl;
         for (int64_t i = 0; i < current_prompts_len; i ++) {
-            attention_mask_data[kvcache_desc.max_prompt_size - chunk_prompt_len + i] = 1;
+            attention_mask_data[kvcache_desc.max_prompt_size - current_prompts_len + i] = 1;
         }
 #endif
 
-        std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
-                    current_prefill_bytes,
-                    reinterpret_cast<uint8_t*>(chunk_prefill_input_ids->data()));
+        std::copy_n(
+            reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
+            current_prefill_bytes,
+            reinterpret_cast<uint8_t*>(chunk_prefill_input_ids->data()) + chunk_prefill_input_ids->get_byte_size() - current_prefill_bytes);
 
-        std::copy_n(position_ids->data<int64_t>() + prefilled_prompts, current_prompts_len, chunk_prefill_pos_ids->data<int64_t>());
+        std::copy_n(position_ids->data<int64_t>() + prefilled_prompts,
+                current_prompts_len,
+                chunk_prefill_pos_ids->data<int64_t>() + chunk_prefill_pos_ids->get_size() - current_prompts_len);
 
         if (chunk_id == 0) {
             dumpTensorToBinary(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), "input_ids_chunk_0.bin");
@@ -553,16 +556,18 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                     prefill_in_tensor->copy_to(kvcache_in_slice._ptr);
                 }
 
-                // prefill_out_slice = make_tensor_slice(prefill_out_tensor, kv_dim, 0, static_cast<uint32_t>(prefilled_len_in_output));
+                auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+                auto chunk_prompt_len = padded_input->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+                prefill_out_slice = make_tensor_slice(prefill_out_tensor, kv_dim, static_cast<uint32_t>(chunk_prompt_len - prefilled_len_in_output), static_cast<uint32_t>(chunk_prompt_len));
 
-                kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, static_cast<uint32_t>(prefilled_len_in_input), kvcache_desc.max_prompt_size);
+                kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, static_cast<uint32_t>(prefilled_len_in_input), kvcache_desc.num_stored_tokens);
 
                 if (kv_dim == 3u) {
-                    copy_columns_by_row_chunks(prefill_out_tensor, kvcache_in_slice);
+                    copy_columns_by_row_chunks(prefill_out_slice, kvcache_in_slice);
                 } else if (kv_dim == 2u) {
-                    copy_by_planes(prefill_out_tensor, kvcache_in_slice);
+                    copy_by_planes(prefill_out_slice, kvcache_in_slice);
                 } else {
-                    prefill_out_tensor->copy_to(kvcache_in_slice._ptr);
+                    prefill_out_slice->copy_to(kvcache_in_slice._ptr);
                 }
             } else {
                 prefill_out_slice = make_tensor_slice(prefill_out_tensor,
