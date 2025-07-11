@@ -314,6 +314,10 @@ struct CACHE_MODE final : OptionBase<CACHE_MODE, ov::CacheMode> {
         return OptionMode::CompileTime;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 21);
+    }
+
     static ov::CacheMode parse(std::string_view val) {
         std::istringstream stringStream = std::istringstream(std::string(val));
         ov::CacheMode cacheMode;
