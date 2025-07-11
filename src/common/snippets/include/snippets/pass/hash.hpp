@@ -28,7 +28,7 @@ public:
      * @param output_hash_value Reference to output value. By applying hash pass on function, resulting hash value
      * will be set to this variable
      */
-    Hash(uint64_t& output_hash_value);
+    explicit Hash(uint64_t& output_hash_value);
 
 private:
     uint64_t& m_hash;

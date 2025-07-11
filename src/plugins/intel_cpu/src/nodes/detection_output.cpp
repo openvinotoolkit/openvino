@@ -173,7 +173,7 @@ void DetectionOutput::initSupportedPrimitiveDescriptors() {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::f32);
     }
 
-    addSupportedPrimDesc(inDataConf, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf, {PortConfigurator(LayoutType::ncsp, ov::element::f32)}, impl_desc_type::ref_any);
 }
 
 struct ConfidenceComparatorDO {

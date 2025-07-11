@@ -68,10 +68,10 @@ public:
           constant(constant),
           inPlace(inPlace) {}
 
-    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::dynamic,
-                     bool constant = false,
-                     int inPlace = -1)
+    explicit PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
+                              ov::element::Type prc = ov::element::dynamic,
+                              bool constant = false,
+                              int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
           prc(prc),
           constant(constant),
@@ -192,7 +192,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(const std::string& name)
+        explicit PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(

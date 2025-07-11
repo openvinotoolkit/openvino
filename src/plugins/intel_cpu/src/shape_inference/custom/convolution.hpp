@@ -60,7 +60,7 @@ private:
 
 class ConvolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    ConvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit ConvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:

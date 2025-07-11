@@ -60,14 +60,15 @@ void SegmentMax::initSupportedPrimitiveDescriptors() {
     }
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
     if (getOriginalInputsNumber() == 2) {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}},
-                             {{LayoutType::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
+                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},
+                             {PortConfigurator(LayoutType::ncsp, dataPrecision)},
                              impl_desc_type::ref);
     } else {
-        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                              {LayoutType::ncsp, ov::element::i32},
-                              {LayoutType::ncsp, ov::element::i32}},
-                             {{LayoutType::ncsp, dataPrecision}},
+        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
+                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
+                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},
+                             {PortConfigurator(LayoutType::ncsp, dataPrecision)},
                              impl_desc_type::ref);
     }
 }

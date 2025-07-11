@@ -159,12 +159,14 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     }
 
     std::vector<PortConfigurator> configurators(
-        {{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}});
+        {PortConfigurator(LayoutType::ncsp, ov::element::f32), PortConfigurator(LayoutType::ncsp, ov::element::i32)});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         configurators.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
-    addSupportedPrimDesc(configurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(configurators,
+                         {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+                         impl_desc_type::ref_any);
 }
 
 void RDFT::execute([[maybe_unused]] const dnnl::stream& strm) {
@@ -963,7 +965,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
 #endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
-    RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
+    explicit RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
 private:
     std::vector<float> generateTwiddlesDFT(size_t inputSize,

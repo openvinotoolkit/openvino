@@ -107,9 +107,10 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
 
     dataTypeSize_ = inDataPrecision.size();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}},
-                         {{LayoutType::ncsp, inDataPrecision}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(
+        {{PortConfigurator(LayoutType::ncsp, inDataPrecision)}, {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},
+        {PortConfigurator(LayoutType::ncsp, inDataPrecision)},
+        impl_desc_type::ref_any);
 }
 
 void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {

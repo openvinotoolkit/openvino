@@ -57,7 +57,7 @@ public:
 
         SharedMemory(std::unique_lock<std::mutex>&& lock, MemoryInfo::Ptr memory, MemoryPtr newPtr = nullptr);
 
-        operator MemoryPtr() const;
+        explicit operator MemoryPtr() const;
         [[nodiscard]] bool isValid() const;
         void valid(bool b);
 

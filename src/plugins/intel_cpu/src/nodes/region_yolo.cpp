@@ -59,7 +59,7 @@ template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp)
+    explicit jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp)
         : jit_uni_logistic_kernel(),
           jit_generator(jit_name()),
           jcp_(jcp) {}
@@ -339,7 +339,9 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
         return impl_desc_type::ref;
     }();
 
-    addSupportedPrimDesc({{LayoutType::ncsp, input_prec}}, {{LayoutType::ncsp, output_prec}}, impl_type);
+    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, input_prec)},
+                         {PortConfigurator(LayoutType::ncsp, output_prec)},
+                         impl_type);
 }
 
 void RegionYolo::createPrimitive() {
