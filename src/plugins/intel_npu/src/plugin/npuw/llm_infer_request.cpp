@@ -251,8 +251,6 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
     clear_chunk_prefill_kv_cache();
 
     while (left_prompts > 0) {
-        std::cout << "Prefilled: " << prefilled_prompts << " Left: " << left_prompts << std::endl;
-        std::cout << "Prefilled bytes: " << prefilled_bytes << " Left: " << input_ids->get_byte_size() - prefilled_bytes << std::endl;
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         auto current_prompts_len = std::min(left_prompts, chunk_prompt_len);
         auto left_prompts_bytes = input_ids->get_byte_size() - prefilled_bytes;
@@ -286,8 +284,6 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
             std::cout << "All prompts have been prefilled in chunks" << std::endl;
             break;
         }
-
-        std::cout << "Write chunk-prefill past key values for the new tokens to the correct input position for the next chunk." << std::endl;
 
         const std::size_t kStartOutputKVCacheLayers = 1u;
         const auto& prefill_compiled = m_prefill_request->get_compiled_model();
