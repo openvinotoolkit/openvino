@@ -886,9 +886,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
+    m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
+    const bool use_chunk_prefill = m_prefill_chunk_size > 0;
+    std::cout << "prefill_chunk_size: " << m_prefill_chunk_size << std::endl;
+    std::cout << "max_prompt_len: " << max_prompt_len << std::endl;
+    // Prefill chunk size should be smaller than half of max prompt length so that there are enough buffer to cache current key values
+    if (use_chunk_prefill && (m_prefill_chunk_size * 2 > max_prompt_len)) {
+        OPENVINO_THROW("NPUW_LLM_PREFILL_CHUNK_SIZE is too large");
+    }
+
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("4. Make prefill model with static shapes");
-    reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
+    if (use_chunk_prefill) {
+        reshape_to_static(prefill_model, static_cast<uint32_t>(m_prefill_chunk_size), m_kvcache_desc.max_prompt_size, axes);
+    } else {
+        reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
+    }
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
 
@@ -909,7 +922,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
-    NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+
+    std::cout << "use_chunk_prefill: " << use_chunk_prefill << std::endl;
+    if (!use_chunk_prefill) {
+        NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+    } else {
+        prefill_model = redirect_new_kv_to_output(prefill_model);
+    }
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
     LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");

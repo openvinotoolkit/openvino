@@ -110,6 +110,7 @@ DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, RunTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
+DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, int64_t, -1, npuw::llm::prefill_chunk_size, RunTime);
 
 namespace npuw {
 namespace llm {
