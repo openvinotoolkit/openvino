@@ -434,7 +434,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                         int candidateStatus =
                             NMSCandidateStatus::SELECTED;  // 0 for suppressed, 1 for selected, 2 for updated
                         arg.score = (&candidateBox.score);
-                        arg.selected_boxes_num = selectedBoxes.size() - candidateBox.suppress_begin_index;
+                        arg.selected_boxes_num = static_cast<int>(selectedBoxes.size()) - candidateBox.suppress_begin_index;
                         arg.selected_boxes_coord[0] =
                             static_cast<float*>(&boxCoord0[candidateBox.suppress_begin_index]);
                         arg.selected_boxes_coord[1] =
@@ -452,7 +452,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                         }
                         if (candidateBox.score == origScore) {
                             selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
-                            int selectedSize = selectedBoxes.size();
+                            auto selectedSize = static_cast<int>(selectedBoxes.size());
                             boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
                             boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
                             boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
@@ -460,13 +460,13 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                         } else {
                             if (candidateBox.score == origScore) {
                                 selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
-                                int selectedSize = selectedBoxes.size();
+                                auto selectedSize = static_cast<int>(selectedBoxes.size());
                                 boxCoord0[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num];
                                 boxCoord1[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 1];
                                 boxCoord2[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 2];
                                 boxCoord3[selectedSize - 1] = boxesPtr[candidateBox.idx * m_coord_num + 3];
                             } else {
-                                candidateBox.suppress_begin_index = selectedBoxes.size();
+                                candidateBox.suppress_begin_index = static_cast<int>(selectedBoxes.size());
                                 sorted_boxes.push(candidateBox);
                             }
                         }
@@ -506,7 +506,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                             if (candidateBox.score == origScore) {
                                 selectedBoxes.emplace_back(candidateBox.score, batch_idx, class_idx, candidateBox.idx);
                             } else {
-                                candidateBox.suppress_begin_index = selectedBoxes.size();
+                                candidateBox.suppress_begin_index = static_cast<int>(selectedBoxes.size());
                                 sorted_boxes.push(candidateBox);
                             }
                         }
@@ -514,8 +514,8 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                 }
             }
         }
-        m_num_filtered_boxes[batch_idx][class_idx] = selectedBoxes.size();
-        size_t offset = batch_idx * m_classes_num * m_output_boxes_per_class + class_idx * m_output_boxes_per_class;
+        m_num_filtered_boxes[batch_idx][class_idx] = static_cast<int>(selectedBoxes.size());
+        size_t offset = static_cast<size_t>(batch_idx) * m_classes_num * m_output_boxes_per_class + static_cast<size_t>(class_idx) * m_output_boxes_per_class;
         for (size_t i = 0; i < selectedBoxes.size(); i++) {
             filtBoxes[offset + i] = selectedBoxes[i];
         }
@@ -548,7 +548,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
                           [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                               return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                           });
-            int offset = batch_idx * m_classes_num * m_output_boxes_per_class + class_idx * m_output_boxes_per_class;
+            auto offset = static_cast<int>(static_cast<size_t>(batch_idx) * m_classes_num * m_output_boxes_per_class + static_cast<size_t>(class_idx) * m_output_boxes_per_class);
             filtBoxes[offset + 0] = FilteredBox(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
             io_selection_size++;
             if (sortedBoxSize > 1LU) {
@@ -851,7 +851,7 @@ inline float rotatedBoxesIntersection(const NonMaxSuppression::Point2D (&vertice
     }
 
     auto num_convex = convexHullGraham(intersect_pts, num, ordered_pts);
-    return polygonArea(ordered_pts, num_convex);
+    return polygonArea(ordered_pts, static_cast<int64_t>(num_convex));
 }
 
 inline float NonMaxSuppression::rotatedIntersectionOverUnion(const NonMaxSuppression::Point2D (&vertices_0)[4],
@@ -898,10 +898,10 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
                               });
                 auto* sorted_indices_ptr = sorted_indices.data();
                 auto* filtered_boxes_ptr = filtered_boxes.data() +
-                                           batch_idx * m_classes_num * m_output_boxes_per_class +
-                                           class_idx * m_output_boxes_per_class;
+                                           static_cast<size_t>(batch_idx) * m_classes_num * m_output_boxes_per_class +
+                                           static_cast<size_t>(class_idx) * m_output_boxes_per_class;
                 *filtered_boxes_ptr =
-                    FilteredBox(sorted_indices[0].first, batch_idx, class_idx, sorted_indices[0].second);
+                    FilteredBox(sorted_indices[0].first, static_cast<int>(batch_idx), static_cast<int>(class_idx), static_cast<int>(sorted_indices[0].second));
                 io_selection_size++;
                 if (sorted_boxes_size > 1LU) {
                     sorted_indices_ptr++;
@@ -934,9 +934,9 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
 
                         if (candidate_status == NMSCandidateStatus::SELECTED) {
                             *(++filtered_boxes_ptr) = FilteredBox((*sorted_indices_ptr).first,
-                                                                  batch_idx,
-                                                                  class_idx,
-                                                                  (*sorted_indices_ptr).second);
+                                                                  static_cast<int>(batch_idx),
+                                                                  static_cast<int>(class_idx),
+                                                                  static_cast<int>((*sorted_indices_ptr).second));
                             io_selection_size++;
                         }
                     }

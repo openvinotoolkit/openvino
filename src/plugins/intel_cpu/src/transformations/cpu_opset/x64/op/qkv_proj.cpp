@@ -4,6 +4,7 @@
 
 #include "qkv_proj.hpp"
 
+#include <cstddef>
 #include <memory>
 
 #include "openvino/core/attribute_visitor.hpp"
@@ -28,9 +29,9 @@ void QKVProjectionNode::validate_and_infer_types() {
     auto oshape0 = ishape;
     auto oshape1 = ishape;
     auto oshape2 = ishape;
-    oshape0[oshape0.size() - 1] = m_config.proj_size0;
-    oshape1[oshape1.size() - 1] = m_config.proj_size1;
-    oshape2[oshape2.size() - 1] = m_config.proj_size2;
+    oshape0[static_cast<std::ptrdiff_t>(oshape0.size() - 1)] = m_config.proj_size0;
+    oshape1[static_cast<std::ptrdiff_t>(oshape1.size() - 1)] = m_config.proj_size1;
+    oshape2[static_cast<std::ptrdiff_t>(oshape2.size() - 1)] = m_config.proj_size2;
 
     set_output_type(0, itype, oshape0);
     set_output_type(1, itype, oshape1);

@@ -86,7 +86,7 @@ static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const Memo
 // this method get all memory ptrs of childs of one port to redefine descs for them
 static std::vector<MemoryPtr> getToMemories(const Node* node, const size_t port) {
     std::vector<MemoryPtr> memories;
-    for (auto& edge : node->getChildEdgesAtPort(port)) {
+    for (auto& edge : node->getChildEdgesAtPort(static_cast<int>(port))) {
         memories.push_back(edge->getMemoryPtr());
     }
     return memories;
@@ -117,9 +117,9 @@ public:
         auto part_dims = part_blob->getShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
-        auto sign_of_stride = stride < 0.0F ? -1 : 1;
+        auto sign_of_stride = static_cast<float>(stride) < 0.0F ? -1 : 1;
 
-        iter_count = full_dims[axis] / abs_stride;
+        iter_count = static_cast<int>(full_dims[axis] / abs_stride);
 
         full_dims[axis] = abs_stride;
         OPENVINO_ASSERT(full_dims == part_dims, "Shape mismatch for tensor iterator port");
@@ -235,7 +235,7 @@ public:
         if (data_ptr == nullptr) {
             OPENVINO_THROW("TensorIterator node has not allocated memory for asIntCheck");
         }
-        return *data_ptr;
+        return static_cast<int>(*data_ptr);
     }
 };
 
@@ -300,8 +300,8 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     }
 
     // reset chunk_offset_in_byte since the first execution
-    chunk_stride_in_byte = mem_holder_buffer->getSize() / count;
-    chunk_offset_in_byte = stride > 0 ? 0 : (chunk_stride_in_byte - chunk_unit_in_byte);
+    chunk_stride_in_byte = static_cast<ptrdiff_t>(mem_holder_buffer->getSize() / count);
+    chunk_offset_in_byte = stride > 0 ? 0 : (chunk_stride_in_byte - static_cast<ptrdiff_t>(chunk_unit_in_byte));
     num_execs = 0;
 }
 
@@ -347,7 +347,7 @@ void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
 
     const auto valid_size = chunk_unit_in_byte * num_execs;
     const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
-    chunk_offset_in_byte = stride > 0 ? 0 : (dst_stride - valid_size);  // reset chunk_offset_in_byte
+    chunk_offset_in_byte = stride > 0 ? 0 : (static_cast<ptrdiff_t>(dst_stride - valid_size));  // reset chunk_offset_in_byte
 
     copy(mem_holder_buffer->getDataAs<uint8_t>() + src_offset_in_byte,
          new_buffer->getDataAs<uint8_t>() + chunk_offset_in_byte,
@@ -358,13 +358,13 @@ void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
 
     // assign mem_holder_buffer
     mem_holder_buffer = new_buffer;
-    chunk_stride_in_byte = mem_holder_buffer->getSize() / count;
+    chunk_stride_in_byte = static_cast<ptrdiff_t>(mem_holder_buffer->getSize() / count);
 
     // adjust for next execution
     if (stride > 0) {
-        chunk_offset_in_byte += valid_size;
+        chunk_offset_in_byte += static_cast<ptrdiff_t>(valid_size);
     } else {
-        chunk_offset_in_byte -= chunk_unit_in_byte;
+        chunk_offset_in_byte -= static_cast<ptrdiff_t>(chunk_unit_in_byte);
     }
 }
 
@@ -382,9 +382,9 @@ void DynamicBuffer::move_data() {
     // adjust for next execution
     num_execs++;
     if (map_rule.stride > 0) {
-        chunk_offset_in_byte += chunk_unit_in_byte;
+        chunk_offset_in_byte += static_cast<ptrdiff_t>(chunk_unit_in_byte);
     } else {
-        chunk_offset_in_byte -= chunk_unit_in_byte;
+        chunk_offset_in_byte -= static_cast<ptrdiff_t>(chunk_unit_in_byte);
     }
 }
 
@@ -564,10 +564,10 @@ void TensorIterator::createPrimitive() {
         algorithm = Algorithm::TensorIteratorLoop;
         auto spec_port = loopOp->get_special_body_ports();
         if (spec_port.current_iteration_input_idx != -1) {
-            loopBodyCurrentIterationIdx.push_back(spec_port.current_iteration_input_idx);
+            loopBodyCurrentIterationIdx.push_back(static_cast<int>(spec_port.current_iteration_input_idx));
         }
         if (spec_port.body_condition_output_idx != -1) {
-            loopBodyConditionOutputIdx = spec_port.body_condition_output_idx;
+            loopBodyConditionOutputIdx = static_cast<int>(spec_port.body_condition_output_idx);
         }
         loopTripCountIdx = 0;
         loopExecutionConditionIdx = 1;

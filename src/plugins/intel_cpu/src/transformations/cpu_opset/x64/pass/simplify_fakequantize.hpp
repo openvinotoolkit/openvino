@@ -38,15 +38,15 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::op::v0::Fake
         float il = input_low[input_low.size() == 1 ? 0 : i];
         float ih = input_high[input_high.size() == 1 ? 0 : i];
 
-        isc.push_back((levels - 1) / (ih - il));
-        ish.push_back(-il * (levels - 1) / (ih - il));
+        isc.push_back(static_cast<float>(levels - 1) / (ih - il));
+        ish.push_back(-il * static_cast<float>(levels - 1) / (ih - il));
     }
 
     for (size_t i = 0; i < std::max(output_low.size(), output_high.size()); i++) {
         float ol = output_low[output_low.size() == 1 ? 0 : i];
         float oh = output_high[output_high.size() == 1 ? 0 : i];
 
-        osc.push_back((oh - ol) / (levels - 1));
+        osc.push_back((oh - ol) / static_cast<float>(levels - 1));
         osh.push_back(ol);
     }
 

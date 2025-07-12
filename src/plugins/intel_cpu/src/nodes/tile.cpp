@@ -194,8 +194,8 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* src_ptr = srcMemory.getDataAs<const uint8_t>();
     auto* dst_ptr = getDstDataAtPortAs<uint8_t>(0);
 
-    int m_inner_dim = 1;
-    int m_outer_dim = 1;
+    size_t m_inner_dim = 1;
+    size_t m_outer_dim = 1;
     auto inDims = srcMemory.getStaticDims();
     for (int i = 0; i < axis; i++) {
         m_outer_dim *= inDims[i];
@@ -204,7 +204,7 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         m_inner_dim *= inDims[i];
     }
 
-    int MB = srcMemory.getStaticDims()[0];
+    size_t MB = srcMemory.getStaticDims()[0];
     if (axis > 0) {
         m_outer_dim /= inDims[0];
         m_outer_dim *= MB;

@@ -55,8 +55,8 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
         if (past_v_ps.rank().is_static()) {
             NODE_VALIDATION_CHECK(this, q_ps.size() == past_v_ps.size());
         }
-        for (size_t i = 0; i < q_ps.size(); i++) {
-            if (i == head_num_index) {
+        for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(q_ps.size()); i++) {
+            if (i == static_cast<std::ptrdiff_t>(head_num_index)) {
                 if (q_ps[i].is_static() && past_v_ps[i].is_static()) {
                     NODE_VALIDATION_CHECK(this,
                                           q_ps[i].get_length() % past_v_ps[i].get_length() == 0,
@@ -75,24 +75,24 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
         }
         // batch_size can be dynamically changed by gather logic
         if (past_k_ps.rank().is_static()) {
-            past_k_ps[batch_index] = beam_idx_ps[0];
-            past_k_ps[length_index] += q_ps[length_index];
+            past_k_ps[static_cast<std::ptrdiff_t>(batch_index)] = beam_idx_ps[0];
+            past_k_ps[static_cast<std::ptrdiff_t>(length_index)] += q_ps[static_cast<std::ptrdiff_t>(length_index)];
         }
         if (past_v_ps.rank().is_static()) {
-            past_v_ps[batch_index] = beam_idx_ps[0];
-            past_v_ps[length_index] += q_ps[length_index];
+            past_v_ps[static_cast<std::ptrdiff_t>(batch_index)] = beam_idx_ps[0];
+            past_v_ps[static_cast<std::ptrdiff_t>(length_index)] += q_ps[static_cast<std::ptrdiff_t>(length_index)];
         }
     }
     if (!permute_axes.empty()) {
         if (q_ps.rank().is_static()) {
             // q_ps needs permute to BHLS
-            for (size_t i = 0; i < q_ps.size(); i++) {
-                output_logits[i] = q_ps[permute_axes[i]];
+            for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(q_ps.size()); i++) {
+                output_logits[i] = q_ps[static_cast<std::ptrdiff_t>(permute_axes[static_cast<size_t>(i)])];
             }
         }
     }
     if (output_logits.rank().is_static() && past_v_ps.rank().is_static()) {
-        output_logits[output_logits.size() - 1] = past_v_ps[output_logits.size() - 1];
+        output_logits[static_cast<std::ptrdiff_t>(output_logits.size() - 1)] = past_v_ps[static_cast<std::ptrdiff_t>(output_logits.size() - 1)];
     }
     set_output_type(0, get_input_element_type(0), output_logits);
     set_output_type(1, get_input_element_type(input_num - 1), past_k_ps);

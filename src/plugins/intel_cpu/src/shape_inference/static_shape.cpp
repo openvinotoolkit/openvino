@@ -71,7 +71,7 @@ ov::Shape StaticShape::get_shape() const {
 }
 
 ov::PartialShape StaticShape::to_partial_shape() const {
-    auto shape = PartialShape::dynamic(size());
+    auto shape = PartialShape::dynamic(static_cast<int64_t>(size()));
     std::transform(m_dims.cbegin(), m_dims.cend(), shape.begin(), ov::util::Cast<typename PartialShape::value_type>());
     return shape;
 }

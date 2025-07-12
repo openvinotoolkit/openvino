@@ -67,7 +67,7 @@ void LLMMLPNode::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, itype.is_real(), "feature data type must be real");
 
     auto oshape = ishape;
-    oshape[oshape.size() - 1] = w_down_shape[0];
+    oshape[static_cast<std::ptrdiff_t>(oshape.size() - 1)] = w_down_shape[0];
     set_output_type(0, itype, oshape);
 }
 

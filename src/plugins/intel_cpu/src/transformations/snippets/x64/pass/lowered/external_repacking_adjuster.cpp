@@ -5,6 +5,7 @@
 #include "external_repacking_adjuster.hpp"
 
 #include <oneapi/dnnl/dnnl.h>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>
 #include <vector>

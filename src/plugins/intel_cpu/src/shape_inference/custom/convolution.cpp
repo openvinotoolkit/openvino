@@ -60,7 +60,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
 
     const auto spatial_num = strides.size();
 
-    auto data_dim_it = data_shape.cend() - spatial_num;
+    auto data_dim_it = data_shape.cend() - static_cast<VectorDims::difference_type>(spatial_num);
 
     const auto ceil_div = [](const auto& x, const auto& y) {
         assert(y > 0);
@@ -70,7 +70,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
     if (auto_padding) {
         std::transform(data_dim_it, data_shape.cend(), strides.cbegin(), std::back_inserter(output_shape), ceil_div);
     } else {
-        auto filters_dim = filters_shape.cend() - spatial_num;
+        auto filters_dim = filters_shape.cend() - static_cast<VectorDims::difference_type>(spatial_num);
 
         for (size_t i = 0; i < spatial_num; ++i, ++data_dim_it, ++filters_dim) {
             auto dim = *data_dim_it + pads_begin[i] + pads_end[i];

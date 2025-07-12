@@ -114,8 +114,8 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
             // check on per-batch MatMul which can't be converted to FC
             for (size_t i = 0; i < max_size - 2; ++i) {
-                if (shape_b_aligned[i] == 1) {
-                    shape_b_aligned[i] = shape_a_aligned[i];
+                if (shape_b_aligned[static_cast<std::ptrdiff_t>(i)] == 1) {
+                    shape_b_aligned[static_cast<std::ptrdiff_t>(i)] = shape_a_aligned[static_cast<std::ptrdiff_t>(i)];
                 } else {
                     return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
                 }

@@ -692,7 +692,7 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
         mask = mask << 1;
-        if (*(shape.rbegin() + broadcastable_input.second) == 1) {
+        if (*(shape.rbegin() + static_cast<std::ptrdiff_t>(broadcastable_input.second)) == 1) {
             mask = mask | 1;
         }
     }

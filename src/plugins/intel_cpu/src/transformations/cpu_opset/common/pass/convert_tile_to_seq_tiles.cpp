@@ -43,7 +43,7 @@ ov::intel_cpu::ConvertTileToSeqTiles::ConvertTileToSeqTiles() {
 
         auto tiles = tiles_node->cast_vector<int64_t>();
         auto input_shape_rank = static_cast<size_t>(tile->get_input_partial_shape(0).rank().get_length());
-        int64_t cur_dim_id = tiles.size() - 1;
+        int64_t cur_dim_id = static_cast<int64_t>(tiles.size()) - 1;
 
         if (tiles.size() != input_shape_rank) {
             return false;

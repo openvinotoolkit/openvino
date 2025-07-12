@@ -4,6 +4,7 @@
 #include "read_value_with_subgraph.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -117,7 +118,7 @@ void ov::intel_cpu::ReadValueWithSubgraph::validate_and_infer_types() {
                               output_index,
                               " is not associated with results in then_body!");
 
-        auto desc = outputs_map.at(output_index);
+        auto desc = outputs_map.at(static_cast<int64_t>(output_index));
 
         auto node_result = m_bodies[0]->get_results().at(desc->m_body_value_index)->input_value(0);
 

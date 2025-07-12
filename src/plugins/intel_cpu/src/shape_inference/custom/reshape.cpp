@@ -107,7 +107,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
             std::vector<bool> removeMask(inputShapeSize, false);
             for (size_t i = 0; i < outputPatternSize; i++) {
                 if (outPattern[i] < 0) {
-                    outPattern[i] = inputShapeSize + outPattern[i];
+                    outPattern[i] = static_cast<int64_t>(inputShapeSize) + outPattern[i];
                 }
                 if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize) &&
                     inputShape[outPattern[i]] == 1) {
@@ -159,7 +159,7 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     bool existError = false;
     for (size_t i = 0; i < outputPatternSize; i++) {
         if (outPattern[i] < 0) {
-            outPattern[i] = outputShapeSize + outPattern[i];
+            outPattern[i] = static_cast<int64_t>(outputShapeSize) + outPattern[i];
         }
         if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(outputShapeSize)) {
             outputShape[outPattern[i]] = 1;

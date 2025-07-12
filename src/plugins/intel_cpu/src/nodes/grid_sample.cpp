@@ -180,7 +180,7 @@ void GridSample::createPrimitive() {
     execParamsPerThread.resize(m_threads_num);
     if (!x64::mayiuse(x64::avx512_core)) {
         const auto dataElPerVec = jitKernel->getDataElPerVec();
-        parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
+        parallel_nt(static_cast<int>(m_threads_num), [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& p = execParamsPerThread[ithr];
 
             p.srcHeightF.resize(dataElPerVec);
@@ -230,7 +230,7 @@ void GridSample::prepareParams() {
     const uint64_t totalWork = dstShape[2] * dstShape[3];
     const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
 
-    parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
+    parallel_nt(static_cast<int>(m_threads_num), [&](const int ithr, [[maybe_unused]] const int nthr) {
         const uint64_t dstStart = std::min(wpt * ithr, totalWork);
         const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -243,8 +243,8 @@ void GridSample::prepareParams() {
 
         p.batchNum = srcDataShape[0];
         p.channelsNum = srcDataShape[1];
-        p.srcHeightF[0] = srcDataShape[2];
-        p.srcWidthF[0] = srcDataShape[3];
+        p.srcHeightF[0] = static_cast<float>(srcDataShape[2]);
+        p.srcWidthF[0] = static_cast<float>(srcDataShape[3]);
 
         p.gridStartB = dstStart * 2 * gridTypeSize;
         p.dstStartB = dstStart * dataTypeSize;
@@ -256,16 +256,16 @@ void GridSample::prepareParams() {
 
         p.srcChannelStepB = srcDataShape[2] * srcDataShape[3] * dataTypeSize;
         p.dstChannelStepB = dstShape[2] * dstShape[3] * dataTypeSize;
-        p.dataTypeSize[0] = dataTypeSize;
+        p.dataTypeSize[0] = static_cast<int>(dataTypeSize);
 
         p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.F;
         p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.F;
         p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.F;
         p.srcWidthMul2F[0] = p.srcWidthF[0] * 2.F;
         if (interpolationMode == GridSampleInterpolationMode::BICUBIC && srcDataShape[3] >= 4) {
-            p.srcWidthB[0] = (srcDataShape[3] - 3) * dataTypeSize;
+            p.srcWidthB[0] = static_cast<int>((srcDataShape[3] - 3) * dataTypeSize);
         } else {
-            p.srcWidthB[0] = srcDataShape[3] * dataTypeSize;
+            p.srcWidthB[0] = static_cast<int>(srcDataShape[3] * dataTypeSize);
         }
         if (alignCorners) {
             p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.F ? 1.F : p.srcHeightSub1F[0] * 2.F;
@@ -335,7 +335,7 @@ void GridSample::execute([[maybe_unused]] const dnnl::stream& strm) {
         (*jitKernel)(&arg);
     };
 
-    parallel_nt(m_threads_num, threadBody);
+    parallel_nt(static_cast<int>(m_threads_num), threadBody);
 }
 
 void GridSample::executeDynamicImpl(const dnnl::stream& strm) {

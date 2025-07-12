@@ -178,7 +178,7 @@ ov::element::Type BrgemmCPU::get_output_type() const {
 
 ov::OutputVector BrgemmCPU::get_postop_inputs() const {
     const auto& input_values = this->input_values();
-    return {input_values.begin() + m_gemm_inputs_count, input_values.end()};
+    return {input_values.begin() + static_cast<std::ptrdiff_t>(m_gemm_inputs_count), input_values.end()};
 }
 
 void BrgemmCPU::force_output_type(const ov::element::Type& type) {

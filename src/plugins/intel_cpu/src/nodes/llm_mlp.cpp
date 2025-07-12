@@ -134,7 +134,7 @@ public:
             auto& work = works[ithr];
             if (work) {
                 if (is_quantized) {
-                    work.setup(wbuffer.get<int8_t>(ithr), reinterpret_cast<int8_t*>(p_weight), static_cast<int>(stride), true);
+                    work.setup(wbuffer.get<int8_t>(static_cast<int>(ithr)), reinterpret_cast<int8_t*>(p_weight), stride, true);
                 } else {
                     work.setup(wbuffer.get<T>(ithr), reinterpret_cast<ov::float16*>(p_weight), stride);
                 }
@@ -275,10 +275,10 @@ public:
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
-                    work.setup(wbuffer.get<int8_t>(ithr),
+                    work.setup(wbuffer.get<int8_t>(static_cast<int>(ithr)),
                                reinterpret_cast<int8_t*>(p_weight_gate),
                                reinterpret_cast<int8_t*>(p_weight_up),
-                               static_cast<int>(stride),
+                               stride,
                                true);
                 } else {
                     work.setup(wbuffer.get<T>(ithr),
@@ -461,9 +461,9 @@ struct LLMMLP::Executor : public LLMMLP::ExecutorBase {
         auto* pA = input->getDataAs<uint8_t>();
         const auto& srcStrides = input->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-        int strideA = static_cast<int>(srcStrides[srcStrides.size() - 2]);
+        auto strideA = static_cast<int>(srcStrides[srcStrides.size() - 2]);
         int strideA_in_bytes = strideA * sizeof(T);
-        int M = static_cast<int>(shape_size(ishape) / ishape[ishape.size() - 1]);
+        auto M = static_cast<int>(shape_size(ishape) / ishape[ishape.size() - 1]);
 
         auto output = m_pnode->getDstMemoryAtPort(0);
         auto* dstC = output->getDataAs<T>();

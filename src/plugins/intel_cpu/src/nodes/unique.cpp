@@ -73,7 +73,7 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         flattened = false;
         axis = ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0];
         if (axis < 0) {
-            axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
+            axis += static_cast<int>(op->get_input_partial_shape(IN_DATA).rank().get_length());
         }
         if (axis < 0 || axis >= op->get_input_partial_shape(IN_DATA).rank().get_length()) {
             THROW_CPU_NODE_ERR("has invalid axis value: ",
@@ -89,7 +89,7 @@ void Unique::initSupportedPrimitiveDescriptors() {
     if (dataPrecision != ov::element::i32 && dataPrecision != ov::element::i8 && dataPrecision != ov::element::u8) {
         dataPrecision = ov::element::f32;
     }
-    dataTypeSize = dataPrecision.size();
+    dataTypeSize = static_cast<int64_t>(dataPrecision.size());
     const ov::element::Type axisPrecision = ov::element::i32;
 
     impl_desc_type implType = ref;
@@ -223,7 +223,7 @@ void Unique::flattenTensorExec() {
             for (T* it = first; it < last; it++) {
                 for (size_t i = 0; i < inputLen; i++) {
                     if (srcDataPtr[i] == *it) {
-                        *firstTmpPtr++ = i;
+                        *firstTmpPtr++ = static_cast<int>(i);
                         first++;
                         break;
                     }
@@ -238,7 +238,7 @@ void Unique::flattenTensorExec() {
                 }
                 for (size_t j = 0; j < uniqueLen; j++) {
                     if (srcDataPtr[i] == uniDataTmpPtr[j]) {
-                        inToOutTmpPtr[i] = j;
+                        inToOutTmpPtr[i] = static_cast<int>(j);
                         break;
                     }
                 }
@@ -268,7 +268,7 @@ void Unique::flattenTensorExec() {
                 inToOutTmpPtr[i] = it.first->second;
                 if (it.second) {
                     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                        firstTmpPtr[j] = i;
+                        firstTmpPtr[j] = static_cast<int>(i);
                     }
                     ++j;
                 } else {
@@ -372,7 +372,7 @@ void Unique::slicedTensorExec() {
         }
         if (!equal) {
             if (definedOutputs[FIRST_UNIQUE_IDX]) {
-                firstTmpPtr[uniqueLen] = a;
+                firstTmpPtr[uniqueLen] = static_cast<int>(a);
             }
 
             uniqIdx[uniqueLen++] = a;
@@ -382,7 +382,7 @@ void Unique::slicedTensorExec() {
             }
         }
         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-            inToOutTmpPtr[a] = uIdx;
+            inToOutTmpPtr[a] = static_cast<int>(uIdx);
         }
     }
 
@@ -445,7 +445,7 @@ void Unique::slicedTensorExec() {
             definedOutputs[FIRST_UNIQUE_IDX] || definedOutputs[OCCURRENCES_NUM] || definedOutputs[INPUT_TO_UNIQ_IDX];
 
         for (int64_t o = outerLen - 1; o >= 0; o--) {  // Backward loop through the outer block.
-            const int64_t pos1Lim = o * dstOuterStep;
+            const int64_t pos1Lim = static_cast<int64_t>(dstOuterStep) * o;
             int64_t pos1 = pos1Lim + innerLen - 1;
             for (; pos1 >= pos1Lim; pos1--) {  // Backward loop through the inner block.
                 int64_t pos2 = pos1;
@@ -475,7 +475,7 @@ void Unique::slicedTensorExec() {
                         if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
                             for (size_t ax = 0; ax < axisDim; ax++) {
                                 if (inToOut2[ax] == colToSort[u].idx) {
-                                    inToOut1[ax] = u;
+                                    inToOut1[ax] = static_cast<int>(u);
                                 }
                             }
                         }

@@ -137,7 +137,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                 return false;
             }
 
-            proj_size.push_back(wshape[0]);
+            proj_size.push_back(static_cast<int>(wshape[0]));
             args.emplace_back(constw);
             deq_scales.emplace_back(deq_scale);
             outputs.push_back(mm->get_default_output());

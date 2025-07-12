@@ -63,7 +63,7 @@ static std::vector<int> allocate_workers(const std::vector<int>& grouped_works, 
         float hardest_works = 0;
         size_t hardest_group = 0;
         for (size_t g = 0; g < n_groups; g++) {
-            auto works = static_cast<float>(grouped_works[g]) / g_workers[g];
+            auto works = static_cast<float>(grouped_works[g]) / static_cast<float>(g_workers[g]);
             if (hardest_works < works) {
                 hardest_works = works;
                 hardest_group = g;
@@ -105,7 +105,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         OPENVINO_ASSERT((K % cache_blk_k_size) == 0);
         m_threads_num = parallel_get_max_threads();
         auto num_blk_K = K / cache_blk_k_size;
-        int stride_in_bytes = K * weight_element_size;
+        auto stride_in_bytes = static_cast<int>(K * weight_element_size);
 
         works.resize(m_threads_num);
 
@@ -131,7 +131,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     work.n1 = (start_blkN + blkN) * REG_BLK_N_SIZE;
                     work.BN = blkN * REG_BLK_N_SIZE;
                     work.k0 = 0;
-                    work.k1 = cache_blk_k_size * num_blk_K;
+                    work.k1 = static_cast<int>(cache_blk_k_size * num_blk_K);
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
                     work.quant_i8 = quantized_int8;
@@ -169,13 +169,13 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                   " used_nthr=",
                   cur_work_id);
 
-        wbuffer.alloc(works, weight_element_size);
+        wbuffer.alloc(works, static_cast<int>(weight_element_size));
 
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
             if (work) {
                 if (quantized_int8) {
-                    work.setup(wbuffer.get<int8_t>(ithr),
+                    work.setup(wbuffer.get<int8_t>(static_cast<int>(ithr)),
                                reinterpret_cast<int8_t*>(work.p_raw_weights),
                                stride_in_bytes,
                                true);
@@ -229,7 +229,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
         auto* psrc0 = input->getDataAs<uint8_t>();
-        int M = static_cast<int>(shape_size(ishape) / ishape[ishape.size() - 1]);
+        auto M = static_cast<int>(shape_size(ishape) / ishape[ishape.size() - 1]);
         auto* dst0 = m_node->getDstMemoryAtPort(0)->getDataAs<T>();
         auto* dst1 = m_node->getDstMemoryAtPort(1)->getDataAs<T>();
         auto* dst2 = m_node->getDstMemoryAtPort(2)->getDataAs<T>();
@@ -286,15 +286,15 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 
                     if (work.output_id == 0) {
                         dst = dst0 + work.n0;
-                        stride_dst = stride_dst_0;
+                        stride_dst = static_cast<int>(stride_dst_0);
                     }
                     if (work.output_id == 1) {
                         dst = dst1 + work.n0;
-                        stride_dst = stride_dst_1;
+                        stride_dst = static_cast<int>(stride_dst_1);
                     }
                     if (work.output_id == 2) {
                         dst = dst2 + work.n0;
-                        stride_dst = stride_dst_2;
+                        stride_dst = static_cast<int>(stride_dst_2);
                     }
 
                     auto* src = work.m_C.template ptr<float>();
@@ -305,9 +305,9 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                         ov::Extensions::Cpu::XARCH::llm_mlp_dequantize_i32_f32(BM,
                                                                                work.BN,
                                                                                reinterpret_cast<int32_t*>(src),
-                                                                               stride_src,
+                                                                               static_cast<int>(stride_src),
                                                                                src,
-                                                                               stride_src,
+                                                                               static_cast<int>(stride_src),
                                                                                m_quant_act.scale,
                                                                                m_quant_act.zp,
                                                                                p_wsum,
@@ -363,7 +363,7 @@ QKVProjection::QKVProjection(const std::shared_ptr<ov::Node>& op, const GraphCon
         concurrency = parallel_get_max_threads();
     }
 
-    if (!isSupportedOperation(op, errorMessage, concurrency, config.fcDynamicQuantizationGroupSize)) {
+    if (!isSupportedOperation(op, errorMessage, static_cast<int>(concurrency), static_cast<int>(config.fcDynamicQuantizationGroupSize))) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto node = ov::as_type_ptr<const QKVProjectionNode>(op);

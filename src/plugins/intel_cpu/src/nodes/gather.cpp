@@ -97,7 +97,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 
     const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
     isDataShapeStat = dataShape.isStatic();
-    dataSrcRank = dataShape.getRank();
+    dataSrcRank = static_cast<int>(dataShape.getRank());
 
     const auto& idxShape = getInputShapeAtPort(GATHER_INDICES);
     isIdxShapeStat = idxShape.isStatic();
@@ -123,7 +123,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     }
 
     if (batchDims < 0) {
-        batchDims += indicesRank;
+        batchDims += static_cast<int>(indicesRank);
     }
     if (batchDims < 0 || batchDims > std::min(dataSrcRank, static_cast<int>(indicesRank))) {
         THROW_CPU_NODE_ERR("has incorrect batch_dims ", batchDims, "!");
@@ -339,7 +339,7 @@ void Gather::createPrimitive() {
                 const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
                 execParamsPerThread.resize(m_threads_num);
 
-                parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
+                parallel_nt(static_cast<int>(m_threads_num), [&](const int ithr, [[maybe_unused]] const int nthr) {
                     const uint64_t dstStart = std::min(wpt * ithr, totalWork);
                     const uint64_t dstEnd = std::min(wpt * (ithr + 1), totalWork);
 
@@ -349,14 +349,14 @@ void Gather::createPrimitive() {
                     p.specIdxInBytes.resize(dataElPerVec);
                     p.idxBatchSumInBytes.resize(dataElPerVec);
                     p.dataBeforeAxisSumInBytes.resize(dataElPerVec);
-                    p.betweenBatchAndAxisIter = (dstStart / specIndicesSize) % betweenBatchAndAxisSize;
+                    p.betweenBatchAndAxisIter = static_cast<int>((dstStart / specIndicesSize) % betweenBatchAndAxisSize);
                     for (uint64_t j = 0LU; j < dataElPerVec; j++) {
-                        p.specIdxInBytes[j] = (((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize;
-                        p.idxBatchSumInBytes[j] =
+                        p.specIdxInBytes[j] = static_cast<int>((((dstStart + j) / afterAxisSize) % specIndicesSize) * idxTypeSize);
+                        p.idxBatchSumInBytes[j] = static_cast<int>(
                             ((dstStart + j) / (betweenBatchAndAxisSize * specIndicesSize * afterAxisSize)) *
-                            specIndicesSize * idxTypeSize;
-                        p.dataBeforeAxisSumInBytes[j] =
-                            ((dstStart + j) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
+                            specIndicesSize * idxTypeSize);
+                        p.dataBeforeAxisSumInBytes[j] = static_cast<int>(
+                            ((dstStart + j) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes);
                     }
                     initShortParams(p, dstStart);
                 });
@@ -519,7 +519,7 @@ void Gather::execute([[maybe_unused]] const dnnl::stream& strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(m_threads_num, threadBody);
+        parallel_nt(static_cast<int>(m_threads_num), threadBody);
 
         return;
     }
@@ -573,13 +573,13 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
             int permIdxMask[16];
             int beforeAxisDiff[16];
             if (afterAxisSize == 1 && specIndicesSize < idxElPerVec) {
-                permIdxMask[0] = idxElPerVec - specIndicesSize;
-                int div = idxElPerVec / specIndicesSize;
-                int remainder = idxElPerVec % specIndicesSize;
+                permIdxMask[0] = static_cast<int>(idxElPerVec - specIndicesSize);
+                auto div = static_cast<int>(idxElPerVec / specIndicesSize);
+                auto remainder = static_cast<int>(idxElPerVec % specIndicesSize);
                 for (uint64_t i = 1; i < idxElPerVec; i++) {
                     permIdxMask[i] = permIdxMask[i - 1] + 1;
                     if (static_cast<uint64_t>(permIdxMask[i]) == idxElPerVec) {
-                        permIdxMask[i] = idxElPerVec - specIndicesSize;
+                        permIdxMask[i] = static_cast<int>(idxElPerVec - specIndicesSize);
                     }
                 }
                 for (uint64_t i = 0; i < idxElPerVec; i++) {
@@ -596,7 +596,7 @@ void Gather::executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
             (*jitKernel)(&arg);
         };
 
-        parallel_nt(m_threads_num, threadBody);
+        parallel_nt(static_cast<int>(m_threads_num), threadBody);
 
         return;
     }
@@ -618,16 +618,16 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.permIdxMask.resize(idxElPerVec);
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
-        p.permIdxMask[0] = idxElPerVec - specIndicesSize;
+        p.permIdxMask[0] = static_cast<int>(idxElPerVec - specIndicesSize);
         for (uint64_t i = 1; i < idxElPerVec; i++) {
             p.permIdxMask[i] = p.permIdxMask[i - 1] + 1;
             if (static_cast<uint64_t>(p.permIdxMask[i]) == idxElPerVec) {
-                p.permIdxMask[i] = idxElPerVec - specIndicesSize;
+                p.permIdxMask[i] = static_cast<int>(idxElPerVec - specIndicesSize);
             }
         }
 
-        const int div = idxElPerVec / specIndicesSize;
-        const int remainder = idxElPerVec % specIndicesSize;
+        const int div = static_cast<int>(idxElPerVec / specIndicesSize);
+        const int remainder = static_cast<int>(idxElPerVec % specIndicesSize);
         for (uint64_t i = 0; i < idxElPerVec; i++) {
             if (((start + i) % specIndicesSize) < (specIndicesSize - remainder)) {
                 p.srcBeforeAxisDiff[i] = axisDim * div;
@@ -646,37 +646,37 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.specIdxDiff.resize(idxElPerVec);
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
-        int secondStart = start + idxElPerVec;
+        int secondStart = start + static_cast<int>(idxElPerVec);
         for (uint64_t i = 0; i < idxElPerVec; i++) {
-            p.afterAxIdxInBytes[i] = (start + i) % afterAxisSize;
+            p.afterAxIdxInBytes[i] = static_cast<int>((start + i) % afterAxisSize);
             p.specIdxDiff[i] =
-                (((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize - p.specIdxInBytes[i];
+                static_cast<int>((((secondStart + i) / afterAxisSize) % specIndicesSize) * idxTypeSize) - p.specIdxInBytes[i];
             if (p.specIdxDiff[i] < 0) {
-                p.specIdxDiff[i] += specIndicesSize * idxTypeSize;
+                p.specIdxDiff[i] += static_cast<int>(specIndicesSize * idxTypeSize);
             }
             p.srcBeforeAxisDiff[i] =
-                ((start + i + idxElPerVec) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes -
-                ((start + i) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes;
+                static_cast<int>(((start + i + idxElPerVec) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes -
+                ((start + i) / (specIndicesSize * afterAxisSize)) * axisAndAfterAxisSizeInBytes);
 
-            p.afterAxIdxInBytes[i] *= dataTypeSize;
-            p.afterAxPermMask[i] = idxElPerVec - afterAxisSize + i;
+            p.afterAxIdxInBytes[i] = static_cast<int>(p.afterAxIdxInBytes[i] * dataTypeSize);
+            p.afterAxPermMask[i] = static_cast<int>(idxElPerVec - afterAxisSize + i);
             for (size_t j = 0LU; j < 6LU; j++) {
                 if (static_cast<uint64_t>(p.afterAxPermMask[i]) >= idxElPerVec) {
-                    p.afterAxPermMask[i] -= afterAxisSize;
+                    p.afterAxPermMask[i] -= static_cast<int>(afterAxisSize);
                 }
             }
         }
         if (specIndicesSize * afterAxisSize < idxElPerVec) {
-            p.beforeAxPermMask[0] = idxElPerVec - specIndicesSize * afterAxisSize;
+            p.beforeAxPermMask[0] = static_cast<int>(idxElPerVec - specIndicesSize * afterAxisSize);
             for (uint64_t i = 1; i < idxElPerVec; i++) {
                 p.beforeAxPermMask[i] = p.beforeAxPermMask[i - 1] + 1;
                 if (static_cast<uint64_t>(p.beforeAxPermMask[i]) == idxElPerVec) {
-                    p.beforeAxPermMask[i] = idxElPerVec - specIndicesSize * afterAxisSize;
+                    p.beforeAxPermMask[i] = static_cast<int>(idxElPerVec - specIndicesSize * afterAxisSize);
                 }
             }
         }
 
-        p.specIdxAndAfterAxIterB = (start * dataTypeSize) % specIdxAndAfterAxSizeB;
+        p.specIdxAndAfterAxIterB = static_cast<int>((start * dataTypeSize) % specIdxAndAfterAxSizeB);
     }
 }
 
@@ -696,9 +696,9 @@ void Gather::execCompressed4Bit() {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
-                ii += axisDim;
+                ii += static_cast<int>(axisDim);
             } else {
-                ii = axisDim;
+                ii = static_cast<int>(axisDim);
             }
         }
         const size_t idx = ii;
@@ -781,9 +781,9 @@ void Gather::execCompressed8Bit() {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
-                ii += axisDim;
+                ii += static_cast<int>(axisDim);
             } else {
-                ii = axisDim;
+                ii = static_cast<int>(axisDim);
             }
         }
         const size_t idx = ii;
@@ -864,9 +864,9 @@ int8_t Gather::get_i4(const uint8_t& val, bool high) {
 
 int8_t Gather::get_u4(const uint8_t& val, bool high) {
     if (high) {
-        return (val >> 4) & 0xF;
+        return static_cast<int8_t>((val >> 4) & 0xF);
     }
-    return val & 0xF;
+    return static_cast<int8_t>(val & 0xF);
 }
 
 struct ExecCompressedContext {
@@ -936,9 +936,9 @@ void Gather::execReference() {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
-                ii += axisDim;
+                ii += static_cast<int>(axisDim);
             } else {
-                ii = axisDim;
+                ii = static_cast<int>(axisDim);
             }
         }
         const size_t idx = ii;
@@ -978,9 +978,9 @@ void Gather::exec1DCase() {
         auto ii = pidx[i];
         if (ii < 0) {
             if (reverseIndexing) {
-                ii += axisDim;
+                ii += static_cast<int>(axisDim);
             } else {
-                ii = axisDim;
+                ii = static_cast<int>(axisDim);
             }
         }
         pdst[i] = psrc[ii];
@@ -1017,7 +1017,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     CPU_NODE_ASSERT(baseDim != Shape::UNDEFINED_DIM, "can not use inPlace memory with splitting on dynamic dimention");
     auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     const auto index = constIndices.front();
-    const ptrdiff_t offset = index < 0 ? baseDim + index : index;
+    const ptrdiff_t offset = index < 0 ? static_cast<ptrdiff_t>(baseDim) + index : static_cast<ptrdiff_t>(index);
     const auto& childEdges = getChildEdgesAtPort(outputPort);
     for (const auto& childEdge : childEdges) {
         CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");

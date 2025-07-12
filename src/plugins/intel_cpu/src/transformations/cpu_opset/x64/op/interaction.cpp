@@ -5,6 +5,7 @@
 #include "interaction.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "openvino/core/attribute_visitor.hpp"
@@ -51,7 +52,7 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     Dimension output_feature_size;
     // only set output when feature is static
     if (feature.is_static()) {
-        output_feature_size = input_size * (input_size - 1) / 2 + feature.get_length();
+        output_feature_size = static_cast<int64_t>(input_size * (input_size - 1) / 2) + feature.get_length();
     }
     auto output_type = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
     m_output_type = output_type;

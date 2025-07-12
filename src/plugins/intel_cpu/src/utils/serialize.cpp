@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <ios>
 #include <istream>
 #include <memory>
 #include <ostream>
@@ -77,7 +78,7 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
     // Blob from cache may have other header, so need to skip this.
     auto* buffer_base = reinterpret_cast<char*>(mmemory->get_ptr());
     const auto file_size = mmemory->size();
-    const size_t hdr_pos = m_istream.tellg();
+    const size_t hdr_pos = static_cast<size_t>(m_istream.tellg());
 
     pass::StreamSerialize::DataHeader hdr = {};
     std::memcpy(reinterpret_cast<char*>(&hdr), buffer_base + hdr_pos, sizeof hdr);
@@ -136,10 +137,10 @@ void ModelDeserializer::process_mmap(std::shared_ptr<ov::Model>& model,
 }
 
 void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
-    const size_t hdr_pos = m_istream.tellg();
+    const size_t hdr_pos = static_cast<size_t>(m_istream.tellg());
     m_istream.seekg(0, std::istream::end);
-    const size_t file_size = m_istream.tellg();
-    m_istream.seekg(hdr_pos, std::istream::beg);
+    const size_t file_size = static_cast<size_t>(m_istream.tellg());
+    m_istream.seekg(static_cast<std::istream::off_type>(hdr_pos), std::istream::beg);
 
     pass::StreamSerialize::DataHeader hdr = {};
     m_istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
@@ -154,13 +155,13 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
     }
 
     // read model input/output precisions
-    m_istream.seekg(hdr.custom_data_offset);
+    m_istream.seekg(static_cast<std::streamoff>(hdr.custom_data_offset));
 
     pugi::xml_document xmlInOutDoc;
     if (hdr.custom_data_size > 0) {
         std::string xmlInOutString;
         xmlInOutString.resize(hdr.custom_data_size);
-        m_istream.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
+        m_istream.read(const_cast<char*>(xmlInOutString.c_str()), static_cast<std::streamsize>(hdr.custom_data_size));
         auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
         if (res.status != pugi::status_ok) {
             OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
@@ -169,16 +170,16 @@ void ModelDeserializer::process_stream(std::shared_ptr<ov::Model>& model) {
 
     // read blob content
     auto data_blob = std::make_shared<ov::Tensor>(ov::element::u8, ov::Shape({hdr.consts_size}));
-    m_istream.seekg(hdr.consts_offset);
+    m_istream.seekg(static_cast<std::streamoff>(hdr.consts_offset));
     if (hdr.consts_size) {
-        m_istream.read(static_cast<char*>(data_blob->data(ov::element::u8)), hdr.consts_size);
+        m_istream.read(static_cast<char*>(data_blob->data(ov::element::u8)), static_cast<std::streamsize>(hdr.consts_size));
     }
 
     // read XML content
     auto xml_string = std::make_shared<std::string>();
-    m_istream.seekg(hdr.model_offset);
+    m_istream.seekg(static_cast<std::streamoff>(hdr.model_offset));
     xml_string->resize(hdr.model_size);
-    m_istream.read(const_cast<char*>(xml_string->data()), hdr.model_size);
+    m_istream.read(const_cast<char*>(xml_string->data()), static_cast<std::streamsize>(hdr.model_size));
     if (m_cache_decrypt) {
         if (m_decript_from_string) {
             *xml_string = m_cache_decrypt.m_decrypt_str(*xml_string);

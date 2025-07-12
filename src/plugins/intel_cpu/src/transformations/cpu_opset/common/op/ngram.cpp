@@ -5,6 +5,7 @@
 #include "ngram.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "openvino/core/attribute_visitor.hpp"
@@ -57,7 +58,7 @@ void ov::intel_cpu::NgramNode::validate_and_infer_types() {
                     embeddings_shape);
 
     auto out_shape = embeddings_shape;
-    out_shape[1] *= m_k;
+    out_shape[1] *= static_cast<int64_t>(m_k);
     set_output_type(0, embeddings_et, out_shape);
 }
 

@@ -219,8 +219,8 @@ ov::intel_cpu::MLPFusion::MLPFusion() {
 
             cfg.gate_up_quantized = is_gate_up_quantized_int8;
             cfg.down_quantized = is_down_proj_int8;
-            cfg.hidden_size = down_size;
-            cfg.up_size = up_size;
+            cfg.hidden_size = static_cast<int>(down_size);
+            cfg.up_size = static_cast<int>(up_size);
             cfg.gate_up_combined = is_gate_up_combined;
 
             if (pattern_map.count(mlp_silu_gate) > 0) {

@@ -5,6 +5,7 @@
 #include "ngram_fusion.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <openvino/core/dimension.hpp>
 #include <openvino/core/graph_util.hpp>
@@ -69,7 +70,7 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
                 return false;
             }
             const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(out_it->second.get_node_shared_ptr());
-            return constant != nullptr && ov::op::util::constantIsEqualTo(constant, expected_bias);
+            return constant != nullptr && ov::op::util::constantIsEqualTo(constant, static_cast<float>(expected_bias));
         };
 
         auto tokens_match = [](const ov::Output<ov::Node>& output) -> bool {
@@ -120,7 +121,7 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             // 2. Check subgraph input and output shapes to make sure that all rest constants in the subgraph are
             // correct
             if (!check_bias(pattern_map, ss_bias, as_is_idx) || concat_shape.rank() != tokens_shape.rank() ||
-                tokens_shape[1] * k != concat_shape[1]) {
+                static_cast<int64_t>(tokens_shape[1].get_length() * k) != concat_shape[1].get_length()) {
                 return false;
             }
             // save symbol of cropped_shape and check it against first dimension of tokens shape

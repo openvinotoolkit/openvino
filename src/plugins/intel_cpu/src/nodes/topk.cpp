@@ -1932,7 +1932,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
             }
         }
 
-        axis = topKOp->get_axis();
+        axis = static_cast<int>(topKOp->get_axis());
         mode_max = topKOp->get_mode() == ov::op::TopKMode::MAX;
         sort_index = topKOp->get_sort_type() == ov::op::TopKSortType::SORT_INDICES;
 
@@ -1966,7 +1966,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         }
 
         if (axis < 0) {
-            axis += in_dims_size;
+            axis += static_cast<int>(in_dims_size);
         }
         if (axis < 0 || axis >= static_cast<int>(in_dims_size)) {
             THROW_CPU_NODE_ERR("gets incorrect input parameters dimensions and axis number!");
@@ -2141,7 +2141,7 @@ void TopK::prepareParams() {
                 algorithm = TopKAlgorithm::topk_heap_sort;
             } else {
                 auto log_axis_dim = log2(axis_dim);
-                auto alg_cost_bitonic = static_cast<size_t>((axis_dim / 4.0F) * log_axis_dim * (log_axis_dim + 1));
+                auto alg_cost_bitonic = static_cast<size_t>((static_cast<float>(axis_dim) / 4.0F) * log_axis_dim * (log_axis_dim + 1));
                 size_t alg_cost_bubble = top_k * (top_k - 1) / 2 + (axis_dim - top_k) * top_k;
                 if (alg_cost_bitonic < alg_cost_bubble) {
                     algorithm = TopKAlgorithm::topk_bitonic_sort;
@@ -2154,7 +2154,7 @@ void TopK::prepareParams() {
 
         prepare_original_idx();
     } else {  // reference mode
-        for (int j = src_dims.size() - 1; j >= 0; j--) {
+        for (int j = static_cast<int>(src_dims.size()) - 1; j >= 0; j--) {
             if (src_dims[j] != 1) {
                 break;
             }
@@ -2193,11 +2193,11 @@ void TopK::createPrimitive() {
         auto jcp = jit_topk_config_params();
         auto* selectedPD = getSelectedPrimitiveDescriptor();
         jcp.precision = selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision();
-        jcp.data_size = data_size;
-        jcp.blk_size = blk_size;
+        jcp.data_size = static_cast<int>(data_size);
+        jcp.blk_size = static_cast<int>(blk_size);
         jcp.layout = layout;
         jcp.top_k = top_k;
-        jcp.axis_dim = axis_dim;
+        jcp.axis_dim = static_cast<int>(axis_dim);
         jcp.mode_max = mode_max;
         jcp.sort_index = sort_index;
         jcp.topk_innermost = topk_innermost;
@@ -2354,7 +2354,7 @@ inline void TopK::prepare_original_idx() {
                 if (pre_size != axis_dim) {
                     vec_idx_seq.resize(axis_dim);
                     for (size_t i = pre_size; i < axis_dim; i++) {
-                        vec_idx_seq[i] = i;
+                        vec_idx_seq[i] = static_cast<int>(i);
                     }
                 }
             }
@@ -2364,7 +2364,7 @@ inline void TopK::prepare_original_idx() {
                 vec_idx_block.resize(axis_dim * blk_len);
                 for (size_t i = 0; i < axis_dim; i++) {
                     for (size_t j = 0; j < blk_len; j++) {
-                        vec_idx_block[i * blk_len + j] = i;
+                        vec_idx_block[i * blk_len + j] = static_cast<int>(i);
                     }
                 }
             } else {
@@ -2373,7 +2373,7 @@ inline void TopK::prepare_original_idx() {
                     vec_idx_block.resize(axis_dim * blk_len);
                     for (size_t i = pre_size; i < axis_dim; i++) {
                         for (size_t j = 0; j < blk_len; j++) {
-                            vec_idx_block[i * blk_len + j] = i;
+                            vec_idx_block[i * blk_len + j] = static_cast<int>(i);
                         }
                     }
                 }
@@ -2435,7 +2435,7 @@ inline void TopK::bitonic_push_idx(int p, int n, std::vector<int>& vec, int& cnt
 }
 
 void TopK::calc_bitonic_idx(size_t n, int& cnt, bool cmp_val) {
-    int m = n - 1;
+    int m = static_cast<int>(n) - 1;
     int log_p = 0;
     int p = 1;
     while (m) {
@@ -2449,10 +2449,10 @@ void TopK::calc_bitonic_idx(size_t n, int& cnt, bool cmp_val) {
     int max_cnt = (p >> 1) * log_p * (log_p + 1);
     if (cmp_val) {
         vec_bitonic_idx.resize(max_cnt);
-        bitonic_push_idx(p, n, vec_bitonic_idx, cnt, cmp_val);
+        bitonic_push_idx(p, static_cast<int>(n), vec_bitonic_idx, cnt, cmp_val);
     } else {
         vec_bitonic_k_idx.resize(max_cnt);
-        bitonic_push_idx(p, n, vec_bitonic_k_idx, cnt, cmp_val);
+        bitonic_push_idx(p, static_cast<int>(n), vec_bitonic_k_idx, cnt, cmp_val);
     }
 }
 

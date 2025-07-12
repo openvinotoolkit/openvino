@@ -89,7 +89,7 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     auto axisOp = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto axis = axisOp->cast_vector<int64_t>()[0];
     if (axis < 0) {
-        axis += inRank;
+        axis += static_cast<int64_t>(inRank);
     }
     if (axis >= static_cast<int64_t>(inRank)) {
         THROW_CPU_NODE_ERR("has invalid value of axis parameter: ", axis);
@@ -198,7 +198,7 @@ void Split::initSupportedPrimitiveDescriptors() {
     const auto& parentdDims = inputShapes[0].getDims();
     if (parentdDims[axis] != Shape::UNDEFINED_DIM &&
         std::all_of(parentdDims.begin(),
-                    parentdDims.begin() + axis,
+                    parentdDims.begin() + static_cast<std::ptrdiff_t>(axis),
                     [](size_t dim) {
                         return dim == 1;
                     }) &&
@@ -468,7 +468,7 @@ void Split::selectOptimalPrimitiveDescriptor() {
 
 void Split::optimizedNspc2Ncsp(size_t MB) {
     auto parentEdge = getParentEdgeAt(0);
-    const int rank = parentEdge->getMemory().getShape().getRank();
+    const auto rank = static_cast<int>(parentEdge->getMemory().getShape().getRank());
     const auto parentDims = parentEdge->getMemory().getStaticDims();
     const size_t IC = parentDims[1];
     const size_t D = rank == 5 ? parentDims[rank - 3] : 1;
@@ -599,7 +599,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         auto partDim = outputShapes[i].getDims()[axis];
         CPU_NODE_ASSERT(partDim != Shape::UNDEFINED_DIM,
                         "can not use inPlace memory with splitting on dynamic dimension");
-        const auto& childEdges = getChildEdgesAtPort(i);
+        const auto& childEdges = getChildEdgesAtPort(static_cast<int>(i));
         for (const auto& childEdge : childEdges) {
             CPU_NODE_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated, "Unexpected edge status");
 
@@ -615,7 +615,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
 
             childEdge->reuse(newMem);
         }
-        offset += partDim;
+        offset += static_cast<ptrdiff_t>(partDim);
     }
 }
 

@@ -296,9 +296,9 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
 
     const auto regionYolo = ov::as_type_ptr<const ov::op::v0::RegionYolo>(op);
-    classes = static_cast<size_t>(regionYolo->get_num_classes());
-    coords = static_cast<size_t>(regionYolo->get_num_coords());
-    num = static_cast<size_t>(regionYolo->get_num_regions());
+    classes = static_cast<int>(regionYolo->get_num_classes());
+    coords = static_cast<int>(regionYolo->get_num_coords());
+    num = static_cast<int>(regionYolo->get_num_regions());
     do_softmax = static_cast<float>(regionYolo->get_do_softmax());
     mask = regionYolo->get_mask();
     block_size = 1;
@@ -433,7 +433,7 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (do_softmax != 0.0F) {
         // Region layer (Yolo v2)
         end_index = static_cast<int>(IW * IH);
-        num_ = static_cast<int>(num);
+        num_ = num;
         output_size = B * IH * IW * IC;  // different shape combinations with the same overall size;
     } else {
         // Yolo layer (Yolo v3)
@@ -450,7 +450,7 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
-    int total_size = static_cast<int>(2 * IH * IW);
+    auto total_size = static_cast<int>(2 * IH * IW);
 
     const auto* src_data = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dst_data = getDstDataAtPortAs<uint8_t>(0);
@@ -472,15 +472,15 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (do_softmax != 0.0F) {
-        int index = static_cast<int>(IW * IH * (coords + 1));
-        int batch_offset = static_cast<int>(inputs_size / num);
+        auto index = static_cast<int>(IW * IH * (coords + 1));
+        auto batch_offset = static_cast<int>(inputs_size / num);
         for (size_t b = 0; b < B * num; b++) {
             softmax_kernel->execute(src_data + input_prec.size() * (index + b * batch_offset),
                                     dst_data + output_prec.size() * (index + b * batch_offset),
                                     1,
                                     classes,
-                                    IH,
-                                    IW);
+                                    static_cast<int>(IH),
+                                    static_cast<int>(IW));
         }
     }
 }

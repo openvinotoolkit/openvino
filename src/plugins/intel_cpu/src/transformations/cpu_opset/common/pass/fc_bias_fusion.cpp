@@ -56,11 +56,11 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         const ov::PartialShape& output_shape = fc->get_output_partial_shape(0);
         size_t bias_size = ov::shape_size(bias_shape);
         auto rank = output_shape.size();
-        if (rank == 0 || output_shape[rank - 1].is_dynamic()) {
+        if (rank == 0 || output_shape[static_cast<std::ptrdiff_t>(rank) - 1].is_dynamic()) {
             return false;
         }
 
-        if (bias_shape.empty() || static_cast<int64_t>(bias_shape.back()) != output_shape[rank - 1].get_length() ||
+        if (bias_shape.empty() || static_cast<int64_t>(bias_shape.back()) != output_shape[static_cast<std::ptrdiff_t>(rank) - 1].get_length() ||
             bias_shape.back() != bias_size) {
             return false;
         }

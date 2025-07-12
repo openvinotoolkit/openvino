@@ -169,7 +169,7 @@ struct MHAKernel {
         auto Hk = present_key.size(1);
         size_t h_each_group_len = H / Hk;
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / sqrt(static_cast<float>(head_size));
         }
 
         auto k_stride_s = present_key.stride(3);
@@ -427,7 +427,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             if (alibi_mask) {
                 alibi_ptr = &alibi_mask.at<float>({b, h, 0, 0}, true);
                 if (alibi_mask.size(2) > 1) {
-                    alibi_stride = alibi_mask.stride(2);
+                    alibi_stride = static_cast<int>(alibi_mask.stride(2));
                 }
             }
 
@@ -444,7 +444,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             if (causal_mask) {
                 cmask_ptr = &causal_mask.at<uint8_t>({b, h, 0, 0}, true);
                 if (causal_mask.size(2) > 1) {
-                    cmask_stride = causal_mask.stride(2);
+                    cmask_stride = static_cast<int>(causal_mask.stride(2));
                 }
             }
             for (size_t m = m_start; m < m_end; m++) {
@@ -505,7 +505,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             }
         };
 
-        parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+        parallel_nt_static(static_cast<int>(m_threads_num), [&](const int ithr, const int nthr) {
             for_3d(ithr, nthr, B, H, m_blocks, bhb_loop);
         });
     }
@@ -536,7 +536,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     float d_scale = 0.0F) {
         auto head_size = query.size(3);
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / sqrt(static_cast<float>(head_size));
         }
 
         prepare_brgemm_prim(strm, query, present_key, present_value, has_out_transpose);
@@ -619,7 +619,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             if (alibi_mask) {
                 alibi_ptr = &alibi_mask.at<T>({b, h, 0, 0}, true);
                 if (alibi_mask.size(2) > 1) {
-                    alibi_stride = alibi_mask.stride(2);
+                    alibi_stride = static_cast<int>(alibi_mask.stride(2));
                 }
             }
             uint8_t* attn_mask_ptr = nullptr;
@@ -635,7 +635,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             if (causal_mask) {
                 cmask_ptr = &causal_mask.at<uint8_t>({b, h, 0, 0}, true);
                 if (causal_mask.size(2) > 1) {
-                    cmask_stride = causal_mask.stride(2);
+                    cmask_stride = static_cast<int>(causal_mask.stride(2));
                 }
             }
 
@@ -752,7 +752,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
         size_t h_each_group_len = H / h_group_num;
 
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / sqrt(static_cast<float>(head_size));
         }
         auto k_stride_s = present_key.stride(3);
 
@@ -780,7 +780,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             if (alibi_mask) {
                 alibi_ptr = &alibi_mask.at<float>({b, h, 0, 0}, true);
                 if (alibi_mask.size(2) > 1) {
-                    alibi_stride = alibi_mask.stride(2);
+                    alibi_stride = static_cast<int>(alibi_mask.stride(2));
                 }
             }
             uint8_t* attn_mask_ptr = nullptr;
@@ -788,7 +788,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             if (attention_mask) {
                 attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
                 if (attention_mask.size(2) > 1) {
-                    attn_mask_stride = attention_mask.stride(2) * sizeof(float);
+                    attn_mask_stride = static_cast<int>(attention_mask.stride(2) * sizeof(float));
                 }
             }
             uint8_t* cmask_ptr = nullptr;
@@ -796,7 +796,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             if (causal_mask) {
                 cmask_ptr = &causal_mask.at<uint8_t>({b, h, 0, 0}, true);
                 if (causal_mask.size(2) > 1) {
-                    cmask_stride = causal_mask.stride(2);
+                    cmask_stride = static_cast<int>(causal_mask.stride(2));
                 }
             }
 
@@ -806,32 +806,32 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             if (k_stride_s == 1) {
                 mlas_sgemm("N",
                            "T",
-                           m_cnt,
-                           kv_len,
-                           head_size,
+                           static_cast<int64_t>(m_cnt),
+                           static_cast<int64_t>(kv_len),
+                           static_cast<int64_t>(head_size),
                            1.0F,
                            q_ptr,
-                           query.stride(2),
+                           static_cast<int64_t>(query.stride(2)),
                            k_ptr,
-                           present_key.stride(2),
+                           static_cast<int64_t>(present_key.stride(2)),
                            0.F,
                            qk,
-                           qk_m_stride,
+                           static_cast<int64_t>(qk_m_stride),
                            1);
             } else {
                 mlas_sgemm("N",
                            "N",
-                           m_cnt,
-                           kv_len,
-                           head_size,
+                           static_cast<int64_t>(m_cnt),
+                           static_cast<int64_t>(kv_len),
+                           static_cast<int64_t>(head_size),
                            1.0F,
                            q_ptr,
-                           query.stride(2),
+                           static_cast<int64_t>(query.stride(2)),
                            k_ptr,
-                           present_key.stride(3),
+                           static_cast<int64_t>(present_key.stride(3)),
                            0.F,
                            qk,
-                           qk_m_stride,
+                           static_cast<int64_t>(qk_m_stride),
                            1);
             }
 
@@ -853,22 +853,22 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             }
             mlas_sgemm("N",
                        "N",
-                       m_cnt,
-                       head_size_v,
-                       kv_len,
+                       static_cast<int64_t>(m_cnt),
+                       static_cast<int64_t>(head_size_v),
+                       static_cast<int64_t>(kv_len),
                        1.0F,
                        qk,
-                       qk_m_stride,
+                       static_cast<int64_t>(qk_m_stride),
                        v_ptr,
-                       present_value.stride(2),
+                       static_cast<int64_t>(present_value.stride(2)),
                        0.F,
                        has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size_v})
                                          : &output_emb.at<float>({b, h, m_start}),
-                       has_out_transpose ? output_emb.stride(1) : output_emb.stride(2),
+                       static_cast<int64_t>(has_out_transpose ? output_emb.stride(1) : output_emb.stride(2)),
                        1);
         };
 
-        parallel_nt_static(m_threads_num, [&](const int ithr, const int nthr) {
+        parallel_nt_static(static_cast<int>(m_threads_num), [&](const int ithr, const int nthr) {
             for_3d(ithr, nthr, B, H, m_blocks, bhb_loop);
         });
     }
@@ -1853,8 +1853,8 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     // second token itself
     for (size_t i = 0; i < B; i++) {
         for (size_t j = 0; j < L1; j++) {
-            beam_table_k.at<int32_t>({i, static_cast<size_t>(L0) + j}) = static_cast<int>(i);
-            beam_table_v.at<int32_t>({i, static_cast<size_t>(L0) + j}) = static_cast<int>(i);
+            beam_table_k.at<int32_t>({i, L0 + j}) = static_cast<int>(i);
+            beam_table_v.at<int32_t>({i, L0 + j}) = static_cast<int>(i);
         }
     }
 }

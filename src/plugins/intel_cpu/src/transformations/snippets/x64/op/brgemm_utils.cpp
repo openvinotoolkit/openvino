@@ -214,7 +214,7 @@ ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippet
     const auto K = planar_shape[K_idx];
     const auto N = planar_shape[N_idx];
     const auto vnni_factor = compute_vnni_factor(prc);
-    ov::snippets::VectorDims blocked_dims(planar_shape.cbegin(), planar_shape.cbegin() + (rank - 2));
+    ov::snippets::VectorDims blocked_dims(planar_shape.cbegin(), planar_shape.cbegin() + static_cast<std::ptrdiff_t>(rank - 2));
     ov::snippets::VectorDims blocked_order(rank - 2);
     std::iota(blocked_order.begin(), blocked_order.end(), 0);
 

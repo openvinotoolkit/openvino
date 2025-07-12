@@ -85,14 +85,14 @@ ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {
         auto check_decompression_shape = [&](const std::shared_ptr<ov::Node>& node) {
             ov::Shape expected_shape(3, 1);
             const size_t out_channels_idx = with_transpose ? 2 : 1;
-            expected_shape[out_channels_idx] = fc_input_shape[0];
+            expected_shape[static_cast<std::ptrdiff_t>(out_channels_idx)] = fc_input_shape[0];
             const auto& node_shape = node->get_output_shape(0);
             if (node_shape.size() > expected_shape.size()) {
                 return false;
             }
 
             const auto comparison_start_pos = expected_shape.size() - node_shape.size();
-            return std::equal(node_shape.begin(), node_shape.end(), expected_shape.begin() + comparison_start_pos) ||
+            return std::equal(node_shape.begin(), node_shape.end(), expected_shape.begin() + static_cast<std::ptrdiff_t>(comparison_start_pos)) ||
                    std::all_of(node_shape.cbegin(), node_shape.cend(), [](int dim) {
                        return dim == 1;
                    });

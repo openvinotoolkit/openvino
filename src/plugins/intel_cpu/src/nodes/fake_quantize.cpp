@@ -1680,7 +1680,7 @@ void FakeQuantize::createPrimitive() {
 
         if (isBinarization()) {
             const auto& inDims = srcMemory.getStaticDims();
-            key.jqp.c = inDims.size() > 1 ? inDims[1] : 1;
+            key.jqp.c = inDims.size() > 1 ? static_cast<int>(inDims[1]) : 1;
         } else {
             // in case of blocked layout we need to extend vectors to prevent read from unallocated memory
             size_t paddedSize = 1;
@@ -1734,17 +1734,17 @@ void FakeQuantize::executeReference() {
     auto s_str = srcMemory->getDescWithType<BlockedMemoryDesc>()->getStrides();
     auto d_str = dstMemory->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
-    const int N = srcDims[0];
-    const int C = static_cast<int>(srcDims.size()) > 1 ? srcDims[1] : 1;
-    const int D = static_cast<int>(srcDims.size()) == 5 ? srcDims[2] : 1;
+    const auto N = static_cast<int>(srcDims[0]);
+    const int C = static_cast<int>(srcDims.size()) > 1 ? static_cast<int>(srcDims[1]) : 1;
+    const int D = static_cast<int>(srcDims.size()) == 5 ? static_cast<int>(srcDims[2]) : 1;
     int H = 1, W = 1;
     if (srcDims.size() == 3) {
-        H = srcDims[2];
+        H = static_cast<int>(srcDims[2]);
     } else if (srcDims.size() > 3) {
-        H = srcDims[srcDims.size() - 2];
+        H = static_cast<int>(srcDims[srcDims.size() - 2]);
     }
     if (srcDims.size() > 3) {
-        W = srcDims[srcDims.size() - 1];
+        W = static_cast<int>(srcDims[srcDims.size() - 1]);
     }
 
     if (isBinarization()) {
@@ -1813,7 +1813,7 @@ void FakeQuantize::executeReference() {
 
             float src_val = src[src_off];
 
-            int wei_idx = getAxis() == 0 ? n : c;
+            int wei_idx = getAxis() == 0 ? static_cast<int>(n) : static_cast<int>(c);
             float cl = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)] ? cropLow[0] : cropLow[wei_idx];
             float ch = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)] ? cropHigh[0] : cropHigh[wei_idx];
             float isc =
@@ -1864,10 +1864,10 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     }
     s_str[1] = tmp;
 
-    const int N = src_dims[0];
-    const int C = src_dims[1];
-    const int H = src_dims[2];
-    const int W = src_dims[3];
+    const auto N = static_cast<int>(src_dims[0]);
+    const auto C = static_cast<int>(src_dims[1]);
+    const auto H = static_cast<int>(src_dims[2]);
+    const auto W = static_cast<int>(src_dims[3]);
 
     int nbits = 8;
 
@@ -1924,27 +1924,27 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         s_str[1] = tmp;
     }
 
-    const int N = srcDims[0];
-    const int C = srcDims[1];
+    const auto N = static_cast<int>(srcDims[0]);
+    const auto C = static_cast<int>(srcDims[1]);
     const int CB = div_up(C, blk_size);
     int D = 1, H = 1, W = 1;
     if (srcDims.size() == 5) {
-        D = srcDims[2];
+        D = static_cast<int>(srcDims[2]);
     }
     if (srcDims.size() == 3) {
-        H = srcDims[2];
+        H = static_cast<int>(srcDims[2]);
     } else if (srcDims.size() > 3) {
-        H = srcDims[srcDims.size() - 2];
+        H = static_cast<int>(srcDims[srcDims.size() - 2]);
     }
     if (srcDims.size() > 3) {
-        W = srcDims[srcDims.size() - 1];
+        W = static_cast<int>(srcDims[srcDims.size() - 1]);
     }
 
     if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
         parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, [[maybe_unused]] dim_t d) {
             auto arg = jit_quantize_call_args();
 
-            int c = static_cast<int>(cb * blk_size);
+            auto c = static_cast<int>(cb * blk_size);
 
             size_t data_off = n * s_str[0] + c * s_str[1];
 
@@ -1975,7 +1975,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
             auto arg = jit_quantize_call_args();
 
-            const int c = static_cast<int>(cb * blk_size);
+            const auto c = static_cast<int>(cb * blk_size);
             const auto h = static_cast<int>(b * batch_size / W);
             const auto w = static_cast<int>(b * batch_size % W);
 

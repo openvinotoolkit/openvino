@@ -104,7 +104,7 @@ void Verbose::printInfo() {
         if (written < 0 || written_total + size > CPU_VERBOSE_DAT_LEN) {
             const char* errorMsg = "# NOT ENOUGHT BUFFER SIZE #";
             snprintf(portsInfo, strlen(errorMsg) + 1, "%s", errorMsg);
-            written_total = strlen(errorMsg);
+            written_total = static_cast<int>(strlen(errorMsg));
             return;
         }
 
