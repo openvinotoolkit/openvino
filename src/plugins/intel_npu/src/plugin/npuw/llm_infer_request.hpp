@@ -33,6 +33,8 @@ public:
 private:
     void prepare_for_new_conversation();
     void init_tensor(const ov::Output<const ov::Node>& port);
+    void copy_kvcache();
+    void update_kvcache();
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
@@ -44,17 +46,22 @@ private:
 
     std::shared_ptr<ov::IAsyncInferRequest> m_kvcache_request;
     std::shared_ptr<ov::IAsyncInferRequest> m_prefill_request;
+    // This infer request is optional, so can be null.
+    std::shared_ptr<ov::IAsyncInferRequest> m_tail_mm_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
-    bool m_need_copy_kvcache = false;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
+    ov::Output<const ov::Node> m_tail_embed_port;
+    ov::Output<const ov::Node> m_tail_logits_port;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
+
+    bool m_generate_initialized = false;
 };
 
 }  // namespace npuw

@@ -17,6 +17,8 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
+    static const std::string output_embeds;
+
     struct KVCacheDesc {
         uint32_t max_prompt_size = 0u;
         uint32_t total_size = 0u;
@@ -68,6 +70,8 @@ private:
     KVCacheDesc m_kvcache_desc;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    // This model is optional, so can be null.
+    std::shared_ptr<ov::npuw::CompiledModel> m_tail_mm_compiled;
 };
 
 }  // namespace npuw
