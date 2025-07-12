@@ -886,19 +886,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
-    const int64_t prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
-    const bool use_chunk_prefill = prefill_chunk_size > 0;
-    std::cout << "prefill_chunk_size: " << prefill_chunk_size << std::endl;
+    m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
+    const bool use_chunk_prefill = m_prefill_chunk_size > 0;
+    std::cout << "prefill_chunk_size: " << m_prefill_chunk_size << std::endl;
     std::cout << "max_prompt_len: " << max_prompt_len << std::endl;
     // Prefill chunk size should be smaller than half of max prompt length so that there are enough buffer to cache current key values
-    if (prefill_chunk_size * 2 > max_prompt_len) {
+    if (use_chunk_prefill && (m_prefill_chunk_size * 2 > max_prompt_len)) {
         OPENVINO_THROW("NPUW_LLM_PREFILL_CHUNK_SIZE is too large");
     }
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("4. Make prefill model with static shapes");
     if (use_chunk_prefill) {
-        reshape_to_static(prefill_model, static_cast<uint32_t>(prefill_chunk_size), m_kvcache_desc.max_prompt_size, axes);
+        reshape_to_static(prefill_model, static_cast<uint32_t>(m_prefill_chunk_size), m_kvcache_desc.max_prompt_size, axes);
     } else {
         reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     }
