@@ -197,18 +197,6 @@ OutputVector translate_vstack(const NodeContext& context) {
     return out;
 };
 
-OutputVector translate_quantized_relu6(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
-    const auto& input = context.get_input(0);
-    auto zero = context.mark_node(opset::Constant::create(
-        input.get_element_type(), Shape{}, {0.0}));
-    auto six = context.mark_node(opset::Constant::create(
-        input.get_element_type(), Shape{}, {6.0}));
-    auto relu = context.mark_node(std::make_shared<opset::Maximum>(input, zero));
-    auto relu6 = context.mark_node(std::make_shared<opset::Minimum>(relu, six));
-    return {relu6};
-}
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
