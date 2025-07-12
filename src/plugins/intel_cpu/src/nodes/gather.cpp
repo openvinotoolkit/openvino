@@ -626,8 +626,8 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
             }
         }
 
-        const int div = static_cast<int>(idxElPerVec / specIndicesSize);
-        const int remainder = static_cast<int>(idxElPerVec % specIndicesSize);
+        const auto div = static_cast<int>(idxElPerVec / specIndicesSize);
+        const auto remainder = static_cast<int>(idxElPerVec % specIndicesSize);
         for (uint64_t i = 0; i < idxElPerVec; i++) {
             if (((start + i) % specIndicesSize) < (specIndicesSize - remainder)) {
                 p.srcBeforeAxisDiff[i] = axisDim * div;
@@ -646,7 +646,7 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
         p.specIdxDiff.resize(idxElPerVec);
         p.srcBeforeAxisDiff.resize(idxElPerVec);
 
-        int secondStart = start + static_cast<int>(idxElPerVec);
+        int secondStart = static_cast<int>(start) + static_cast<int>(idxElPerVec);
         for (uint64_t i = 0; i < idxElPerVec; i++) {
             p.afterAxIdxInBytes[i] = static_cast<int>((start + i) % afterAxisSize);
             p.specIdxDiff[i] =
@@ -696,9 +696,9 @@ void Gather::execCompressed4Bit() {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
-                ii += static_cast<int>(axisDim);
+                ii += axisDim;
             } else {
-                ii = static_cast<int>(axisDim);
+                ii = axisDim;
             }
         }
         const size_t idx = ii;
@@ -781,9 +781,9 @@ void Gather::execCompressed8Bit() {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
-                ii += static_cast<int>(axisDim);
+                ii += axisDim;
             } else {
-                ii = static_cast<int>(axisDim);
+                ii = axisDim;
             }
         }
         const size_t idx = ii;
@@ -936,9 +936,9 @@ void Gather::execReference() {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing) {
-                ii += static_cast<int>(axisDim);
+                ii += axisDim;
             } else {
-                ii = static_cast<int>(axisDim);
+                ii = axisDim;
             }
         }
         const size_t idx = ii;

@@ -937,7 +937,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
             const int cachelineSize = 64;
             size_t blockSize = 4 * cachelineSize / sizeof(float);
             size_t numBlocks = (outputSize + blockSize - 1) / blockSize;
-            parallel_nt(numBlocks, [&](size_t i, size_t nthr) {
+            parallel_nt(static_cast<int>(numBlocks), [&](size_t i, size_t nthr) {
                 if (numBlocks > nthr) {
                     auto newBlockSize = (((outputSize / nthr) + blockSize - 1) / blockSize) * blockSize;
                     blockSize = newBlockSize;
@@ -971,12 +971,12 @@ private:
                                            [[maybe_unused]] enum dft_type type) override {
         std::vector<float> twiddles(inputSize * outputSize * 2);
         parallel_for2d(outputSize, inputSize, [&](size_t k, size_t n) {
-            double angle = 2 * PI * k * n / inputSize;
+            double angle = 2 * PI * static_cast<double>(k) * static_cast<double>(n) / static_cast<double>(inputSize);
             if (!isInverse) {
                 angle = -angle;
             }
-            twiddles[(k * inputSize + n) * 2] = std::cos(angle);
-            twiddles[(k * inputSize + n) * 2 + 1] = std::sin(angle);
+            twiddles[(k * inputSize + n) * 2] = static_cast<float>(std::cos(angle));
+            twiddles[(k * inputSize + n) * 2 + 1] = static_cast<float>(std::sin(angle));
         });
         return twiddles;
     }
@@ -1036,8 +1036,8 @@ private:
                     real += inputReal * cos - inputImag * sin;
                     imag += inputImag * cos + inputReal * sin;
                 }
-                real /= outputSize;
-                imag /= outputSize;
+                real /= static_cast<float>(outputSize);
+                imag /= static_cast<float>(outputSize);
             }
             outputPtr[2 * k] = real;
             outputPtr[2 * k + 1] = imag;
@@ -1076,7 +1076,7 @@ private:
                     float inputImag = inp[1];
                     real += inputReal * cos + inputImag * sin;
                 }
-                real /= outputSize;
+                real /= static_cast<float>(outputSize);
             }
             outputPtr[k] = real;
         };
