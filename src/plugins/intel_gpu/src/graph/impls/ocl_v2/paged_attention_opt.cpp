@@ -88,7 +88,6 @@ static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head
             }
         }
     }
-
     return 1;
 }
 
@@ -398,6 +397,7 @@ public:
         }
 
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+
         return jit;
     }
 
@@ -1036,9 +1036,6 @@ public:
         // jit.make("TARGET_SEQ_LEN", target_seq_len);
         jit.make("IS_KV_COMPRESSED", 0);
 
-        // for (auto& item : jit) {
-        //     std::cout << "jit[" << item.name << "] = " << item.value << std::endl;
-        // }
         return jit;
     }
 
@@ -1244,9 +1241,7 @@ public:
                 res_event = {execute_stage(res_event, instance, kv_cache_rotate)};
             }
         }
-
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
-        params.get_stream().finish();
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1266,7 +1261,6 @@ public:
             } else {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
             }
-            params.get_stream().finish();
             if (num_of_partitions > 1) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization)};
             }
@@ -1329,7 +1323,8 @@ public:
         std::vector<BufferDescriptor> internal_buffers;
         const auto desc = params.typed_desc<paged_attention>();
 
-        const auto indexes_dt = ov::element::i32;
+        const auto indexes_dt = ov::element::u8;
+        const auto element_size = 4;  // 4 bytes
         const int64_t target_seq_len_block_size = 16;
         auto stage = get_paged_attention_stage(params);
         int64_t paged_attention_aligned_seq_len = -1;
@@ -1341,7 +1336,7 @@ public:
         const auto num_of_partitions = partition_parm.first;
 
         const auto target_seq_len = std::max<int64_t>(paged_attention_aligned_seq_len, 1);
-        const auto indexes_buf_size = static_cast<int64_t>(ceil_div(target_seq_len, target_seq_len_block_size));
+        const auto indexes_buf_size = static_cast<int64_t>(ceil_div(target_seq_len, target_seq_len_block_size)) * element_size;
 
         const bool lockable = true;
         internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);  // 0
@@ -1382,16 +1377,16 @@ public:
             else
                 snap_kv_tokens = get_snap_kv_tokens(desc->has_score_aggregation);
             auto tokens_number = desc->has_score_aggregation ? snap_kv_tokens : subsequences_number;
-            auto softmax_buf_elements_count = static_cast<int64_t>(tokens_number * desc->heads_num * num_of_partitions * partition_size);
+            auto softmax_buf_elements_count = static_cast<int64_t>(tokens_number * desc->heads_num * num_of_partitions * partition_size) * element_size;
 
             // Softmax intermediate output
-            internal_buffers.emplace_back(softmax_buf_elements_count, softmax_accumulator_type);  // 3
+            internal_buffers.emplace_back(softmax_buf_elements_count, indexes_dt);  // 3
             // Precalculated accumulated sequence length offsets for each subsequence
-            internal_buffers.emplace_back(subsequences_number, indexes_dt, lockable);  // 4
+            internal_buffers.emplace_back(subsequences_number * element_size, indexes_dt, lockable);  // 4
 
             if (desc->has_score_aggregation) {
                 // Cumulative window size sum buffer
-                internal_buffers.emplace_back(subsequences_number + 1, indexes_dt, lockable);  // 5
+                internal_buffers.emplace_back((subsequences_number + 1) * element_size, indexes_dt, lockable);  // 5
             }
 
             if (stage == PagedAttentionStage::PREFILL) {
@@ -1403,9 +1398,9 @@ public:
             }
         }
 
-        internal_buffers.emplace_back(buf_elements_count, softmax_accumulator_type);      // 5: softmax exp_sums
-        internal_buffers.emplace_back(buf_elements_count, softmax_accumulator_type);      // 6: softmax max_logits
-        internal_buffers.emplace_back(tmp_out_elements_count, softmax_accumulator_type);  // 7: intermediate output
+        internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
+        internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
+        internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
         if (multi_tokens_mode) {
@@ -1418,7 +1413,7 @@ public:
             const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
-            internal_buffers.emplace_back(indexes_buf_size, indexes_dt, lockable);
+            internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
         }
 #endif
 

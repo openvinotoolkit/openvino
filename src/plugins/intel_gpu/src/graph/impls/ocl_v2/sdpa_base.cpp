@@ -408,8 +408,14 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
 }
 
 void SDPAImplBase::update(cldnn::primitive_inst& inst, const RuntimeParams& impl_params) {
-    auto new_impl_params = SDPABase::requires_shape_canonicalization(impl_params) ? SDPABase::static_canonicalize_shapes(impl_params) : impl_params;
-    inst.update_shape_info_tensor(new_impl_params);
+    if (impl_params.is_type<scaled_dot_product_attention>()) {
+        // SDPA maybe 3D or 4D, need shape_canonicalization to 4D
+        auto new_impl_params = SDPABase::requires_shape_canonicalization(impl_params) ? SDPABase::static_canonicalize_shapes(impl_params) : impl_params;
+        inst.update_shape_info_tensor(new_impl_params);
+    } else {
+        // PA needn't do shape_canonicalization
+        inst.update_shape_info_tensor(impl_params);
+    }
 }
 
 }  // namespace ov::intel_gpu::ocl
