@@ -5,9 +5,13 @@
 #pragma once
 
 #include "shared_test_classes/subgraph/lora_pattern.hpp"
-
+#include "shared_test_classes/subgraph/msda_pattern.hpp"
 namespace ov {
 namespace test {
+
+TEST_P(MSDAPattern, draft_run) {
+    run();
+}
 
 TEST_P(LoraPatternMatmul, empty_tensors) {
     size_t M = std::get<2>(GetParam());
