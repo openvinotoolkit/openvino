@@ -889,6 +889,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const int64_t prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     const bool use_chunk_prefill = prefill_chunk_size > 0;
     std::cout << "prefill_chunk_size: " << prefill_chunk_size << std::endl;
+    std::cout << "max_prompt_len: " << max_prompt_len << std::endl;
+    if (prefill_chunk_size * 2 > max_prompt_len) {
+        OPENVINO_THROW("NPUW_LLM_PREFILL_CHUNK_SIZE is too large");
+    }
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("4. Make prefill model with static shapes");
