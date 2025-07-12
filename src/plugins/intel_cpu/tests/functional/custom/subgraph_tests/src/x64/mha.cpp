@@ -9,11 +9,25 @@
 #include "internal_properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
+namespace {
+static inline bool is_bf16_supported() {
+    return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
+}
+static inline bool is_fp16_supported() {
+    return ov::with_cpu_x86_avx512_core_amx_fp16() || CPUTestUtils::with_cpu_x86_avx2_vnni_2();
+}
+} // namepace
 using ExpectedNodes = std::vector<std::pair<std::string, size_t>>;
 
 typedef std::tuple<std::vector<InputShape>,   // Input shapes
@@ -253,10 +267,10 @@ TEST_P(MHATest, CompareWithRefs) {
     std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) =
         this->GetParam();
 
-    if (inputPrecisions[0] == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+    if (inputPrecisions[0] == ElementType::bf16 && !is_bf16_supported())
         GTEST_SKIP();
 
-    if (inputPrecisions[0] == ElementType::f16 && !ov::with_cpu_x86_avx512_core_amx_fp16())
+    if (inputPrecisions[0] == ElementType::f16 && !is_fp16_supported())
         GTEST_SKIP();
 
     if (!ov::with_cpu_x86_avx512_core())
@@ -650,7 +664,7 @@ TEST_P(MHAQuantTest, CompareWithRefs) {
     std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) =
         this->GetParam();
 
-    if (inputPrecisions[0] == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+    if (inputPrecisions[0] == ElementType::bf16 && !is_bf16_supported())
         GTEST_SKIP();
 
     if (!ov::with_cpu_x86_avx512_core_vnni())

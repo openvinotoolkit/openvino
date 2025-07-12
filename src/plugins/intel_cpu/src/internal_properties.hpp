@@ -4,7 +4,12 @@
 
 #pragma once
 
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include <cstdint>
+#include <istream>
+#include <ostream>
+#include <string>
+
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov::intel_cpu {
@@ -18,7 +23,7 @@ static constexpr Property<int32_t, PropertyMutability::RW> cpu_runtime_cache_cap
 /**
  * @brief Enum to define possible snippets mode hints.
  */
-enum class SnippetsMode {
+enum class SnippetsMode : uint8_t {
     ENABLE = 0,           //!<  Enable
     IGNORE_CALLBACK = 1,  //!<  Ignore callback
     DISABLE = 2,          //!<  Disable
@@ -65,7 +70,7 @@ static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"S
 /**
  * @brief Enum to define possible cache quant schema hints.
  */
-enum class CacheQuantMode {
+enum class CacheQuantMode : uint8_t {
     AUTO,
     BY_CHANNEL,
     BY_HIDDEN,
@@ -108,5 +113,19 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
  * @param BY_HIDDEN - quant by hidden
  */
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Define cache quant mode.
+ * @param AUTO - default mode by primitive
+ * @param BY_CHANNEL - quant by channel
+ * @param BY_HIDDEN - quant by hidden
+ */
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+/**
+ * @brief This property used to test accurcay of setting model_distribution_policy to TENSOR_PARALLEL in functional
+ * tests.
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"ENABLE_TENSOR_PARALLEL"};
 
 }  // namespace ov::intel_cpu

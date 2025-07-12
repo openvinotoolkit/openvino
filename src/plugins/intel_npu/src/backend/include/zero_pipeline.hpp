@@ -13,7 +13,7 @@
 
 namespace intel_npu {
 
-struct Pipeline {
+struct Pipeline final {
 public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -23,7 +23,7 @@ public:
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    virtual ~Pipeline() = default;
+    ~Pipeline() = default;
 
     void push();
     void pull();
@@ -35,6 +35,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
 protected:
+    std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
     const uint32_t _id;

@@ -25,6 +25,7 @@
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "lstm_seq_inst.h"
 #include "border_inst.h"
+#include "lora_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -373,6 +374,24 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
         input_layout.data_padding._lower_size[3] != 0 || input_layout.data_padding._upper_size[3] != 0)
         return false;
 
+    // For static shape, gemm ref kernel is selected if there is padding on the feature, x, or y axes.
+    // In such cases, do not optimize out this crop to use the opt kernel.
+    // TODO: Modify gemm_tiled_opt kernel to support padding even in static shape.
+    auto output_layout = node.get_output_layout();
+    bool is_input_lower_pad = offsets.feature[0] != 0 || offsets.spatial[0] != 0 || offsets.spatial[1] != 0;
+    bool is_input_upper_pad = (output_layout.is_static() &&
+        ((input_layout.feature() - offsets.feature[0] - output_layout.get_tensor().feature[0]) != 0 ||
+        (input_layout.spatial(0) - offsets.spatial[0] - output_layout.get_tensor().spatial[0]) != 0 ||
+        (input_layout.spatial(1) - offsets.spatial[1] - output_layout.get_tensor().spatial[1]) != 0));
+
+    if (is_input_lower_pad || is_input_upper_pad) {
+        for (auto user : node.get_users()) {
+            if (user->is_type<gemm>() && user->get_dependency_index(node) < 2) {
+                return false;
+            }
+        }
+    }
+
     auto opt_lower_pad = offsets.feature[0];
     auto opt_upper_pad = input_layout.feature() - offsets.feature[0] - crop_layout.get_tensor().feature[0];
 
@@ -487,17 +506,6 @@ bool crop_in_place_optimization::match(const program_node& node,
         // TODO: Need to allow optimization for gemm user
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
-        // For static shape, gemm ref kernel is selected if there is padding on the feature, x, or y axes.
-        // In such cases, do not optimize out this crop to use the opt kernel.
-        // TODO: Modify gemm_tiled_opt kernel to support padding even in static shape.
-        if ((!node.is_dynamic() || is_runtime) && user->is_type<gemm>() &&
-            (user->get_dependency_index(node) == 0 || user->get_dependency_index(node) == 1)) {
-            if (crop_params.input_offsets[0].feature[0] != 0 ||
-                crop_params.input_offsets[0].spatial[0] != 0 ||
-                crop_params.input_offsets[0].spatial[1] != 0) {
-                return false;
-            }
-        }
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
             if (node.is_dynamic() && node.get_users().size() != 1)
@@ -511,6 +519,9 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<lstm_seq>() || user->is_type<lstm_cell>())
             return false;
+        if (user->is_type<lora>()) {
+            return false;
+        }
     }
 
     // do not optimize crop, that must be calculated in propagate_constants
@@ -832,7 +843,6 @@ void prepare_buffer_fusing::run(program& p) {
                                                                                        false);
             } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                 std::pair<const program_node*, layout> user_info;
-                std::vector<layout> reshape_layouts;
                 if (node.get_users().front()->is_type<reshape>()) {
                     auto& reshape_node = node.get_users().front()->as<reshape>();
                     if (reshape_node.is_runtime_propagatable_padding()) {

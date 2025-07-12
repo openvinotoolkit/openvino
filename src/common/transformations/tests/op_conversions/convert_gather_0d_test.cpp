@@ -12,7 +12,10 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -27,7 +30,7 @@ TEST_F(TransformationTestsF, ConvertGather0DStatic1) {
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
-        model = std::make_shared<Model>(NodeVector{gather}, ParameterVector{input, indices});
+        model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{input, indices});
 
         pass::Manager manager;
         manager.register_pass<ov::pass::ConvertGather0D>();
@@ -39,7 +42,7 @@ TEST_F(TransformationTestsF, ConvertGather0DStatic1) {
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
-        model_ref = std::make_shared<Model>(NodeVector{gather}, ParameterVector{input, indices});
+        model_ref = std::make_shared<Model>(OutputVector{gather}, ParameterVector{input, indices});
     }
 }
 
@@ -50,7 +53,7 @@ TEST_F(TransformationTestsF, ConvertGather0DStatic2) {
         auto axis_const = opset1::Constant::create(element::i64, Shape{}, {1});
         auto gather = std::make_shared<opset1::Gather>(input, indices, axis_const);
 
-        model = std::make_shared<Model>(NodeVector{gather}, ParameterVector{input, indices});
+        model = std::make_shared<Model>(OutputVector{gather}, ParameterVector{input, indices});
         manager.register_pass<ov::pass::ConvertGather0D>();
     }
 
@@ -63,6 +66,6 @@ TEST_F(TransformationTestsF, ConvertGather0DStatic2) {
         auto gather = std::make_shared<opset1::Gather>(input, unsqueeze, axis_const);
         auto squeeze = std::make_shared<opset1::Squeeze>(gather, opset1::Constant::create(element::i64, Shape{1}, {1}));
 
-        model_ref = std::make_shared<Model>(NodeVector{squeeze}, ParameterVector{input, indices});
+        model_ref = std::make_shared<Model>(OutputVector{squeeze}, ParameterVector{input, indices});
     }
 }

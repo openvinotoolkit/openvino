@@ -4,13 +4,19 @@
 
 #pragma once
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <string>
+#include <vector>
+
 #include "cpu/aarch64/jit_generator.hpp"
 #include "jit_emitter.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
 // Arithmetic modes for data type conversion in store_emitter
-enum class arithmetic_mode { saturation, truncation };
+enum class arithmetic_mode : uint8_t { saturation, truncation };
 
 class jit_load_emitter : public jit_emitter {
 public:

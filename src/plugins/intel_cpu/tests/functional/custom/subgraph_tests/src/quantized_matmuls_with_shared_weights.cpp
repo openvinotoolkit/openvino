@@ -9,11 +9,14 @@
 #include "common_test_utils/node_builders/reshape.hpp"
 #include "openvino/openvino.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace test {
 
-enum class FQInterval { U8, I8 };
+enum class FQInterval : uint8_t { U8, I8 };
 inline std::ostream& operator<<(std::ostream& os, FQInterval interval) {
     switch (interval) {
     case FQInterval::U8:

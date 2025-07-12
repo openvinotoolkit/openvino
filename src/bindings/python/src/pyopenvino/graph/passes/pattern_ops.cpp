@@ -18,6 +18,7 @@
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 static ov::NodeTypeInfo get_type(const std::string& type_name) {
     // Supported types: opsetX.OpName or opsetX::OpName
@@ -236,7 +237,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Node outputs.
-                  :type inputs: List[openvino.Output]
+                  :type inputs: list[openvino.Output]
     )");
 
     wrap_type.def(py::init([](const std::string& type_name, const ov::NodeVector& inputs) {
@@ -253,7 +254,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Input nodes.
-                  :type inputs: List[openvino.Node]
+                  :type inputs: list[openvino.Node]
     )");
 
     wrap_type.def(
@@ -270,7 +271,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Node outputs.
-                  :type inputs: List[openvino.Output]
+                  :type inputs: list[openvino.Output]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: Callable
@@ -289,7 +290,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Node outputs.
-                  :type inputs: List[openvino.Output]
+                  :type inputs: list[openvino.Output]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: Callable
@@ -310,7 +311,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Input nodes.
-                  :type inputs: List[openvino.Node]
+                  :type inputs: list[openvino.Node]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: Callable
@@ -331,7 +332,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   :type type_name: str
 
                   :param inputs: Input nodes.
-                  :type inputs: List[openvino.Node]
+                  :type inputs: list[openvino.Node]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: Callable
@@ -345,7 +346,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   Create WrapType with given node types.
 
                   :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                  :type type_names: List[str]
+                  :type type_names: list[str]
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ValuePredicate& pred) {
@@ -357,7 +358,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   Create WrapType with given node types and predicate.
 
                   :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                  :type type_names: List[str]
+                  :type type_names: list[str]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: Callable
@@ -372,7 +373,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   Create WrapType with given node types and predicate.
 
                   :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                  :type type_names: List[str]
+                  :type type_names: list[str]
 
                   :param predicate: Function that performs additional checks for matching.
                   :type predicate: Callable
@@ -389,7 +390,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   Create WrapType with given node types and input.
 
                   :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                  :type type_names: List[str]
+                  :type type_names: list[str]
 
                   :param input: Node output.
                   :type input: openvino.Output
@@ -406,7 +407,7 @@ static void reg_pattern_wrap_type(py::module m) {
                   Create WrapType with given node types and input.
 
                   :param type_name: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                  :type type_name: List[str]
+                  :type type_name: list[str]
 
                   :param input: Input node.
                   :type input: openvino.Node
@@ -426,7 +427,7 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, input and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: Node output.
         :type input: openvino.Output
@@ -449,7 +450,7 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, input and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: Node output.
         :type input: openvino.Output
@@ -472,7 +473,7 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, input and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: Input node.
         :type input: openvino.Node
@@ -495,7 +496,7 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, input and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: Input node.
         :type input: openvino.Node
@@ -513,10 +514,10 @@ static void reg_pattern_wrap_type(py::module m) {
       Create WrapType with given node types and input.
 
       :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-      :type type_names: List[str]
+      :type type_names: list[str]
 
       :param inputs: Nodes outputs.
-      :type inputs: List[openvino.Output]
+      :type inputs: list[openvino.Output]
     )");
 
     wrap_type.def(py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs) {
@@ -530,10 +531,10 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types and inputs.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: Input nodes.
-        :type inputs: List[openvino.Node]
+        :type inputs: list[openvino.Node]
     )");
 
     wrap_type.def(
@@ -548,10 +549,10 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, inputs and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: Nodes outputs.
-        :type inputs: List[openvino.Output]
+        :type inputs: list[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -568,10 +569,10 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, inputs and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: Nodes outputs.
-        :type inputs: List[openvino.Output]
+        :type inputs: list[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -591,10 +592,10 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, inputs and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: Input nodes.
-        :type inputs: List[openvino.Node]
+        :type inputs: list[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -613,10 +614,10 @@ static void reg_pattern_wrap_type(py::module m) {
         Create WrapType with given node types, inputs and predicate.
 
         :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: Input nodes.
-        :type inputs: List[openvino.Node]
+        :type inputs: list[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -639,7 +640,7 @@ static void reg_pattern_or(py::module m) {
                 Create pattern Or operation which is used to match any of given inputs.
 
                 :param inputs: Operation inputs.
-                :type inputs: List[openvino.Output]
+                :type inputs: list[openvino.Output]
     )");
 
     or_type.def(py::init([](const ov::NodeVector& inputs) {
@@ -650,7 +651,7 @@ static void reg_pattern_or(py::module m) {
                 Create pattern Or operation which is used to match any of given inputs.
 
                 :param inputs: Operation inputs.
-                :type inputs: List[openvino.Node]
+                :type inputs: list[openvino.Node]
     )");
 
     or_type.def("__repr__", [](const ov::pass::pattern::op::Or& self) {
@@ -715,7 +716,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input) {
@@ -729,7 +730,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type and input node.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: input node's output.
         :type input: openvino.Output
@@ -746,7 +747,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: input node.
         :type input: openvino.Node
@@ -762,10 +763,10 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type and input node.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: input node's output list.
-        :type inputs: List[openvino.Output]
+        :type inputs: list[openvino.Output]
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names, const ov::NodeVector& inputs) {
@@ -779,10 +780,10 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type and input node.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: input node list
-        :type inputs: List[openvino.Node]
+        :type inputs: list[openvino.Node]
     )");
 
     optional_type.def(py::init([](const std::vector<std::string>& type_names, const ValuePredicate& predicate) {
@@ -796,7 +797,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -813,7 +814,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -833,7 +834,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: input node's output.
         :type input: openvino.Output
@@ -856,7 +857,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: input node's output.
         :type input: openvino.Output
@@ -879,7 +880,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: input node
         :type input: openvino.Node
@@ -902,7 +903,7 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param input: input node
         :type input: openvino.Node
@@ -924,10 +925,10 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: input node's output list.
-        :type inputs: List[openvino.Output]
+        :type inputs: list[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -944,10 +945,10 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: input node's output list.
-        :type inputs: List[openvino.Output]
+        :type inputs: list[openvino.Output]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -967,10 +968,10 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: input node list
-        :type inputs: List[openvino.Node]
+        :type inputs: list[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -989,10 +990,10 @@ static void reg_pattern_optional(py::module m) {
         Create Optional with the given node type, input node and predicate.
 
         :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-        :type type_names: List[str]
+        :type type_names: list[str]
 
         :param inputs: input node list
-        :type inputs: List[openvino.Node]
+        :type inputs: list[openvino.Node]
 
         :param predicate: Function that performs additional checks for matching.
         :type predicate: Callable
@@ -1014,6 +1015,9 @@ inline void reg_predicates(py::module m) {
     m.def("type_matches", &ov::pass::pattern::type_matches);
     m.def("type_matches_any", &ov::pass::pattern::type_matches_any);
     m.def("shape_matches", &ov::pass::pattern::shape_matches);
+    m.def("attrs_match", [](py::object& attrs) {
+        return ov::pass::pattern::attrs_match(Common::utils::py_object_to_unordered_any_map(attrs));
+    });
 }
 
 void reg_passes_pattern_ops(py::module m) {

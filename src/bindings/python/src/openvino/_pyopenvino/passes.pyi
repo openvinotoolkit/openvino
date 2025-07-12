@@ -1,12 +1,12 @@
 # type: ignore
-"""
-Package openvino.passes wraps ov::passes
-"""
 from __future__ import annotations
 import openvino._pyopenvino
 import openvino._pyopenvino.op
 import typing
-__all__ = ['AnyInput', 'BackwardGraphRewrite', 'ConstantFolding', 'ConvertFP32ToFP16', 'GraphRewrite', 'LowLatency2', 'MakeStateful', 'Manager', 'Matcher', 'MatcherPass', 'ModelPass', 'Optional', 'Or', 'PassBase', 'PatternSymbolValue', 'Predicate', 'Serialize', 'Version', 'VisualizeTree', 'WrapType', 'consumers_count', 'has_static_dim', 'has_static_dims', 'has_static_rank', 'has_static_shape', 'rank_equals', 'rank_more_than', 'shape_matches', 'type_matches', 'type_matches_any']
+"""
+Package openvino.passes wraps ov::passes
+"""
+__all__ = ['AnyInput', 'BackwardGraphRewrite', 'ConstantFolding', 'ConvertFP32ToFP16', 'GraphRewrite', 'LowLatency2', 'MakeStateful', 'Manager', 'Matcher', 'MatcherPass', 'ModelPass', 'Optional', 'Or', 'PassBase', 'PatternSymbolValue', 'Predicate', 'Serialize', 'Version', 'VisualizeTree', 'WrapType', 'attrs_match', 'consumers_count', 'has_static_dim', 'has_static_dims', 'has_static_rank', 'has_static_shape', 'rank_equals', 'rank_more_than', 'shape_matches', 'type_matches', 'type_matches_any']
 class AnyInput(openvino._pyopenvino.Node):
     """
     openvino.passes.AnyInput wraps ov::pass::pattern::op::Label
@@ -1109,6 +1109,8 @@ class WrapType(openvino._pyopenvino.Node):
         """
     def __repr__(self) -> str:
         ...
+def attrs_match(arg0: typing.Any) -> Predicate:
+    ...
 def consumers_count(arg0: int) -> Predicate:
     ...
 def has_static_dim(arg0: int) -> Predicate:

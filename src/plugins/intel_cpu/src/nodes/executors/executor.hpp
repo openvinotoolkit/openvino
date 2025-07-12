@@ -4,87 +4,35 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cassert>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "cache/multi_cache.h"
 #include "cpu_memory.h"
+#include "dnnl_scratch_pad.h"
 #include "graph_context.h"
 #include "memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
+#include "weights_cache.hpp"
 
 namespace ov::intel_cpu {
 
-#if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_ARM64)
-#    define OV_CPU_INSTANCE_MLAS_ARM64(...) {__VA_ARGS__},
-#else
-#    define OV_CPU_INSTANCE_MLAS_ARM64(...)
-#endif
-
-#if defined(OV_CPU_WITH_ACL)
-#    if defined(OPENVINO_ARCH_ARM)
-#        define OV_CPU_INSTANCE_ACL32(...) {__VA_ARGS__},
-#    else
-#        define OV_CPU_INSTANCE_ACL32(...)
-#    endif
-#    if defined(OPENVINO_ARCH_ARM64)
-#        define OV_CPU_INSTANCE_ACL64(...) {__VA_ARGS__},
-#    else
-#        define OV_CPU_INSTANCE_ACL64(...)
-#    endif
-#    if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-#        define OV_CPU_INSTANCE_ACL(...) {__VA_ARGS__},
-#    else
-#        define OV_CPU_INSTANCE_ACL(...)
-#    endif
-#else
-#    define OV_CPU_INSTANCE_ACL32(...)
-#    define OV_CPU_INSTANCE_ACL64(...)
-#    define OV_CPU_INSTANCE_ACL(...)
-#endif
-
-#if defined(OV_CPU_WITH_DNNL)
-#    define OV_CPU_INSTANCE_DNNL(...) {__VA_ARGS__},
-#else
-#    define OV_CPU_INSTANCE_DNNL(...)
-#endif
-
-#if defined(OV_CPU_WITH_KLEIDIAI)
-#    define OV_CPU_INSTANCE_KLEIDIAI(...) {__VA_ARGS__},
-#else
-#    define OV_CPU_INSTANCE_KLEIDIAI(...)
-#endif
-
-#if defined(OPENVINO_ARCH_X86_64)
-#    define OV_CPU_INSTANCE_X64(...) {__VA_ARGS__},
-#else
-#    define OV_CPU_INSTANCE_X64(...)
-#endif
-
-#if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_X86_64)
-#    define OV_CPU_INSTANCE_MLAS_X64(...) {__VA_ARGS__},
-#else
-#    define OV_CPU_INSTANCE_MLAS_X64(...)
-#endif
-
-#if defined(OV_CPU_WITH_SHL)
-#    define OV_CPU_INSTANCE_SHL(...) {__VA_ARGS__},
-#else
-#    define OV_CPU_INSTANCE_SHL(...)
-#endif
-
-#define OV_CPU_INSTANCE_COMMON(...) {__VA_ARGS__},
-
 // @todo another option is to determine shape relation by executor type
-enum class ShapeTolerance { Agnostic, Dependant };
+enum class ShapeTolerance : uint8_t { Agnostic, Dependant };
 
-enum class ExecutorType { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl, Kleidiai };
+enum class ExecutorType : uint8_t { Undefined, Graph, Common, jit_x64, Dnnl, Acl, Mlas, jit_aarch64, Shl, Kleidiai };
 
-enum class OperationType { FullyConnected, MatMul, Convolution };
+enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution };
 
-std::string ExecutorTypeToString(const ExecutorType type);
+std::string ExecutorTypeToString(ExecutorType type);
 ExecutorType ExecutorTypeFromString(const std::string& typeStr);
 
 class ExecutorContext {
@@ -116,7 +64,7 @@ public:
         return scratchPads[curNumaNodeId];
     }
 
-    [[nodiscard]] std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
+    [[nodiscard]] std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeightCache() const {
         return privateWeighCache;
     }
 
@@ -128,7 +76,7 @@ public:
         return implPriorities;
     }
 
-    [[nodiscard]] const WeightsSharing::Ptr getWeightsCache() const {
+    [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return weightsCache;
     }
 
@@ -164,7 +112,14 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'update' method is not implemented by executor");
         return false;
     }
-    virtual void execute() const {}
+
+    virtual void execute() const {
+        OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
+    }
+
+    virtual void execute() {
+        OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
+    }
     // dnnl_fullyconnected 3D workaround version
     virtual void execute([[maybe_unused]] const MemoryArgs& memory) {
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
@@ -180,6 +135,7 @@ public:
     }
     virtual ~Executor() = default;
 };
+
 using ExecutorPtr = std::shared_ptr<Executor>;
 
 }  // namespace ov::intel_cpu

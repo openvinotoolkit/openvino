@@ -4,6 +4,21 @@
 
 #include "convert_list.hpp"
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/common/ref_convert.hpp"
+#include "nodes/executors/convert.hpp"
+#include "nodes/executors/executor.hpp"
+#include "openvino/core/except.hpp"
+#include "utils/arch_macros.h"
+
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_convert.hpp"
+#endif
+
 namespace ov::intel_cpu {
 
 const std::vector<ConvertExecutorDesc>& getConvertExecutorsList() {

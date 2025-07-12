@@ -121,6 +121,13 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
     #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (0), (y), (0));
 #endif
 #endif
+#if HAS_SCALE_INPUT
+#if HAS_ATTN_MASK_INPUT
+#define SCALE_TYPE INPUT4_TYPE
+#else
+#define SCALE_TYPE INPUT3_TYPE
+#endif
+#endif
 
 KERNEL(sdpa_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -131,7 +138,7 @@ KERNEL(sdpa_ref)(
     const __global INPUT3_TYPE* attn_mask,
 #endif
 #if HAS_SCALE_INPUT
-    const __global INPUT4_TYPE* scale,
+    const __global SCALE_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
@@ -156,6 +163,8 @@ KERNEL(sdpa_ref)(
 
 #if HAS_SCALE_INPUT
     const OUTPUT_TYPE scale_val = *scale;
+#elif defined(STATIC_SCALE_VALUE)
+    const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
 #else
     const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_TYPE(INPUT1_SIZE_X));
 #endif
@@ -220,6 +229,8 @@ KERNEL(sdpa_ref)(
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
             uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0, b1, target_seq_idx, s);
             OUTPUT_TYPE attn_mask_val = attn_mask[attn_mask_offset];
+#elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
+            OUTPUT_TYPE attn_mask_val = TO_OUTPUT_TYPE(STATIC_SCALAR_ATTN_MASK_VALUE);
 #else
             OUTPUT_TYPE attn_mask_val = OUTPUT_VAL_ZERO;
 #endif

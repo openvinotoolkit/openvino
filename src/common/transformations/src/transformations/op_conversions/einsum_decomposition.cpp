@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -1325,7 +1326,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
         fix_inputs_with_0d_ellipsis(input_nodes, input_subscripts, output_subscript, subgraph_nodes);
 
         // contract inputs by Einsum until just one is remained
-        for (auto const& inds_pair : einsum_path) {
+        for (const auto& inds_pair : einsum_path) {
             contract_two_inputs(input_nodes,
                                 input_subscripts,
                                 output_subscript,

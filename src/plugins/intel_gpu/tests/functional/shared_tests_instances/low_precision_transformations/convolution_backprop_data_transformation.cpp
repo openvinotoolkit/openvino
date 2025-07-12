@@ -15,10 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f16
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
-};
-
 const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationParam> params = {
     // FQ on weights
     {
@@ -117,7 +113,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT_4D, ConvolutionBackpropDataTransformation,
             ::testing::ValuesIn(inputShapes_4D),
             ::testing::ValuesIn(outputShapes_4D),
             ::testing::Values(ov::test::utils::DEVICE_GPU),
-            ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn(params)),
     ConvolutionBackpropDataTransformation::getTestCaseName);
 
@@ -152,7 +147,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT_3D, ConvolutionBackpropDataTransformation,
         ::testing::ValuesIn(inputShapes_3D),
         ::testing::ValuesIn(outputShapes_3D),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params_3D)),
     ConvolutionBackpropDataTransformation::getTestCaseName);
 }  // namespace

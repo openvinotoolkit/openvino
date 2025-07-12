@@ -29,7 +29,7 @@ public:
 
     Plugin& operator=(const Plugin&) = delete;
 
-    virtual ~Plugin() = default;
+    ~Plugin() = default;
 
     void set_property(const ov::AnyMap& properties) override;
 
@@ -49,6 +49,12 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream, const ov::AnyMap& properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& stream,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& stream, const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& stream,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 

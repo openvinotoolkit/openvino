@@ -23,14 +23,21 @@
 #include <utility>
 
 #include "openvino/core/log_util.hpp"
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset2.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset4.hpp"
-#include "openvino/opsets/opset5.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/opsets/opset7.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/util/variable.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset2_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/opsets/opset5_decl.hpp"
+#include "openvino/opsets/opset6_decl.hpp"
+#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -1157,15 +1164,6 @@ std::shared_ptr<Node> GenConst_tril(values_info vt) {
     });
 }
 
-inline std::shared_ptr<Node> operator|(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return std::make_shared<ov::pass::pattern::op::Or>(OutputVector{lhs, rhs});
-}
-
-inline std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
-    return std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{lhs->get_default_output(), rhs->get_default_output()});
-}
-
 inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
                                              detail::PatternNode start,
                                              detail::PatternNode stop,
@@ -1202,6 +1200,7 @@ inline std::shared_ptr<Node> GenSlice(detail::PatternNode data,
                                       size_t axis,
                                       int line_no = CURRENT_LINE_NO,
                                       const char* file = CURRENT_FILE) {
+    using namespace ov::pass;
     auto opt1 = makePattern<opset8::Slice>({data, {start}, {stop}, {step}, {static_cast<int>(axis)}},
                                            {},
                                            nullptr,

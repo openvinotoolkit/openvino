@@ -44,7 +44,7 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
                     " vs. ",
                     zeDescriptorName,
                     ". The I/O order may have been altered, which could lead to an erroneous behavior.");
-    OPENVINO_ASSERT(zeroUtils::getZePrecision(ioDescriptor.precision) == zeDescriptor.info.devicePrecision,
+    OPENVINO_ASSERT(ioDescriptor.precision == zeroUtils::toOVElementType(zeDescriptor.info.devicePrecision),
                     "Precision mismatch for input/output named " + ioDescriptor.nameFromCompiler);
 
     const std::vector<size_t>& ovDimensions = ioDescriptor.shapeFromCompiler.get_max_shape();
@@ -120,12 +120,22 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
 void ZeroInferRequest::create_pipeline() {
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
-        if (is_batched_input(inputIndex)) {
-            if (_graph->get_batch_size().has_value()) {
+        if (is_batched_input(inputIndex) && _graph->get_batch_size().has_value()) {
+            if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
                 _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",
                               _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
-                continue;
+            } else {
+                for (size_t i = 0; i < get_user_inputs(inputIndex).size(); i++) {
+                    get_level_zero_inputs(inputIndex).resize(get_user_inputs(inputIndex).size());
+
+                    _logger.debug("ZeroInferRequest::create_pipeline - allocate new input tensor for batched input: %s",
+                                  _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str());
+
+                    get_level_zero_input(inputIndex, i) =
+                        allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator);
+                }
             }
+            continue;
         }
 
         if (get_level_zero_input(inputIndex)) {
@@ -206,7 +216,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         updateCommandListArg = true;
     } else {
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
-        if (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user()) {
+        if (zeroTensor == nullptr || (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user())) {
             _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
             OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
@@ -327,14 +337,13 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     get_user_inputs(foundPort.idx).resize(tensors.size());
     get_user_inputs(foundPort.idx) = tensors;
 
-    void* data = nullptr;
-
     if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
         if (_graph->get_batch_size().has_value()) {
             for (size_t i = 0; i < tensors.size(); i++) {
                 auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensors[i]._ptr);
 
                 get_level_zero_inputs(foundPort.idx).resize(tensors.size());
+                void* data = nullptr;
 
                 if (remoteTensor == nullptr) {
                     bool tensorHasSameL0Context = false;
@@ -684,7 +693,15 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::bf16:
         break;
+    case ov::element::Type_t::f8e4m3:
+        break;
+    case ov::element::Type_t::f8e5m2:
+        break;
+    case ov::element::Type_t::f8e8m0:
+        break;
     case ov::element::Type_t::nf4:
+        break;
+    case ov::element::Type_t::u2:
         break;
     case ov::element::Type_t::u4:
         break;
@@ -708,10 +725,13 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
         break;
     case ov::element::Type_t::f64:
         break;
+    case ov::element::Type_t::boolean:
+        break;
     default:
         OPENVINO_THROW(
             "Unsupported tensor precision: " + ov::element::Type(precision).get_type_name() +
-            "! Supported precisions: FP32, FP16, BF16, NF4, U4, I4, U8, I8, U16, I16, U32, I32, U64, I64, FP64");
+            "! Supported precisions: FP32, FP16, BF16, FP8, NF4, U2, U4, I4, U8, I8, U16, I16, U32, I32, U64, "
+            "I64, FP64, BOOLEAN");
     }
 }
 

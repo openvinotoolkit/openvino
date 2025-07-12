@@ -5,7 +5,9 @@
         "compareBlobs" : "CompareBlobsMode",
         "ac" : "AccuracyCheckerMode",
         "llmBench" : "LLMBenchMode",
-        "nop" : "NopMode"
+        "nop" : "NopMode",
+        "crossCheck" : "CrossCheckMode",
+        "mComp" : "ModelCompilationMode"
     },
     "traversalMap" : {
         "firstFailedVersion" : "FirstFailedVersion",
@@ -17,7 +19,8 @@
         "map_builder" : "printMap",
         "log_parser" : "logParser",
         "break_validator": "breakValidator",
-        "e2e_preparator": "getWheelMap"
+        "e2e_preparator": "getWheelMap",
+        "replace": "replacePreprocess"
     },
     "extendBuildCommand" : false,
     "commandList" : [
@@ -71,6 +74,7 @@
     "appPath" : "../../bin/intel64/Release/",
     "buildPath" : "../../build/",
     "cachePath" : "{workPath}/slider_cache/",
+    "defaultTmpDir" : "{workPath}/tmp/",
     "userCachePath" : "",
     "logPath" : "{workPath}/log/",
     "userLogPath" : "",
@@ -81,6 +85,7 @@
     "clearCache" : false,
     "checkIfBordersDiffer" : true,
     "printCSV" : true,
+    "template" : "common_template",
     "usePrevRunCache" : false,
     "verboseOutput": false,
     "venvCfg": {

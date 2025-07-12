@@ -74,20 +74,20 @@ ParamsKey KVCacheRotateKernelRef::GetSupportedKey() const {
 
 bool KVCacheRotateKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::PA_KV_CACHE_ROTATE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& kernel_params = dynamic_cast<const kv_cache_rotate_params&>(params);
     if (kernel_params.inputs.size() != 3)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (kernel_params.outputs.size() != 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (!kernel_params.conf.is_paged_attention)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (kernel_params.conf.paged_attention_block_size != static_cast<int64_t>(paged_attention_block_size))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }
@@ -95,7 +95,7 @@ bool KVCacheRotateKernelRef::Validate(const Params& params) const {
 JitConstants KVCacheRotateKernelRef::GetJitConstants(const kv_cache_rotate_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.conf.head_size));
+    jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.conf.k_head_size));
     jit.AddConstant(MakeJitConstant("HEADS_NUM", params.conf.heads_num));
     jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", params.conf.kv_heads_num));
     jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
@@ -106,9 +106,9 @@ JitConstants KVCacheRotateKernelRef::GetJitConstants(const kv_cache_rotate_param
     if (params.conf.is_kv_compressed) {
         auto scales_zp_size = BytesPerElement(params.original_cache_dt) * 2; // scale + zp
         jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.k_head_size + scales_zp_size));
     } else {
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.k_head_size));
     }
 
     return jit;

@@ -29,14 +29,27 @@ KernelsPriority GridSampleKernelOpt_BilinearZeros::GetKernelsPriority(const Para
 
 bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
     if (!TBase::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    auto PaddedSpatial = [](const MultiDataTensor& tensors) -> bool {
+        bool is_padded = false;
+        for (auto tensor : tensors) {
+            is_padded |= tensor.X().pad.Total() != 0;
+            is_padded |= tensor.Y().pad.Total() != 0;
+        }
+        return is_padded;
+    };
 
     const auto& kernel_params = static_cast<const grid_sample_params&>(params);
     if (kernel_params.interpolation_mode != grid_sample_params::InterpolationMode::BILINEAR)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (kernel_params.padding_mode != grid_sample_params::PaddingMode::ZEROS)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+
+    if (kernel_params.inputs[0].GetDims().size() != 4 || kernel_params.outputs[0].GetDims().size() != 4 ||
+        PaddedSpatial(kernel_params.inputs) || PaddedSpatial(kernel_params.outputs))
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

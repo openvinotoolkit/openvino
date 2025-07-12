@@ -32,11 +32,10 @@ class TestKerasLayerNormalization(CommonTF2LayerTest):
 
     @pytest.mark.parametrize("params", test_data_float32_precommit)
     @pytest.mark.precommit
-    def test_keras_dense_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                 use_legacy_frontend):
+    def test_keras_dense_float32(self, params, ie_device, precision, temp_dir, ir_version):
         self._test(*self.create_keras_lnorm_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_legacy_frontend=use_legacy_frontend, **params)
+                   **params)
 
     test_data_float32 = [
         dict(input_names=["x"], input_shapes=[[5, 10]], input_type=tf.float32, axis=1, epsilon=1e-6,

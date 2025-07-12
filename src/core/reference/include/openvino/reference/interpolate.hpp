@@ -388,9 +388,8 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     //    [0, 1, ..., num_of_axes - 1]
     // Otherwise, if num_of_axes == input_rank, interpolated axes indices are
     //    [2, 3, ..., num_of_axes - 1]
-    const int64_t axis_idx_offset = (input_rank == num_of_axes) ? 2 : 0;
-
     const int64_t spatial_rank = info.spatial_rank;
+    const int64_t axis_idx_offset = (input_rank == num_of_axes) ? input_rank - spatial_rank : 0;
     const int64_t points_in_neighbor = 1LL << spatial_rank;
 
     const T* xdata = input_data;
@@ -653,7 +652,7 @@ void interpolate(const T* input_data,
 }
 
 template <typename T>
-void interpolate(T* input_data,
+void interpolate(const T* input_data,
                  const PartialShape& input_data_shape,
                  T* out,
                  const Shape& out_shape,
@@ -667,7 +666,7 @@ void interpolate(T* input_data,
     size_t bytes_in_padded_input = shape_size(padded_input_shape) * sizeof(T);
     std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
     uint8_t* padded_data_ptr = padded_input_data.data();
-    pad_input_data(reinterpret_cast<uint8_t*>(input_data),
+    pad_input_data(reinterpret_cast<const uint8_t*>(input_data),
                    padded_data_ptr,
                    sizeof(T),
                    input_data_shape.to_shape(),

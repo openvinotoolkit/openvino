@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -25,12 +26,11 @@ namespace pass {
 using namespace ov::op;
 
 AppendListUnpackReplacer::AppendListUnpackReplacer() {
-    auto list_unpack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto list_unpack =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"prim::ListUnpack"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto list_unpack = cast_fw_node(m.get_match_root(), "prim::ListUnpack");
-        if (!list_unpack)
-            return false;
+        auto list_unpack = m.get_match_root();
 
         OutputVector tmp_inputs;
         NodeVector rt_copy_from;

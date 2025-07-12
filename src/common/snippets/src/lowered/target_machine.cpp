@@ -4,10 +4,21 @@
 
 #include "snippets/target_machine.hpp"
 
+#include <functional>
+#include <memory>
+#include <set>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/runtime_configurator.hpp"
 
 using namespace ov::snippets;
-std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> TargetMachine::get(const ov::DiscreteTypeInfo& type) const {
+std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> TargetMachine::get(
+    const ov::DiscreteTypeInfo& type) const {
     auto jitter = jitters.find(type);
     OPENVINO_ASSERT(jitter != jitters.end(), "Target code emitter is not available for ", type.name, " operation.");
     return jitter->second.first;
@@ -16,7 +27,10 @@ std::function<std::shared_ptr<Emitter>(const lowered::ExpressionPtr&)> TargetMac
 std::function<std::set<ov::element::TypeVector>(const std::shared_ptr<ov::Node>&)>
 TargetMachine::get_supported_precisions(const ov::DiscreteTypeInfo& type) const {
     auto jitter = jitters.find(type);
-    OPENVINO_ASSERT(jitter != jitters.end(), "Supported precisions set is not available for ", type.name, " operation.");
+    OPENVINO_ASSERT(jitter != jitters.end(),
+                    "Supported precisions set is not available for ",
+                    type.name,
+                    " operation.");
     return jitter->second.second;
 }
 

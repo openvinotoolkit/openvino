@@ -52,14 +52,21 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
     auto input_layout = impl_param.get_input_layout();
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_output_element_type();
-    }
 
     auto output_fmt = input_layout.format;
     if (node.get_preferred_output_fmt() != format::any) {
         output_fmt = node.get_preferred_output_fmt();
     }
+
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_output_element_type();
+        for (auto& desc : impl_param.fused_desc) {
+            if (desc.is_type<reorder>()) {
+                output_fmt = desc.output_layout.format;
+            }
+        }
+    }
+
     ShapeType input_shape = input_layout.get<ShapeType>();
     ShapeType output_shape;
     ov::Rank input_rank = input_shape.rank();
@@ -138,18 +145,17 @@ void permute_inst::update_output_memory() {
         && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
-    if (_node != nullptr)
-        build_deps();
+    build_deps();
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.
     if (static_cast<bool>(_outputs[0]) &&
-        _node->get_program().get_config().get_enable_memory_pool()) {
-        _network.get_memory_pool().release_memory(_outputs[0].get(), _node->get_unique_id(), _node->id(), _network.get_id());
+        get_node().get_program().get_config().get_enable_memory_pool()) {
+        get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
     }
-    _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
+    _outputs = {get_network().get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
     _mem_allocated = false;
 }
 

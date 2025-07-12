@@ -13,7 +13,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-enum SpecialValue { none, nan, inf, overflow };
+enum SpecialValue : uint8_t { none, nan, inf, overflow };
 
 using convertLayerTestParamsSet = std::tuple<InputShape,         // input shapes
                                              ov::element::Type,  // input precision

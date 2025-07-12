@@ -243,7 +243,8 @@ void RemoteTensorImpl::copy_from(const std::shared_ptr<const ov::ITensor>& src,
 
         OPENVINO_ASSERT(!std::dynamic_pointer_cast<const ov::IRemoteTensor>(src), "[GPU] Unsupported Remote Tensor type");
 
-        auto src_mem = MemWrapper(stream, nullptr, src->data());
+        // MemWrapper use tensor pointer as read-only, so const_cast is safe here
+        auto src_mem = MemWrapper(stream, nullptr, const_cast<void*>(src->data()));
         auto dst_mem = MemWrapper(stream, get_memory(), nullptr);
 
         copy_roi(src_mem, dst_mem, src_offset, dst_offset, src->get_strides(), get_strides(), roi_strides, src->get_shape(), get_shape(), shape);
@@ -406,6 +407,10 @@ cldnn::memory::ptr RemoteTensorImpl::get_memory() const {
 
 cldnn::memory::ptr RemoteTensorImpl::get_original_memory() const {
     return m_memory_object;
+}
+
+void* RemoteTensorImpl::get_original_memory_buf_ptr() const {
+    return m_memory_object->buffer_ptr();
 }
 
 void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {

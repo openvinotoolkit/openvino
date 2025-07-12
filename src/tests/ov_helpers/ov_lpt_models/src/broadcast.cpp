@@ -4,11 +4,12 @@
 
 #include "ov_lpt_models/broadcast.hpp"
 
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset1_decl.hpp"
+#include "openvino/opsets/opset3_decl.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
+#include "openvino/op/broadcast.hpp"
 
 namespace ov {
 namespace builder {
@@ -16,11 +17,18 @@ namespace subgraph {
 
 namespace {
 template <typename T>
-std::shared_ptr<ov::Node> make_broadcast(const std::shared_ptr<ov::Node>& parent, const Shape& tagetShape, const Shape& axesMapping) {
+std::shared_ptr<ov::Node> make_broadcast(const std::shared_ptr<ov::Node>& parent,
+                                         const Shape& tagetShape,
+                                         const Shape& axesMapping) {
+    if (axesMapping.empty()) {
+        return std::make_shared<T>(
+            parent,
+            std::make_shared<ov::opset1::Constant>(ov::element::i32, Shape{tagetShape.size()}, tagetShape));
+    }
     return std::make_shared<T>(
         parent,
-        std::make_shared<ov::opset1::Constant>(ov::element::i32, Shape{ tagetShape.size() }, tagetShape),
-        std::make_shared<ov::opset1::Constant>(ov::element::i32, Shape{ axesMapping.size() }, axesMapping));
+        std::make_shared<ov::opset1::Constant>(ov::element::i32, Shape{tagetShape.size()}, tagetShape),
+        std::make_shared<ov::opset1::Constant>(ov::element::i32, Shape{axesMapping.size()}, axesMapping));
 }
 } // namespace
 

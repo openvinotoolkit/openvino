@@ -118,9 +118,7 @@ void PluginConfig::finalize(const IRemoteContext* context, const ov::Model* mode
 
     finalize_impl(context);
 
-#ifdef ENABLE_DEBUG_CAPS
     apply_env_options();
-#endif
 
     // Clear properties after finalize_impl to be able to check if a property was set by user during plugin-side
     // finalization
@@ -142,7 +140,7 @@ void PluginConfig::apply_env_options() {
     ov::AnyMap env_properties = read_env();
     cleanup_unsupported(env_properties);
     for (auto& [name, val] : env_properties) {
-        std::cout << "Non default env value for " << name << " = " << val.as<std::string>() << std::endl;
+        util::log_message("Non default env value for " + name + " = " + val.as<std::string>());
     }
     set_property(env_properties);
 }
@@ -152,7 +150,7 @@ void PluginConfig::apply_config_options(std::string_view device_name, std::files
         ov::AnyMap config_properties = read_config_file(config_path, device_name);
         cleanup_unsupported(config_properties);
         for (auto& [name, val] : config_properties) {
-            std::cout << "Non default config value for " << name << " = " << val.as<std::string>() << std::endl;
+            util::log_message("Non default config value for " + name + " = " + val.as<std::string>());
         }
         set_property(config_properties);
     }

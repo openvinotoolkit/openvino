@@ -8,7 +8,6 @@
 
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/op.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace ov;
 using namespace testing;

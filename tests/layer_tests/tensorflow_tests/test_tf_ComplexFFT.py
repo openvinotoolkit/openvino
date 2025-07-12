@@ -74,8 +74,7 @@ class TestComplexFFT(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_fft_basic(self, input_shape, shift_roll, axis_roll, fft_op,
-                               ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+                               ie_device, precision, ir_version, temp_dir):
         if platform.machine() in ['aarch64', 'arm64', 'ARM64'] and fft_op in ['tf.raw_ops.FFT3D', 'tf.raw_ops.IFFT3D']:
             pytest.skip('151532: accuracy error on ARM')
         custom_eps = 1e-2
@@ -84,7 +83,7 @@ class TestComplexFFT(CommonTFLayerTest):
         self._test(*self.create_complex_fft_net(input_shape=input_shape, shift_roll=shift_roll,
                                                 axis_roll=axis_roll, fft_op=OPS[fft_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
+                   custom_eps=custom_eps)
 
 
 class TestComplexRFFT(CommonTFLayerTest):
@@ -119,14 +118,13 @@ class TestComplexRFFT(CommonTFLayerTest):
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_rfft_basic(self, input_shape, fft_length, rfft_op, ie_device, precision, ir_version, temp_dir,
-                                use_legacy_frontend):
+    def test_complex_rfft_basic(self, input_shape, fft_length, rfft_op, ie_device, precision, ir_version, temp_dir):
         custom_eps = None
         if ie_device == 'GPU' and rfft_op in ['tf.raw_ops.RFFT2D']:
             custom_eps = 2 * 1e-2
         self._test(*self.create_complex_rfft_net(input_shape=input_shape, fft_length=fft_length, rfft_op=OPS[rfft_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend, custom_eps=custom_eps)
+                   custom_eps=custom_eps)
 
 
 class TestComplexIRFFT(CommonTFLayerTest):
@@ -156,11 +154,9 @@ class TestComplexIRFFT(CommonTFLayerTest):
     ])
     @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_complex_irfft_basic(self, input_shape, fft_length, irfft_op, ie_device, precision, ir_version, temp_dir,
-                                 use_legacy_frontend):
+    def test_complex_irfft_basic(self, input_shape, fft_length, irfft_op, ie_device, precision, ir_version, temp_dir):
         if ie_device == 'CPU' and input_shape == [1, 10, 20, 30, 5]:
             pytest.skip('124452: accuracy issue on CPU')
         self._test(*self.create_complex_irfft_net(input_shape=input_shape, fft_length=fft_length,
                                                   irfft_op=OPS[irfft_op]),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

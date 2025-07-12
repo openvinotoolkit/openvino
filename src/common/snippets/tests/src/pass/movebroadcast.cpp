@@ -4,32 +4,32 @@
 
 #include <gtest/gtest.h>
 
-#include "snippets/snippets_isa.hpp"
+#include "openvino/op/add.hpp"
+#include "snippets/op/broadcastmove.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
+#include "subgraph_movebroadcast.hpp"
 
-#include "transformations/init_node_info.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
+#include "pass/movebroadcast.hpp"
 
 using namespace testing;
 using namespace ov;
 
-//  todo: Rewrite this test using Snippets test infrastructure. See ./include/canonicalization.hpp for example
+namespace ov {
+namespace test {
+namespace snippets {
 
-TEST_F(TransformationTestsF, InsertBroadcastMove) {
-    {
-        auto data0 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 1});
-        auto add = std::make_shared<ov::op::v1::Add>(data0, data1);
-        model = std::make_shared<Model>(NodeVector{add}, ParameterVector{data0, data1});
-
-        manager.register_pass<snippets::pass::InsertMoveBroadcast>();
-    }
-    {
-        auto data0 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
-        auto data1 = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 1});
-        auto move1 = std::make_shared<snippets::isa::BroadcastMove>(data1, ov::Dimension{3});
-        auto add = std::make_shared<ov::op::v1::Add>(data0, move1);
-        model_ref = std::make_shared<Model>(NodeVector{add}, ParameterVector{data0, data1});
-    }
+void MoveBroadcastTests::SetUp() {
+    TransformationTestsF::SetUp();
+    manager.register_pass<::snippets::pass::InsertMoveBroadcast>();
 }
+
+TEST_F(MoveBroadcastTests, InsertBroadcastMove) {
+    std::vector<PartialShape> input_shapes = {Shape{2, 3}, Shape{1, 2, 1}};
+    MoveBroadcastFunction function(input_shapes);
+    model = function.getOriginal();
+    model_ref = function.getReference();
+}
+
+}  // namespace snippets
+}  // namespace test
+}  // namespace ov

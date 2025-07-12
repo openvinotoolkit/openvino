@@ -207,8 +207,10 @@ Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
       m_shape{tensor.get_shape()},
       m_byte_strides{m_element_type.bitwidth() >= 8 ? tensor.get_strides() : Strides{}},
-      m_data{
-          std::make_shared<SharedBuffer<Tensor>>(static_cast<char*>(tensor.data()), tensor.get_byte_size(), tensor)} {
+      // cast is for internal use only to store tensor data in shared buffer (not for modification)
+      m_data{std::make_shared<SharedBuffer<Tensor>>(const_cast<char*>(static_cast<const char*>(tensor.data())),
+                                                    tensor.get_byte_size(),
+                                                    tensor)} {
     constructor_validate_and_infer_types();
 }
 
@@ -279,7 +281,9 @@ void Constant::set_unused_bits(void* buffer) const {
         if (element::is_bit_type(m_element_type)) {
             constexpr size_t storage_unit_byte_size = 1;
             const auto not_aligned_elements = num_elements % (8 / m_element_type.bitwidth());
-            const uint8_t not_used_bits_mask = 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
+            const uint8_t not_used_bits_mask = element::is_lsb_packed(m_element_type)
+                                                   ? 0xff << (m_element_type.bitwidth() * not_aligned_elements)
+                                                   : 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
             reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= ~not_used_bits_mask;
         } else if (element::is_nibble_type(m_element_type) && (num_elements % 2)) {
             constexpr size_t storage_unit_byte_size = 1;

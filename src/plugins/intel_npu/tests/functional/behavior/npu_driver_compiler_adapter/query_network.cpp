@@ -6,7 +6,7 @@
 
 #include <openvino/op/op.hpp>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
@@ -56,7 +56,7 @@ std::shared_ptr<ov::Model> createModelWithUnknownNode() {
     auto constant = ov::test::utils::make_constant(precision, ov::Shape{4096, 1024});
     auto custom_op = std::make_shared<UnsupportedTestOp>(constant);
 
-    ov::NodeVector results{custom_op};
+    ov::OutputVector results{custom_op};
     return std::make_shared<ov::Model>(results, ov::ParameterVector{params}, "CustomOpModel");
 }
 

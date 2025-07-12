@@ -33,9 +33,13 @@ void splitAndApply(const std::string& str, char delim, std::function<void(std::s
 //
 
 bool OptionParser<bool>::parse(std::string_view val) {
-    if (val == "YES") {
+    std::string strVal(val);
+    std::transform(strVal.begin(), strVal.end(), strVal.begin(), [](char c) {
+        return std::toupper(c);
+    });
+    if (strVal == "YES" || strVal == "TRUE" || strVal == "1") {
         return true;
-    } else if (val == "NO") {
+    } else if (strVal == "NO" || strVal == "FALSE" || strVal == "0") {
         return false;
     }
 
@@ -274,7 +278,6 @@ void Config::update(const ConfigMap& options, OptionMode mode) {
 
         const auto opt = _desc->get(p.first, mode);
         _impl[opt.key().data()] = opt.validateAndParse(p.second);
-        OPENVINO_ASSERT("[ NOT_FOUND ] Option '", p.first.c_str(), "' is not supported for current configuration");
     }
 }
 

@@ -4,8 +4,21 @@
 
 #include "one_hot.hpp"
 
-#include "openvino/opsets/opset1.hpp"
-#include "utils.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/one_hot.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -21,13 +34,17 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
         OPENVINO_THROW("OneHot depth value can't be negative.");
     }
     auto result = input_shapes.front().get();
-    result.insert(result.begin() + m_axis, depth);
+    auto depth_pos = result.begin();
+    if (!result.empty()) {
+        depth_pos += m_axis;
+    }
+    result.insert(depth_pos, depth);
 
     return {{std::move(result)}, ShapeInferStatus::success};
 }
 
 ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
-    auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(m_op);
+    auto oneHot = ov::as_type_ptr<const ov::op::v1::OneHot>(m_op);
     if (!oneHot) {
         OPENVINO_THROW("Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     }

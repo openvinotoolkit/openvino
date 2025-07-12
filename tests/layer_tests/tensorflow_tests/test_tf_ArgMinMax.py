@@ -66,7 +66,7 @@ class TestArgMinMax(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_argmin_max_net(self, input_shape, dimension, input_type, output_type, op_type,
-                            ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+                            ie_device, precision, ir_version, temp_dir):
         if platform.machine() in ['aarch64', 'arm64', 'ARM64']:
             pytest.skip('153077: Segmentation fault on ARM')
         if ie_device == 'GPU' and input_type == np.float32 and input_shape == [10, 15, 20]:
@@ -74,5 +74,4 @@ class TestArgMinMax(CommonTFLayerTest):
         self._test(*self.create_argmin_max_net(input_shape=input_shape, dimension=dimension,
                                                input_type=input_type, output_type=output_type,
                                                op_type=op_type),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+                   ie_device, precision, ir_version, temp_dir=temp_dir)

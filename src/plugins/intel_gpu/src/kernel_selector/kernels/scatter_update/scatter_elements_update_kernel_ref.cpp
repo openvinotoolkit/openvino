@@ -87,17 +87,22 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, bool is_second) const {
     CommonDispatchData dispatchData;
+    KernelData kd = KernelData::Default<scatter_elements_update_params>(params, 2);
+    if (is_second && params.mode != ScatterUpdateReduction::NONE) {
+        dispatchData.gws = {1, 1, 1};
+        dispatchData.lws = {1, 1, 1};
+        return dispatchData;
+    }
+
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& output = params.outputs[0];
     const auto& indices = params.inputs[1];
-
     const auto& scope = is_second ? indices : output;
 
     const auto rank = params.inputs[0].GetDims().size();
-
     switch (rank) {
     case 4:
         dispatchData.gws = {scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v};
@@ -125,14 +130,13 @@ CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elem
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
-
     return dispatchData;
 }
 
 JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_elements_update_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("AXIS_VALUE", static_cast<size_t>(GetScatterElementsUpdateChannelIndex(params))));
+    jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterElementsUpdateChannelIndex(params)));
 
     if (params.mode != ScatterUpdateReduction::NONE) {
         jit.AddConstant(MakeJitConstant("REDUCE_MODE", static_cast<int>(params.mode)));
@@ -150,14 +154,14 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
 
 bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType:: SCATTER_ELEMENTS_UPDATE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const scatter_elements_update_params& params = static_cast<const scatter_elements_update_params&>(p);
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
@@ -203,6 +207,8 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params)
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LIMIT", params.engineInfo.maxLocalMemSize));
+            cldnn_jit.AddConstant(MakeJitConstant("COUNT_LENGTH", newParams.inputs[1].LogicalSize()));
         }
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

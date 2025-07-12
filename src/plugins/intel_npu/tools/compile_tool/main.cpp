@@ -153,16 +153,16 @@ ov::element::Type getType(std::string value, const supported_type_t& supported_p
 }
 ov::element::Type getType(const std::string& value) {
     static const supported_type_t supported_types = {
-        {"FP32", ov::element::f32},        {"f32", ov::element::f32},   {"FP16", ov::element::f16},
-        {"f16", ov::element::f16},         {"BF16", ov::element::bf16}, {"bf16", ov::element::bf16},
-        {"U64", ov::element::u64},         {"u64", ov::element::u64},   {"I64", ov::element::i64},
-        {"i64", ov::element::i64},         {"U32", ov::element::u32},   {"u32", ov::element::u32},
-        {"I32", ov::element::i32},         {"i32", ov::element::i32},   {"U16", ov::element::u16},
-        {"u16", ov::element::u16},         {"I16", ov::element::i16},   {"i16", ov::element::i16},
-        {"U8", ov::element::u8},           {"u8", ov::element::u8},     {"I8", ov::element::i8},
-        {"i8", ov::element::i8},           {"U4", ov::element::u4},     {"u4", ov::element::u4},
-        {"I4", ov::element::i4},           {"i4", ov::element::i4},     {"BOOL", ov::element::boolean},
-        {"boolean", ov::element::boolean},
+        {"FP32", ov::element::f32}, {"f32", ov::element::f32},      {"FP16", ov::element::f16},
+        {"f16", ov::element::f16},  {"BF16", ov::element::bf16},    {"bf16", ov::element::bf16},
+        {"U64", ov::element::u64},  {"u64", ov::element::u64},      {"I64", ov::element::i64},
+        {"i64", ov::element::i64},  {"U32", ov::element::u32},      {"u32", ov::element::u32},
+        {"I32", ov::element::i32},  {"i32", ov::element::i32},      {"U16", ov::element::u16},
+        {"u16", ov::element::u16},  {"I16", ov::element::i16},      {"i16", ov::element::i16},
+        {"U8", ov::element::u8},    {"u8", ov::element::u8},        {"I8", ov::element::i8},
+        {"i8", ov::element::i8},    {"U4", ov::element::u4},        {"u4", ov::element::u4},
+        {"I4", ov::element::i4},    {"i4", ov::element::i4},        {"U2", ov::element::u2},
+        {"u2", ov::element::u2},    {"BOOL", ov::element::boolean}, {"boolean", ov::element::boolean},
     };
 
     return getType(value, supported_types);
@@ -331,6 +331,7 @@ static void showUsage() {
     std::cout << "    -oml                         <value>     " << outputs_model_layout_message << std::endl;
     std::cout << "    -ioml                       \"<value>\"    " << ioml_message << std::endl;
     std::cout << "    -shape                       <value>     " << shape_message << std::endl;
+    std::cout << "    -override_model_batch_size   <value>     " << override_model_batch_size_message << std::endl;
     std::cout << std::endl;
 }
 
@@ -369,6 +370,13 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
     std::map<std::string, std::string> config;
 
     std::ifstream file(FLAGS_c);
+
+    // Check if the file exists, throws exception if it doesn't
+    if (!file.is_open() && !FLAGS_c.empty()) {
+        throw std::runtime_error("[ERROR] Configuration file " + FLAGS_c + " cannot be opened. " +
+                                 "Check if the file path is correct and that the file exists");
+    }
+
     if (file.is_open()) {
         std::string option;
         while (std::getline(file, option)) {
@@ -416,6 +424,15 @@ using TimeDiff = std::chrono::milliseconds;
 
 int main(int argc, char* argv[]) {
     try {
+        // Steps in compiling
+        // 1. Parse command line arguments
+        // 2. Read model
+        // 3. Configure model pre & post processing
+        // 4. Reshape model (reshape will only be done if either shape or override_model_batch_size is specified)
+        // 4a. (in reshape) If shape and override_model_batch_size are not given, check for model dynamism
+        // 5. Parse configuration file
+        // 6. Compile model
+        // 7. Export model to file
         TimeDiff loadNetworkTimeElapsed{0};
 
         const auto& version = ov::get_openvino_version();
@@ -445,9 +462,6 @@ int main(int argc, char* argv[]) {
         auto inputs_info = std::const_pointer_cast<ov::Model>(model)->inputs();
         InputsInfo info_map;
 
-        std::cout << "Performing reshape" << std::endl;
-        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
-
         std::cout << "Configuring model pre & post processing" << std::endl;
         configurePrePostProcessing(model,
                                    FLAGS_ip,
@@ -459,9 +473,9 @@ int main(int argc, char* argv[]) {
                                    FLAGS_iml,
                                    FLAGS_oml,
                                    FLAGS_ioml);
-        if (FLAGS_shape.empty()) {
-            setModelBatch(model, FLAGS_override_model_batch_size);
-        }
+
+        reshape(std::move(inputs_info), info_map, model, FLAGS_shape, FLAGS_override_model_batch_size, FLAGS_d);
+
         std::cout << "Printing Input and Output Info from model" << std::endl;
         printInputAndOutputsInfoShort(*model);
         auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();

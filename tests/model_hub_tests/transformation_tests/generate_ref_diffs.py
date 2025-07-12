@@ -44,11 +44,11 @@ from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension, Parameter, Result
 from optimum.intel import OVModelForCausalLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
-from typing import Type, Union
+from typing import Union
 
 nodes_to_compare = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
 
-def get_models_list_type(file_name: str, cls: Union[Type[OVModelForCausalLM], Type[OVModelForVisualCausalLM]]):
+def get_models_list_type(file_name: str, cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM]]):
     models = []
     for line_items in utils.parse_list_file(file_name):
         if len(line_items) == 2:
@@ -106,7 +106,7 @@ def main():
 
             # wrapping in try/catch block to continue printing models even if one has failed
             try:
-                paged_attention_transformation(ov_model, use_cache_eviction, use_cache_eviction, use_cache_eviction)
+                paged_attention_transformation(ov_model, use_block_indices_inputs=use_cache_eviction, use_score_outputs=use_cache_eviction, allow_score_aggregation=use_cache_eviction, allow_cache_rotation=use_cache_eviction)
             except:
                 print(f"Couldn't run SDPAToPA transformation on {model_id} and generate diffs.")
                 continue

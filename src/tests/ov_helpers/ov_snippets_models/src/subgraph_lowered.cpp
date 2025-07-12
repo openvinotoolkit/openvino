@@ -4,7 +4,14 @@
 
 #include "subgraph_lowered.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include <snippets/snippets_isa.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include <snippets/op/broadcastload.hpp>
+#include <snippets/op/broadcastmove.hpp>
+#include <snippets/op/convert_saturation.hpp>
+#include <snippets/op/load.hpp>
+#include <snippets/op/store.hpp>
+#include <snippets/op/scalar.hpp>
+#include <snippets/op/brgemm.hpp>
 
 namespace ov {
 namespace test {
@@ -29,7 +36,7 @@ std::shared_ptr<ov::Model> AddFunctionLoweredBroadcast::initLowered() const {
     auto add = std::make_shared<op::v1::Add>(add_input0, add_input1);
     auto store = std::make_shared<ov::snippets::op::Store>(add);
     ParameterVector input_params {data0, data1};
-    return std::make_shared<ov::Model>(NodeVector{store}, input_params);
+    return std::make_shared<ov::Model>(OutputVector{store}, input_params);
 }
 std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() const {
     // todo: implement conversion between std::vector<size_t> and std::vector<Shape>
@@ -68,7 +75,7 @@ std::shared_ptr<ov::Model> EltwiseThreeInputsLoweredFunction::initLowered() cons
         sub_out = std::make_shared<ov::snippets::op::BroadcastMove>(sub, *broadcast_shapes[2].rbegin());
     auto mul = std::make_shared<op::v1::Multiply>(add, sub_out);
     auto store = std::make_shared<ov::snippets::op::Store>(mul);
-    return std::make_shared<ov::Model>(NodeVector{store}, input_params);
+    return std::make_shared<ov::Model>(OutputVector{store}, input_params);
 }
 
 std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() const {
@@ -107,7 +114,7 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
                                                                                                                                 layout));
     }
     matmul->validate_and_infer_types();
-    return std::make_shared<ov::Model>(NodeVector{matmul}, data);
+    return std::make_shared<ov::Model>(OutputVector{matmul}, data);
 }
 
 std::shared_ptr<ov::Model> BroadcastAddLoweredFunction::initLowered() const {
@@ -125,7 +132,7 @@ std::shared_ptr<ov::Model> BroadcastAddLoweredFunction::initLowered() const {
     }
     auto add = std::make_shared<op::v1::Add>(loads[0], loads[1]);
     auto store = std::make_shared<ov::snippets::op::Store>(add);
-    return std::make_shared<Model>(NodeVector{store}, ParameterVector{data0, data1});
+    return std::make_shared<Model>(OutputVector{store}, ParameterVector{data0, data1});
 }
 }  // namespace snippets
 }  // namespace test
