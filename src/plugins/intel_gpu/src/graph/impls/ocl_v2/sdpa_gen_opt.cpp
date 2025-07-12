@@ -26,27 +26,28 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
     const bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
 
     if (add_tensor_definitions) {
-        if (is_paged_attention) {
-            jit.add(make_tensors_jit_constants(params));
-        } else {
-            auto desc = params.typed_desc<scaled_dot_product_attention>();
-            const auto& in_offsets_map = params.in_port_to_shape_info_offset;
-            const auto& out_offsets_map = params.out_port_to_shape_info_offset;
-            const size_t attn_mask_idx = 3;
-            const size_t scale_idx = 4;
-            for (size_t i = 0; i < params.input_layouts.size(); i++) {
-                if (i == attn_mask_idx && desc->attn_mask_val.has_value())
-                    continue;
-                if (i == scale_idx && desc->scale_val.has_value())
-                    continue;
-                jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], in_offsets_map.at(i)));
-            }
+        jit.add(make_tensors_jit_constants(params));
+        // if (is_paged_attention) {
+        //     jit.add(make_tensors_jit_constants(params));
+        // } else {
+        //     auto desc = params.typed_desc<scaled_dot_product_attention>();
+        //     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+        //     const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+        //     const size_t attn_mask_idx = 3;
+        //     const size_t scale_idx = 4;
+        //     for (size_t i = 0; i < params.input_layouts.size(); i++) {
+        //         if (i == attn_mask_idx && desc->attn_mask_val.has_value())
+        //             continue;
+        //         if (i == scale_idx && desc->scale_val.has_value())
+        //             continue;
+        //         jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], in_offsets_map.at(i)));
+        //     }
 
-            jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-            for (size_t i = 1; i < params.output_layouts.size(); i++) {
-                jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
-            }
-        }
+        //     jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        //     for (size_t i = 1; i < params.output_layouts.size(); i++) {
+        //         jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
+        //     }
+        // }
     }
 
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
@@ -98,7 +99,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
             return data_inputs_num;
         };
         auto data_inputs_num = get_input_num();
-        size_t scale_idx = desc->attn_mask_val.has_value() ? 3 : 4;
+        size_t scale_idx = 4;  // desc->attn_mask_val.has_value() ? 3 : 4;
         if (data_inputs_num > scale_idx) {
             jit.make("HAS_SCALE_INPUT", 1);
         } else if (desc->scale_val.has_value()) {

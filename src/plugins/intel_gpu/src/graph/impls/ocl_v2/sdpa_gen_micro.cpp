@@ -979,7 +979,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         if (config.has_const_attn_mask_val) {
             jit.make("WITH_ATTN_MASK", 0);
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", config.attn_mask_val);
-            scale_input_idx -= 1;
+            // scale_input_idx -= 1;
         } else {
             jit.make("WITH_ATTN_MASK", data_inputs_num > attn_input_idx);
         }
@@ -1172,9 +1172,11 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.add(unit_parameters("MSK"));
     }
 
+    // std::cout << "JIT for micro kernel:" << std::endl;
     // for (auto it : jit) {
-    //     GPU_DEBUG_TRACE_DETAIL << "jit[" << it.name << "] = " << it.value << std::endl;
+    //     std::cout << "jit[" << it.name << "] = " << it.value << std::endl;
     // }
+    // std::cout << std::endl;
 
     return jit;
 }
@@ -1200,7 +1202,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});  // blocked_indexes_start_and_gws_mapping
     } else {
         uint32_t attn_mask_idx = 3;
-        uint32_t scale_idx = config.has_const_attn_mask_val ? 3 : 4;
+        uint32_t scale_idx = 4;  // config.has_const_attn_mask_val ? 3 : 4;
         if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
         if (config.input_num > scale_idx && !config.has_const_scale_val)
@@ -1234,9 +1236,9 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
         scalars.reserve(3);
 
         auto params = impl_param;
-        if (impl_param.is_type<paged_attention>()) {
-            auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-        }
+        // if (impl_param.is_type<paged_attention>()) {
+        //     auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
+        // }
         if (!params.is_dynamic()) {
             const auto& device_info = params.get_device_info();
             const auto& gemms = kd.micro_kernels;
@@ -1313,6 +1315,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const ov::Dimension n_values = ov::Dimension(v_head_size);
     const auto batch = out_ps[0] * out_ps[1];
 
+    GPU_DEBUG_TRACE_DETAIL << "\nconfiguration.is_kv_compressed = " << configuration.is_kv_compressed << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << ", d_max = " << d_max << ", batch = " << batch << "\n";
     GPU_DEBUG_TRACE_DETAIL << "n_keys = " << n_keys.to_string() << ", n_queries = " << n_queries.to_string() << ", n_values = " << n_values.to_string() << "\n";
 

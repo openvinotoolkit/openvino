@@ -60,9 +60,9 @@ public:
             add_stage(indirect_finalization, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (SDPAOpt::supports_micro_sdpa(params)) {
-                GPU_DEBUG_TRACE_DETAIL << "add micro_sdpa stage for dynamic ...\n";
-                add_stage(regular_micro_single_token, params);
+                GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  dynamic ...\n";
                 add_stage(regular_micro_multi_tokens, params);
+                add_stage(regular_micro_single_token, params);
             }
 #endif
             GPU_DEBUG_TRACE_DETAIL << "add stage for dynamic done \n";
@@ -75,16 +75,16 @@ public:
                     add_stage(indirect_multi_tokens, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 } else if (SDPAOpt::supports_micro_sdpa(params)) {
-                    GPU_DEBUG_TRACE_DETAIL << "add micro_sdpa stage for non-dynamic with prefill_stage \n";
-                    add_stage(regular_micro_single_token, params);
+                    GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  non-dynamic with prefill_stage \n";
                     add_stage(regular_micro_multi_tokens, params);
+                    add_stage(regular_micro_single_token, params);
 #endif
                 } else {
-                    GPU_DEBUG_TRACE_DETAIL << "add regular_multi_tokens kernels with prefill_stage \n";
+                    GPU_DEBUG_TRACE_DETAIL << "add stage regular_multi_tokens kernels with prefill_stage \n";
                     add_stage(regular_multi_tokens, params);
                 }
             } else {
-                GPU_DEBUG_TRACE_DETAIL << "SDPAOptImpl: add single_tokens stage \n";
+                GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
                 if (!SDPAOpt::supports_micro_sdpa(params) || is_ARL_H) {
@@ -134,9 +134,10 @@ public:
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
 
-        GPU_DEBUG_TRACE_DETAIL << "execute single_tokens for prefill with indirect = " << is_indirect << "\n";
+        GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
         auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
         if (num_of_partitions > 1) {
+            GPU_DEBUG_TRACE_DETAIL << "execute single_tokens_finalization (" << num_of_partitions << ") with indirect = " << is_indirect << "\n";
             ev = execute_stage({ev}, instance, is_indirect ? indirect_finalization : regular_finalization);
         }
         return ev;
@@ -155,7 +156,7 @@ public:
         const auto num_of_partitions = get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN);
         const auto is_prefill = is_prefill_stage(params_canonicalization);
         const size_t buf_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
-        const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 1 : params.output_layouts[0].count() * num_of_partitions;
+        const size_t tmp_out_elements_count = (num_of_partitions == 1 || is_prefill) ? 2 : params.output_layouts[0].count() * num_of_partitions;
 
         internal_buffers.emplace_back(buf_elements_count, ov::element::f32);
         internal_buffers.emplace_back(buf_elements_count, ov::element::f32);
