@@ -68,6 +68,8 @@ private:
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
+
+    int64_t m_tokens_in_input;
 };
 
 }  // namespace npuw

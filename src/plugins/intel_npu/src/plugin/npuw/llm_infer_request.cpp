@@ -234,56 +234,51 @@ void ov::npuw::LLMInferRequest::prepare_chunk_prefill_attention_mask(ov::SoPtr<o
 void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
                                                        ov::SoPtr<ov::ITensor> attention_mask,
                                                        ov::SoPtr<ov::ITensor> position_ids) {
-    auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
-
-    auto chunk_prefill_input_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-    int64_t chunk_prompt_len = chunk_prefill_input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
-
-    auto chunk_prefill_attn_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
-    auto chunk_prefill_pos_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
-
-    int64_t left_prompts = input_prompt_len;
-    size_t prefilled_bytes = 0;
-    size_t prefilled_prompts = 0;
-
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    const auto input_ids_elem_size = input_ids->get_element_type().size();
+    auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+    const int64_t chunk_prompt_len = input_ids_in_tensor->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+
+    auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask"));
+    auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
 
     clear_chunk_prefill_kv_cache();
+    m_tokens_in_input = 0;
 
-    while (left_prompts > 0) {
+    int64_t remaining_prompts = input_prompt_len;
+    while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
-        auto current_prompts_len = std::min(left_prompts, chunk_prompt_len);
-        auto left_prompts_bytes = input_ids->get_byte_size() - prefilled_bytes;
-        auto current_prefill_bytes = std::min(chunk_prefill_input_ids->get_byte_size(), left_prompts_bytes);
+        // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by the chunk size
+        auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+        prepare_chunk_prefill_attention_mask(attn_mask_in_tensor, kvcache_desc.max_prompt_size, kvcache_desc.num_stored_tokens, current_prompts_len);
 
-        prepare_chunk_prefill_attention_mask(chunk_prefill_attn_mask, kvcache_desc.max_prompt_size, prefilled_prompts, current_prompts_len);
-
+        auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
+        auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
         std::copy_n(
             reinterpret_cast<uint8_t*>(input_ids->data()) + prefilled_bytes,
             current_prefill_bytes,
-            reinterpret_cast<uint8_t*>(chunk_prefill_input_ids->data()) + chunk_prefill_input_ids->get_byte_size() - current_prefill_bytes);
+            reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() - current_prefill_bytes);
 
-        std::copy_n(position_ids->data<int64_t>() + prefilled_prompts,
+        std::copy_n(position_ids->data<int64_t>() + kvcache_desc.num_stored_tokens,
                 current_prompts_len,
-                chunk_prefill_pos_ids->data<int64_t>() + chunk_prefill_pos_ids->get_size() - current_prompts_len);
-
+                pos_ids_in_tensor->data<int64_t>() + pos_ids_in_tensor->get_size() - current_prompts_len);
 
         m_prefill_request->infer();
 
-        prefilled_bytes += chunk_prefill_input_ids->get_byte_size();
-        left_prompts -= current_prompts_len;
-        prefilled_prompts += current_prompts_len;
-
+        remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
         if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
             OPENVINO_THROW("KV-Cache is full.");
         }
 
-        if (left_prompts <= 0) {
+        if (remaining_prompts <= 0) {
             std::cout << "All prompts have been prefilled in chunks" << std::endl;
             break;
         }
+
+        m_tokens_in_input += current_prompts_len;
 
         const std::size_t kStartOutputKVCacheLayers = 1u;
         const auto& prefill_compiled = m_prefill_request->get_compiled_model();
@@ -403,17 +398,19 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             if (m_copy_kv_cache_from_chunk_prefill) {
                 auto prefill_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-                auto prefilled_len_in_input = prefill_in_tensor->get_shape()[kv_dim];
-                auto prefilled_len_in_output = kvcache_desc.num_stored_tokens - prefilled_len_in_input;
+                auto prefilled_len_in_output = kvcache_desc.num_stored_tokens - m_tokens_in_input;
 
-                auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(prefilled_len_in_input));
-                update_tensor_by_dim(prefill_in_tensor, kvcache_in_slice, kv_dim);
+                auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(m_tokens_in_input));
+
+                auto prefill_in_slice = make_tensor_slice(prefill_in_tensor, kv_dim, 0u, static_cast<uint32_t>(m_tokens_in_input));
+
+                update_tensor_by_dim(prefill_in_slice, kvcache_in_slice, kv_dim);
 
                 auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
                 auto chunk_prompt_len = padded_input->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
                 prefill_out_slice = make_tensor_slice(prefill_out_tensor, kv_dim, static_cast<uint32_t>(chunk_prompt_len - prefilled_len_in_output), static_cast<uint32_t>(chunk_prompt_len));
 
-                kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, static_cast<uint32_t>(prefilled_len_in_input), kvcache_desc.num_stored_tokens);
+                kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, static_cast<uint32_t>(m_tokens_in_input), kvcache_desc.num_stored_tokens);
 
                 update_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
             } else {
