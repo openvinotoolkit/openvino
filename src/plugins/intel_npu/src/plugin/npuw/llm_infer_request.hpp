@@ -35,7 +35,7 @@ private:
 
     void clear_chunk_prefill_kv_cache();
 
-    void prepare_chunk_prefill_attention_mask(ov::SoPtr<ov::ITensor> attention_mask,
+    void populate_chunk_prefill_attention_mask(ov::SoPtr<ov::ITensor> attention_mask,
                                               int64_t max_prompt_size,
                                               int64_t prefilled_prompts,
                                               int64_t current_prompts_len);

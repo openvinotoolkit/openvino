@@ -890,6 +890,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool use_chunk_prefill = prefill_chunk_size > 0;
     std::cout << "prefill_chunk_size: " << prefill_chunk_size << std::endl;
     std::cout << "max_prompt_len: " << max_prompt_len << std::endl;
+    // Prefill chunk size should be smaller than half of max prompt length so that there are enough buffer to cache current key values
     if (prefill_chunk_size * 2 > max_prompt_len) {
         OPENVINO_THROW("NPUW_LLM_PREFILL_CHUNK_SIZE is too large");
     }
