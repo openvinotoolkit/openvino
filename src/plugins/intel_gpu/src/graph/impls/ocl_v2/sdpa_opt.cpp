@@ -201,9 +201,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
     // const size_t order_idx = desc->input_q_transpose_order.size() - 1;
-    if (extended_input_q_transpose_order[3] != 3 ||
-        extended_input_k_transpose_order[3] != 3 ||
-        extended_input_v_transpose_order[3] != 3) {
+    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
         return false;
     }
 

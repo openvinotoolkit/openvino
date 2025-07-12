@@ -15,7 +15,6 @@
 #include "sdpa_opt.hpp"
 #include "utils/kernel_generator.hpp"
 
-
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {

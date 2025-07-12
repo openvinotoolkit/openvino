@@ -333,10 +333,10 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         const auto k_seq_len = get_seq_length(params.get_input_layout(1), extended_input_k_transpose_order);
         const auto k_num_head = get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order);
         const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
-        //jit.make("TARGET_SEQ_LEN", q_seq_len);
+        // jit.make("TARGET_SEQ_LEN", q_seq_len);
         jit.make("HEAD_SIZE", q_head_size);
         jit.make("NUM_HEADS", q_num_head);
-        //jit.make("SOURCE_SEQ_LEN", k_seq_len);
+        // jit.make("SOURCE_SEQ_LEN", k_seq_len);
         jit.make("K_HEAD_SIZE", k_head_size);
         jit.make("NUM_KV_HEADS", k_num_head);
         jit.make("V_HEAD_SIZE", v_head_size);
