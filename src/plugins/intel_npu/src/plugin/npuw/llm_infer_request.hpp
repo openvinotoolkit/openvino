@@ -32,6 +32,14 @@ public:
 
 private:
     void prepare_for_new_conversation();
+
+    void clear_chunk_prefill_kv_cache();
+
+    void prepare_chunk_prefill_attention_mask(ov::SoPtr<ov::ITensor> attention_mask,
+                                              int64_t max_prompt_size,
+                                              int64_t prefilled_prompts,
+                                              int64_t current_prompts_len);
+
     void init_tensor(const ov::Output<const ov::Node>& port);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
