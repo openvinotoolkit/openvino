@@ -60,7 +60,6 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_data() const override;
 
-private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
@@ -95,7 +94,6 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_data() const override;
 
-private:
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 

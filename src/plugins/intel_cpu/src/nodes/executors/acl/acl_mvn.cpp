@@ -4,6 +4,23 @@
 
 #include "acl_mvn.hpp"
 
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/runtime/NEON/functions/NEMeanStdDevNormalizationLayer.h>
+
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/mvn.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/debug_capabilities.h"
+
 namespace ov::intel_cpu {
 
 using namespace arm_compute;
@@ -71,7 +88,7 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
 
 void AclMVNExecutor::exec(const std::vector<MemoryCPtr>& src,
                           const std::vector<MemoryPtr>& dst,
-                          const void* post_ops_data_) {
+                          [[maybe_unused]] const void* post_ops_data_) {
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
 
