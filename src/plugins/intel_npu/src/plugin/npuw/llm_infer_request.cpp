@@ -332,9 +332,11 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
     auto chunk_prompt_len = padded_input->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
     if (input_prompt_len > chunk_prompt_len) {
+        std::cout << "go to chunk prefill" << std::endl;
         return infer_prefill_in_chunk(input_ids, attention_mask, position_ids);
     }
-    
+
+    std::cout << "go to default prefill" << std::endl;
     // NB: padded_input can be either fp32(VLM) or i64(LLM)
     std::copy_n(
         reinterpret_cast<uint8_t*>(input_ids->data()),
@@ -393,8 +395,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
             auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
 
-            auto prefill_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-
             // FIXME: We don't need to fill whole tensor with 0s, but only tensor.size() - num_stored_tokens
             //        taking into account kvcache dimension.
             fill_tensor<ov::float16>(kvcache_in_tensor, 0);
@@ -405,6 +405,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
             ov::SoPtr<ov::ITensor> prefill_out_slice;
             if (m_copy_kv_cache_from_chunk_prefill) {
+                auto prefill_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+
                 auto prefilled_len_in_input = prefill_in_tensor->get_shape()[kv_dim];
                 auto prefilled_len_in_output = kvcache_desc.num_stored_tokens - prefilled_len_in_input;
 
