@@ -722,7 +722,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
         {"aten::sum", op::translate_sum},
-        {"aten::relu6", op::translate_relu6},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
         {"aten::t", op::translate_t},
         {"aten::take_along_dim", op::translate_take_along_dim},
