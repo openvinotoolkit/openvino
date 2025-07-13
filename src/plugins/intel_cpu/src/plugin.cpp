@@ -20,6 +20,7 @@
 #include "cpu/x64/xbyak/xbyak_util.h"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
+#include "internal_properties.hpp"
 #include "itt.h"
 #include "node.h"
 #include "openvino/core/except.hpp"
@@ -428,6 +429,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RW_property(ov::intel_cpu::denormals_optimization.name()),
             RW_property(ov::log::level.name()),
             RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RW_property(ov::hint::dynamic_quantization_group_size.name()),
             RW_property(ov::hint::kv_cache_precision.name()),
             RW_property(ov::key_cache_precision.name()),
@@ -499,6 +501,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             engConfig.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        return static_cast<decltype(ov::intel_cpu::enable_tensor_parallel)::value_type>(engConfig.enableTensorParallel);
     }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
@@ -577,18 +582,34 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         decript_from_string = true;
     }
 
-    auto _config = config;
-    std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (auto blob_it = _config.find(ov::hint::compiled_blob.name()); blob_it != _config.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                      compiled_blob.get_byte_size(),
-                                                                      compiled_blob);
-        _config.erase(blob_it);
-    }
-
     ModelDeserializer deserializer(
         model_stream,
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
+            return get_core()->read_model(model, weights);
+        },
+        decrypt,
+        decript_from_string);
+
+    return deserialize_model(deserializer, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tensor, const ov::AnyMap& config) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+
+    CacheDecrypt decrypt{codec_xor};
+    bool decript_from_string = false;
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
+        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
+        decript_from_string = true;
+    }
+
+    std::shared_ptr<ov::AlignedBuffer> model_buffer =
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
+                                                       model_tensor.get_byte_size(),
+                                                       model_tensor);
+
+    ModelDeserializer deserializer(
         model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
@@ -596,9 +617,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         decrypt,
         decript_from_string);
 
+    return deserialize_model(deserializer, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer,
+                                                              const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 
+    auto _config = config;
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
