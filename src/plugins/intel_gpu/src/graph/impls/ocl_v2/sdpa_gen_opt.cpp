@@ -86,21 +86,9 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         v_head_size = get_head_size(v_layout, extended_input_v_transpose_order);
         GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", v_head_size = " << v_head_size << "\n";
 
-        auto get_input_num = [&]() {
-            size_t data_inputs_num = get_data_inputs_num(*desc);
-            const size_t attn_mask_idx = 3;
-            const size_t scale_idx = 4;
-            for (uint32_t i = 0; i < data_inputs_num; i++) {
-                if (i == attn_mask_idx && desc->attn_mask_val.has_value())
-                    data_inputs_num--;
-                if (i == scale_idx && desc->scale_val.has_value())
-                    data_inputs_num--;
-            }
-            return data_inputs_num;
-        };
-        auto data_inputs_num = get_input_num();
-        size_t scale_idx = 4;  // desc->attn_mask_val.has_value() ? 3 : 4;
-        if (data_inputs_num > scale_idx) {
+        size_t data_inputs_num = get_data_inputs_num(*desc);
+        size_t scale_idx = 4;
+        if ((data_inputs_num > scale_idx) && (!desc->scale_val.has_value())) {
             jit.make("HAS_SCALE_INPUT", 1);
         } else if (desc->scale_val.has_value()) {
             jit.make("STATIC_SCALE_VALUE", desc->scale_val.value());
