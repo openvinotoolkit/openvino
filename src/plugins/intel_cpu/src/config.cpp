@@ -55,7 +55,6 @@ bool Config::applyDebugCapsProperties() {
     if (const char* env = std::getenv("DISABLE_LAYER_FUSION")) {
         std::string val(env);
         std::transform(val.begin(), val.end(), val.begin(), ::toupper);
-                std::cout << "[DEBUG] DISABLE_LAYER_FUSION env: " << val << std::endl; //////////////////////////////////////////////////////////////////////
         return val == "YES" || val == "TRUE" || val == "1";
     }
     auto it = _config.find("DISABLE_LAYER_FUSION");
