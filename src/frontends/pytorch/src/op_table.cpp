@@ -19,7 +19,6 @@ namespace op {
 using namespace ov::frontend;
 
 // TorchScript translations
-OP_CONVERTER(translate_relu6);
 OP_CONVERTER(translate_abs);
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_avg_pool2d);
