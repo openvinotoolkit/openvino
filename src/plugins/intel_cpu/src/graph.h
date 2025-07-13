@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -365,9 +364,8 @@ private:
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
 
-    // TODO: change std::map to std::unordered_map
-    std::map<std::size_t, NodePtr> inputNodesMap;
-    std::map<std::size_t, NodePtr> outputNodesMap;
+    std::unordered_map<std::size_t, NodePtr> inputNodesMap;
+    std::unordered_map<std::size_t, NodePtr> outputNodesMap;
 
     OutputMemoryBlocks m_outputNodesMemBlocks;
 

@@ -813,7 +813,7 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
 static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
     EdgeClusters& clusters,
     size_t remaining,
-    const std::map<std::size_t, NodePtr>& outputNodes) {
+    const std::unordered_map<std::size_t, NodePtr>& outputNodes) {
     Graph::OutputMemoryBlocks outputMemBlocks;
 
     auto collectDynamicOutputMemBlocks = [&outputMemBlocks, &outputNodes](const EdgeCluster& cluster) {
@@ -1151,7 +1151,7 @@ static std::tuple<MemoryControl::MemorySolution, EdgeClusters, Graph::OutputMemo
     const std::shared_ptr<MemoryControl>& memoryControl,
     const AllocationContext& allocationContext,
     const GraphContext::CPtr& graphContext,
-    const std::map<std::size_t, NodePtr>& outputNodesMap) {
+    const std::unordered_map<std::size_t, NodePtr>& outputNodesMap) {
     const auto& edges = allocationContext.edges;
 
     auto edgeClusters = FormEdgeClusters(edges);
