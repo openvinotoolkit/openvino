@@ -39,9 +39,9 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     auto q_proj_weight_const_i8 =
         pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
     auto q_proj_weight_f32 =
-        pattern::wrap_type<v0::Convert>({q_proj_weight_const_i8}, pattern::type_matches(element::i32));
+        pattern::wrap_type<v0::Convert>({q_proj_weight_const_i8}, pattern::type_matches(element::f32));
     auto q_proj_weight_scales_per_OC =
-        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::i8) && pattern::shape_matches("[?, 1]"));
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[?, 1]"));
     auto q_proj_weight_deq = pattern::wrap_type<v1::Multiply>({q_proj_weight_f32, q_proj_weight_scales_per_OC},
                                                               {{"auto_broadcast", "numpy"}});
 
