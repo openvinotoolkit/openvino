@@ -331,7 +331,8 @@ jobs:
       - name: Install python dependencies - 2
         run: |
           # For tests runner
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+          # python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
+          ls -la ${INSTALL_TEST_DIR}
 
       - name: Fetch Sanitizer Suppression Lists
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
