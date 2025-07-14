@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "paddle_tests_${PDVTAG}")
-
 # Test model generating
 set(CODE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../)
 set(PADDLE_REQ "${CODE_ROOT_DIR}/requirements.txt")
