@@ -528,6 +528,41 @@ def test_properties_device_properties():
            "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": streams.Num(1)}})
 
 
+def test_properties_devices_utilization_threshold():
+    # Assert the property name is correctly registered
+    assert intel_auto.devices_utilization_threshold == "DEVICES_UTILIZATION_THRESHOLD"
+
+    def check(value1, value2):
+        ret = intel_auto.devices_utilization_threshold(value1)
+        assert ret[0] == "DEVICES_UTILIZATION_THRESHOLD"
+        assert ret[1].value == value2
+
+    # Test cases for different input formats and expected outputs
+    check({"GPU": 88}, {"GPU": 88})
+    check({"CPU": 75, "GPU": 88}, {"CPU": 75, "GPU": 88})
+
+    # Test invalid inputs
+    with pytest.raises(TypeError) as e:
+        value = "invalid_value"
+        intel_auto.devices_utilization_threshold(value)
+    assert f"Incorrect passed value: {value}, expected dictionary instead of" in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        value = {2: 88}
+        intel_auto.devices_utilization_threshold(value)
+    assert f"Incorrect passed key in value: 2, expected string instead of" in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        value = {"CPU": "INVALID_VALUE"}
+        intel_auto.devices_utilization_threshold(value)
+    assert f"Incorrect passed value in value: INVALID_VALUE, expected float/int instead of" in str(e.value)
+
+    with pytest.raises(TypeError) as e:
+        value = {"CPU": 88, "GPU": "INVALID_VALUE"}
+        intel_auto.devices_utilization_threshold(value)
+    assert f"Incorrect passed value in value: INVALID_VALUE, expected float/int instead of" in str(e.value)
+
+
 def test_properties_streams():
     # Test extra Num class
     assert streams.Num().to_integer() == -1

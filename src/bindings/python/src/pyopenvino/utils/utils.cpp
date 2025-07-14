@@ -178,6 +178,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<std::string, std::string>>()) {
         return py::cast(any.as<std::map<std::string, std::string>>());
     }
+    // Check for std::map<std::string, unsigned>
+    else if (any.is<std::map<std::string, unsigned>>()) {
+        return py::cast(any.as<std::map<std::string, unsigned>>());
+    }
     // Check for std::map<std::string, int>
     else if (any.is<std::map<std::string, int>>()) {
         return py::cast(any.as<std::map<std::string, int>>());
