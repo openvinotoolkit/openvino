@@ -10,7 +10,7 @@
 
 const std::vector<ov::AnyMap> configs = {};
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_for_ElementTypeTests,
                          InferRequestElementTypeTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),

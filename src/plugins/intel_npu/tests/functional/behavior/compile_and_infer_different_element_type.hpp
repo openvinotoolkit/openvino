@@ -44,8 +44,10 @@ public:
     }
 
     void SetUp() {
+        std::cout << "skip from setup-------~!!!!!!!!!!!!!!" << std::endl;
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        std::cout << "Test Not skip from setup-------~!!!!!!!!!!!!!!" << std::endl;
 
         std::tie(target_device, configuration) = this->GetParam();
         APIBaseTest::SetUp();
@@ -87,8 +89,10 @@ bool InferRequestElementTypeTests::compareTensorOutputs(const ov::Tensor& dynami
 
 // Test whether the serialization and inference results of the dynamic type model and the undefined type model are the same
 TEST_P(InferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
+        std::cout << "skip from TEST_P-------~!!!!!!!!!!!!!!" << std::endl;
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::cout << "Test Not skip from TEST_P-------~!!!!!!!!!!!!!!" << std::endl;
 
     // Customize a model with a dynamic type
     std::string dynamicTypeModelXmlString = R"V0G0N(<?xml version="1.0"?>
