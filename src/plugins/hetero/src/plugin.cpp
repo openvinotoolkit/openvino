@@ -32,7 +32,7 @@ ov::hetero::Plugin::Plugin() {
 }
 
 std::pair<ov::hetero::SubgraphsMappingInfo, std::vector<ov::hetero::SubmodelInfo>> ov::hetero::Plugin::split_graph(
-    std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<ov::Model>& model,
     Configuration config) const {
     std::vector<ov::hetero::SubmodelInfo> submodels;
     ov::SupportedOpsMap query_model_result;
@@ -199,7 +199,7 @@ void ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& d
     }
 }
 
-ov::hetero::Plugin::QueryResult ov::hetero::Plugin::query_model_update(std::shared_ptr<ov::Model>& model,
+ov::hetero::Plugin::QueryResult ov::hetero::Plugin::query_model_update(const std::shared_ptr<ov::Model>& model,
                                                                        const ov::AnyMap& properties,
                                                                        bool allow_exception) const {
     ov::hetero::Plugin::QueryResult res;

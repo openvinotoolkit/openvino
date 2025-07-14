@@ -20,7 +20,7 @@ class InferRequest;
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
-                  std::vector<ov::hetero::SubmodelInfo>& submodels,
+                  const std::vector<ov::hetero::SubmodelInfo>& submodels,
                   const SubgraphsMappingInfo& mapping_info,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   ov::hetero::RemoteContext::Ptr context,
@@ -48,7 +48,7 @@ public:
 private:
     friend class InferRequest;
 
-    void compile_model(std::vector<ov::hetero::SubmodelInfo>& submodels);
+    void compile_model(const std::vector<ov::hetero::SubmodelInfo>& submodels);
 
     std::shared_ptr<const Plugin> get_hetero_plugin() const;
 

@@ -20,7 +20,7 @@
 #include "properties.hpp"
 
 ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
-                                         std::vector<ov::hetero::SubmodelInfo>& submodels,
+                                         const std::vector<ov::hetero::SubmodelInfo>& submodels,
                                          const SubgraphsMappingInfo& mapping_info,
                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                          ov::hetero::RemoteContext::Ptr context,
@@ -39,7 +39,7 @@ ov::hetero::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model
     }
 }
 
-void ov::hetero::CompiledModel::compile_model(std::vector<ov::hetero::SubmodelInfo>& submodels) {
+void ov::hetero::CompiledModel::compile_model(const std::vector<ov::hetero::SubmodelInfo>& submodels) {
     const bool add_exclusive = submodels.size() > 1;
     const auto& hetero_plugin = get_hetero_plugin();
     const auto& core = hetero_plugin->get_core();
