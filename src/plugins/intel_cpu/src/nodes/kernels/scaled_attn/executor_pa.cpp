@@ -649,7 +649,7 @@ struct MHAHelper {
         }
 
         if (_params.is_sage_attn) {
-            _quantized_q.resize<int8_t>({B_token, H, S + sizeof(float)});
+            _quantized_q.resize<int8_t>({_nthr, _block_size, S + sizeof(float)});
         }
 
         // TODO: kernel supports stride
@@ -665,19 +665,20 @@ struct MHAHelper {
                     // oneDNN brgemm has limitation with a_scale, it doesn't support per-row scale
                     // only enable b_scale here
 #    if defined(OPENVINO_ARCH_X86_64)
-                    _qk_gemm[i] =
-                        std::make_shared<BrgemmKernelQuantized>(i + 1,
-                                                                _block_size,
-                                                                S,
-                                                                H * (S + sizeof(float)),
-                                                                S + sizeof(float),
-                                                                _block_size,
-                                                                _new_score_stride,
-                                                                true,
-                                                                ov::element::i8,
-                                                                ov::element::f32,
-                                                                ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,
-                                                                false);
+                    // H * (S + sizeof(float))
+                    _qk_gemm[i] = std::make_shared<BrgemmKernelQuantized>(
+                        i + 1,                                                // M
+                        _block_size,                                          // N
+                        S,                                                    // K
+                        (S + sizeof(float)),                                  // LDA
+                        S + sizeof(float),                                    // LDB
+                        _block_size,                                          // LDC
+                        _new_score_stride,                                    // LDD
+                        true,                                                 // b_transpose
+                        ov::element::i8,                                      // in_prec
+                        ov::element::f32,                                     // out_prec
+                        ov::intel_cpu::BrgemmKernel::ScaleType::PER_CHANNEL,  // b_scale type
+                        false);                                               // accumulate
 #    endif
                 } else {
                     _qk_gemm[i] = std::make_shared<BrgemmKernel>(i + 1,
@@ -837,6 +838,11 @@ struct MHAHelper {
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hq_beg; h < hq_end; h++) {
             auto* q_ptr = query.ptr<DATA_TYPE>(h, q_start, 0);
+            if (_params.is_sage_attn) {
+                // local_q shape [block_size, S + sizeof(float)]
+                auto local_q = _quantized_q.slice(0, ithr, ithr + 1).reshape({_block_size, S + sizeof(float)});
+                sage_attn_quantize_q<DATA_TYPE, ov::element::i8>(query, local_q, q_start, q_cnt, h);
+            }
             auto* c_ptr = _weight.ptr<float>(ithr, h - hq_beg, 0, 0);
             // for each query block, loop through all key block
             // for blocks:
@@ -845,9 +851,9 @@ struct MHAHelper {
             // 1 1 1 0 ...
             // just computing the positions of 1 should be enough
             for (size_t k_blk = 0; k_blk < cur_kv_len_blocks; k_blk++) {
-                if (_params.is_sage_attn && query.get_precision() == ov::element::i8) {
+                if (_params.is_sage_attn) {
 #    if defined(OPENVINO_ARCH_X86_64)
-                    auto* q_ptr = query.template ptr<int8_t>(h, q_start, 0);
+                    auto* q_ptr = _quantized_q.ptr<int8_t>(ithr);
                     auto* k_ptr = qk_scratch_b.ptr<int8_t>(k_blk, hk);
                     int32_t* temp_C = reinterpret_cast<int32_t*>(_output.ptr<float>(ithr, 0, 0, 0));
                     float* scale_b = reinterpret_cast<float*>(qk_scratch_b.ptr<int8_t>(k_blk, hk, _block_size * S));
@@ -878,9 +884,10 @@ struct MHAHelper {
                 auto ncausal = (cur_kv_len - q_cnt + (m - q_start) + 1);
                 auto* score = _weight.ptr<float>(ithr, h - hq_beg, m - q_start);
                 // dequantization of q matrix could be fused with _d_scale since softmax is done by row
-                float revised_d_scale = _params.is_sage_attn
-                                            ? _d_scale * reinterpret_cast<float*>(query.ptr<int8_t>(h, m, 0))[0]
-                                            : _d_scale;
+                float revised_d_scale =
+                    _params.is_sage_attn
+                        ? _d_scale * reinterpret_cast<float*>(_quantized_q.ptr<int8_t>(ithr, m - q_start, 0))[0]
+                        : _d_scale;
                 if (_sliding_window) {
                     size_t start_idx = 0;
                     auto new_causal = ncausal;
@@ -1682,12 +1689,8 @@ struct MHA {
                 }
 
                 PlainTensor sub_query;
-                if (_helper._params.is_sage_attn) {
-                    sub_query.resize({q_len, _helper.H, _helper._quantized_q.m_dims[2]},
-                                     _helper._quantized_q.template ptr<int8_t>(batch_in_token));
-                } else {
-                    sub_query.resize({q_len, _helper.H, _helper.S}, q.ptr<DATA_TYPE>(batch_in_token));
-                }
+
+                sub_query.resize({q_len, _helper.H, _helper.S}, q.ptr<DATA_TYPE>(batch_in_token));
                 // physical layout (B_in_tokens, H, S)
                 sub_query = sub_query.permute({1, 0, 2});
 #    if defined(OPENVINO_ARCH_ARM64)
@@ -2146,12 +2149,6 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              rotation_trig_lut,
              output_emb,
              output_score);
-
-        if constexpr (one_of(KEY_PREC, ov::element::i8)) {
-            if (_helper._params.is_sage_attn) {
-                sage_attn_quantize_q<DATA_TYPE, KEY_PREC>(q, _helper._quantized_q, past_lens, subsequence_begins);
-            }
-        }
 
         if (rotated_block_indices) {
             // Rotate kv cache currently doesn't support quantized cache.
