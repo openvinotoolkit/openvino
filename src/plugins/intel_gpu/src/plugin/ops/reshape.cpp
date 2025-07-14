@@ -24,9 +24,7 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
     auto input_pshape = op->get_input_partial_shape(0);
     auto output_pshape = op->get_output_partial_shape(0);
 
-    if (p.use_new_shape_infer()
-        || op->is_dynamic()
-        || (p.get_engine().get_device_info().supports_immad && input_pshape.size() != output_pshape.size())) {
+    if (p.use_new_shape_infer() || op->is_dynamic()) {
         std::shared_ptr<cldnn::reshape> reshape_prim = nullptr;
         auto second_const_input = op->get_input_size() == 2 ? ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1)) : nullptr;
         std::vector<int64_t> output_pattern = {};
