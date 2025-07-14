@@ -25,21 +25,12 @@ namespace weights {
 
 class Bank {
 public:
-    class RemoteContextManager {
-    public:
-        ov::SoPtr<ov::IRemoteContext> getContext(const std::shared_ptr<const ov::ICore>& core,
-                                                 const std::string& device);
-
-    private:
-        std::unordered_map<std::string, ov::SoPtr<ov::IRemoteContext>> m_context_map;
-        std::mutex m_mutex;
-    };
-
-    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
+    explicit Bank(const std::shared_ptr<const ov::ICore>& core,
+                  const std::string& alloc_device,
+                  const std::string& bank_name)
         : m_core(core),
           m_alloc_device(alloc_device),
-          m_bank_name(bank_name),
-          m_rcm(std::make_shared<RemoteContextManager>()) {}
+          m_bank_name(bank_name) {}
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -53,8 +44,6 @@ public:
     bool is_remote(int64_t uid) const;
 
     std::string get_name() const;
-
-    ov::SoPtr<ov::IRemoteContext> get_context(const std::shared_ptr<const ov::ICore>& core, const std::string& device);
 
 private:
     friend class ov::npuw::LLMCompiledModel;
@@ -71,6 +60,11 @@ private:
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
 
+    void evaluate_cpu(DeviceBank& device_bank, const std::vector<LazyTensor>& to_process);
+    void evaluate_and_allocate_on_device(DeviceBank& device_bank,
+                                         const std::vector<LazyTensor>& to_process,
+                                         const std::string& device);
+
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<Bank> deserialize(std::istream& stream,
                                              const std::shared_ptr<const ov::ICore>& core,
@@ -78,12 +72,11 @@ private:
     // Used during deserialization
     void read_and_add_tensor(std::istream& stream, int64_t uid, const std::string& device);
 
-    mutable std::recursive_mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::shared_ptr<const ov::ICore> m_core = nullptr;
     std::string m_alloc_device;
     int64_t uid_count = 0;
     std::string m_bank_name;
-    std::shared_ptr<RemoteContextManager> m_rcm;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,
