@@ -346,12 +346,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         _orig_config.erase(it);
     }
 
-    std::shared_ptr<ov::AlignedBuffer> model_buffer;
     if (auto blob_it = _orig_config.find(ov::hint::compiled_blob.name()); blob_it != _orig_config.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                      compiled_blob.get_byte_size(),
-                                                                      compiled_blob);
         _orig_config.erase(blob_it);
     }
 
@@ -384,6 +379,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     }
 
     return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
+                                                         const ov::AnyMap& config) const{
+    std::string device_id = get_device_id(config);
+    auto context = get_default_context(device_id);
+    return import_model(model, { context, nullptr }, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& config) const{
+    SharedStreamBuffer buf{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
+    std::istream stream(&buf);
+    return import_model(stream, context, config);
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
