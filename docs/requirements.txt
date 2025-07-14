@@ -6,7 +6,7 @@ beautifulsoup4==4.9.3
 breathe==4.36.0
 certifi==2024.7.4
 colorama==0.4.6
-Cython==3.0.12
+Cython==3.1.2
 docutils==0.21.2
 idna==3.10
 imagesize==1.4.1
@@ -34,7 +34,7 @@ py>=1.11.0
 pytz==2022.7
 pyyaml==6.0.1
 requests==2.32.4
-six==1.15.0
+six==1.17.0
 snowballstemmer==3.0.1
 soupsieve==2.7
 sphinx==7.4.7; python_version >= "3.10"
