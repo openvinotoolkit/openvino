@@ -19,7 +19,7 @@ public:
     [[nodiscard]] ov::intel_cpu::TbbPartitioner get_partitioner() const {
         return m_default_partitioner;
     }
-    size_t get_multiplier() const {
+    [[nodiscard]] size_t get_multiplier() const {
         return m_default_multiplier;
     }
 

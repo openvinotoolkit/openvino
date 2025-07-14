@@ -4,6 +4,15 @@
 
 #include "thread_pool_imp.hpp"
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
+
+#include "cpu_parallel.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
+
 namespace ov::intel_cpu {
 
 dnnl::stream make_stream(const dnnl::engine& engine, std::shared_ptr<ThreadPool> thread_pool) {
