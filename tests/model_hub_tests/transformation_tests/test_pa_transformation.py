@@ -5,7 +5,7 @@ from openvino._offline_transformations import paged_attention_transformation
 from openvino._pyopenvino.op import _PagedAttentionExtension
 from optimum.intel import OVModelForCausalLM
 from optimum.intel.openvino import OVModelForVisualCausalLM
-from typing import Type, Union
+from typing import Union
 import openvino as ov
 from models_hub_common.utils import retry
 import models_hub_common.utils as utils
@@ -108,7 +108,7 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
 def run_pa(tmp_path,
            model_id,
            model_link,
-           cls: Union[Type[OVModelForCausalLM], Type[OVModelForVisualCausalLM]],
+           cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM]],
            use_block_indices_inputs,
            use_score_outputs,
            allow_score_aggregation,

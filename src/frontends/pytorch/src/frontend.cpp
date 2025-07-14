@@ -27,7 +27,6 @@
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
-#include "transforms/aten_stack_list_construct_replacer.hpp"
 #include "transforms/dict_resolver.hpp"
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
@@ -290,7 +289,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
         manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
-        manager.register_pass<ov::frontend::pytorch::pass::AtenStackListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
         manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();

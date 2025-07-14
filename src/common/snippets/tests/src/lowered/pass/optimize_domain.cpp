@@ -9,6 +9,7 @@
 #include "lowered/pass/optimize_domain.hpp"
 #include "subgraph_simple.hpp"
 #include "lowering_utils.hpp"
+#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {

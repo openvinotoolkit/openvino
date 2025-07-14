@@ -238,9 +238,8 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         const auto& gws = params.workGroups.global;
         const auto& lws = params.workGroups.local;
 
-        GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
-                               << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << (needs_completion_event ? " has_completion_event=true" : "")
-                               << '\n';
+        GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage.kernel->get_id() << " : gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] " << "lws=["
+                               << lws[0] << ", " << lws[1] << ", " << lws[2] << "]" << (needs_completion_event ? " has_completion_event=true" : "") << '\n';
 
         return stream.enqueue_kernel(*stage.kernel, params, {}, events, needs_completion_event);
     }

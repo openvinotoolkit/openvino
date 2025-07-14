@@ -40,7 +40,9 @@ namespace ov::intel_cpu::tpp::op {
         new_op->clone_memory_access_ports(*this);                                         \
         return new_op;                                                                    \
     }                                                                                     \
-    bool OP::visit_attributes(AttributeVisitor& visitor) { return OP_TYPE::visit_attributes(visitor); }
+    bool OP::visit_attributes(AttributeVisitor& visitor) {                                \
+        return OP_TYPE::visit_attributes(visitor);                                        \
+    }
 
 // Note: Unary Ops don't require broadcasting flags update => no need to override validate_and_infer_types
 #define BINARY_AUX_METHODS(BINARY_OP, OV_OP)                                                            \
