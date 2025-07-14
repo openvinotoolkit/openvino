@@ -1116,14 +1116,16 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     // Broadcast pattern
     auto const_broadcast_arg = pattern::wrap_type<op::v0::Constant>(pattern::value_matches("{1.000000f}"));
     auto const_broadcast_axes = pattern::wrap_type<op::v0::Constant>(pattern::value_matches("{0}"));
-    auto broadcast = pattern::wrap_type<op::v3::Broadcast>({const_broadcast_arg, inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
+    auto broadcast = pattern::wrap_type<op::v3::Broadcast>({const_broadcast_arg, inputs[0], const_broadcast_axes},
+                                                           {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
-    auto const_inv_freq = pattern::wrap_type<op::v0::Constant>(); // Pattern for the constant inverse frequency
+    auto const_inv_freq = pattern::wrap_type<op::v0::Constant>();  // Pattern for the constant inverse frequency
     auto multiply = pattern::wrap_type<op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
 
     // MatMul pattern 
-    auto matmul = pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
+    auto matmul = pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, 
+                                                     {{"transpose_a", false}, {"transpose_b", false}});
 
     // Transpose pattern
     auto transpose = pattern::wrap_type<op::v1::Transpose>({matmul, {0, 2, 1}});
