@@ -1123,7 +1123,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     auto const_inv_freq = pattern::wrap_type<op::v0::Constant>();  // Pattern for the constant inverse frequency
     auto multiply = pattern::wrap_type<op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
 
-    // MatMul pattern 
+    // MatMul pattern
     auto matmul = 
         pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
 
