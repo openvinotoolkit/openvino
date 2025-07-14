@@ -502,7 +502,7 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         auto rope_node = as_type_ptr<op::internal::RoPE>(root);
         if (!rope_node)
             return false;
-            
+
         auto symbols = m.get_symbols();
         auto slice_start = symbols["slice_start"];
         auto slice_stop = symbols["slice_stop"];
