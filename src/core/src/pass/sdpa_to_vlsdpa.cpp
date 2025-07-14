@@ -89,8 +89,6 @@ bool ov::pass::SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& mode
             if (!consumers_are_sdpa)
                 continue;
 
-            std::cout << "=========================== SDPA_TO_VLSDPA (" << model->get_friendly_name()
-                      << ") success! =====================" << std::endl;
             model->remove_parameter(param);
             auto cu_seqlens_param =
                 setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), param_new.c_str());

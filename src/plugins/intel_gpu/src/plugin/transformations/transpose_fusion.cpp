@@ -37,20 +37,6 @@ namespace ov::intel_gpu {
 
 namespace {
 
-// Overload << operator for vectors
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
-    os << "[";
-    for (size_t i = 0; i < vec.size(); ++i) {
-        os << vec[i];
-        if (i != vec.size() - 1) {
-            os << ", ";
-        }
-    }
-    os << "]";
-    return os;
-}
-
 bool is_valid_order(const std::vector<size_t>& target_order, bool is_output_transpose) {
     // Check valid input/output transpose order for onednn gemm primitive
     cldnn::format fmt_dummy = cldnn::format::bfyx;
