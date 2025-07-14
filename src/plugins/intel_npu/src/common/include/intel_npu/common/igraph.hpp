@@ -21,6 +21,8 @@ class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph() = default;
 
+    IGraph::IGraph(const Config& config, std::optional<ov::Tensor> blob);
+
     /**
      * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
      * later be used for importing the model.
@@ -37,6 +39,8 @@ public:
     virtual void set_argument_value(uint32_t argi, const void* argv) const = 0;
 
     virtual void initialize(const Config& config) = 0;
+
+    virtual void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) = 0;
 
     virtual ~IGraph() = default;
 
@@ -66,6 +70,8 @@ public:
     virtual uint32_t get_unique_id() = 0;
     virtual void set_last_submitted_id(uint32_t id_index) = 0;
     virtual uint32_t get_last_submitted_id() const = 0;
+
+    virtual uint64_t get_num_subgraphs() const;
 
 protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the

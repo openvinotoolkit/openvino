@@ -420,4 +420,8 @@ Graph::~Graph() {
     }
 }
 
+void Graph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) {
+
+}
+
 }  // namespace intel_npu

@@ -170,7 +170,6 @@ Pipeline::Pipeline(const Config& config,
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
       _logger(logName, _config.get<LOG_LEVEL>()) {}
-
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 
@@ -189,6 +188,7 @@ void Pipeline::push() {
 
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         _command_lists.at(i)->close();
+
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
         if (_sync_output_with_fences) {
             _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
@@ -200,11 +200,12 @@ void Pipeline::push() {
     _logger.debug("Pipeline - push() completed");
 };
 
-void Pipeline::pull() {
+void Pipeline::pull( size_t num_command_lists )
+{
     _logger.debug("Pipeline - pull() started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
+    for (size_t i = 0; i < num_command_lists; ++i) {
         if (_sync_output_with_fences) {
             _fences.at(i)->hostSynchronize();
         } else {
@@ -217,47 +218,28 @@ void Pipeline::pull() {
     }
 
     _logger.debug("Pipeline - pull() completed");
+}
+void Pipeline::pull() {
+    pull(_command_lists.size());
 };
 
 void Pipeline::reset() const {
-    _logger.debug("Pipeline - rest() started");
-
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_sync_output_with_fences) {
-            _fences.at(i)->reset();
-        } else {
-            _events.at(i)->reset();
-        }
-    }
-
-    _logger.debug("Pipeline - rest() completed");
+    reset(_command_lists);
 };
 
 void Pipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
-    const size_t number_of_command_lists = _command_lists.size();
-
-    for (size_t i = 0; i < number_of_command_lists; i++) {
-        _command_lists.at(i)->updateMutableCommandList(
-            arg_index,
-            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists);
-    }
+    update_graph_arguments(arg_index, arg_data, byte_size, _command_lists);
 };
 
 void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
-    const size_t number_of_command_lists = _command_lists.size();
-
-    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
-                    "Command list index is higher than the number of Command lists ",
-                    command_list_index);
-
-    _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
-};
+    update_graph_arguments_batching(arg_index, arg_data, command_list_index, _command_lists);
+}
 
 std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     _logger.debug("InferRequest::get_profiling_info started");

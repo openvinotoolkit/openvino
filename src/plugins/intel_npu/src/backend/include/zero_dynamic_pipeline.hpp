@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifdef NPU_LLVM_BACKEND
+
 #pragma once
 
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
@@ -18,6 +18,56 @@
 namespace intel_npu {
 
 struct DynamicPipeline : public Pipeline {
+    struct PipelinedCommandLists {
+        std::vector<std::unique_ptr<CommandList>> _commandLists;
+        // to store command list handles to pass it to ExecutionEngine
+        std::vector<ze_command_list_handle_t> _commandListHandles;
+        
+        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal) {
+            _commandLists.reserve(numCommandLists);
+            for (size_t i = 0; i < numCommandLists; i++) {
+                _commandLists.emplace_back(
+                    std::make_unique<CommandList>(init_structs, group_ordinal));
+            }
+
+            for (size_t i = 0; i < numCommandLists; i++) {
+                _commandListHandles.push_back(_commandLists[i]->handle());
+            }
+        }
+
+        size_t size() const { return _commandListHandles.size(); }
+
+        ze_command_list_handle_t* data() { return _commandListHandles.data(); }
+
+        std::vector<ze_command_list_handle_t>& getHandles() {
+            return _commandListHandles;
+        }
+
+        void appendBarrier() const {
+            // TODO
+        }
+
+        void appendNpuTimestamp(uint64_t* timestamp_buff) const {
+            // TODO
+        }
+
+        void updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
+            // TODO
+        }
+
+        void appendWaitOnEvent(const std::shared_ptr<Event>& event) {
+            event->AppendWaitOnEvent(**_commandLists.rbegin());
+        }
+
+        void appendReset(const std::shared_ptr<Event>& event) {
+            event->AppendEventReset(**_commandLists.rbegin());
+        }
+
+        void appendSignalEvent(std::shared_ptr<Event>& event) {
+            event->AppendSignalEvent(**_commandLists.rbegin());
+        }
+    };
+
 public:
     DynamicPipeline(const Config& config,
                     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -35,14 +85,10 @@ public:
 
     virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
     virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
-
-    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
-
 protected:
     const std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     const std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
-    std::unique_ptr<mlir::ExecutionEngine> _engine;
+    std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
 };
 
 }  // namespace intel_npu
-#endif
