@@ -22,22 +22,21 @@
 #include "group/epilogue/api.hpp"
 #include "group/epilogue/common.hpp"
 #include "group/epilogue/epilogue_policy.hpp"
+#include "subgroup/tile/api.hpp"
+#include "subgroup/tile/common.hpp"
 
 namespace gpu::xetla::group {
 
 /// @addtogroup xetla_epilogue
 /// @{
 
-/// @brief Is the epilogue functor specialized for epilogue_policy_tile_op and Xe architecture.
-template <typename tile_op_t_, typename tile_shape_, typename mem_desc_c_t_,
-        gpu_arch arch_tag_>
-class epilogue_t<epilogue_policy_tile_op<tile_op_t_, arch_tag_>, tile_shape_,
-        mem_desc_c_t_,
-        std::enable_if_t<(arch_tag_ == gpu_arch::Xe)
+/// @brief Is the epilogue functor specialized for epilogue_policy_default and Xe architecture.
+template <typename tile_shape_, typename mem_desc_c_t_, gpu_arch arch_tag_>
+class epilogue_t<epilogue_policy_default<arch_tag_>, tile_shape_, mem_desc_c_t_,
+        std::enable_if_t<((arch_tag_ == gpu_arch::Xe))
                 && (mem_desc_c_t_::dim == 2)>> {
 public:
-    using epilogue_policy = epilogue_policy_tile_op<tile_op_t_, arch_tag_>;
-    using tile_op_t = typename epilogue_policy::tile_op_t;
+    using epilogue_policy = epilogue_policy_default<arch_tag_>;
     using tile_shape = tile_shape_;
     using mem_desc_c_t = mem_desc_c_t_;
     static constexpr gpu_arch arch_tag = arch_tag_;
@@ -45,39 +44,8 @@ public:
     static constexpr uint32_t slm_size = mem_desc_c_t::is_local
             ? tile_shape::wg_tile_size_x * tile_shape::wg_tile_size_y
             : 0;
-
     /// @brief Epilogue arguments.
-    struct arguments_t {
-        /// @brief Is tile_op arguments, could be a single
-        /// tile_op argument or chained_tile_op_args.
-        typename tile_op_t::arguments_t tile_op_args;
-
-        /// @brief Constructs a new arguments t object.
-        inline arguments_t() = default;
-
-        /// @brief Constructs a new arguments t object.
-        /// @param tile_op_args_ Is tile_op arguments, could be a single
-        /// tile_op argument or chained_tile_op_args.
-        inline arguments_t(typename tile_op_t::arguments_t tile_op_args_)
-            : tile_op_args(tile_op_args_) {}
-        // Be aware of the risks: Rule of three (copy constructor, copy assignment, destructor)
-        // Please check if you need to add self-define destructor
-        // inline ~arguments_t(){}
-        inline arguments_t(const arguments_t &args)
-            : tile_op_args(args.tile_op_args) {}
-
-        inline arguments_t &operator=(const arguments_t &args) {
-            this->tile_op_args = args.tile_op_args;
-            return *this;
-        }
-
-        /// @brief Explicit initialization function.
-        /// @param tile_op_args_ Is tile_op arguments, could be a single
-        /// tile_op argument or chained_tile_op_args.
-        inline void init(typename tile_op_t::arguments_t tile_op_args_) {
-            tile_op_args = tile_op_args_;
-        }
-    };
+    struct arguments_t {};
 
 private:
     using work_group_t = typename tile_shape::work_group_t;
@@ -105,8 +73,7 @@ public:
                                                 : msg_type::scatter);
 
     /// @brief Default epilogue.
-    /// 1) Call tile_op/chained_tile_op 2) Convert dtype_acc to dtype_c
-    /// 3) Overwrite/reduce_sum to memory.
+    /// 1) Convert dtype_acc to dtype_c 2) Overwrite to memory.
     /// @tparam matAcc_t Is the type of the input tile.
     /// @param g Is the workgroup of the current tile.
     /// @param matAcc Is the input tile.
@@ -123,9 +90,6 @@ public:
         using matC_payload_t = subgroup::mem_payload_t<mem_desc_c_t,
                 mat_tile_desc, msg_type_c, arch_tag>;
         update_sg_tile_tdesc(g, mem_desc_c);
-        tile_op_t tile_op;
-        tile_op(matAcc, mem_desc_c.coord, args.tile_op_args, slm_base,
-                nbarrier_base);
         matC_t matC;
         matC_payload_t matC_payload(mem_desc_c);
         subgroup::elemwise_cvt(matC, matAcc);
@@ -134,54 +98,20 @@ public:
     }
 };
 
-/// @brief Is the epilogue functor specialized for epilogue_policy_tile_op and Xe architecture.
-template <typename tile_op_t_, typename tile_shape_, typename mem_desc_c_t_,
-        gpu_arch arch_tag_>
-class epilogue_t<epilogue_policy_tile_op<tile_op_t_, arch_tag_>, tile_shape_,
-        mem_desc_c_t_,
-        std::enable_if_t<(arch_tag_ == gpu_arch::Xe)
+/// @brief Is the epilogue functor specialized for epilogue_policy_default and Xe architecture.
+template <typename tile_shape_, typename mem_desc_c_t_, gpu_arch arch_tag_>
+class epilogue_t<epilogue_policy_default<arch_tag_>, tile_shape_, mem_desc_c_t_,
+        std::enable_if_t<((arch_tag_ == gpu_arch::Xe))
                 && (mem_desc_c_t_::dim == 4)>> {
 public:
-    using epilogue_policy = epilogue_policy_tile_op<tile_op_t_, arch_tag_>;
-    using tile_op_t = typename epilogue_policy::tile_op_t;
+    using epilogue_policy = epilogue_policy_default<arch_tag_>;
     using tile_shape = tile_shape_;
     using mem_desc_c_t = mem_desc_c_t_;
     static constexpr gpu_arch arch_tag = arch_tag_;
     static constexpr uint32_t barrier_count = 0;
     static constexpr uint32_t slm_size = 0;
-
     /// @brief Epilogue arguments.
-    struct arguments_t {
-        /// @brief Is tile_op arguments, could be a single
-        /// tile_op argument or chained_tile_op_args.
-        typename tile_op_t::arguments_t tile_op_args;
-
-        /// @brief Constructs a new arguments t object.
-        inline arguments_t() = default;
-
-        /// @brief Constructs a new arguments t object.
-        /// @param tile_op_args_ Is tile_op arguments, could be a single
-        /// tile_op argument or chained_tile_op_args.
-        inline arguments_t(typename tile_op_t::arguments_t tile_op_args_)
-            : tile_op_args(tile_op_args_) {}
-        // Be aware of the risks: Rule of three (copy constructor, copy assignment, destructor)
-        // Please check if you need to add self-define destructor
-        // inline ~arguments_t(){}
-        inline arguments_t(const arguments_t &args)
-            : tile_op_args(args.tile_op_args) {}
-
-        inline arguments_t &operator=(const arguments_t &args) {
-            this->tile_op_args = args.tile_op_args;
-            return *this;
-        }
-
-        /// @brief Explicit initialization function.
-        /// @param tile_op_args_ Is tile_op arguments, could be a single
-        /// tile_op argument or chained_tile_op_args.
-        inline void init(typename tile_op_t::arguments_t tile_op_args_) {
-            tile_op_args = tile_op_args_;
-        }
-    };
+    struct arguments_t {};
 
 private:
     using work_group_t = typename tile_shape::work_group_t;
@@ -205,7 +135,6 @@ private:
     static constexpr msg_type msg_type_c
             = (mem_space_c == mem_space::global ? msg_type::block_2d
                                                 : msg_type::scatter);
-
     /// @brief Updates tile base descriptor based on the tid.
     __XETLA_API static void update_sg_tile_tdesc(
             work_group_t &g, mem_desc_c_t &mem_desc_c) {
@@ -227,8 +156,7 @@ public:
     static constexpr bool is_2d_block_c = (msg_type_c == msg_type::block_2d);
 
     /// @brief Default epilogue.
-    /// 1) Call tile_op/chained_tile_op 2) Convert dtype_acc to dtype_c
-    /// 3) Overwrite/reduce_sum to memory.
+    /// 1) Convert dtype_acc to dtype_c 2) Overwrite to memory.
     /// @tparam matAcc_t Is the type of the input tile.
     /// @param g Is the workgroup of the current tile.
     /// @param matAcc Is the input tile.
@@ -254,19 +182,9 @@ public:
         for (uint32_t n = 0; n < _sg_tile_n; n++) {
 #pragma unroll
             for (uint32_t p = 0; p < _sg_tile_p; p++) {
-                tile_op_t tile_op;
-
-                typename mem_desc_c_t::shape_t shape = mem_desc_c.shape;
-                typename mem_desc_c_t::coord_t coord = mem_desc_c.coord;
-                int32_t coord_y = (coord.w + n) * shape.z * shape.y
-                        + (coord.z + p) * shape.y + coord.y;
-                mem_coord_t<2> mem_desc_c_coord(mem_desc_c.coord.x, coord_y);
-
-                tile_op(matAcc[n][p], mem_desc_c_coord, args.tile_op_args,
-                        slm_base, nbarrier_base);
-
                 matC_t matC;
                 matC_payload_t matC_payload;
+
                 matC_payload.init(mem_desc_c.get_tdesc());
 
                 subgroup::elemwise_cvt<matC_t, matAcc_t>(matC, matAcc[n][p]);
@@ -286,7 +204,6 @@ public:
         }
     }
 };
-
 /// @} xetla_epilogue
 
 } // namespace gpu::xetla::group

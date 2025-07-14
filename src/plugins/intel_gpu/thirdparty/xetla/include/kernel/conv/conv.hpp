@@ -1,6 +1,5 @@
-
 /*******************************************************************************
-* Copyright (c) 2022-2023 Intel Corporation
+* Copyright (c) 2022-2024 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,13 +19,13 @@
 
 #pragma once
 
-/// @defgroup xetla_epilogue XeTLA EPILOGUE
-/// This is a epilogue API to compute matC = tile_op(matAcc).
+/// @defgroup xetla_conv XeTLA conv
+/// This is a convolution API built on top of xetla group level API to provide a more convenient way
+/// to compose a convoultion kernel.
 
-#include "group/epilogue/api.hpp"
-#include "group/epilogue/common.hpp"
-#include "group/epilogue/epilogue_policy.hpp"
-#include "group/epilogue/impl/default_xe.hpp"
-#include "group/epilogue/impl/groupnorm_reduce.hpp"
-#include "group/epilogue/impl/tile_op_xe.hpp"
-#include "group/tile_shape.hpp"
+#include "kernel/conv/api.hpp"
+#include "kernel/conv/common.hpp"
+#include "kernel/conv/dispatch_policy.hpp"
+#include "kernel/conv/impl/slicing_fwd_xe.hpp"
+#include "kernel/gemm/common.hpp" // since conv use the same checks from namespace details
+#include "kernel/gemm/dispatch_policy.hpp" //do we need the separate for conv or just use from gemm_universal?

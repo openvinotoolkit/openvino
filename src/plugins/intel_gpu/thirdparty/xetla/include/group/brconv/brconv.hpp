@@ -1,6 +1,5 @@
-
 /*******************************************************************************
-* Copyright (c) 2022-2023 Intel Corporation
+* Copyright (c) 2022-2024 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,13 +19,10 @@
 
 #pragma once
 
-/// @defgroup xetla_epilogue XeTLA EPILOGUE
-/// This is a epilogue API to compute matC = tile_op(matAcc).
+/// @defgroup xetla_brconv XeTLA brconv
+/// This is a brconv API to compute convolution.
 
-#include "group/epilogue/api.hpp"
-#include "group/epilogue/common.hpp"
-#include "group/epilogue/epilogue_policy.hpp"
-#include "group/epilogue/impl/default_xe.hpp"
-#include "group/epilogue/impl/groupnorm_reduce.hpp"
-#include "group/epilogue/impl/tile_op_xe.hpp"
-#include "group/tile_shape.hpp"
+#include "group/brconv/api.hpp"
+#include "group/brconv/common.hpp"
+#include "group/brconv/compute_policy.hpp"
+#include "group/brconv/impl/default_fwd_xmx_xe.hpp"

@@ -20,3 +20,4 @@
 #pragma once
 
 #include "kernel/gemm/gemm.hpp"
+#include "kernel/conv/conv.hpp"

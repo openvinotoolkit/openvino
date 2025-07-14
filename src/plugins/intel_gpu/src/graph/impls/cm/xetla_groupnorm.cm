@@ -1,0 +1,195 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+#define XETLA_CODE_BASE __CM__
+
+// Example defines that should be passed from host
+// #define SIZE_N 1
+// #define SIZE_W 512
+// #define SIZE_C 256
+// #define GROUP_COUNT 256
+// #define GROUP_SIZE 1
+// #define SRC_DT fp16
+// #define WEI_DT fp16
+// #define OUT_DT fp16
+// #define ACC_DT float
+// #define WG_TILE_N 1
+// #define WG_TILE_W 16
+// #define WG_TILE_C 256
+// #define SG_TILE_N 1
+// #define SG_TILE_W 4
+// #define SG_TILE_C 32
+
+#include "include/batch_headers/cm_xetla.h"
+
+namespace KERNEL_NAME{
+        using namespace gpu::xetla;
+        using namespace gpu::xetla::group;
+        using namespace gpu::xetla::kernel;
+        using namespace gpu::xetla::subgroup;
+
+        static constexpr uint32_t size_n = SIZE_N;
+        static constexpr uint32_t size_w = SIZE_W;
+        static constexpr uint32_t size_c = SIZE_C;
+        static constexpr uint32_t group_count = GROUP_COUNT;
+        static constexpr uint32_t group_size = GROUP_SIZE;
+
+        using data_type_src = SRC_DT;
+        using data_type_wei = WEI_DT;
+        using data_type_out = OUT_DT;
+        using data_type_acc = ACC_DT;
+
+        static constexpr size_t wg_tile_n = WG_TILE_N;
+        static constexpr size_t wg_tile_w = WG_TILE_W;
+        static constexpr size_t wg_tile_c = WG_TILE_C;
+
+        static constexpr size_t sg_tile_n = SG_TILE_N;
+        static constexpr size_t sg_tile_w = SG_TILE_W;
+        static constexpr size_t sg_tile_c = SG_TILE_C;
+
+        static constexpr size_t acc_block_width = sg_tile_c / 2;
+        static constexpr size_t inner_loops = sg_tile_n * sg_tile_w;
+
+        static constexpr gpu_arch arch_tag = gpu_arch::Xe;
+
+        using mem_desc_src_t
+                = mem_desc_t<data_type_src, mem_layout::row_major, mem_space::global>;
+        using src_tile_desc_t
+                = subgroup::tile_desc_t<sg_tile_c, 1, sg_tile_c, 1, reg_layout::tiled>;
+        using src_tile_t = subgroup::tile_t<data_type_src, src_tile_desc_t>;
+        using src_payload_t = subgroup::mem_payload_t<mem_desc_src_t, src_tile_desc_t,
+                msg_type::block_2d, arch_tag>;
+
+        using mem_desc_dst_t
+                = mem_desc_t<data_type_out, mem_layout::row_major, mem_space::global>;
+        using dst_tile_t = subgroup::tile_t<data_type_out, src_tile_desc_t>;
+        using dst_payload_t = subgroup::mem_payload_t<mem_desc_dst_t, src_tile_desc_t,
+                msg_type::block_2d, arch_tag>;
+
+        using mem_desc_acc_t
+                = mem_desc_t<data_type_acc, mem_layout::row_major, mem_space::global>;
+        using acc_tile_desc_t = subgroup::tile_desc_t<sg_tile_c, 1, acc_block_width, 1,
+                reg_layout::tiled>;
+        using acc_tile_t = subgroup::tile_t<data_type_acc, acc_tile_desc_t>;
+        using acc_payload_t = subgroup::mem_payload_t<mem_desc_acc_t, acc_tile_desc_t,
+                msg_type::block_2d, arch_tag>;
+
+        using mem_desc_weight_t
+                = mem_desc_t<data_type_wei, mem_layout::row_major, mem_space::global>;
+        using weight_tile_t = subgroup::tile_t<data_type_wei, src_tile_desc_t>;
+        using weight_payload_t = subgroup::mem_payload_t<mem_desc_weight_t,
+                src_tile_desc_t, msg_type::block_2d, arch_tag>;
+
+        inline xetla_vector<data_type_acc, sg_tile_c> replicate_groups(
+                xetla_vector<data_type_acc, sg_tile_c> src, size_t c_offset,
+                size_t g_offset) {
+        xetla_vector<data_type_acc, sg_tile_c> result;
+        auto g = 0;
+        auto next_group_start = (g_offset + g + 1) * group_size;
+        #pragma unroll
+        for (unsigned i = 0; i < sg_tile_c; ++i) {
+                if (c_offset + i >= next_group_start) {
+                ++g;
+                next_group_start = (g_offset + g + 1) * group_size;
+                }
+                result.template select<1, 1>(i) = src.template select<1, 1>(g);
+        }
+        return result;
+        }
+
+        void normalize(sycl::nd_item<3> &item, data_type_src *src, data_type_acc *sumx,
+                data_type_acc *sumxsq, data_type_wei *beta, data_type_wei *gamma,
+                data_type_out *dst) {
+        constexpr auto epsilon = static_cast<data_type_acc>(1e-5);
+
+        size_t c_offset
+                = item.get_local_id(0) * sg_tile_c + item.get_group(0) * wg_tile_c;
+        size_t w_offset
+                = item.get_local_id(1) * sg_tile_w + item.get_group(1) * wg_tile_w;
+        size_t n_offset
+                = item.get_local_id(2) * sg_tile_n + item.get_group(2) * wg_tile_n;
+        size_t nw_offset = n_offset * size_w + w_offset;
+        size_t g_offset = c_offset / group_size;
+
+        auto src_payload = src_payload_t(
+                src, size_c, size_n * size_w, size_c, c_offset, nw_offset);
+        auto dst_payload = dst_payload_t(
+                dst, size_c, size_n * size_w, size_c, c_offset, nw_offset);
+        auto sumx_payload = acc_payload_t(
+                sumx, group_count, size_n, group_count, g_offset, n_offset);
+        auto sumxsq_payload = acc_payload_t(
+                sumxsq, group_count, size_n, group_count, g_offset, n_offset);
+        auto beta_payload = weight_payload_t(beta, size_c, 1, size_c, c_offset, 0);
+        auto gamma_payload
+                = weight_payload_t(gamma, size_c, 1, size_c, c_offset, 0);
+
+        src_tile_t src_tile;
+        dst_tile_t dst_tile;
+        acc_tile_t mean_tile, rsqrt_var_tile;
+        weight_tile_t beta_tile, gamma_tile;
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+                mean_tile, sumx_payload);
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+                rsqrt_var_tile, sumxsq_payload);
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+                beta_tile, beta_payload);
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+                gamma_tile, gamma_payload);
+
+        data_type_acc reduce_size = size_w * group_size;
+        mean_tile.reg = mean_tile.reg / reduce_size;
+        rsqrt_var_tile.reg = xetla_rsqrt<data_type_acc, sg_tile_c>(
+                (rsqrt_var_tile.reg / reduce_size) - (mean_tile.reg * mean_tile.reg)
+                + epsilon);
+        auto mean_vec = replicate_groups(mean_tile.reg, c_offset, g_offset);
+        auto rsqrt_var_vec
+                = replicate_groups(rsqrt_var_tile.reg, c_offset, g_offset);
+
+        auto beta_vec
+                = xetla_cvt<data_type_acc, data_type_wei, sg_tile_c>(beta_tile.reg);
+        auto gamma_vec = xetla_cvt<data_type_acc, data_type_wei, sg_tile_c>(
+                gamma_tile.reg);
+        #pragma unroll
+        for (size_t i = 0; i < inner_loops; ++i) {
+                subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+                        src_tile, src_payload);
+                auto tmp = xetla_cvt<data_type_acc, data_type_src, sg_tile_c>(
+                        src_tile.reg);
+                tmp = (tmp - mean_vec) * rsqrt_var_vec;
+                tmp = tmp * gamma_vec + beta_vec;
+
+                dst_tile.reg = xetla_cvt<data_type_out, data_type_acc, sg_tile_c>(tmp);
+                subgroup::tile_store<cache_hint::write_back, cache_hint::write_back>(
+                        dst_tile, dst_payload);
+
+                src_payload.template update_tdesc<tdesc_update_dir::y_dir>(1);
+                dst_payload.template update_tdesc<tdesc_update_dir::y_dir>(1);
+        }
+        }
+
+        extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t src [[type("svmptr_t")]],
+                svmptr_t sumx [[type("svmptr_t")]],
+                svmptr_t sumxsq [[type("svmptr_t")]],
+                svmptr_t beta [[type("svmptr_t")]], 
+                svmptr_t gamma [[type("svmptr_t")]],
+                svmptr_t dst [[type("svmptr_t")]]) {
+
+        sycl::nd_item<3> item;
+        normalize(item, (data_type_src *)src, (data_type_acc *)sumx,
+                (data_type_acc *)sumxsq, (data_type_wei *)beta,
+                (data_type_wei *)gamma, (data_type_out *)dst);
+        }
+}

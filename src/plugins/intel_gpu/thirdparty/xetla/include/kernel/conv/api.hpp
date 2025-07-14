@@ -1,6 +1,5 @@
-
 /*******************************************************************************
-* Copyright (c) 2022-2023 Intel Corporation
+* Copyright (c) 2022-2024 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,13 +19,22 @@
 
 #pragma once
 
-/// @defgroup xetla_epilogue XeTLA EPILOGUE
-/// This is a epilogue API to compute matC = tile_op(matAcc).
+#include "kernel/conv/common.hpp"
 
-#include "group/epilogue/api.hpp"
-#include "group/epilogue/common.hpp"
-#include "group/epilogue/epilogue_policy.hpp"
-#include "group/epilogue/impl/default_xe.hpp"
-#include "group/epilogue/impl/groupnorm_reduce.hpp"
-#include "group/epilogue/impl/tile_op_xe.hpp"
-#include "group/tile_shape.hpp"
+namespace gpu::xetla::kernel {
+
+/// @addtogroup xetla_conv
+/// @{
+
+/// @brief conv_fwd functor.
+/// The basic functionality of xetla conv is to calculate the convolution.
+///
+/// @tparam dispatch_policy Is the dispatch algorithm of the conv implementation.
+/// @tparam brconv_t Is the brconv functor.
+/// @tparam epilogue_t Is the epilogue functor.
+template <typename dispatch_policy, typename brconv_t, typename epilogue_t>
+class conv_fwd_t {};
+
+/// @} xetla_conv
+
+} // namespace gpu::xetla::kernel

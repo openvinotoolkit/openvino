@@ -7,6 +7,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/convolution.hpp>
+#include <intel_gpu/primitives/group_normalization.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/crop.hpp>
@@ -11476,3 +11477,306 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_3d_test,
     { ov::Shape{1, 16, 5, 5, 5}, ov::Shape{2, 16, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{1, 1, 1}, ov::CoordinateDiff{1, 1, 1}, 1, false },
     { ov::Shape{1, 16, 5, 5, 5}, ov::Shape{16, 1, 1, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{0, 0, 0}, ov::CoordinateDiff{0, 0, 0}, 16, false }
 }));
+
+
+TEST(convolution_gpu, cm_convolution_basic) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    int input_b = 1, input_f = 512, input_y = 5, input_x = 9;
+    int output_b = 1, output_f = 512, output_y = 5, output_x = 9;
+    int kernel_size=3;
+    int groups=1;
+    ov::Strides stride = {1, 1}, dilation={1, 1};
+    ov::CoordinateDiff padding_beg = {1, 1}, padding_end={1, 1};
+
+    auto input_size = tensor(input_b, input_f, input_x, input_y);
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data_flat = flatten_4d(format::byxf, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::byxf, input_size });
+    set_values(input_mem, input_data_flat);
+
+    auto weights_size = tensor(output_f, input_f, kernel_size, kernel_size); // oiyx (bfyx) is default but XeTLA expects hwio (yxio or yxfb)
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, kernel_size, kernel_size, -1, 1);
+    auto weights_data_flat = flatten_4d(format::yxfb, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::yxio, weights_size });
+    set_values(weights_mem, weights_data_flat);
+
+    auto input = input_layout("input", input_mem->get_layout());
+    auto weights = data("weights", weights_mem);
+    auto conv = convolution("conv", input_info("input"), "weights", no_bias, groups, stride, dilation, padding_beg, padding_end, false);
+    auto output_reorder = reorder("reorder", input_info("conv"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
+
+    topology topology_test(input, weights, conv, output_reorder);
+    topology topology_ref(input, weights, conv, output_reorder);
+
+    ExecutionConfig config_test = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::byxf, "", impl_types::cm };
+    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_test } }));
+    config_test.set_property(ov::intel_gpu::optimize_data(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl_ref } }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network_test(engine, topology_test, config_test);
+    network network_ref(engine, topology_ref, config_ref);
+
+    network_test.set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
+
+    ASSERT_EQ(outputs_test.size(), size_t(1));
+    ASSERT_EQ(outputs_test.begin()->first, "reorder");
+    ASSERT_EQ(outputs_ref.size(), size_t(1));
+    ASSERT_EQ(outputs_ref.begin()->first, "reorder");
+
+    auto val_test = get_output_values_to_float(network_test, outputs_test.begin()->second);
+    auto val_ref = get_output_values_to_float(network_ref, outputs_ref.begin()->second);
+
+    ASSERT_EQ(val_ref.size(), val_test.size());
+    for (size_t i = 0; i < val_ref.size(); i++) {
+        ASSERT_NEAR(val_ref[i], val_test[i], 1e-5f)
+            << "tolerance = " << 1e-5f
+            << "\ni = " << i
+            << "\nref[i] = " << val_ref[i]
+            << "\ntest[i] = " << val_test[i];
+    }
+} 
+
+TEST(convolution_gpu, cm_convolution_post_ops) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    int input_b = 1, input_f = 512, input_y = 5, input_x = 9;
+    int output_b = 1, output_f = 512, output_y = 5, output_x = 9;
+    int kernel_size=3;
+    int groups=1;
+    ov::Strides stride = {1, 1}, dilation={1, 1};
+    ov::CoordinateDiff padding_beg = {1, 1}, padding_end={1, 1};
+
+    auto input_size = tensor(input_b, input_f, input_x, input_y);
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, 0, 0);
+    auto input_data_flat = flatten_4d(format::byxf, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::byxf, input_size });
+    set_values(input_mem, input_data_flat);
+
+    auto residual_size = tensor(output_b, output_f, output_x, output_y);
+    auto residual_data = rg.generate_random_4d<ov::float16>(output_b, output_f, output_y, output_x, -1, 1);
+    auto residual_data_flat = flatten_4d(format::byxf, residual_data);
+    auto residual_mem = engine.allocate_memory({ data_types::f16, format::byxf, residual_size });
+    set_values(residual_mem, residual_data_flat);
+
+    auto bias_size = tensor(1, output_f, 1, 1);
+    auto bias_data = rg.generate_random_4d<ov::float16>(1, output_f, 1, 1, -1, 1);
+    auto bias_data_flat = flatten_4d(format::byxf, bias_data);
+    auto bias_mem = engine.allocate_memory({ data_types::f16, format::byxf, bias_size });
+    set_values(bias_mem, bias_data_flat);
+
+    auto scale_size = tensor(1, output_f, 1, 1);
+    auto scale_data = rg.generate_random_4d<ov::float16>(1, output_f, 1, 1, -1, 1);
+    auto scale_data_flat = flatten_4d(format::byxf, scale_data);
+    auto scale_mem = engine.allocate_memory({ data_types::f16, format::byxf, scale_size });
+    set_values(scale_mem, scale_data_flat);
+
+    auto shift_size = tensor(1, output_f, 1, 1);
+    auto shift_data = rg.generate_random_4d<ov::float16>(1, output_f, 1, 1, -1, 1);
+    auto shift_data_flat = flatten_4d(format::byxf, shift_data);
+    auto shift_mem = engine.allocate_memory({ data_types::f16, format::byxf, shift_size });
+    set_values(shift_mem, shift_data_flat);
+
+    auto weights_size = tensor(output_f, input_f, kernel_size, kernel_size); // oiyx (bfyx) is default but XeTLA expects hwio (yxio or yxfb)
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, kernel_size, kernel_size, 0, 0);
+    auto weights_data_flat = flatten_4d(format::yxfb, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::yxio, weights_size });
+    set_values(weights_mem, weights_data_flat);
+
+    auto input = input_layout("input", input_mem->get_layout());
+    auto residual = data("residual", residual_mem);
+    auto bias = data("bias", bias_mem);
+    auto scale = data("scale", scale_mem);
+    auto shift = data("shift", shift_mem);
+    auto weights = data("weights", weights_mem);
+    auto conv_1 = convolution("conv_1", input_info("input"), "weights", "bias", groups, stride, dilation, padding_beg, padding_end, false);
+    auto reorder_1 = reorder("reorder_1", input_info("conv_1"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
+    auto conv_2 = convolution("conv_2", input_info("input"), "weights", "bias", groups, stride, dilation, padding_beg, padding_end, false);
+    auto add_2 = eltwise("add_2", { input_info("conv_2"), input_info("residual") }, eltwise_mode::sum);
+    auto reorder_2 = reorder("reorder_2", input_info("add_2"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
+    auto conv_3 = convolution("conv_3", input_info("input"), "weights", "bias", groups, stride, dilation, padding_beg, padding_end, false);
+    auto add_3_1 = eltwise("add_3_1", { input_info("conv_3"), input_info("residual") }, eltwise_mode::sum);
+    auto prod_3 = eltwise("prod_3", { input_info("add_3_1"), input_info("scale") }, eltwise_mode::prod);
+    auto add_3_2 = eltwise("add_3_2", { input_info("prod_3"), input_info("shift") }, eltwise_mode::sum);
+    auto reorder_3 = reorder("reorder_3", input_info("add_3_2"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
+    auto conv_4 = convolution("conv_4", input_info("input"), "weights", no_bias, groups, stride, dilation, padding_beg, padding_end, false);
+    auto add_4 = eltwise("add_4", { input_info("conv_4"), input_info("residual") }, eltwise_mode::sum);
+    auto reorder_4 = reorder("reorder_4", input_info("add_4"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
+    auto conv_5 = convolution("conv_5", input_info("input"), "weights", no_bias, groups, stride, dilation, padding_beg, padding_end, false);
+    auto add_5_1 = eltwise("add_5_1", { input_info("conv_5"), input_info("residual") }, eltwise_mode::sum);
+    auto prod_5 = eltwise("prod_5", { input_info("add_5_1"), input_info("scale") }, eltwise_mode::prod);
+    auto add_5_2 = eltwise("add_5_2", { input_info("prod_5"), input_info("shift") }, eltwise_mode::sum);
+    auto reorder_5 = reorder("reorder_5", input_info("add_5_2"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
+
+    topology topology_test(input, residual, bias, scale, shift, weights,
+        conv_1, reorder_1,
+        conv_2, add_2, reorder_2,
+        conv_3, add_3_1, prod_3, add_3_2, reorder_3,
+        conv_4, add_4, reorder_4,
+        conv_5, add_5_1, prod_5, add_5_2, reorder_5
+    );
+    topology topology_ref(input, residual, bias, scale, shift, weights,
+        conv_1, reorder_1,
+        conv_2, add_2, reorder_2,
+        conv_3, add_3_1, prod_3, add_3_2, reorder_3,
+        conv_4, add_4, reorder_4,
+        conv_5, add_5_1, prod_5, add_5_2, reorder_5
+    );
+
+    ExecutionConfig config_test = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::byxf, "", impl_types::cm };
+    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ 
+        { "conv_1", conv_impl_test }, 
+        { "conv_2", conv_impl_test }, 
+        { "conv_3", conv_impl_test }, 
+        { "conv_4", conv_impl_test },
+        { "conv_5", conv_impl_test }
+    }));
+    config_test.set_property(ov::intel_gpu::optimize_data(true));
+
+    ExecutionConfig config_ref = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::bfyx, "", impl_types::ocl };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ 
+        { "conv_1", conv_impl_ref }, 
+        { "conv_2", conv_impl_ref }, 
+        { "conv_3", conv_impl_ref }, 
+        { "conv_4", conv_impl_ref }, 
+        { "conv_5", conv_impl_ref }
+    }));
+    config_ref.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network_test(engine, topology_test, config_test);
+    network network_ref(engine, topology_ref, config_ref);
+
+    network_test.set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
+
+    ASSERT_EQ(outputs_test.size(), size_t(5));
+    ASSERT_EQ(outputs_ref.size(), size_t(5));
+    // Those checks will pass also if eltwise layers remain unfused
+    // Need to check fusing manually with OV_VERBOSE=4
+    // TODO: Add check for fusing
+    for (const auto &[id, output] : outputs_test)
+    {
+        auto val_test = get_output_values_to_float(network_test, output);
+        auto val_ref = get_output_values_to_float(network_test, outputs_ref.at(id));
+        ASSERT_EQ(val_ref.size(), val_test.size());
+        for (size_t i = 0; i < val_ref.size(); i++) {
+        ASSERT_NEAR(val_ref[i], val_test[i], 1e-5f)
+            << "tolerance = " << 1e-5f
+            << "\ni = " << i
+            << "\nref[i] = " << val_ref[i]
+            << "\ntest[i] = " << val_test[i];
+        }
+    }
+}
+
+TEST(convolution_gpu, cm_convolution_groupnorm){
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    int input_b = 1, input_f = 512, input_y = 5, input_x = 9;
+    int output_b = 1, output_f = 512, output_y = 5, output_x = 9;
+    int kernel_size=3;
+    int groups=1;
+    ov::Strides stride = {1, 1}, dilation={1, 1};
+    ov::CoordinateDiff padding_beg = {1, 1}, padding_end={1, 1};
+
+    auto input_size = tensor(input_b, input_f, input_x, input_y);
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, 0, 0);
+    auto input_data_flat = flatten_4d(format::byxf, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::byxf, input_size });
+    set_values(input_mem, input_data_flat);
+
+    auto residual_size = tensor(output_b, output_f, output_x, output_y);
+    auto residual_data = rg.generate_random_4d<ov::float16>(output_b, output_f, output_y, output_x, -1, 1);
+    auto residual_data_flat = flatten_4d(format::byxf, residual_data);
+    auto residual_mem = engine.allocate_memory({ data_types::f16, format::byxf, residual_size });
+    set_values(residual_mem, residual_data_flat);
+
+    auto bias_size = tensor(1, output_f, 1, 1);
+    auto bias_data = rg.generate_random_4d<ov::float16>(1, output_f, 1, 1, 1, 1);
+    auto bias_data_flat = flatten_4d(format::byxf, bias_data);
+    auto bias_mem = engine.allocate_memory({ data_types::f16, format::byxf, bias_size });
+    set_values(bias_mem, bias_data_flat);
+
+    auto scale_size = tensor(1, output_f, 1, 1);
+    auto scale_data = rg.generate_random_4d<ov::float16>(1, output_f, 1, 1, 1, 1);
+    auto scale_data_flat = flatten_4d(format::byxf, scale_data);
+    auto scale_mem = engine.allocate_memory({ data_types::f16, format::byxf, scale_size });
+    set_values(scale_mem, scale_data_flat);
+
+    auto shift_size = tensor(1, output_f, 1, 1);
+    auto shift_data = rg.generate_random_4d<ov::float16>(1, output_f, 1, 1, -1, 1);
+    auto shift_data_flat = flatten_4d(format::byxf, shift_data);
+    auto shift_mem = engine.allocate_memory({ data_types::f16, format::byxf, shift_size });
+    set_values(shift_mem, shift_data_flat);
+
+    auto weights_size = tensor(output_f, input_f, kernel_size, kernel_size); // oiyx (bfyx) is default but XeTLA expects hwio (yxio or yxfb)
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, kernel_size, kernel_size, 0, 0);
+    auto weights_data_flat = flatten_4d(format::yxfb, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::yxio, weights_size });
+    set_values(weights_mem, weights_data_flat);
+
+    auto input = input_layout("input", input_mem->get_layout());
+    auto residual = data("residual", residual_mem);
+    auto bias = data("bias", bias_mem);
+    auto scale = data("scale", scale_mem);
+    auto shift = data("shift", shift_mem);
+    auto weights = data("weights", weights_mem);
+    auto conv_1 = convolution("conv_1", input_info("input"), "weights", "bias", groups, stride, dilation, padding_beg, padding_end, false);
+    auto groupnorm_1 = group_normalization("groupnorm_1", input_info("conv_1"), input_info("scale"), input_info("bias"), (int64_t)groups, (double)1e-10f);
+    auto reorder_1 = reorder("reorder_1", input_info("groupnorm_1"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
+
+    topology topology_test(input, residual, bias, scale, shift, weights,
+        conv_1, groupnorm_1, reorder_1
+    );
+
+    ExecutionConfig config_test = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl_test = { format::byxf, "", impl_types::cm };
+    config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        { "conv_1", conv_impl_test }
+    }));
+    config_test.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network_test(engine, topology_test, config_test);
+
+    network_test.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+
+    ASSERT_EQ(outputs_test.size(), size_t(1));
+    // Those checks will pass also if eltwise layers remain unfused
+    // Need to check fusing manually with OV_VERBOSE=4
+    // TODO: Add check for fusing
+    for (const auto &[id, output] : outputs_test)
+    {
+        auto val_test = get_output_values_to_float(network_test, output);
+        for (size_t i = 0; i < val_test.size(); i++) {
+        ASSERT_EQ(1, val_test[i])
+            << "\ni = " << i
+            << "\ntest[i] = " << val_test[i]
+            << "!= 1";
+        }
+    }
+}
