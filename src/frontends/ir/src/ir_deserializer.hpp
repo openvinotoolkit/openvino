@@ -15,8 +15,6 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "openvino/pass/weights_map.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "utils.hpp"
 
@@ -192,7 +190,6 @@ private:
     // -- DATA --
     const pugi::xml_node m_node;
     const std::shared_ptr<ov::AlignedBuffer>& m_weights;
-    const ov::pass::WeightsMap* m_weights_map = nullptr;  // WeightsMap is used for weights serialization
     const std::unordered_map<std::string, ov::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
