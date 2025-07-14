@@ -9,12 +9,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "pyopenvino/core/common.hpp"
 #include <pyopenvino/graph/op.hpp>
-#include "pyopenvino/utils/utils.hpp"
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "pyopenvino/core/common.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
