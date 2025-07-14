@@ -180,47 +180,24 @@ TEST_P(SerializationTest, SaveModelByPath) {
 // The new pass and original pass all can not pass tests
 TEST_P(SerializationTest, SerializeWithMap) {
     CompareSerialized([this](const auto& m) {
-        // Serialize model with weights map
-        // const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
         std::stringstream xmlStringStream;
-        ov::pass::WeightsMapWrapper weightsMapWrapper;
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
-        // manager.register_pass<ov::pass::Serialize>(xmlStringStream, offsetConstMap);
-        // manager.run_passes(m);
         ov::pass::Serialize(xmlStringStream, &weightsMapWrapper).run_on_model(m);
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
+
         // Read model with the xml and weights map
         std::vector<uint8_t> weightsMapPtrData(sizeof(void*));
-        void* weightsMapPtr = weightsMapWrapper.get();
-        std::memcpy(weightsMapPtrData.data(), &weightsMapPtr, sizeof(void*));
-        std::cout << "weightsMap:" << weightsMapPtr << std::endl;
-        std::cout << "weightsMapWrapperPtrData size: " << weightsMapPtrData.size() << std::endl;
-        std::cout << "weightsMapWrapperPtrData data: " << reinterpret_cast<void*>(weightsMapPtrData.data())
-                  << std::endl;
         ov::Tensor weightsTensor =
             ov::Tensor(ov::element::u8, {sizeof(void*)}, reinterpret_cast<uint8_t*>(weightsMapPtrData.data()));
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
         ov::Core core;
         auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
         ov::serialize(modelNew, m_out_xml_path, m_out_bin_path);
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
     });
 }
 
 TEST_P(SerializationTest, SerializeWithNormalPass) {
     CompareSerialized([this](const auto& m) {
-        // Serialize model with weights map
-        // const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
         std::stringstream xmlStringStream;
         std::stringstream weightsStream;
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
-        // manager.register_pass<ov::pass::Serialize>(xmlStringStream, offsetConstMap);
-        // manager.run_passes(m);
         ov::pass::Serialize(xmlStringStream, weightsStream).run_on_model(m);
-        std::cout << __func__ << ":" << __LINE__ << std::endl;
         // Read model with the xml and weights map
         std::string weights = weightsStream.str();
         std::vector<uint8_t> weightsData(weights.size() + 1);

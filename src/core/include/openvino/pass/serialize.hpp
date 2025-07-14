@@ -15,25 +15,6 @@
 namespace ov {
 namespace pass {
 
-class OPENVINO_API WeightsMapWrapper {
-public:
-    WeightsMapWrapper() = default;
-    ~WeightsMapWrapper();
-
-    void set(void* map) {
-        m_weightsMap = map;
-    }
-
-    void* get() const {
-        return m_weightsMap;
-    }
-
-    size_t size();
-
-private:
-    void* m_weightsMap = nullptr;
-};
-
 /**
  * @brief Serialize transformation converts ov::Model into IR files
  * @attention
@@ -57,14 +38,14 @@ public:
               const std::filesystem::path& binPath,
               Version version = Version::UNSPECIFIED);
 
-    Serialize(std::ostream& xmlFile, WeightsMapWrapper* weightsMapWrapper, Version version = Version::UNSPECIFIED);
+    Serialize(std::ostream& xmlFile, Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream* m_xmlFile;
     std::ostream* m_binFile;
     const std::filesystem::path m_xmlPath;
     const std::filesystem::path m_binPath;
-    WeightsMapWrapper* m_weightsMapWrapper = nullptr;
+    bool m_weightsToXml = false;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
