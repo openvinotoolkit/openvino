@@ -17,10 +17,10 @@ namespace intel_npu::driver_compiler_utils {
 
 IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
                            const uint32_t supportedOpset,
-                           ov::pass::WeightsMapWrapper* weightsMapWrapper)
+                           bool serializeWeightsPtrToXml)
     : _logger("IRSerializer", Logger::global().level()),
       _supportedOpset(supportedOpset),
-      _weightsMapWrapper(weightsMapWrapper) {
+      _serializeWeightsPtrToXml(serializeWeightsPtrToXml) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     _model = std::const_pointer_cast<ov::Model>(origModel);
@@ -31,20 +31,18 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
         _logger.info("Clone model for offset smaller than 11");
     }
 
-    if (_weightsMapWrapper) {
+    if (_serializeWeightsPtrToXml) {
         // Serialize directly to avoid size counter
         std::stringstream xmlStream;
         std::ofstream weightsStream;
-        serializeModelToStream(xmlStream, weightsStream, weightsMapWrapper);
+        serializeModelToStream(xmlStream, weightsStream);
         _xmlString = xmlStream.str();
     } else {
         countModelSize();
     }
 }
 
-void IRSerializer::serializeModelToStream(std::ostream& xml,
-                                          std::ostream& weights,
-                                          ov::pass::WeightsMapWrapper* weightsMapWrapper) {
+void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
@@ -55,14 +53,14 @@ void IRSerializer::serializeModelToStream(std::ostream& xml,
         _logger.info("Downgrade op for opset smaller than 11");
     }
 
-    if (!weightsMapWrapper) {
-        _logger.debug("Weights map is not provided, using default serialization");
+    if (!_serializeWeightsPtrToXml) {
+        _logger.debug("using default serialization");
         // If weights map is not provided, we use the default serialization
         manager.register_pass<ov::pass::Serialize>(xml, weights);
     } else {
-        _logger.debug("Weights map is provided, using weights map serialization");
+        _logger.debug("serialize weights pointer to xml");
         // If weights map is provided, we serialize to the map
-        manager.register_pass<ov::pass::Serialize>(xml, weightsMapWrapper);
+        manager.register_pass<ov::pass::Serialize>(xml);
     }
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
@@ -113,13 +111,10 @@ void IRSerializer::countModelSize() {
 void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer");
 
-    if (_weightsMapWrapper) {
+    if (_serializeWeightsPtrToXml) {
         strcpy(reinterpret_cast<char*>(xml), _xmlString.c_str());
         xml[_xmlString.size()] = '\0';  // Null-terminate the string
-        void* weightsPtr = _weightsMapWrapper->get();
-        memcpy(weights, &weightsPtr, sizeof(void*));
-        std::cout << "serializeModelToBuffer: weightsMapPtr: " << weightsPtr << std::endl;
-        std::cout << "weights: " << reinterpret_cast<void*>(weights) << std::endl;
+        *weights = 0;                   // Placeholder for weights
     } else {
         writer_streambuf xmlStreamBuf(xml);
         writer_streambuf weightsStreamBuf(weights);

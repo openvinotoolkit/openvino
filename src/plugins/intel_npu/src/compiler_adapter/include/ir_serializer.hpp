@@ -22,10 +22,10 @@ class IRSerializer {
 public:
     IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
                  const uint32_t supportedOpset = 11,
-                 ov::pass::WeightsMapWrapper* weightsMapWrapper = nullptr);
+                 bool serializeWeightsPtrToXml = false);
 
     size_t getXmlSize() const {
-        if (_weightsMapWrapper) {
+        if (_serializeWeightsPtrToXml) {
             // Use stingstream to get xml if we use weights map
             return _xmlString.size() + 1;
         } else {
@@ -35,9 +35,9 @@ public:
     }
 
     size_t getWeightsSize() const {
-        if (_weightsMapWrapper) {
-            // Store pointer to buffer if we use weights map
-            return sizeof(void*);
+        if (_serializeWeightsPtrToXml) {
+            // placeholder
+            return 1;
         } else {
             // Store weights content to buffer
             return _weightsSize;
@@ -53,9 +53,7 @@ private:
     /**
      * @brief Serialize OpenVINO model to target stream
      */
-    void serializeModelToStream(std::ostream& xml,
-                                std::ostream& weights,
-                                ov::pass::WeightsMapWrapper* weightsMapWrapper = nullptr);
+    void serializeModelToStream(std::ostream& xml, std::ostream& weights);
 
     /**
      * @brief Get size of xml and weights from model
@@ -67,7 +65,7 @@ private:
     uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
-    ov::pass::WeightsMapWrapper* _weightsMapWrapper = nullptr;
+    bool _serializeWeightsPtrToXml = false;
     std::string _xmlString;
 };
 

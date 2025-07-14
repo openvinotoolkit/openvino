@@ -59,8 +59,7 @@ private:
 
     SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
                              ze_graph_compiler_version_info_t compilerVersion,
-                             const uint32_t supportedOpsetVersion,
-                             ov::pass::WeightsMapWrapper* weightsMapWrapper) const;
+                             const uint32_t supportedOpsetVersion) const;
 
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t compilerVersion) const;
 
