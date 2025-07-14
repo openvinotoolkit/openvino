@@ -32,6 +32,28 @@
 
 namespace py = pybind11;
 
+// Conditional GIL management for PEP 703 (free-threaded Python)
+#if defined(Py_GIL_DISABLED) && Py_GIL_DISABLED
+struct gil_scoped_release_if_gil {
+    gil_scoped_release_if_gil() {}
+};
+struct gil_scoped_acquire_if_gil {
+    gil_scoped_acquire_if_gil() {}
+};
+// For free-threaded Python, we don't need call_guard - use empty call_guard
+#define CALL_GUARD_GIL_RELEASE_IF_GIL pybind11::call_guard<>()
+#else
+struct gil_scoped_release_if_gil {
+    pybind11::gil_scoped_release release;
+    gil_scoped_release_if_gil() {}
+};
+struct gil_scoped_acquire_if_gil {
+    pybind11::gil_scoped_acquire acquire;
+    gil_scoped_acquire_if_gil() {}
+};
+#define CALL_GUARD_GIL_RELEASE_IF_GIL pybind11::call_guard<pybind11::gil_scoped_release>()
+#endif
+
 namespace Common {
 namespace utils {
 
