@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "../eltwise.hpp"
 #include "acl_utils.hpp"
 #include "arm_compute/runtime/NEON/NEFunctions.h"
+#include "nodes/executors/eltwise.hpp"
 
 namespace ov::intel_cpu {
 
