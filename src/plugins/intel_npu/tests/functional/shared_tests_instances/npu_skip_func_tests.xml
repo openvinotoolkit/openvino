@@ -878,17 +878,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#167305 -->
-    <skip_config>
-        <message>Failing test on Ubuntu after NPU driver update</message>
-        <enable_rules>
-            <operating_system>linux</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*TestCompiledModelNPU.samePlatformProduceTheSameBlobCacheEnabled.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#170977 -->
     <skip_config>
         <message>Tests currently skipped until u2 precision fully supported (need NPU compiler alignment/driver update)</message>
