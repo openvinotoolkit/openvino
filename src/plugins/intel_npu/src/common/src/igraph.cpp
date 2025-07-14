@@ -51,6 +51,11 @@ IGraph::IGraph(NetworkMetadata metadata, const Config& config, std::optional<ov:
       _blob(std::move(blob)),
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
+IGraph::IGraph(const Config& config, std::optional<ov::Tensor> blob)
+    : _handle(nullptr),
+      _blob(std::move(blob)),
+      _logger("IGraph", config.get<LOG_LEVEL>()) {}
+
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
 }
@@ -265,6 +270,10 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata,
 
 const std::optional<std::size_t> IGraph::get_batch_size() const {
     return _batch_size;
+}
+
+uint64_t IGraph::get_num_subgraphs() const {
+    return _num_of_subgraphs;
 }
 
 }  // namespace intel_npu

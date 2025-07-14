@@ -19,6 +19,7 @@
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_memory.hpp"
 #include "zero_variable_state.hpp"
+#include "zero_pipeline.hpp"
 
 #ifdef NPU_LLVM_BACKEND
 #    include "zero_dynamic_pipeline.hpp"
@@ -266,7 +267,6 @@ void ZeroInferRequest::create_pipeline() {
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
 
-#ifdef NPU_LLVM_BACKEND
     if (_graph->get_handle() == nullptr) {
         // Construct pipeline
         _pipeline = std::make_unique<DynamicPipeline>(_config,
@@ -276,7 +276,6 @@ void ZeroInferRequest::create_pipeline() {
                                                       _levelZeroOutputTensors,
                                                       batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
     } else
-#endif
     {
     // Construct pipeline
     _pipeline = std::make_unique<Pipeline>(_config,
