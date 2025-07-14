@@ -52,7 +52,7 @@ public:
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
-    [[nodiscard]] const size_t get_scratch_a_size() const;
+    [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
     [[nodiscard]] size_t get_scratch_b_size() const;
     [[nodiscard]] static size_t get_mblk_size() {

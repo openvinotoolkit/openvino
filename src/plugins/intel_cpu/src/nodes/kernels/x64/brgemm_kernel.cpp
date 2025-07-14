@@ -222,11 +222,11 @@ BrgemmKernel::BrgemmKernel(size_t M,
     }
 }
 
-const size_t BrgemmKernel::get_scratch_a_size() const {
+size_t BrgemmKernel::get_scratch_a_size() const {
     return packedASize;
 }
 
-const size_t BrgemmKernel::get_scratch_b_size() const {
+size_t BrgemmKernel::get_scratch_b_size() const {
     return packedBSize;
 }
 
