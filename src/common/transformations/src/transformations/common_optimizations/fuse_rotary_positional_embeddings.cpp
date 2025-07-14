@@ -351,9 +351,9 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     MATCHER_SCOPE(RoPEFusionCosSinPreprocess);
 
     auto cos_const =
-        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[1,1,2048,24]"));
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32));
     auto sin_const =
-        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[1,1,2048,24]"));
+        pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32));
 
     auto node_batch_size = pattern::any_input(pattern::type_matches(element::i32) && pattern::shape_matches("[1]"));
     auto tile_batch = pattern::any_input(pattern::type_matches(element::i32) && pattern::shape_matches("[1]"));
@@ -373,17 +373,18 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         auto slice_Slice = pattern::wrap_type<v8::Slice>({const_tab, {0}, seq_len, {1}, {2}});
         auto slice_StridedSlice = NewGenStridedSlice(const_tab, {0, 0, 0}, ScatterUpdate, {1, 1, 1}, 2);
         auto squeeze = pattern::wrap_type<v1::Reshape>({slice_StridedSlice | slice_Slice, pattern::any_input()},
-                                                       pattern::shape_matches("[-1, head_dims]"));
+                                                       pattern::shape_matches("[?, head_dims]"));
         auto index_Gather = pattern::wrap_type<v8::Gather>({squeeze, gather_positions_2d, 0}, {{"batch_dims", 0}});
 
         // another simplified pattern for gathering at position_ids
         auto slice_Slice2 = pattern::wrap_type<v8::Slice>({const_tab, {0}, seq_len, {1}, {0}});
         auto slice_StridedSlice2 = NewGenStridedSlice(const_tab, {0}, seq_len, {1}, 0);
-        auto index_Gather2 = pattern::wrap_type<v8::Gather>({slice_Slice2 | slice_StridedSlice2, gather_positions_2d, 0},
-                                                            {{"batch_dims", 0}});
+        auto index_Gather2 =
+            pattern::wrap_type<v8::Gather>({slice_Slice2 | slice_StridedSlice2, gather_positions_2d, 0},
+                                           {{"batch_dims", 0}});
 
-        auto unsqueeze = pattern::wrap_type<v1::Reshape>({index_Gather | index_Gather2},
-                                                          pattern::shape_matches("[1, 1, -1, head_dims]"));
+        auto unsqueeze = pattern::wrap_type<v1::Reshape>({index_Gather | index_Gather2, pattern::any_input()},
+                                                        pattern::shape_matches("[1, 1, ?, head_dims]"));
         auto unsqueeze2 = pattern::wrap_type<v0::Unsqueeze>({index_Gather2, 1});
 
         return unsqueeze2 | unsqueeze;
