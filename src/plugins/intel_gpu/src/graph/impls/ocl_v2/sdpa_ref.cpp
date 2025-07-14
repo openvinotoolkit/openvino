@@ -165,5 +165,5 @@ std::unique_ptr<primitive_impl> SDPARef::create_impl(const program_node& node, c
 
 }  // namespace ov::intel_gpu::ocl
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scaled_dot_product_attention)
+// BIND_BINARY_BUFFER_WITH_TYPE(cldnn::scaled_dot_product_attention)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::SDPARefImpl)

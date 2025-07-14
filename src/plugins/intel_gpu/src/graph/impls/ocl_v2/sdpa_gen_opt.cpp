@@ -124,7 +124,7 @@ Arguments SDPAOptGeneratorBase::get_arguments_desc_impl(const kernel_impl_params
     }
 
     auto desc = params.typed_desc<scaled_dot_product_attention>();
-    size_t data_inputs_num = get_data_inputs_num(*desc);
+    size_t data_inputs_num = stage == SDPAStage::FINALIZATION ? 0 : get_data_inputs_num(*desc);
     auto has_zp_input_buffers = desc->get_compression_zp_inputs_num() > 0;
 
     const size_t attn_mask_idx = 3;
