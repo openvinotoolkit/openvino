@@ -306,15 +306,15 @@ TEST_P(InferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
 
     auto execNetDynamic = ie->compile_model(dynamicTypeModel, target_device, configuration);
     ov::InferRequest reqDynamic;
-    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
-    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqDynamic.infer());
+    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request()) << "Dynamic type network create_infer_request failed";
+    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor)) << "Dynamic type network set_tensor failed";
+    OV_ASSERT_NO_THROW(reqDynamic.infer()) << "Dynamic type network infer failed";
 
     auto execNetUndefined = ie->compile_model(undefinedTypeModel, target_device, configuration);
     ov::InferRequest reqUndefined;
-    OV_ASSERT_NO_THROW(reqUndefined = execNetUndefined.create_infer_request());
-    OV_ASSERT_NO_THROW(reqUndefined.set_tensor(inputName, inTensor));
-    OV_ASSERT_NO_THROW(reqUndefined.infer());
+    OV_ASSERT_NO_THROW(reqUndefined = execNetUndefined.create_infer_request()) << "Undefined network create_infer_request failed";
+    OV_ASSERT_NO_THROW(reqUndefined.set_tensor(inputName, inTensor)) << "Undefined network set_tensor failed";
+    OV_ASSERT_NO_THROW(reqUndefined.infer()) << "Undefined network infer failed";
 
     // compare the reference outputs between dynamic type model and undefined type model
     ASSERT_TRUE(compareTensorOutputs(reqDynamic.get_tensor(outputName), reqUndefined.get_tensor(outputName)))
