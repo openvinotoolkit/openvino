@@ -5,8 +5,8 @@
 #pragma once
 
 /**
- * @brief Defines initialize node runtime information pass
- * @file init_node_info.hpp
+ * @brief Defines the transformation pass to disable FP16 compression for periodic functions
+ * @file disable_f16_comp_for_periodic_funcs.hpp
  */
 
 #include <memory>
@@ -21,18 +21,23 @@ namespace intel_gpu {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief DisableFP16CompressionForPeriodicFuncs transformation helps to set runtime info attributes in a single place.
+ * @brief DisableFP16CompressionForPeriodicFuncs is a transformation pass that disables FP16 compression
+ * for specific nodes in the computation graph, particularly periodic functions like Sin and Cos.
  *
- * Every runtime info attribute that needs to be initialized should be registered
- * in run_on_function method. Also do not forget to override init methods for registered
- * attribute.
- * This transformations should be called first in transformation pipeline. If attribute was
- * already set initialization will be skipped for this node.
+ * This transformation traverses the graph to identify nodes that modify values and disables FP16 compression
+ * for those nodes. It ensures that FP16 compression is not applied to nodes where precision loss could
+ * negatively impact the computation results.
+ *
+ * Specifically, for periodic functions like Sin and Cos, this transformation analyzes their inputs and identifies
+ * the first node that performs calculations using inputs not classified as non-value-modifying nodes (as determined
+ * by the is_non_value_modifying_node function). FP16 compression is disabled for such nodes to ensure computational
+ * accuracy and prevent precision loss
  */
 class DisableFP16CompressionForPeriodicFuncs : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("DisableFP16CompressionForPeriodicFuncs");
     DisableFP16CompressionForPeriodicFuncs();
 };
+
 }  // namespace intel_gpu
 }  // namespace ov

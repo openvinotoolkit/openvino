@@ -44,64 +44,39 @@ static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const pr
     if (it == precisions.end())
         return false;
     const auto& to = it->second;
-
-    if (convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
-        // For Convert node, converting precision from numerical data types to boolean will lead to mathematical
-        // error, because here the output precision boolean is replaced by u8:
-        //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
-        //  - either float or int values should be clipped with the interval [0; 1] to mimic bool cast behavior, i.e.
-        //  0 - is false, 1 - is true
-        //  - to perform clamping correctly an Abs op should be inserted before Clamp
-        // Thus an Abs, Ceil and Clamp nodes should be added before the Convert node for this scenario.
-        ov::pass::NodeRegistry reg;
-        const auto& in_prec = convert->get_input_element_type(0);
-        auto parent_node = convert->input_value(0).get_node_shared_ptr();
-        auto item = precisions.find(in_prec);
-        if (item != precisions.end()) {
-            // Add convert node for unsupported precision, such as FP64 or INT64
-            parent_node = reg.make<ov::op::v0::Convert>(parent_node, item->second);
-        }
-        if (in_prec.is_signed()) {
-            parent_node = reg.make<ov::op::v0::Abs>(parent_node);
-        }
-        if (in_prec.is_real()) {
-            parent_node = reg.make<ov::op::v0::Ceiling>(parent_node);
-        }
-        parent_node = reg.make<ov::op::v0::Clamp>(parent_node, 0, 1);
-        const auto new_convert = reg.make<ov::op::v0::Convert>(parent_node, to);
-        new_convert->set_friendly_name(convert->get_friendly_name());
-        ov::copy_runtime_info(convert, reg.get());
-        ov::replace_node(convert, new_convert);
-        return true;
-    }
     convert->set_convert_element_type(to);
     return true;
 }
+
+static std::string name_mul = "mul_1";
+static std::string name_add = "add_1";
+static std::string name_sin = "sin";
+static std::string name_cos = "cos";
 
 static std::shared_ptr<ov::Model> create_model_with_periodic_func() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, -1, 3 });
     auto constant_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, { -1 });
     auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(input, constant_1 );
 
-    auto constant_121628_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1,1,341 }, { 3.14062f });
-    auto constant_121628 = std::make_shared<ov::op::v0::Convert>(constant_121628_compressed, ov::element::f32);
+    auto constant_2_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1,1,341 }, { 3.14062f });
+    auto constant_2 = std::make_shared<ov::op::v0::Convert>(constant_2_compressed, ov::element::f32);
 
-    auto multiply_119729 = std::make_shared<ov::op::v1::Multiply>(unsqueeze_1, constant_121628);
-    multiply_119729->set_friendly_name("multiply_119729");
+    auto multiply_1 = std::make_shared<ov::op::v1::Multiply>(unsqueeze_1, constant_2);
+    multiply_1->set_friendly_name(name_mul);
 
-    auto constant_121629_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1,1,341 }, { -1.57031f });
-    auto constant_121629 = std::make_shared<ov::op::v0::Convert>(constant_121629_compressed, ov::element::f32);
-    auto constant_46098 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 4 }, { 0, 1, 3, 2 });
+    auto constant_3_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1,1,341 }, { -1.57031f });
+    auto constant_3 = std::make_shared<ov::op::v0::Convert>(constant_3_compressed, ov::element::f32);
+    auto constant_4 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 4 }, { 0, 1, 3, 2 });
 
-    auto add_46097 = std::make_shared<ov::op::v1::Add>(multiply_119729, constant_121629);
-    add_46097->set_friendly_name("add_46097");
-    auto transpose_1 = std::make_shared<ov::op::v1::Transpose>(add_46097, constant_46098);
+    auto add_1 = std::make_shared<ov::op::v1::Add>(multiply_1, constant_3);
+    add_1->set_friendly_name(name_add);
+    auto transpose_1 = std::make_shared<ov::op::v1::Transpose>(add_1, constant_4);
     auto reshape_1 = std::make_shared<ov::op::v1::Reshape>(transpose_1, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 3 }, { 0, 0, 1023 }), false);
 
     auto sin = std::make_shared<ov::op::v0::Sin>(reshape_1);
-    sin->set_friendly_name("sin");
+    sin->set_friendly_name(name_sin);
     auto cos = std::make_shared<ov::op::v0::Cos>(reshape_1);
-    cos->set_friendly_name("cos");
+    cos->set_friendly_name(name_cos);
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin, cos}, 2);
 
     return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
@@ -150,10 +125,10 @@ TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTest) {
 
     bool success = false;
     for (auto& ops : func->get_ops()) {
-        if (ops->get_friendly_name() == "sin"
-            || ops->get_friendly_name() == "cos"
-            || ops->get_friendly_name() == "multiply_119729"
-            || ops->get_friendly_name() == "add_46097") {
+        if (ops->get_friendly_name() == name_sin
+            || ops->get_friendly_name() == name_cos
+            || ops->get_friendly_name() == name_mul
+            || ops->get_friendly_name() == name_add) {
             if (!ov::fp16_compression_is_disabled(ops)) {
                 success = false;
                 break;
