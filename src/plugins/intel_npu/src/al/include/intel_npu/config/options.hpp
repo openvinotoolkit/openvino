@@ -345,10 +345,6 @@ struct COMPILED_BLOB final : OptionBase<COMPILED_BLOB, ov::Tensor> {
         return ov::Tensor();
     }
 
-    static bool isPublic() {
-        return true;
-    }
-
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RW;
     }
