@@ -7,6 +7,10 @@ To run samples, install dependencies first. In current directory run:
 npm install
 ```
 
+If you use the master branch, the openvino-node version is not released. Please follow 
+[this instruction](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#build) 
+to build the latest version of OpenVINO Node from source, or switch to one of the previous releases.
+
 Note: Perform this step also before running notebooks.
 
 ## Samples
