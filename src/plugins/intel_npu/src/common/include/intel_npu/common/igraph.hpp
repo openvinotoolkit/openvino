@@ -19,6 +19,8 @@ class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
 
+    IGraph::IGraph(const Config& config, std::optional<ov::Tensor> blob);
+
     virtual size_t export_blob(std::ostream& stream) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
@@ -27,6 +29,8 @@ public:
     virtual void set_argument_value(uint32_t argi, const void* argv) const = 0;
 
     virtual void initialize(const Config& config) = 0;
+
+    virtual void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) = 0;
 
     virtual ~IGraph() = default;
 
@@ -50,9 +54,9 @@ public:
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
     uint32_t get_last_submitted_id() const;
-
+    uint64_t get_num_subgraphs() const;
     const std::optional<std::size_t> get_batch_size() const;
-
+    
 protected:
     /**
      * @brief Determines if batching can be addressed inside the plugin. In the positive case, the batch size used by
@@ -75,6 +79,12 @@ protected:
 
     ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;
+
+    /**
+     * @brief Stores the number of subgraphs for dynamic models
+     * @note the number of subgraphs will be one for static models
+     */
+    uint64_t _num_of_subgraphs = 1;
 
     std::vector<ArgumentDescriptor> _input_descriptors;
     std::vector<ArgumentDescriptor> _output_descriptors;

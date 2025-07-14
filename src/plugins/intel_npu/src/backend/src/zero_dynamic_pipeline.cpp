@@ -85,10 +85,12 @@ DynamicPipeline::DynamicPipeline(const Config& config,
 
     // TODO: How many command list shall we create here? one for input to update tensor, one for output to update
     // tensor, then how to deal with batch
+    uint64_t num_of_subgraphs = _graph->get_num_subgraphs();
+
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         _command_lists.emplace_back(
-            std::make_unique<CommandList>(_init_structs, _graph->get_command_queue_group_ordinal()));
+            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, _graph->get_command_queue_group_ordinal()));
     }
 
     if (_sync_output_with_fences) {
@@ -159,7 +161,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             if (_graph->get_last_submitted_event(i)) {
                 // TODO: this wait shall for the final execution, but if multiple graph inside IR, how to wait? And
                 // still no graph handle, IR shall maintain this
-                _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
+                _command_lists.at(i)->appendWaitOnEvent(_graph->get_last_submitted_event(i));
             }
         }
 
@@ -184,10 +186,10 @@ DynamicPipeline::DynamicPipeline(const Config& config,
         if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
             _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
-                _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
+                _command_lists.at(i)->appendReset(_graph->get_last_submitted_event(i));
             }
 
-            _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
+            _command_lists.at(i)->appendSignalEvent(_events.at(i));
             _graph->set_last_submitted_event(_events.at(i), i);
         }
 
@@ -195,114 +197,19 @@ DynamicPipeline::DynamicPipeline(const Config& config,
         if (!_sync_output_with_fences) {
             // TODO: if we have multiple commandlist inside IR, then the barrier seems useless here.
             _command_lists.at(i)->appendBarrier();
-            _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
+            _command_lists.at(i)->appendSignalEvent(_events.at(i));
         }
     }
-
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
-    mlir::DialectRegistry _registry;
-    std::unique_ptr<mlir::MLIRContext> _context;
-    mlir::registerAllToLLVMIRTranslations(_registry);
-    _context = std::make_unique<mlir::MLIRContext>(_registry);
-
-    std::ostringstream oss;
-    _graph->export_blob(oss);
-    std::string _blob = std::move(oss.str());
-    llvm::StringRef content(_blob);
-
-    std::cout << "Creating MemoryBuffer " << content.size() << std::endl;
-    auto llvmBlob = llvm::MemoryBuffer::getMemBuffer(content, "LLVMBlob", false);
-    auto sourceMgr = std::make_shared<llvm::SourceMgr>();
-    sourceMgr->AddNewSourceBuffer(std::move(llvmBlob), llvm::SMLoc());
-    mlir::OwningOpRef<mlir::Operation*> module = mlir::parseSourceFile<mlir::ModuleOp>(*sourceMgr, _context.get());
-    if (!module) {
-        OPENVINO_THROW("Failed to parse MLIR module");
-    }
-
-    std::cout << "Creating JITTargetMachineBuilder" << std::endl;
-    auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
-    if (!tmBuilderOrError) {
-        OPENVINO_THROW("Failed to create JITTargetMachineBuilder");
-    }
-    std::cout << "Creating TargetMachine for " << tmBuilderOrError->getCPU() << std::endl;
-    std::cout << "Target triple " << tmBuilderOrError->getTargetTriple().normalize() << std::endl;
-
-    auto tmOrError = tmBuilderOrError->createTargetMachine();
-    if (!tmOrError) {
-        OPENVINO_THROW("Failed to create TargetMachine");
-    }
-    std::cout << "TargetMachine created" << std::endl;
-
-    mlir::ExecutionEngineOptions engineOptions;
-    engineOptions.jitCodeGenOptLevel = llvm::CodeGenOptLevel::None;
-
-    llvm::SmallVector<mlir::StringRef, 4> sharedLibs;
-    #ifndef _WIN32
-    sharedLibs.push_back("libmlir_runner_utils.so");
-    sharedLibs.push_back("libmlir_c_runner_utils.so");
-    sharedLibs.push_back("liblevel_zero_wrapper.so");
-    #else
-    sharedLibs.push_back("mlir_runner_utils.dll");
-    sharedLibs.push_back("mlir_c_runner_utils.dll");
-    sharedLibs.push_back("level_zero_wrapper.dll");
-    #endif
-    engineOptions.sharedLibPaths = sharedLibs;
-    engineOptions.enableObjectDump = true;
-
-    std::cout << "Creating engine" << std::endl;
-    auto expectedEngine = mlir::ExecutionEngine::create(*module, engineOptions, std::move(tmOrError.get()));
-    if (!expectedEngine) {
-        OPENVINO_THROW("Failed to create execution engine");
-    }
-    std::cout << "Engine created" << std::endl;
-    _engine = std::move(*expectedEngine);
-    auto expectedFPtr = _engine->lookupPacked("main");
-    if (!expectedFPtr) {
-        OPENVINO_THROW("Failed to lookup main function");
-    }
-
-    _logger.debug("DynamicPipeline - initialize completed");
 }
 
 void DynamicPipeline::push() {
     _logger.debug("DynamicPipeline - push() started");
     _logger.debug("inputs.size = %d, outputs.size=%d", _levelZeroInputTensors.size(), _levelZeroOutputTensors.size());
-    _command_lists.at(0)->reset();
 
-    const std::shared_ptr<ov::ITensor>& input = _levelZeroInputTensors.at(0).at(0);
-    const std::shared_ptr<ov::ITensor>& output = _levelZeroOutputTensors.at(0);
-    std::vector<int64_t> inputShape(input->get_shape().begin(), input->get_shape().end());
-    llvm::ArrayRef<int64_t> inputShapeRef(inputShape);
-
-    std::vector<int64_t> outputShape(output->get_shape().begin(), output->get_shape().end());
-    llvm::ArrayRef<int64_t> outputShapeRef(outputShape);
-
-    auto inputd0 = mlir::detail::makeStridedMemRefDescriptor<4, float>(static_cast<float*>(input->data()),
-                                                                       static_cast<float*>(input->data()),
-                                                                       inputShapeRef,
-                                                                       inputShapeRef);
-    auto outputd0 = mlir::detail::makeStridedMemRefDescriptor<4, float>(static_cast<float*>(output->data()),
-                                                                        static_cast<float*>(output->data()),
-                                                                        outputShapeRef,
-                                                                        outputShapeRef);
     void* contextHandlePtr = _init_structs->getContext();
     void* deviceHandlePtr = _init_structs->getDevice();
     void* ddiTableHandlePtr = _init_structs->getGraphDdiTable().getImpl();
-    void* commandListHandlePtr = _command_lists.at(0)->handle();
-
-    // TODO: function shall accept profiling handle like ze_graph_profiling_pool_handle_t
-    llvm::Error error = _engine->invoke("main",
-                                        &inputd0,
-                                        &outputd0,
-                                        contextHandlePtr,
-                                        deviceHandlePtr,
-                                        ddiTableHandlePtr,
-                                        commandListHandlePtr);
-    if (error) {
-        OPENVINO_THROW("Error invoking main: " + llvm::toString(std::move(error)));
-    }
+   
 
     // TODO: if we support batch, need close more. If we have multiple graph inside IR, need know which to close
     //_command_lists.at(0)->close();
@@ -320,63 +227,40 @@ void DynamicPipeline::push() {
         _graph->set_last_submitted_id(_id);
     }
 
+    auto commandQueueHandle = _graph->get_command_queue()->handle();
     for (size_t i = 0; i < _command_lists.size(); ++i) {
-        _command_lists.at(i)->close();
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+
+        auto& commandLists = _command_lists.at(i);
+
+        ze_fence_handle_t fence = nullptr;
+        ze_event_handle_t event = nullptr;
         if (_sync_output_with_fences) {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i), *_fences.at(i));
-        } else {
-            _graph->get_command_queue()->executeCommandList(*_command_lists.at(i));
+            fence = _fences.at(i)->handle();
         }
+        else {
+            // TODO
+        }
+
+        _graph->execute(_init_structs, _command_lists.at(i)->getHandles(), commandQueueHandle, fence, event, nullptr);
     }
 
     _logger.debug("DynamicPipeline - push() completed");
 }
 
 void DynamicPipeline::pull() {
-    _logger.debug("DynamicPipeline - pull() started");
-    OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "DynamicPipeline", "pull");
-
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_sync_output_with_fences) {
-            _fences.at(i)->hostSynchronize();
-        } else {
-            _events.at(i)->hostSynchronize();
-        }
-        /// sample npu timestamps if feature was activated
-        if (_npu_profiling != nullptr) {
-            _npu_profiling->sampleNpuTimestamps();
-        }
-    }
-
-    _logger.debug("DynamicPipeline - pull() completed");
+    Pipeline::pull(_command_lists.size());
 };
 
 void DynamicPipeline::reset() const {
-    _logger.debug("DynamicPipeline - rest() started");
-
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_sync_output_with_fences) {
-            _fences.at(i)->reset();
-        } else {
-            _events.at(i)->reset();
-        }
-    }
-
-    _logger.debug("DynamicPipeline - rest() completed");
+    Pipeline::reset(_command_lists);
 };
 
 void DynamicPipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size) {
-    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
-    _logger.debug("DynamicPipeline - updateCommandList");
+    OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
+    _logger.debug("Pipeline - updateCommandList");
 
-    const size_t number_of_command_lists = _command_lists.size();
-
-    for (size_t i = 0; i < number_of_command_lists; i++) {
-        _command_lists.at(i)->updateMutableCommandList(
-            arg_index,
-            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists);
-    }
+    Pipeline::update_graph_arguments(arg_index, arg_data, byte_size, _command_lists);
 };
 
 void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
@@ -388,37 +272,8 @@ void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
                       "updateCommandListIndex");
     _logger.debug("DynamicPipeline - updateCommandListIndex");
 
-    const size_t number_of_command_lists = _command_lists.size();
-
-    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
-                    "Command list index is higher than the number of Command lists ",
-                    command_list_index);
-
-    _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
+    update_graph_arguments_batching(arg_index, arg_data, command_list_index);
 };
-
-std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
-    _logger.debug("InferRequest::get_profiling_info started");
-    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
-        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
-        return {};
-    }
-
-    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
-        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
-        return _npu_profiling->getNpuInferStatistics();
-    }
-    /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::MLIR) {
-        // For plugin compiler retreive raw profiling data from backend and delegate
-        // processing to the compiler
-        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
-    } else {
-        _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
-        return _profiling_query->getLayerStatistics();
-    }
-}
 
 }  // namespace intel_npu
 
