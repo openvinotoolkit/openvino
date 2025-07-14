@@ -29,6 +29,7 @@
 #include "gather_inst.h"
 #include "gather_nd_inst.h"
 #include "gather_elements_inst.h"
+#include "group_normalization_inst.h"
 #include "scatter_update_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
@@ -1270,12 +1271,27 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
+    
+        auto fuse_groupnorm_f = [&](group_normalization_node& groupnorm_node) {
+            auto& input_data = groupnorm_node.get_dependency(0);
 
-        program_helpers::do_for_types<activation, quantize, eltwise>(*node,
-                fuse_activation_f,
-                fuse_quantize_f,
-                fuse_eltwise_f);
-    }
+            if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+                return;
+
+            if (!input_data.is_type<convolution>() || !conv_supports_fusings(input_data.as<convolution>()))
+                return;
+
+            if (!(lo.get_preferred_impl_type(input_data.as<convolution>(), format::byxf) == impl_types::cm))
+                return;
+
+            p.fuse_nodes(input_data, groupnorm_node, &fusing_history);
+        };
+
+        program_helpers::do_for_types<activation, quantize, eltwise, group_normalization>(*node,
+            fuse_activation_f,
+            fuse_quantize_f,
+            fuse_eltwise_f,
+            fuse_groupnorm_f);
 
     // Need to update processing order to handle cases when peer node processing number is greater
     // than fused node one
