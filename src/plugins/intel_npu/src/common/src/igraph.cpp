@@ -19,6 +19,11 @@ IGraph::IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config&
       _blob(std::move(blob)),
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
+IGraph::IGraph(const Config& config, std::optional<ov::Tensor> blob)
+    : _handle(nullptr),
+      _blob(std::move(blob)),
+      _logger("IGraph", config.get<LOG_LEVEL>()) {}
+
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
 }
@@ -89,6 +94,10 @@ void IGraph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t IGraph::get_last_submitted_id() const {
     return _last_submitted_id;
+}
+
+uint64_t IGraph::get_num_subgraphs() const {
+    return _num_of_subgraphs;
 }
 
 std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata) {
