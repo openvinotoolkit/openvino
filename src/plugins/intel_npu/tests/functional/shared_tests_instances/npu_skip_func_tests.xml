@@ -669,20 +669,6 @@ Example:
 
     <!-- E#112064 -->
     <skip_config>
-        <message>Failing Linux core threading tests</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <operating_system>linux</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel/.*</filter>
-            <filter>.*CoreThreadingTestsWithIter.smoke_CompileModel_MultipleCores/.*</filter>
-            <filter>.*CoreThreadingTestsWithIter.nightly_AsyncInfer_ShareInput/.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#112064 -->
-    <skip_config>
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <backend>LEVEL0</backend>
@@ -703,17 +689,6 @@ Example:
             <filter>.*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
             <!-- E#133153 -->
             <filter>.*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#117582 -->
-    <skip_config>
-        <message>Failing core threading test with cache enabled</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*CoreThreadingTest.*CoreThreadingTestsWithCacheEnabled.*</filter>
         </filters>
     </skip_config>
 
