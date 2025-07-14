@@ -660,23 +660,17 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStream, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
     ov::AnyMap npu_plugin_properties = properties;
-    ov::Tensor tensor;
-    bool blobAllocatedByPlugin = true;
 
-    std::istream stream{origStream.rdbuf()};
-    ov::SharedStreamBuffer buffer{nullptr, 0};  // used only if blob is given by tensor
-
-    if (auto blob_it = npu_plugin_properties.find(ov::hint::compiled_blob.name());
-        blob_it != npu_plugin_properties.end()) {
-        tensor = blob_it->second.as<ov::Tensor>();
-        blobAllocatedByPlugin = false;
-        buffer = ov::SharedStreamBuffer(reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size());
-        stream.rdbuf(&buffer);
-        npu_plugin_properties.erase(blob_it);
+    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
+    // list of properties
+    if (npu_plugin_properties.find(ov::hint::compiled_blob.name()) != npu_plugin_properties.end()) {
+        _logger.warning("ov::hint::compiled_blob is no longer supported for import_model(stream) API! Please use new "
+                        "import_model(tensor) API instead.");
+        npu_plugin_properties.erase(ov::hint::compiled_blob.name());
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel =
@@ -698,18 +692,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& origStrea
             }
             blobSize = metadata->get_blob_size();
         }
-        if (blobAllocatedByPlugin) {  // tensor was not received from ov::compiled_blob property, copy from stream
-            tensor = ov::Tensor(ov::element::u8, ov::Shape{blobSize});
-            if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-                OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-            }
-            stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-        } else {
-            tensor = ov::Tensor(tensor,
-                                ov::Coordinate{0},
-                                ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize});
+        if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+            OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
-        compiledModel = parse(tensor, std::move(metadata), blobAllocatedByPlugin, npu_plugin_properties);
+        stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
+        compiledModel = parse(tensor, std::move(metadata), /* blobAllocatedByPlugin = */ true, npu_plugin_properties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
@@ -874,7 +862,8 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
     return graph;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob, const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob,
+                                                         const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
