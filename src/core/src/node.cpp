@@ -554,7 +554,7 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
         if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
-            OPENVINO_LOG_NODE3(matcher, get_input_size());
+            OPENVINO_LOG_NODE3(matcher);
             return true;
         }
         OPENVINO_LOG_NODE4(matcher, get_input_size());
