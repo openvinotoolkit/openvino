@@ -82,28 +82,28 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
         // Traverse inputs to find the first node that modifies values and disable FP16 compression
         std::function<void(const std::shared_ptr<ov::Node>&)> find_and_disable_fp16_compression = [&](const std::shared_ptr<ov::Node>& current_node) {
             for (const auto& input : current_node->inputs()) {
-                auto next_node = input.get_source_output().get_node_shared_ptr();
-                if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(next_node)) {
+                auto input_node = input.get_source_output().get_node_shared_ptr();
+                if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input_node)) {
                     // If the next node is a constant, skip it
                     continue;
                 }
 
-                if (auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(next_node)) {
+                if (auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(input_node)) {
                     // If the next node is a parameter, skip it
                     continue;
                 }
 
-                if (ov::fp16_compression_is_disabled(next_node)) {
+                if (ov::fp16_compression_is_disabled(input_node)) {
                     // If FP16 compression is already disabled, continue to the next input
                     return;
                 }
 
-                if (is_non_value_modifying_node(next_node)) {
+                if (is_non_value_modifying_node(input_node)) {
                     // Skip nodes that do not modify values and recursively traverse their inputs
-                    return find_and_disable_fp16_compression(next_node);
+                    return find_and_disable_fp16_compression(input_node);
                 } else {
                     // Disable FP16 compression for the first node that modifies values
-                    ov::disable_fp16_compression(next_node);
+                    ov::disable_fp16_compression(input_node);
                     return;
                 }
             }
