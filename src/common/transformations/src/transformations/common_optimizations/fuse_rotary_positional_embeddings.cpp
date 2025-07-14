@@ -1124,8 +1124,8 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     auto multiply = pattern::wrap_type<op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
 
     // MatMul pattern 
-    auto matmul = pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, 
-                                                     {{"transpose_a", false}, {"transpose_b", false}});
+    auto matmul = 
+        pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
 
     // Transpose pattern
     auto transpose = pattern::wrap_type<op::v1::Transpose>({matmul, {0, 2, 1}});
