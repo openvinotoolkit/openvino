@@ -565,8 +565,9 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
-    if (!fusedWith.empty())
+    if (!fusedWith.empty()) {
         return false;
+    }
 #endif
     return canFuseSimpleOperation(node);
 }

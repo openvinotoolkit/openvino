@@ -6,14 +6,22 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/node.hpp"
 
-#ifdef ENABLE_OPENVINO_DEBUG
+namespace ov::util {
 
-namespace ov {
-namespace util {
+using LogCallback = std::function<void(std::string_view)>;
+
+/** @brief Logs the message using current log callback object.
+ * @param [in] message text to be logged.
+ */
+OPENVINO_API
+void log_message(std::string_view message);
+
+#ifdef ENABLE_OPENVINO_DEBUG
 
 class OPENVINO_API LevelString {
 private:
@@ -556,10 +564,7 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
                                   (status ? "  ALL ARGUMENTS MATCHED" : "  ARGUMENTS DIDN'T MATCH")); \
         } while (0);
 
-}  // namespace util
-}  // namespace ov
-
-#else
+#else  // ENABLE_OPENVINO_DEBUG
 
 #    define OPENVINO_LOG_GENPATTERN1(...) \
         do {                              \
@@ -699,4 +704,5 @@ OPENVINO_API std::string node_with_arguments(const ov::Node& node);
         do {                            \
         } while (0)
 
-#endif
+#endif  // ENABLE_OPENVINO_DEBUG
+}  // namespace ov::util

@@ -55,7 +55,7 @@ public:
 
     void assignState(const std::shared_ptr<VariableStateKVcache>& state, int idx);
 
-    const std::vector<size_t> getKVCacheOrder() const {
+    std::vector<size_t> getKVCacheOrder() const {
         const auto& permute_axes = m_config.config.permute_axes;
         std::vector<size_t> real_order = m_kvstate_layout;
         if (!permute_axes.empty()) {
