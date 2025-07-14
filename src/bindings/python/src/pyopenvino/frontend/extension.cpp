@@ -15,6 +15,7 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -40,15 +41,15 @@ void regclass_frontend_TelemetryExtension(py::module m) {
                             const std::string& action,
                             const std::string& label,
                             int value) {
-                py::gil_scoped_acquire acquire;
+                gil_scoped_acquire_if_gil acquire;
                 (*send_event_sp)(category, action, label, value);
             },
             [send_error_sp](const std::string& category, const std::string& error_message) {
-                py::gil_scoped_acquire acquire;
+                gil_scoped_acquire_if_gil acquire;
                 (*send_error_sp)(category, error_message);
             },
             [send_stack_trace_sp](const std::string& category, const std::string& error_message) {
-                py::gil_scoped_acquire acquire;
+                gil_scoped_acquire_if_gil acquire;
                 (*send_stack_trace_sp)(category, error_message);
             });
     }));
@@ -125,7 +126,7 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
 
     ext.def(py::init([](py::function& callback) {
         return std::make_shared<ProgressReporterExtension>([callback](float a, unsigned int b, unsigned int c) {
-            py::gil_scoped_acquire acquire;
+            gil_scoped_acquire_if_gil acquire;
             callback(a, b, c);
         });
     }));
