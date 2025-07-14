@@ -169,17 +169,16 @@ bool is_verbose_logging();
                                   graph_value.get_partial_shape());                                         \
         } while (0)
 
-#    define OPENVINO_LOG_NODE2(matcher, num_arguments)                                                        \
-        do {                                                                                                  \
-            bool _non_empty_args = num_arguments != 0;                                                        \
-            OPENVINO_LOG_MATCHING(                                                                            \
-                matcher,                                                                                      \
-                ov::util::LevelString::get(),                                                                 \
-                (_non_empty_args != 0 ? OPENVINO_BLOCK_BODY_RIGHT : OPENVINO_BLOCK_END),                      \
-                OPENVINO_GREEN,                                                                               \
-                " NODES' TYPE AND PREDICATE MATCHED.",                                                        \
-                (_non_empty_args != 0 ? " CHECKING " + std::to_string(num_arguments) + " PATTERN ARGUMENTS: " \
-                                        : ""));                                                               \
+#    define OPENVINO_LOG_NODE2(matcher, num_arguments)                                                                \
+        do {                                                                                                          \
+            bool _non_empty_args = num_arguments != 0;                                                                \
+            OPENVINO_LOG_MATCHING(                                                                                    \
+                matcher,                                                                                              \
+                ov::util::LevelString::get(),                                                                         \
+                (_non_empty_args != 0 ? OPENVINO_BLOCK_BODY_RIGHT : OPENVINO_BLOCK_END),                              \
+                OPENVINO_GREEN,                                                                                       \
+                " NODES' TYPE AND PREDICATE MATCHED.",                                                                \
+                (_non_empty_args != 0 ? " CHECKING " + std::to_string(num_arguments) + " PATTERN ARGUMENTS: " : "")); \
         } while (0)
 
 #    define OPENVINO_LOG_NODE3(matcher)                         \
