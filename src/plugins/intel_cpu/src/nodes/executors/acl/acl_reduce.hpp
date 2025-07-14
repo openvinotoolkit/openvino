@@ -14,7 +14,7 @@ namespace ov::intel_cpu {
 
 class AclReduceExecutor : public ReduceExecutor {
 public:
-    AclReduceExecutor(const ExecutorContext::CPtr context);
+    AclReduceExecutor(ExecutorContext::CPtr context);
 
     bool init(const ReduceAttrs& reduceAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
