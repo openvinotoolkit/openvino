@@ -47,7 +47,7 @@ public:
                                                   bool frontend_mode = false) const = 0;
 
     /**
-     * @brief Reads IR xml and bin from buffer
+     * @brief Reads IR xml and bin from buffer. This method is not exposed to public API.
      * @param model shared pointer to aligned buffer with IR
      * @param weights shared pointer to aligned buffer with weights
      * @return shared pointer to ov::Model
@@ -156,6 +156,29 @@ public:
      * @return A pointer to compiled model
      */
     virtual ov::SoPtr<ov::ICompiledModel> import_model(std::istream& modelStream,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
+                                                       const ov::AnyMap& config = {}) const = 0;
+    /**
+     * @brief Creates a compiled model from a previously exported model
+     * @param model model stream
+     * @param device_name Name of device load executable model on
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A pointer to compiled model
+     */
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& model,
+                                                       const std::string& device_name,
+                                                       const ov::AnyMap& config = {}) const = 0;
+
+    /**
+     * @brief Creates a compiled model from a previously exported model
+     * @param model model stream
+     * @param context Remote context
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return A pointer to compiled model
+     */
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& modelStream,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config = {}) const = 0;
 
