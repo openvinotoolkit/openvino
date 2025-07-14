@@ -1013,6 +1013,12 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+
+            if (need_reset_output_memory() && !can_be_optimized() &&
+                _outputs[i]->from_memory_pool && _outputs[i]->get_layout().data_padding) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
+                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
+            }
         }
     }
 
@@ -1183,7 +1189,12 @@ bool primitive_inst::use_async_compilation() {
         compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
     }
 
-    return (get_node().is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
+    bool compile_conv_impls = get_node().is_type<convolution>();
+    if (compile_conv_impls) {
+        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+    }
+
+    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
             (get_node().is_type<softmax>() && get_node().get_selected_impl() &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -2205,16 +2216,25 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             }
         }
 
-        // TODO: Remove WA for arg_max_min node.
-        // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
-        // but kernels always write both outputs to the same memory object which leads to wrong result.
-        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()
-                                                       && !node.is_type<experimental_detectron_roi_feature_extractor>()) {
-            for (auto& user : node.get_users())
-                if (user->is_type<mutable_data>())
-                    _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+            // sum post-op can use the input buffer as the output buffer
+            auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
+            const auto& eltw_inst = _network.get_primitive(eltw_node.id());
+            auto& eltw_mem = eltw_inst->output_memory();
+            auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
+            _outputs.push_back(new_mem);
         } else {
-            _outputs = allocate_outputs();
+            // TODO: Remove WA for arg_max_min node.
+            // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
+            // but kernels always write both outputs to the same memory object which leads to wrong result.
+            if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>() &&
+                !node.is_type<experimental_detectron_roi_feature_extractor>()) {
+                for (auto& user : node.get_users())
+                    if (user->is_type<mutable_data>())
+                        _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+            } else {
+                _outputs = allocate_outputs();
+            }
         }
     }
     if (_node) {
