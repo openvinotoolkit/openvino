@@ -169,18 +169,20 @@ bool is_verbose_logging();
                                   graph_value.get_partial_shape());                                         \
         } while (0)
 
-#    define OPENVINO_LOG_NODE2(matcher, num_arguments)                                                                                    \
-        do {                                                                                                                              \
-            bool non_empty_args___ = num_arguments != 0;                                                                                  \
-            OPENVINO_LOG_MATCHING(matcher,                                                                                                \
-                                  ov::util::LevelString::get(),                                                                           \
-                                  (non_empty_args___ != 0 ? OPENVINO_BLOCK_BODY_RIGHT : OPENVINO_BLOCK_END),                              \
-                                  OPENVINO_GREEN,                                                                                         \
-                                  " NODES' TYPE AND PREDICATE MATCHED.",                                                                  \
-                                  (non_empty_args___ != 0 ? " CHECKING " + std::to_string(num_arguments) + " PATTERN ARGUMENTS: " : "")); \
+#    define OPENVINO_LOG_NODE2(matcher, num_arguments)                                                          \
+        do {                                                                                                    \
+            bool non_empty_args___ = num_arguments != 0;                                                        \
+            OPENVINO_LOG_MATCHING(                                                                              \
+                matcher,                                                                                        \
+                ov::util::LevelString::get(),                                                                   \
+                (non_empty_args___ != 0 ? OPENVINO_BLOCK_BODY_RIGHT : OPENVINO_BLOCK_END),                      \
+                OPENVINO_GREEN,                                                                                 \
+                " NODES' TYPE AND PREDICATE MATCHED.",                                                          \
+                (non_empty_args___ != 0 ? " CHECKING " + std::to_string(num_arguments) + " PATTERN ARGUMENTS: " \
+                                        : ""));                                                                 \
         } while (0)
 
-#    define OPENVINO_LOG_NODE3(matcher)          \
+#    define OPENVINO_LOG_NODE3(matcher)                         \
         do {                                                    \
             OPENVINO_LOG_MATCHING(matcher,                      \
                                   ov::util::LevelString::get(), \
@@ -281,22 +283,22 @@ bool is_verbose_logging();
 // 4. Skip printing True node's logs at all.
 
 // src/pattern/matcher.cpp
-#    define OPENVINO_LOG_MATCHER1(matcher, pattern_value, graph_value)                                      \
-        do {                                                                                                \
-            if (ov::util::is_verbose_logging() || !ov::util::true_any_input(pattern_value)) {/*expl. above*/\
-                OPENVINO_LOG_MATCHING(matcher,                                                              \
-                                      ov::util::LevelString::get(),                                         \
-                                      '\n',                                                                 \
-                                      ov::util::LevelString::get(),                                         \
-                                      OPENVINO_BLOCK_BEG,                                                   \
-                                      "  MATCHING PATTERN NODE: ",                                          \
-                                      ov::util::node_with_arguments(*pattern_value.get_node_shared_ptr()),  \
-                                      '\n',                                                                 \
-                                      ov::util::LevelString::get(),                                         \
-                                      OPENVINO_BLOCK_BODY_RIGHT,                                            \
-                                      " AGAINST  GRAPH   NODE: ",                                           \
-                                      ov::util::node_with_arguments(*graph_value.get_node_shared_ptr()));   \
-            }                                                                                               \
+#    define OPENVINO_LOG_MATCHER1(matcher, pattern_value, graph_value)                                        \
+        do {                                                                                                  \
+            if (ov::util::is_verbose_logging() || !ov::util::true_any_input(pattern_value)) { /*expl. above*/ \
+                OPENVINO_LOG_MATCHING(matcher,                                                                \
+                                      ov::util::LevelString::get(),                                           \
+                                      '\n',                                                                   \
+                                      ov::util::LevelString::get(),                                           \
+                                      OPENVINO_BLOCK_BEG,                                                     \
+                                      "  MATCHING PATTERN NODE: ",                                            \
+                                      ov::util::node_with_arguments(*pattern_value.get_node_shared_ptr()),    \
+                                      '\n',                                                                   \
+                                      ov::util::LevelString::get(),                                           \
+                                      OPENVINO_BLOCK_BODY_RIGHT,                                              \
+                                      " AGAINST  GRAPH   NODE: ",                                             \
+                                      ov::util::node_with_arguments(*graph_value.get_node_shared_ptr()));     \
+            }                                                                                                 \
         } while (0)
 
 #    define OPENVINO_LOG_MATCHER2(matcher, idx, pattern_value)                                            \
@@ -404,69 +406,73 @@ bool is_verbose_logging();
         } while (0)
 
 // pattern/op/label.cpp
-#    define OPENVINO_LOG_LABEL1(matcher, label_name, pattern_value)                                                               \
-        do {                                                                                                                      \
-            if (ov::util::is_verbose_logging() || !ov::util::is_label_with_any_input(*pattern_value.get_node())) {/*expl. above*/ \
-                OPENVINO_LOG_MATCHING(matcher,                                                                                    \
-                                      ov::util::LevelString::get(),                                                               \
-                                      OPENVINO_BLOCK_END,                                                                         \
-                                      OPENVINO_GREEN,                                                                             \
-                                      "  LABEL MATCHED: ",                                                                        \
-                                      label_name);                                                                                \
-            } else {                                                                                                              \
-                OPENVINO_LOG_MATCHING(matcher,                                                                                    \
-                                      ov::util::LevelString::get(),                                                               \
-                                      OPENVINO_BLOCK_END,                                                                         \
-                                      OPENVINO_GREEN,                                                                             \
-                                      "  ANY INPUT MATCHED");                                                                     \
-            }                                                                                                                     \
+#    define OPENVINO_LOG_LABEL1(matcher, label_name, pattern_value)                              \
+        do {                                                                                     \
+            if (ov::util::is_verbose_logging() ||                                                \
+                !ov::util::is_label_with_any_input(*pattern_value.get_node())) { /*expl. above*/ \
+                OPENVINO_LOG_MATCHING(matcher,                                                   \
+                                      ov::util::LevelString::get(),                              \
+                                      OPENVINO_BLOCK_END,                                        \
+                                      OPENVINO_GREEN,                                            \
+                                      "  LABEL MATCHED: ",                                       \
+                                      label_name);                                               \
+            } else {                                                                             \
+                OPENVINO_LOG_MATCHING(matcher,                                                   \
+                                      ov::util::LevelString::get(),                              \
+                                      OPENVINO_BLOCK_END,                                        \
+                                      OPENVINO_GREEN,                                            \
+                                      "  ANY INPUT MATCHED");                                    \
+            }                                                                                    \
         } while (0);
 
-#    define OPENVINO_LOG_LABEL2(matcher, label_name, pattern_value)                                                               \
-        do {                                                                                                                      \
-            if (ov::util::is_verbose_logging() || !ov::util::is_label_with_any_input(*pattern_value.get_node())) {/*expl. above*/ \
-                OPENVINO_LOG_MATCHING(matcher,                                                                                    \
-                                      ov::util::LevelString::get()++,                                                             \
-                                      OPENVINO_BLOCK_BODY_RIGHT,                                                                  \
-                                      " CHECKING INSIDE LABEL: ",                                                                 \
-                                      label_name);                                                                                \
-            }                                                                                                                     \
+#    define OPENVINO_LOG_LABEL2(matcher, label_name, pattern_value)                              \
+        do {                                                                                     \
+            if (ov::util::is_verbose_logging() ||                                                \
+                !ov::util::is_label_with_any_input(*pattern_value.get_node())) { /*expl. above*/ \
+                OPENVINO_LOG_MATCHING(matcher,                                                   \
+                                      ov::util::LevelString::get()++,                            \
+                                      OPENVINO_BLOCK_BODY_RIGHT,                                 \
+                                      " CHECKING INSIDE LABEL: ",                                \
+                                      label_name);                                               \
+            }                                                                                    \
         } while (0);
 
-#    define OPENVINO_LOG_LABEL3(matcher, pattern_value)                                                                           \
-        do {                                                                                                                      \
-            if (ov::util::is_verbose_logging() || !ov::util::is_label_with_any_input(*pattern_value.get_node())) {/*expl. above*/ \
-                OPENVINO_LOG_MATCHING(matcher, --ov::util::LevelString::get(), OPENVINO_BLOCK_BODY);                              \
-                OPENVINO_LOG_MATCHING(matcher,                                                                                    \
-                                      ov::util::LevelString::get(),                                                               \
-                                      OPENVINO_BLOCK_END,                                                                         \
-                                      OPENVINO_GREEN,                                                                             \
-                                      "  LABEL MATCHED");                                                                         \
-            } else {                                                                                                              \
-                OPENVINO_LOG_MATCHING(matcher,                                                                                    \
-                                      ov::util::LevelString::get(),                                                               \
-                                      OPENVINO_BLOCK_END,                                                                         \
-                                      OPENVINO_GREEN,                                                                             \
-                                      "  ANY INPUT MATCHED");                                                                     \
-            }                                                                                                                     \
+#    define OPENVINO_LOG_LABEL3(matcher, pattern_value)                                              \
+        do {                                                                                         \
+            if (ov::util::is_verbose_logging() ||                                                    \
+                !ov::util::is_label_with_any_input(*pattern_value.get_node())) { /*expl. above*/     \
+                OPENVINO_LOG_MATCHING(matcher, --ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+                OPENVINO_LOG_MATCHING(matcher,                                                       \
+                                      ov::util::LevelString::get(),                                  \
+                                      OPENVINO_BLOCK_END,                                            \
+                                      OPENVINO_GREEN,                                                \
+                                      "  LABEL MATCHED");                                            \
+            } else {                                                                                 \
+                OPENVINO_LOG_MATCHING(matcher,                                                       \
+                                      ov::util::LevelString::get(),                                  \
+                                      OPENVINO_BLOCK_END,                                            \
+                                      OPENVINO_GREEN,                                                \
+                                      "  ANY INPUT MATCHED");                                        \
+            }                                                                                        \
         } while (0);
 
-#    define OPENVINO_LOG_LABEL4(matcher)                                                                                          \
-        do {                                                                                                                      \
-            if (ov::util::is_verbose_logging() || !ov::util::is_label_with_any_input(*pattern_value.get_node())) {/*expl. above*/ \
-                OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get(), OPENVINO_BLOCK_BODY);                                \
-                OPENVINO_LOG_MATCHING(matcher,                                                                                    \
-                                      ov::util::LevelString::get(),                                                               \
-                                      OPENVINO_BLOCK_END,                                                                         \
-                                      OPENVINO_RED,                                                                               \
-                                      "  LABEL DIDN'T MATCH");                                                                    \
-            } else {                                                                                                              \
-                OPENVINO_LOG_MATCHING(matcher,                                                                                    \
-                                      ov::util::LevelString::get(),                                                               \
-                                      OPENVINO_BLOCK_END,                                                                         \
-                                      OPENVINO_RED,                                                                               \
-                                      "  ANY INPUT DID'T MATCH BECAUSE OF PREDICATE");                                            \
-            }                                                                                                                     \
+#    define OPENVINO_LOG_LABEL4(matcher)                                                           \
+        do {                                                                                       \
+            if (ov::util::is_verbose_logging() ||                                                  \
+                !ov::util::is_label_with_any_input(*pattern_value.get_node())) { /*expl. above*/   \
+                OPENVINO_LOG_MATCHING(matcher, ov::util::LevelString::get(), OPENVINO_BLOCK_BODY); \
+                OPENVINO_LOG_MATCHING(matcher,                                                     \
+                                      ov::util::LevelString::get(),                                \
+                                      OPENVINO_BLOCK_END,                                          \
+                                      OPENVINO_RED,                                                \
+                                      "  LABEL DIDN'T MATCH");                                     \
+            } else {                                                                               \
+                OPENVINO_LOG_MATCHING(matcher,                                                     \
+                                      ov::util::LevelString::get(),                                \
+                                      OPENVINO_BLOCK_END,                                          \
+                                      OPENVINO_RED,                                                \
+                                      "  ANY INPUT DID'T MATCH BECAUSE OF PREDICATE");             \
+            }                                                                                      \
         } while (0);
 
 // pattern/op/optional.cpp
@@ -567,15 +573,15 @@ bool is_verbose_logging();
         } while (0);
 
 // pattern/op/true.cpp
-#    define OPENVINO_LOG_TRUE1(matcher, pattern_value)                                                       \
-        do {                                                                                                 \
-            if (ov::util::is_verbose_logging() || !ov::util::true_any_input(pattern_value)) {/*expl. above*/ \
-                OPENVINO_LOG_MATCHING(matcher,                                                               \
-                                      ov::util::LevelString::get(),                                          \
-                                      OPENVINO_BLOCK_END,                                                    \
-                                      OPENVINO_GREEN,                                                        \
-                                      "  ANY INPUT MATCHED");                                                \
-            }                                                                                                \
+#    define OPENVINO_LOG_TRUE1(matcher, pattern_value)                                                        \
+        do {                                                                                                  \
+            if (ov::util::is_verbose_logging() || !ov::util::true_any_input(pattern_value)) { /*expl. above*/ \
+                OPENVINO_LOG_MATCHING(matcher,                                                                \
+                                      ov::util::LevelString::get(),                                           \
+                                      OPENVINO_BLOCK_END,                                                     \
+                                      OPENVINO_GREEN,                                                         \
+                                      "  ANY INPUT MATCHED");                                                 \
+            }                                                                                                 \
         } while (0);
 
 // pattern/op/wrap_type.cpp
@@ -600,15 +606,16 @@ bool is_verbose_logging();
                                   "  NODES' TYPE MATCHED, but PREDICATE FAILED"); \
         } while (0);
 
-#    define OPENVINO_LOG_WRAPTYPE3(matcher, num_arguments)                                                                            \
-        do {                                                                                                                          \
-            bool non_empty_args___ = num_arguments != 0;                                                                              \
-            OPENVINO_LOG_MATCHING(matcher,                                                                                            \
-                                  ov::util::LevelString::get(),                                                                       \
-                                  (non_empty_args___ ? OPENVINO_BLOCK_BODY_RIGHT : OPENVINO_BLOCK_END),                              \
-                                  OPENVINO_GREEN,                                                                                     \
-                                  " NODES' TYPE AND PREDICATE MATCHED.",                                                              \
-                                  (non_empty_args___ ? " CHECKING " + std::to_string(num_arguments) + " PATTERN ARGUMENTS: " : "")); \
+#    define OPENVINO_LOG_WRAPTYPE3(matcher, num_arguments)                                                         \
+        do {                                                                                                       \
+            bool non_empty_args___ = num_arguments != 0;                                                           \
+            OPENVINO_LOG_MATCHING(                                                                                 \
+                matcher,                                                                                           \
+                ov::util::LevelString::get(),                                                                      \
+                (non_empty_args___ ? OPENVINO_BLOCK_BODY_RIGHT : OPENVINO_BLOCK_END),                              \
+                OPENVINO_GREEN,                                                                                    \
+                " NODES' TYPE AND PREDICATE MATCHED.",                                                             \
+                (non_empty_args___ ? " CHECKING " + std::to_string(num_arguments) + " PATTERN ARGUMENTS: " : "")); \
         } while (0);
 
 #    define OPENVINO_LOG_WRAPTYPE4(matcher, status, num_arguments)                                        \
