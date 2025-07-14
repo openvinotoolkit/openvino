@@ -497,21 +497,20 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         pattern::wrap_type<op::internal::RoPE>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<op::internal::RoPE>(root);
         if (!rope_node)
             return false;
+            
+        auto symbols = m.get_symbols();
+        auto slice_start = symbols["slice_start"];
+        auto slice_stop = symbols["slice_stop"];
 
         auto config = rope_node->get_config();
-        if (pattern_map.count(input_to_slice)) {
-            config.slice_start = static_cast<size_t>(validator["slice_start"]);
-            config.slice_stop = static_cast<size_t>(validator["slice_stop"]);
+        if (pattern_map.count(input_to_slice) && slice_start.is_integer() && slice_stop.is_integer()) {
+            config.slice_start = static_cast<size_t>(slice_start.i());
+            config.slice_stop = static_cast<size_t>(slice_stop.i());
             config.input_trans0213 = true;
             rope_node->set_argument(0, pattern_map.at(input_to_slice));
         } else if (pattern_map.count(input_to_trans)) {
