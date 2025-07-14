@@ -286,12 +286,12 @@ ov::hetero::Plugin::QueryResult ov::hetero::Plugin::query_model_update(std::shar
     auto all_same_gpu_type = [&](const std::vector<std::string>& device_names) -> bool {
         if (device_names.empty())
             return false;
-        else if (device_names.size() == 1) {
-            return device_names[0].find("GPU") != 0 ? false : true;
-        }
+
+        const auto& ref = device_names[0];
+        if (ref.find("GPU") != 0)
+            return false;
+
         try {
-            const auto& ref = device_names[0];
-            ov::Core core;
             const auto ref_arch = get_core()->get_property(ref, ov::device::architecture);
             const auto ref_name = get_core()->get_property(ref, ov::device::full_name);
             return std::all_of(device_names.begin() + 1, device_names.end(), [&](const std::string& dev) {
@@ -302,7 +302,6 @@ ov::hetero::Plugin::QueryResult ov::hetero::Plugin::query_model_update(std::shar
             return false;
         }
     };
-    
     if (all_same_gpu_type(device_names) && hetero_query_model_by_device) {
         auto& first_device_config = properties_per_device.at(device_names[0]);
         res.model = get_core()->get_transformed_model(model, device_names[0], first_device_config);
