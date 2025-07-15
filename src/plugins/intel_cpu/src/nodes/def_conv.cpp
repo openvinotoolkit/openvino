@@ -879,7 +879,6 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace(-1);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
     const bool hasUndefinedDims = weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM;
