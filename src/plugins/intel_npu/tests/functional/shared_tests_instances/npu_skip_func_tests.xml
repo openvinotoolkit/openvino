@@ -250,10 +250,10 @@ Example:
         <filters>
             <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*</filter>
             <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow.*</filter>
-            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*</filter>
-            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
-            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*</filter>
-            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
+            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_).*</filter>
+            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_)configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_).*</filter>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_)configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
         </filters>
     </skip_config>
 
@@ -529,10 +529,11 @@ Example:
 
     <!-- E#99817 -->
     <skip_config>
-        <message>Disabled tests for NPU3720</message>
+        <message>Disabled tests for NPU3720 and NPU4000</message>
         <enable_rules>
             <backend>LEVEL0</backend>
             <device>3720</device>
+            <device>4000</device>
         </enable_rules>
         <filters>
             <filter>.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers.*</filter>
@@ -728,6 +729,7 @@ Example:
         <enable_rules>
             <backend>LEVEL0</backend>
             <device>3720</device>
+            <device>4000</device>
         </enable_rules>
         <filters>
             <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
@@ -893,6 +895,17 @@ Example:
             <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob/.*</filter>
             <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
             <filter>.*smoke_Hetero_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_no_hint/.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#165445 -->
+    <skip_config>
+        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
+        <enable_rules>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*OVBlobCompatibilityNPU.*</filter>
         </filters>
     </skip_config>
 
