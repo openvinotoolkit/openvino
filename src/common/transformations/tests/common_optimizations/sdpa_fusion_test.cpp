@@ -426,9 +426,8 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                                               1.0f  // scale
                                                               ))));
 
-class SDPAFusionSoftmaxAxis
-    : public TransformationTestsF,
-      public ::testing::WithParamInterface<std::tuple<Type, bool, bool, SDPAFusionParams>> {};
+class SDPAFusionSoftmaxAxis : public TransformationTestsF,
+                              public ::testing::WithParamInterface<std::tuple<Type, bool, bool, SDPAFusionParams>> {};
 
 // Test for SDPAFusion with axis = 3 in softmax
 TEST_P(SDPAFusionSoftmaxAxis, SDPAFusionTest_softmax_axis) {
@@ -456,8 +455,8 @@ TEST_P(SDPAFusionSoftmaxAxis, SDPAFusionTest_softmax_axis) {
 
     // SDPA model.
     {
-        bool transpose_inside_matmul = true;  // transpose_b = true for matmul
-        sdpa.create_pattern_sdpa(transpose_inside_matmul, 3); //axis = (rank size -1) (4d, so axis = 3)
+        bool transpose_inside_matmul = true;                   // transpose_b = true for matmul
+        sdpa.create_pattern_sdpa(transpose_inside_matmul, 3);  // axis = (rank size -1) (4d, so axis = 3)
         model = sdpa.build_model();
         manager.register_pass<ov::pass::SDPAFusion>();
     }
