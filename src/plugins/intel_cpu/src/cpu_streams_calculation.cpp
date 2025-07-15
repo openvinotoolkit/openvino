@@ -648,7 +648,6 @@ int get_model_prefer_threads(const int num_streams,
                                                  L2_cache_size,
                                                  memThresholdAssumeLimitedForISA,
                                                  config.inferencePrecision);
-        auto is_llm = ov::op::util::is_large_language_model(*model);
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         if (num_streams > sockets || num_streams == 0) {
@@ -696,7 +695,7 @@ int get_model_prefer_threads(const int num_streams,
 #    else
         if (num_streams <= sockets && num_streams > 0) {
             if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-                if (is_llm) {
+                if (ov::op::util::is_large_language_model(*model)) {
                     config.modelPreferThreads = proc_type_table[0][MAIN_CORE_PROC];
                 } else {
                     if ((proc_type_table[0][MAIN_CORE_PROC] < config.threads || config.threads == 0) &&
