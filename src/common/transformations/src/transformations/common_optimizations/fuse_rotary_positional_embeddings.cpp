@@ -79,28 +79,6 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     return symbolic_optimizations.run_on_model(model);
 }
 
-// This is a utility function used in the work around in ChatGLM pattern.
-// Since the existing implementation of Symbols don't allow for checking
-// permutations of the same Symbols in a shape, we need to check the
-// possible combinations manually. This will be resolved in the
-// implementation of new Symbols.
-static bool chatglm_validate_reshape_symbols(PatternValidator& validator) {
-    // checking ABC
-    auto A = static_cast<int>(validator["A"]);
-    auto B = static_cast<int>(validator["B"]);
-    auto C = static_cast<int>(validator["C"]);
-
-    auto head_cnt = static_cast<int>(validator["head_cnt"]);
-
-    if ((A == -1 && B == head_cnt && C == 1) ||  // ChatGLM4
-        (A == 1 && B == -1 && C == head_cnt) ||  // ChatGLM3
-        (A == 0 && B == 0 && C == 0)) {          // ChatGLM nano
-        return true;
-    }
-
-    return false;
-}
-
 static std::shared_ptr<ov::Node> gen_abc_const() {
     using namespace pattern;
 
