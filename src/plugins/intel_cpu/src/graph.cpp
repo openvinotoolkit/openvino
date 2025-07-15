@@ -1709,9 +1709,7 @@ void Graph::SortTopologically() {
 
         // Always start from output nodes
         for (const auto& node : outputNodesMap) {
-            if (node) {  // Skip null entries
-                visit(node);
-            }
+            visit(node);
         }
 
         for (const auto& node : nodes) {
