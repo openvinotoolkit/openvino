@@ -615,7 +615,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
             return false;
         }
 
-        return !(secondInputDims[0] != 1 || !dimsEqualWeak(secondInputDims[channelAxis], dataDims[channelAxis]));
+        return secondInputDims[0] == 1 && dimsEqualWeak(secondInputDims[channelAxis], dataDims[channelAxis]);
     };
 
     auto isSuitableParentNode = [&](const NodePtr& node) {

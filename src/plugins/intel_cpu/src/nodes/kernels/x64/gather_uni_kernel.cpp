@@ -1188,7 +1188,9 @@ template <x64::cpu_isa_t isa>
 bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
     if (!jcp.dynamicShapes && afterAxisSize <= idxElPerVec) {
         // There are no enough registers for these cases.
-        return !(afterAxisSize > 1 && isa == x64::avx2 && (jcp.dataTypeSize == 1 || jcp.dataTypeSize == 2));
+        const bool isSmallDataType = (jcp.dataTypeSize == 1 || jcp.dataTypeSize == 2);
+        const bool isAvx2WithBlockedAfterAxis = (afterAxisSize > 1 && isa == x64::avx2);
+        return !(isAvx2WithBlockedAfterAxis && isSmallDataType);
     }
     return static_cast<bool>(jcp.dynamicShapes && afterAxisSize == 1);
 }
