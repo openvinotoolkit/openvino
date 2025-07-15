@@ -18,17 +18,17 @@ namespace ov {
 
 namespace {
 
-#if defined(__linux)
 // Configure mmap when OV library used
-const auto mmap_cfg = [] {
-    constexpr int32_t not_set = -1;
-    // Use default MMAP threshold value as static if not set by user using environment variable
-    if (const auto env_mmap_th = util::getenv_int("ENV_MALLOC_MMAP_THRESHOLD_", not_set); env_mmap_th == not_set) {
-        util::set_mmap_threshold(util::linux::default_mmap_th);
+[[maybe_unused]] const auto mmap_cfg = [] {
+    if constexpr (util::may_i_use_mallopt()) {
+        constexpr int32_t not_set = -1;
+        // Use default MMAP threshold value as static if not set by user using environment variable
+        if (const auto env_mmap_th = util::getenv_int("ENV_MALLOC_MMAP_THRESHOLD_", not_set); env_mmap_th == not_set) {
+            util::set_mmap_threshold(util::linux::default_mmap_th);
+        }
     }
     return nullptr;
 }();
-#endif
 
 std::string find_plugins_xml(const std::string& xml_file) {
     std::string xml_file_name = xml_file;

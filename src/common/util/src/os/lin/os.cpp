@@ -4,16 +4,18 @@
 
 #include "openvino/util/os.hpp"
 
-#include <malloc.h>
-
 #include <stdexcept>
 
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
+#    include <malloc.h>
+#endif
+
 namespace ov::util {
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
 void set_mmap_threshold(int threshold) {
-#if defined(M_MMAP_THRESHOLD)
     if (mallopt(M_MMAP_THRESHOLD, threshold) != 1) {
         throw std::runtime_error("Set M_MMAP_THRESHOLD failed");
     }
-#endif
 }
+#endif
 }  // namespace ov::util

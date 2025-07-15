@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/util/pp.hpp"
+
 #if defined(_WIN32)
 #    include <windows.h>
 #endif
@@ -25,11 +27,19 @@ constexpr bool may_i_use_dynamic_code() {
  *
  * @param threshold threshold value (bytes).
  */
-#if defined(__linux)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
 void set_mmap_threshold(int threshold);
 #else
 constexpr void set_mmap_threshold(int) {}
 #endif
+
+constexpr bool may_i_use_mallopt() {
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
+    return true;
+#else
+    return false;
+#endif
+};
 
 namespace linux {
 /// @brief Default mmap threshold value for memory allocation in bytes.
