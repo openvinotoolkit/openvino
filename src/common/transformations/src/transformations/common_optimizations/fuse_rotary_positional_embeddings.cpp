@@ -775,15 +775,14 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         const_target_shape6 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
                                              pattern::value_matches("0, head_cnt, 0, ndims"));
-        reshape2 = pattern::wrap_type<v1::Reshape>(
-            {concat2, concat3 | const_target_shape6}, {{"special_zero", true}});
+        reshape2 = pattern::wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6}, {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
         auto const_target_shape7 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims"));
         const_target_shape6 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims"));
-        reshape2 = pattern::wrap_type<v1::Reshape>(
-            {concat2, concat3 | const_target_shape6 | const_target_shape7}, {{"special_zero", true}});
+        reshape2 = pattern::wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6 | const_target_shape7},
+            {{"special_zero", true}});
     }
     auto slice5 = NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
 
