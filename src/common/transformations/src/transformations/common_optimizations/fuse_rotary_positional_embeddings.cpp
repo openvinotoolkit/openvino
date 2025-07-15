@@ -44,7 +44,6 @@
 
 using namespace ov::gen_pattern;
 using namespace ov::pass;
-using namespace ov::pass::pattern;
 using namespace ov::op;
 
 ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
@@ -690,114 +689,114 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         input_key = std::move(cur_key);
     }
 
-    auto slice_Slice_437 = NewGenSlice(input_key, 0, "ndims", 1, 3);
-    auto var_split_1 = pattern::wrap_type<v1::VariadicSplit>({input_key, 3, {"ndims", "end"}});
-    var_split_1->set_output_size(2);
+    auto slice0 = NewGenSlice(input_key, 0, "ndims", 1, 3);
+    auto var_split0 = pattern::wrap_type<v1::VariadicSplit>({input_key, 3, {"ndims", "end"}});
+    var_split0->set_output_size(2);
 
     // rotate half
-    std::shared_ptr<ov::Node> reshape_Reshape_453 = nullptr;
+    std::shared_ptr<ov::Node> reshape0 = nullptr;
     if (support_2d_rope) {
-        auto const_target_shape_1 =
+        auto const_target_shape0 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("0, head_cnt, 0, ndims/2, 2"));
-        reshape_Reshape_453 =
-            pattern::wrap_type<v1::Reshape>({slice_Slice_437 | var_split_1->output(0), const_target_shape_1},
+        reshape0 =
+            pattern::wrap_type<v1::Reshape>({slice0 | var_split0->output(0), const_target_shape0},
                                             {{"special_zero", true}});
     } else {
-        auto ListConstruct_452_Concat =
+        auto concat0 =
             pattern::wrap_type<v0::Concat>({seq_length, {-1}, {"head_cnt"}, {"ndims/2"}, {2}}, {{"axis", 0}});
-        auto const_target_shape_0 =
+        auto const_target_shape1 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims/2, 2"));
-        auto const_target_shape_1 =
+        auto const_target_shape2 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims/2, 2"));
-        reshape_Reshape_453 =
-            pattern::wrap_type<v1::Reshape>({slice_Slice_437 | var_split_1->output(0),
-                                             ListConstruct_452_Concat | const_target_shape_1 | const_target_shape_0});
+        reshape0 =
+            pattern::wrap_type<v1::Reshape>({slice0 | var_split0->output(0),
+                                             concat0 | const_target_shape1 | const_target_shape2});
     }
 
-    auto x_even = pattern::wrap_type<v8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
-    auto x_odd = pattern::wrap_type<v8::Gather>({reshape_Reshape_453, 1, -1}, {{"batch_dims", 0}});
+    auto x_even = pattern::wrap_type<v8::Gather>({reshape0, 0, -1}, {{"batch_dims", 0}});
+    auto x_odd = pattern::wrap_type<v8::Gather>({reshape0, 1, -1}, {{"batch_dims", 0}});
 
-    auto var_split_2 = pattern::wrap_type<v1::VariadicSplit>({cos_sin_cache, 0, {0, "end"}});
-    var_split_2->set_output_size(2);
+    auto var_split1 = pattern::wrap_type<v1::VariadicSplit>({cos_sin_cache, 0, {0, "end"}});
+    var_split1->set_output_size(2);
 
-    std::shared_ptr<ov::Node> view_Reshape_460 = nullptr;
+    std::shared_ptr<ov::Node> reshape1 = nullptr;
     if (support_2d_rope) {
-        auto ListConstruct_379_Concat =
+        // Slice cos_sin_cache to support 2-dimentional RoPE
+        auto scatter_update0 = pattern::wrap_type<v3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
+        auto slice1 = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {1}});
+        auto slice2 = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0, 0}, scatter_update0, {1, 1}, {0}});
+        auto ss_stop = pattern::wrap_type<v0::Constant>();
+        auto strided_slice0 = NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
+
+        auto concat1 =
             pattern::wrap_type<v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
-        auto const_target_shape_2 =
+        auto const_target_shape3 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, 1, seq_len, ndims/2, 2"));
 
-        // Slice cos_sin_cache to support 2-dimentional RoPE
-        auto ScatterUpdate = pattern::wrap_type<v3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
-        auto slice_Slice_449_1d = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {1}});
-        auto slice_Slice_449_2d = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0, 0}, ScatterUpdate, {1, 1}, {0}});
-        auto ss_stop = pattern::wrap_type<v0::Constant>();
-        auto slice_StridedSlice_449 = NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | ScatterUpdate, {1, 1}, 1);
-
         // [batch, 1, seq_length, half_rotary_dims, 2]
-        view_Reshape_460 = pattern::wrap_type<v1::Reshape>(
-            {slice_StridedSlice_449 | slice_Slice_449_1d | slice_Slice_449_2d | var_split_2->output(0),
-             ListConstruct_379_Concat | const_target_shape_2});
+        reshape1 = pattern::wrap_type<v1::Reshape>(
+            {strided_slice0 | slice1 | slice2 | var_split1->output(0),
+             concat1 | const_target_shape3});
     } else {
-        auto ListConstruct_379_Concat =
+        auto concat2 =
             pattern::wrap_type<v0::Concat>({seq_length, {-1}, {1}, {"ndims/2"}, {2}}, {{"axis", 0}});
-        auto const_target_shape_0 = pattern::wrap_type<v0::Constant>(pattern::value_matches("1, -1, 1, ndims/2, 2"));
-        auto const_target_shape_2 =
+        auto const_target_shape4 = pattern::wrap_type<v0::Constant>(pattern::value_matches("1, -1, 1, ndims/2, 2"));
+        auto const_target_shape5 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, 1, ndims/2, 2"));
 
-        auto slice_Slice_449 = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
-        auto slice_StridedSlice_449 = NewGenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
+        auto slice3 = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
+        auto strided_slice1 = NewGenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
 
         // [seq_length, 1, batch, half_rotary_dims, 2]
-        view_Reshape_460 =
-            pattern::wrap_type<v1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
-                                             ListConstruct_379_Concat | const_target_shape_0 | const_target_shape_2});
+        reshape1 =
+            pattern::wrap_type<v1::Reshape>({strided_slice1 | slice3 | var_split1->output(0),
+                                             concat2 | const_target_shape4 | const_target_shape5});
     }
 
-    auto cos_tab = pattern::wrap_type<v8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
+    auto cos_tab = pattern::wrap_type<v8::Gather>({reshape1, 0, -1}, {{"batch_dims", 0}});
     auto x_even_cos = pattern::wrap_type<v1::Multiply>({x_even, cos_tab}, {{"auto_broadcast", "numpy"}});
 
-    auto sin_tab = pattern::wrap_type<v8::Gather>({view_Reshape_460, 1, -1}, {{"batch_dims", 0}});
+    auto sin_tab = pattern::wrap_type<v8::Gather>({reshape1, 1, -1}, {{"batch_dims", 0}});
     auto x_odd_sin = pattern::wrap_type<v1::Multiply>({x_odd, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto neg_x_odd_sin = pattern::wrap_type<v1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
-    auto sub_Subtract_469 = pattern::wrap_type<v1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
-    auto y_even = pattern::wrap_type<v0::Unsqueeze>({sub_Subtract_469, -1}) |
-                  pattern::wrap_type<v1::Reshape>({sub_Subtract_469, gen_abc_const()}, {{"special_zero", false}});
+    auto add0 = pattern::wrap_type<v1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
+    auto y_even = pattern::wrap_type<v0::Unsqueeze>({add0, -1}) |
+                  pattern::wrap_type<v1::Reshape>({add0, gen_abc_const()}, {{"special_zero", false}});
     auto x_odd_cos = pattern::wrap_type<v1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
     auto x_even_sin = pattern::wrap_type<v1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
-    auto add_Add_476 = pattern::wrap_type<v1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
-    auto y_odd = pattern::wrap_type<v0::Unsqueeze>({add_Add_476, -1}) |
-                 pattern::wrap_type<v1::Reshape>({add_Add_476, gen_abc_const()}, {{"special_zero", false}});
+    auto add1 = pattern::wrap_type<v1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
+    auto y_odd = pattern::wrap_type<v0::Unsqueeze>({add1, -1}) |
+                 pattern::wrap_type<v1::Reshape>({add1, gen_abc_const()}, {{"special_zero", false}});
 
-    auto stack_481 = pattern::wrap_type<v0::Concat>({y_even, y_odd}, {{"axis", -1}});
+    auto concat2 = pattern::wrap_type<v0::Concat>({y_even, y_odd}, {{"axis", -1}});
 
-    auto ShapeOf_135133 = pattern::wrap_type<ov::op::util::ShapeOfBase>({stack_481});
-    auto flatten_Slice_497 = NewGenSlice(ShapeOf_135133, 0, 3, 1, 0);
-    auto flatten_Concat_500 = pattern::wrap_type<v0::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
+    auto shape_of0 = pattern::wrap_type<ov::op::util::ShapeOfBase>({concat2});
+    auto slice4 = NewGenSlice(shape_of0, 0, 3, 1, 0);
+    auto concat3 = pattern::wrap_type<v0::Concat>({slice4, {-1}}, {{"axis", 0}});
 
-    std::shared_ptr<ov::Node> const_target_shape_3 = nullptr;
-    std::shared_ptr<ov::Node> flatten_Reshape_501 = nullptr;
+    std::shared_ptr<ov::Node> const_target_shape6 = nullptr;
+    std::shared_ptr<ov::Node> reshape2 = nullptr;
     if (support_2d_rope) {
         // [batch, head_cnt, length, half_rotary_dims, 2]
-        const_target_shape_3 =
+        const_target_shape6 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
                                              pattern::value_matches("0, head_cnt, 0, ndims"));
-        flatten_Reshape_501 = pattern::wrap_type<v1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3},
+        reshape2 = pattern::wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6},
                                                               {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
-        auto const_target_shape_0 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims"));
-        const_target_shape_3 =
+        auto const_target_shape7 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims"));
+        const_target_shape6 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims"));
-        flatten_Reshape_501 = pattern::wrap_type<v1::Reshape>(
-            {stack_481, flatten_Concat_500 | const_target_shape_3 | const_target_shape_0},
+        reshape2 = pattern::wrap_type<v1::Reshape>(
+            {concat2, concat3 | const_target_shape6 | const_target_shape7},
             {{"special_zero", true}});
     }
-    auto slice_Slice_443 = NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
+    auto slice5 = NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
 
-    auto cat_Concat_505 =
-        pattern::wrap_type<v0::Concat>({flatten_Reshape_501, slice_Slice_443 | var_split_1->output(1)}, {{"axis", -1}});
-    auto result = cat_Concat_505 | flatten_Reshape_501;
+    auto concat4 =
+        pattern::wrap_type<v0::Concat>({reshape2, slice5 | var_split0->output(1)}, {{"axis", -1}});
+    auto result = concat4 | reshape2;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
