@@ -574,6 +574,55 @@ std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
+
+///  Greater ///
+jit_greater_emitter::jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {}
+
+jit_greater_emitter::jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+
+size_t jit_greater_emitter::get_inputs_num() const {
+    return 2;
+}
+
+size_t jit_greater_emitter::aux_vecs_count() const {
+    return 1;
+}
+
+void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel for GREATER");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    VReg lhs = VReg(in_vec_idxs[0]);
+    VReg rhs = VReg(in_vec_idxs[1]);
+    VReg dst = VReg(out_vec_idxs[0]);
+
+    FReg one = FReg(aux_fp_gpr_idxs[0]);
+
+    load_table_val("one", one);
+
+    h->vmfgt_vv(mask_vreg(), lhs, rhs);
+    h->vmv_v_x(dst, zero);
+    h->vfadd_vf(dst, dst, one, VM::masked);
+}
+
+void jit_greater_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000, true);
+}
+
+std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>&) {
+    return {{element::f32, element::f32}};
+}
+
 /// GREATER EQUAL ///
 jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator* host,
                                                      cpu_isa_t host_isa,
@@ -1513,56 +1562,6 @@ void jit_sigmoid_emitter::emit_data() const {
 std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
-}
-/// Greater///
-jit_greater_emitter::jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
-
-jit_greater_emitter::jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
-
-size_t jit_greater_emitter::get_inputs_num() const {
-    return 2;
-}
-
-size_t jit_greater_emitter::aux_vecs_count() const {
-    return 1;
-}
-
-size_t jit_greater_emitter::aux_fp_gprs_count() const {
-    return 0;
-}
-
-void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-                                    const std::vector<size_t>& out_vec_idxs) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
-        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
-    } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for GREATER");
-    }
-}
-
-template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                   const std::vector<size_t>& out_vec_idxs) const {
-    VReg lhs = VReg(in_vec_idxs[0]);
-    VReg rhs = VReg(in_vec_idxs[1]);
-    VReg dst = VReg(out_vec_idxs[0]);
-    VReg tmp = VReg(aux_vec_idxs[0]);
-    h->vmfgt_vv(mask_vreg(), lhs, rhs);
-    Xbyak_riscv::Reg reg_zero = h->t0;
-    Xbyak_riscv::Reg reg_one = h->t1;
-    h->li(reg_zero, 0);
-    h->li(reg_one, 1);
-    h->vmv_v_x(dst, reg_zero);
-    h->vmv_v_x(tmp, reg_one);
-    h->vmerge_vvm(dst, tmp, dst);
-}
-
-void jit_greater_emitter::register_table_entries() {}
-
-std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>&) {
-    return {{element::f32, element::f32}};
 }
 
 /// SQRT ///
