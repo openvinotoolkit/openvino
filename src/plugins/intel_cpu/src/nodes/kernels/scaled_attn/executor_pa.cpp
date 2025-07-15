@@ -204,7 +204,7 @@ static void attn_acc_value_block(float* out,
         }
         v += S;
     }
-#endif
+#    endif
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 static void attn_acc_value_block_by_dim(float* out,
