@@ -462,8 +462,8 @@ void RandomUniform::prepareGeneratorKernel() {
 namespace {
 
 inline void calculateRound(const uint32_t* key, uint32_t* counter, uint32_t* n) {
-    uint64_t prod_0 = STATISTIC_MAXIMIZING_MULTIPLIER_N * n[0];
-    uint64_t prod_1 = STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER * counter[0];
+    const uint64_t prod_0 = STATISTIC_MAXIMIZING_MULTIPLIER_N * n[0];
+    const uint64_t prod_1 = STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER * counter[0];
     n[0] = static_cast<uint32_t>(prod_1 >> 32) ^ n[1] ^ key[0];
     n[1] = static_cast<uint32_t>(prod_1);
     counter[0] = static_cast<uint32_t>(prod_0 >> 32) ^ counter[1] ^ key[1];
@@ -509,8 +509,8 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
     for (size_t i = 0LU; i < el_to_copy; i++) {
-        uint32_t bits = 0x3f800000 | (in[i] & 0x7fffffU);
-        float f = ov::intel_cpu::bit_cast<float>(bits);
+        const uint32_t bits = 0x3f800000 | (in[i] & 0x7fffffU);
+        const float f = ov::intel_cpu::bit_cast<float>(bits);
         out[i] = (f - 1.F) * range + min;
     }
 }
@@ -518,8 +518,8 @@ inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range
 inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 range, float16* out, size_t el_to_copy) {
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        uint16_t bits = 0x3c00 | (x_uint16 & 0x03ffU);
-        float16 f = ov::intel_cpu::bit_cast<float16>(bits);
+        const uint16_t bits = 0x3c00 | (x_uint16 & 0x03ffU);
+        const float16 f = ov::intel_cpu::bit_cast<float16>(bits);
         out[i] = (f - static_cast<float16>(1)) * range + min;
     }
 }
@@ -531,8 +531,8 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
                                       size_t el_to_copy) {
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        uint16_t bits = 0x3f80 | (x_uint16 & 0x7fU);
-        bfloat16 f = ov::intel_cpu::bit_cast<bfloat16>(bits);
+        const uint16_t bits = 0x3f80 | (x_uint16 & 0x7fU);
+        const bfloat16 f = ov::intel_cpu::bit_cast<bfloat16>(bits);
         out[i] = (f - static_cast<bfloat16>(1)) * range + min;
     }
 }

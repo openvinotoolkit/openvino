@@ -174,7 +174,7 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
         }
         iterationRange[j++] = shape[i];
     }
-    size_t work_amount_dst =
+    const size_t work_amount_dst =
         std::accumulate(iterationRange.begin(), iterationRange.end(), static_cast<size_t>(1), std::multiplies<>());
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0;
@@ -194,12 +194,12 @@ void CumSum::cumSum(const dataType* input, dataType* output, const VectorDims& s
                 forStartOffset[offsetIdx] = counters[countersIdx++];
             }
 
-            size_t startOffset = getStartOffset(forStartOffset, strides);
+            const size_t startOffset = getStartOffset(forStartOffset, strides);
 
             const dataType* inputStart = input + startOffset;
             dataType* outputStart = output + startOffset;
 
-            size_t offset = strides[axis];
+            const size_t offset = strides[axis];
             if (reverse) {
                 if (exclusive) {
                     outputStart[offset * (shape[axis] - 1)] = 0;

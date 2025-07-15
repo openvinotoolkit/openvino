@@ -153,8 +153,8 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             THROW_CPU_NODE_ERR("has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
         }
 
-        int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
-        int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
+        const int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
+        const int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
         attrs.equalDims = newAxis == 0 && shrinkAxis == 0;
     } else {
         attrs.equalDims = true;
@@ -216,7 +216,7 @@ static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs,
         // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
         // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter
         // values
-        size_t afterDims = attrs.begin.size() - attrs.ellipsisPos1 - 1;
+        const size_t afterDims = attrs.begin.size() - attrs.ellipsisPos1 - 1;
         size_t ellipsisPos2 = inputRank - afterDims - 1;
 
         auto addHiddenDims = [&](std::vector<int>& data, const int bit = 0) {
@@ -591,8 +591,8 @@ void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {
                 }
             }
 
-            size_t nSrcAxisAfterEllipses = (params.attrs.begin.size() - axis - nNewAxisAfterEllipses - 1);
-            size_t nHiddenDims = params.srcBlockedDims.size() - nSrcAxisAfterEllipses - nSrcAxisBeforeEllipses;
+            const size_t nSrcAxisAfterEllipses = (params.attrs.begin.size() - axis - nNewAxisAfterEllipses - 1);
+            const size_t nHiddenDims = params.srcBlockedDims.size() - nSrcAxisAfterEllipses - nSrcAxisBeforeEllipses;
             for (size_t i = 0; i < nHiddenDims; ++i) {
                 newSrcDims.push_back(params.srcBlockedDims[srcIdx]);
                 newDstDims.push_back(params.srcBlockedDims[srcIdx]);
@@ -682,7 +682,7 @@ void StridedSlice::StridedSliceCommonExecutor::dimsGluing() {
     //          after gluing  srcDims = [30, 8, 6],      begin = [6, 0, 0],       stride = [1, 2, 1],       dstDims =
     //          [24, 4, 6]
 
-    size_t realNDims = params.dstBlockedDims.size();
+    const size_t realNDims = params.dstBlockedDims.size();
 
     std::pair<size_t, size_t> secondDim = {0, params.attrs.begin.size()};
     VectorDims indexes(1, 0);

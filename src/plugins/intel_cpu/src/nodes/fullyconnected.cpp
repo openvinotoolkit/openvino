@@ -156,9 +156,9 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
             // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
             // used since fallback one doesn't support weights decompression feature.
-            size_t simdWidth = 16;
-            size_t vnniFactor = 2;
-            size_t maxSize = 512;
+            const size_t simdWidth = 16;
+            const size_t vnniFactor = 2;
+            const size_t maxSize = 512;
             auto amxRow = vnniFactor * simdWidth;
 
             if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
@@ -267,7 +267,7 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         const auto dstMemoryBuffer = getDstMemoryAtPort(0);
 
         auto split_parts = [](int len, int n) {
-            int average = len / n;
+            const int average = len / n;
             std::vector<int> parts(n, average);
             parts.back() = len - average * (n - 1);
             return parts;
@@ -310,7 +310,7 @@ void FullyConnected::initTensorParallelSync() {
         CPU_NODE_ASSERT(tp_cfg.id >= 0, "Tensor Parallel Config ID cannot be negative.");
         tp_cfg.sub_memory->set_memory_used(tp_cfg.id, tp_cfg.w_rank);
         while (true) {
-            std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
+            const std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
             if (tp_cfg.sub_memory->_use_count[tp_cfg.id] == tp_cfg.w_size) {
                 tp_cfg.sub_memory->_use_count[tp_cfg.id] = 0;
                 for (int i = 0; i < tp_cfg.w_size; i++) {
@@ -338,7 +338,7 @@ void FullyConnected::execTensorParallelSync() {
         auto cur_dst = memory[ARG_DST];
 
         auto split_parts = [](int len, int n) {
-            int average = len / n;
+            const int average = len / n;
             std::vector<int> parts(n, average);
             parts.back() = len - average * (n - 1);
             return parts;
@@ -366,7 +366,7 @@ void FullyConnected::execTensorParallelSync() {
                     auto* new_ptr = static_cast<uint8_t*>(tp_cfg.sub_memory->_memorys_table[tp_cfg.id][idx].send_buf);
                     const auto copySize = splited_dim_vec[idx] * prec.size();  // bytes of half selected dim.
                     const size_t unloop = 8;
-                    size_t step = count / unloop;
+                    const size_t step = count / unloop;
                     parallel_for(step, [&](size_t i) {
                         cpu_memcpy(dst_ptr + idx * strideSize + (i * unloop) * channel_size,
                                    new_ptr + (i * unloop) * copySize,
@@ -393,10 +393,10 @@ void FullyConnected::execTensorParallelSync() {
                                    new_ptr + (i * unloop + 7) * copySize,
                                    copySize);
                     });
-                    size_t tail = count & ~(unloop - 1);
+                    const size_t tail = count & ~(unloop - 1);
                     for (size_t i = tail; i < count; ++i) {
-                        size_t dst_offset = i * channel_size + idx * strideSize;
-                        size_t src_offset = i * copySize;
+                        const size_t dst_offset = i * channel_size + idx * strideSize;
+                        const size_t src_offset = i * copySize;
                         cpu_parallel_memcpy(dst_ptr + dst_offset, new_ptr + src_offset, copySize);
                     }
                     wait_list[idx] = 0;
@@ -408,7 +408,7 @@ void FullyConnected::execTensorParallelSync() {
             }
         }
         {
-            std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
+            const std::lock_guard<std::mutex> lock(tp_cfg.sub_memory->_flagMutex);
             tp_cfg.sub_memory->_use_count[tp_cfg.id]++;
         }
     }
@@ -598,7 +598,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         dstDescs.push_back(dstDesc);
     }
 
-    MemoryDescArgs descs{
+    const MemoryDescArgs descs{
         {ARG_SRC, srcDescs[DATA]},
         {ARG_WEI, srcDescs[WEIGHTS]},
         {ARG_BIAS, srcDescs[BIAS]},

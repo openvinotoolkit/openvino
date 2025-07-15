@@ -64,14 +64,14 @@ private:
 
 template <typename T>
 size_t MultiCache::getTypeId() {
-    static size_t id = _typeIdCounter.fetch_add(1);
+    static const size_t id = _typeIdCounter.fetch_add(1);
     return id;
 }
 
 template <typename KeyType, typename ValueType>
 MultiCache::EntryPtr<KeyType, ValueType> MultiCache::getEntry() {
     using EntryType = EntryTypeT<KeyType, ValueType>;
-    size_t id = getTypeId<EntryType>();
+    const size_t id = getTypeId<EntryType>();
     auto itr = _storage.find(id);
     if (itr == _storage.end()) {
         auto result = _storage.insert({id, std::make_shared<EntryType>(_capacity)});

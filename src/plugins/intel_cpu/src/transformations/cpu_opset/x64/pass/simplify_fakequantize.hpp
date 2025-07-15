@@ -27,24 +27,24 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::op::v0::Fake
         ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(4))->cast_vector<float>();
 
     std::vector<float> cl, ch, isc, ish, osc, osh;
-    for (float i : input_low) {
+    for (const float i : input_low) {
         cl.push_back(i);
     }
-    for (float i : input_high) {
+    for (const float i : input_high) {
         ch.push_back(i);
     }
 
     for (size_t i = 0; i < std::max(input_low.size(), input_high.size()); i++) {
-        float il = input_low[input_low.size() == 1 ? 0 : i];
-        float ih = input_high[input_high.size() == 1 ? 0 : i];
+        const float il = input_low[input_low.size() == 1 ? 0 : i];
+        const float ih = input_high[input_high.size() == 1 ? 0 : i];
 
         isc.push_back((levels - 1) / (ih - il));
         ish.push_back(-il * (levels - 1) / (ih - il));
     }
 
     for (size_t i = 0; i < std::max(output_low.size(), output_high.size()); i++) {
-        float ol = output_low[output_low.size() == 1 ? 0 : i];
-        float oh = output_high[output_high.size() == 1 ? 0 : i];
+        const float ol = output_low[output_low.size() == 1 ? 0 : i];
+        const float oh = output_high[output_high.size() == 1 ? 0 : i];
 
         osc.push_back((oh - ol) / (levels - 1));
         osh.push_back(ol);

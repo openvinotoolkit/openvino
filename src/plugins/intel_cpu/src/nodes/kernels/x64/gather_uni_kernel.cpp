@@ -256,8 +256,8 @@ void jitUniGatherKernel<isa>::generate() {
         jg(lBlock, T_NEAR);
         {
             Xbyak::Label lLessThanVector1;
-            Xbyak::Label lTail1;
-            Xbyak::Label lTail2;
+            const Xbyak::Label lTail1;
+            const Xbyak::Label lTail2;
             Xbyak::Label lE1;
 
             cmp(regSpecIdxSizeB, vlen);
@@ -303,8 +303,8 @@ void jitUniGatherKernel<isa>::generate() {
             uni_vpslld(vmmAfterAxisIdxB, vmmAfterAxisIdxB, idxTypeShift);  // multiply by indices type size.
 
             Xbyak::Label lLessThanVector2;
-            Xbyak::Label lTail3;
-            Xbyak::Label lTail4;
+            const Xbyak::Label lTail3;
+            const Xbyak::Label lTail4;
             Xbyak::Label lE2;
 
             cmp(regAux2, dataElPerVec);
@@ -689,7 +689,7 @@ void jitUniGatherKernel<isa>::calcSrcShiftShortBlock(Vmm* vAuxPool, bool shiftFi
 
                     vpmulld(vAux0, vmmSpecIdxB, vmmAfterAxisSize);
                     uni_vpaddd(vAux0, vAux0, vmmAfterAxisIdxB);
-                    Xbyak::Xmm& xAux0 = xmmAuxContainer[vAux0.getIdx()];
+                    const Xbyak::Xmm& xAux0 = xmmAuxContainer[vAux0.getIdx()];
                     uni_vpbroadcastd(vAux1, xAux0);
                     if (isa == x64::avx512_core) {
                         auto kMask0 = Xbyak::Opmask(kAuxMask0.getIdx());
@@ -787,13 +787,13 @@ void jitUniGatherKernel<isa>::store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc) {
     if (is_real16_to_f32) {
         // keep reg_dst, incremented outside
         constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
-        Xbyak::Ymm ymmSrc(vmmSrc.getIdx());
-        Xbyak::Xmm xmmSrc(vmmSrc.getIdx());
+        const Xbyak::Ymm ymmSrc(vmmSrc.getIdx());
+        const Xbyak::Xmm xmmSrc(vmmSrc.getIdx());
         if (is_zmm) {
             // if zmm, split to 2 ymms, up convert to 2 zmms, store
             // last(31) is used as temp
-            Xbyak::Zmm zmmTemp(31);
-            Xbyak::Ymm ymmTemp(31);
+            const Xbyak::Zmm zmmTemp(31);
+            const Xbyak::Ymm ymmTemp(31);
             convert_emitter->emit_code({static_cast<size_t>(ymmSrc.getIdx())}, {static_cast<size_t>(zmmTemp.getIdx())});
             uni_vmovups(ptr[reg_dst], zmmTemp);
             vshuff64x2(zmmTemp, vmmSrc, vmmSrc, 0b00001110);
@@ -803,8 +803,8 @@ void jitUniGatherKernel<isa>::store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc) {
         } else {
             // if ymm, split to 2 xmms, up convert to 2 ymms, store
             // vmmZeros is used as temp
-            Xbyak::Ymm ymmTemp(vmmZeros.getIdx());
-            Xbyak::Xmm xmmTemp(vmmZeros.getIdx());
+            const Xbyak::Ymm ymmTemp(vmmZeros.getIdx());
+            const Xbyak::Xmm xmmTemp(vmmZeros.getIdx());
             convert_emitter->emit_code({static_cast<size_t>(xmmSrc.getIdx())}, {static_cast<size_t>(ymmTemp.getIdx())});
             uni_vmovups(ptr[reg_dst], ymmTemp);
             vperm2f128(ymmTemp, ymmSrc, ymmSrc, 0x1);
@@ -1082,11 +1082,11 @@ void jitUniGatherKernel<x64::avx512_core>::fillRestWorkMask(Vmask& kDstMask,
                                                             [[maybe_unused]] const Xbyak::Reg64& rAux0,
                                                             const Xbyak::Reg64& rAux1) {
     Xbyak::Label lKmov;
-    Xbyak::Reg32 rOnes(rAux1.getIdx());
+    const Xbyak::Reg32 rOnes(rAux1.getIdx());
     mov(rOnes, 0x0000FFFF);
     cmp(rWorkRest, idxElPerVec);
     jge(lKmov);
-    Xbyak::Reg8 rShift(Xbyak::Operand::CL);
+    const Xbyak::Reg8 rShift(Xbyak::Operand::CL);
     mov(rShift, idxElPerVec);
     sub(rShift, rWorkRest);
     shr(rOnes, rShift);
@@ -1102,9 +1102,9 @@ void jitUniGatherKernel<x64::avx2>::fillRestWorkMask(Vmask& kDstMask,
                                                      const Xbyak::Reg64& rAux1) {
     Xbyak::Label lEnd;
     mov(rAux0, rWorkRest);
-    Xbyak::Reg32 rOnes(rAux1.getIdx());
+    const Xbyak::Reg32 rOnes(rAux1.getIdx());
     mov(rOnes, 0xFFFFFFFF);
-    Xbyak::Xmm xmmAux(vAux.getIdx());
+    const Xbyak::Xmm xmmAux(vAux.getIdx());
     uni_vmovups(kDstMask, vmmZeros);
     for (size_t i = 0; i < idxElPerVec; i++) {
         cmp(rAux0, 0);
@@ -1126,10 +1126,10 @@ void jitUniGatherKernel<isa>::storeVectorPart(const Xbyak::Reg64& rDst,
                                               const Xbyak::Reg64& rToStoreCounter,
                                               Vmm& vmmSrc,
                                               Vmm& vAux) {
-    Xbyak::Ymm ymmTemp(vmmZeros.getIdx());
-    Xbyak::Xmm xmmTemp(vmmZeros.getIdx());
+    const Xbyak::Ymm ymmTemp(vmmZeros.getIdx());
+    const Xbyak::Xmm xmmTemp(vmmZeros.getIdx());
     Xbyak::Label lEnd;
-    Xbyak::Xmm xAux(vAux.getIdx());
+    const Xbyak::Xmm xAux(vAux.getIdx());
     for (size_t j = 0; j < vlen / vlenXmm; j++) {
         if (isa == x64::avx2) {
             vextracti128(xAux, vmmSrc, j);

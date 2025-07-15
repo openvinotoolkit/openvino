@@ -40,7 +40,7 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto m_bias = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_fc, m_bias});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         auto add = pattern_to_output[m_add].get_node_shared_ptr();
@@ -54,7 +54,7 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
 
         ov::Shape bias_shape(bias->get_shape());
         const ov::PartialShape& output_shape = fc->get_output_partial_shape(0);
-        size_t bias_size = ov::shape_size(bias_shape);
+        const size_t bias_size = ov::shape_size(bias_shape);
         auto rank = output_shape.size();
         if (rank == 0 || output_shape[rank - 1].is_dynamic()) {
             return false;

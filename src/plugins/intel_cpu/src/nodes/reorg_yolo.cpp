@@ -73,27 +73,27 @@ void ReorgYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dst_data = getDstDataAtPortAs<float>(0);
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
-    int IW = (inDims.size() > 3) ? inDims[3] : 1;
-    int IH = (inDims.size() > 2) ? inDims[2] : 1;
-    int IC = (inDims.size() > 1) ? inDims[1] : 1;
-    int B = (!inDims.empty()) ? inDims[0] : 1;
+    const int IW = (inDims.size() > 3) ? inDims[3] : 1;
+    const int IH = (inDims.size() > 2) ? inDims[2] : 1;
+    const int IC = (inDims.size() > 1) ? inDims[1] : 1;
+    const int B = (!inDims.empty()) ? inDims[0] : 1;
 
-    int ic_off = IC / (stride * stride);
-    int ih_off = IH * stride;
-    int iw_off = IW * stride;
+    const int ic_off = IC / (stride * stride);
+    const int ih_off = IH * stride;
+    const int iw_off = IW * stride;
     for (int b = 0; b < B; b++) {
         for (int ic = 0; ic < IC; ic++) {
             for (int ih = 0; ih < IH; ih++) {
                 for (int iw = 0; iw < IW; iw++) {
-                    int dstIndex = b * IC * IH * IW + ic * IH * IW + ih * IW + iw;
+                    const int dstIndex = b * IC * IH * IW + ic * IH * IW + ih * IW + iw;
 
-                    int oc = ic % ic_off;
-                    int offset = ic / ic_off;
+                    const int oc = ic % ic_off;
+                    const int offset = ic / ic_off;
 
-                    int ow = iw * stride + offset % stride;
-                    int oh = ih * stride + offset / stride;
+                    const int ow = iw * stride + offset % stride;
+                    const int oh = ih * stride + offset / stride;
 
-                    int srcIndex = b * ic_off * ih_off * iw_off + oc * ih_off * iw_off + oh * iw_off + ow;
+                    const int srcIndex = b * ic_off * ih_off * iw_off + oc * ih_off * iw_off + oh * iw_off + ow;
 
                     dst_data[dstIndex] = src_data[srcIndex];
                 }

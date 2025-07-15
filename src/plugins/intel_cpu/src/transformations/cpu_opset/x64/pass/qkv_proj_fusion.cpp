@@ -49,7 +49,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
                                               {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
     auto result = q_proj;
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -70,7 +70,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.find(q_proj_weight_const_i8) != pattern_map.end();
+        const bool is_quantized_int8 = pattern_map.find(q_proj_weight_const_i8) != pattern_map.end();
 
         OutputVector args = {src};
         OutputVector deq_scales;
@@ -157,12 +157,12 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
             }
         }
 
-        QKVProjectionNode::Config config{is_quantized_int8,
-                                         static_cast<int>(hidden_size),
-                                         proj_size[0],
-                                         proj_size[1],
-                                         proj_size[2],
-                                         false};
+        const QKVProjectionNode::Config config{is_quantized_int8,
+                                               static_cast<int>(hidden_size),
+                                               proj_size[0],
+                                               proj_size[1],
+                                               proj_size[2],
+                                               false};
 
         auto old_node = root;
         auto new_node = std::make_shared<QKVProjectionNode>(args, config);
@@ -210,7 +210,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
     auto result = qkv_split->output(0);
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         PatternValidator validator(m);
         if (!validator) {
             return false;
@@ -237,7 +237,7 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        bool is_quantized_int8 = pattern_map.find(qkv_proj_weight_const_i8) != pattern_map.end();
+        const bool is_quantized_int8 = pattern_map.find(qkv_proj_weight_const_i8) != pattern_map.end();
 
         std::shared_ptr<op::v0::Constant> qkv_proj_weight_node;
         if (is_quantized_int8) {
@@ -256,12 +256,12 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
             return false;
         }
 
-        QKVProjectionNode::Config config{is_quantized_int8,
-                                         static_cast<int>(w_shape[1]),
-                                         1,
-                                         split_lengths[0],
-                                         split_lengths[1],
-                                         static_cast<bool>(split_lengths[2])};
+        const QKVProjectionNode::Config config{is_quantized_int8,
+                                               static_cast<int>(w_shape[1]),
+                                               1,
+                                               split_lengths[0],
+                                               split_lengths[1],
+                                               static_cast<bool>(split_lengths[2])};
 
         OutputVector args = {pattern_map.at(input), qkv_proj_weight_node, qkv_proj_weight_node, qkv_proj_weight_node};
         if (is_quantized_int8) {

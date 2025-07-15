@@ -199,7 +199,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
                                                    const std::vector<Xbyak::Reg64>& data_ptr_regs,
                                                    const std::vector<Xbyak::Reg64>& aux_gprs) const {
     OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 2, "Invalid arg regs size");
-    Xbyak::Reg64 reg_runtime_params = arg_regs[0];
+    const Xbyak::Reg64 reg_runtime_params = arg_regs[0];
     Xbyak::Reg64 reg_indexes = arg_regs[1];
 
     const auto num_params = num_inputs + num_outputs;
@@ -261,7 +261,7 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg
                                                     const std::vector<Xbyak::Reg64>& data_ptr_regs,
                                                     [[maybe_unused]] const std::vector<Xbyak::Reg64>& aux_gprs) const {
     OV_CPU_JIT_EMITTER_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
-    Xbyak::Reg64 reg_runtime_params = arg_regs[0];
+    const Xbyak::Reg64 reg_runtime_params = arg_regs[0];
 
     const auto num_params = num_inputs + num_outputs;
     for (size_t i = 0; i < num_unique_buffers; ++i) {

@@ -425,7 +425,7 @@ void Input::cloneBlobIfRequired() {
         return;
     }
 
-    Shape shape(m_constOp->get_shape().empty() ? ov::Shape(1, 1) : m_constOp->get_shape());
+    const Shape shape(m_constOp->get_shape().empty() ? ov::Shape(1, 1) : m_constOp->get_shape());
     const size_t size = shape.getElementsCount();
     CpuBlockedMemoryDesc memDesc(prec, shape);
 
@@ -491,8 +491,8 @@ void Input::cloneBlobIfRequired() {
             }
 #endif
 
-            uint32_t mantissaMask = 0x007fffff;
-            uint32_t exponentMask = 0x7f800000;
+            const uint32_t mantissaMask = 0x007fffff;
+            const uint32_t exponentMask = 0x7f800000;
             const float bf16_max = std::numeric_limits<ov::bfloat16>::max();
             for (size_t i = 0; i < size; ++i) {
                 if (needFlushDenormalsToZero && (u32data[i] & exponentMask) == 0 && (u32data[i] & mantissaMask) != 0) {
@@ -721,7 +721,7 @@ void Input::selectOptimalPrimitiveDescriptor() {
         inConfs.push_back(
             {PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, inPlacePort)});
     }
-    NodeConfig config(inConfs, {});
+    const NodeConfig config(inConfs, {});
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     selectPrimitiveDescriptorByIndex(0);
@@ -781,7 +781,7 @@ void Input::initSupportedPdDefault() {
 
 void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
-    PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
+    const PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
 
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         config.outConfs.push_back(portConfig);

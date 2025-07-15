@@ -52,8 +52,8 @@ int64_t getSeqAxis(const std::shared_ptr<ov::Node>& sequenceOp) {
             if (order_before && order_after) {
                 auto order_before_values = order_before->cast_vector<int64_t>();
                 auto order_after_values = order_after->cast_vector<int64_t>();
-                std::vector<int64_t> order_ref_before = {1, 0, 2};
-                std::vector<int64_t> order_ref_after = {2, 1, 0, 3};
+                const std::vector<int64_t> order_ref_before = {1, 0, 2};
+                const std::vector<int64_t> order_ref_after = {2, 1, 0, 3};
                 if (order_before_values == order_ref_before && order_after_values == order_ref_after) {
                     seqAxis = 0;
                 }
@@ -67,7 +67,7 @@ bool transform(const std::shared_ptr<ov::Node>& sequenceOp) {
     // Detect pattern: Transpose_before -> Seq -> Transpose_after
     auto seqAxis = getSeqAxis(sequenceOp);
     if (seqAxis == 0) {
-        ov::Output<ov::Node> in_0 = sequenceOp->get_input_node_shared_ptr(0)->input_value(0);
+        const ov::Output<ov::Node> in_0 = sequenceOp->get_input_node_shared_ptr(0)->input_value(0);
 
         auto shapeBeforeTranspose = ov::op::util::make_try_fold<ov::op::v0::ShapeOf>(in_0);
         auto newInShape = ov::op::util::make_try_fold<ov::op::v8::Gather>(
@@ -106,7 +106,7 @@ ov::intel_cpu::OptimizeGRUSequenceTransposes::OptimizeGRUSequenceTransposes() {
     MATCHER_SCOPE(OptimizeGRUSequenceTransposes);
     auto gruSequenceNgraph = ov::pass::pattern::wrap_type<ov::op::v5::GRUSequence>();
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto gruSequence = ov::as_type_ptr<ov::op::v5::GRUSequence>(m.get_match_root());
         if (!gruSequence) {
             return false;
@@ -127,7 +127,7 @@ ov::intel_cpu::OptimizeRNNSequenceTransposes::OptimizeRNNSequenceTransposes() {
     MATCHER_SCOPE(OptimizeRNNSequenceTransposes);
     auto rnnSequenceNgraph = ov::pass::pattern::wrap_type<ov::op::v5::RNNSequence>();
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto rnnSequence = ov::as_type_ptr<ov::op::v5::RNNSequence>(m.get_match_root());
         if (!rnnSequence) {
             return false;
@@ -148,7 +148,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
     MATCHER_SCOPE(OptimizeLSTMSequenceTransposes);
     auto lstmSequenceNgraph = ov::pass::pattern::wrap_type<ov::op::v5::LSTMSequence>();
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto checkSequence = [](const std::shared_ptr<ov::Node>& node) {
             if (auto lstm5 = ov::as_type_ptr<ov::op::v5::LSTMSequence>(node)) {
                 return lstm5->get_direction() != ov::op::RecurrentSequenceDirection::BIDIRECTIONAL;
@@ -156,7 +156,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
             return false;
         };
 
-        std::shared_ptr<ov::Node> lstmSequence = m.get_match_root();
+        const std::shared_ptr<ov::Node> lstmSequence = m.get_match_root();
         return checkSequence(lstmSequence) ? transform(lstmSequence) : false;
     };
 

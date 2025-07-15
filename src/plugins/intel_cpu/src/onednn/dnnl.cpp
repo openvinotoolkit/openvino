@@ -140,7 +140,7 @@ unsigned get_cache_size(int level, bool per_core) {
     }
 
     if (level > 0 && static_cast<unsigned>(level) <= cpu().getDataCacheLevels()) {
-        unsigned l = level - 1;
+        const unsigned l = level - 1;
         return cpu().getDataCacheSize(l);
     }
     return 0U;

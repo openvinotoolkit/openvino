@@ -56,10 +56,10 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     m_binary_postops_offset = post_ops_config.binary_postops_offset;
 
     if (brgemm_config.is_amx()) {
-        BrgemmAMXKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
+        const BrgemmAMXKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
         m_kernel_executor = kernel_table->register_kernel<BrgemmAMXKernelExecutor>(expr, compiled_kernel_cache, config);
     } else {
-        BrgemmKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
+        const BrgemmKernelConfig config(brgemm_config, brgOutPrc, post_ops_config.post_ops);
         m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr, compiled_kernel_cache, config);
     }
     // Note: even if the Brgemm node is dynamic, the first shapeInfer and RuntimeConfigurator::update()

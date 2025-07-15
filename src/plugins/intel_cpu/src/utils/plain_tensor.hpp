@@ -371,7 +371,7 @@ struct PlainTensor {
 #ifdef _WIN32
                 ptr = _aligned_malloc(capacity_new, 64);
 #else
-                int rc = ::posix_memalign(&ptr, 64, capacity_new);
+                const int rc = ::posix_memalign(&ptr, 64, capacity_new);
                 if (rc) {
                     OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
                 }

@@ -55,7 +55,7 @@ public:
     [[nodiscard]] std::vector<MemoryDescArgs> getProperMemoryDescriptors(const MemoryDescArgs& descriptors) const {
         DEBUG_LOG("Preconfiguring memory descriptors");
 
-        executor::Config<Attrs> config{descriptors, m_attrs};
+        const executor::Config<Attrs> config{descriptors, m_attrs};
 
         auto getProperMemoryDescArgs = [](const ExecutorImplementationRef& impl,
                                           const executor::Config<Attrs>& config) {

@@ -63,7 +63,7 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public dnnl::impl::cpu::x64::
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_dft_kernel_f32)
 
-    jit_dft_kernel_f32(bool is_inverse, enum dft_type type)
+    jit_dft_kernel_f32(bool is_inverse, const enum dft_type type)
         : jit_dft_kernel(is_inverse, type),
           jit_generator(jit_name()) {
         constexpr int simd_size = vlen / type_size;

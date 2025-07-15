@@ -117,7 +117,7 @@ ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(
     const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
     const auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
-    std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
+    const std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
 }  // namespace ov::intel_cpu

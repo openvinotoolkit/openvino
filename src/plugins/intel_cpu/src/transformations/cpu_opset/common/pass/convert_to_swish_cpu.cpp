@@ -22,7 +22,7 @@ ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
     MATCHER_SCOPE(ConvertToSwishCPU);
     auto swish = ov::pass::pattern::wrap_type<ov::op::v4::Swish>();
 
-    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto swish = ov::as_type_ptr<ov::op::v4::Swish>(m.get_match_root());
         if (!swish) {
             return false;

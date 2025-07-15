@@ -211,7 +211,7 @@ size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc)
     OPENVINO_ASSERT(IMPLICATION(desc.get_format_kind() == dnnl::memory::format_kind::blocked, desc.get()->offset0 == 0),
                     "Unexpected non zero offset for a dnnl blocked memory desc");
 
-    size_t size = desc.get_size();
+    const size_t size = desc.get_size();
     if (size == DNNL_RUNTIME_SIZE_VAL) {
         return MemoryDesc::UNDEFINED_SIZE;
     }
@@ -242,7 +242,8 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
     const char* res = nullptr;
-    dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, reinterpret_cast<void*>(&res));
+    const dnnl_status_t status =
+        dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, reinterpret_cast<void*>(&res));
     if (status != dnnl_success) {
         OPENVINO_THROW("query_impl_info_str failed.");
     }

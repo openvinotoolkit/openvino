@@ -57,9 +57,9 @@ size_t ShuffleChannels::ShuffleChannelsAttributes::hash() const {
 }
 
 bool ShuffleChannels::ShuffleChannelsAttributes::operator==(const ShuffleChannelsAttributes& rhs) const {
-    bool result = layoutType == rhs.layoutType && dataRank == rhs.dataRank && axis == rhs.axis &&
-                  spatialRank == rhs.spatialRank && group == rhs.group && dataSize == rhs.dataSize &&
-                  srcDims == rhs.srcDims && srcBlockedDims == rhs.srcBlockedDims;
+    const bool result = layoutType == rhs.layoutType && dataRank == rhs.dataRank && axis == rhs.axis &&
+                        spatialRank == rhs.spatialRank && group == rhs.group && dataSize == rhs.dataSize &&
+                        srcDims == rhs.srcDims && srcBlockedDims == rhs.srcBlockedDims;
     return result;
 }
 
@@ -224,8 +224,8 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
 
     const int channelDim = 1;
     if (isBlocked) {
-        size_t blkSize = srcBlockedDims.back();
-        size_t CB = srcBlockedDims[1];
+        const size_t blkSize = srcBlockedDims.back();
+        const size_t CB = srcBlockedDims[1];
         if (attrs.axis > channelDim) {  // axis on spatial
             for (int i = 0; i < batchRank; i++) {
                 params.order[i] = i;
@@ -318,7 +318,7 @@ void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
         THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
     }
 
-    int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
+    const int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
 
     const auto* srcData = getSrcDataAtPortAs<const uint8_t>(0);
     auto* dstData = getDstDataAtPortAs<uint8_t>(0);

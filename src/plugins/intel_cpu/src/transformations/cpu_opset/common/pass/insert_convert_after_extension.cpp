@@ -30,7 +30,7 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension(bool convert_
 
     auto ref_m = ov::pass::pattern::any_input(i64_extension);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    const ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto ref = m.get_match_root();
 
         for (auto& output : ref->outputs()) {

@@ -100,7 +100,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
         THROW_CPU_NODE_ERR("has unsupported 'inputData' input precision: ", inDataPrecision);
     }
 
-    ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
+    const ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
     if (!one_of(indicesPrecision, ov::element::i32, ov::element::i64)) {
         THROW_CPU_NODE_ERR("has unsupported 'indices' input precision: ", indicesPrecision);
     }

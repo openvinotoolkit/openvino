@@ -80,10 +80,10 @@ void STFT::initSupportedPrimitiveDescriptors() {
         dataPrecision = ov::element::f32;
     }
 
-    std::vector<PortConfigurator> configurators({{LayoutType::ncsp, dataPrecision},
-                                                 {LayoutType::ncsp, dataPrecision},
-                                                 {LayoutType::ncsp, ov::element::i32},
-                                                 {LayoutType::ncsp, ov::element::i32}});
+    const std::vector<PortConfigurator> configurators({{LayoutType::ncsp, dataPrecision},
+                                                       {LayoutType::ncsp, dataPrecision},
+                                                       {LayoutType::ncsp, ov::element::i32},
+                                                       {LayoutType::ncsp, ov::element::i32}});
 
     addSupportedPrimDesc(configurators, {{LayoutType::ncsp, dataPrecision}}, impl_desc_type::ref_any);
 }
@@ -111,9 +111,9 @@ void transpose_out4d(const uint8_t* in,
                        in_indexes[axes_order[0]] = i;
                        in_indexes[axes_order[1]] = j;
                        in_indexes[axes_order[2]] = k;
-                       size_t in_off =
+                       const size_t in_off =
                            ((in_indexes[0] * in_shape[1] + in_indexes[1]) * in_shape[2] + in_indexes[2]) * in_shape[3];
-                       size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
+                       const size_t out_off = ((i * out_shape[1] + j) * out_shape[2] + k) * out_shape[3];
                        cpu_memcpy(out + out_off * elem_size, in + in_off * elem_size, out_shape[3] * elem_size);
                    });
 }
@@ -146,14 +146,14 @@ void STFT::execute([[maybe_unused]] const dnnl::stream& strm) {
     float* dst = rdft_result;
     const auto stft_shape = VectorDims{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]};
     if (m_transpose_frames) {  // Store intermediate results
-        MemoryPtr dst_mem =
+        const MemoryPtr dst_mem =
             getScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{stft_shape}));
         dst = dst_mem->getDataAs<float>();
     }
 
     parallel_for2d(batch_size, num_frames, [&](size_t batch, size_t frame_idx) {
-        size_t batch_in_start = batch * signal_length;
-        size_t batch_frames_out = batch * num_frames;
+        const size_t batch_in_start = batch * signal_length;
+        const size_t batch_frames_out = batch * num_frames;
 
         const auto frame_start = batch_in_start + frame_idx * frame_step;
         const auto frame_end = frame_start + frame_size;

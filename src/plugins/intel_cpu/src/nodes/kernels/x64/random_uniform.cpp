@@ -287,7 +287,7 @@ template <x64::cpu_isa_t isa>
 void PhiloxGenerator<isa>::process() {
     auto v_dst_0 = getVmm();
     auto v_dst_1 = getVmm();
-    std::vector<Vmm> v_res{v_dst_0, v_dst_1};
+    const std::vector<Vmm> v_res{v_dst_0, v_dst_1};
 
     auto step = vlen;
     if (one_of(m_jcp.out_data_type.size(), 2LU, 4LU)) {

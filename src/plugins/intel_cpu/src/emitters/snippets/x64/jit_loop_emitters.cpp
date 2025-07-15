@@ -117,8 +117,8 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
 
     auto reg_work_amount = Reg64(static_cast<int>(out.back()));
     if (is_work_amount_dynamic) {
-        jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
-        Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
+        const jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, out);  // loop_begin has only output registers
+        const Reg64 reg_loop_args_ptr = gpr_holder.get_reg();
         const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
         h->mov(reg_loop_args_ptr, h->ptr[abi_param1 + GET_OFF(loop_args)]);
         h->mov(reg_work_amount, h->ptr[reg_loop_args_ptr + id_offset + GET_OFF_LOOP_ARGS(m_work_amount)]);
@@ -254,7 +254,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
 
             const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
             if (use_runtime_args) {
-                jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);  // loop_end has only input registers
+                const jit_aux_gpr_holder gpr_holder(h, aux_gpr_idxs, in);  // loop_end has only input registers
                 reg_increments = gpr_holder.get_reg();
                 h->mov(reg_increments, h->ptr[abi_param1 + GET_OFF(loop_args)]);
                 h->mov(reg_increments, h->ptr[reg_increments + id_offset + field_offset]);

@@ -44,8 +44,8 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     }
 
     for (int i = tmp_order.size() - 1; i >= 0; i--) {
-        int pos = std::distance(std::find(src_block_order.rbegin(), src_block_order.rend(), tmp_order[i]),
-                                src_block_order.rend() - 1);
+        const int pos = std::distance(std::find(src_block_order.rbegin(), src_block_order.rend(), tmp_order[i]),
+                                      src_block_order.rend() - 1);
         if (pos != -1) {
             new_src_block_strides[i] = src_block_strides[pos];
             src_block_order.erase(src_block_order.begin() + pos);
@@ -59,7 +59,8 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         }
     }
     if (!src_block_order.empty()) {
-        int pos = std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), src_block_order[0]));
+        const int pos =
+            std::distance(tmp_order.begin(), std::find(tmp_order.begin(), tmp_order.end(), src_block_order[0]));
         new_src_block_strides.insert(new_src_block_strides.begin() + pos, src_block_strides[0]);
         new_dst_block_strides.insert(
             new_dst_block_strides.begin() + pos,
@@ -78,7 +79,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
     VectorDims sorted_dst_dims;
 
     //  support dynamic batch
-    int batch_ord = std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0));
+    const int batch_ord = std::distance(params.order.begin(), std::find(params.order.begin(), params.order.end(), 0));
     int batch_count = 0;
     int batch_pos = 0;
     for (size_t i = 0; i < new_dst_block_order.size(); i++) {
@@ -117,7 +118,7 @@ jit_permute_config_params TransposeExecutor::prepareParams(const PermuteParams& 
         }
     }
 
-    int max_threads = parallel_get_max_threads();
+    const int max_threads = parallel_get_max_threads();
     const int n_max = 3;  //  max count dims for parallel
     int n = 0;
     int work_amount = sorted_dst_dims[0];

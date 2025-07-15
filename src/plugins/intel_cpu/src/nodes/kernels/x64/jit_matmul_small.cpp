@@ -162,8 +162,8 @@ void jit_uni_matmul_small_kernel_f32<isa>::apply_post_ops(ov::element::Type dst_
             post_ops_data_offset += depthwise_injectors[depthwise_inj_idx]->memoryStep();
             depthwise_inj_idx++;
         } else if (post_op.is_quantization()) {
-            bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-            bool do_rounding = do_dequantization || dst_prc == ov::element::f32 || i != p.len() - 1;
+            const bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
+            const bool do_rounding = do_dequantization || dst_prc == ov::element::f32 || i != p.len() - 1;
 
             quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_post_ops_data + post_ops_data_offset,
                                                                          reg_oc_off);

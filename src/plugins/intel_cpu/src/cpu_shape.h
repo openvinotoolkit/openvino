@@ -173,7 +173,7 @@ public:
 
         size_t size = 1;
 
-        for (uint64_t minDim : minDims) {
+        for (const uint64_t minDim : minDims) {
             size *= minDim;
         }
 
@@ -185,8 +185,8 @@ public:
         std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
         for (size_t i = 0; i < minDims.size(); i++) {
-            Dimension::value_type minDim = Shape::UNDEFINED_DIM == minDims[i] ? -1 : minDims[i];
-            Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
+            const Dimension::value_type minDim = Shape::UNDEFINED_DIM == minDims[i] ? -1 : minDims[i];
+            const Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
             nGraphDims.emplace_back(minDim, maxDim);
         }
         return {nGraphDims};

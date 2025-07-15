@@ -87,7 +87,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
 
     void generate() override {
         const auto& p = attr_.post_ops_;
-        int end_idx = jcp_.with_dw_conv ? p.find(primitive_kind::convolution) : p.len();
+        const int end_idx = jcp_.with_dw_conv ? p.find(primitive_kind::convolution) : p.len();
         for (int i = 0; i < end_idx; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -129,7 +129,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
 
         jmp(exit_label, T_NEAR);
 
-        int nbits = 8;
+        const int nbits = 8;
 
         L(main_loop_label);
         {
@@ -356,28 +356,28 @@ private:
                       int ic_blocks,
                       bool last_icb,
                       bool h_padded) {
-        int kw = jcp_.kw;
-        int kh = jcp_.kh;
-        int stride_w = jcp_.stride_w;
-        int dilate_w = jcp_.dilate_w + 1;
-        int ic_blk = jcp_.ic_block;
-        int oc_blk = jcp_.oc_block;
+        const int kw = jcp_.kw;
+        const int kh = jcp_.kh;
+        const int stride_w = jcp_.stride_w;
+        const int dilate_w = jcp_.dilate_w + 1;
+        const int ic_blk = jcp_.ic_block;
+        const int oc_blk = jcp_.oc_block;
 
-        int repeats = isa == x64::sse41 && oc_step > (oc_blk / 2) ? 2 : 1;
-        int nbits = 8;
+        const int repeats = isa == x64::sse41 && oc_step > (oc_blk / 2) ? 2 : 1;
+        const int nbits = 8;
 
         for (int ki = 0; ki < kw; ki++) {
-            int jj_start = nstl::max(0, div_up(pad_l - ki * dilate_w, stride_w));
-            int jj_end = ur_w - nstl::max(0, div_up(ki * dilate_w + pad_r - (kw - 1) * dilate_w, stride_w));
+            const int jj_start = nstl::max(0, div_up(pad_l - ki * dilate_w, stride_w));
+            const int jj_end = ur_w - nstl::max(0, div_up(ki * dilate_w + pad_r - (kw - 1) * dilate_w, stride_w));
 
-            int _start = (!jcp_.exclude_pad) ? 0 : jj_start;
-            int _end = (!jcp_.exclude_pad) ? ur_w : jj_end;
+            const int _start = (!jcp_.exclude_pad) ? 0 : jj_start;
+            const int _end = (!jcp_.exclude_pad) ? ur_w : jj_end;
 
             for (int ifm2 = 0; ifm2 < ic_blocks; ifm2++) {
                 for (int jj = _start; jj < _end; jj++) {
-                    int inp_off = ((ki * dilate_w + jj * stride_w - pad_l) * div_up(jcp_.ic, nbits) +
-                                   ifm2 * div_up(ic_blk, nbits)) *
-                                  jcp_.typesize_in;
+                    const int inp_off = ((ki * dilate_w + jj * stride_w - pad_l) * div_up(jcp_.ic, nbits) +
+                                         ifm2 * div_up(ic_blk, nbits)) *
+                                        jcp_.typesize_in;
 
                     if (h_padded || jj < jj_start || jj >= jj_end) {
                         uni_vmovups(vmm_src, ptr[reg_table + 8 * vlen]);
@@ -387,7 +387,7 @@ private:
 
                     for (int r = 0; r < repeats; r++) {
                         for (int ii = 0; ii < oc_blocks; ii++) {
-                            int ker_off =
+                            const int ker_off =
                                 (ifm2 * kh * kw * div_up(ic_blk, nbits) * oc_blk +
                                  ii * jcp_.nb_ic * div_up(ic_blk, nbits) * kh * kw * oc_blk +
                                  ki * div_up(ic_blk, nbits) * oc_blk + r * div_up(ic_blk, nbits) * (oc_blk / 2)) *
@@ -448,12 +448,12 @@ private:
     }
 
     void oh_step_unroll_kw(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step, bool h_padded) {
-        int kh = jcp_.kh;
-        int kw = jcp_.kw;
+        const int kh = jcp_.kh;
+        const int kw = jcp_.kw;
 
-        int nbits = 8;
-        int inp_mult = div_up(jcp_.ic_block, nbits);
-        int out_mult = jcp_.oc_block;
+        const int nbits = 8;
+        const int inp_mult = div_up(jcp_.ic_block, nbits);
+        const int out_mult = jcp_.oc_block;
 
         Label icb_main_loop;
         Label icb_tail;
@@ -481,11 +481,11 @@ private:
     }
 
     void kh_loop(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step) {
-        int iw = jcp_.iw;
-        int kw = jcp_.kw;
-        int dilate_h = jcp_.dilate_h + 1;
+        const int iw = jcp_.iw;
+        const int kw = jcp_.kw;
+        const int dilate_h = jcp_.dilate_h + 1;
 
-        int nbits = 8;
+        const int nbits = 8;
         const int inp_mult = dilate_h * div_up(jcp_.ic, nbits);
 
         Label t_overflow_label;
@@ -558,8 +558,8 @@ private:
     }
 
     void width_blk_step(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step) {
-        int nbits = 8;
-        int repeats = isa == x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
+        const int nbits = 8;
+        const int repeats = isa == x64::sse41 && oc_step > (jcp_.oc_block / 2) ? 2 : 1;
 
         for (int r = 0; r < repeats; r++) {
             for (int ii = 0; ii < oc_blocks; ii++) {
@@ -574,15 +574,16 @@ private:
         kh_loop(ur_w, pad_l, pad_r, oc_blocks, oc_step);
 
         if (isa == x64::avx512_core && oc_step != jcp_.oc_block) {
-            int mask = (1 << oc_step) - 1;
+            const int mask = (1 << oc_step) - 1;
             mov(reg_tmp_32, mask);
             kmovw(ktail_mask, reg_tmp_32);
         }
 
         const auto& p = attr_.post_ops_;
         for (int r = 0; r < repeats; r++) {
-            int tail_size = isa == x64::sse41 ? nstl::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
-            bool is_scalar_store = isa == x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
+            const int tail_size =
+                isa == x64::sse41 ? nstl::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
+            const bool is_scalar_store = isa == x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
 
             std::vector<int> kw_padding(ur_w);
 
@@ -595,8 +596,8 @@ private:
                 }
 
                 for (int ki = 0; ki < jcp_.kw; ki++) {
-                    int jj_start = nstl::max(0, div_up(pad_l - ki * (jcp_.dilate_w + 1), jcp_.stride_w));
-                    int jj_end =
+                    const int jj_start = nstl::max(0, div_up(pad_l - ki * (jcp_.dilate_w + 1), jcp_.stride_w));
+                    const int jj_end =
                         ur_w - nstl::max(0,
                                          div_up(ki * (jcp_.dilate_w + 1) + pad_r - (jcp_.kw - 1) * (jcp_.dilate_w + 1),
                                                 jcp_.stride_w));
@@ -630,9 +631,9 @@ private:
             int eltwise_inj_idx = 0;
             int depthwise_inj_idx = 0;
             int post_ops_data_offset = 0;
-            int end_idx = jcp_.with_dw_conv ? p.find(primitive_kind::convolution) : p.len();
+            const int end_idx = jcp_.with_dw_conv ? p.find(primitive_kind::convolution) : p.len();
             for (int i = 0; i < end_idx; i++) {
-                int start_idx = 1 + r * jcp_.ur_w * jcp_.nb_oc_blocking;
+                const int start_idx = 1 + r * jcp_.ur_w * jcp_.nb_oc_blocking;
 
                 auto& post_op = p.entry_[i];
                 if (post_op.is_eltwise()) {
@@ -668,15 +669,15 @@ private:
 
                             if (is_scalar_store) {
                                 if (isa == x64::avx512_core) {
-                                    int o_off = jj * jcp_.oc * jcp_.ngroups;
+                                    const int o_off = jj * jcp_.oc * jcp_.ngroups;
 
-                                    Vmm vmm_in = vmm_sum | ktail_mask | T_z;
+                                    const Vmm vmm_in = vmm_sum | ktail_mask | T_z;
 
                                     vmovups(vmm_in, ptr[reg_output + o_off * jcp_.typesize_out]);
                                     uni_vaddps(vmm_dst, vmm_dst, vmm_sum);
                                 } else {
                                     for (int oc = 0; oc < tail_size; oc++) {
-                                        int o_off = jj * jcp_.oc * jcp_.ngroups + r * (jcp_.oc_block / 2) + oc;
+                                        const int o_off = jj * jcp_.oc * jcp_.ngroups + r * (jcp_.oc_block / 2) + oc;
 
                                         uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
                                         cvt2ps(jcp_.dst_dt, vmm_sum, ptr[reg_output + o_off * jcp_.typesize_out], true);
@@ -693,7 +694,7 @@ private:
                                     }
                                 }
                             } else {
-                                size_t o_off =
+                                const size_t o_off =
                                     ii * jcp_.oc_block + jj * jcp_.oc * jcp_.ngroups + r * (jcp_.oc_block / 2);
 
                                 cvt2ps(jcp_.dst_dt, vmm_sum, ptr[reg_output + o_off * jcp_.typesize_out], false);
@@ -706,7 +707,7 @@ private:
         }
 
         if (jcp_.with_binarization) {
-            int binarization_idx = p.find(primitive_kind::binarization);
+            const int binarization_idx = p.find(primitive_kind::binarization);
 
             OPENVINO_ASSERT(binarization_idx >= 0, "postops don't contain binarization");
 
@@ -722,7 +723,7 @@ private:
             for (int ii = 0; ii < oc_blocks; ii++) {
                 for (int jj = 0; jj < ur_w; jj++) {
                     for (int r = 0; r < repeats; r++) {
-                        int tail_size =
+                        const int tail_size =
                             isa == x64::sse41 ? nstl::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
                         mov(reg_b_mask, (1 << tail_size) - 1);
                         uni_vmovups(
@@ -771,15 +772,16 @@ private:
             }
         } else {
             for (int r = 0; r < repeats; r++) {
-                int tail_size =
+                const int tail_size =
                     isa == x64::sse41 ? nstl::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
-                bool is_scalar_store = isa == x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
+                const bool is_scalar_store =
+                    isa == x64::sse41 ? tail_size < jcp_.oc_block / 2 : tail_size < jcp_.oc_block;
                 if (is_scalar_store) {
                     for (int jj = 0; jj < ur_w; jj++) {
                         auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
                         if (isa == x64::avx512_core) {
-                            size_t o_off = [&] {
+                            const size_t o_off = [&] {
                                 if (jcp_.with_dw_conv) {
                                     return jj * jcp_.oc_block;
                                 }
@@ -789,7 +791,7 @@ private:
                             uni_vmovups(ptr[reg_output + o_off * jcp_.typesize_out], vmm_dst | ktail_mask);
                         } else {
                             for (int oc = 0; oc < tail_size; oc++) {
-                                size_t o_off = [&] {
+                                const size_t o_off = [&] {
                                     if (jcp_.with_dw_conv) {
                                         return jj * jcp_.oc_block + oc + r * (jcp_.oc_block / 2);
                                     }
@@ -831,17 +833,17 @@ private:
     }
 
     void solve_common(int oc_blocks, int oc_step) {
-        int ur_w = jcp_.ur_w;
-        int ur_w_tail = jcp_.ur_w_tail;
+        const int ur_w = jcp_.ur_w;
+        const int ur_w_tail = jcp_.ur_w_tail;
         int n_oi = jcp_.ow / ur_w;
-        int iw = jcp_.iw;
-        int kw = jcp_.kw;
-        int dilate_w = jcp_.dilate_w + 1;
-        int str_w = jcp_.stride_w;
+        const int iw = jcp_.iw;
+        const int kw = jcp_.kw;
+        const int dilate_w = jcp_.dilate_w + 1;
+        const int str_w = jcp_.stride_w;
 
         int nbits = 8;
         const int inp_mult = div_up(jcp_.ic, nbits);
-        int out_mult = [&]() {
+        const int out_mult = [&]() {
             if (jcp_.with_dw_conv) {
                 return jcp_.oc_block;
             }
@@ -851,9 +853,9 @@ private:
             return jcp_.oc;
         }();
 
-        int l_pad = jcp_.l_pad;
-        int r_pad = nstl::max(0, (jcp_.ow - 1) * str_w + (kw - 1) * dilate_w - (iw + l_pad - 1));
-        int r_pad1 = (ur_w * n_oi - 1) * str_w + (kw - 1) * dilate_w - (iw + l_pad - 1);
+        const int l_pad = jcp_.l_pad;
+        const int r_pad = nstl::max(0, (jcp_.ow - 1) * str_w + (kw - 1) * dilate_w - (iw + l_pad - 1));
+        const int r_pad1 = (ur_w * n_oi - 1) * str_w + (kw - 1) * dilate_w - (iw + l_pad - 1);
         if (r_pad1 > 0) {
             n_oi--;
         }
@@ -919,7 +921,7 @@ private:
                                       0x01010101,
                                       0x00010001};
 
-        size_t simd_w = vlen / sizeof(int32_t);
+        const size_t simd_w = vlen / sizeof(int32_t);
 
         align(64);
         L(l_table);
@@ -955,12 +957,12 @@ private:
         }
         // offset = 7
         for (size_t d = 0; d < simd_w; ++d) {
-            uint32_t mask = 0xffffffff >> (jcp_.ic_padded - jcp_.ic);
+            const uint32_t mask = 0xffffffff >> (jcp_.ic_padded - jcp_.ic);
             dd(mask);
         }
         // offset = 8
         for (size_t d = 0; d < simd_w; ++d) {
-            uint32_t val = jcp_.pad_value == 1.0F ? 0xffffffff : 0x00000000;
+            const uint32_t val = jcp_.pad_value == 1.0F ? 0xffffffff : 0x00000000;
             dd(val);
         }
     }
@@ -999,7 +1001,7 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
         for (uint64_t i : binConv->get_strides()) {
             stride.push_back(static_cast<ptrdiff_t>(i));
         }
-        for (uint64_t i : binConv->get_dilations()) {
+        for (const uint64_t i : binConv->get_dilations()) {
             dilation.push_back(static_cast<ptrdiff_t>(i) - 1);
         }
         paddingL = binConv->get_pads_begin();
@@ -1080,17 +1082,17 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].setMemDesc(nspcCreator->createSharedDesc(ov::element::u1, getInputShapeAtPort(0)));
 
         // weights
-        size_t weiFirstDimBlockSize = implType == impl_desc_type::jit_avx512
-                                          ? 16
-                                          : 8;  // memory::format_tag::OIhw16o32i : memory::format_tag::OIhw8o32i;
+        const size_t weiFirstDimBlockSize = implType == impl_desc_type::jit_avx512
+                                                ? 16
+                                                : 8;  // memory::format_tag::OIhw16o32i : memory::format_tag::OIhw8o32i;
         auto weiDims = getInputShapeAtPort(1).getStaticDims();
-        std::vector<size_t> weiBlockDims = {div_up(weiDims[0], weiFirstDimBlockSize),
-                                            div_up(weiDims[1], 32),
-                                            weiDims[2],
-                                            weiDims[3],
-                                            weiFirstDimBlockSize,
-                                            32};
-        std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
+        const std::vector<size_t> weiBlockDims = {div_up(weiDims[0], weiFirstDimBlockSize),
+                                                  div_up(weiDims[1], 32),
+                                                  weiDims[2],
+                                                  weiDims[3],
+                                                  weiFirstDimBlockSize,
+                                                  32};
+        const std::vector<size_t> weiOrder = {0, 1, 2, 3, 0, 1};
 
         config.inConfs[1].setMemDesc(
             std::make_shared<CpuBlockedMemoryDesc>(ov::element::u1, Shape(weiDims), weiBlockDims, weiOrder));
@@ -1138,7 +1140,7 @@ void BinaryConvolution::createPrimitive() {
     jcp.oh = dstDims[2];
     jcp.ow = dstDims[3];
 
-    bool with_groups = group > 1;
+    const bool with_groups = group > 1;
     jcp.kh = weiDims[static_cast<int>(with_groups) + 2];
     jcp.kw = weiDims[static_cast<int>(with_groups) + 3];
 
@@ -1162,7 +1164,7 @@ void BinaryConvolution::createPrimitive() {
     jcp.with_sum = p.find(primitive_kind::sum) != -1;
     jcp.with_binarization = p.find(primitive_kind::binarization) != -1;
 
-    int simd_w = implType == impl_desc_type::jit_avx512 ? 16 : 8;
+    const int simd_w = implType == impl_desc_type::jit_avx512 ? 16 : 8;
 
     jcp.ur_w = implType == impl_desc_type::jit_avx512 ? 4 : 2;
     if (jcp.ow < jcp.ur_w) {
@@ -1192,18 +1194,18 @@ void BinaryConvolution::createPrimitive() {
     jcp.typesize_in = srcPrecision == ov::element::u1 ? 1 : srcPrecision.size();
     jcp.typesize_out = dstPrecision == ov::element::u1 ? 1 : dstPrecision.size();
 
-    int r_pad_no_tail = nstl::max(
+    const int r_pad_no_tail = nstl::max(
         0,
         (jcp.ow - jcp.ur_w_tail - 1) * jcp.stride_w + (jcp.kw - 1) * (jcp.dilate_w + 1) - (jcp.iw + jcp.l_pad - 1));
 
-    bool args_ok =
+    const bool args_ok =
         (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
         IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
     if (!args_ok) {
         THROW_CPU_NODE_ERR("has unsupported parameters");
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    jit_dw_conv_params jcp_dw_conv = {};
+    const jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
         bin_conv_kernel =
             std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx512_core>>(jcp, jcp_dw_conv, *attr.get());
@@ -1244,7 +1246,7 @@ void BinaryConvolution::setPostOps(dnnl::primitive_attr& attr) {
     postOpsDataPtrs.clear();
     for (auto& node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
-        int channelAxis = 1;
+        const int channelAxis = 1;
         if (eltwiseNode) {
             if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
@@ -1281,12 +1283,12 @@ void BinaryConvolution::executeOptimized(const uint8_t* src,
 
     const int MB = jcp.mb;
 
-    int ocb_work = div_up(jcp.nb_oc, jcp.nb_oc_blocking);
+    const int ocb_work = div_up(jcp.nb_oc, jcp.nb_oc_blocking);
     int nbits = 8;
 
     parallel_for4d(MB, jcp.ngroups, ocb_work, jcp.oh, [&](int n, int g, int ocbb, int oh) {
-        int ocb = ocbb * jcp.nb_oc_blocking;
-        int ocb_num = jcp.nb_oc_blocking;
+        const int ocb = ocbb * jcp.nb_oc_blocking;
+        const int ocb_num = jcp.nb_oc_blocking;
 
         auto par_conv = jit_bin_conv_call_args();
 
@@ -1392,7 +1394,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                         s = extract_bit(src[iidx / nbits], static_cast<uint8_t>(iidx % nbits));
                     }
 
-                    uint8_t w = extract_bit(weights[widx / nbits], static_cast<uint8_t>(widx % nbits));
+                    const uint8_t w = extract_bit(weights[widx / nbits], static_cast<uint8_t>(widx % nbits));
 
                     d += static_cast<int32_t>(s ^ w);
                 }
@@ -1419,7 +1421,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
             return IC * KH * KW;
         }();
 
-        float a_fp = base_value - static_cast<float>(2 * a);
+        const float a_fp = base_value - static_cast<float>(2 * a);
 
         dst_fp[mb * d_str[0] + (g * OC + oc) * d_str[1] + oh * d_str[2] + ow * d_str[3]] = a_fp;
     });

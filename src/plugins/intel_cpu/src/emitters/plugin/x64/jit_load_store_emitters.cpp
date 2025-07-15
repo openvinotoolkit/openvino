@@ -170,7 +170,7 @@ void jit_load_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_idx, const int offset) const {
-    bool matched_prc = (dst_prc_ == src_prc_) || (dst_prc_ == ov::element::f32) || (dst_prc_ == ov::element::i32);
+    const bool matched_prc = (dst_prc_ == src_prc_) || (dst_prc_ == ov::element::f32) || (dst_prc_ == ov::element::i32);
     if (!matched_prc) {
         OV_CPU_JIT_EMITTER_THROW("only support output precision of FP32 or I32 or the same precision as input.");
     }
@@ -226,7 +226,7 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
     }
 
     if (is_fill_) {
-        int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : (load_size_ / sizeof(float));
+        const int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : (load_size_ / sizeof(float));
         fill_with_default(Vmm(out_vec_idx), fill_value_, dword_num_loaded);
     }
 }
@@ -560,9 +560,9 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm& vmm,
     [[maybe_unused]] constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
     [[maybe_unused]] constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
 
-    bool is_bf16 = (prc == ov::element::bf16);
-    bool is_f16 = (prc == ov::element::f16);
-    bool is_signed = prc.is_signed();
+    const bool is_bf16 = (prc == ov::element::bf16);
+    const bool is_f16 = (prc == ov::element::f16);
+    const bool is_signed = prc.is_signed();
 
     if (is_f16 && !mayiuse(cpu::x64::avx2)) {
         OV_CPU_JIT_EMITTER_THROW("only support fp16 on platform with avx2 or above.");
@@ -803,7 +803,7 @@ void jit_store_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std:
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_dst, const int offset) const {
-    bool matched_prc = (src_prc_ == dst_prc_) || (src_prc_ == ov::element::f32) || (src_prc_ == ov::element::i32);
+    const bool matched_prc = (src_prc_ == dst_prc_) || (src_prc_ == ov::element::f32) || (src_prc_ == ov::element::i32);
     if (!matched_prc) {
         OV_CPU_JIT_EMITTER_THROW("only support input precision of FP32 or I32 or the same precision as output.");
     }

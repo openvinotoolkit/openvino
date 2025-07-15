@@ -91,7 +91,7 @@ void GatherND::initSupportedPrimitiveDescriptors() {
     }
     attrs.dataSize = inDataPrecision.size();
 
-    ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
+    const ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
     if (!one_of(indicesPrecision,
                 ov::element::i32,
                 ov::element::i64,
@@ -208,7 +208,7 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
         if (start >= end) {
             return;
         }
-        size_t bStart = start / cycles;
+        const size_t bStart = start / cycles;
         size_t cStart = start % cycles;
         size_t workCounter = start;
 
@@ -251,7 +251,7 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
         if (start >= end) {
             return;
         }
-        size_t bStart = start / cycles;
+        const size_t bStart = start / cycles;
         size_t cStart = start % cycles;
         size_t workCounter = start;
 

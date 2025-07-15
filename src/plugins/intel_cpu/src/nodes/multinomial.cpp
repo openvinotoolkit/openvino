@@ -227,19 +227,19 @@ void Multinomial::execute_convert_type() {
     });
 
     parallel_for(m_input_elements_count, [&](size_t idx) {
-        size_t idx_max_elem = idx / m_probs_count;
+        const size_t idx_max_elem = idx / m_probs_count;
         m_cdf[idx] = m_cdf[idx] / m_max_per_batch[idx_max_elem];
     });
 
     if (m_with_replacement) {
         parallel_for(m_batches_samples_probs_count, [&](size_t idx) {
-            size_t idx_batch = idx / m_samples_probs_count;
-            size_t idx_num_samples_probs = idx % m_samples_probs_count;
-            size_t idx_prob = idx_num_samples_probs % m_probs_count;
-            size_t idx_sample = idx_num_samples_probs / m_probs_count;
+            const size_t idx_batch = idx / m_samples_probs_count;
+            const size_t idx_num_samples_probs = idx % m_samples_probs_count;
+            const size_t idx_prob = idx_num_samples_probs % m_probs_count;
+            const size_t idx_sample = idx_num_samples_probs / m_probs_count;
 
-            size_t idx_input = idx_batch * m_probs_count + idx_prob;
-            size_t idx_output = idx_batch * m_samples_count + idx_sample;
+            const size_t idx_input = idx_batch * m_probs_count + idx_prob;
+            const size_t idx_output = idx_batch * m_samples_count + idx_sample;
             if (m_random_samples[idx_output] <= m_cdf[idx_input] &&
                 (!idx_prob || m_random_samples[idx_output] > m_cdf[idx_input - 1])) {
                 output[idx_output] = static_cast<O>(idx_prob);
@@ -248,8 +248,8 @@ void Multinomial::execute_convert_type() {
     } else {  // without replacement - adjust cdf after each sample drawn from batch, sequentially
         parallel_for(m_batches_count, [&](size_t idx_batch) {
             for (size_t idx_sample = 0LU; idx_sample < m_samples_count; ++idx_sample) {
-                size_t idx_input = idx_batch * m_probs_count;
-                size_t idx_output = idx_batch * m_samples_count + idx_sample;
+                const size_t idx_input = idx_batch * m_probs_count;
+                const size_t idx_output = idx_batch * m_samples_count + idx_sample;
 
                 bool class_selected = false;
                 size_t selected_class = m_probs_count;

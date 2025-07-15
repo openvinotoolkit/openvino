@@ -100,7 +100,7 @@ void transferData(const IMemory& src, const IMemory& dst, bool ftz, bool bf16sat
         // here we can safely cast to DnnlMemoryDesc
         auto dnnl_desc = dst.getDescWithType<DnnlMemoryDesc>();
         auto desc = dnnl_desc->getDnnlDesc();
-        dnnl::impl::memory_desc_wrapper wrapper(desc.get());
+        const dnnl::impl::memory_desc_wrapper wrapper(desc.get());
         offset = wrapper.offset0();
         if (wrapper.is_wino_desc() || wrapper.is_rnn_packed_desc()) {
             return;
@@ -136,7 +136,7 @@ Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
     if (m_pMemDesc->getPrecision() == element::string) {
         OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
     }
-    bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
+    const bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
 
     create(m_pMemDesc, nullptr, !memAllocated);
 }
@@ -182,7 +182,7 @@ void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
 void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr) {
-        size_t memSize = getDesc().getCurrentMemSize();
+        const size_t memSize = getDesc().getCurrentMemSize();
         OPENVINO_ASSERT(memSize != MemoryDesc::UNDEFINED_SIZE,
                         "Invalid memory size detected during nullify operation.");
         memset(dataPtr, 0, memSize);
@@ -216,12 +216,12 @@ void Memory::DnnlMemPrimHandle::resetDnnlPrim() {
 }
 
 bool Memory::DnnlMemPrimHandle::isInit() const {
-    std::lock_guard<std::mutex> guard(m_primCachingLock);
+    const std::lock_guard<std::mutex> guard(m_primCachingLock);
     return m_prim.get(true) != nullptr;
 }
 
 dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
-    std::lock_guard<std::mutex> guard(m_primCachingLock);
+    const std::lock_guard<std::mutex> guard(m_primCachingLock);
     if (!m_prim) {
         if (!m_memObjPtr->getDesc().isDefined()) {
             OPENVINO_THROW("Can not create oneDNN memory from undefined memory descriptor");
@@ -432,7 +432,7 @@ void DnnlMemoryBlock::setExtBuff(void* ptr, size_t size) {
 }
 
 bool DnnlMemoryBlock::resize(size_t size) {
-    bool sizeChanged = m_pMemBlock->resize(size);
+    const bool sizeChanged = m_pMemBlock->resize(size);
     if (sizeChanged) {
         notifyUpdate();
     }
@@ -611,7 +611,7 @@ static int64_t mbind(void* start, uint64_t len, int mode, const uint64_t* nmask,
 
 #if defined(__linux__)
 bool mbind_move(void* data, size_t size, int targetNode) {
-    int realNode = ov::get_org_numa_id(targetNode);
+    const int realNode = ov::get_org_numa_id(targetNode);
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
     auto* pages = reinterpret_cast<char*>(  // NOLINT(performance-no-int-to-ptr)
@@ -671,7 +671,7 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         dim += dims.size();
     }
     auto split_parts = [](int len, int n) {
-        int average = len / n;
+        const int average = len / n;
         std::vector<int> parts(n, average);
         parts.back() = len - average * (n - 1);
         return parts;
@@ -734,7 +734,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         dim += dims.size();
     }
     auto split_parts = [](int len, int n) {
-        int average = len / n;
+        const int average = len / n;
         std::vector<int> parts(n, average);
         parts.back() = len - average * (n - 1);
         return parts;
@@ -782,8 +782,8 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         copySize /= 2;
     }
     parallel_for(step, [&](int i) {
-        int dst_offset = i * copySize;
-        int src_offset = i * splited_size + w_rank * strideSize;
+        const int dst_offset = i * copySize;
+        const int src_offset = i * splited_size + w_rank * strideSize;
         cpu_parallel_memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);
     });
     return ptr;

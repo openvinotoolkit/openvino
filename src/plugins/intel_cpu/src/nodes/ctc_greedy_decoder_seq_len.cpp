@@ -70,12 +70,12 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
+    const ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
     }
 
-    ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
+    const ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
     if (seqLenPrecision != ov::element::i32 && seqLenPrecision != ov::element::i64) {
         THROW_CPU_NODE_ERR("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
     }
@@ -114,7 +114,7 @@ void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) 
     size_t workAmount = 0;
     for (size_t b = 0; b < B; b++) {
         if (sequenceLengths[b] > static_cast<int>(T)) {
-            std::string errorMsg =
+            const std::string errorMsg =
                 "Sequence length " + std::to_string(sequenceLengths[b]) +
                 " cannot be greater than according decoded classes dimension size " +
                 std::to_string(getChildEdgeAt(DECODED_CLASSES_INDEX)->getMemory().getStaticDims()[1]);

@@ -69,7 +69,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
             assert(src_wdt.bitwidth() == dst_wdt.bitwidth());
 
             // prevent reorderData from doing conversion
-            Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
+            const Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};
             MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
             node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
 
@@ -93,7 +93,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
             return _ptr;
         }
 
-        Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
+        const Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
         node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
 

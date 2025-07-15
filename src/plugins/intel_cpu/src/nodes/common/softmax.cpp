@@ -285,7 +285,7 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
         int tail_start = 0;
 
         if (softmax_kernel) {
-            int blocks_num = H * W / block_size;
+            const int blocks_num = H * W / block_size;
 
             parallel_for(blocks_num, [&](int ib) {
                 auto arg = jit_args_softmax();
@@ -303,10 +303,10 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
         }
 
         parallel_for(H * W - tail_start, [&](int i) {
-            int offset = i + tail_start;
+            const int offset = i + tail_start;
             float max = src_data[b * C * H * W + offset];
             for (int c = 0; c < C; c++) {
-                float val = src_data[b * C * H * W + c * H * W + offset];
+                const float val = src_data[b * C * H * W + c * H * W + offset];
                 if (val > max) {
                     max = val;
                 }
