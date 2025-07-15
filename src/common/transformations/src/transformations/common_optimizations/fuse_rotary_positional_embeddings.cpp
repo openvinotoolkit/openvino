@@ -698,9 +698,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     if (support_2d_rope) {
         auto const_target_shape0 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("0, head_cnt, 0, ndims/2, 2"));
-        reshape0 =
-            pattern::wrap_type<v1::Reshape>({slice0 | var_split0->output(0), const_target_shape0},
-                                            {{"special_zero", true}});
+        reshape0 = pattern::wrap_type<v1::Reshape>({slice0 | var_split0->output(0), const_target_shape0},
+                                                   {{"special_zero", true}});
     } else {
         auto concat0 =
             pattern::wrap_type<v0::Concat>({seq_length, {-1}, {"head_cnt"}, {"ndims/2"}, {2}}, {{"axis", 0}});
@@ -708,9 +707,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
             pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims/2, 2"));
         auto const_target_shape2 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims/2, 2"));
-        reshape0 =
-            pattern::wrap_type<v1::Reshape>({slice0 | var_split0->output(0),
-                                             concat0 | const_target_shape1 | const_target_shape2});
+        reshape0 = pattern::wrap_type<v1::Reshape>(
+            {slice0 | var_split0->output(0), concat0 | const_target_shape1 | const_target_shape2});
     }
 
     auto x_even = pattern::wrap_type<v8::Gather>({reshape0, 0, -1}, {{"batch_dims", 0}});
@@ -728,18 +726,15 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         auto ss_stop = pattern::wrap_type<v0::Constant>();
         auto strided_slice0 = NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
 
-        auto concat1 =
-            pattern::wrap_type<v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
+        auto concat1 = pattern::wrap_type<v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
         auto const_target_shape3 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, 1, seq_len, ndims/2, 2"));
 
         // [batch, 1, seq_length, half_rotary_dims, 2]
         reshape1 = pattern::wrap_type<v1::Reshape>(
-            {strided_slice0 | slice1 | slice2 | var_split1->output(0),
-             concat1 | const_target_shape3});
+            {strided_slice0 | slice1 | slice2 | var_split1->output(0), concat1 | const_target_shape3});
     } else {
-        auto concat2 =
-            pattern::wrap_type<v0::Concat>({seq_length, {-1}, {1}, {"ndims/2"}, {2}}, {{"axis", 0}});
+        auto concat2 = pattern::wrap_type<v0::Concat>({seq_length, {-1}, {1}, {"ndims/2"}, {2}}, {{"axis", 0}});
         auto const_target_shape4 = pattern::wrap_type<v0::Constant>(pattern::value_matches("1, -1, 1, ndims/2, 2"));
         auto const_target_shape5 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, 1, ndims/2, 2"));
@@ -748,9 +743,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         auto strided_slice1 = NewGenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
 
         // [seq_length, 1, batch, half_rotary_dims, 2]
-        reshape1 =
-            pattern::wrap_type<v1::Reshape>({strided_slice1 | slice3 | var_split1->output(0),
-                                             concat2 | const_target_shape4 | const_target_shape5});
+        reshape1 = pattern::wrap_type<v1::Reshape>(
+            {strided_slice1 | slice3 | var_split1->output(0), concat2 | const_target_shape4 | const_target_shape5});
     }
 
     auto cos_tab = pattern::wrap_type<v8::Gather>({reshape1, 0, -1}, {{"batch_dims", 0}});
@@ -781,21 +775,19 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         const_target_shape6 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
                                              pattern::value_matches("0, head_cnt, 0, ndims"));
-        reshape2 = pattern::wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6},
-                                                              {{"special_zero", true}});
+        reshape2 = pattern::wrap_type<v1::Reshape>(
+            {concat2, concat3 | const_target_shape6}, {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
         auto const_target_shape7 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims"));
         const_target_shape6 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims"));
         reshape2 = pattern::wrap_type<v1::Reshape>(
-            {concat2, concat3 | const_target_shape6 | const_target_shape7},
-            {{"special_zero", true}});
+            {concat2, concat3 | const_target_shape6 | const_target_shape7}, {{"special_zero", true}});
     }
     auto slice5 = NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
 
-    auto concat4 =
-        pattern::wrap_type<v0::Concat>({reshape2, slice5 | var_split0->output(1)}, {{"axis", -1}});
+    auto concat4 = pattern::wrap_type<v0::Concat>({reshape2, slice5 | var_split0->output(1)}, {{"axis", -1}});
     auto result = concat4 | reshape2;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
