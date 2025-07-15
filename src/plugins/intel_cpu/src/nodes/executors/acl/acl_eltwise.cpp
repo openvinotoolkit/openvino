@@ -41,18 +41,21 @@ namespace ov::intel_cpu {
 using namespace arm_compute;
 
 inline VectorDims reshape_sizes(VectorDims dims) {
-    const size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
-    VectorDims result_dims(MAX_NUM_SHAPE - 1);
-    if (dims.size() >= MAX_NUM_SHAPE) {
-        for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
-            result_dims[i] = dims[i];
-        }
-        for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
-            result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
-        }
-    } else {
-        result_dims = dims;
+    static constexpr size_t MAX_NUM_SHAPE = arm_compute::MAX_DIMS;
+
+    if (dims.size() < MAX_NUM_SHAPE) {
+        return dims;
     }
+
+    VectorDims result_dims(MAX_NUM_SHAPE - 1);
+
+    for (size_t i = 0; i < MAX_NUM_SHAPE - 1; i++) {
+        result_dims[i] = dims[i];
+    }
+    for (size_t i = MAX_NUM_SHAPE - 1; i < dims.size(); i++) {
+        result_dims[MAX_NUM_SHAPE - 2] *= dims[i];
+    }
+
     return result_dims;
 }
 
@@ -96,7 +99,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
         return true;
     };
 
-    const auto eltwiseAttrs = config.attrs;
+    const auto& eltwiseAttrs = config.attrs;
 
     switch (eltwiseAttrs.data.algo) {
     case Algorithm::EltwiseSqrt:

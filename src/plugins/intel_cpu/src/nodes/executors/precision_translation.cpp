@@ -24,7 +24,7 @@ TypeOfArg getTypeConfiguration(const MemoryDescArgs& descriptors,
             types[notation.at(argId)] = desc->getPrecision();
         }
     }
-    // match types agains the mapping
+    // match types against the mapping
     TypeOfArg typeConfig;
     for (const auto& entry : mapping) {
         if (!entry.enabled()) {

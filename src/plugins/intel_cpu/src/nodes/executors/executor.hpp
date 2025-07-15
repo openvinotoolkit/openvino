@@ -34,14 +34,15 @@ enum class ExecutorType : uint8_t {
     Reference,
     Graph,
     Common,
+    jit,
     jit_x64,
+    jit_aarch64,
+    jit_riscv64,
     Dnnl,
     Acl,
     Mlas,
-    jit_aarch64,
     Shl,
     Kleidiai,
-    jit_riscv64
 };
 
 enum class OperationType : uint8_t { FullyConnected, MatMul, Convolution, Eltwise };

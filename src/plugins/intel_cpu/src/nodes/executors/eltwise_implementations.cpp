@@ -255,7 +255,7 @@ template <>
 const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<EltwiseAttrs>> eltwiseImplementations {
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_jit_ncsp", ExecutorType::jit_x64, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_ncsp", ExecutorType::jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -268,7 +268,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_jit_nspc", ExecutorType::jit_x64, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_nspc", ExecutorType::jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
@@ -376,7 +376,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_SHL(
-            "eltwise_shl", ExecutorType::Shl, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_shl_ncsp", ExecutorType::Shl, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -388,7 +388,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<ShlEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_SHL(
-            "eltwise_shl", ExecutorType::Shl, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_shl_nspc", ExecutorType::Shl, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
@@ -400,7 +400,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<ShlEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_ref", ExecutorType::Reference, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_ref_ncsp", ExecutorType::Reference, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -418,7 +418,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_ref", ExecutorType::Reference, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_ref_nspc", ExecutorType::Reference, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},

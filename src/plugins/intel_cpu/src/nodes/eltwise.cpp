@@ -626,14 +626,14 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     // Create memory descriptors
     std::vector<MemoryDescPtr> srcDescs;
     // Select preferred layout for memory descriptors
-    const auto preferedLayout =
+    const auto preferredLayout =
         context->getConfig().modelType == Config::ModelType::CNN ? LayoutType::nspc : LayoutType::ncsp;
 
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     // Create src memory descriptors
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto srcDesc = creatorsMap.at(preferedLayout)
+        auto srcDesc = creatorsMap.at(preferredLayout)
                            ->createSharedDesc(getOriginalInputPrecisionAtPort(i), getInputShapeAtPort(i));
         srcDescs.push_back(srcDesc);
     }
@@ -641,7 +641,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     // Create dst memory descriptors
     const auto dstPrecision = !fusedWith.empty() ? fusedWith.back()->getOriginalOutputPrecisionAtPort(0)
                                                  : getOriginalOutputPrecisionAtPort(0);
-    auto dstDesc = creatorsMap.at(preferedLayout)->createSharedDesc(dstPrecision, getOutputShapeAtPort(0));
+    auto dstDesc = creatorsMap.at(preferredLayout)->createSharedDesc(dstPrecision, getOutputShapeAtPort(0));
 
     // Prepare memory descriptor arguments for a factory
     MemoryDescArgs descs;
@@ -844,10 +844,6 @@ void Eltwise::executeDynamicImpl(const dnnl::stream& strm) {
     execute(strm);
 }
 
-bool Eltwise::needPrepareParams() const {
-    return Node::needPrepareParams();
-}
-
 void Eltwise::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getImplPriority(), true);
 }
@@ -957,34 +953,34 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         }
         // since legacy depthwise post ops mechanism requires broadcasted data we need to reinitilize it in case of
         // changed shape
-        if (depthwiseData.empty() || depthwiseDataSize != 2 * channelSize) {
-            depthwiseData.clear();
-            depthwiseMemory.reset();
+        if (m_depthwiseData.empty() || m_depthwiseDataSize != 2 * channelSize) {
+            m_depthwiseData.clear();
+            m_depthwiseMemory.reset();
 
-            depthwiseData.insert(depthwiseData.end(), getScales().begin(), getScales().end());
+            m_depthwiseData.insert(m_depthwiseData.end(), getScales().begin(), getScales().end());
             if (getScales().size() == 1) {
-                depthwiseData.resize(channelSize, depthwiseData.back());
+                m_depthwiseData.resize(channelSize, m_depthwiseData.back());
             } else if (getScales().size() != channelSize) {
                 THROW_CPU_NODE_ERR("Appending node has failed due to scales data size inconsistency");
             }
-            depthwiseData.insert(depthwiseData.end(), getShifts().begin(), getShifts().end());
+            m_depthwiseData.insert(m_depthwiseData.end(), getShifts().begin(), getShifts().end());
             if (getShifts().empty()) {
                 // in case of Prelu algorithm scales data is always empty
-                depthwiseData.resize(2 * channelSize, 0);
+                m_depthwiseData.resize(2 * channelSize, 0);
             } else if (getShifts().size() == 1) {
-                depthwiseData.resize(2 * channelSize, depthwiseData.back());
+                m_depthwiseData.resize(2 * channelSize, m_depthwiseData.back());
             } else if (getShifts().size() != channelSize) {
                 THROW_CPU_NODE_ERR("Appending node has failed due to shifts data size inconsistency");
             }
-            depthwiseDataSize = 2 * channelSize;
+            m_depthwiseDataSize = 2 * channelSize;
 
             // always align for legacy scale/shift post ops
             constexpr int bufferAlignment = 16;
             int bufferPaddingSize = rnd_up(channelSize, bufferAlignment) - channelSize;
-            depthwiseData.resize(depthwiseDataSize + bufferPaddingSize, 0);
+            m_depthwiseData.resize(m_depthwiseDataSize + bufferPaddingSize, 0);
         }
 
-        if (depthwiseData.empty()) {
+        if (m_depthwiseData.empty()) {
             THROW_CPU_NODE_ERR("cannot be performed since buffers are not allocated");
         }
 
@@ -1010,7 +1006,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
             THROW_CPU_NODE_ERR("as post operation is not supported");
         }
 
-        appendMemory(depthwiseData, depthwiseMemory, postOpsMem);
+        appendMemory(m_depthwiseData, m_depthwiseMemory, postOpsMem);
     }
 }
 

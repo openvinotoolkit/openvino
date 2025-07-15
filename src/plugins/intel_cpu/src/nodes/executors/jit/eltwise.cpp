@@ -169,7 +169,7 @@ EltwiseJitExecutor::EltwiseJitExecutor(const Key& key)
     }
 
     m_threadsNum = static_cast<size_t>(parallel_get_max_threads());
-    size_t minimalJitWorkAmount = 256;
+    static constexpr size_t minimalJitWorkAmount = 256;
     size_t currentJitWorkAmount = jep.dims[jep.dims.size() - 1];
     int collapsedDims = 0;
 

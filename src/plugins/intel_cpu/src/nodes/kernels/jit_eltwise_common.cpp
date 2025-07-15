@@ -11,7 +11,6 @@
 #include <set>
 #include <vector>
 
-// #include "nodes/executors/eltwise.hpp"
 #include "nodes/executors/eltwise_config.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"

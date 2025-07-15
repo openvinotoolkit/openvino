@@ -84,7 +84,6 @@ public:
         return m_attrs.specialConvolutionAddFusing;
     }
 
-    bool needPrepareParams() const override;
     void prepareParams() override;
     void createPrimitive() override;
 
@@ -118,9 +117,9 @@ private:
     EltwiseAttrs m_attrs;
     MemoryArgs m_memory;
 
-    std::vector<float> depthwiseData;
-    MemoryPtr depthwiseMemory;
-    size_t depthwiseDataSize = 0;
+    std::vector<float> m_depthwiseData;
+    MemoryPtr m_depthwiseMemory;
+    size_t m_depthwiseDataSize = 0;
 };
 
 }  // namespace ov::intel_cpu::node

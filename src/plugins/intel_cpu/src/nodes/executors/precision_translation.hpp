@@ -90,7 +90,7 @@ public:
         return m_mask;
     }
 
-    [[nodiscard]] const ov::element::Type translate(const InOutTypes& types, size_t idx) const {
+    [[nodiscard]] ov::element::Type translate(const InOutTypes& types, size_t idx) const {
         return m_policies[idx](types, idx);
     }
 

@@ -507,7 +507,6 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& os, const PrintableModel& model) {
-    return os;
     const ov::Model& f = model.model;
     const std::string& tag = model.tag;
     const std::string& prefix = model.prefix;

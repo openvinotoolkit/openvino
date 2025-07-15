@@ -89,16 +89,24 @@ public:
     ExecutorPtr make(const MemoryArgs& memory) {
         std::vector<ExecutorImplementationRef> implementations;
 
+        auto acceptsConfig = [](const ExecutorImplementationRef& impl, const executor::Config<Attrs>& config) {
+            // current config is already considered as the optimal one
+            return !impl.get().createOptimalConfig(config).has_value();
+        };
+
         // Filter out implementations that still require changes in configuration
         for (const auto& impl : m_suitableImplementations) {
             auto config = createConfig(memory, m_attrs);
-            if (!impl.get().createOptimalConfig(config).has_value()) {
-                implementations.push_back(impl);
 
-                if (impl.get().shapeAgnostic() &&
-                    impl.get().type() != ExecutorType::Acl) {  // @todo fix acl_eltwise precision mapping)
-                    break;  // there is no way an implementation with a lower priority will be chosen
-                }
+            if (!acceptsConfig(impl, config)) {
+                continue;
+            }
+
+            implementations.push_back(impl);
+
+            if (impl.get().shapeAgnostic() &&
+                impl.get().type() != ExecutorType::Acl) {  // @todo fix acl_eltwise precision mapping)
+                break;  // there is no way an implementation with a lower priority will be chosen
             }
         }
 
