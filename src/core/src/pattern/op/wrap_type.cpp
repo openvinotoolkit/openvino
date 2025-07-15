@@ -19,7 +19,7 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
         return false;
     }
 
-    if (!m_predicate(matcher->get_symbols(), graph_value)) {
+    if (!m_predicate(matcher, graph_value)) {
         OPENVINO_LOG_WRAPTYPE2(matcher);
         return false;
     }
@@ -31,7 +31,7 @@ bool ov::pass::pattern::op::WrapType::match_value(Matcher* matcher,
     auto res =
         (get_input_size() == 0 ? true
                                : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
-    OPENVINO_LOG_WRAPTYPE4(matcher, res);
+    OPENVINO_LOG_WRAPTYPE4(matcher, res, get_input_size());
     return res;
 }
 

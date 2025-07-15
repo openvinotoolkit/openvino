@@ -1459,7 +1459,7 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
     auto reshape = std::make_shared<ov::op::v1::Reshape>(input,
                                                          ov::op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20}),
                                                          true);
-    pattern::PatternSymbolMap m;
+    ov::pass::pattern::Matcher m;
     for (size_t i = 0; i < 10; ++i) {
         predicate_and = predicate_and && pattern::consumers_count(i);
         predicate_or = predicate_and || pattern::consumers_count(i);
@@ -1468,7 +1468,7 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
         else
             predicate_mixed = predicate_mixed || pattern::consumers_count(i);
 
-        ASSERT_NO_THROW(predicate_and(m, input));
+        ASSERT_NO_THROW(predicate_and(&m, input));
     }
 }
 
