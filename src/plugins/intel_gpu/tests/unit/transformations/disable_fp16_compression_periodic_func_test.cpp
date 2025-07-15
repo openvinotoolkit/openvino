@@ -47,9 +47,9 @@ static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const pr
     return true;
 }
 
-static std::string name_add = "add_1";
-static std::string name_sin = "sin";
-static std::string name_cos = "cos";
+const static std::string name_add = "add_1";
+const static std::string name_sin = "sin";
+const static std::string name_cos = "cos";
 
 static std::shared_ptr<ov::Model> create_model_with_periodic_func() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, -1, 3 });
