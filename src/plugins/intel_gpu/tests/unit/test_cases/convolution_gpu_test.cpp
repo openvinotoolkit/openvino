@@ -11745,7 +11745,7 @@ TEST(convolution_gpu, cm_convolution_groupnorm){
     auto shift = data("shift", shift_mem);
     auto weights = data("weights", weights_mem);
     auto conv_1 = convolution("conv_1", input_info("input"), "weights", "bias", groups, stride, dilation, padding_beg, padding_end, false);
-    auto groupnorm_1 = group_normalization("groupnorm_1", input_info("conv_1"), input_info("scale"), input_info("bias"), (int64_t)groups, (double)1e-10f);
+    auto groupnorm_1 = group_normalization("groupnorm_1", input_info("conv_1"), input_info("scale"), input_info("bias"), (int64_t)groups, (double)1e-1f);
     auto reorder_1 = reorder("reorder_1", input_info("groupnorm_1"), { data_types::f32, format::bfyx, { output_b, output_f, output_x, output_y } });
 
     topology topology_test(input, residual, bias, scale, shift, weights,
@@ -11776,7 +11776,7 @@ TEST(convolution_gpu, cm_convolution_groupnorm){
         ASSERT_EQ(1, val_test[i])
             << "\ni = " << i
             << "\ntest[i] = " << val_test[i]
-            << "!= 1";
+            << " != 1";
         }
     }
 }

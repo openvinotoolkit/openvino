@@ -1271,7 +1271,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
-    
+
         auto fuse_groupnorm_f = [&](group_normalization_node& groupnorm_node) {
             auto& input_data = groupnorm_node.get_dependency(0);
 
@@ -1297,6 +1297,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
     // than fused node one
     if (recalc_processing_order)
         p.get_processing_order().calc_processing_order(p);
+    }
 }
 
 void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
