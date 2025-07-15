@@ -119,6 +119,7 @@ constexpr auto _any_float = _f64 | _f32 | _f16 | _bf16;
 constexpr auto _hw_float = _f32 | _f16 | _bf16;
 constexpr auto _half_float = _f16 | _bf16;
 constexpr auto _quant = _u8 | _i8;
+constexpr auto _more_than_two_bytes = _f64 | _f32 | _i32 | _u32 | _i64 | _u64;
 constexpr auto _any = std::numeric_limits<uint64_t>::max();
 }  // namespace TypeMaskAlias
 

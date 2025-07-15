@@ -470,7 +470,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                     memory,
                                     outputDataType,
                                     attrs.dqScales,
-                                    false,
+                                    PostOpsMode::Original,
                                     false)
                     .compose()};
     }
@@ -484,7 +484,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                       memory,
                                                       outputDataType,
                                                       attrs.dqScales,
-                                                      true,
+                                                      PostOpsMode::Legacy,
                                                       true);
     // first try to compose using legacy post ops
     auto legacyCompose = legacyPostOpsLegacyZeroPoints.compose();
@@ -538,7 +538,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                             memory,
                                                             outputDataType,
                                                             attrs.dqScales,
-                                                            true,
+                                                            PostOpsMode::Legacy,
                                                             false);
         attributeVariants.emplace_back(legacyPostOpsOriginalZeroPoints.compose());
 
@@ -554,7 +554,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                           memory,
                                                           outputDataType,
                                                           attrs.dqScales,
-                                                          false,
+                                                          PostOpsMode::Original,
                                                           false);
     attributeVariants.emplace_back(originalPostOpsOriginalZeroPoints.compose());
 

@@ -47,6 +47,9 @@ public:
              implId = select(memory, ++implId)) {
             if (!m_executors[implId]) {
                 m_executors[implId] = create(implId, memory);
+                if (!m_executors[implId]) {
+                    continue;  // skip if creation failed
+                }
             }
 
             if (m_executors[implId]->update(memory)) {
