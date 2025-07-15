@@ -15,8 +15,8 @@
 #include <memory>
 #include <vector>
 
-#include "../scaled_attn/executor_pa_common.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
