@@ -4,11 +4,14 @@
 
 #include "ze_graph_ext_wrappers.hpp"
 
+#include <ze_mem_import_system_memory_ext.h>
+
 #include <regex>
 #include <string_view>
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -275,6 +278,38 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
     return std::unordered_set<std::string>();
 }
 
+void* ZeGraphExtWrappers::getNpuMemory(void* data, size_t size) {
+    ze_device_external_memory_properties_t externalMemorydDesc = {};
+    externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
+
+    auto res = zeDeviceGetExternalMemoryProperties(_zeroInitStruct->getDevice(), &externalMemorydDesc);
+    if ((res != ZE_RESULT_SUCCESS) ||
+        ((externalMemorydDesc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) == 0)) {
+        return nullptr;
+    }
+
+    _ze_external_memory_import_system_memory_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
+                                                                nullptr,
+                                                                data,
+                                                                size};
+
+    void* importedNpuData = nullptr;
+
+    ze_host_mem_alloc_desc_t memAllocDesc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, {}};
+    res =
+        zeMemAllocHost(_zeroInitStruct->getContext(), &memAllocDesc, size, utils::STANDARD_PAGE_SIZE, &importedNpuData);
+
+    if (res == ZE_RESULT_SUCCESS) {
+        return importedNpuData;
+    }
+
+    _logger.debug("Got an error when importing a CPUVA: %s, code %#X - %s",
+                  ze_result_to_string(res).c_str(),
+                  uint64_t(res),
+                  ze_result_to_description(res).c_str());
+    return nullptr;
+}
+
 ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                      const std::string& buildFlags,
                                                      const uint32_t& flags) const {
@@ -318,14 +353,14 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
 
 ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData,
                                                      size_t blobSize,
-                                                     const bool blobAligned) const {
+                                                     const bool inputGraphPersistent) const {
     ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
     }
 
-    if (blobAligned) {
+    if (inputGraphPersistent) {
         uint32_t flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
 
         ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,

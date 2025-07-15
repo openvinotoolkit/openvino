@@ -25,6 +25,7 @@ public:
           std::optional<ov::Tensor> blob,
           const Config& config,
           const bool persistentBlob = true,
+          void* importedNpuData = nullptr,
           const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
     size_t export_blob(std::ostream& stream) const override;
@@ -48,6 +49,8 @@ private:
     // exported
     bool _blobIsReleased = false;
     bool _persistentBlob;
+
+    void* _importedNpuData = nullptr;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;

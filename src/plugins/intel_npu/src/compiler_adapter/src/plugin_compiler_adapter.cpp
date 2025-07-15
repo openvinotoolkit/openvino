@@ -113,6 +113,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    std::move(tensor),
                                    config,
                                    /* blobPersistent = */ true,
+                                   /* npuMemory = */ nullptr,
                                    _compiler);
 }
 
@@ -130,32 +131,27 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
     network.shrink_to_fit();
     _logger.debug("parse end");
 
+    bool inputGraphPersistent = false;
     ze_graph_handle_t graphHandle = nullptr;
-    bool blobAligned = false;
+    void* npuMemory = nullptr;
 
     if (_zeGraphExt) {
-        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13)) {
-            blobAligned = utils::memory_and_size_aligned_to_standard_page_size(blob.data(), blob.get_byte_size());
-        }
+        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13) &&
+            utils::memory_and_size_aligned_to_standard_page_size(blob.data(), blob.get_byte_size())) {
+            npuMemory = _zeGraphExt->getNpuMemory(blob.data(), blob.get_byte_size());
 
-        if (blobAligned) {
-            try {  // in some specific cases(older OS version), this might fail if reading a READ-ONLY blob;
-                   // fall-back to pfnCreate in this case
-                graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
+            if (npuMemory) {
+                inputGraphPersistent = true;
+                graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(npuMemory),
                                                           blob.get_byte_size(),
-                                                          blobAligned);
-
-            } catch (const ov::Exception& ex) {
-                _logger.warning("Got an error during graph creation: %s\nTrying again with persistent flag unset",
-                                ex.what());
-                blobAligned = false;
+                                                          inputGraphPersistent);
             }
         }
 
-        if (!blobAligned) {
+        if (!inputGraphPersistent) {
             graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(blob.data()),
                                                       blob.get_byte_size(),
-                                                      blobAligned);
+                                                      inputGraphPersistent);
         }
     }
 
@@ -165,7 +161,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
                                    std::move(networkMeta),
                                    std::move(blob),
                                    config,
-                                   blobAligned ? blobAligned : !blobAllocatedByPlugin,
+                                   inputGraphPersistent ? inputGraphPersistent : !blobAllocatedByPlugin,
+                                   npuMemory,
                                    _compiler);
 }
 

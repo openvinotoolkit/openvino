@@ -31,11 +31,14 @@ public:
 
     std::unordered_set<std::string> queryGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                const std::string& buildFlags) const;
+
+    void* getNpuMemory(void* data, size_t size);
+
     ze_graph_handle_t getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                      const std::string& buildFlags,
                                      const uint32_t& flags) const;
 
-    ze_graph_handle_t getGraphHandle(const uint8_t& data, size_t size, const bool blobAligned = false) const;
+    ze_graph_handle_t getGraphHandle(const uint8_t& data, size_t size, const bool inputGraphPersistent = false) const;
 
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 

@@ -20,11 +20,13 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const Config& config,
              const bool persistentBlob,
+             void* importedNpuData,
              const ov::SoPtr<ICompiler>& compiler)
     : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _persistentBlob(persistentBlob),
+      _importedNpuData(importedNpuData),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -214,6 +216,16 @@ Graph::~Graph() {
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
+        }
+    }
+
+    if (_importedNpuData != nullptr) {
+        auto result = zeMemFree(_zeroInitStruct->getContext(), _importedNpuData);
+        if (ZE_RESULT_SUCCESS != result) {
+            _logger.error("L0 zeMemFree result: %s, code %#X - %s",
+                          ze_result_to_string(result).c_str(),
+                          uint64_t(result),
+                          ze_result_to_description(result).c_str());
         }
     }
 
