@@ -67,6 +67,7 @@ struct Context {
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
     PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
+    bool found_quant_gather();
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -158,19 +159,19 @@ public:
 class HostGatherQuantAsymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantAsymm");
-    HostGatherQuantAsymm(Context::Ref ctx);
+    HostGatherQuantAsymm(Context::Ref ctx, bool verify_only = false);
 };
 
 class HostGatherQuantSymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantSymm");
-    HostGatherQuantSymm(Context::Ref ctx);
+    HostGatherQuantSymm(Context::Ref ctx, bool verify_only = false);
 };
 
 class HostGatherQuant : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuant");
-    HostGatherQuant(Context::Ref ctx);
+    HostGatherQuant(Context::Ref ctx, bool verify_only = false);
 };
 
 class HostGather : public ov::pass::MatcherPass {

@@ -558,20 +558,29 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
 
     // Verify NPUW_HOST_GATHER_QUANT based on the patterns (for tail vocab)
     if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
-        using CPtr = std::shared_ptr<ov::op::v0::Constant>;
-        std::vector<CPtr> to_keep;
+        ov::npuw::patterns::opt::Context ctx;
+        // FIXME: since we are running it after lifted Gather,
+        // we need to first try to match Asymm or Symm patterns.
+        // Otherwise smaller HostGatherQuant might be matched first and break
+        // the quantization logic.
+        {
+            ov::pass::GraphRewrite rewr;
+            rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx), true);
+            rewr.run_on_model(model);
+        }
+        {
+            ov::pass::GraphRewrite rewr;
+            rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx), true);
+            rewr.run_on_model(model);
+        }
+        {
+            ov::pass::GraphRewrite rewr;
+            rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx), true);
+            rewr.run_on_model(model);
+        }
 
-        ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
-        rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
-        rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMul>(std::ref(to_keep));
-        rewr.run_on_model(model);
-
-        NPUW_ASSERT(to_keep.size() <= 3 &&
-                    "Matched more than one pattern for tail vocabulary. The pattern is incorrect!");
-        if (to_keep.empty()) {
-            LOG_INFO("Couldn't match NPUW_HOST_GATHER_QUANT-related patterns. "
-                     "Disabling NPUW_HOST_GATHER_QUANT and enabling NPUW_HOST_GATHER.");
+        if (!ctx.found_quant_gather()) {
+            LOG_INFO("Couldn't match NPUW_HOST_GATHER_QUANT-related patterns. Enabling NPUW_HOST_GATHER instead.");
             std::map<std::string, std::string> host_gather_cfg;
             host_gather_cfg["NPUW_HOST_GATHER_QUANT"] = "NO";
             host_gather_cfg["NPUW_HOST_GATHER"] = "YES";
