@@ -94,5 +94,5 @@ std::shared_ptr<Node> wrap_type(std::initializer_list<std::pair<const std::strin
     return wrap_type<Args...>(PatternOps{}, Attributes(attrs));
 }
 
-std::shared_ptr<Node> wrap_const();
+OPENVINO_API std::shared_ptr<Node> wrap_const();
 }  // namespace ov::pass::pattern
