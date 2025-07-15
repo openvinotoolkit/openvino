@@ -212,24 +212,34 @@ public:
 };
 
 // Tail vocab transformations
-class PreserveConstDictMatMulCWu : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulAsymm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWu");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulAsymm");
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulCWu(Results to_keep);
+    PreserveConstDictMatMulAsymm(Results to_keep);
 };
 
-class PreserveConstDictMatMulCWf8 : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulSymm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWf8");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulSymm");
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulCWf8(Results to_keep);
+    PreserveConstDictMatMulSymm(Results to_keep);
+};
+
+class PreserveConstDictMatMul : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMul");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    PreserveConstDictMatMul(Results to_keep);
 };
 
 // Slice last Matmul

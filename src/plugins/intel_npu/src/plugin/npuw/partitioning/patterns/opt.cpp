@@ -1372,8 +1372,12 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
-        if (out_len >= 2048 && (matched_out_mul.get_target_inputs().size() > 1 ||
-                                ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_mul)))) {
+        auto matched_out_qweight = node_to_output.at(qweight);
+        auto qweight_type = matched_out_qweight.get_element_type();
+
+        if ((qweight_type == ov::element::u4 || qweight_type == ov::element::u8) && out_len >= 2048 &&
+            (matched_out_mul.get_target_inputs().size() > 1 ||
+             ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_mul)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
@@ -1437,7 +1441,7 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
         const auto& matched_out_qweight = node_to_output.at(qweight);
-        const auto& matched_out_reshape = node_to_output.at(qweight);
+        const auto& matched_out_reshape = node_to_output.at(qrshp);
         auto qweight_type = matched_out_qweight.get_element_type();
 
         auto sole_reader = [](ov::Output<ov::Node> out) {
@@ -1446,10 +1450,10 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
-        if (out_len >= 2048 &&
-            (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
-             qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
-             qweight_type == ov::element::f8e8m0) &&
+        if ((qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
+             qweight_type == ov::element::f8e8m0 || qweight_type == ov::element::i4 ||
+             qweight_type == ov::element::i8 || qweight_type == ov::element::nf4) &&
+            out_len >= 2048 &&
             (matched_out_reshape.get_target_inputs().size() > 1 ||
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_reshape)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
@@ -1501,8 +1505,10 @@ HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
-        if (out_shape.back() >= 2048 && (matched_out_gather.get_target_inputs().size() > 1 ||
-                                         ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
+        if ((qweight_type == ov::element::i4 || qweight_type == ov::element::u4 || qweight_type == ov::element::i8) &&
+            out_shape.back() >= 2048 &&
+            (matched_out_gather.get_target_inputs().size() > 1 ||
+             ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             const auto& matched_out_gthr = node_to_output.at(qgthrw);
@@ -1871,7 +1877,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-PreserveConstDictMatMulCWu::PreserveConstDictMatMulCWu(PreserveConstDictMatMulCWu::Results to_keep) {
+PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1902,8 +1908,9 @@ PreserveConstDictMatMulCWu::PreserveConstDictMatMulCWu(PreserveConstDictMatMulCW
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+        auto qweight_type = matched_qweight->get_element_type();
 
-        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
+        if ((qweight_type == ov::element::u4 || qweight_type == ov::element::u8) && qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
@@ -1913,14 +1920,14 @@ PreserveConstDictMatMulCWu::PreserveConstDictMatMulCWu(PreserveConstDictMatMulCW
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulAsymm"), std::move(callback));
 }
 
 //     Const(W) ---> to(f16) --->
 //     Const(S) ----------------> Multiply -> MatMul -> Result
 //     ???(Act) ---------------------------->
 
-PreserveConstDictMatMulCWf8::PreserveConstDictMatMulCWf8(PreserveConstDictMatMulCWf8::Results to_keep) {
+PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -1944,10 +1951,11 @@ PreserveConstDictMatMulCWf8::PreserveConstDictMatMulCWf8(PreserveConstDictMatMul
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
+        auto qweight_type = matched_qweight->get_element_type();
 
-        if ((ov::element::f8e4m3 == matched_qweight->get_element_type() ||
-             ov::element::f8e5m2 == matched_qweight->get_element_type() ||
-             ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
+        if ((qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
+             qweight_type == ov::element::f8e8m0 || qweight_type == ov::element::i4 ||
+             qweight_type == ov::element::i8 || qweight_type == ov::element::nf4) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qcoeff);
@@ -1956,7 +1964,39 @@ PreserveConstDictMatMulCWf8::PreserveConstDictMatMulCWf8(PreserveConstDictMatMul
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulCWf8"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulSymm"), std::move(callback));
+}
+
+//     Const(W) ----------------> MatMul -> Result
+//     ???(Act) ---------------------------->
+
+PreserveConstDictMatMul::PreserveConstDictMatMul(PreserveConstDictMatMul::Results to_keep) {
+    auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qweight});
+    auto qres = opp::wrap_type<ov::op::v0::Result>({qmm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        auto qweight_type = matched_qweight->get_element_type();
+
+        if ((qweight_type == ov::element::i4 || qweight_type == ov::element::u4 || qweight_type == ov::element::i8) &&
+            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+            to_keep.get().push_back(matched_qweight);
+
+            return false;  // root hasn't changed
+        }
+        return false;  // root hasn't changed
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMul"), std::move(callback));
 }
 
 SliceLastMatmul::SliceLastMatmul() {

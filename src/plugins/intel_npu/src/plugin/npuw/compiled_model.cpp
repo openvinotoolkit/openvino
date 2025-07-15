@@ -222,6 +222,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
+    // Identify (based on compiler version) host gather or quantized host gather properties
+    // and set them in m_cfg
+    identify_host_gather_property();
+
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
@@ -524,6 +528,32 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     NPUW_ASSERT(serialized && "This constructor should only be utilized during deserialization!");
     ::intel_npu::registerNPUWOptions(*m_options_desc);
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
+}
+
+void ov::npuw::CompiledModel::identify_host_gather_property() {
+    try {
+        auto compiler_version = get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version);
+        if (compiler_version >= ONEAPI_MAKE_VERSION(7, 21)) {
+            // Force quantized host gather
+            LOG_INFO("Forcing NPUW_HOST_GATHER_QUANT property!");
+            std::map<std::string, std::string> host_gather_cfg;
+            host_gather_cfg["NPUW_HOST_GATHER_QUANT"] = "YES";
+            host_gather_cfg["NPUW_HOST_GATHER"] = "NO";
+            m_cfg.update(host_gather_cfg);
+        } else {
+            if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
+                NPUW_ASSERT(false && "NPU compiler doesn't support tail quantization! "
+                                     "Please either use NPUW_HOST_GATHER instead of NPUW_HOST_GATHER_QUANT "
+                                     "or get the latest driver.");
+            }
+        }  // compiler_version
+    } catch (...) {
+        // No device, keeping properties as is. Just do a sanity check
+        if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>() && m_cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
+            NPUW_ASSERT(false && "Conflicting configuration: NPUW_HOST_GATHER and NPUW_HOST_GATHER_QUANT should not be "
+                                 "enabled together!");
+        }
+    }
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,

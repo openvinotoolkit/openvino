@@ -1456,8 +1456,9 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     std::vector<CPtr> to_keep;
 
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulCWu>(std::ref(to_keep));
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulCWf8>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMul>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -1910,11 +1911,6 @@ void Partitioner::optimize(const std::string& func_name) {
         ov::npuw::patterns::opt::Context ctx;
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
-
-        if (cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>() && cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
-            NPUW_ASSERT(false && "Conflicting configuration: NPUW_HOST_GATHER and NPUW_HOST_GATHER_QUANT should not be "
-                                 "enabled together!");
-        }
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
