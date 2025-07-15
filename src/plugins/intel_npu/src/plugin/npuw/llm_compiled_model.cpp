@@ -890,9 +890,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const bool use_chunk_prefill = m_prefill_chunk_size > 0;
     std::cout << "prefill_chunk_size: " << m_prefill_chunk_size << std::endl;
     std::cout << "max_prompt_len: " << max_prompt_len << std::endl;
-    // Prefill chunk size should be smaller than half of max prompt length so that there are enough buffer to cache current key values
-    if (use_chunk_prefill && (m_prefill_chunk_size * 2 > max_prompt_len)) {
-        OPENVINO_THROW("NPUW_LLM_PREFILL_CHUNK_SIZE is too large");
+    if (use_chunk_prefill && (max_prompt_len % m_prefill_chunk_size)) {
+        OPENVINO_THROW("Configuration Error: The max_prompt_len (" + std::to_string(max_prompt_len) +
+                   ") is not a multiple of m_prefill_chunk_size (" + std::to_string(m_prefill_chunk_size) +
+                   "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
     }
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};

@@ -276,6 +276,8 @@ void ov::npuw::LLMInferRequest::populate_chunk_prefill_attention_mask(ov::SoPtr<
 void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
                                                        ov::SoPtr<ov::ITensor> attention_mask,
                                                        ov::SoPtr<ov::ITensor> position_ids) {
+    prepare_for_new_conversation();
+
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
     const auto input_ids_elem_size = input_ids->get_element_type().size();
@@ -360,14 +362,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     prepare_for_new_conversation();
 
-    auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-    const bool use_chunk_prefill = prefill_chunk_size > 0;
-    if (use_chunk_prefill) {
-        std::cout << "go to chunk prefill" << std::endl;
-        return infer_prefill_in_chunk(input_ids, attention_mask, position_ids);
-    }
-
-    std::cout << "go to default prefill" << std::endl;
     // NB: padded_input can be either fp32(VLM) or i64(LLM)
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     std::copy_n(
@@ -549,11 +543,15 @@ void ov::npuw::LLMInferRequest::infer() {
     // NB: Check the sequence length provided for input_ids
     // in order to distinguish prefill / generate stages
     if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] != 1) {
-        auto input_ids_shape = input_ids->get_shape();
-        auto attention_mask_shape = attention_mask->get_shape();
-        auto position_ids_shape = position_ids->get_shape();
-
-        infer_prefill(input_ids, attention_mask, position_ids);
+        auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+        const bool use_chunk_prefill = prefill_chunk_size > 0;
+        if (use_chunk_prefill) {
+            std::cout << "infer_prefill_in_chunk" << std::endl;
+            infer_prefill_in_chunk(input_ids, attention_mask, position_ids);
+        } else {
+            std::cout << "infer_prefill" << std::endl;
+            infer_prefill(input_ids, attention_mask, position_ids);
+        }
     } else {
         infer_generate(input_ids, attention_mask, position_ids);
     }
