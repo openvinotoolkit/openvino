@@ -33,12 +33,9 @@ bool Shape::isCompatible(const VectorDims& vecDims) const {
         return false;
     }
 
-    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
-            return lhs <= rhs;
-        })) {
-        return false;
-    }
-    return true;
+    return std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
+        return lhs <= rhs;
+    });
 }
 
 std::string Shape::toString() const {

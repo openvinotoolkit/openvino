@@ -48,7 +48,6 @@
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # -readability-isolate-declaration
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
-# -readability-simplify-boolean-expr
 # -readability-suspicious-call-argument
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
@@ -106,7 +105,6 @@ Checks: >
   -readability-identifier-length,
   -readability-isolate-declaration,
   -readability-magic-numbers,
-  -readability-simplify-boolean-expr,
   -readability-suspicious-call-argument,
   -readability-uppercase-literal-suffix,
 # Treat warnings as errors
@@ -156,4 +154,12 @@ CheckOptions:
   - key: performance-unnecessary-value-param.AllowedTypes
     value: >
       ov::snippets::lowered::LinearIR::constExprReverseIt
+  - key: readability-simplify-boolean-expr.ChainedConditionalReturn
+    value: true
+  - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorgan
+    value: false
+  - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
+    value: false
 ---

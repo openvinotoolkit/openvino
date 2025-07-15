@@ -2112,11 +2112,7 @@ void Graph::EnforceInferencePrecision() {
                 }
 
                 // exclude Convert after Range since it may cause precision loss when integer type to LP.
-                if (parent->getType() == Type::Range && node->getType() == Type::Convert) {
-                    return true;
-                }
-
-                return false;
+                return parent->getType() == Type::Range && node->getType() == Type::Convert;
             };
 
             if (keepOriginalInputPrecisionAtPort(node, i)) {

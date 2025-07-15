@@ -161,11 +161,7 @@ bool EmbeddingSegmentsSum::needShapeInfer() const {
         return true;
     }
 
-    if (lastNumSegments_ != getNumSegments()) {
-        return true;
-    }
-
-    return false;
+    return lastNumSegments_ != getNumSegments();
 }
 
 void EmbeddingSegmentsSum::executeDynamicImpl(const dnnl::stream& strm) {

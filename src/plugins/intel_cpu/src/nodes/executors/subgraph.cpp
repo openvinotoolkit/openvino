@@ -43,10 +43,7 @@ bool operator==(const SubgraphAttrs& lhs, const SubgraphAttrs& rhs) {
     if (lhs.inMemOrders != rhs.inMemOrders || lhs.inMemPrecs != rhs.inMemPrecs) {
         return false;
     }
-    if (lhs.outMemOrders != rhs.outMemOrders || lhs.outMemPrecs != rhs.outMemPrecs) {
-        return false;
-    }
-    return true;
+    return lhs.outMemOrders == rhs.outMemOrders && lhs.outMemPrecs == rhs.outMemPrecs;
 }
 
 size_t get_attr_hash(size_t seed, const std::shared_ptr<SubgraphAttrs>& attrs) {
