@@ -456,7 +456,7 @@ SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::
                                                 ze_graph_compiler_version_info_t compilerVersion,
                                                 const uint32_t supportedOpsetVersion) const {
     // TODO: version check to see if we use traditional or new way since old driver can not parse map
-    bool sserializeWeightsPtrToXml =
+    bool serializeWeightsPtrToXml =
         (compilerVersion.major > 7) || (compilerVersion.major == 7 && compilerVersion.minor >= 22);
 
     driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion, serializeWeightsPtrToXml);
