@@ -51,7 +51,6 @@
 #    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include "cpu/x64/jit_generator.hpp"
-#    include "openvino/core/parallel.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;

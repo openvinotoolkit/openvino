@@ -66,7 +66,7 @@ class DnnlConvolutionPrimitive {
 public:
     DnnlConvolutionPrimitive(const Key& key,
                              const dnnl::engine& engine,
-                             std::shared_ptr<ThreadPool> threadPool,
+                             const std::shared_ptr<ThreadPool>& threadPool,
                              const std::vector<impl_desc_type>& implPriorities,
                              impl_desc_type defaultImplType);
 

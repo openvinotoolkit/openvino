@@ -15,7 +15,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <utility>
 #include <vector>
 
@@ -358,9 +357,9 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                          const dnnl::engine& engine,
-                                         std::shared_ptr<ThreadPool> threadPool,
+                                         const std::shared_ptr<ThreadPool>& threadPool,
                                          const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(make_stream(engine, std::move(threadPool))),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),

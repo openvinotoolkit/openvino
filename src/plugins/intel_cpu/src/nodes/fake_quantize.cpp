@@ -12,7 +12,6 @@
 #include <cassert>
 #include <cmath>
 #include <common/c_types_map.hpp>
-#include <common/dnnl_thread.hpp>
 #include <common/nstl.hpp>
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>

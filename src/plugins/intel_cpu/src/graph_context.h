@@ -36,7 +36,7 @@ public:
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
-                 std::shared_ptr<CpuParallel> cpu_parallel = nullptr,
+                 std::shared_ptr<CpuParallel> cpuParallel = nullptr,
                  std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
     [[nodiscard]] const Config& getConfig() const {

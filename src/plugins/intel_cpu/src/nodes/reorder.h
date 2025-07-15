@@ -74,7 +74,7 @@ public:
     static void reorderData(const IMemory& input,
                             const IMemory& output,
                             const MultiCachePtr& cache = nullptr,
-                            std::shared_ptr<ThreadPool> threadPool = nullptr);
+                            const std::shared_ptr<ThreadPool>& threadPool = nullptr);
 
 private:
     dnnl::reorder::primitive prim;

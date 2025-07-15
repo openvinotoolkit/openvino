@@ -22,6 +22,7 @@
 #include "nodes/reorder.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "weights_cache.hpp"
 
 namespace ov::intel_cpu::utils {

@@ -25,7 +25,6 @@
 #include <new>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <set>
 #include <string>
 #include <tuple>
@@ -37,6 +36,7 @@
 #include "allocation_context.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
+#include "dnnl_config.h"
 #include "edge.h"
 #include "graph_context.h"
 #include "graph_dumper.h"

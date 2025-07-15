@@ -10,6 +10,7 @@
 
 #include "cache/multi_cache.h"
 #include "config.h"
+#include "cpu_parallel.hpp"
 #include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"

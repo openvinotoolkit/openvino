@@ -19,6 +19,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
@@ -647,22 +648,7 @@ int get_model_prefer_threads(const int num_streams,
                                                  L2_cache_size,
                                                  memThresholdAssumeLimitedForISA,
                                                  config.inferencePrecision);
-        auto is_llm = ov::op::util::is_large_language_model(*model.get());
-
-        std::cout << "max_mem_tolerance = " << networkToleranceForLowCache.max_mem_tolerance << std::endl;
-        std::cout << "ratio_compute_convs = " << networkToleranceForLowCache.ratio_compute_convs << std::endl;
-        std::cout << "ratio_mem_limited_convs = " << networkToleranceForLowCache.ratio_mem_limited_convs << std::endl;
-        std::cout << "ratio_mem_limited_deconvs = " << networkToleranceForLowCache.ratio_mem_limited_deconvs
-                  << std::endl;
-        std::cout << "ratio_mem_limited_gemms = " << networkToleranceForLowCache.ratio_mem_limited_gemms << std::endl;
-        std::cout << "ratio_mem_limited_adds = " << networkToleranceForLowCache.ratio_mem_limited_adds << std::endl;
-        std::cout << "ratio_compute_deconvs = " << networkToleranceForLowCache.ratio_compute_deconvs << std::endl;
-        std::cout << "total_gemms = " << networkToleranceForLowCache.total_gemms << std::endl;
-        std::cout << "total_convs = " << networkToleranceForLowCache.total_convs << std::endl;
-        std::cout << "total_adds = " << networkToleranceForLowCache.total_adds << std::endl;
-        std::cout << "total_light_convs = " << networkToleranceForLowCache.total_light_convs << std::endl;
-        std::cout << "total_light_gemms = " << networkToleranceForLowCache.total_light_gemms << std::endl;
-        std::cout << "total_nodes = " << networkToleranceForLowCache.total_nodes << std::endl;
+        auto is_llm = ov::op::util::is_large_language_model(*model);
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         if (num_streams > sockets || num_streams == 0) {

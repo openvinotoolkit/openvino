@@ -15,7 +15,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <utility>
 #include <vector>
 
@@ -38,6 +37,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -476,9 +476,9 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlFCPrimitive::DnnlFCPrimitive(const Key& key,
                                  const dnnl::engine& engine,
-                                 std::shared_ptr<ThreadPool> threadPool,
+                                 const std::shared_ptr<ThreadPool>& threadPool,
                                  const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(make_stream(engine, std::move(threadPool))),
+    : m_stream(make_stream(engine, threadPool)),
       m_primDesc(createPrimitiveDesc(
           key.src->getDnnlDesc(),
           key.wei->getDnnlDesc(),
