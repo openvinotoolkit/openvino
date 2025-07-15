@@ -24,18 +24,26 @@ template <typename ShapeType>
 std::vector<layout> SparseFillEmptyRows_inst::calc_output_layouts(SparseFillEmptyRows_node const& node, kernel_impl_params const& impl_param) {
     auto primitive = impl_param.typed_desc<sparse_fill_empty_rows>();
 
-    const auto& indices_layout = impl_param.get_input_layout(0);
-    const auto& values_layout = impl_param.get_input_layout(1);
-    const auto& dense_shape_layout = impl_param.get_input_layout(2);
+    const auto& values_layout = impl_param.get_input_layout(0);
+    const auto& dense_shape_layout = impl_param.get_input_layout(1);
+    const auto& indices_layout = impl_param.get_input_layout(2);
     const auto& default_value_layout = impl_param.get_input_layout(3);
 
     std::vector<ShapeType> input_shapes = {
-        indices_layout.get<ShapeType>(),
         values_layout.get<ShapeType>(),
         dense_shape_layout.get<ShapeType>(),
+        indices_layout.get<ShapeType>(),
         default_value_layout.get<ShapeType>(),
     };
-    const auto ta = MemoryAccessor(&impl_param.memory_deps, impl_param.get_stream());
+    std::unordered_map<size_t, ov::Tensor> tensors;
+    if (!primitive->dense_shape.empty()) {
+        tensors.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{primitive->dense_shape.size()}, primitive->dense_shape.data()));
+    }
+    if (!primitive->indices.empty()) {
+        tensors.emplace(2, ov::Tensor(ov::element::i64, ov::Shape{primitive->indices.size()}, primitive->indices.data()));
+    }
+
+    const auto ta = MemoryAccessor(&impl_param.memory_deps, impl_param.get_stream(), ov::make_tensor_accessor(tensors));
 
     std::vector<ShapeType> output_shapes;
     ov::op::v16::SparseFillEmptyRows op;
@@ -55,9 +63,9 @@ std::vector<layout> SparseFillEmptyRows_inst::calc_output_layouts(SparseFillEmpt
 std::string SparseFillEmptyRows_inst::to_string(SparseFillEmptyRows_node const& node) {
     auto node_info = node.desc_to_json();
     json_composite SparseFillEmptyRows_info;
-    SparseFillEmptyRows_info.add("indices", node.input(0).id());
-    SparseFillEmptyRows_info.add("values", node.input(1).id());
-    SparseFillEmptyRows_info.add("dense_shape", node.input(2).id());
+    SparseFillEmptyRows_info.add("values", node.input(0).id());
+    SparseFillEmptyRows_info.add("dense_shape", node.input(1).id());
+    SparseFillEmptyRows_info.add("indices", node.input(2).id());
     SparseFillEmptyRows_info.add("default_value", node.input(3).id());
     node_info->add("SparseFillEmptyRows info", SparseFillEmptyRows_info);
     std::stringstream primitive_description;

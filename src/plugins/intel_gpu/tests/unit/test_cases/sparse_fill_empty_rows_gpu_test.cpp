@@ -4,6 +4,7 @@
 
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/sparse_fill_empty_rows.hpp>
 
 #include "test_utils.h"
@@ -37,6 +38,12 @@ memory::ptr AllocateTensor(ov::PartialShape shape, const std::vector<TDataType>&
     EXPECT_EQ(lo.get_linear_size(), data.size());
     memory::ptr tensor = get_test_engine().allocate_memory(lo);
     set_values<TDataType>(tensor, data);
+    // Debug: Print out the data being set
+    std::cout << "[AllocateTensor] Data: ";
+    for (const auto& v : data) {
+        std::cout << v << " ";
+    }
+    std::cout << std::endl;
     return tensor;
 }
 
@@ -95,8 +102,6 @@ public:
     }
 
     struct SparseFillEmptyRowsInferenceParams {
-        bool center;
-        bool normalized;
         memory::ptr values;
         memory::ptr denseShape;
         memory::ptr indices;
@@ -113,52 +118,61 @@ public:
         const auto indicesRows = testParam.indicesData.size() / 2;
 
         ret.indices = helpers::AllocateTensor<int64_t>(
-            {static_cast<ov::Dimension::value_type>(indicesRows), 2},
+            ov::Shape{indicesRows, 2},
             helpers::ConverFloatVector<int64_t>(testParam.indicesData));
         ret.values = helpers::AllocateTensor<T>(
-            ov::PartialShape({static_cast<ov::Dimension::value_type>(testParam.valuesData.size())}),
+            ov::Shape{testParam.valuesData.size()},
             helpers::ConverFloatVector<T>(testParam.valuesData));
         ret.denseShape = helpers::AllocateTensor<int64_t>(
-            {2}, helpers::ConverFloatVector<int64_t>(testParam.denseShapeData));
-        ret.defaultValue = helpers::AllocateTensor<T>({}, {42.0f});
+            ov::Shape{2}, helpers::ConverFloatVector<int64_t>(testParam.denseShapeData));
+        ret.defaultValue = helpers::AllocateTensor<T>(ov::Shape{}, {42.0f});
 
         ret.expectedIndicesOutput = helpers::AllocateTensor<int64_t>(
-            {static_cast<ov::Dimension::value_type>(testParam.expectedIndicesOutput.size() / 2), 2},
+            ov::Shape{testParam.expectedIndicesOutput.size() / 2, 2},
             helpers::ConverFloatVector<int64_t>(testParam.expectedIndicesOutput));
         ret.expectedValuesOutput = helpers::AllocateTensor<T>(
-            ov::PartialShape({static_cast<ov::Dimension::value_type>(testParam.expectedValuesOutput.size())}),
+            ov::Shape{testParam.expectedValuesOutput.size()},
             helpers::ConverFloatVector<T>(testParam.expectedValuesOutput));
         ret.expectedEmptyRowIndicatorOutput = helpers::AllocateTensor<int64_t>(
-            ov::PartialShape({static_cast<ov::Dimension::value_type>(testParam.expectedEmptyRowIndicatorOutput.size())}),
+            ov::Shape{testParam.expectedEmptyRowIndicatorOutput.size()},
             helpers::ConverFloatVector<int64_t>(testParam.expectedEmptyRowIndicatorOutput));
 
         return ret;
     }
 
-    void Execute(const SparseFillEmptyRowsInferenceParams& params) {
+    void Execute(const SparseFillEmptyRowsInferenceParams& params, const SparseFillEmptyRowsTestParams& testParams) {
         auto stream = get_test_stream_ptr(get_test_default_config(engine_));
-
         topology topology;
-        topology.add(input_layout("indices", params.indices->get_layout()));
+
         topology.add(input_layout("values", params.values->get_layout()));
         topology.add(input_layout("denseShape", params.denseShape->get_layout()));
+        topology.add(input_layout("indices", params.indices->get_layout()));
         topology.add(input_layout("default_value", params.defaultValue->get_layout()));
+        
         std::vector<input_info> inputs = {
             input_info("values"),
             input_info("denseShape"),
             input_info("indices"),
             input_info("default_value"),
         };
-        topology.add(sparse_fill_empty_rows("sparse_fill_empty_rows", inputs));
+        
+        topology.add(sparse_fill_empty_rows(
+            "sparse_fill_empty_rows",
+            inputs,
+            testParams.valuesData,
+            helpers::ConverFloatVector<int64_t>(testParams.denseShapeData),
+            helpers::ConverFloatVector<int64_t>(testParams.indicesData),
+            42.0f
+        ));
+
         topology.add(reorder("output_indices", input_info("sparse_fill_empty_rows", 0), format::bfyx, data_types::i64));
         topology.add(reorder("output_values", input_info("sparse_fill_empty_rows", 1), format::bfyx, params.values->get_layout().data_type));
         topology.add(reorder("output_empty_row_indicator", input_info("sparse_fill_empty_rows", 2), format::bfyx, data_types::i64));
 
         cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
-
-        network->set_input_data("indices", params.indices);
         network->set_input_data("values", params.values);
         network->set_input_data("denseShape", params.denseShape);
+        network->set_input_data("indices", params.indices);
         network->set_input_data("default_value", params.defaultValue);
         auto outputs = network->execute();
         auto output_indices = outputs.at("output_indices").get_memory();
@@ -208,9 +222,12 @@ std::vector<SparseFillEmptyRowsTestParams> generateTestParams() {
 }  // namespace
 
 #define SparseFillEmptyRows_TEST_P(precision)                                                      \
-    TEST_P(sparse_fill_empty_rows_test, ref_comp_##precision) {                                       \
-        Execute(PrepareInferenceParams<ov::element::Type_t::precision>(GetParam())); \
+    
+    TEST_P(sparse_fill_empty_rows_test, ref_comp_f32) {
+        const auto& testParams = GetParam();
+        Execute(PrepareInferenceParams<ov::element::Type_t::f32>(testParams), testParams);
     }
+
 
 SparseFillEmptyRows_TEST_P(f32);
 

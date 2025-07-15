@@ -65,7 +65,8 @@ KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) c
         false,             // bias
         4,                 // number_of_inputs
         0,                 // number_of_inputs_for_fused_prims
-        3);                // number_of_outputs
+        3,                 // number_of_outputs
+        false);            // is_dynamic
     return {kernel_data};
 }
 
