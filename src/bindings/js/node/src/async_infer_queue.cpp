@@ -58,6 +58,7 @@ void AsyncInferQueue::release() {
                         "Failed to release AsyncInferQueue resources. "
                         "ThreadSafeFunction is already released or not initialized.");
         OPENVINO_ASSERT(status == napi_ok, "Failed to release AsyncInferQueue resources.");
+        m_tsfn = nullptr;
     }
 }
 
@@ -128,7 +129,8 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         }
                     };
                     // The ov_callback will execute when the main event loop will be free
-                    m_tsfn.BlockingCall(ov_callback);
+                    napi_status status = m_tsfn.BlockingCall(ov_callback);
+                    OPENVINO_ASSERT(status == napi_ok, "Failed to call user callback.");
                 } catch (const std::exception& e) {
                     OPENVINO_THROW(e.what());
                 }

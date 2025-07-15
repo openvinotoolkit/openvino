@@ -46,7 +46,7 @@ describe('Tests for AsyncInferQueue.', () => {
     );
   });
 
-  it('Test AsyncInferQueue constructor with valid arguments', () => {
+  it('Test AsyncInferQueue constructor with default ctor', () => {
     assert.doesNotThrow(() => {
       new ov.AsyncInferQueue(compiledModel);
     });
@@ -134,8 +134,8 @@ describe('Tests for AsyncInferQueue.', () => {
 
   it('Test double set_callback', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-    inferQueue.setCallback(() => {});
-    inferQueue.setCallback(() => {});
+    inferQueue.setCallback(() => { });
+    inferQueue.setCallback(() => { });
     inferQueue.release();
   });
 
@@ -143,10 +143,22 @@ describe('Tests for AsyncInferQueue.', () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
     inferQueue.release();
-    assert.throws(() => {
+    assert.ok(() => {
       inferQueue.release();
-    }, /Failed to release AsyncInferQueue resources. ThreadSafeFunction/);
+    }, 'Release should do nothing on second call.');
 
+  });
+
+  it('Test call startAsync after release()', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    inferQueue.setCallback(basicUserCallback);
+    inferQueue.release();
+    await assert.rejects(
+      async () => {
+        await inferQueue.startAsync({ 'data': generateImage() }, 'user_data');
+      },
+      /Callback has to be set before starting inference./
+    );
   });
 
   it('Test setCallback throws and list possible signatures', async () => {
