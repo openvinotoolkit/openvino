@@ -771,7 +771,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
 
     auto stack_481 = pattern::wrap_type<v0::Concat>({y_even, y_odd}, {{"axis", -1}});
 
-    auto ShapeOf_135133 = pattern::wrap_type<v3::ShapeOf>({stack_481});
+    auto ShapeOf_135133 = pattern::wrap_type<ov::op::util::ShapeOfBase>({stack_481});
     auto flatten_Slice_497 = NewGenSlice(ShapeOf_135133, 0, 3, 1, 0);
     auto flatten_Concat_500 = pattern::wrap_type<v0::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
 
