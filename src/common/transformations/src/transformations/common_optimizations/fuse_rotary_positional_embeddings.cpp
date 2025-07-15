@@ -101,6 +101,13 @@ static bool chatglm_validate_reshape_symbols(PatternValidator& validator) {
     return false;
 }
 
+static std::shared_ptr<ov::Node> gen_abc_const() {
+    using namespace pattern;
+
+    auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") || value_matches("0, 0, 0, ndims/2, 1");
+    return wrap_type<v0::Constant>(pred);
+}
+
 ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     MATCHER_SCOPE(RoPEFusionFlux);
     // x[?,24,?,128]
@@ -769,12 +776,12 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto neg_x_odd_sin = pattern::wrap_type<v1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
     auto sub_Subtract_469 = pattern::wrap_type<v1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
     auto y_even = pattern::wrap_type<v0::Unsqueeze>({sub_Subtract_469, -1}) |
-                  pattern::wrap_type<v1::Reshape>({sub_Subtract_469, {"A", "B", "C", "ndims/2", "1"}}, {{"special_zero", false}});
+                  pattern::wrap_type<v1::Reshape>({sub_Subtract_469, gen_abc_const()}, {{"special_zero", false}});
     auto x_odd_cos = pattern::wrap_type<v1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
     auto x_even_sin = pattern::wrap_type<v1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto add_Add_476 = pattern::wrap_type<v1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
     auto y_odd = pattern::wrap_type<v0::Unsqueeze>({add_Add_476, -1}) |
-                 pattern::wrap_type<v1::Reshape>({add_Add_476, {"A", "B", "C", "ndims/2", "1"}}, {{"special_zero", false}});
+                 pattern::wrap_type<v1::Reshape>({add_Add_476, gen_abc_const()}, {{"special_zero", false}});
 
     auto stack_481 = pattern::wrap_type<v0::Concat>({y_even, y_odd}, {{"axis", -1}});
 
@@ -786,7 +793,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     std::shared_ptr<ov::Node> flatten_Reshape_501 = nullptr;
     if (support_2d_rope) {
         // [batch, head_cnt, length, half_rotary_dims, 2]
-        const_target_shape_3 = pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims"));
+        const_target_shape_3 = pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
+                                                                pattern::value_matches("0, head_cnt, 0, ndims"));
         flatten_Reshape_501 = pattern::wrap_type<v1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3},
                                                               {{"special_zero", true}});
     } else {
@@ -804,71 +812,39 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto result = cat_Concat_505 | flatten_Reshape_501;
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << matcher_name << " start" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
-        std::cout << "0 " << std::endl;
         auto root = m.get_match_root();
-
-        std::cout << "1 " << std::endl;
-
-        // A temporarily work around until we move to the new Symbols
-        // if (!chatglm_validate_reshape_symbols(validator))
-        //     return false;
-
         auto symbols = m.get_symbols();
-        std::cout << "2 " << std::endl;
 
-        // auto A = static_cast<int>(symbols["A"].i());
-        // std::cout << "2.5 " << std::endl;
-        // auto B = static_cast<size_t>(symbols["B"].i());
-        // auto C = static_cast<size_t>(symbols["C"].i());
+        auto ndims_over_2 = symbols["ndims/2"];
+        auto ndims = symbols["ndims"];
+        auto head_cnt = symbols["head_cnt"];
+        auto head_size = symbols["head_size"];
+        auto total_size_q = symbols["total_size_q"];
+        auto total_size_k = symbols["total_size_k"];
 
-        // auto head_cnt = static_cast<size_t>(symbols["head_cnt"].i());
-
-        // std::cout << "3 " << std::endl;
-        // bool ok = false;
-        // if ((A == -1 && B == head_cnt && C == 1) ||  // ChatGLM4
-        //     (A == 1 && B == -1 && C == head_cnt) ||  // ChatGLM3
-        //     (A == 0 && B == 0 && C == 0)) {          // ChatGLM nano
-        //     // return true;
-        //     ok = true;
-        // }
-        std::cout << "4 " << std::endl;
-
-
-        // if (!ok) {
-        //     std::cout << "not ok" << std::endl;
-        //     return false;
-        // }
-
-        std::cout << "4 " << std::endl;
-        auto ndims_over_2 = symbols["ndims/2"].i();
-        auto ndims = symbols["ndims"].i();
-        std::cout << "ndims/2: " << ndims_over_2 << std::endl;
-        std::cout << "ndims: " << ndims << std::endl;
-        if (ndims_over_2 * 2 != ndims) {
-            std::cout << "ndims/2 not ok" << std::endl;
-            return false;
+        if (!ndims_over_2.is_integer() || !ndims.is_integer() || !head_cnt.is_integer() || !head_size.is_integer() ||
+            !total_size_q.is_integer() || !total_size_k.is_integer() || ndims_over_2.i() * 2 != ndims.i()) {
+                return false;
         }
 
-        std::cout << "5 " << std::endl;
         op::internal::RoPE::Config config;
         OutputVector new_args;
-        config.rotary_ndims = static_cast<size_t>(symbols["ndims"].i());
+        config.rotary_ndims = static_cast<size_t>(ndims.i());
         config.is_chatglm = true;
         config.support_2d_rope = support_2d_rope;
         config.use_rope_cache = true;
-        config.head_cnt = static_cast<size_t>(symbols["head_cnt"].i());
-        config.head_size = static_cast<size_t>(symbols["head_size"].i());
+        config.head_cnt = static_cast<size_t>(head_cnt.i());
+        config.head_size = static_cast<size_t>(head_size.i());
 
         if (split_output_id == 0) {
             // query : split_output_id == 0
             config.slice_start = 0;
-            config.slice_stop = static_cast<size_t>(symbols["total_size_q"].i());
+            config.slice_stop = static_cast<size_t>(total_size_q.i());
         } else {
             // key : split_output_id == 1
-            config.slice_start = static_cast<size_t>(symbols["total_size_q"].i());
-            config.slice_stop = static_cast<size_t>(config.slice_start + static_cast<size_t>(symbols["total_size_k"].i()));
+            config.slice_start = static_cast<size_t>(total_size_q.i());
+            config.slice_stop = static_cast<size_t>(config.slice_start + static_cast<size_t>(total_size_k.i()));
         }
 
         if (ov::is_type<opset1::Reshape>(root)) {
