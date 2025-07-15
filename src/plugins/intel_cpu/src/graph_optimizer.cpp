@@ -615,11 +615,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
             return false;
         }
 
-        if (secondInputDims[0] != 1 || !dimsEqualWeak(secondInputDims[channelAxis], dataDims[channelAxis])) {
-            return false;
-        }
-
-        return true;
+        return !(secondInputDims[0] != 1 || !dimsEqualWeak(secondInputDims[channelAxis], dataDims[channelAxis]));
     };
 
     auto isSuitableParentNode = [&](const NodePtr& node) {
@@ -1659,10 +1655,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
                                        binConv->fusedWith.end(),
                                        isNotSpecialConvolutionAddFusing);
                 };
-                if (!allFusedNodesNotSpecial()) {
-                    return false;
-                }
-                return true;
+                return allFusedNodesNotSpecial();
             }
             return false;
         };
@@ -3194,11 +3187,7 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph& graph) {
                 return Type::MemoryOutput == edge->getChild()->getType();
             });
         };
-        if (!allChildrenAreMemoryOutput()) {
-            return false;
-        }
-
-        return true;
+        return allChildrenAreMemoryOutput();
     };
 
     for (const auto& node : graphNodes) {

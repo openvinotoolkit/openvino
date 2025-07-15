@@ -1033,11 +1033,8 @@ bool Gather::canFuse(const NodePtr& node) const {
     if (node->getType() != Type::Convert) {
         return false;
     }
-    if (!one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16) ||
-        node->getOriginalOutputPrecisionAtPort(0) != ov::element::f32) {
-        return false;
-    }
-    return true;
+    return !(!one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16) ||
+             node->getOriginalOutputPrecisionAtPort(0) != ov::element::f32);
 }
 
 }  // namespace ov::intel_cpu::node

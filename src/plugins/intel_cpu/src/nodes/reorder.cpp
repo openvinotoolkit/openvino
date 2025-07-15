@@ -231,10 +231,8 @@ void Reorder::prepareParams() {
         if (!(desc.getType() & MemoryDescType::Blocked)) {
             return false;
         }
-        if ((desc.getType() & MemoryDescType::Dnnl) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
-            return false;
-        }
-        return true;
+        return !(((desc.getType() & MemoryDescType::Dnnl) != 0) &&
+                 !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData());
     };
 
     const auto& parentDesc = srcMemPtr->getDescPtr();

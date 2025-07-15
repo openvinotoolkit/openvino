@@ -845,15 +845,12 @@ public:
         }
 
         const auto algorithm = node->getAlgorithm();
-        if (one_of(algorithm,
-                   Algorithm::EltwiseLog,
-                   Algorithm::EltwiseBitwiseLeftShift,
-                   Algorithm::EltwiseBitwiseRightShift)) {
-            return false;
-        }
+        return !one_of(algorithm,
+                       Algorithm::EltwiseLog,
+                       Algorithm::EltwiseBitwiseLeftShift,
+                       Algorithm::EltwiseBitwiseRightShift);
 
 #if defined(OPENVINO_ARCH_X86_64)
-        return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)
         if (one_of(algorithm,
@@ -2457,12 +2454,8 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
         return childNode->getParentEdges().size() != 2;
     };
 
-    if (!isSuitableParentNode(parentNode.get()) || !isSuitableChildNode(this)) {
-        return false;
-    }
+    return isSuitableParentNode(parentNode.get()) && isSuitableChildNode(this);
 #endif
-
-    return true;
 }
 
 bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
@@ -2496,11 +2489,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        if (!all_of_values(node->getOriginalInputPrecisions(), ov::element::i32)) {
-            return false;
-        }
-
-        return true;
+        return all_of_values(node->getOriginalInputPrecisions(), ov::element::i32);
     };
 
     if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma())) {
@@ -2585,11 +2574,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
 
         // We can use optimized execution with fusions only in cases when dim rank is less or equal to the maximum
         // possible
-        if (node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK) {
-            return false;
-        }
-
-        return true;
+        return node->getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
     }
 
     if (node->getType() == Type::FakeQuantize) {

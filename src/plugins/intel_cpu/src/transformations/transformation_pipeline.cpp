@@ -1469,9 +1469,7 @@ void Transformations::MainSnippets() {
                 const auto& output_shape = n->get_output_partial_shape(0);
                 if (output_shape.rank().get_length() != 2)
                     return true;
-                if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
-                    return true;
-                return false;
+                return output_shape[1].is_dynamic() || output_shape[1].get_length() > 256;
             },
             snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(
@@ -1499,9 +1497,7 @@ void Transformations::MainSnippets() {
                 });
             if (has_only_const_inputs)
                 return true;
-            if (!has_supported_tensors(n))
-                return true;
-            return false;
+            return !has_supported_tensors(n);
         },
         snippets::pass::TokenizeSnippets);
 
