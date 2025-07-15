@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
-#include <vector>
+#include <stack>
 
-#include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -29,11 +28,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "disable_f16_comp_for_periodic_funcs.hpp"
-
-#include <unordered_map>
-#include <typeindex>
-#include <stack>
-
 
 static bool is_non_value_modifying_node(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<ov::op::v1::Reshape>(node) ||

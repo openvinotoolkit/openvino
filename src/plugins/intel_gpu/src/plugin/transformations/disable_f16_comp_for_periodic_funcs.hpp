@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,7 @@
  * @brief Defines the transformation pass to disable FP16 compression for periodic functions
  * @file disable_f16_comp_for_periodic_funcs.hpp
  */
-
-#include <memory>
-#include <vector>
-
 #include "openvino/pass/matcher_pass.hpp"
-#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace intel_gpu {
