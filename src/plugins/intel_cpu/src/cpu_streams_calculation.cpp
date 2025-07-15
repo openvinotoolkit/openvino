@@ -608,7 +608,6 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
-    const int sockets = get_num_sockets();
     if (-1 == config.modelPreferThreads) {
         config.modelPreferThreads = 0;
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
@@ -620,6 +619,7 @@ int get_model_prefer_threads(const int num_streams,
         }
 #else
         const auto isa = dnnl::get_effective_cpu_isa();
+        const int sockets = get_num_sockets();
         float isaSpecificThreshold = 1.0F;
         switch (isa) {
         case dnnl::cpu_isa::sse41:
