@@ -366,14 +366,10 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
                 }
             }
 
-            // Check if eltwise_dep and eltwise_node have same output layout
-            if (eltwise_dep.get_outputs_count() > 0 && eltwise_node.get_outputs_count() > 0) {
-                auto shape1 = eltwise_dep.get_output_pshape(0);
-                auto shape2 = eltwise_node.get_output_pshape(0);
-                if (!shape1.compatible(shape2)) {
-                    same_params = false;
-                    break;
-                }
+            // Avoid mem0 and mem1's memory are inplace, but they have different layout.
+            if (!mem0->get_layout().get_partial_shape().compatible(mem1->get_layout().get_partial_shape())) {
+                same_params = false;
+                break;
             }
         }
 
