@@ -125,15 +125,11 @@ void Graph::Init(const std::vector<NodePtr>& graphNodes,
     this->graphNodes = graphNodes;
     this->graphEdges = graphEdges;
 
-    std::size_t parameter_index = 0;
-    std::size_t result_index = 0;
     for (const auto& node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
-            inputNodesMap[parameter_index] = node;
-            parameter_index++;
+            inputNodesMap.push_back(node);
         } else if ("Result" == node->getTypeStr()) {
-            outputNodesMap[result_index] = node;
-            result_index++;
+            outputNodesMap.push_back(node);
         }
     }
 
@@ -189,6 +185,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
             const auto& config = static_cast<size_t>(input_index) < inputConfigs.size() ? inputConfigs[input_index]
                                                                                         : node::Input::InputConfig{};
             NodePtr node = std::make_shared<node::Input>(op, m_context, config);
+            if (static_cast<size_t>(input_index) >= inputNodesMap.size()) {
+                inputNodesMap.resize(input_index + 1);
+            }
             inputNodesMap[input_index] = node;
 
             if (node->isDynamicNode()) {
@@ -208,6 +207,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
             const auto& config = static_cast<size_t>(output_index) < outputConfigs.size() ? outputConfigs[output_index]
                                                                                           : node::Input::OutputConfig{};
             NodePtr node = std::make_shared<node::Input>(op, m_context, config);
+            if (static_cast<size_t>(output_index) >= outputNodesMap.size()) {
+                outputNodesMap.resize(output_index + 1);
+            }
             outputNodesMap[output_index] = node;
 
             return node;
@@ -271,8 +273,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     EnforceInferencePrecision();
 
     // update input precisions of consumers to avoid extra reorders
-    for (auto& input : inputNodesMap) {
-        const auto& inputNode = input.second;
+    for (auto& inputNode : inputNodesMap) {
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
         for (const auto& childEdge : childEdges) {
@@ -289,8 +290,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     // update output precisions of producers to avoid extra reorders
     // do this only in case output configuration is not provided explicitly
     if (outputConfigs.empty()) {
-        for (auto& output : outputNodesMap) {
-            const auto& outputNode = output.second;
+        for (auto& outputNode : outputNodesMap) {
             const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
             const auto parentEdge = outputNode->getParentEdgeAt(0);
             const auto parent = parentEdge->getParent();
@@ -810,10 +810,8 @@ static size_t AllocateStringsAndConstants(EdgeClusters& clusters, size_t remaini
  *
  * @return a tuple of remaining number of clusters to process (left partition) and the output memory blocks
  */
-static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
-    EdgeClusters& clusters,
-    size_t remaining,
-    const std::unordered_map<std::size_t, NodePtr>& outputNodes) {
+static std::tuple<size_t, Graph::OutputMemoryBlocks>
+AllocateDynamicOutputEdges(EdgeClusters& clusters, size_t remaining, const std::vector<NodePtr>& outputNodes) {
     Graph::OutputMemoryBlocks outputMemBlocks;
 
     auto collectDynamicOutputMemBlocks = [&outputMemBlocks, &outputNodes](const EdgeCluster& cluster) {
@@ -832,9 +830,9 @@ static std::tuple<size_t, Graph::OutputMemoryBlocks> AllocateDynamicOutputEdges(
         baseEdge->allocate(proxyMemBlock);
 
         int count = 0;
-        for (const auto& output : outputNodes) {
-            if (output.second == child) {
-                outputMemBlocks[output.first] = proxyMemBlock;
+        for (size_t output_index = 0; output_index < outputNodes.size(); ++output_index) {
+            if (outputNodes[output_index] == child) {
+                outputMemBlocks[output_index] = proxyMemBlock;
                 count++;
             }
         }
@@ -1151,7 +1149,7 @@ static std::tuple<MemoryControl::MemorySolution, EdgeClusters, Graph::OutputMemo
     const std::shared_ptr<MemoryControl>& memoryControl,
     const AllocationContext& allocationContext,
     const GraphContext::CPtr& graphContext,
-    const std::unordered_map<std::size_t, NodePtr>& outputNodesMap) {
+    const std::vector<NodePtr>& outputNodesMap) {
     const auto& edges = allocationContext.edges;
 
     auto edgeClusters = FormEdgeClusters(edges);
@@ -1213,10 +1211,8 @@ bool Graph::ProcessDynNodes() const {
 
 void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
     OPENVINO_ASSERT(IsReady(), "Wrong state. Topology not ready.");
-    auto input_itr = inputNodesMap.find(index);
-    if (input_itr != inputNodesMap.end()) {
-        auto node = input_itr->second;
-        auto childEdge = node->getChildEdgeAt(0);
+    if (index < inputNodesMap.size() && inputNodesMap[index]) {
+        auto node = inputNodesMap[index];
         const auto& edgeMemory = childEdge->getMemory();
 
         const void* ext_data_ptr = input->data();
@@ -1246,9 +1242,8 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
     OPENVINO_ASSERT(IsReady(), "Wrong state. Topology not ready.");
 
-    for (auto& outputMap : outputNodesMap) {
-        auto output_index = outputMap.first;
-        auto node = outputMap.second;
+    for (size_t output_index = 0; output_index < outputNodesMap.size(); ++output_index) {
+        auto node = outputNodesMap[output_index];
         auto parentEdge = node->getParentEdgeAt(0);
         const auto& intr_blob = parentEdge->getMemory();
 
@@ -1350,8 +1345,7 @@ VecMemoryDescs Graph::getOutputMemoryDescriptors() const {
     VecMemoryDescs result;
     result.reserve(outputNodesMap.size());
 
-    for (const auto& output : outputNodesMap) {
-        const auto& node = output.second;
+    for (const auto& node : outputNodesMap) {
         result.emplace_back(node->getBaseMemDescAtInputPort(0));
     }
 
@@ -1714,8 +1708,10 @@ void Graph::SortTopologically() {
         }
 
         // Always start from output nodes
-        for (auto&& kvp : outputNodesMap) {
-            visit(kvp.second);
+        for (const auto& node : outputNodesMap) {
+            if (node) {  // Skip null entries
+                visit(node);
+            }
         }
 
         for (const auto& node : nodes) {
@@ -2052,8 +2048,7 @@ void Graph::EnforceInferencePrecision() {
      * Experiments show zero performance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
-    for (const auto& entry : outputNodesMap) {
-        const auto& output = entry.second;
+    for (const auto& output : outputNodesMap) {
         // do not skip outputs which precisions are explicitly set equal to inferPrec
         if (output->getOriginalInputPrecisionAtPort(0) == inferPrec) {
             continue;

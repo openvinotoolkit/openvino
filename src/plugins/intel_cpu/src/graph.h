@@ -109,35 +109,31 @@ public:
     }
 
     NodePtr getInputNodeByIndex(std::size_t index) {
-        auto input = inputNodesMap.find(index);
-        if (input == inputNodesMap.end()) {
+        if (index >= inputNodesMap.size()) {
             return nullptr;
         }
-        return input->second;
+        return inputNodesMap[index];
     }
 
     NodePtr getOutputNodeByIndex(std::size_t index) {
-        auto output = outputNodesMap.find(index);
-        if (output == outputNodesMap.end()) {
+        if (index >= outputNodesMap.size()) {
             return nullptr;
         }
-        return output->second;
+        return outputNodesMap[index];
     }
 
     NodeConstPtr getInputNodeByIndex(std::size_t index) const {
-        auto input = inputNodesMap.find(index);
-        if (input == inputNodesMap.end()) {
+        if (index >= inputNodesMap.size()) {
             return nullptr;
         }
-        return input->second;
+        return inputNodesMap[index];
     }
 
     NodeConstPtr getOutputNodeByIndex(std::size_t index) const {
-        auto output = outputNodesMap.find(index);
-        if (output == outputNodesMap.end()) {
+        if (index >= outputNodesMap.size()) {
             return nullptr;
         }
-        return output->second;
+        return outputNodesMap[index];
     }
 
     size_t inputsNumber() const {
@@ -364,8 +360,8 @@ private:
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
 
-    std::unordered_map<std::size_t, NodePtr> inputNodesMap;
-    std::unordered_map<std::size_t, NodePtr> outputNodesMap;
+    std::vector<NodePtr> inputNodesMap;
+    std::vector<NodePtr> outputNodesMap;
 
     OutputMemoryBlocks m_outputNodesMemBlocks;
 

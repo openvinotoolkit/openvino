@@ -171,18 +171,18 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
         bool should_be_hold = false;
         size_t input_index = -1;
         size_t output_index = -1;
-        for (auto&& kvp : graph.inputNodesMap) {
-            if (kvp.second == node) {
+        for (size_t i = 0; i < graph.inputNodesMap.size(); ++i) {
+            if (graph.inputNodesMap[i] == node) {
                 is_input = true;
-                input_index = kvp.first;
+                input_index = i;
                 break;
             }
         }
 
-        for (auto&& kvp : graph.outputNodesMap) {
-            if (kvp.second == node) {
+        for (size_t i = 0; i < graph.outputNodesMap.size(); ++i) {
+            if (graph.outputNodesMap[i] == node) {
                 is_output = true;
-                output_index = kvp.first;
+                output_index = i;
                 break;
             }
         }
