@@ -37,24 +37,14 @@ inline T rnd_up(const T a, const U b) {
     return div_up(a, b) * b;
 }
 
-template <typename T, typename P>
-constexpr bool one_of(T val, P item) {
-    return val == item;
+template <typename T, typename... Args>
+constexpr bool one_of(T val, Args... items) {
+    return ((val == items) || ...);
 }
 
-template <typename T, typename P, typename... Args>
-constexpr bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
-}
-
-template <typename T, typename P>
-constexpr bool everyone_is(T val, P item) {
-    return val == item;
-}
-
-template <typename T, typename P, typename... Args>
-constexpr bool everyone_is(T val, P item, Args... item_others) {
-    return val == item && everyone_is(val, item_others...);
+template <typename T, typename... Args>
+constexpr bool everyone_is(T val, Args... items) {
+    return ((val == items) && ...);
 }
 
 constexpr bool implication(bool cause, bool cond) {
