@@ -13,7 +13,7 @@ class MemSample:
     keys = ("vmsize", "vmpeak", "vmrss", "vmhwm", "threads")
 
     def __init__(self, **kwargs):
-        self._val = tuple((kwargs[k] for k in self.keys))
+        self._val = tuple((int(kwargs[k]) for k in self.keys))
 
     def get(self, key):
         try:
@@ -31,10 +31,10 @@ class MemSample:
             in self.items()
         }
 
-    def per_value_diff(self, ref):
+    def per_value_diff(self, reference):
         for key in self.keys:
             val = self.get(key)
-            ref = self.get(key)
+            ref = reference.get(key)
             diff = val - ref
             diffp = diff / ref
             yield (key, val, ref, diff, diffp)
@@ -84,19 +84,6 @@ def run_single_test(executable, model_path, device):
         return run_extract_test_result(comand)
     except Exception as ex:
         print(f"Test failed to run twice, ignoring this test case.")
-
-
-# def combine_samples(run_samples: list[dict]):
-#     snames = tuple(run_samples[0].keys())
-#     keys = tuple(next(run_samples[0].values()).keys())
-#     assert all([tuple(r.keys()) == snames for r in run_samples])
-#     return {
-#         sname: {
-#             key: max([r[sname][key] for r in run_samples])
-#             for key in keys
-#         }
-#         for sname in snames
-#     }
 
 
 def run_testcase(executable, model_path, device, niter=1):
@@ -158,6 +145,25 @@ if __name__ == "__main__":
 
     print(f"Generated {len(test_cases)} test cases.")
 
+    try:
+        upload_metadata = {
+            "build_url": os.environ["BUILD_URL"],
+            "os": os.environ.get("os", "unknown"),
+            "commit_date": os.environ.get("commitDate", "2030-12-22T22:22:22.000Z"),
+            "branch": os.environ.get("sourceBranch", ""),
+            "target_branch": os.environ.get("targetBranch", ""),
+            "log_path": os.environ.get("SHARED_LOG_PATH", ""),  # TODO: ADD IT
+            "dldt_version": os.environ["TT_PRODUCT_BUILD_NUMBER"],
+            "ext": {}
+        }
+        print("Upload metadata:")
+        print("\n".join([f"  {k}: {v}" for k, v in upload_metadata.items()]))
+    except KeyError as err:
+        upload_metadata = None
+        if args.api:
+            print(f"Environment lacks {err} to upload results to API")
+            raise err
+
     reference_values = {}
     if args.api:
         # TODO: move to a separate function
@@ -184,6 +190,8 @@ if __name__ == "__main__":
         # except Exception as ex:
         #     print(f"Failed to collect reference values: {ex}; {response[0]}")
 
+    test_results = {}
+
     for model, device in test_cases:
         model_path = found_models[model]["model_path"]
         print(f"network: {model}")
@@ -191,6 +199,7 @@ if __name__ == "__main__":
         print(f"device: {device}")
         result = run_testcase(args.test_executable,
             model_path, device, niter=1)
+        test_results[(model, device)] = result
         if result is None:
             continue
         test_name = result['test']
@@ -209,10 +218,29 @@ if __name__ == "__main__":
                 continue
             print(f"  sample {sname}:")
             for key, val, ref, diff, diffp in sample.per_value_diff(ref):
-                print(f"    {key:>8}: {val:>10} (ref: {ref:>10}) {diff:>+6} ({diffp:+.2f}%)")
-        # if args.api:
-        #     # upload test result
-        #     pass
+                print(f"    {key:>8}: {val:>10} (ref: {ref:>10}) {diff:>+8} ({diffp:+.2f}%)")
+        if args.api and upload_metadata:
+            import requests
+            endpoint = f"{args.api}/api/v1/memory/push-2-db-facade"
+            test_report = []
+            for sname, sample in result["samples"].items():
+                sample_report = upload_metadata.copy()
+                sample_report.update({
+                    "test_name": f"{result['test']}:{sname}",
+                    "status": "ok",
+                    "source": "",
+                    "log": "",
+                    "model_name": model,
+                    "model": model,
+                    "device": result["device"],
+                    "framework": "unknown",
+                    "precision": "unknown",
+                    "metrics": sample.as_dict(),
+                    "ref_metrics": (refs.get(sname) or sample).as_dict()
+                })
+                test_report.append(sample_report)
+            response = requests.post(endpoint, json={"data": test_report})
+            print(response.json())
         if args.upload_reference:
             import requests
             endpoint = f"{args.api}/api/v1/memory/push-2-db-facade/root-ref-metrics"
@@ -229,3 +257,13 @@ if __name__ == "__main__":
                 test_report.append(sample_report)
             response = requests.post(endpoint, json=test_report)
             print(response.json())
+    
+    total_runs = len(test_results)
+    successful_runs = sum((1 if x else 0 for x in test_results.values()))
+    failed_runs = total_runs - successful_runs
+
+    print(f"Failed {failed_runs} test cases out of {total_runs}:")
+    for test_case, result in test_results.items():
+        if result:
+            continue
+        print(f"  FAILED: {test_case}")
