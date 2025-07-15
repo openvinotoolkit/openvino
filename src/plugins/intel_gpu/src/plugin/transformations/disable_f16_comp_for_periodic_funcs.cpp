@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "openvino/op/util/sub_graph_base.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/pass/pattern/op/or.hpp"

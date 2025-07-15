@@ -14,7 +14,6 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
 
 namespace ov {
 namespace intel_gpu {
