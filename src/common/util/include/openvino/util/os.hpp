@@ -31,6 +31,9 @@ void set_mmap_threshold(int threshold);
 constexpr void set_mmap_threshold(int) {}
 #endif
 
+namespace linux {
+/// @brief Default mmap threshold value for memory allocation in bytes.
 inline constexpr int default_mmap_th = 128 * 1024;
+}  // namespace linux
 
 }  // namespace ov::util
