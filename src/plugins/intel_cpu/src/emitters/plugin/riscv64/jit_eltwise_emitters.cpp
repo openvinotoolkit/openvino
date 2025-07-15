@@ -397,7 +397,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
 }
 
 std::set<std::vector<element::Type>> jit_erf_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& /*node*/) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
