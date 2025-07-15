@@ -932,15 +932,12 @@ public:
                 return false;
             }
 
-            if (std::any_of(output_precisions.begin(),
-                            output_precisions.end(),
-                            [&supported_output_precisions](const ov::element::Type& precision) {
-                                return supported_output_precisions.find(precision) == supported_output_precisions.end();
-                            })) {
-                return false;
-            }
-
-            return true;
+            return !std::any_of(output_precisions.begin(),
+                                output_precisions.end(),
+                                [&supported_output_precisions](const ov::element::Type& precision) {
+                                    return supported_output_precisions.find(precision) ==
+                                           supported_output_precisions.end();
+                                });
         };
 
         auto out_precisions = output_precisions.empty() ? node->getOriginalOutputPrecisions() : output_precisions;
