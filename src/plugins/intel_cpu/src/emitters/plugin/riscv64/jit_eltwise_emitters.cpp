@@ -586,10 +586,6 @@ size_t jit_greater_emitter::get_inputs_num() const {
     return 2;
 }
 
-size_t jit_greater_emitter::aux_vecs_count() const {
-    return 1;
-}
-
 void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
@@ -617,6 +613,10 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
 void jit_greater_emitter::register_table_entries() {
     push_arg_entry_of("one", 0x3f800000, true);
+}
+
+size_t jit_greater_emitter::aux_fp_gprs_count() const {
+    return 1;
 }
 
 std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>&) {
