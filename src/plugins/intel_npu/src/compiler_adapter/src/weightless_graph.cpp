@@ -29,7 +29,7 @@ std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> get_all_consta
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>> constants;
 
     // Match the inputs of the "init" model with the Constant nodes of the original model
-    for (auto&& node : model->get_ordered_ops()) {
+    for (auto&& node : model->get_ops()) {
         if (!ov::is_type<ov::op::v0::Constant>(node)) {
             continue;
         }
