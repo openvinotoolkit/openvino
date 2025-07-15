@@ -893,6 +893,7 @@ public:
                     Algorithm::EltwiseDivide,
                     Algorithm::EltwiseExp,
                     Algorithm::EltwiseFloor,
+                    Algorithm::EltwiseGreater,
                     Algorithm::EltwiseGreaterEqual,
                     Algorithm::EltwiseLessEqual,
                     Algorithm::EltwiseLogicalAnd,
@@ -909,7 +910,6 @@ public:
                     Algorithm::EltwisePrelu,
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
-                    Algorithm::EltwiseGreater,
                     Algorithm::EltwiseSqrt,
                     Algorithm::EltwiseSubtract)) {
             return false;
