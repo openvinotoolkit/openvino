@@ -33,28 +33,30 @@
 
 #include <unordered_map>
 #include <typeindex>
-static const std::unordered_set<std::string> non_value_modifying_nodes = {
-    ov::op::v1::Reshape::get_type_info_static().name,
-    ov::op::v1::Transpose::get_type_info_static().name,
-    ov::op::util::ScatterBase::get_type_info_static().name,
-    ov::op::util::ScatterNDBase::get_type_info_static().name,
-    ov::op::util::ScatterElementsUpdateBase::get_type_info_static().name,
-    ov::op::v8::Slice::get_type_info_static().name,
-    ov::op::v1::Broadcast::get_type_info_static().name,
-    ov::op::v0::Concat::get_type_info_static().name,
-    ov::op::v1::Split::get_type_info_static().name,
-    ov::op::v1::StridedSlice::get_type_info_static().name,
-    ov::op::v0::Tile::get_type_info_static().name,
-    ov::op::v16::Identity::get_type_info_static().name,
-    ov::op::v1::Pad::get_type_info_static().name,
-    ov::op::util::GatherNDBase::get_type_info_static().name,
-    ov::op::util::GatherBase::get_type_info_static().name,
-    ov::op::v15::Squeeze::get_type_info_static().name,
-    ov::op::v0::Unsqueeze::get_type_info_static().name,
-    // Add more node types as needed
-};
+#include <stack>
+
 
 static bool is_non_value_modifying_node(const std::shared_ptr<ov::Node>& node) {
+    static const std::unordered_set<std::string> non_value_modifying_nodes = {
+        ov::op::v1::Reshape::get_type_info_static().name,
+        ov::op::v1::Transpose::get_type_info_static().name,
+        ov::op::util::ScatterBase::get_type_info_static().name,
+        ov::op::util::ScatterNDBase::get_type_info_static().name,
+        ov::op::util::ScatterElementsUpdateBase::get_type_info_static().name,
+        ov::op::v8::Slice::get_type_info_static().name,
+        ov::op::v1::Broadcast::get_type_info_static().name,
+        ov::op::v0::Concat::get_type_info_static().name,
+        ov::op::v1::Split::get_type_info_static().name,
+        ov::op::v1::StridedSlice::get_type_info_static().name,
+        ov::op::v0::Tile::get_type_info_static().name,
+        ov::op::v16::Identity::get_type_info_static().name,
+        ov::op::v1::Pad::get_type_info_static().name,
+        ov::op::util::GatherNDBase::get_type_info_static().name,
+        ov::op::util::GatherBase::get_type_info_static().name,
+        ov::op::v15::Squeeze::get_type_info_static().name,
+        ov::op::v0::Unsqueeze::get_type_info_static().name,
+        // Add more node types as needed
+    };
     return non_value_modifying_nodes.find(node->get_type_info().name) != non_value_modifying_nodes.end();
 }
 
@@ -78,34 +80,45 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
         ov::disable_fp16_compression(node);
 
         // Traverse inputs to find the first node that modifies values and disable FP16 compression
-        std::function<void(const std::shared_ptr<ov::Node>&)> find_and_disable_fp16_compression = [&](const std::shared_ptr<ov::Node>& current_node) {
-            for (const auto& input : current_node->inputs()) {
-                auto input_node = input.get_source_output().get_node_shared_ptr();
-                if (ov::as_type_ptr<ov::op::v0::Constant>(input_node)
-                    || ov::as_type_ptr<ov::op::v0::Parameter>(input_node)) {
-                    // Skip processing for Constant or Parameter nodes
-                    continue;
-                }
+        std::stack<std::shared_ptr<ov::Node>> nodes_to_process;
+        nodes_to_process.push(node);
 
-                if (ov::fp16_compression_is_disabled(input_node)) {
-                    // If FP16 compression is already disabled, continue to the next input
-                    continue;
-                }
+        while (!nodes_to_process.empty()) {
+            auto current_node = nodes_to_process.top();
+            nodes_to_process.pop();
 
-                if (is_non_value_modifying_node(input_node)) {
-                    // Skip nodes that do not modify values and recursively traverse their inputs
-                    find_and_disable_fp16_compression(input_node);
-                } else {
-                    // Disable FP16 compression for the first node that modifies values
-                    ov::disable_fp16_compression(input_node);
-                }
+            OPENVINO_ASSERT((current_node && !current_node->inputs().empty()), "Invalid node or missing inputs during traversal.");
+
+            // Check only the first input
+            // Most operations use the first input as the actual data for computation,
+            // while other inputs are typically used for shape determination or metadata.
+            // Therefore, only the first input is checked to simplify the
+            auto input_node = current_node->input(0).get_source_output().get_node_shared_ptr();
+
+            // Skip Constant or Parameter nodes as they do not modify values
+            if (ov::as_type_ptr<ov::op::v0::Constant>(input_node) || ov::as_type_ptr<ov::op::v0::Parameter>(input_node)) {
+                break;
             }
-        };
 
-        // Start traversal from the current node
-        find_and_disable_fp16_compression(node);
+            // If FP16 compression is already disabled, skip this node
+            if (ov::fp16_compression_is_disabled(input_node)) {
+                break;
+            }
+
+            // If the node does not modify values, add it to the stack for further processing
+            if (is_non_value_modifying_node(input_node)) {
+                nodes_to_process.push(input_node);
+            } else {
+                ov::disable_fp16_compression(input_node);
+
+                // Stop further traversal after disabling compression for the first modifying node
+                break;
+            }
+        }
+
         return true;
     };
+
     auto m = std::make_shared<ov::pass::pattern::Matcher>(sin_cos_func_pattern, "DisableFP16CompressionForPeriodicFuncs");
     register_matcher(m, callback);
 }
