@@ -51,9 +51,6 @@ RUN apt-get update && \
         libgbm1 \
         # ONNX Runtime
         language-pack-en \
-        # For cross-compilation for ARM64
-        gcc-aarch64-linux-gnu \
-        g++-aarch64-linux-gnu \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -62,6 +59,10 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
+
+# For cross-compilation for ARM64. If installed in the first apt-get install command, it will be removed by the install_build_dependencies.sh script
+RUN apt-get update && \
+    apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
