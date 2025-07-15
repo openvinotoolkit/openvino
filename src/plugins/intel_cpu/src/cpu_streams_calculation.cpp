@@ -733,8 +733,7 @@ int get_model_prefer_threads(const int num_streams,
                             }
                         }
                     } else {
-                        bool int8_intensive =
-                            ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
+                        bool int8_intensive = ov::op::util::has_op_with_type<ov::op::v0::FakeQuantize>(model);
                         const int int8_threshold =
                             4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
                         const int fp32_threshold =
