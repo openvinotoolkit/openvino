@@ -370,7 +370,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return true;
         };
         if (check_vlsdpa_available()) {
-            manager.register_pass<ov::pass::PrintModel>("prior_SDPAToVLSDPA.cpp");
             manager.register_pass<ov::pass::SDPAToVLSDPA>();
         }
 

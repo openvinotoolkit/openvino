@@ -20,6 +20,12 @@ constexpr auto get_vlsdpa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
+struct VLSDPARuntimeParams: public ImplRuntimeParams {
+    std::vector<int32_t> cu_seqlens;
+
+    VLSDPARuntimeParams(std::vector<int32_t> seq) : cu_seqlens(std::move(seq)) {}
+};
+
 class VLSDPAGenerator : public KernelGenerator {
 public:
     VLSDPAGenerator() : KernelGenerator("cm_sdpa_vlen") {}
@@ -101,8 +107,8 @@ protected:
             const auto query_shape = transpose_pshape(params.get_input_layout(0).get_shape(), desc->input_q_transpose_order);
             const size_t num_q_heads = query_shape[query_shape.size() - 3];  // TODO: make it to be configuration of primitive_inst
 
-            auto& instance = reinterpret_cast<typed_primitive_inst<cldnn::vl_sdpa>&>(*rt_params->instance);
-            const auto& cu_seqlens = vl_sdpa_inst::get_mask_seqlens_from_memory(instance.cu_seqlens_memory_ptr(), params.get_stream());
+            const auto& vlsdpa_rt_params = reinterpret_cast<VLSDPARuntimeParams&>(*rt_params);
+            const auto& cu_seqlens = vlsdpa_rt_params.cu_seqlens;
 
             size_t max_seq_len = 0;
             for (size_t i = 1; i < cu_seqlens.size(); i++) {
@@ -167,6 +173,16 @@ public:
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<VLSDPAOptImpl>(this);
+    }
+
+    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        cldnn::stream& stream = instance.get_network().get_stream();
+        auto& vlsdpa_instance = reinterpret_cast<typed_primitive_inst<cldnn::vl_sdpa>&>(instance);
+        auto cu_seqlens = vl_sdpa_inst::get_mask_seqlens_from_memory(vlsdpa_instance.cu_seqlens_memory_ptr(), stream);
+
+        m_rt_params = std::make_unique<VLSDPARuntimeParams>(cu_seqlens);
+
+        return PrimitiveImplCM::execute(events, instance);
     }
 };
 

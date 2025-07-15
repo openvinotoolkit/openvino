@@ -44,7 +44,7 @@ public:
 struct PrimitiveImplOCL : public cldnn::primitive_impl {
     std::vector<Stage*> _stages;
     std::vector<size_t> _order;
-    std::unique_ptr<ImplRuntimeParams> m_rt_params = std::make_unique<ImplRuntimeParams>();
+    std::unique_ptr<ImplRuntimeParams> m_rt_params = nullptr;
 
     template <typename CodeGenType, typename... Args>
     Stage::Ptr make_stage(Args&&... args) {
@@ -67,7 +67,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     static std::unique_ptr<ImplType> make_deep_copy(const ImplType* impl) {
         auto copy = std::make_unique<ImplType>();  // Use default c-tor to initialize stages
         copy->_order = impl->_order;
-        copy->m_rt_params = std::make_unique<ImplRuntimeParams>();  // don't copy RT params
+        copy->m_rt_params = nullptr;  // don't copy RT params
         copy->m_manager = impl->m_manager;
         copy->can_reuse_memory = impl->can_reuse_memory;
         copy->can_share_kernels = impl->can_share_kernels;
@@ -222,8 +222,6 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
         auto& kd = stage.kd;
         auto& params = kd.params;
-
-        m_rt_params->instance = &instance;
 
         if (kd.need_dispatch_data_update) {
             kd.update_dispatch_data_func(*instance.get_impl_params(), kd, m_rt_params.get());
