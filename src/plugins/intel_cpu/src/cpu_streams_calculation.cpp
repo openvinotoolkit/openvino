@@ -46,7 +46,7 @@ constexpr int TP_CPU_LIMIT = 32;
 
 namespace ov::intel_cpu {
 
-void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table) {
+void sort_table_by_numa_node_id(const int& current_numa_node, std::vector<std::vector<int>>& proc_type_table) {
     if (proc_type_table.size() > 1) {
         for (size_t i = 1; i < proc_type_table.size(); i++) {
             if (current_numa_node == proc_type_table[i][PROC_NUMA_NODE_ID]) {
