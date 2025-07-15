@@ -6,20 +6,9 @@ Stub files (`.pyi`) are used to provide type hints for Python code. They describ
 
 ## Automation of stub file generation in OpenVINO
 
-In OpenVINO, the generation of stub files is automated as part of the development workflow. When building the Python API for the first time, a Git pre-commit hook is installed into the OpenVINO repository's `.git` directory. The related Python dependencies are `pybind11-stubgen` for stub generation and `pre-commit` for automating git hooks.
+In OpenVINO, the generation of stub files is automated as part of the development workflow. This is now handled by a GitHub Actions workflow that runs on a schedule (weekdays at 2:00 AM UTC) and can be triggered manually when needed. The workflow is defined in [.github/workflows/update_pyapi_stubs.yml](../../../../.github/workflows/update_pyapi_stubs.yml). The related Python dependency is `pybind11-stubgen` for stub generation.
 
-### What is a git pre-commit hook?
-
-A Git pre-commit hook is a script that runs automatically before a commit is finalized. It allows developers to enforce specific checks or perform automated tasks, such as code formatting, linting, or file generation, ensuring that the repository maintains a consistent and high-quality state.
-
-### What happens during the pre-commit hook?
-
-When the pre-commit hook is triggered, the following steps occur:
-
-1. **Stub file generation**: The `pybind11-stubgen` tool is executed to generate new `.pyi` stub files for the OpenVINO Python API. This tool uses the Python package `openvino` to extract type information and create the stub files, so it's important that currently installed OpenVINO version contains all changes related to your Pull Request.
-2. **Automatic addition to commit**: The newly generated `.pyi` files are automatically staged and added to the current commit. This ensures that the stub files are always up-to-date with the latest changes in the Python API.
-
-### Ensuring changes are installed
+### Running stub generation manually
 
 To ensure that `pybind11-stubgen` works correctly, the `openvino` Python package must include your latest changes. This can be achieved by:
 
@@ -31,23 +20,10 @@ To ensure that `pybind11-stubgen` works correctly, the `openvino` Python package
 
 - Installing an up-to-date wheel containing your changes using `pip install`.
 
-### Skipping the pre-commit hook
-
-If you need to skip the pre-commit hook for any reason, you can do so by setting the `SKIP` environment variable before running the `git commit` command:
-
-```bash
-SKIP=generate_stubs git commit -m "Your commit message"
-```
-
-This bypasses the stub file generation process, allowing you to commit without triggering the hook.
-
-### Uninstalling the pre-commit hook
-
-If you wish to remove the hook, you can run:
-
-```bash
-pre-commit uninstall
-```
+Then, to run stub generation manually, ensure your changes are installed and run:
+    ```bash
+    python openvino/src/bindings/python/scripts/generate_pyapi_stubs.py
+    ```
 
 ## See also
 
