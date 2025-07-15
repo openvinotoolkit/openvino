@@ -318,8 +318,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
 
     if (name == ov::model_name) {
-        // @todo Does not seem ok to 'dump()' the whole graph everytime in order to get a name
-        const std::string modelName = graph.dump()->get_friendly_name();
+        std::string modelName = graph.GetName();
         return decltype(ov::model_name)::value_type(modelName);
     }
     if (name == ov::optimal_number_of_infer_requests) {
