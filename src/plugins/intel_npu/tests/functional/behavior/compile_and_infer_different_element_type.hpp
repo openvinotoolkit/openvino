@@ -318,14 +318,9 @@ TEST_P(InferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
 
     auto execNetUndefined = ie->compile_model(undefinedTypeModel, target_device, configuration);
     ov::InferRequest reqUndefined;
-    const char* value = std::getenv("RUN_WITH_OV_ASSERT_NO_THROW");
-    if (value) {
-        std::cout << "1run with OV_ASSERT_NO_THROW -----" << std::endl;
-        OV_ASSERT_NO_THROW(reqUndefined = execNetUndefined.create_infer_request());
-    } else {
-        std::cout << "2run with OV_ASSERT_NO_THROW -----" << std::endl;
-        reqUndefined = execNetUndefined.create_infer_request();
-    }
+
+    std::cout << "1run with OV_ASSERT_NO_THROW -----" << std::endl;
+    OV_ASSERT_NO_THROW(reqUndefined = execNetUndefined.create_infer_request());
 
     OV_ASSERT_NO_THROW(reqUndefined.set_tensor(inputName, inTensor));
     OV_ASSERT_NO_THROW(reqUndefined.infer());
