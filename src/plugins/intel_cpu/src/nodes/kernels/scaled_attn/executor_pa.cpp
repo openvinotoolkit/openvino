@@ -197,13 +197,14 @@ static void attn_acc_value_block(float* out,
         }
     }
     return;
-#    endif
+#    else
     for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
             out[i] += weight[j] * v[i];
         }
         v += S;
     }
+#endif
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 static void attn_acc_value_block_by_dim(float* out,
@@ -369,7 +370,7 @@ static void attn_acc_value_block_by_dim(float* out,
         weight++;
     }
     return;
-#    endif
+#    else
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
         src_offset = 0;
@@ -383,6 +384,7 @@ static void attn_acc_value_block_by_dim(float* out,
         }
         v += src_stride;
     }
+#    endif
 }
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
@@ -863,7 +865,8 @@ static void dot_product_block(TA* a,
         *c++ = sum;
     }
     return;
-#    endif
+
+#    else
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         for (size_t i = 0; i < n; i++) {
@@ -872,6 +875,7 @@ static void dot_product_block(TA* a,
         b_src += n;
         *c++ = sum;
     }
+#    endif
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
@@ -1424,7 +1428,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
         *c++ = sum;
     }
     return;
-#    endif
+#    else
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         dst_offset = 0;
@@ -1442,6 +1446,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
         b += src_stride;
         *c++ = sum;
     }
+#    endif
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u4), bool> = true>
@@ -3334,7 +3339,7 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_token = subsequence_begins.ptr<int32_t>()[batch_in_seq];
             const auto q_len = static_cast<size_t>(item.q_len);
-            size_t ithr = parallel_get_thread_num();
+            size_t ithr = static_cast<size_t>(parallel_get_thread_num());
 
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
