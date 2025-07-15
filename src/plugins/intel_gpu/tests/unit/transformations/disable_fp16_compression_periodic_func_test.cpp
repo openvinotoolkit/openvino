@@ -120,17 +120,25 @@ TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTest) {
     auto func = create_model_with_periodic_func();
     manager.run_passes(func);
 
-    bool success = false;
+    bool success = true; // Initialize success to true; it will be set to false if any condition fails
+    std::unordered_set<std::string> required_nodes = {name_sin, name_cos, name_add}; // Set of required node names
+    std::unordered_set<std::string> found_nodes; // Set of found node names
+
     for (auto& ops : func->get_ops()) {
-        if (ops->get_friendly_name() == name_sin
-            || ops->get_friendly_name() == name_cos
-            || ops->get_friendly_name() == name_add) {
+        if (required_nodes.count(ops->get_friendly_name())) {
+            found_nodes.insert(ops->get_friendly_name()); // Add the found node name to the set
+
             if (!ov::fp16_compression_is_disabled(ops)) {
+                // If FP16 compression is not disabled for this node, set success to false
                 success = false;
-                break;
             }
-            success = true;
         }
     }
-    ASSERT_TRUE(success);
+
+    // Check if all required nodes are found
+    if (found_nodes.size() != required_nodes.size()) {
+        success = false; // If any required node is missing, set success to false
+    }
+
+    ASSERT_TRUE(success); // Assert that success is true
 }
