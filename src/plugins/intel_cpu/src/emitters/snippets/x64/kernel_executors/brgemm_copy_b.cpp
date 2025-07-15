@@ -458,7 +458,6 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
 
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
-    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         dnnl_data_type_size(config.get_original_wei_dt());

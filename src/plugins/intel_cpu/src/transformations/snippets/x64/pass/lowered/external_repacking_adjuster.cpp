@@ -107,7 +107,6 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
         ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * dnnl_data_type_size(config->get_original_wei_dt());
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
-    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     config->update(N, N, K, K, copy_wei_stride, LDB);
     executor->update_by_config(*config);
 }
