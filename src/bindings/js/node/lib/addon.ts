@@ -669,6 +669,19 @@ interface PartialShape {
   getDimensions(): Dimension[];
 }
 
+/**
+ * Callback function type for AsyncInferQueue operations.
+ * @param inferRequest The {@link InferRequest} object from the queue's pool.
+ * It allows to access input and output tensors.
+ * @param userData User data that was passed to the startAsync method.
+ * @param error Optional error that occurred during inference, if any.
+ */
+type AsyncInferQueueCallback = (
+  inferRequest: InferRequest,
+  userData: object,
+  error?: Error
+) => void;
+
 interface AsyncInferQueue {
   /**
  * Creates AsyncInferQueue.
@@ -680,18 +693,10 @@ interface AsyncInferQueue {
   new(compiledModel: CompiledModel, jobs?: number): AsyncInferQueue;
   /**
    * Sets unified callback on all InferRequests from queue's pool.
-   * Signature of such function should have two arguments, where
-   * The first argument is {@link InferRequest} object and second one
-   * is any userdata connected to {@link InferRequest}
-   * from the AsyncInferQueue's pool.
+   * The callback that was previously set will be replaced.
    * @param callback - Any function that matches callback's requirements.
    */
-  setCallback(
-    callback: (
-      inferRequest: InferRequest,
-      userData: object,
-      error?: Error) => void,
-  ): void;
+  setCallback(callback: AsyncInferQueueCallback): void;
   /**
    * It starts asynchronous inference for the specified input data.
    * @param inputData An object with the key-value pairs where the key is the
