@@ -278,7 +278,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
     return std::unordered_set<std::string>();
 }
 
-void* ZeGraphExtWrappers::getNpuMemory(void* data, size_t size) {
+void* ZeGraphExtWrappers::getNpuMemory(void* data, size_t size, const uint32_t flags) {
     ze_device_external_memory_properties_t externalMemorydDesc = {};
     externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
 
@@ -295,7 +295,7 @@ void* ZeGraphExtWrappers::getNpuMemory(void* data, size_t size) {
 
     void* importedNpuData = nullptr;
 
-    ze_host_mem_alloc_desc_t memAllocDesc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, {}};
+    ze_host_mem_alloc_desc_t memAllocDesc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, flags};
     res =
         zeMemAllocHost(_zeroInitStruct->getContext(), &memAllocDesc, size, utils::STANDARD_PAGE_SIZE, &importedNpuData);
 

@@ -138,7 +138,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(ov::Tensor blob,
     if (_zeGraphExt) {
         if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13) &&
             utils::memory_and_size_aligned_to_standard_page_size(blob.data(), blob.get_byte_size())) {
-            npuMemory = _zeGraphExt->getNpuMemory(blob.data(), blob.get_byte_size());
+            npuMemory = _zeGraphExt->getNpuMemory(blob.data(),
+                                                  blob.get_byte_size(),
+                                                  ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 
             if (npuMemory) {
                 inputGraphPersistent = true;

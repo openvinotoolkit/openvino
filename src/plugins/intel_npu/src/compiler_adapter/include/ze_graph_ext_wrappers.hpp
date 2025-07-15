@@ -32,7 +32,7 @@ public:
     std::unordered_set<std::string> queryGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                const std::string& buildFlags) const;
 
-    void* getNpuMemory(void* data, size_t size);
+    void* getNpuMemory(void* data, size_t size, const uint32_t flags = 0);
 
     ze_graph_handle_t getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                      const std::string& buildFlags,
