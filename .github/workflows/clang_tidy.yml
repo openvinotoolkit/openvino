@@ -241,7 +241,7 @@ jobs:
           --parallel $(($(nproc) - 1)) \
           --config ${{ env.CMAKE_BUILD_TYPE }} \
           --target openvino_intel_cpu_plugin \
-          -- -k 0
+          -- -k
         # TODO: add --quiet after switch to Ubuntu 24.04+
 
       - name: Show sccache stats
@@ -311,7 +311,7 @@ jobs:
           --parallel $(($(nproc) - 1)) \
           --config ${{ env.CMAKE_BUILD_TYPE }} \
           --target openvino_intel_cpu_plugin \
-          -- -k 0
+          -- -k
         # TODO: add --quiet after switch to Ubuntu 24.04+
 
   Overall_Status:
