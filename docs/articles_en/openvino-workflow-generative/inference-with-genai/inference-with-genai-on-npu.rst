@@ -148,7 +148,7 @@ which do not require specifying quantization parameters:
 
 .. note::
 
-   Pre-converted models optimized for NPU, are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
+   Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
      
 
 Run generation using OpenVINO GenAI
