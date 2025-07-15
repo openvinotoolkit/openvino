@@ -60,8 +60,7 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
-        if (node->get_input_element_type(0) != ov::element::f16
-            && node->get_input_element_type(0) != ov::element::f32) {
+        if (node->get_input_element_type(0) != ov::element::f16) {
             return false;
         }
 
