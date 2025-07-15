@@ -170,7 +170,7 @@ public:
                           ScaleType bScaleType,
                           bool b_accumulate);
 
-    ~BrgemmKernelQuantized() final = default;
+    ~BrgemmKernelQuantized() override = default;
 
     // execute by m_blk + scale
     void executeGemmWithScale(bool is_M_tail,
