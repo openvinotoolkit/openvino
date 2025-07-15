@@ -340,12 +340,12 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
 
 std::string convert_dict_to_string(const py::object& obj) {
     if (!py::isinstance<py::dict>(obj)) {
-        return py::str(obj).cast<std::string>();
+        OPENVINO_THROW("The passed Python object must be of type dict");
     }
     auto dict = py::cast<py::dict>(obj);
     std::string result = "{";
     bool first = true;
-    for (auto item : dict) {
+    for (const auto& item : dict) {
         if (!first)
             result += ", ";
         result += py::str(item.first).cast<std::string>() + ": " + py::str(item.second).cast<std::string>();
