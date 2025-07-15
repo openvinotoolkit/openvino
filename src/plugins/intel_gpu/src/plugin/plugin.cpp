@@ -43,7 +43,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
-// Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
+// Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric .... temp
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
 #endif
