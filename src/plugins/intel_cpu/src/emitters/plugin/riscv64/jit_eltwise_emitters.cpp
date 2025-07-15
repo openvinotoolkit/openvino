@@ -1549,18 +1549,14 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     VReg rhs = VReg(in_vec_idxs[1]);
     VReg dst = VReg(out_vec_idxs[0]);
     VReg tmp = VReg(aux_vec_idxs[0]);
-
     h->vmfgt_vv(mask_vreg(), lhs, rhs);
-
     Xbyak_riscv::Reg reg_zero = h->t0;
     Xbyak_riscv::Reg reg_one  = h->t1;
-
     h->li(reg_zero, 0);
     h->li(reg_one, 1);
-
     h->vmv_v_x(dst, reg_zero);
     h->vmv_v_x(tmp, reg_one);
-    h->vmerge_vvm(dst, tmp, dst, mask_vreg());
+    h->vmerge_vvm(dst, tmp, dst);
 }
 
 void jit_greater_emitter::register_table_entries() {}
