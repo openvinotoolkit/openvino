@@ -845,12 +845,15 @@ public:
         }
 
         const auto algorithm = node->getAlgorithm();
-        return !one_of(algorithm,
-                       Algorithm::EltwiseLog,
-                       Algorithm::EltwiseBitwiseLeftShift,
-                       Algorithm::EltwiseBitwiseRightShift);
+        if (one_of(algorithm,
+                   Algorithm::EltwiseLog,
+                   Algorithm::EltwiseBitwiseLeftShift,
+                   Algorithm::EltwiseBitwiseRightShift)) {
+            return false;  // NOLINT(readability-simplify-boolean-expr) since no further checks on x64 are required
+        }
 
 #if defined(OPENVINO_ARCH_X86_64)
+        return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)
         if (one_of(algorithm,
@@ -2442,6 +2445,8 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma(), input_precisions)) {
         return false;
     }
+
+    return true;
 #else
     const auto isSuitableParentNode = [](const Node* parentNode) {
         return parentNode->getType() == Type::Convert &&
