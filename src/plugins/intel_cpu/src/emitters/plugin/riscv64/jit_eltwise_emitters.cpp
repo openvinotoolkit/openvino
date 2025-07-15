@@ -1574,7 +1574,7 @@ size_t jit_sigmoid_emitter::get_inputs_num() const {
 
 size_t jit_sigmoid_emitter::aux_gprs_count() const {
     OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
-    return jit_exp_emitter_->aux_gprs_count();
+    return jit_exp_emitter_->aux_gprs_count() + 1;
 }
 
 size_t jit_sigmoid_emitter::aux_vecs_count() const {
