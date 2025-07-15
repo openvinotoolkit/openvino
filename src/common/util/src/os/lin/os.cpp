@@ -6,13 +6,14 @@
 
 #include <malloc.h>
 
-#include <iostream>  // remove
 #include <stdexcept>
 
 namespace ov::util {
 void set_mmap_threshold(int threshold) {
+#if defined(M_MMAP_THRESHOLD)
     if (mallopt(M_MMAP_THRESHOLD, threshold) != 1) {
         throw std::runtime_error("Set M_MMAP_THRESHOLD failed");
     }
+#endif
 }
 }  // namespace ov::util
