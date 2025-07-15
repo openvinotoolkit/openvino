@@ -781,7 +781,17 @@ std::shared_ptr<IGraph> Plugin::parse(std::istream& stream,
 
         // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
         if (properties.count(ov::hint::model.name())) {
-            originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            try {
+                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            } catch (const ov::AssertFailure&) {
+                try {
+                    originalModel = std::const_pointer_cast<const ov::Model>(
+                        properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
+                } catch (const ov::Exception&) {
+                    OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
+                                   "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
+                }
+            }
         } else if (!config.get<WEIGHTS_PATH>().empty()) {
             const std::string weightsPath = config.get<WEIGHTS_PATH>();
             const size_t weightsPathLength = weightsPath.length();
@@ -831,8 +841,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
     return import_model(stream, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
-                                                         const ov::AnyMap& properties) const{
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model, const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
@@ -840,12 +849,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& properties) const{
+                                                         const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, context, properties);
 }
-
 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
