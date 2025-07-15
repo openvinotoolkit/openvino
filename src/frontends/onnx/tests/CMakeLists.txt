@@ -69,6 +69,7 @@ set(SRC
     conversion.cpp
     convert_tests.cpp
     convert_partially_tests.cpp
+    graph_iterator.cpp
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
@@ -124,6 +125,7 @@ set_property(TEST ov_onnx_frontend_tests PROPERTY LABELS OV UNIT ONNX_FE)
 
 add_dependencies(ov_onnx_frontend_tests openvino_template_extension)
 
+
 target_include_directories(ov_onnx_frontend_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_compile_definitions(ov_onnx_frontend_tests
@@ -142,7 +144,9 @@ target_link_libraries(ov_onnx_frontend_tests PRIVATE
     gtest_main_manifest
     frontend_shared_test_classes
     openvino::frontend::onnx
-    func_test_utils)
+    func_test_utils
+    openvino_tensorflow_lite_frontend
+)
 
 if(OV_COMPILER_IS_CLANG)
     target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
