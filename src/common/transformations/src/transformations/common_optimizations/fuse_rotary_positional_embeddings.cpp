@@ -104,7 +104,8 @@ static bool chatglm_validate_reshape_symbols(PatternValidator& validator) {
 static std::shared_ptr<ov::Node> gen_abc_const() {
     using namespace pattern;
 
-    auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") || value_matches("0, 0, 0, ndims/2, 1");
+    auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") ||
+                value_matches("0, 0, 0, ndims/2, 1");
     return wrap_type<v0::Constant>(pred);
 }
 
@@ -687,10 +688,12 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     // [batch_size, max_pos_embeddings, half_rotary_dims, 2] support_2d_rope
     auto cos_sin_cache = pattern::any_input(pattern::rank_equals(4));
 
-    auto qkv_proj = pattern::wrap_type<v1::VariadicSplit>({qkv_linear, -1, {"total_size_q", "total_size_k", "total_size_v"}});
+    auto qkv_proj =
+        pattern::wrap_type<v1::VariadicSplit>({qkv_linear, -1, {"total_size_q", "total_size_k", "total_size_v"}});
     qkv_proj->set_output_size(3);
-    auto cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj->output(split_output_id), {"0", "0", "head_cnt", "head_size"}},
-                                                {{"special_zero", true}});
+    auto cur_key =
+        pattern::wrap_type<v1::Reshape>({qkv_proj->output(split_output_id), {"0", "0", "head_cnt", "head_size"}},
+                                        {{"special_zero", true}});
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
@@ -701,7 +704,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // so seq_length dim will be always 1, this means that Transpose is unnecessary and Reshape op can be used.
         auto transposed_cur_key =
             pattern::wrap_type<v1::Reshape>({qkv_proj->output(split_output_id), {"-1", "head_cnt", "1", "head_size"}},
-                                         {{"special_zero", false}});
+                                            {{"special_zero", false}});
         // Transpose for SDPA version:
         input_key = pattern::wrap_type<v1::Transpose>({cur_key, {0, 2, 1, 3}}) | transposed_cur_key;
     } else {
@@ -716,18 +719,21 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     // rotate half
     std::shared_ptr<ov::Node> reshape_Reshape_453 = nullptr;
     if (support_2d_rope) {
-        auto const_target_shape_1 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, head_cnt, 0, ndims/2, 2"));
+        auto const_target_shape_1 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("0, head_cnt, 0, ndims/2, 2"));
         reshape_Reshape_453 =
             pattern::wrap_type<v1::Reshape>({slice_Slice_437 | var_split_1->output(0), const_target_shape_1},
                                             {{"special_zero", true}});
     } else {
         auto ListConstruct_452_Concat =
             pattern::wrap_type<v0::Concat>({seq_length, {-1}, {"head_cnt"}, {"ndims/2"}, {2}}, {{"axis", 0}});
-        auto const_target_shape_0 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims/2, 2"));
-        auto const_target_shape_1 = pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims/2, 2"));
+        auto const_target_shape_0 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims/2, 2"));
+        auto const_target_shape_1 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims/2, 2"));
         reshape_Reshape_453 =
             pattern::wrap_type<v1::Reshape>({slice_Slice_437 | var_split_1->output(0),
-                                                ListConstruct_452_Concat | const_target_shape_1 | const_target_shape_0});
+                                             ListConstruct_452_Concat | const_target_shape_1 | const_target_shape_0});
     }
 
     auto x_even = pattern::wrap_type<v8::Gather>({reshape_Reshape_453, 0, -1}, {{"batch_dims", 0}});
@@ -740,7 +746,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     if (support_2d_rope) {
         auto ListConstruct_379_Concat =
             pattern::wrap_type<v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
-        auto const_target_shape_2 = pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, 1, seq_len, ndims/2, 2"));
+        auto const_target_shape_2 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, 1, seq_len, ndims/2, 2"));
 
         // Slice cos_sin_cache to support 2-dimentional RoPE
         auto ScatterUpdate = pattern::wrap_type<v3::ScatterUpdate>({{0, 0}, {1}, seq_length, {0}}, {});
@@ -757,7 +764,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         auto ListConstruct_379_Concat =
             pattern::wrap_type<v0::Concat>({seq_length, {-1}, {1}, {"ndims/2"}, {2}}, {{"axis", 0}});
         auto const_target_shape_0 = pattern::wrap_type<v0::Constant>(pattern::value_matches("1, -1, 1, ndims/2, 2"));
-        auto const_target_shape_2 = pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, 1, ndims/2, 2"));
+        auto const_target_shape_2 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, 1, ndims/2, 2"));
 
         auto slice_Slice_449 = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {0}});
         auto slice_StridedSlice_449 = NewGenStridedSlice(cos_sin_cache, {0}, seq_length, {1}, 0);
@@ -765,7 +773,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // [seq_length, 1, batch, half_rotary_dims, 2]
         view_Reshape_460 =
             pattern::wrap_type<v1::Reshape>({slice_StridedSlice_449 | slice_Slice_449 | var_split_2->output(0),
-                                            ListConstruct_379_Concat | const_target_shape_0 | const_target_shape_2});
+                                             ListConstruct_379_Concat | const_target_shape_0 | const_target_shape_2});
     }
 
     auto cos_tab = pattern::wrap_type<v8::Gather>({view_Reshape_460, 0, -1}, {{"batch_dims", 0}});
@@ -793,17 +801,19 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     std::shared_ptr<ov::Node> flatten_Reshape_501 = nullptr;
     if (support_2d_rope) {
         // [batch, head_cnt, length, half_rotary_dims, 2]
-        const_target_shape_3 = pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
-                                                                pattern::value_matches("0, head_cnt, 0, ndims"));
+        const_target_shape_3 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("batch, head_cnt, seq_len, ndims") ||
+                                             pattern::value_matches("0, head_cnt, 0, ndims"));
         flatten_Reshape_501 = pattern::wrap_type<v1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3},
                                                               {{"special_zero", true}});
     } else {
         // [length, batch, head_cnt, half_rotary_dims, 2]
         auto const_target_shape_0 = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, ndims"));
-        const_target_shape_3 = pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims"));
-        flatten_Reshape_501 =
-            pattern::wrap_type<v1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3 | const_target_shape_0},
-                                            {{"special_zero", true}});
+        const_target_shape_3 =
+            pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims"));
+        flatten_Reshape_501 = pattern::wrap_type<v1::Reshape>(
+            {stack_481, flatten_Concat_500 | const_target_shape_3 | const_target_shape_0},
+            {{"special_zero", true}});
     }
     auto slice_Slice_443 = NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
 
@@ -825,7 +835,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
 
         if (!ndims_over_2.is_integer() || !ndims.is_integer() || !head_cnt.is_integer() || !head_size.is_integer() ||
             !total_size_q.is_integer() || !total_size_k.is_integer() || ndims_over_2.i() * 2 != ndims.i()) {
-                return false;
+            return false;
         }
 
         op::internal::RoPE::Config config;
