@@ -17,6 +17,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     INPUT0_TYPE grp_max = 0.001;
     INPUT0_TYPE max_value = INPUT0_VAL_MIN;
     INPUT0_TYPE min_value = INPUT0_VAL_MAX;
+
     unroll_for (uint i = 0; i < num_groups; i++) {
         input_data[i] = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + i * SUBGROUP_SIZE);
         max_value = fmax(max_value, input_data[i]);
@@ -62,7 +63,6 @@ inline void FUNC(quantize_and_save_by_channel_generate)(__global const INPUT0_TY
                                     const uint seq_idx,
                                     const uint sglid,
                                     const uint hidden_subgroups) {
-    // 2nd token
     for (int hidden_sub = 0; hidden_sub < hidden_subgroups; hidden_sub++) {
         const int hidden_idx = hidden_sub * SUBGROUP_SIZE + sglid;
         const uint key_out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
@@ -72,7 +72,6 @@ inline void FUNC(quantize_and_save_by_channel_generate)(__global const INPUT0_TY
         const INPUT0_TYPE orig_zp = comp_ptr[1];
         // read new k input
         INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + hidden_sub * SUBGROUP_SIZE);
-        // ----------------------------------------------------------------------
         // Read a hidden dim of the previously quantized key cache => decompress
         // TODO : current block size is 16 (same as PA block size),
         //        but when the block size becomes different, this part should be updated as well
@@ -96,7 +95,6 @@ inline void FUNC(quantize_and_save_by_channel_generate)(__global const INPUT0_TY
               max_value = fmax(max_value, key_cache_data_vec_decompressed[j]);
               min_value = fmin(min_value, key_cache_data_vec_decompressed[j]);
           }
-        // ----------------------------------------------------------------------
         // requantize and store
         {
             #define ACCUMULATOR_TYPE float

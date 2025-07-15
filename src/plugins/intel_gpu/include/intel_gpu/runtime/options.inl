@@ -52,7 +52,8 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Con
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, false, "Enforce asymmetric mode for dynamically quantized activations")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, could_use_flashattn_v2, true, "Enable/Disable SDPA primitive executing with FlashAttenV2 online softmax tricks.")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, dynamic_quantization_threshold, 64, "Apply dynamic quantization only when batch size is larger than this value in OneDNN")
-OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, key_cache_quant_mode , CacheQuantMode::BY_CHANNEL, "BY_CHANNEL or BY_HIDDEN")
+OV_CONFIG_RELEASE_OPTION(ov::hint, key_cache_quant_mode, ov::hint::CacheQuantMode::BY_TOKEN, "BY_CHANNEL or BY_TOKEN")
+OV_CONFIG_RELEASE_OPTION(ov::hint, value_cache_quant_mode, ov::hint::CacheQuantMode::BY_TOKEN, "BY_CHANNEL or BY_TOKEN")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")

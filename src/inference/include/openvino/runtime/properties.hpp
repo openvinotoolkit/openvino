@@ -603,6 +603,64 @@ static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization
 static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
 
 /**
+ * @brief Enum to define possible cache quant schema hints.
+ */
+enum class CacheQuantMode {
+    AUTO = 0,
+    BY_CHANNEL = 1,
+    BY_TOKEN = 2
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(
+    std::ostream& os, const CacheQuantMode& mode) {
+    switch (mode) {
+        case CacheQuantMode::AUTO:
+            return os << "AUTO";
+        case CacheQuantMode::BY_CHANNEL:
+            return os << "BY_CHANNEL";
+        case CacheQuantMode::BY_TOKEN:
+            return os << "BY_TOKEN";
+        default: OPENVINO_THROW("Unsupported cache quant mode");
+    }
+}
+/** @endcond */
+
+inline std::istream& operator>>(
+    std::istream& is, CacheQuantMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        mode = CacheQuantMode::AUTO;
+    } else if (str == "BY_CHANNEL") {
+        mode = CacheQuantMode::BY_CHANNEL;
+    } else if (str == "BY_TOKEN") {
+        mode = CacheQuantMode::BY_TOKEN;
+    } else {
+        OPENVINO_THROW("Unsupported cache quant mode: ", str);
+    }
+    return is;
+}
+
+/**
+ * @brief Define quant mode for key cache.
+ * @param AUTO - default mode by plugin
+ * @param BY_CHANNEL - quant by channel
+ * @param BY_TOKEN - quant by token
+ */
+
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
+
+/**
+ * @brief Define quant mode for value cache.
+ * @param AUTO - default mode by plugin
+ * @param BY_CHANNEL - quant by channel
+ * @param BY_TOKEN - quant by token
+ */
+
+static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
+
+/**
  * @brief This property scales down activations to prevent overflows when inference precision is f16.
  * @ingroup ov_runtime_cpp_prop_api
  */
