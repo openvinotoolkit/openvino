@@ -2748,17 +2748,10 @@ void MVN::MVNJitExecutor::mvn_nspc(const uint8_t* src_data,
         }
     };
 
-#if OV_THREAD == OV_THREAD_OMP
-    const auto origin_nested = parallel_enable_nesting();
-#endif
-
+    ParallelNestingContext nested_context;
     parallel_nt_static(b_threads, [&](const int ithr, const int nthr) {
         for_1d(ithr, nthr, N, b_loop);
     });
-
-#if OV_THREAD == OV_THREAD_OMP
-    parallel_restore_nesting(origin_nested);
-#endif
 }
 
 void MVN::MVNJitExecutor::mvn_blk(const uint8_t* src_data,

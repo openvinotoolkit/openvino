@@ -161,45 +161,6 @@ inline int parallel_get_nested_level() {
 #    endif
 }
 
-inline int parallel_enable_nesting() {
-    int res = 0;
-#    if _OPENMP >= 200805
-    static const int MAX_LEVEL = std::numeric_limits<int>::max();
-    res = parallel_get_max_nested_levels();
-    if (res < MAX_LEVEL) {
-        parallel_set_max_nested_levels(MAX_LEVEL);
-    }
-#    endif
-
-#    if _OPENMP < 201811
-    auto origin_nested = parallel_get_nested();
-    if (origin_nested == 0) {
-        parallel_set_nested(1);
-    } else {
-        res = res | 0x80000000;
-    }
-#    endif
-
-    return res;
-}
-
-inline void parallel_restore_nesting(const int val) {
-#    if _OPENMP >= 200805
-    const int origin_nested_levels = val & 0x7FFFFFFF;
-    if (origin_nested_levels != parallel_get_max_nested_levels()) {
-        parallel_set_max_nested_levels(origin_nested_levels);
-    }
-#    endif
-
-#    if _OPENMP < 201811
-    const int origin_nested = val & 0x80000000;
-    const int cur_nested = parallel_get_nested();
-    if (origin_nested != cur_nested && (origin_nested == 0 || cur_nested == 0)) {
-        parallel_set_nested(origin_nested);
-    }
-#    endif
-}
-
 #elif OV_THREAD == OV_THREAD_SEQ
 #    include <algorithm>
 inline int parallel_get_env_threads() {
@@ -218,6 +179,53 @@ inline void parallel_set_num_threads(int) {
     return;
 }
 #endif
+
+class ParallelNestingContext {
+public:
+    ParallelNestingContext() {
+#if OV_THREAD == OV_THREAD_OMP
+#    if _OPENMP >= 200805
+        m_origin_levels = parallel_get_max_nested_levels();
+        if (m_origin_levels < MAX_LEVEL) {
+            parallel_set_max_nested_levels(MAX_LEVEL);
+        }
+#    endif
+
+#    if _OPENMP < 201811
+        m_origin_nested = parallel_get_nested();
+        if (m_origin_nested == 0) {
+            parallel_set_nested(1);
+        }
+#    endif
+#endif
+    }
+
+    ~ParallelNestingContext() {
+#if OV_THREAD == OV_THREAD_OMP
+#    if _OPENMP >= 200805
+        if (m_origin_levels != parallel_get_max_nested_levels()) {
+            parallel_set_max_nested_levels(m_origin_levels);
+        }
+#    endif
+
+#    if _OPENMP < 201811
+        if (m_origin_nested == 0) {
+            parallel_set_nested(m_origin_nested);
+        }
+#    endif
+#endif
+    }
+
+    ParallelNestingContext(const ParallelNestingContext&) = delete;
+    ParallelNestingContext& operator=(const ParallelNestingContext&) = delete;
+
+private:
+#if OV_THREAD == OV_THREAD_OMP
+    static constexpr int MAX_LEVEL = std::numeric_limits<int>::max();
+    int m_origin_levels{MAX_LEVEL};
+    int m_origin_nested{MAX_LEVEL};
+#endif
+};
 
 namespace ov {
 
