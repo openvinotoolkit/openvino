@@ -5,7 +5,8 @@
 """Helper functions for validating user input."""
 
 import logging
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
+from typing import Any, Optional
+from collections.abc import Callable, Iterable
 
 import numpy as np
 
@@ -26,7 +27,7 @@ def assert_list_of_ints(value_list: Iterable[int], message: str) -> None:
 
 
 def _check_value(op_name, attr_key, value, val_type, cond=None):
-    # type: (str, str, Any, Type, Optional[Callable[[Any], bool]]) -> bool
+    # type: (str, str, Any, type, Optional[Callable[[Any], bool]]) -> bool
     """Check whether provided value satisfies specified criteria.
 
     :param      op_name:        The operator name which attributes are checked.
@@ -51,7 +52,7 @@ def _check_value(op_name, attr_key, value, val_type, cond=None):
 
 
 def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, required=False):
-    # type: (str, dict, str, Type, Optional[Callable[[Any], bool]], Optional[bool]) -> bool
+    # type: (str, dict, str, type, Optional[Callable[[Any], bool]], Optional[bool]) -> bool
     """Check whether specified attribute satisfies given criteria.
 
     :param  op_name:    The operator name which attributes are checked.
@@ -89,8 +90,8 @@ def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, req
 
 def check_valid_attributes(
     op_name,  # type: str
-    attributes,  # type: Dict[str, Any]
-    requirements,  # type: List[Tuple[str, bool, Type, Optional[Callable]]]
+    attributes,  # type: dict[str, Any]
+    requirements,  # type: list[tuple[str, bool, type, Optional[Callable]]]
 ):
     # type: (...) -> bool
     """Perform attributes validation according to specified type, value criteria.
@@ -101,7 +102,7 @@ def check_valid_attributes(
                             contain following values:
                             (attr_name: str,
                             is_required: bool,
-                            value_type: Type,
+                            value_type: type,
                             value_condition: Callable)
 
     :raises     UserInputError:

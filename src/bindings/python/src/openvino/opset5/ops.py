@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Optional, Union
 
 import numpy as np
 from functools import partial
@@ -185,9 +185,9 @@ def lstm_sequence(
     B: NodeInput,
     hidden_size: int,
     direction: str,
-    activations: Optional[List[str]] = None,
-    activations_alpha: Optional[List[float]] = None,
-    activations_beta: Optional[List[float]] = None,
+    activations: Optional[list[str]] = None,
+    activations_alpha: Optional[list[float]] = None,
+    activations_beta: Optional[list[float]] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
@@ -257,9 +257,9 @@ def gru_sequence(
     B: NodeInput,
     hidden_size: int,
     direction: str,
-    activations: Optional[List[str]] = None,
-    activations_alpha: Optional[List[float]] = None,
-    activations_beta: Optional[List[float]] = None,
+    activations: Optional[list[str]] = None,
+    activations_alpha: Optional[list[float]] = None,
+    activations_beta: Optional[list[float]] = None,
     clip: float = 0.0,
     linear_before_reset: bool = False,
     name: Optional[str] = None,
@@ -321,9 +321,9 @@ def rnn_sequence(
     B: NodeInput,
     hidden_size: int,
     direction: str,
-    activations: Optional[List[str]] = None,
-    activations_alpha: Optional[List[float]] = None,
-    activations_beta: Optional[List[float]] = None,
+    activations: Optional[list[str]] = None,
+    activations_alpha: Optional[list[float]] = None,
+    activations_beta: Optional[list[float]] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:

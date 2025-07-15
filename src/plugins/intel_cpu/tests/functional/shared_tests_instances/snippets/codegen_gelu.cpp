@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -7,7 +6,6 @@
 
 #include "snippets/codegen_gelu.hpp"
 #include "common_test_utils/test_constants.hpp"
-//  todo: Rewrite this test using Snippets test infrastructure. See add_convert or conv_eltwise for example
 
 namespace ov {
 namespace test {

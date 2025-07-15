@@ -4,6 +4,9 @@
 
 #include "jit_eltwise_emitters.hpp"
 
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
@@ -2492,7 +2495,7 @@ size_t jit_power_dynamic_emitter::get_aux_gprs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_power_dynamic_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -3091,7 +3094,7 @@ void jit_softplus_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_softplus_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
 }
 
@@ -3233,16 +3236,16 @@ void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
-    TReg src0 = TReg(in_vec_idxs[0]);
-    TReg src1 = TReg(in_vec_idxs[1]);
-    TReg dst = TReg(out_vec_idxs[0]);
+    auto src0 = TReg(in_vec_idxs[0]);
+    auto src1 = TReg(in_vec_idxs[1]);
+    auto dst = TReg(out_vec_idxs[0]);
 
     h->fsub(dst.s, src0.s, src1.s);
     h->fmul(dst.s, dst.s, dst.s);
 }
 
 std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
