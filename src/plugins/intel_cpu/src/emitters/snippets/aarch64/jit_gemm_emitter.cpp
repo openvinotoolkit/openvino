@@ -58,15 +58,15 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     std::unordered_set<size_t> exclude = {};
     store_context(exclude);
 
-    h->mov(Xbyak_aarch64::XReg(10), Xbyak_aarch64::XReg(in[0]));
-    h->mov(Xbyak_aarch64::XReg(11), Xbyak_aarch64::XReg(in[1]));
-    h->mov(Xbyak_aarch64::XReg(12), Xbyak_aarch64::XReg(out[0]));
-    h->mov(Xbyak_aarch64::XReg(1), Xbyak_aarch64::XReg(10));
-    h->mov(Xbyak_aarch64::XReg(2), Xbyak_aarch64::XReg(11));
-    h->mov(Xbyak_aarch64::XReg(3), Xbyak_aarch64::XReg(12));
+    h->mov(Xbyak_aarch64::XReg(20), Xbyak_aarch64::XReg(in[0]));
+    h->mov(Xbyak_aarch64::XReg(21), Xbyak_aarch64::XReg(in[1]));
+    h->mov(Xbyak_aarch64::XReg(22), Xbyak_aarch64::XReg(out[0]));
+    h->mov(Xbyak_aarch64::XReg(1), Xbyak_aarch64::XReg(20));
+    h->mov(Xbyak_aarch64::XReg(2), Xbyak_aarch64::XReg(21));
+    h->mov(Xbyak_aarch64::XReg(3), Xbyak_aarch64::XReg(22));
     h->mov(Xbyak_aarch64::XReg(0), get_compiled_kernel_ptr());
-    h->mov(Xbyak_aarch64::XReg(9), get_execute_function_ptr());
-    h->blr(Xbyak_aarch64::XReg(9));
+    h->mov(Xbyak_aarch64::XReg(18), get_execute_function_ptr());
+    h->blr(Xbyak_aarch64::XReg(18));
 
     restore_context(exclude);
 }
