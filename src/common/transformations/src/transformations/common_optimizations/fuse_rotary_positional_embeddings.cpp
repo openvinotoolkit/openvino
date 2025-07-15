@@ -462,7 +462,6 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
             return false;
 
         // remove slice & concat
-        // rope_node->set_argument(0, pattern_map.at(data));
         rope_node->input(0).replace_source_output(pattern_map.at(data));
         rope_node->set_friendly_name(root->get_friendly_name());
         ov::copy_runtime_info({rope_node, pattern_map.at(result).get_node_shared_ptr()}, rope_node);
