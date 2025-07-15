@@ -782,7 +782,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         const_target_shape6 =
             pattern::wrap_type<v0::Constant>(pattern::value_matches("seq_len, batch, head_cnt, ndims"));
         reshape2 = pattern::wrap_type<v1::Reshape>({concat2, concat3 | const_target_shape6 | const_target_shape7},
-            {{"special_zero", true}});
+                                                   {{"special_zero", true}});
     }
     auto slice5 = NewGenSlice(input_key, "ndims", INT_MAX, 1, 3);
 
