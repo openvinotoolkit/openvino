@@ -218,7 +218,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             std::stringstream ss;
             ss << ptr->getData();
             ret = ss.str();
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             ret = "?";
         }
         return ret;
