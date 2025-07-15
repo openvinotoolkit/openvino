@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "openvino/op/util/sub_graph_base.hpp"
-#include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -37,27 +36,23 @@
 
 
 static bool is_non_value_modifying_node(const std::shared_ptr<ov::Node>& node) {
-    static const std::unordered_set<std::string> non_value_modifying_nodes = {
-        ov::op::v1::Reshape::get_type_info_static().name,
-        ov::op::v1::Transpose::get_type_info_static().name,
-        ov::op::util::ScatterBase::get_type_info_static().name,
-        ov::op::util::ScatterNDBase::get_type_info_static().name,
-        ov::op::util::ScatterElementsUpdateBase::get_type_info_static().name,
-        ov::op::v8::Slice::get_type_info_static().name,
-        ov::op::v1::Broadcast::get_type_info_static().name,
-        ov::op::v0::Concat::get_type_info_static().name,
-        ov::op::v1::Split::get_type_info_static().name,
-        ov::op::v1::StridedSlice::get_type_info_static().name,
-        ov::op::v0::Tile::get_type_info_static().name,
-        ov::op::v16::Identity::get_type_info_static().name,
-        ov::op::v1::Pad::get_type_info_static().name,
-        ov::op::util::GatherNDBase::get_type_info_static().name,
-        ov::op::util::GatherBase::get_type_info_static().name,
-        ov::op::v15::Squeeze::get_type_info_static().name,
-        ov::op::v0::Unsqueeze::get_type_info_static().name,
-        // Add more node types as needed
-    };
-    return non_value_modifying_nodes.find(node->get_type_info().name) != non_value_modifying_nodes.end();
+    return ov::is_type<ov::op::v1::Reshape>(node) ||
+           ov::is_type<ov::op::v1::Transpose>(node) ||
+           ov::is_type<ov::op::util::ScatterBase>(node) ||
+           ov::is_type<ov::op::util::ScatterNDBase>(node) ||
+           ov::is_type<ov::op::util::ScatterElementsUpdateBase>(node) ||
+           ov::is_type<ov::op::v8::Slice>(node) ||
+           ov::is_type<ov::op::v1::Broadcast>(node) ||
+           ov::is_type<ov::op::v0::Concat>(node) ||
+           ov::is_type<ov::op::v1::Split>(node) ||
+           ov::is_type<ov::op::v1::StridedSlice>(node) ||
+           ov::is_type<ov::op::v0::Tile>(node) ||
+           ov::is_type<ov::op::v16::Identity>(node) ||
+           ov::is_type<ov::op::v1::Pad>(node) ||
+           ov::is_type<ov::op::util::GatherNDBase>(node) ||
+           ov::is_type<ov::op::util::GatherBase>(node) ||
+           ov::is_type<ov::op::v15::Squeeze>(node) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(node);
 }
 
 ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionForPeriodicFuncs()
