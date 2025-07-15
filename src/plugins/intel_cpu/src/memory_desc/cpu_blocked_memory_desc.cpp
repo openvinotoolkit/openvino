@@ -45,6 +45,10 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc,
         OPENVINO_THROW("CpuBlockedMemoryDesc do not support undefined order.");
     }
 
+    if (blockedDims.size() < shape.getRank()) {
+        OPENVINO_THROW("Can't create CpuBlockedMemoryDesc. Blocked dims has rank less than planar dims");
+    }
+
     if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
             return val == Shape::UNDEFINED_DIM;
         })) {
