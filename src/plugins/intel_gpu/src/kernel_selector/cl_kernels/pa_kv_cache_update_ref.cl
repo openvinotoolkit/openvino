@@ -52,11 +52,11 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 }
 
 inline void FUNC(quantize_and_save_by_channel_generate)(__global const INPUT0_TYPE* in_data,
-                                    const uint in_data_offset, // key_in_offset
-                                    const uint in_data_pitch, // KEY_IN_STRIDE
+                                    const uint in_data_offset,
+                                    const uint in_data_pitch,
                                     __global OUTPUT_TYPE* out_data,
-                                    const uint out_data_offset, // block_k_base_offset
-                                    const uint out_data_pitch, // hidden_stride
+                                    const uint out_data_offset,
+                                    const uint out_data_pitch,
                                     const uint comp_offset,
                                     const uint token_pos_in_block,
                                     const uint head_idx,
@@ -65,35 +65,35 @@ inline void FUNC(quantize_and_save_by_channel_generate)(__global const INPUT0_TY
                                     const uint hidden_subgroups) {
     for (int hidden_sub = 0; hidden_sub < hidden_subgroups; hidden_sub++) {
         const int hidden_idx = hidden_sub * SUBGROUP_SIZE + sglid;
-        const uint key_out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
-        // read original scale and zp
-        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[key_out_offset_per_wi + comp_offset]);
+        const uint out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
+        // Read original scale and zp
+        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + comp_offset]);
         const INPUT0_TYPE orig_scale = comp_ptr[0];
         const INPUT0_TYPE orig_zp = comp_ptr[1];
-        // read new k input
+        // Read new input
         INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + hidden_sub * SUBGROUP_SIZE);
-        // Read a hidden dim of the previously quantized key cache => decompress
+        // Read a hidden dim of the previously quantized cache => decompress
         // TODO : current block size is 16 (same as PA block size),
         //        but when the block size becomes different, this part should be updated as well
         #define READ_SIZE 16
         #define OUT_DATA_VEC MAKE_VECTOR_TYPE(OUTPUT_TYPE, READ_SIZE)
         #define IN_DATA_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, READ_SIZE)
         #define VLOAD CAT(vload, READ_SIZE)
-        OUT_DATA_VEC key_cache_data_vec = VLOAD(0, out_data + key_out_offset_per_wi);
-        IN_DATA_VEC key_cache_data_vec_decompressed;
+        OUT_DATA_VEC prev_cache_data_vec = VLOAD(0, out_data + out_offset_per_wi);
+        IN_DATA_VEC cache_data_vec_decompressed;
         #undef READ_SIZE
         #undef VLOAD
         #undef DATA_VEC
-        key_cache_data_vec_decompressed[token_pos_in_block] = new_token;
+        cache_data_vec_decompressed[token_pos_in_block] = new_token;
         INPUT0_TYPE max_value = fmax(INPUT0_VAL_MIN, new_token);
         INPUT0_TYPE min_value = fmin(INPUT0_VAL_MAX, new_token);
           for (int j = 0; j <= token_pos_in_block; ++j) {
               if (j < token_pos_in_block) {
-                  INPUT0_TYPE decompressed_key_cache_val = ((INPUT0_TYPE)key_cache_data_vec[j] - orig_zp) * orig_scale;
-                  key_cache_data_vec_decompressed[j] = decompressed_key_cache_val;
+                  INPUT0_TYPE decompressed_cache_val = ((INPUT0_TYPE)prev_cache_data_vec[j] - orig_zp) * orig_scale;
+                  cache_data_vec_decompressed[j] = decompressed_cache_val;
               }
-              max_value = fmax(max_value, key_cache_data_vec_decompressed[j]);
-              min_value = fmin(min_value, key_cache_data_vec_decompressed[j]);
+              max_value = fmax(max_value, cache_data_vec_decompressed[j]);
+              min_value = fmin(min_value, cache_data_vec_decompressed[j]);
           }
         // requantize and store
         {
@@ -111,8 +111,8 @@ inline void FUNC(quantize_and_save_by_channel_generate)(__global const INPUT0_TY
             #undef ACCUMULATOR_TYPE
 
             for (uint token = 0; token <= token_pos_in_block; ++token) {
-                OUTPUT_TYPE quantized_key = convert_char_rte(key_cache_data_vec_decompressed[token] * scale + zp);
-                out_data[key_out_offset_per_wi + token] = quantized_key;
+                OUTPUT_TYPE quantized = convert_char_rte(cache_data_vec_decompressed[token] * scale + zp);
+                out_data[out_offset_per_wi + token] = quantized;
             }
             comp_ptr[0] = 1.0/scale;
             comp_ptr[1] = zp;
@@ -121,18 +121,18 @@ inline void FUNC(quantize_and_save_by_channel_generate)(__global const INPUT0_TY
 }
 
 inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYPE* in_data,
-                                    const uint in_data_offset, // key_in_offset
-                                    const uint in_data_pitch, // KEY_IN_STRIDE
+                                    const uint in_data_offset,
+                                    const uint in_data_pitch,
                                     __global OUTPUT_TYPE* out_data,
-                                    const uint out_data_offset, // block_k_base_offset
+                                    const uint out_data_offset,
                                     const uint comp_offset,
                                     const uint tokens_num,
                                     const uint sglid,
                                     const uint hidden_subgroups) {
-    uint key_out_offset = out_data_offset;
+    uint out_offset = out_data_offset;
     for (uint i = 0; i < hidden_subgroups; i++) {
         uint key_in_offset_tmp = in_data_offset + i * SUBGROUP_SIZE;
-        INPUT0_TYPE input_data[PAGED_ATTENTION_BLOCK_SIZE]; // TODO make this as local memory
+        INPUT0_TYPE input_data[PAGED_ATTENTION_BLOCK_SIZE];
         INPUT0_TYPE max_value = INPUT0_VAL_MIN;
         INPUT0_TYPE min_value = INPUT0_VAL_MAX;
         // Read 16 tokens x 16 hidden
@@ -154,21 +154,21 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
         INPUT0_TYPE scale = (INPUT1_TYPE)(scale_tmp);
         INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
         #undef ACCUMULATOR_TYPE
-        // quantize and save each hidden dim
+        // Quantize and save each hidden dim
         // TODO to store as vector write 
-        uint key_out_offset_per_wi = key_out_offset + sglid * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        uint out_offset_per_wi = out_offset + sglid * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         // store comp_data
-        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[key_out_offset_per_wi + comp_offset]);
+        INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + comp_offset]);
         comp_ptr[0] = 1.0 / scale;
         comp_ptr[1] = zp;
 
-        // store quantized key
-        unroll_for (uint token_num = 0; token_num < tokens_num; token_num++) {
+        // Store quantized key
+        for (uint token_num = 0; token_num < tokens_num; token_num++) {
             OUTPUT_TYPE res = convert_char_rte(input_data[token_num] * scale + zp);
-            out_data[key_out_offset_per_wi] = res;
-            key_out_offset_per_wi++;
+            out_data[out_offset_per_wi] = res;
+            out_offset_per_wi++;
         }
-        key_out_offset += ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * SUBGROUP_SIZE;
+        out_offset += ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * SUBGROUP_SIZE;
     }
 }
 
