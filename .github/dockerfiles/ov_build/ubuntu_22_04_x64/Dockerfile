@@ -51,6 +51,9 @@ RUN apt-get update && \
         libgbm1 \
         # ONNX Runtime
         language-pack-en \
+        # For cross-compilation for ARM64
+        gcc-aarch64-linux-gnu \
+        g++-aarch64-linux-gnu \
         && \
     rm -rf /var/lib/apt/lists/*
 
