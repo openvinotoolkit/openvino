@@ -1551,7 +1551,7 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     VReg tmp = VReg(aux_vec_idxs[0]);
     h->vmfgt_vv(mask_vreg(), lhs, rhs);
     Xbyak_riscv::Reg reg_zero = h->t0;
-    Xbyak_riscv::Reg reg_one  = h->t1;
+    Xbyak_riscv::Reg reg_one = h->t1;
     h->li(reg_zero, 0);
     h->li(reg_one, 1);
     h->vmv_v_x(dst, reg_zero);
