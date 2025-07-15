@@ -2,11 +2,11 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const path = require('path');
-const fs = require('node:fs/promises');
-const { downloadFile, checkIfPathExists } = require('../scripts/lib/utils');
+const path = require("path");
+const fs = require("node:fs/promises");
+const { downloadFile, checkIfPathExists } = require("../scripts/lib/utils");
 
-const modelDir = path.join(__dirname, 'unit', 'test_models');
+const modelDir = path.join(__dirname, "unit", "test_models");
 
 function getModelPath(fileName) {
   return path.join(modelDir, fileName);
@@ -14,30 +14,30 @@ function getModelPath(fileName) {
 
 const testModels = {
   testModelFP32: {
-    xml: getModelPath('test_model_fp32.xml'),
-    bin: getModelPath('test_model_fp32.bin'),
+    xml: getModelPath("test_model_fp32.xml"),
+    bin: getModelPath("test_model_fp32.bin"),
     inputShape: [1, 3, 32, 32],
     outputShape: [1, 10],
     xmlURL:
-      'https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml',
+      "https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml",
     binURL:
-      'https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin',
+      "https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin",
   },
   modelV3Small: {
-    xml: getModelPath('v3-small_224_1.0_float.xml'),
-    bin: getModelPath('v3-small_224_1.0_float.bin'),
+    xml: getModelPath("v3-small_224_1.0_float.xml"),
+    bin: getModelPath("v3-small_224_1.0_float.bin"),
     inputShape: [1, 224, 224, 3],
     outputShape: [1, 1001],
     xmlURL:
-      'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.xml',
+      "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.xml",
     binURL:
-      'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.bin',
+      "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/mobelinet-v3-tf/FP32/v3-small_224_1.0_float.bin",
   },
   addModel: {
-    xml: getModelPath('add_model.xml'),
+    xml: getModelPath("add_model.xml"),
   },
   addModelWithVar: {
-    xml: getModelPath('add_model_with_var.xml'),
+    xml: getModelPath("add_model_with_var.xml"),
   },
 };
 
@@ -55,7 +55,7 @@ function compareModels(model1, model2) {
   const differences = [];
   if (model1.getFriendlyName() !== model2.getFriendlyName()) {
     differences.push(
-      'Friendly names of models are not equal ' +
+      "Friendly names of models are not equal " +
         `model_one: ${model1.getFriendlyName()},` +
         `model_two: ${model2.getFriendlyName()}`,
     );
@@ -78,7 +78,7 @@ function compareModels(model1, model2) {
   }
 
   if (differences.length) {
-    throw new Error(differences.join('\n'));
+    throw new Error(differences.join("\n"));
   }
 }
 
@@ -131,7 +131,7 @@ async function isModelAvailable(model) {
   if (modelExists) return;
 
   console.log(
-    '\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n',
+    "\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n",
   );
   process.exit(1);
 }

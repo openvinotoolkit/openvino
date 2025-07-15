@@ -1,11 +1,11 @@
-const path = require('node:path');
-const https = require('node:https');
-const fs = require('node:fs/promises');
-const { createWriteStream } = require('node:fs');
+const path = require("node:path");
+const https = require("node:https");
+const fs = require("node:fs/promises");
+const { createWriteStream } = require("node:fs");
 
-const { HttpsProxyAgent } = require('https-proxy-agent');
+const { HttpsProxyAgent } = require("https-proxy-agent");
 
-const codeENOENT = 'ENOENT';
+const codeENOENT = "ENOENT";
 
 module.exports = {
   removeDirectory,
@@ -73,7 +73,7 @@ function downloadFile(url, destination, filename, proxy = null) {
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 
-  if (new URL(url).protocol === 'http:')
+  if (new URL(url).protocol === "http:")
     throw new Error("Http link doesn't support");
 
   let agent;
@@ -84,7 +84,7 @@ function downloadFile(url, destination, filename, proxy = null) {
   }
 
   return new Promise((resolve, reject) => {
-    file.on('error', (error) => {
+    file.on("error", (error) => {
       reject(`Failed to open file stream: ${error}.`);
     });
 
@@ -99,14 +99,14 @@ function downloadFile(url, destination, filename, proxy = null) {
 
       res.pipe(file);
 
-      file.on('finish', () => {
+      file.on("finish", () => {
         file.close();
         console.log(`File was successfully downloaded to '${fullPath}'.`);
         resolve(fullPath);
       });
     });
 
-    request.on('error', (error) => {
+    request.on("error", (error) => {
       reject(`Failed to send request: ${error}.`);
     });
 

@@ -9,17 +9,17 @@ type SupportedTypedArray =
   | Float64Array;
 
 type elementTypeString =
-  | 'u8'
-  | 'u32'
-  | 'u16'
-  | 'u64'
-  | 'i8'
-  | 'i64'
-  | 'i32'
-  | 'i16'
-  | 'f64'
-  | 'f32'
-  | 'string';
+  | "u8"
+  | "u32"
+  | "u16"
+  | "u64"
+  | "i8"
+  | "i64"
+  | "i32"
+  | "i16"
+  | "f64"
+  | "f32"
+  | "string";
 
 type OVAny = string | number | boolean;
 
@@ -719,4 +719,4 @@ export interface NodeAddon {
   resizeAlgorithm: typeof resizeAlgorithm;
 }
 
-export default require('../bin/ov_node_addon.node') as NodeAddon;
+export default require("../bin/ov_node_addon.node") as NodeAddon;
