@@ -20,4 +20,17 @@ constexpr bool may_i_use_dynamic_code() {
 }
 #endif
 
+/**
+ * @brief Set the mmap threshold value for memory allocation
+ *
+ * @param threshold threshold value (bytes).
+ */
+#if defined(__linux)
+void set_mmap_threshold(int threshold);
+#else
+constexpr void set_mmap_threshold(int) {}
+#endif
+
+inline constexpr int default_mmap_th = 128 * 1024;
+
 }  // namespace ov::util
