@@ -224,7 +224,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 
     // Identify (based on compiler version) host gather or quantized host gather properties
     // and set them in m_cfg
-    identify_host_gather_property();
+    identify_host_gather_property(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
@@ -530,7 +530,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
-void ov::npuw::CompiledModel::identify_host_gather_property() {
+void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_ptr<ov::Model>& model) {
+    // Identify based on the config
     try {
         auto compiler_version = get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version);
         if (compiler_version >= ONEAPI_MAKE_VERSION(7, 21)) {
@@ -550,8 +551,31 @@ void ov::npuw::CompiledModel::identify_host_gather_property() {
     } catch (...) {
         // No device, keeping properties as is. Just do a sanity check
         if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>() && m_cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
-            NPUW_ASSERT(false && "Conflicting configuration: NPUW_HOST_GATHER and NPUW_HOST_GATHER_QUANT should not be "
+            NPUW_ASSERT(false && "Conflicting configuration: NPUW_HOST_GATHER and NPUW_HOST_GATHER_QUANT can't be "
                                  "enabled together!");
+        }
+    }
+
+    // Verify NPUW_HOST_GATHER_QUANT based on the patterns (for tail vocab)
+    if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
+        using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+        std::vector<CPtr> to_keep;
+
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
+        rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+        rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMul>(std::ref(to_keep));
+        rewr.run_on_model(model);
+
+        NPUW_ASSERT(to_keep.size() <= 3 &&
+                    "Matched more than one pattern for tail vocabulary. The pattern is incorrect!");
+        if (to_keep.empty()) {
+            LOG_INFO("Couldn't match NPUW_HOST_GATHER_QUANT-related patterns. "
+                     "Disabling NPUW_HOST_GATHER_QUANT and enabling NPUW_HOST_GATHER.");
+            std::map<std::string, std::string> host_gather_cfg;
+            host_gather_cfg["NPUW_HOST_GATHER_QUANT"] = "NO";
+            host_gather_cfg["NPUW_HOST_GATHER"] = "YES";
+            m_cfg.update(host_gather_cfg);
         }
     }
 }
