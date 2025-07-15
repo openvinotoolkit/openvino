@@ -458,10 +458,7 @@ bool DnnlBlockedMemoryDesc::isTailCFormat() const {
     if (!std::is_sorted(order.begin(), --order.end())) {
         return false;
     }
-    if (order.back() != 1) {
-        return false;
-    }
-    return true;
+    return order.back() == 1;
 }
 
 template <class Dest, class Src>
