@@ -135,6 +135,10 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
         OPENVINO_THROW("DnnlBlockedMemoryDesc doesn't support undefined order.");
     }
 
+    if (blockedDims.size() < shape.getRank()) {
+        OPENVINO_THROW("Can't create DnnlBlockedMemoryDesc. Blocked dims has rank less than planar dims");
+    }
+
     if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
             return val == Shape::UNDEFINED_DIM || val == 0;
         })) {
