@@ -91,6 +91,21 @@ describe('Tests for AsyncInferQueue.', () => {
 
   });
 
+  it('Test startAsync without user data', async () => {
+    const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
+    function basicUserCallback(request, user_data, err) {
+        if (err) {
+            console.error(`Job failed: ${err}`);
+        } else {
+            assert.ok(request instanceof ov.InferRequest);
+            assert.strictEqual(user_data, null, 'User data should be undefined when not provided');
+        }
+    }
+    inferQueue.setCallback(basicUserCallback);
+    await inferQueue.startAsync({ 'data': generateImage() })
+    inferQueue.release();
+  });
+
   it('test Promise.all()', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
@@ -173,7 +188,7 @@ describe('Tests for AsyncInferQueue.', () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
     assert.throws(() => {
-      inferQueue.startAsync({ 'data': generateImage() });
+      inferQueue.startAsync({ 'data': generateImage() }, 'user_data', 'extra_param');
     }, /'startAsync' method called with incorrect parameters./);
     inferQueue.release();
   });

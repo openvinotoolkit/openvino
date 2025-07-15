@@ -113,7 +113,10 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[handle]);
                         const auto promise = m_user_ids[handle].second;
                         try {
-                            user_callback.Call({js_ir, m_user_ids[handle].first.Value()});
+                            auto user_data = m_user_ids[handle].first.Value().ToString().Utf8Value() == "NULL"
+                                                 ? env.Null()
+                                                 : m_user_ids[handle].first.Value();
+                            user_callback.Call({js_ir, user_data});
                             promise.Resolve(m_user_ids[handle].first.Value());
                             // returns before the promise's .then() is completed
                         } catch (Napi::Error& e) {
@@ -166,19 +169,21 @@ Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
 
     try {
-        const auto are_arguments_valid = ov::js::validate<Napi::Object, Napi::Value>(info, allowed_signatures);
+        const auto are_arguments_valid = ov::js::validate<Napi::Object>(info, allowed_signatures) ||
+                                         ov::js::validate<Napi::Object, Napi::Value>(info, allowed_signatures);
         OPENVINO_ASSERT(are_arguments_valid,
                         "'startAsync'",
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
         const auto handle = check_idle_request_id();
+        auto user_data = info.Length() > 1 ? info[1].ToObject() : Napi::String::New(info.Env(), "NULL").ToObject();
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
         if (handle == -1) {
             std::lock_guard<std::mutex> lock(m_mutex);
             m_awaiting_requests.push(
-                std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(info[1].ToObject()), deferred));
+                std::make_tuple(Napi::Persistent(info[0].ToObject()), Napi::Persistent(user_data), deferred));
         } else {
-            start_async_impl(handle, info[0].ToObject(), info[1].ToObject(), deferred);
+            start_async_impl(handle, info[0].ToObject(), user_data, deferred);
         }
         return deferred.Promise();
 
