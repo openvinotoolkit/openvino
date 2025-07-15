@@ -42,7 +42,10 @@ namespace ov::intel_cpu {
 
     std::vector<float> DQScales(scaleSize, 1.0);
 
-    OPENVINO_ASSERT(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize,
+    auto valid_scale_config = [scaleSize](size_t dqScalesSize) {
+        return scaleSize == 1 || dqScalesSize == 1 || dqScalesSize == scaleSize;
+    };
+    OPENVINO_ASSERT(valid_scale_config(DQScales.size()),
                     "set invalid scales size , DQScales vector size: ",
                     DQScales.size(),
                     ", scale data size: ",

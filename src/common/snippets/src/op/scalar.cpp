@@ -24,8 +24,9 @@ void Scalar::validate_and_infer_types() {
     Constant::validate_and_infer_types();
     auto out_pshape = get_output_partial_shape(0);
     NODE_VALIDATION_CHECK(this, out_pshape.is_static(), "Scalar supports only static input shapes");
+    bool is_scalar_shape_valid = out_pshape.get_shape().empty() || ov::shape_size(out_pshape.get_shape()) == 1;
     NODE_VALIDATION_CHECK(this,
-                          out_pshape.get_shape().empty() || ov::shape_size(out_pshape.get_shape()) == 1,
+                          is_scalar_shape_valid,
                           "Scalar supports only one-element constants, got ",
                           out_pshape.get_shape(),
                           " shape");

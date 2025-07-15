@@ -165,18 +165,18 @@ const LoopPort& LoopInfo::get_loop_port(const ExpressionPort& expr_port) {
 
 namespace {
 void validate_new_target_ports(const std::vector<LoopPort>& target_ports, ExpressionPort::Type target_type) {
-    OPENVINO_ASSERT(
-        target_ports.empty() ||
-        std::all_of(target_ports.cbegin(), target_ports.cend(), [&target_type](const LoopPort& target_port) {
-            return target_type == target_port.get_expr_port()->get_type();
-        }));
+    bool are_target_ports_valid = target_ports.empty() ||
+                                  std::all_of(target_ports.cbegin(), target_ports.cend(), [&target_type](const LoopPort& target_port) {
+                                      return target_type == target_port.get_expr_port()->get_type();
+                                  });
+    OPENVINO_ASSERT(are_target_ports_valid);
 }
 void validate_new_target_ports(const std::vector<ExpressionPort>& target_ports, ExpressionPort::Type target_type) {
-    OPENVINO_ASSERT(
-        target_ports.empty() ||
-        std::all_of(target_ports.cbegin(), target_ports.cend(), [&target_type](const ExpressionPort& target_port) {
-            return target_type == target_port.get_type();
-        }));
+    bool are_expression_ports_valid = target_ports.empty() ||
+                                       std::all_of(target_ports.cbegin(), target_ports.cend(), [&target_type](const ExpressionPort& target_port) {
+                                           return target_type == target_port.get_type();
+                                       });
+    OPENVINO_ASSERT(are_expression_ports_valid);
 }
 }  // namespace
 
@@ -389,9 +389,11 @@ namespace {
 template <typename T>
 void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
     const auto order_set = std::set<size_t>(new_order.cbegin(), new_order.cend());
-    OPENVINO_ASSERT(new_order.size() == values.size() && order_set.size() == values.size(),
+    bool order_sizes_valid = new_order.size() == values.size() && order_set.size() == values.size();
+    OPENVINO_ASSERT(order_sizes_valid,
                     "Failed to sort values: `new order` must contain unique indexes");
-    OPENVINO_ASSERT(*order_set.begin() == 0 && *order_set.rbegin() == (values.size() - 1),
+    bool order_range_valid = *order_set.begin() == 0 && *order_set.rbegin() == (values.size() - 1);
+    OPENVINO_ASSERT(order_range_valid,
                     "Failed to sort values: `new_order` must contain new indexes for ALL values");
     std::vector<T> ordered_values(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
@@ -438,7 +440,8 @@ UnifiedLoopInfo::LoopPortInfo UnifiedLoopInfo::get_loop_port_info(const Expressi
         return *port.get_expr_port() == expr_port;
     });
     const auto index = static_cast<size_t>(std::distance(ports.cbegin(), it));
-    OPENVINO_ASSERT(index < ports.size() && index < descs.size(), "LoopPortInfo has not been found!");
+    bool is_index_valid = index < ports.size() && index < descs.size();
+    OPENVINO_ASSERT(is_index_valid, "LoopPortInfo has not been found!");
     return {ports[index], descs[index]};
 }
 

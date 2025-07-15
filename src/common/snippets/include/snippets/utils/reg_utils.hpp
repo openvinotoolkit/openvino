@@ -16,9 +16,10 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
     std::vector<size_t> idxs;
     idxs.reserve(regs.size());
     for (const auto& reg : regs) {
-        OPENVINO_ASSERT(reg.type == snippets::RegType::address || expected_type == snippets::RegType::undefined ||
-                            reg.type == expected_type,
-                        "Reg type mismatch during to_idxs conversion");
+        bool is_type_valid = (expected_type == snippets::RegType::undefined) ||
+                             (reg.type == snippets::RegType::address) ||
+                             (reg.type == expected_type);
+        OPENVINO_ASSERT(is_type_valid, "Reg type mismatch during to_idxs conversion");
         idxs.emplace_back(reg.idx);
     }
     return idxs;

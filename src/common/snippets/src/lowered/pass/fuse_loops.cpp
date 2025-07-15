@@ -62,7 +62,8 @@ bool FuseLoops::loop_ports_are_compatible(const LoopInfoPtr& loop_upper, const L
 }
 
 bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const UnifiedLoopInfoPtr& loop_lower) {
-    OPENVINO_ASSERT(loop_upper != nullptr && loop_lower != nullptr, "LoopInfo is nullptr!");
+    bool are_loop_infos_valid = loop_upper != nullptr && loop_lower != nullptr;
+    OPENVINO_ASSERT(are_loop_infos_valid, "LoopInfo is nullptr!");
     if (!loop_ports_are_compatible(loop_upper, loop_lower)) {
         return false;
     }

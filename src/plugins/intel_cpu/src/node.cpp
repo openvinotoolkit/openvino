@@ -364,7 +364,7 @@ bool Node::isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov
     bool samePrec = desc1->getPrecision() == desc2->getPrecision();
     bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
     bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
-    return !(isOneDimShape1 && isOneDimShape2 && samePrec);
+    return !isOneDimShape1 || !isOneDimShape2 || !samePrec;
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority,
@@ -2038,7 +2038,10 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
     if (DQScales.empty()) {
         DQScales.resize(scaleSize, 1.0);
     }
-    OPENVINO_ASSERT(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize,
+    auto are_scales_valid = [&]() {
+        return scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize;
+    };
+    OPENVINO_ASSERT(are_scales_valid(),
                     "set invalid scales size , DQScales vector size: ",
                     DQScales.size(),
                     ", scale data size: ",
@@ -2077,7 +2080,10 @@ int Node::inPlaceInputPort(int portIdx) const {
 
     const auto& conf = selected_pd->getConfig();
 
-    OPENVINO_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.inConfs.size()),
+    auto is_valid_input_port = [&]() {
+        return portIdx >= 0 && portIdx < static_cast<int>(conf.inConfs.size());
+    };
+    OPENVINO_ASSERT(is_valid_input_port(),
                     "Wrong portIndx: ",
                     portIdx,
                     " acceptable interval: [0, ",
@@ -2100,7 +2106,10 @@ int Node::inPlaceOutPort(int portIdx) const {
 
     const auto& conf = selected_pd->getConfig();
 
-    OPENVINO_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.outConfs.size()),
+    auto is_valid_output_port = [&]() {
+        return portIdx >= 0 && portIdx < static_cast<int>(conf.outConfs.size());
+    };
+    OPENVINO_ASSERT(is_valid_output_port(),
                     "Wrong portIndx: ",
                     portIdx,
                     " acceptable interval: [0, ",

@@ -159,8 +159,8 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
-    OPENVINO_ASSERT(m_config.with_scratchpad() && m_gemm_inputs_count == 3,
-                    "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
+    OPENVINO_ASSERT(m_config.with_scratchpad(), "Brgemm must have scratchpad");
+    OPENVINO_ASSERT(m_gemm_inputs_count == 3, "Brgemm must have 3 inputs for scratchpad on 3rd input");
     return get_input_offset(2);
 }
 

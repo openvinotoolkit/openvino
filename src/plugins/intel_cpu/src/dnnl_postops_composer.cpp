@@ -272,12 +272,14 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
                           outputScale.size(),
                           outputShift.size()});
 
-    OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    OPENVINO_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    OPENVINO_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    OPENVINO_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    OPENVINO_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    auto valid_size = [OC](size_t size) { return size == 1 || size == OC; };
+    
+    OPENVINO_ASSERT(valid_size(inputScale.size()));
+    OPENVINO_ASSERT(valid_size(inputShift.size()));
+    OPENVINO_ASSERT(valid_size(cropLow.size()));
+    OPENVINO_ASSERT(valid_size(cropHigh.size()));
+    OPENVINO_ASSERT(valid_size(outputScale.size()));
+    OPENVINO_ASSERT(valid_size(outputShift.size()));
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
@@ -514,7 +516,8 @@ void DnnlPostOpsComposer::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    OPENVINO_ASSERT(scale.size() == OC || scale.size() == 1);
+    auto valid_scale_size = [this](size_t size) { return size == 1 || size == OC; };
+    OPENVINO_ASSERT(valid_scale_size(scale.size()));
 
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.
@@ -1083,7 +1086,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                     }
                 }
 
-                return !(hasSubsequentSum && hasSubsequentFQ);
+                return !hasSubsequentSum || !hasSubsequentFQ;
             };
 
             auto round = i == 0 ? doRounding() : true;

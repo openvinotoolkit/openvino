@@ -77,7 +77,8 @@ bool InsertSpecificIterations::is_decomposed_loop_needed(const UnifiedLoopInfoPt
                                                          size_t remaining_work_amount) {
     OPENVINO_ASSERT(unified_loop_info, "UnifiedLoopInfo is missed!");
     const auto increment = unified_loop_info->get_increment();
-    OPENVINO_ASSERT(!utils::is_dynamic_value(increment) && increment > 0, "Incorrect increment: ", increment);
+    bool is_increment_valid = !utils::is_dynamic_value(increment) && increment > 0;
+    OPENVINO_ASSERT(is_increment_valid, "Incorrect increment: ", increment);
     const auto is_dynamic = utils::is_dynamic_value(remaining_work_amount);
 
     switch (type) {
@@ -107,7 +108,8 @@ size_t InsertSpecificIterations::get_decomposed_loop_work_amount(const UnifiedLo
     case (SpecificLoopIterType::MAIN_BODY):
         return is_dynamic ? remaining_work_amount : (remaining_work_amount / increment) * increment;
     case (SpecificLoopIterType::LAST_ITER): {
-        OPENVINO_ASSERT(is_dynamic || remaining_work_amount < unified_loop_info->get_increment(),
+        bool is_last_iter_valid = is_dynamic || remaining_work_amount < unified_loop_info->get_increment();
+        OPENVINO_ASSERT(is_last_iter_valid,
                         "Last iter work amount (",
                         remaining_work_amount,
                         ") must be less than the UnifiedLoopInfo's increment: ",

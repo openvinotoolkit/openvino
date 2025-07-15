@@ -30,7 +30,8 @@ void snippets::op::Store::validate_and_infer_types() {
     const auto input_ma_ports = get_memory_access_input_ports();
     const auto output_ma_ports = get_memory_access_output_ports();
     OPENVINO_ASSERT(input_ma_ports.empty(), "Store node mustn't have memory access input port");
-    OPENVINO_ASSERT(output_ma_ports.size() == 1 && is_memory_access_output_port(0),
+    bool has_memory_access_output = output_ma_ports.size() == 1 && is_memory_access_output_port(0);
+    OPENVINO_ASSERT(has_memory_access_output,
                     "Store node must have memory access output port");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }

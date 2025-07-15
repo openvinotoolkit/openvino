@@ -12,7 +12,8 @@
 namespace ov::snippets::pass {
 
 PassPosition::PassPosition(Place pass_place) : m_place(pass_place) {
-    OPENVINO_ASSERT(m_place == Place::PipelineStart || m_place == Place::PipelineEnd,
+    bool is_pipeline_place_valid = m_place == Place::PipelineStart || m_place == Place::PipelineEnd;
+    OPENVINO_ASSERT(is_pipeline_place_valid,
                     "Invalid arg: pass_type_info and pass_instance args could be omitted only for "
                     "Place::PipelineStart/Place::PipelineEnd");
 }
@@ -21,9 +22,9 @@ PassPosition::PassPosition(Place pass_place, const DiscreteTypeInfo& pass_type_i
     : m_pass_type_info(pass_type_info),
       m_pass_instance(pass_instance),
       m_place(pass_place) {
-    OPENVINO_ASSERT(
-        (m_place == Place::Before || m_place == Place::After) && m_pass_type_info != DiscreteTypeInfo(),
-        "Invalid args combination: pass_place must be Place::Before/Place::After and pass_type_info must be non-empty");
+    bool is_before_after_place_valid = (m_place == Place::Before || m_place == Place::After) && m_pass_type_info != DiscreteTypeInfo();
+    OPENVINO_ASSERT(is_before_after_place_valid,
+                    "Invalid args combination: pass_place must be Place::Before/Place::After and pass_type_info must be non-empty");
 }
 
 }  // namespace ov::snippets::pass

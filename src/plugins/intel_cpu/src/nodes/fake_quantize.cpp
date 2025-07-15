@@ -1898,10 +1898,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && one_of(srcDesc.getShape().getRank(), 4U, 5U);
     int blk_size = 1;
-    if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
+    if ((!srcDesc.hasLayoutType(LayoutType::ncsp) || !one_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
         mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
-    } else if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && one_of(srcDesc.getShape().getRank(), 3U, 4U, 5U))) {
+    } else if (!srcDesc.hasLayoutType(LayoutType::ncsp) || !one_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) {
         blk_size = 8;
     }
 
@@ -2266,12 +2266,18 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                           outputScale.size(),
                           outputShift.size()});
 
-    CPU_NODE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC, "inputScale.size() == ", inputScale.size());
-    CPU_NODE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC, "inputShift.size() == ", inputShift.size());
-    CPU_NODE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC, "cropLow.size() == ", cropLow.size());
-    CPU_NODE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC, "cropHigh.size() == ", cropHigh.size());
-    CPU_NODE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC, "outputScale.size() == ", outputScale.size());
-    CPU_NODE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC, "outputShift.size() == ", outputShift.size());
+    auto is_valid_input_scale = [&]() { return inputScale.size() == 1 || inputScale.size() == OC; };
+    CPU_NODE_ASSERT(is_valid_input_scale(), "inputScale.size() == ", inputScale.size());
+    auto is_valid_input_shift = [&]() { return inputShift.size() == 1 || inputShift.size() == OC; };
+    CPU_NODE_ASSERT(is_valid_input_shift(), "inputShift.size() == ", inputShift.size());
+    auto is_valid_crop_low = [&]() { return cropLow.size() == 1 || cropLow.size() == OC; };
+    CPU_NODE_ASSERT(is_valid_crop_low(), "cropLow.size() == ", cropLow.size());
+    auto is_valid_crop_high = [&]() { return cropHigh.size() == 1 || cropHigh.size() == OC; };
+    CPU_NODE_ASSERT(is_valid_crop_high(), "cropHigh.size() == ", cropHigh.size());
+    auto is_valid_output_scale = [&]() { return outputScale.size() == 1 || outputScale.size() == OC; };
+    CPU_NODE_ASSERT(is_valid_output_scale(), "outputScale.size() == ", outputScale.size());
+    auto is_valid_output_shift = [&]() { return outputShift.size() == 1 || outputShift.size() == OC; };
+    CPU_NODE_ASSERT(is_valid_output_shift(), "outputShift.size() == ", outputShift.size());
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any

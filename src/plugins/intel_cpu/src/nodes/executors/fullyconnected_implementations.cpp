@@ -261,7 +261,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 // Disable Conv1x1 when weight size >= 16M to avoid different weight layout when having different input
                 // activation shapes. As a consuquence, peak memory consumption in LLM can be decreased.
                 VERIFY(weightsSize < (16 * 1 << 20), " weights size is to big");
-                VERIFY(widthInConv >= 2 && widthInConv <= 3136 && K >= 96 && K <= 4096 && N >= 96 && N <= K * 4,
+                auto is_valid_conv_params = [&]() {
+                    return widthInConv >= 2 && widthInConv <= 3136 && K >= 96 && K <= 4096 && N >= 96 && N <= K * 4;
+                };
+                VERIFY(is_valid_conv_params(),
                        HEURISTICS_MISMATCH);
 
                 return true;

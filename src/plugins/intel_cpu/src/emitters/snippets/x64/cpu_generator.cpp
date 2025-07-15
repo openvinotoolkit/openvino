@@ -472,7 +472,10 @@ snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
 
 intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h)
     : h_compiled(std::move(h)) {
-    OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
+    auto is_valid_compiled = [&]() {
+        return h_compiled && (h_compiled->jit_ker() != nullptr);
+    };
+    OPENVINO_ASSERT(is_valid_compiled(), "Got invalid jit generator or kernel was nopt compiled");
 }
 
 const uint8_t* intel_cpu::CompiledSnippetCPU::get_code() const {

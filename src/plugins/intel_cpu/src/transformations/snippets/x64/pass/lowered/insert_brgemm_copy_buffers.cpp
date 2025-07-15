@@ -58,7 +58,8 @@ bool InsertBrgemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         };
 
     auto update_scratchpad = [](const ExpressionPtr& brgemm_expr, const BufferExpressionPtr& scratch_expr) {
-        OPENVINO_ASSERT(scratch_expr && scratch_expr->is_independent_memory(),
+        OPENVINO_ASSERT(scratch_expr, "Scratchpad buffer for Brgemm AMX is required");
+        OPENVINO_ASSERT(scratch_expr->is_independent_memory(),
                         "Incorrect Scratchpad buffer for Brgemm AMX");
         const auto src_dt = brgemm_expr->get_node()->get_input_element_type(0);
         const auto in_subtensor = ov::snippets::utils::get_projected_subtensor(brgemm_expr->get_input_port(0));

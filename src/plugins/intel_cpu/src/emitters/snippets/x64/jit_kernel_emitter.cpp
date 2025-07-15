@@ -65,7 +65,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     std::set<size_t> unique_buffers;
     for (const auto& buffer_expr : buffers) {
         const auto buffer_reg_group = buffer_expr->get_reg_group();
-        if (unique_buffers.count(buffer_reg_group) == 0) {
+        if (unique_buffers.find(buffer_reg_group) == unique_buffers.end()) {
             data_ptr_regs.push_back(buffer_expr->get_output_port_descriptor(0)->get_reg());
             unique_buffers.insert(buffer_reg_group);
         }

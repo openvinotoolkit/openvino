@@ -265,7 +265,10 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
     auto scaleDimsCheck = [](const NodePtr& node, const NodePtr& scales) {
         const auto nodeOutDims = node->getOutputShapeAtPort(0).getDims();
         const auto channelAxis = node->getFusingAxis();
-        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(nodeOutDims.size()),
+        auto is_valid_channel_axis = [&]() {
+            return channelAxis >= 0 && channelAxis < static_cast<int>(nodeOutDims.size());
+        };
+        OPENVINO_ASSERT(is_valid_channel_axis(),
                         "Incorrect channel axis for Conv/Deconv/MatMul node: ",
                         node->getName(),
                         ", channel axis: ",
@@ -387,7 +390,10 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         }
 
         const auto channelAxis = parentNode->getFusingAxis();
-        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(parentOutDims.size()),
+        auto is_valid_parent_channel_axis = [&]() {
+            return channelAxis >= 0 && channelAxis < static_cast<int>(parentOutDims.size());
+        };
+        OPENVINO_ASSERT(is_valid_parent_channel_axis(),
                         "Incorrect channel axis for Conv/Deconv/MatMul node: ",
                         parentNode->getName(),
                         ", output dims size: ",
@@ -1648,7 +1654,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             if (fuseCandidate->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto isNotSpecialConvolutionAddFusing = [](const NodePtr& fusedNode) {
                     const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
-                    return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
+                    return !eltwise || !eltwise->isSpecialConvolutionAddFusing();
                 };
                 auto allFusedNodesNotSpecial = [&]() {
                     return std::all_of(binConv->fusedWith.begin(),
@@ -2599,7 +2605,7 @@ bool GraphOptimizer::canBeInplaced(const NodePtr& parentNode, const NodePtr& chi
     const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
         return edge->inPlace(Edge::LOOK_DOWN);
     });
-    return !(parentInPlace && childInPlace);
+    return !parentInPlace || !childInPlace;
 }
 
 bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,
