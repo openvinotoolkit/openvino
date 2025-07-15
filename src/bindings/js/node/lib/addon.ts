@@ -674,9 +674,10 @@ interface AsyncInferQueue {
  * Creates AsyncInferQueue.
  * @param compiledModel The compiledModel that will be used
  * to create InferRequests in the pool.
- * @param jobs Number of InferRequest objects in the pool.
+ * @param jobs Number of InferRequest objects in the pool. If not provided,
+ * jobs number will be set automatically to the optimal number.
  */
-  new(compiledModel: CompiledModel, jobs: number): AsyncInferQueue;
+  new(compiledModel: CompiledModel, jobs?: number): AsyncInferQueue;
   /**
    * Sets unified callback on all InferRequests from queue's pool.
    * Signature of such function should have two arguments, where

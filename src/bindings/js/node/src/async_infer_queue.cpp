@@ -23,13 +23,15 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
     std::vector<std::string> allowed_signatures;
 
     try {
-        const auto are_arguments_valid = ov::js::validate<CompiledModelWrap, int>(info, allowed_signatures);
+        const auto are_arguments_valid = ov::js::validate<CompiledModelWrap>(info, allowed_signatures) ||
+                                         ov::js::validate<CompiledModelWrap, int>(info, allowed_signatures);
         OPENVINO_ASSERT(are_arguments_valid,
                         "'AsyncInferQueue' constructor",
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
         auto& compiled = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(info[0].ToObject())->get_compiled_model();
-        size_t jobs = info[1].As<Napi::Number>().Int32Value();
+        size_t jobs =
+            info.Length() == 1 ? get_optimal_number_of_requests(compiled) : info[1].As<Napi::Number>().Int32Value();
         m_tsfn = nullptr;
 
         m_requests.reserve(jobs);

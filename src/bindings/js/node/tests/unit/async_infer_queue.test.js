@@ -39,17 +39,17 @@ describe('Tests for AsyncInferQueue.', () => {
     );
 
     assert.throws(() => {
-      new ov.AsyncInferQueue(compiledModel); // Missing numRequest
-    },
-    /'AsyncInferQueue' constructor method called with incorrect parameters./
-    );
-
-    assert.throws(() => {
       // Invalid numRequest type
       new ov.AsyncInferQueue(compiledModel, 'invalid');
     },
     /'AsyncInferQueue' constructor method called with incorrect parameters./
     );
+  });
+
+  it('Test AsyncInferQueue constructor with valid arguments', () => {
+    assert.doesNotThrow(() => {
+      new ov.AsyncInferQueue(compiledModel);
+    });
   });
 
   it('Test main event loop non-blocking inference', async () => {
