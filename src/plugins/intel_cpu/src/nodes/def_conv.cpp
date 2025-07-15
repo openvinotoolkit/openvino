@@ -884,14 +884,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
     const bool hasUndefinedDims = weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM;
     const bool isMultiGroup = defConvAttr.group != 1;
-    const bool hasIncompatibleChannelAlignment =
-        (weiDims[1] % simd_w != 0) || ((weiDims[0] / defConvAttr.group) % simd_w != 0);
-
-    enforceRef = hasUndefinedDims ||
-                 // 1. strict fallback, until devising of multigroup handling in common case
-                 isMultiGroup ||
-                 // 2. common fallback, except specific n_group / n_channel combinations
-                 (isMultiGroup && hasIncompatibleChannelAlignment);
+    enforceRef = hasUndefinedDims || isMultiGroup;
 
     if (enforceRef) {
         impl_type = impl_desc_type::ref;
