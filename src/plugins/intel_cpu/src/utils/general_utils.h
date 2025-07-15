@@ -39,11 +39,13 @@ inline T rnd_up(const T a, const U b) {
 
 template <typename T, typename... Args>
 constexpr bool one_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'one_of' requires at least one item to compare against.");
     return ((val == items) || ...);
 }
 
 template <typename T, typename... Args>
 constexpr bool everyone_is(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'everyone_is' requires at least one item to compare against.");
     return ((val == items) && ...);
 }
 
