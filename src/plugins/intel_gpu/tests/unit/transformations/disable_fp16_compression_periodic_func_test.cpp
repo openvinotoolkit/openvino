@@ -47,7 +47,6 @@ static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const pr
     return true;
 }
 
-static std::string name_mul = "mul_1";
 static std::string name_add = "add_1";
 static std::string name_sin = "sin";
 static std::string name_cos = "cos";
@@ -61,7 +60,6 @@ static std::shared_ptr<ov::Model> create_model_with_periodic_func() {
     auto constant_2 = std::make_shared<ov::op::v0::Convert>(constant_2_compressed, ov::element::f32);
 
     auto multiply_1 = std::make_shared<ov::op::v1::Multiply>(unsqueeze_1, constant_2);
-    multiply_1->set_friendly_name(name_mul);
 
     auto constant_3_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1,1,341 }, { -1.57031f });
     auto constant_3 = std::make_shared<ov::op::v0::Convert>(constant_3_compressed, ov::element::f32);
@@ -126,7 +124,6 @@ TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTest) {
     for (auto& ops : func->get_ops()) {
         if (ops->get_friendly_name() == name_sin
             || ops->get_friendly_name() == name_cos
-            || ops->get_friendly_name() == name_mul
             || ops->get_friendly_name() == name_add) {
             if (!ov::fp16_compression_is_disabled(ops)) {
                 success = false;
