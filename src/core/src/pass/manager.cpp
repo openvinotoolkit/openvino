@@ -251,7 +251,7 @@ public:
                 const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
                 ov::pass::VisualizeTree vt(file_name + ".svg");
                 vt.run_on_model(model);
-                };
+            };
 
             if (m_visualize.is_bool()) {
                 _visualize();
