@@ -986,7 +986,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             // TODO: check need_reset_output_memory per output
             if (need_reset_output_memory() && !can_be_optimized()) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
-                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
+                auto dep_event = get_network().get_stream().enqueue_marker(_impl_params->dep_events);
+                add_dep_event(_outputs[i]->fill(get_network().get_stream(), {dep_event}));
             }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
@@ -1017,7 +1018,8 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             if (need_reset_output_memory() && !can_be_optimized() &&
                 _outputs[i]->from_memory_pool && _outputs[i]->get_layout().data_padding) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
-                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
+                auto dep_event = get_network().get_stream().enqueue_marker(_impl_params->dep_events);
+                add_dep_event(_outputs[i]->fill(get_network().get_stream(), {dep_event}));
             }
         }
     }
