@@ -287,7 +287,7 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 /// Erf ///
-jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                  ov::element::Type exec_prc)
@@ -296,7 +296,7 @@ jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator* host,
     exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
 }
 
-jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
