@@ -3,28 +3,43 @@ const prettierConfig = require("eslint-config-prettier/flat");
 const globals = require("globals");
 const tseslint = require("typescript-eslint");
 const { defineConfig } = require("eslint/config");
+const path = require("node:path");
 
 module.exports = defineConfig([
-  eslint.configs.recommended,
-  tseslint.configs.recommendedTypeChecked,
-  prettierConfig, // to disable stylistic rules from ESLint
   {
     ignores: ["types/", "dist/"],
   },
   {
-    files: ["**/*.{js,mjs,cjs,ts}"],
+    files: ["**/*.*js"],
+    languageOptions: {
+      globals: globals.node,
+    },
+    extends: [eslint.configs.recommended],
+  },
+  {
+    files: ["**/*.ts"],
     languageOptions: {
       globals: globals.node,
       parser: tseslint.parser,
+      parserOptions: {
+        projectService: true,
+        project: "./tsconfig.json",
+        tsconfigRootDir: path.resolve(),
+      },
     },
+    extends: [tseslint.configs.recommendedTypeChecked],
+    rules: {
+      "@typescript-eslint/no-require-imports": 0,
+    },
+  },
+  {
     rules: {
       "no-var": ["error"],
       camelcase: ["error"],
       "prefer-destructuring": ["error", { object: true, array: false }],
-      "@typescript-eslint/no-explicit-any": 0,
-      "@typescript-eslint/no-require-imports": 0,
     },
   },
+  prettierConfig, // to disable stylistic rules from ESLint
   {
     files: ["**/addon.ts"],
     rules: {
