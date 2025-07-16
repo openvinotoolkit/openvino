@@ -259,27 +259,6 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     }
 }
 
-void ov::npuw::LLMInferRequest::populate_chunk_prefill_attention_mask(ov::SoPtr<ov::ITensor> attention_mask,
-                                                                     int64_t max_prompt_size,
-                                                                     int64_t prefilled_prompts,
-                                                                     int64_t current_prompts_len) {
-    fill_tensor<int64_t>(attention_mask, 0);
-
-    auto* attention_mask_data = attention_mask->data<int64_t>();
-
-    // Set the attention mask to 1 for tokens that have been prefilled
-    if (prefilled_prompts > 0) {
-        std::fill(attention_mask_data, attention_mask_data + prefilled_prompts, 1);
-    }
-
-    // Set the attention mask to 1 for the current tokens being prefilled
-    if (current_prompts_len <= 0) {
-        OPENVINO_THROW("Invalid current_prompts_len value.");
-    }
-    std::fill(attention_mask_data + max_prompt_size - current_prompts_len, attention_mask_data + max_prompt_size, 1);
-}
-
-
 void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
                                                        ov::SoPtr<ov::ITensor> attention_mask,
                                                        ov::SoPtr<ov::ITensor> position_ids) {
@@ -299,7 +278,14 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
-        populate_chunk_prefill_attention_mask(attn_mask_in_tensor, kvcache_desc.max_prompt_size, kvcache_desc.num_stored_tokens, current_prompts_len);
+
+        // Populate the attention mask for the present chunk
+        size_t last_chunk_offset = attn_mask_in_tensor->get_size() - chunk_prompt_len;
+        fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+        std::copy_n(
+            attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
+            current_prompts_len,
+            attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
@@ -348,6 +334,12 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
                                                     kvcache_desc.num_stored_tokens);
             auto chunk_prefill_present_kv_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
             update_tensor_by_dim(chunk_prefill_present_kv_out_tensor, chunk_prefill_past_kv_in_slice, kv_dim);
+
+            // Update attention mask for the next iteration
+            std::copy_n(
+                attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
+                current_prompts_len,
+                attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
         }
     }
 
