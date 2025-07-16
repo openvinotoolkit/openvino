@@ -15,6 +15,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <utility>
 #include <vector>
 
@@ -35,6 +36,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -118,7 +120,10 @@ std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArg
     Key dnnlMatMulKey{srcDesc, weiDesc, biaDesc, dstDesc, shapeAgnosticData->m_primAttrs.attr};
 
     auto builder = [&context](const Key& dnnlKey) {
-        return std::make_shared<DnnlMatMulPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
+        return std::make_shared<DnnlMatMulPrimitive>(dnnlKey,
+                                                     context->getEngine(),
+                                                     context->getThreadPool(),
+                                                     context->getImplPriorities());
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -353,8 +358,9 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                          const dnnl::engine& engine,
+                                         std::shared_ptr<ThreadPool> threadPool,
                                          const std::vector<impl_desc_type>& implPriorities)
-    : m_stream(dnnl::stream(engine)),
+    : m_stream(make_stream(engine, std::move(threadPool))),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),
