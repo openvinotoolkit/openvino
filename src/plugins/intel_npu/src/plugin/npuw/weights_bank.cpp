@@ -74,19 +74,12 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
 struct TensorToAllocate {
     LazyTensor::Meta meta;
     ov::Tensor allocated_tensor;
-    // FIXME: rework this
-    // For the second model we would only create dummy TensorToAllocate
-    bool should_be_processed = false;
+    int64_t uid;
+    bool operator<(const TensorToAllocate& other) {
+        return uid < other.uid;
+    }
 };
 
-// Note: there are no locks in this function's parallel_for-s
-// as well as other evaluate() function. At this point all the
-// LazyTensor->Tensor pair in the map are already allocated and
-// there are no conflicting reads/writes since all the tensors are unique.
-
-// FIXME: this whole flow could be improved for the same bank
-// processing from different threads. We could separate LazyTensors
-// evaluation and the bank access. But it requires additional rework.
 void Bank::evaluate_and_allocate() {
     std::unique_lock guard(m_mutex);
 
@@ -103,19 +96,17 @@ void Bank::evaluate_and_allocate() {
             }
         }
 
-        guard.unlock();
-
         if (device_for_alloc == "CPU") {
             evaluate_cpu(device_bank, to_process);
         } else {
             evaluate_and_allocate_on_device(device_bank, to_process, device_for_alloc);
         }
-    }
+    }  // for (m_device_banks)
 }
 
 void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTensor>& to_process) {
-    std::unique_lock guard(m_mutex);
-
+    // Note: not locking here. This is a private function, so Bank should handle the locks around it
+    // as we lock in evaluate_and_allocate() now.
     ov::parallel_for(to_process.size(), [&](std::size_t idx) {
         const auto& lt = to_process[idx];
         auto iter_device_registered = device_bank.registered_tensors.find(lt);
@@ -127,48 +118,52 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
     });
 }
 
+// Note: there are no locks in this function's parallel_for
+// At this point all the LazyTensor->Tensor pairs in the map are already
+// allocated and there are no conflicting reads/writes since all the tensors are unique.
+
+// FIXME: this whole flow could be improved for the same bank
+// processing from different threads. We could separate LazyTensors
+// evaluation and the bank access. But it requires additional rework.
 void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
                                            const std::vector<LazyTensor>& to_process,
                                            const std::string& device) {
-    std::unique_lock guard(m_mutex);
+    // Note: not locking here. This is a private function, so Bank should handle the locks around it
+    // as we lock in evaluate_and_allocate() now.
+    std::vector<TensorToAllocate> uids_to_allocated;
+    uids_to_allocated.reserve(uid_count);
 
-    std::vector<TensorToAllocate> uids_to_allocated(uid_count);
-
-    // Allocation needed
-    for (std::size_t idx = 0; idx < to_process.size(); ++idx) {
-        const auto& lt = to_process[idx];
+    for (const auto& lt : to_process) {
         auto iter_device_registered = device_bank.registered_tensors.find(lt);
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        uids_to_allocated[uid] = {lt.eval_meta(), ov::Tensor(), true};
+        uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid});
     }
+    // Sort by UIDs, lowest first
+    std::sort(uids_to_allocated.begin(), uids_to_allocated.end());
 
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
-    for (std::size_t uid = 0; uid < uids_to_allocated.size(); ++uid) {
-        auto& allocated = uids_to_allocated[uid];
-        if (allocated.should_be_processed) {
-            ov::SoPtr<ov::ITensor> remote_tensor =
-                remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
-            uids_to_allocated.at(uid) = {allocated.meta, ov::make_tensor(remote_tensor), true};
-        }
+    for (auto&& allocated : uids_to_allocated) {
+        ov::SoPtr<ov::ITensor> remote_tensor =
+            remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
+        allocated = {allocated.meta, ov::make_tensor(remote_tensor), allocated.uid};
     }
 
     // Evaluate and copy into the device memory
-    ov::parallel_for(uids_to_allocated.size(), [&](std::size_t uid) {
-        auto& allocated = uids_to_allocated[uid];
-        if (allocated.should_be_processed) {
-            auto transformed = device_bank.storage.at(uid).lt.eval();
-            transformed.copy_to(allocated.allocated_tensor);
+    ov::parallel_for(uids_to_allocated.size(), [&](std::size_t idx) {
+        auto& allocated = uids_to_allocated[idx];
+        auto& stored_tensor = device_bank.storage.at(allocated.uid);
 
-            device_bank.storage.at(uid).tensor = std::move(allocated.allocated_tensor);
+        auto transformed = stored_tensor.lt.eval();
+        transformed.copy_to(allocated.allocated_tensor);
+        stored_tensor.tensor = std::move(allocated.allocated_tensor);
 
-            // Detach the evaluated LazyTensor from its memory here - when it is 100%
-            // not needed anymore (transformations, if any, and copies are done)
-            // Note: this is the non-CPU path!
-            const_cast<LazyTensor&>(device_bank.storage.at(uid).lt).detach();
-        }
+        // Detach the evaluated LazyTensor from its memory here - when it is 100%
+        // not needed anymore (transformations, if any, and copies are done)
+        // Note: this is the non-CPU path!
+        const_cast<LazyTensor&>(stored_tensor.lt).detach();
     });
 }
 
