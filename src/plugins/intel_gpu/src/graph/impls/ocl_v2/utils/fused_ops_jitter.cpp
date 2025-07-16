@@ -616,9 +616,7 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     const auto in_f = extract_dim(ChannelName::FEATURE, input_tensor);
     const auto out_f = extract_dim(ChannelName::FEATURE, prim_output);
 
-    bool valid_broadcast_case = input_tensor.is_dynamic() ||
-                                input_tensor.count() == static_cast<size_t>(out_f.get_length()) ||
-                                input_tensor.count() == 1ul;
+    bool valid_broadcast_case = input_tensor.is_dynamic() || input_tensor.count() == static_cast<size_t>(out_f.get_length()) || input_tensor.count() == 1ul;
 
     // Eltwise fused op can't have full tensor argument when requested vec_size > 1, since it might require
     // splitting load into several parts and some kind of index recalculation which is not supported
@@ -680,8 +678,8 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
             JitTerm input_tensor_count;
             if (input_tensor.is_dynamic()) {
                 LayoutJitter input_jitter(input_tensor, params.in_port_to_shape_info_offset.at(input_id));
-                input_tensor_count = JitTerm{input_jitter.stride(ov::intel_gpu::ChannelName::BATCH) + " * " +
-                                             input_jitter.dim(ov::intel_gpu::ChannelName::BATCH)};
+                input_tensor_count =
+                    JitTerm{input_jitter.stride(ov::intel_gpu::ChannelName::BATCH) + " * " + input_jitter.dim(ov::intel_gpu::ChannelName::BATCH)};
             } else {
                 input_tensor_count = JitTerm{to_code_string(input_tensor.count())};
             }
