@@ -203,7 +203,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             break;
         }
         case InterpolateMode::linear: {
-            OPENVINO_DEBUG_ASSERT(false, "unsupported mode for interpolate layer with JITTED implimentation.");
+            OPENVINO_DEBUG_ASSERT(false, "unsupported mode for interpolate layer with JITTED implementation.");
             break;
         }
         default: {
