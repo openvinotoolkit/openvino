@@ -13,7 +13,7 @@ struct kv_cache_update_params : base_params {
     kv_cache_update_params() : base_params(KernelType::PA_KV_CACHE_UPDATE) {}
 
     bool is_key_by_channel = false;
-    bool key_group_size = 0;
+    int32_t key_group_size = 0;
     bool is_prefill = false;
     sdpa_configuration conf;
 };

@@ -812,7 +812,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.outputs[0] = key_cache_tensor;
         params.outputs[1] = value_cache_tensor;
         params.is_key_by_channel = impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::hint::CacheQuantMode::BY_CHANNEL;
-        const auto pa_block_size = static_cast<int>(paged_attention::block_size);
+        const auto pa_block_size = static_cast<int32_t>(paged_attention::block_size);
         if (params.is_key_by_channel)
             params.key_group_size = pa_block_size;
         params.conf = get_sdpa_configuration(impl_param, is_dynamic);
