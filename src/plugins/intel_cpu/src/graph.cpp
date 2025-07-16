@@ -8,11 +8,13 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_config.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#    include <common/dnnl_thread.hpp>
+#endif
 
 #include <algorithm>
 #include <atomic>
 #include <cassert>
-#include <common/dnnl_thread.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
