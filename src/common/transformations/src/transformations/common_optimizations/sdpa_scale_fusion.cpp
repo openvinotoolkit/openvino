@@ -22,7 +22,6 @@ namespace pass {
 
 SDPAScaleFusion::SDPAScaleFusion() {
     using namespace ov::pass::pattern;
-    using namespace ov::gen_pattern;
 
     auto q = pattern::any_input(pattern::rank_equals(4));
     auto k = pattern::any_input(pattern::rank_equals(4));
@@ -36,7 +35,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
     auto scaled_k = optional<ov::op::v1::Multiply>({k, scale_k});
     auto sdpa_mask_scale =
         pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
-                                                            {{"causal", false}});
+                                                                   {{"causal", false}});
     auto sdpa_mask =
         pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
     auto sdpa_simple =
