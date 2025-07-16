@@ -221,11 +221,7 @@ struct EnforceInferPrcDebug {
     EnforceInferPrcDebug()
         : str_pos_pattern(std::getenv("OV_CPU_INFER_PRC_POS_PATTERN")),
           str_neg_pattern(std::getenv("OV_CPU_INFER_PRC_NEG_PATTERN")) {
-        if (str_pos_pattern || str_neg_pattern) {
-            pattern_verbose = true;
-        } else {
-            pattern_verbose = false;
-        }
+        pattern_verbose = (str_pos_pattern != nullptr) || (str_neg_pattern != nullptr);
         if (str_pos_pattern) {
             pos_pattern = std::regex(str_pos_pattern);
         }
