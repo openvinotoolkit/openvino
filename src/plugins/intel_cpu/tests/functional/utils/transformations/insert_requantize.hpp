@@ -14,7 +14,7 @@ namespace CPUTestUtils {
 /**
  * This pass inserts FakeQuantize + ShuffleChannels before Result.
  * ShuffleChannels ensures that only quantization part will be fused into the parent node.
- * It is also just a data movement operation which also preserves the shapes.
+ * It is also just a data movement operation which preserves the shapes.
  * This allows testing of quantized output.
  *
  * Before:

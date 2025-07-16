@@ -13,6 +13,7 @@ namespace CPUTestUtils {
 
 class InsertFakeQuantize : public ov::pass::MatcherPass {
 public:
+    OPENVINO_MATCHER_PASS_RTTI("InsertFakeQuantize");
     InsertFakeQuantize(size_t input_id, const QuantizationData& qinfo);
 };
 

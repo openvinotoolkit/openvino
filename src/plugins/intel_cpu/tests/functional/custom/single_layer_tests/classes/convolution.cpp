@@ -135,16 +135,16 @@ void ConvolutionLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targ
     }
 
     const auto& parameters = function->get_parameters();
-    if (inputGenData.size() < parameters.size()) { // custom input data configured, but not for all inputs
-        SubgraphBaseTest::generate_inputs(targetInputStaticShapes); // generate default first
-    }
+
+    OPENVINO_ASSERT(inputGenData.size() >= parameters.size(),
+                    "If present, input generation data must be provided at least for all the parameters. ",
+                    "InputGenData size: ", inputGenData.size(), ", parameters size: ", parameters.size());
 
     for (size_t i = 0; i < parameters.size(); i++) {
         const auto& parameter = parameters[i];
         const auto& param_type = parameter->get_output_element_type(0);
         const auto& static_shape = targetInputStaticShapes[i];
-        auto tensor = ov::test::utils::create_and_fill_tensor(param_type, static_shape, inputGenData[i]);
-        inputs[parameter] = tensor; // create or replace default
+        inputs[parameter] = ov::test::utils::create_and_fill_tensor(param_type, static_shape, inputGenData[i]);
     }
 }
 
