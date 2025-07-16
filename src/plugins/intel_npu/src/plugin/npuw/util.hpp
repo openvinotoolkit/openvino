@@ -68,18 +68,8 @@ ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, std::size_t dim, 
 
 void to_f32(const ov::Tensor& in, ov::Tensor& out);
 ov::Tensor to_f16(const ov::Tensor& t);
-
-void transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS);
-void transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS);
 ov::Tensor transpose(const ov::Tensor& t);
-
-void permute021_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
-void permute021_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
-void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
-void permute102_f16_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
 ov::Tensor permute(const ov::Tensor& t, const std::vector<std::size_t>& axes);
-
-void avx2_memcpy(uint8_t* dst, const uint8_t* src, size_t len);
 ov::Tensor concat(const std::vector<ov::Tensor>& tt, std::size_t axis);
 
 // Start is inclusive, end is exclusive
