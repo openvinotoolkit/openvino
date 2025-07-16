@@ -89,7 +89,7 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
             default: return false;
         }
     };
-    auto not_transpose = [is_fp_type](const ov::Output<ov::Node>& output) -> bool {
+    auto not_transpose = [](const ov::Output<ov::Node>& output) -> bool {
         return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr;
     };
 
