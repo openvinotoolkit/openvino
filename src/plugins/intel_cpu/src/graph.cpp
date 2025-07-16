@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <common/dnnl_thread.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
