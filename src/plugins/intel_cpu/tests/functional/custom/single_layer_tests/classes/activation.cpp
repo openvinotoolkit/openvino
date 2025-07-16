@@ -229,6 +229,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::HSigmoid) ||
             (activation_type == utils::ActivationTypes::HSwish) ||
             (activation_type == utils::ActivationTypes::Mish) ||
+            (activation_type == utils::ActivationTypes::IsFinite) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
