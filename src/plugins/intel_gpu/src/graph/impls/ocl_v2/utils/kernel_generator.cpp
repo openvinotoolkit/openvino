@@ -76,7 +76,7 @@ std::string KernelGenerator::build_code(std::string_view template_name, const Ji
 }
 
 KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
-    auto jit = get_jit_constants(params);
+     auto jit = get_jit_constants(params);
 
     KernelData kd;
     kd.code = std::make_shared<KernelString>();
@@ -93,6 +93,7 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.update_dispatch_data_func = get_dispatch_data_func();
     kd.need_args_update = true;
     kd.need_dispatch_data_update = true;
+    // std::cout << "wzx debug kd.code->str:" << kd.code->str << std::endl;
 
     return kd;
 }

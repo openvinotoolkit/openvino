@@ -13,6 +13,9 @@
 #include <intel_gpu/primitives/concatenation.hpp>
 #include "activation_inst.h"
 
+#include <intel_gpu/primitives/msda.hpp>
+#include "msda_inst.h"
+
 #include <cmath>
 #include <algorithm>
 
@@ -93,6 +96,31 @@ TEST(activation_f32_fw_gpu, dynamic) {
         }
     }
 }
+
+// TEST(activation_f32_msda_gpu, dynamic) {
+//     auto& engine = get_test_engine();
+//     ov::PartialShape in_shape  = { 1, 1, 4, 2 };
+//     layout in_layout { ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx };
+
+//     auto input = engine.allocate_memory({ in_shape, data_types::f32, format::bfyx });
+//     set_values(input, { -0.12f, 0.56f, 0.45f, -0.789f, 42.f, 0.999f, 0.7899f, 0.f});
+
+//     topology topology(input_layout("input", in_layout));
+//     topology.add(msda("msda", input_info("inputs")));
+
+//     ExecutionConfig config = get_test_default_config(engine);
+//     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+//     network network(engine, topology, config);
+
+//     network.set_input_data("input", input);
+
+//     auto inst = network.get_primitive("msda");
+//     auto impl = inst->get_impl();
+//     ASSERT_TRUE(impl != nullptr);
+//     ASSERT_TRUE(impl->is_dynamic());
+
+//     auto outputs = network.execute();
+// }
 
 TEST(activation_f32_fw_cpu_impl, dynamic_8d) {
     auto& engine = get_test_engine();
