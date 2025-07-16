@@ -226,6 +226,8 @@ public:
      */
     void read(std::istream& stream) override;
 
+    void read(const ov::Tensor& tensor) override;
+
     /**
      * @details The number of init schedules, along with the size of each init binary object are written in addition to
      * the information registered by the previous metadata versions.

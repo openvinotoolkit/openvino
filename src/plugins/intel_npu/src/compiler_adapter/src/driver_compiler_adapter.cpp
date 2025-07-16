@@ -359,7 +359,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
-    ov::Tensor mainBlob,
+    ov::Tensor& mainBlob,
     const bool blobAllocatedByPlugin,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
