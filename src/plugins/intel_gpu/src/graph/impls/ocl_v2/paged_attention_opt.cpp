@@ -280,17 +280,12 @@ public:
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
-
         jit.make("HEADS_PER_WI", 1);
 
         bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed);
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
         jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
-
-        // if (desc->heads_num != desc->kv_heads_num) {
-        //     jit.make("BROADCAST_GROUP_SIZE", desc->heads_num / desc->kv_heads_num);
-        // }
 
         if (is_kv_compressed) {
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
@@ -312,7 +307,6 @@ public:
         }
 
         if (desc->has_alibi) {
-            // const size_t alibi_input_idx = desc->scale_val.has_value() ? 7 : 8; // why?
             const size_t alibi_input_idx = PagedAttentionInputIdx::ALIBI;
             jit.make("HAS_ALIBI", 1);
             jit.add(make_type_jit_constants("ALIBI_INPUT", params.input_layouts[alibi_input_idx].data_type));
@@ -333,7 +327,6 @@ public:
         }
 
         jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
-
         return jit;
     }
 
@@ -397,7 +390,6 @@ public:
         }
 
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-
         return jit;
     }
 
@@ -1113,8 +1105,13 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
-        const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
-        if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
+
+        if (params.get_device_info().supports_immad) {
+            const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
+            if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
+                return false;
+            }
+        } else {
             return false;
         }
 

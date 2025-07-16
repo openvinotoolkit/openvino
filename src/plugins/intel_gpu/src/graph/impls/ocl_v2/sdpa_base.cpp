@@ -102,7 +102,6 @@ std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& p
             }
         }
 
-        // std::cout << "SDPABase::get_gqa_params: done" << std::endl;
         return {broadcast_axis, group_size};
     }
     if (params.is_type<paged_attention>()) {
@@ -218,7 +217,6 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
         }
 
-        // jit.make("HAS_SCALE_INPUT", data_inputs_num > scale_id);
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
@@ -301,49 +299,21 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         LayoutJitter k_jitter(updated_params.input_layouts[1], in_offsets_map.at(1));
         jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
 
-        // auto order_to_string = [](const std::vector<int64_t>& order) {
-        //         std::ostringstream oss;
-        //         oss << "[";
-        //         for (size_t i = 0; i < order.size(); ++i) {
-        //             oss << order[i];
-        //             if (i < order.size() - 1) {
-        //                 oss << ", ";
-        //             }
-        //         }
-        //         oss << "]";
-        //         return oss.str();
-        // };
-        // std::cout << " input Q transpose order: " << order_to_string(desc->input_q_transpose_order)
-        //           << "->" <<order_to_string(extended_input_q_transpose_order) << "\n";
-        // std::cout << " input K transpose order: " << order_to_string(desc->input_k_transpose_order)
-        //           << "->" <<order_to_string(extended_input_k_transpose_order) << "\n";
-        // std::cout << " input V transpose order: " << order_to_string(desc->input_v_transpose_order)
-        //           << "->" <<order_to_string(extended_input_v_transpose_order) << "\n";
-        // std::cout << " output transpose order: " << order_to_string(desc->output_transpose_order)
-        //           << "->" <<order_to_string(extended_output_transpose_order) << "\n";
-
-        // std::cout << " query: " << params.get_input_layout(0).to_string() << std::endl;
-        // std::cout << " key: " << params.get_input_layout(1).to_string() << std::endl;
-        // std::cout << " value: " << params.get_input_layout(2).to_string() << std::endl;
-
         const auto q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-        const auto q_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
         const auto q_num_head = get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order);
         const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
-        const auto k_seq_len = get_seq_length(params.get_input_layout(1), extended_input_k_transpose_order);
         const auto k_num_head = get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order);
         const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
-        // jit.make("TARGET_SEQ_LEN", q_seq_len);
         jit.make("HEAD_SIZE", q_head_size);
         jit.make("NUM_HEADS", q_num_head);
-        // jit.make("SOURCE_SEQ_LEN", k_seq_len);
         jit.make("K_HEAD_SIZE", k_head_size);
         jit.make("NUM_KV_HEADS", k_num_head);
         jit.make("V_HEAD_SIZE", v_head_size);
 
-        GPU_DEBUG_TRACE_DETAIL << "q_seq_len = " << q_seq_len << ", q_num_head = " << q_num_head << ", q_head_size = " << q_head_size << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "k_seq_len = " << k_seq_len << ", k_num_head = " << k_num_head << ", k_head_size = " << k_head_size << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << "v_head_size = " << v_head_size << std::endl;
+        // const auto q_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
+        // const auto k_seq_len = get_seq_length(params.get_input_layout(1), extended_input_k_transpose_order);
+        // jit.make("TARGET_SEQ_LEN", q_seq_len);
+        // jit.make("SOURCE_SEQ_LEN", k_seq_len);
     } else if (params.is_type<paged_attention>()) {
         // For micro/sdpa kernel shared between SDPAs and Paged Attention
         auto desc = params.typed_desc<paged_attention>();

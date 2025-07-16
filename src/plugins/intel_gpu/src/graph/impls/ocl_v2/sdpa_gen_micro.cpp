@@ -1236,9 +1236,6 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
         scalars.reserve(3);
 
         auto params = impl_param;
-        // if (impl_param.is_type<paged_attention>()) {
-        //     auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-        // }
         if (!params.is_dynamic()) {
             const auto& device_info = params.get_device_info();
             const auto& gemms = kd.micro_kernels;

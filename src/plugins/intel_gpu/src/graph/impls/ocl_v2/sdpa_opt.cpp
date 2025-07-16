@@ -115,12 +115,8 @@ public:
         bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
         bool run_micro_sdpa = has_stage(regular_micro_multi_tokens) && (is_prefill || !is_ARL_H) && !is_indirect;
         if (run_micro_sdpa) {
-            // if (is_prefill) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
-            // } else {
-            //     return execute_stage(events, instance, regular_micro_single_token);
-            // }
         }
 #endif
         // TODO: Unaligned head size is currently supported by only multi tokens kernel.
@@ -175,8 +171,12 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
 
-    const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
-    if (device_info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
+    if (device_info.supports_immad) {
+        const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
+        if (device_info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
+            return false;
+        }
+    } else {
         return false;
     }
 

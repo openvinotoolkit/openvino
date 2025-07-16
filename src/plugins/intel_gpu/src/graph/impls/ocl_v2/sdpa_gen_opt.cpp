@@ -27,27 +27,6 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
 
     if (add_tensor_definitions) {
         jit.add(make_tensors_jit_constants(params));
-        // if (is_paged_attention) {
-        //     jit.add(make_tensors_jit_constants(params));
-        // } else {
-        //     auto desc = params.typed_desc<scaled_dot_product_attention>();
-        //     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
-        //     const auto& out_offsets_map = params.out_port_to_shape_info_offset;
-        //     const size_t attn_mask_idx = 3;
-        //     const size_t scale_idx = 4;
-        //     for (size_t i = 0; i < params.input_layouts.size(); i++) {
-        //         if (i == attn_mask_idx && desc->attn_mask_val.has_value())
-        //             continue;
-        //         if (i == scale_idx && desc->scale_val.has_value())
-        //             continue;
-        //         jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], in_offsets_map.at(i)));
-        //     }
-
-        //     jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-        //     for (size_t i = 1; i < params.output_layouts.size(); i++) {
-        //         jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
-        //     }
-        // }
     }
 
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
@@ -179,13 +158,6 @@ JitConstants SDPAOptGeneratorSingleToken::get_jit_constants(const kernel_impl_pa
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::SINGLE_TOKEN);
     jit.make("SDPA_STAGE_0", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", 1);
-
-    // std::cout << "SDPAOptGeneratorSingleToken::get_jit_constants\n:";
-    // for (auto& item : jit) {
-    //     GPU_DEBUG_TRACE_DETAIL << "jit[" << item.name << "] = " << item.value << "\n";
-    // }
-    // GPU_DEBUG_TRACE_DETAIL <<  "\n";
-
     return jit;
 }
 
@@ -223,12 +195,6 @@ JitConstants SDPAOptGeneratorMultiToken::get_jit_constants(const kernel_impl_par
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::MULTI_TOKENS);
     jit.make("SDPA_STAGE_0", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", get_target_seq_len_block_size());
-
-    // std::cout << "SDPAOptGeneratorMultiToken::get_jit_constants\n";
-    // for (auto& item : jit) {
-    //     std::cout << "jit[" << item.name << "] = " << item.value << "\n";
-    // }
-    // std::cout <<  "\n";
 
     return jit;
 }

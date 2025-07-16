@@ -58,12 +58,6 @@ inline size_t get_partitions_num(const kernel_impl_params& params, size_t kernel
 
     auto desc = params.typed_desc<scaled_dot_product_attention>();
 
-    // const auto head_size = params.input_layouts[0].get_partial_shape()[3].get_length();
-    // const auto source_seq_len = extract_channel(get_transposed_channel(ChannelName::Y, desc->input_k_transpose_order), params.input_layouts[1]);
-    // if (params.get_input_layout(0).get_partial_shape().size() != 4) {
-    //     std::cout << "get_partitions_num: params.get_input_layout(0) = " << params.get_input_layout(0).to_string() << std::endl;
-    // }
-
     auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
     auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
     const auto head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
