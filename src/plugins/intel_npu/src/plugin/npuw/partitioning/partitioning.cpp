@@ -1457,8 +1457,6 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
 
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMul>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -1931,25 +1929,9 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Quantized Gather + Unpack on host in the runtime
         if (cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
-            // FIXME: since we are running it after lifted Gather,
-            // we need to first try to match Asymm or Symm patterns.
-            // Otherwise smaller HostGatherQuant might be matched first and break
-            // the quantization logic.
-            {
-                ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
-                rewr2.run_on_model(f._model);
-            }
-            {
-                ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
-                rewr2.run_on_model(f._model);
-            }
-            {
-                ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
-                rewr2.run_on_model(f._model);
-            }
+            ov::pass::GraphRewrite rewr2;
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
+            rewr2.run_on_model(f._model);
         }
 
         // Move Gather to host, if required
