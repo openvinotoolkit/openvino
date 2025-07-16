@@ -8,11 +8,12 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
+#    include <oneapi/dnnl/dnnl_config.h>
+
 #    include <common/dnnl_thread.hpp>
 #    include <oneapi/dnnl/dnnl_threadpool.hpp>
 
 #    include "cpu_parallel.hpp"
-#    include "dnnl_config.h"
 #    include "openvino/core/parallel.hpp"
 #    include "openvino/runtime/intel_cpu/properties.hpp"
 #endif

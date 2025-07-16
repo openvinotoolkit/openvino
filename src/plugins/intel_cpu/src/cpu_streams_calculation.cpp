@@ -35,7 +35,6 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
-#include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;

@@ -18,6 +18,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "sub_memory_manager.hpp"
+#include "thread_pool_imp.hpp"
 #include "weights_cache.hpp"
 
 namespace ov::intel_cpu {
