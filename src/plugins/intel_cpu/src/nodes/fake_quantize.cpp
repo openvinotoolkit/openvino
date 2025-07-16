@@ -2266,30 +2266,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                           outputScale.size(),
                           outputShift.size()});
 
-    auto is_valid_input_scale = [&]() {
-        return inputScale.size() == 1 || inputScale.size() == OC;
-    };
-    CPU_NODE_ASSERT(is_valid_input_scale(), "inputScale.size() == ", inputScale.size());
-    auto is_valid_input_shift = [&]() {
-        return inputShift.size() == 1 || inputShift.size() == OC;
-    };
-    CPU_NODE_ASSERT(is_valid_input_shift(), "inputShift.size() == ", inputShift.size());
-    auto is_valid_crop_low = [&]() {
-        return cropLow.size() == 1 || cropLow.size() == OC;
-    };
-    CPU_NODE_ASSERT(is_valid_crop_low(), "cropLow.size() == ", cropLow.size());
-    auto is_valid_crop_high = [&]() {
-        return cropHigh.size() == 1 || cropHigh.size() == OC;
-    };
-    CPU_NODE_ASSERT(is_valid_crop_high(), "cropHigh.size() == ", cropHigh.size());
-    auto is_valid_output_scale = [&]() {
-        return outputScale.size() == 1 || outputScale.size() == OC;
-    };
-    CPU_NODE_ASSERT(is_valid_output_scale(), "outputScale.size() == ", outputScale.size());
-    auto is_valid_output_shift = [&]() {
-        return outputShift.size() == 1 || outputShift.size() == OC;
-    };
-    CPU_NODE_ASSERT(is_valid_output_shift(), "outputShift.size() == ", outputShift.size());
+    CPU_NODE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC, "inputScale.size() == ", inputScale.size());
+    CPU_NODE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC, "inputShift.size() == ", inputShift.size());
+    CPU_NODE_ASSERT(cropLow.size() == 1 || cropLow.size() == OC, "cropLow.size() == ", cropLow.size());
+    CPU_NODE_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC, "cropHigh.size() == ", cropHigh.size());
+    CPU_NODE_ASSERT(outputScale.size() == 1 || outputScale.size() == OC, "outputScale.size() == ", outputScale.size());
+    CPU_NODE_ASSERT(outputShift.size() == 1 || outputShift.size() == OC, "outputShift.size() == ", outputShift.size());
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
