@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/prettierrc",
   "semi": true,
   "printWidth": 100,
   "endOfLine": "lf",
