@@ -16,7 +16,6 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
-#include "metadata.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
 #include "npuw/serialization.hpp"
@@ -663,16 +662,12 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
-    ov::AnyMap npu_plugin_properties = properties;
-
-    // ov::hint::compiled_blob has no corresponding "Config" implementation thus we need to remove it from the
-    // list of properties
-    if (npu_plugin_properties.find(ov::hint::compiled_blob.name()) != npu_plugin_properties.end()) {
+    if (properties.find(ov::hint::compiled_blob.name()) != properties.end()) {
         _logger.warning("ov::hint::compiled_blob is no longer supported for import_model(stream) API! Please use new "
                         "import_model(tensor) API instead.");
-        npu_plugin_properties.erase(ov::hint::compiled_blob.name());
     }
 
+    auto npu_plugin_properties = properties;
     std::shared_ptr<ov::ICompiledModel> compiledModel =
         import_model_npuw(stream, npu_plugin_properties, shared_from_this());
     if (compiledModel) {
@@ -721,7 +716,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& tensor, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
-    ov::AnyMap npu_plugin_properties = properties;
+    auto npu_plugin_properties = properties;
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(tensor.data()), tensor.get_byte_size()};
     std::istream stream{&buffer};
     std::shared_ptr<ov::ICompiledModel> compiledModel =
@@ -905,17 +900,16 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return supportedOpsMap;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::parse(ov::Tensor& tensor,
+std::shared_ptr<ov::ICompiledModel> Plugin::parse(ov::Tensor& tensorBig,
                                                   std::unique_ptr<MetadataBase> metadata,
-                                                  bool blobAllocatedByPlugin,
-                                                  ov::AnyMap& npu_plugin_properties) const {
+                                                  const bool blobAllocatedByPlugin,
+                                                  const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::parse");
     CompilerAdapterFactory compilerAdapterFactory;
-    auto compiler =
-        compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, npu_plugin_properties));
+    auto compiler = compilerAdapterFactory.getCompiler(_backend, resolveCompilerType(_globalConfig, properties));
 
-    const auto propertiesMap = any_copy(npu_plugin_properties);
-    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
+    const auto propertiesMap = any_copy(properties);
+    OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::parse", "fork_local_config");
     auto localConfig = fork_local_config(propertiesMap, compiler, OptionMode::RunTime);
     _logger.setLevel(localConfig.get<LOG_LEVEL>());
     const auto platform =
@@ -931,15 +925,89 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(ov::Tensor& tensor,
             "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
-    OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
+    uint64_t mainSize = tensorBig.get_byte_size();
+    std::optional<std::vector<uint64_t>> initSizes;
 
-    auto graph = compiler->parse(tensor, blobAllocatedByPlugin, localConfig);
+    if (metadata) {
+        size_t accumulator = 0;
+        initSizes = metadata->get_init_sizes();
+        mainSize = initSizes.has_value()
+                       ? metadata->get_blob_size() - std::accumulate(initSizes->begin(), initSizes->end(), accumulator)
+                       : metadata->get_blob_size();
+    } else {
+        _logger.info("Blob compatibility check skipped.");
+    }
+
+    ov::Tensor tensorMain =
+        ov::Tensor(tensorBig, ov::Coordinate{0}, ov::Coordinate{mainSize});  // ROI tensor to skip NPU plugin metadata
+
+    std::shared_ptr<const ov::Model> originalModel;
+    std::vector<ov::Tensor> tensorsInits;
+    const bool weightsSeparationEnabled = initSizes.has_value();
+
+    if (weightsSeparationEnabled) {
+        // Read the init compiled models as well
+        size_t cursorPosition = mainSize;
+        ov::Tensor tensorInit;
+        for (uint64_t initSize : initSizes.value()) {
+            tensorInit =
+                ov::Tensor(tensorBig, ov::Coordinate{cursorPosition}, ov::Coordinate{cursorPosition + initSize});
+            tensorsInits.push_back(tensorInit);
+            cursorPosition += initSize;
+        }
+
+        // Retrieve the ov::Model used for compilation. This is required for extracting and matching the weights
+        if (properties.count(ov::hint::model.name())) {
+            try {
+                originalModel = properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>();
+            } catch (const ov::AssertFailure&) {
+                try {
+                    originalModel = std::const_pointer_cast<const ov::Model>(
+                        properties.at(ov::hint::model.name()).as<std::shared_ptr<ov::Model>>());
+                } catch (const ov::Exception&) {
+                    OPENVINO_THROW("The value of the \"ov::hint::model\" configuration option (\"MODEL_PTR\") has the "
+                                   "wrong data type. Expected: std::shared_ptr<const ov::Model>.");
+                }
+            }
+        } else if (!localConfig.get<WEIGHTS_PATH>().empty()) {
+            const std::string weightsPath = localConfig.get<WEIGHTS_PATH>();
+            const size_t weightsPathLength = weightsPath.length();
+            std::string xmlPath = weightsPath;
+
+            if (weightsPathLength > WEIGHTS_EXTENSION.length() &&
+                weightsPath.compare(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION.length(),
+                                    WEIGHTS_EXTENSION) == 0) {
+                xmlPath.replace(weightsPathLength - WEIGHTS_EXTENSION.length(),
+                                WEIGHTS_EXTENSION.length(),
+                                XML_EXTENSION);
+            } else if (weightsPathLength <= ONNX_EXTENSION.length() ||
+                       weightsPath.compare(weightsPathLength - ONNX_EXTENSION.length(),
+                                           ONNX_EXTENSION.length(),
+                                           ONNX_EXTENSION)) {
+                OPENVINO_THROW("Invalid path to the weights: ",
+                               weightsPath,
+                               ". A \".bin\" or \".onnx\" extension was expected.");
+            }
+
+            originalModel = get_core()->read_model(xmlPath, weightsPath, properties);
+        } else {
+            OPENVINO_THROW("Attempted to load a weightless compiled model, but no weights have been provided");
+        }
+
+        check_weightless_cache_attribute_occurrence(originalModel);
+    }
+
+    auto graph = compiler->parse(tensorMain,
+                                 blobAllocatedByPlugin,
+                                 localConfig,
+                                 weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
+                                 weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);
     graph->update_network_name("net" + std::to_string(_compiledModelLoadCounter++));
-
     const std::shared_ptr<ov::Model> modelDummy =
         create_dummy_model(graph->get_metadata().inputs, graph->get_metadata().outputs);
 
-    OV_ITT_TASK_SKIP(PLUGIN_PARSE_MODEL);
+    OV_ITT_TASK_NEXT(PLUGIN_PARSE_MODEL, "parse");
 
     return std::make_shared<CompiledModel>(modelDummy, shared_from_this(), device, graph, localConfig);
 }

@@ -87,6 +87,27 @@ void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
     }
 }
 
+void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
+    Metadata<METADATA_VERSION_2_0>::read(tensor);
+    auto roiTensor = ov::Tensor(tensor,
+                                ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
+                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
+                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_patch()))},
+                                ov::Coordinate{tensor.get_byte_size()});
+
+    uint64_t numberOfInits;
+    numberOfInits = *reinterpret_cast<const decltype(numberOfInits)*>(roiTensor.data<const char>());
+
+    if (numberOfInits) {
+        _initSizes = std::vector<uint64_t>(numberOfInits);
+        for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
+            _initSizes->at(initIndex) =
+                reinterpret_cast<const std::remove_reference_t<decltype(_initSizes->at(initIndex))>*>(
+                    roiTensor.data<const char>() + sizeof(numberOfInits))[initIndex];
+        }
+    }
+}
+
 void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
@@ -121,7 +142,6 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
     case METADATA_VERSION_2_1:
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
-
     default:
         OPENVINO_THROW("Metadata version is not supported!");
     }
