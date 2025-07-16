@@ -888,12 +888,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     const bool use_chunk_prefill = m_prefill_chunk_size > 0;
-    std::cout << "prefill_chunk_size: " << m_prefill_chunk_size << std::endl;
-    std::cout << "max_prompt_len: " << max_prompt_len << std::endl;
-    if (use_chunk_prefill && (max_prompt_len % m_prefill_chunk_size)) {
-        OPENVINO_THROW("Configuration Error: The max_prompt_len (" + std::to_string(max_prompt_len) +
-                   ") is not a multiple of m_prefill_chunk_size (" + std::to_string(m_prefill_chunk_size) +
+    LOG_VERB("prefill_chunk_size: " << m_prefill_chunk_size);
+    LOG_VERB("max_prompt_len: " << max_prompt_len);
+
+    auto is_power_of_two = [](uint64_t n) {
+        return n > 0 && (n & (n - 1)) == 0;
+    };
+    if (use_chunk_prefill) {
+        if (!is_power_of_two(m_prefill_chunk_size)) {
+            OPENVINO_THROW("Configuration Error: m_prefill_chunk_size (", m_prefill_chunk_size,
+                   ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
+        }
+
+        if (max_prompt_len % m_prefill_chunk_size) {
+            OPENVINO_THROW("Configuration Error: The max_prompt_len (", max_prompt_len,
+                   ") is not a multiple of m_prefill_chunk_size (", m_prefill_chunk_size,
                    "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
+        }
     }
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
@@ -924,7 +935,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
 
-    std::cout << "use_chunk_prefill: " << use_chunk_prefill << std::endl;
+    LOG_VERB("use_chunk_prefill: " << use_chunk_prefill);
     if (!use_chunk_prefill) {
         NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     } else {

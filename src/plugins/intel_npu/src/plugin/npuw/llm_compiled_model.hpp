@@ -69,7 +69,7 @@ private:
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
 
-    int64_t m_prefill_chunk_size;
+    uint64_t m_prefill_chunk_size;
 };
 
 }  // namespace npuw
