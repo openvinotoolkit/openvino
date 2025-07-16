@@ -1211,6 +1211,18 @@ std::shared_ptr<ov::Model> prepare_whisper_kvcache_model(std::shared_ptr<ov::Mod
     model->validate_nodes_and_infer_types();
     return model;
 }
+
+bool check_if_whisper_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node) && node->inputs().size() == 3u) {
+            // Found cross-attention -> whisper model
+            LOG_DEBUG("Whisper model was found");
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -1225,11 +1237,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
-    for (const auto& input: model->inputs()) {
-        if (input.get_any_name().find("encoder_hidden_states") != std::string::npos) {
-            m_is_whisper = true;
-        }
-    }
+    m_is_whisper = check_if_whisper_model(model);
 
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
@@ -1320,7 +1328,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     decompose_GQA(prefill_model, true);
     decompose_GQA(kvcache_model, false);
 
-    bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
+    const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {
         LOG_DEBUG("6. Check and apply opt layout");
         LOG_BLOCK();
@@ -1345,9 +1353,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
     LOG_DEBUG("9. Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
-
-    save_model(prefill_model, "decoder_model_npuw.xml");
-    save_model(kvcache_model, "decoder_with_past_model_npuw.xml");
 
     auto npudesc = extract_npu_descriptor(plugin);
 
