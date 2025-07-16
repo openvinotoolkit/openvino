@@ -169,7 +169,9 @@ public:
         topology.add(reorder("output_values", input_info("sparse_fill_empty_rows", 1), format::bfyx, params.values->get_layout().data_type));
         topology.add(reorder("output_empty_row_indicator", input_info("sparse_fill_empty_rows", 2), format::bfyx, data_types::i64));
 
-        cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), stream, false);
+        ExecutionConfig config = get_test_default_config(engine_);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cldnn::network::ptr network = get_network(engine_, topology, config, stream, false);
         network->set_input_data("values", params.values);
         network->set_input_data("denseShape", params.denseShape);
         network->set_input_data("indices", params.indices);
