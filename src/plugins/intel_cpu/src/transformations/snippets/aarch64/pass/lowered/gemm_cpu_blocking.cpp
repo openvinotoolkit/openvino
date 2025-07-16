@@ -3,11 +3,11 @@
 //
 
 #include "gemm_cpu_blocking.hpp"
-#include "openvino/core/except.hpp"
 
 #include <cstddef>
 #include <tuple>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
