@@ -21,12 +21,6 @@ public:
 
     explicit SDPAToVLSDPA();
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
-
-private:
-    bool m_use_per_layer_block_indices_inputs;
-    bool m_use_score_outputs;
-    bool m_allow_score_aggregation;
-    bool m_allow_cache_rotation;
 };
 }  // namespace pass
 }  // namespace ov
