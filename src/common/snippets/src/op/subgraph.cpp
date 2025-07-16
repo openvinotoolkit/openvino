@@ -5,7 +5,6 @@
 #include "snippets/op/subgraph.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -627,7 +626,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
 }
 
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
-    assert(m_generator && "Generator has not been inited!");
+    OPENVINO_DEBUG_ASSERT(m_generator, "Generator has not been inited!");
     return m_generator->get_target_machine()->get_runtime_configurator();
 }
 

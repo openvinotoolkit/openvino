@@ -1782,7 +1782,7 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
 }
 
 void Graph::CreateEdge(const NodePtr& parent, const NodePtr& child, int parentPort, int childPort) {
-    assert(parentPort >= 0 && childPort >= 0);
+    OPENVINO_DEBUG_ASSERT(parentPort >= 0 && childPort >= 0);
 
     auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
 
@@ -1799,8 +1799,8 @@ void Graph::RemoveEdge(const EdgePtr& edge) {
 }
 
 void Graph::AddNode(const NodePtr& node) {
-    assert(node);
-    assert(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
+    OPENVINO_DEBUG_ASSERT(node);
+    OPENVINO_DEBUG_ASSERT(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
 
     graphNodes.push_back(node);
 }

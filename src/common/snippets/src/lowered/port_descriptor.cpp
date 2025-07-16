@@ -4,7 +4,6 @@
 
 #include "snippets/lowered/port_descriptor.hpp"
 
-#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <snippets/utils/utils.hpp>
@@ -70,7 +69,7 @@ void PortDescriptor::validate_arguments() {
 }
 
 const VectorDims& PortDescriptor::get_shape() const {
-    assert(m_tensor_shape && "Failed to get_shape: Tensor Shape is nullptr");
+    OPENVINO_DEBUG_ASSERT(m_tensor_shape, "Failed to get_shape: Tensor Shape is nullptr");
     return *m_tensor_shape;
 }
 

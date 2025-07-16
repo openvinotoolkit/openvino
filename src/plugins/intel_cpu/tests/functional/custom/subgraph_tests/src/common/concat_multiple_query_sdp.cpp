@@ -3,6 +3,7 @@
 //
 #include "openvino/opsets/opset13_decl.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "openvino/core/except.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
@@ -178,7 +179,7 @@ public:
         // post SDPA transpose + reshape
         auto get_reshape_order = [](const ov::PartialShape& qkv_shape,
                                     const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
-            assert(transposeOrder.size() == 4);
+            OPENVINO_DEBUG_ASSERT(transposeOrder.size(, "Assertion failed: transposeOrder.size(") == 4);
             auto H = qkv_shape[transposeOrder[1]].get_length();
             auto S = qkv_shape[transposeOrder[3]].get_length();
             return std::vector<size_t>{0, 0, static_cast<size_t>(H * S)};

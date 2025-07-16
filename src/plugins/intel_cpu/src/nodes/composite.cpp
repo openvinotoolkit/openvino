@@ -4,7 +4,6 @@
 
 #include "composite.h"
 
-#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -136,7 +135,7 @@ void Composite::executeDynamicImpl(const dnnl::stream& strm) {
         for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
             const auto& childEdge = childEdges[j];
             auto childEdgePtr = childEdge.lock();
-            assert(childEdgePtr);
+            OPENVINO_DEBUG_ASSERT(childEdgePtr, "Child edge pointer is null");
 
             if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
                 childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());

@@ -3,8 +3,8 @@
 //
 
 #include "gemm_cpu_blocking.hpp"
+#include "openvino/core/except.hpp"
 
-#include <cassert>
 #include <cstddef>
 #include <tuple>
 
@@ -18,7 +18,7 @@ namespace ov::intel_cpu::pass {
 std::tuple<size_t, size_t, size_t> GemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& gemm_expr) const {
     const auto gemm = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(gemm_expr->get_node());
-    assert(gemm && "GemmCPU is expected!");
+    OPENVINO_DEBUG_ASSERT(gemm, "GemmCPU is expected!");
 
     const auto [m, n, k] = get_brgemm_dimensions(gemm_expr);
 

@@ -14,6 +14,7 @@
 
 #include "cpu_shape.h"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -28,7 +29,7 @@ namespace ov::intel_cpu {
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
-    assert(b);
+    OPENVINO_DEBUG_ASSERT(b);
     return (a + b - 1) / b;
 }
 

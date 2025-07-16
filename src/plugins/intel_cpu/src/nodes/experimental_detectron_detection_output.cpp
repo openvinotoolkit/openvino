@@ -5,7 +5,6 @@
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -42,12 +41,12 @@ struct Indexer {
 
     int operator()(const std::vector<int>& idx) const {
         int flat_idx = 0;
-        assert(idx.size() == dims_.size());
+        OPENVINO_DEBUG_ASSERT(idx.size(, "Assertion failed: idx.size(") == dims_.size());
         for (size_t i = 0; i < dims_.size(); ++i) {
-            assert(0 <= idx[i] && idx[i] < dims_[i]);
+            OPENVINO_DEBUG_ASSERT(0 <= idx[i] && idx[i] < dims_[i], "Assertion failed: 0 <= idx[i] && idx[i] < dims_[i]");
             flat_idx = flat_idx * dims_[i] + idx[i];
         }
-        assert(flat_idx < total_);
+        OPENVINO_DEBUG_ASSERT(flat_idx < total_, "Assertion failed: flat_idx < total_");
         return flat_idx;
     }
 };
@@ -300,8 +299,8 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 
 void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
-    assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
+    OPENVINO_DEBUG_ASSERT(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES, "Assertion failed: classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES")->getMemory().getStaticDims()[1]));
+    OPENVINO_DEBUG_ASSERT(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS, "Assertion failed: 4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS")->getMemory().getStaticDims()[1]));
 
     const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
@@ -366,7 +365,7 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
         indices_offset += n;
     }
 
-    assert(max_detections_per_image_ > 0);
+    OPENVINO_DEBUG_ASSERT(max_detections_per_image_ > 0, "Assertion failed: max_detections_per_image_ > 0");
     if (total_detections_num > max_detections_per_image_) {
         std::partial_sort(conf_index_class_map.begin(),
                           conf_index_class_map.begin() + max_detections_per_image_,

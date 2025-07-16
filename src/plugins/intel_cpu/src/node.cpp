@@ -213,7 +213,7 @@ Node::Node(const std::string& type,
 void Node::addEdge(const EdgePtr& edge) {
     auto parent = edge->getParent();
     auto child = edge->getChild();
-    assert(parent && child);
+    OPENVINO_DEBUG_ASSERT(parent && child);
 
     parent->addChildEdge(edge);
     child->addParentEdge(edge);

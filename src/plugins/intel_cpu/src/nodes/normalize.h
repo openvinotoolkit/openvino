@@ -23,6 +23,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -55,7 +56,7 @@ struct jit_uni_normalize_modulo_kernel {
     void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
     void operator()(const jit_normalize_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_);
         ker_(args);
     }
 
@@ -71,7 +72,7 @@ struct jit_uni_normalize_kernel {
     void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
     void operator()(const jit_normalize_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_);
         ker_(args);
     }
 

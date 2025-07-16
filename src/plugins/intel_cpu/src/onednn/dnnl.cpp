@@ -9,6 +9,8 @@
 
 #include <cassert>
 #include <cpu/platform.hpp>
+
+#include "openvino/core/except.hpp"
 #include <cstring>
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -125,7 +127,7 @@ dnnl::memory::format_tag str2fmt(const char* str) {
     CASE(ldgoi);
     CASE(ldgo);
 #undef CASE
-    assert(!"unknown memory format");
+    OPENVINO_DEBUG_ASSERT(false, "unknown memory format");
     return dnnl::memory::format_tag::undef;
 }
 

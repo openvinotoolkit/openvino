@@ -8,6 +8,8 @@
 #include <mutex>
 #include <vector>
 
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_cpu {
 class SubMemoryManager {
 public:
@@ -17,9 +19,8 @@ public:
         bool last_used = false;
     };
 
-    SubMemoryManager(int num_sub_streams) {
-        assert(num_sub_streams);
-        _num_sub_streams = num_sub_streams;
+    SubMemoryManager(int num_sub_streams) : _num_sub_streams(num_sub_streams) {
+        OPENVINO_DEBUG_ASSERT(num_sub_streams, "Number of sub streams must be greater than 0");
         MemoryInfo memory_info;
         std::vector<MemoryInfo> memorys;
         memorys.assign(_num_sub_streams, memory_info);

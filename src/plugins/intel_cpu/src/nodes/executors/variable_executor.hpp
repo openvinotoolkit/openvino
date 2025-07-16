@@ -93,7 +93,7 @@ private:
     }
 
     ExecutorPtr create(const size_t implId, const MemoryArgs& memory) {
-        assert(implId < m_executors.size() && implId < m_suitableImplementations.size());
+        OPENVINO_DEBUG_ASSERT(implId < m_executors.size() && implId < m_suitableImplementations.size());
 
         const auto& impl = m_suitableImplementations[implId].get();
         return impl.create(m_attrs, memory, m_context);

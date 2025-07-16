@@ -4,7 +4,6 @@
 
 #include "brgemm_generic.hpp"
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <sstream>
@@ -150,7 +149,7 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const auto& loop_ids = expr->get_loop_ids();
     const auto& loop_manager = linear_ir->get_loop_manager();
     auto get_loop_info = [&]() {
-        assert(loop_idx < loop_ids.size() && "Loop is missed");
+        OPENVINO_DEBUG_ASSERT(loop_idx < loop_ids.size(), "Loop is missed");
         return loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
     };
 

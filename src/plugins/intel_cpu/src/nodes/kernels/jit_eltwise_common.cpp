@@ -5,7 +5,6 @@
 #include "jit_eltwise_common.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <map>
 #include <set>
@@ -53,7 +52,7 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         });
     };
 
-    assert(std::all_of(supported_precision_intersection.begin(),
+    OPENVINO_DEBUG_ASSERT(std::all_of(supported_precision_intersection.begin(, "Assertion failed: std::all_of(supported_precision_intersection.begin("),
                        supported_precision_intersection.end(),
                        has_same_precision));
 

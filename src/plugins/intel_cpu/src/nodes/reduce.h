@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cassert>
+#include "openvino/core/except.hpp"
 #include <common/primitive_attr.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -72,7 +72,7 @@ struct jit_uni_reduce_kernel {
     void (*ker_)(const jit_reduce_call_args*) = nullptr;
 
     void operator()(const jit_reduce_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_);
         ker_(args);
     }
 
@@ -88,7 +88,7 @@ struct jit_uni_reduce_post_kernel {
     void (*ker_)(const jit_reduce_post_call_args*) = nullptr;
 
     void operator()(const jit_reduce_post_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_);
         ker_(args);
     }
 

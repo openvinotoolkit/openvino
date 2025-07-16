@@ -7,7 +7,6 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <algorithm>
-#include <cassert>
 #include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
@@ -176,7 +175,7 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 // make a fake shape: N, C, W
 template <typename T>
 static std::vector<T> normalizeDims(const std::vector<T>& dims) {
-    assert(one_of(static_cast<int>(dims.size()), 2, 3));
+    OPENVINO_DEBUG_ASSERT(one_of(static_cast<int>(dims.size(, "Assertion failed: one_of(static_cast<int>(dims.size(")), 2, 3));
 
     if (dims.size() == 3) {
         return {dims[0], dims[2], dims[1]};
@@ -872,7 +871,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     auto runtimeCache = context->getRuntimeCache();
     const auto result = runtimeCache->getOrCreate(dnnlConvKey, builder);
     const auto& primitive = result.first;
-    assert(primitive);
+    OPENVINO_DEBUG_ASSERT(primitive, "Assertion failed: primitive");
 
     return primitive;
 }

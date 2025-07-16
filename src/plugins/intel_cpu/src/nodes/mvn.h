@@ -51,7 +51,7 @@ struct jit_uni_mvn_mean_variance_kernel {
     void (*ker_)(const jit_mvn_call_args*) = nullptr;
 
     void operator()(const jit_mvn_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 
@@ -67,7 +67,7 @@ struct jit_uni_mvn_kernel {
     void (*ker_)(const jit_mvn_call_args*) = nullptr;
 
     void operator()(const jit_mvn_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

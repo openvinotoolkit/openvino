@@ -82,7 +82,7 @@ struct gatherJitExecArgs {
 struct jitGatherKernelBase {
     void (*ker_)(const gatherJitExecArgs*) = nullptr;
     void operator()(const gatherJitExecArgs* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
     explicit jitGatherKernelBase(const jGatherConfParams& jcp, uint64_t vlen, uint64_t indicesTypeSize)

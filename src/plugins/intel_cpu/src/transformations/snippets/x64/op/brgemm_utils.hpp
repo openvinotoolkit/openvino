@@ -16,6 +16,7 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 
@@ -135,7 +136,7 @@ namespace repacking {
 template <typename T,
           typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline T compute_blocked_dim(T dim, size_t blk) {
-    assert(!ov::snippets::utils::is_dynamic_value(blk) && "blk cannot be dynamic");
+    OPENVINO_DEBUG_ASSERT(!ov::snippets::utils::is_dynamic_value(blk), "blk cannot be dynamic");
     return ov::snippets::utils::rnd_up(dim, static_cast<T>(blk));
 }
 
@@ -145,7 +146,7 @@ template <typename T,
 inline T compute_N_blocked_stride(T K, size_t wei_k_blk, const ov::element::Type& prc, bool are_wei_blocked) {
     //  - if weights are not in blocked format, account for the VNNI format
     //  - if weights are blocked, account for zero padding in K dimension
-    assert(!ov::snippets::utils::is_dynamic_value(wei_k_blk) && "wei_k_blk cannot be dynamic");
+    OPENVINO_DEBUG_ASSERT(!ov::snippets::utils::is_dynamic_value(wei_k_blk), "wei_k_blk cannot be dynamic");
     if (snippets::utils::is_dynamic_value(K)) {
         return snippets::utils::get_dynamic_value<T>();
     }
@@ -162,7 +163,7 @@ inline T compute_N_blocked_stride(T K, size_t wei_k_blk, const ov::element::Type
 template <typename T,
           typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
 inline T compute_K_blocked_stride(T N, size_t wei_n_blk, bool are_wei_blocked) {
-    assert(!ov::snippets::utils::is_dynamic_value(wei_n_blk) && "wei_n_blk cannot be dynamic");
+    OPENVINO_DEBUG_ASSERT(!ov::snippets::utils::is_dynamic_value(wei_n_blk), "wei_n_blk cannot be dynamic");
     return are_wei_blocked ? wei_n_blk : compute_blocked_dim(N, wei_n_blk);
 }
 

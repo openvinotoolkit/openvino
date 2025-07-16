@@ -6,7 +6,6 @@
 
 #include <oneapi/dnnl/dnnl_types.h>
 
-#include <cassert>
 #include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
@@ -113,7 +112,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     auto runtimeCache = context->getRuntimeCache();
     const auto result = runtimeCache->getOrCreate(dnnlFCKey, builder);
     const auto& primitive = result.first;
-    assert(primitive);
+    OPENVINO_DEBUG_ASSERT(primitive, "Assertion failed: primitive");
 
     return primitive;
 }

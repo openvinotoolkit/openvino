@@ -3,7 +3,6 @@
 //
 #include "softmax.h"
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
@@ -53,7 +52,7 @@ struct jit_uni_softmax_kernel {
     void (*ker_)(const jit_args_softmax*) = nullptr;
 
     void operator()(const jit_args_softmax* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 
@@ -231,7 +230,7 @@ private:
             uni_vpslld(vmm_src, vmm_src, 16);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt");
         }
     }
     void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
@@ -247,7 +246,7 @@ private:
             vmovdqu16(op, ymm_dst);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
     }
 };

@@ -5,7 +5,6 @@
 #include "memory.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -590,13 +589,13 @@ void MemoryInputBase::assignState(MemStatePtr newState) {
 }
 
 void MemoryInputBase::execute(const dnnl::stream& strm) {
-    assert(executeHook && "executeHook is not initialized!");
+    OPENVINO_DEBUG_ASSERT(executeHook && "executeHook is not initialized!");
     (this->*executeHook)();
     runStatic(strm);
 }
 
 void MemoryInputBase::executeDynamicImpl(const dnnl::stream& strm) {
-    assert(executeHook && "executeHook is not initialized!");
+    OPENVINO_DEBUG_ASSERT(executeHook && "executeHook is not initialized!");
     (this->*executeHook)();
     runDynamic(strm);
 }
@@ -824,8 +823,8 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
             for (size_t j = 1; j < childEdges.size(); j++) {
                 const auto& childEdge = childEdges[j];
                 auto childEdgePtr = childEdge.lock();
-                assert(childEdgePtr);
-                assert(0 == childEdgePtr->getInputNum());
+                OPENVINO_DEBUG_ASSERT(childEdgePtr, "Assertion failed: childEdgePtr");
+                OPENVINO_DEBUG_ASSERT(0 == childEdgePtr->getInputNum(, "Assertion failed: 0 == childEdgePtr->getInputNum("));
                 childEdgePtr->getMemoryPtr()->redefineDesc(src->getDescPtr());
             }
         } else {

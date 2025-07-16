@@ -225,7 +225,7 @@ public:
     }
 
     void operator()(const CallArgs* args) const {
-        assert(m_func);
+        OPENVINO_DEBUG_ASSERT(m_func, "Kernel function pointer is not set!");
         m_func(args);
     }
 

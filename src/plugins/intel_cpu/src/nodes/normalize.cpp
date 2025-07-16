@@ -5,7 +5,6 @@
 #include "normalize.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <common/c_types_map.hpp>
 #include <common/float16.hpp>
@@ -236,7 +235,7 @@ private:
             uni_vpmovzxbd(vmm_src, op);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
         if (!isFloatCompatible(src_dt)) {
             uni_vcvtdq2ps(vmm_src, vmm_src);
@@ -587,7 +586,7 @@ private:
             uni_vpmovzxbd(vmm_src, op);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
         if (!isFloatCompatible(src_dt)) {
             uni_vcvtdq2ps(vmm_src, vmm_src);
@@ -613,7 +612,7 @@ private:
             uni_vmovq(xmm_src, reg_tmp_64);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
 
         if (!isFloatCompatible(src_dt)) {
@@ -694,7 +693,7 @@ private:
             mov(op, reg_tmp_8);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
     }
 
@@ -710,14 +709,14 @@ private:
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 if (eltwise_injectors.size() <= eltwise_inj_idx || eltwise_injectors[eltwise_inj_idx] == nullptr) {
-                    assert(!"Invalid eltwise injectors.");
+                    OPENVINO_DEBUG_ASSERT(false, "Invalid eltwise injectors.");
                 }
                 eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
                 eltwise_inj_idx++;
             } else if (post_op.is_depthwise()) {
                 if (depthwise_injectors.size() <= depthwise_inj_idx ||
                     depthwise_injectors[depthwise_inj_idx] == nullptr) {
-                    assert(!"Invalid depthwise injectors.");
+                    OPENVINO_DEBUG_ASSERT(false, "Invalid depthwise injectors.");
                 }
                 mov(reg_d_weights, ptr[reg_post_ops_data + post_ops_data_offset]);
                 add(reg_d_weights, reg_oc_off);
@@ -734,7 +733,7 @@ private:
             } else if (post_op.is_quantization()) {
                 if (quantization_injectors.size() <= quantization_inj_idx ||
                     quantization_injectors[quantization_inj_idx] == nullptr) {
-                    assert(!"Invalid quantization injectors.");
+                    OPENVINO_DEBUG_ASSERT(false, "Invalid quantization injectors.");
                 }
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || isFloatCompatible(dst_dt) || i != p.len() - 1;

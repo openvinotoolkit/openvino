@@ -5,7 +5,6 @@
 #include "topk.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -1095,7 +1094,7 @@ private:
             shl(reg_out, 2);
             break;
         default:
-            assert(!"incorrect data size rate");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect data size rate");
         }
     }
 
@@ -1110,7 +1109,7 @@ private:
             shr(reg_out, 2);
             break;
         default:
-            assert(!"incorrect data size rate");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect data size rate");
         }
     }
 
@@ -1124,7 +1123,7 @@ private:
             shr(reg_out, 4);
             break;
         default:
-            assert(!"incorrect blk_size");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect blk_size");
         }
     }
 
@@ -1139,7 +1138,7 @@ private:
             shl(reg_tmp_64, 4);
             break;
         default:
-            assert(!"incorrect blk_size");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect blk_size");
         }
         sub(reg_out, reg_tmp_64);
     }
@@ -1821,7 +1820,7 @@ private:
             uni_vmovq(xmm_src, reg_tmp_64);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt");
         }
 
         if (cvt_dt && !isFloatCompatible(src_dt)) {
@@ -1856,7 +1855,7 @@ private:
             mov(op, reg_tmp_8);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
     }
 

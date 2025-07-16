@@ -56,7 +56,7 @@ public:
 
     [[nodiscard]] MultiCachePtr getRuntimeCache() const {
         auto runtimeCachePtr = runtimeCache.lock();
-        assert(runtimeCachePtr);
+        OPENVINO_DEBUG_ASSERT(runtimeCachePtr);
         return runtimeCachePtr;
     }
 

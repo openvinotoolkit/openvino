@@ -5,7 +5,6 @@
 #include "snippets/lowered/linear_ir.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -85,12 +84,12 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
 }
 
 const ExpressionFactoryPtr& LinearIR::get_expr_factory() const {
-    assert(m_expression_factory && "ExpresstionFactory is missed!");
+    OPENVINO_DEBUG_ASSERT(m_expression_factory, "ExpresstionFactory is missed!");
     return m_expression_factory;
 }
 
 std::vector<PortConnectorPtr> LinearIR::get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const {
-    assert(n != nullptr && "Failed expression inputs getting: node is null");
+    OPENVINO_DEBUG_ASSERT(n != nullptr, "Failed expression inputs getting: node is null");
     std::vector<PortConnectorPtr> inputs(n->get_input_size(), nullptr);
     for (const auto& input : n->inputs()) {
         const auto input_source = input.get_source_output();

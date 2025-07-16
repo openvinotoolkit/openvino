@@ -4,7 +4,6 @@
 
 #include "brgemm_cpu_blocking.hpp"
 
-#include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <iterator>
@@ -111,7 +110,7 @@ bool BrgemmCPUBlocking::is_kn_blocking_supported(const ov::element::Type& input_
 std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const ov::snippets::lowered::ExpressionPtr& brgemm_expr) const {
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(brgemm_expr->get_node());
-    assert(brgemm && "BrgemmCPU is expected!");
+    OPENVINO_DEBUG_ASSERT(brgemm, "BrgemmCPU is expected!");
     const auto& brgemm_config = brgemm->get_config();
 
     const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);

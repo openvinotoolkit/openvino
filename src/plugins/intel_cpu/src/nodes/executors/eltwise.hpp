@@ -15,6 +15,7 @@
 #include "executor.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -80,7 +81,7 @@ public:
             ret = dnnlPostOps == rhs.dnnlPostOps;
             break;
         default:
-            assert(!"unsupported eltwise post operation type");
+            OPENVINO_DEBUG_ASSERT(!"unsupported eltwise post operation type");
         }
         return ret;
     }

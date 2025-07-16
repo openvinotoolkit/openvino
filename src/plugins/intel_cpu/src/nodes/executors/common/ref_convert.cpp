@@ -4,7 +4,6 @@
 
 #include "ref_convert.hpp"
 
-#include <cassert>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
@@ -12,6 +11,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/executors/convert.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
@@ -29,8 +29,8 @@ bool CommonConvertExecutor::init(const ConvertParams& convertParams,
 }
 
 void CommonConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    assert(src.size() == 1);
-    assert(dst.size() == 1);
+    OPENVINO_DEBUG_ASSERT(src.size() == 1, "Expected single src tensor");
+    OPENVINO_DEBUG_ASSERT(dst.size() == 1, "Expected single dst tensor");
 
     cpu_convert(src[0]->getData(),
                 dst[0]->getData(),

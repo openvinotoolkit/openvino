@@ -4,7 +4,6 @@
 
 #include "bin_conv.h"
 
-#include <cassert>
 #include <common/c_types_map.hpp>
 #include <common/nstl.hpp>
 #include <common/primitive_attr.hpp>
@@ -279,7 +278,7 @@ private:
             }
             break;
         default:
-            assert(!"unsupported data type");
+            OPENVINO_DEBUG_ASSERT(false, "unsupported data type");
         }
 
         if (type_in != data_type::f32) {
@@ -344,7 +343,7 @@ private:
 
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
     }
 

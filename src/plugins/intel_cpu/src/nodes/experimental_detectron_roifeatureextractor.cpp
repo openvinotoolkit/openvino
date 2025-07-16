@@ -5,7 +5,6 @@
 #include "experimental_detectron_roifeatureextractor.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <memory>
@@ -258,7 +257,7 @@ void reord(const float* src_data, const int* ranks, const int n, const int step,
     });
     for (int i = 0; i < n; ++i) {
         const int j = dst_mapping[i];
-        assert(0 <= j && j < n);
+        OPENVINO_DEBUG_ASSERT(0 <= j && j < n, "Assertion failed: 0 <= j && j < n");
         cpu_memcpy(dst_data + i * step, src_data + j * step, sizeof(float) * step);
     }
 }

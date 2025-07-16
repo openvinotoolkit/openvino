@@ -5,7 +5,6 @@
 #include "snippets/lowered/loop_info.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -159,7 +158,7 @@ bool LoopInfo::is_loop_port(const ExpressionPort& expr_port) {
 }
 
 const LoopPort& LoopInfo::get_loop_port(const ExpressionPort& expr_port) {
-    assert(is_loop_port(expr_port) && "Failed get_loop_port: expr_port is not a loop port");
+    OPENVINO_DEBUG_ASSERT(is_loop_port(expr_port), "Expression port is not a loop port!");
     return *find_loop_port(expr_port);
 }
 
@@ -368,7 +367,7 @@ const std::vector<UnifiedLoopInfo::LoopPortDesc>& UnifiedLoopInfo::get_output_po
 }
 
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_input_ports_info() const {
-    assert(m_input_ports.size() == m_input_port_descs.size() && "Incompatible count of input port and descs");
+    OPENVINO_DEBUG_ASSERT(m_input_ports.size() == m_input_port_descs.size(), "Incompatible count of input port and descs");
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_input_count());
     for (size_t i = 0; i < get_input_count(); ++i) {
         info[i] = {m_input_ports[i], m_input_port_descs[i]};
@@ -377,7 +376,7 @@ std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_input_ports_info
 }
 
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_output_ports_info() const {
-    assert(m_output_ports.size() == m_output_port_descs.size() && "Incompatible count of output port and descs");
+    OPENVINO_DEBUG_ASSERT(m_output_ports.size() == m_output_port_descs.size(), "Incompatible count of output port and descs");
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_output_count());
     for (size_t i = 0; i < get_output_count(); ++i) {
         info[i] = {m_output_ports[i], m_output_port_descs[i]};
@@ -533,7 +532,7 @@ size_t InnerSplittedUnifiedLoopInfo::get_work_amount() const {
 }
 
 LoopInfoPtr InnerSplittedUnifiedLoopInfo::get_outer_splitted_loop_info() const {
-    assert(m_outer_splitted_loop_info && "Outer Splitted loop info is nullptr!");
+    OPENVINO_DEBUG_ASSERT(m_outer_splitted_loop_info != nullptr, "Outer Splitted loop info is nullptr!");
     return m_outer_splitted_loop_info;
 }
 
@@ -610,7 +609,7 @@ bool ExpandedLoopInfo::is_dynamic() const {
 }
 
 const std::shared_ptr<UnifiedLoopInfo>& ExpandedLoopInfo::get_unified_loop_info() const {
-    assert(m_unified_loop_info && "Failed to get unified loop info: it's nullptr");
+    OPENVINO_DEBUG_ASSERT(m_unified_loop_info != nullptr, "Failed to get unified loop info: it's nullptr");
     return m_unified_loop_info;
 }
 

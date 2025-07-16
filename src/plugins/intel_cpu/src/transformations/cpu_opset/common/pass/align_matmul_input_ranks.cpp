@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -48,8 +49,8 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
         const auto& input1shape = input1.get_partial_shape();
         const auto& output_shape = matmul->get_output_partial_shape(0);
 
-        assert(input0shape.rank().is_static());
-        assert(input1shape.rank().is_static());
+        OPENVINO_DEBUG_ASSERT(input0shape.rank().is_static());
+        OPENVINO_DEBUG_ASSERT(input1shape.rank().is_static());
 
         const bool transposedUnsqueeze = input1shape.size() == 1;
 

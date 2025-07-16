@@ -18,6 +18,7 @@
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::node {
@@ -53,7 +54,7 @@ struct jit_uni_interpolate_kernel {
     void (*ker_)(const jit_interpolate_call_args*) = nullptr;
 
     void operator()(const jit_interpolate_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_);
         ker_(args);
     }
 

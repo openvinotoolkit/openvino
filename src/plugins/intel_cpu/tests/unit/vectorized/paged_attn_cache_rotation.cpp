@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <gtest/internal/gtest-param-util.h>
+#include "openvino/core/except.hpp"
 
 #include <memory>
 #include <random>
@@ -35,8 +36,8 @@ template <class T>
 std::vector<T> get_block_memory(size_t block_size, size_t embedding_size, const Rank2Matrix<T>& init_values) {
     auto mem = std::vector<T>(block_size * embedding_size);
     if (!init_values.empty()) {
-        assert(init_values.size() == block_size);
-        assert(init_values[0].size() == embedding_size);
+        OPENVINO_DEBUG_ASSERT(init_values.size(, "Assertion failed: init_values.size(") == block_size);
+        OPENVINO_DEBUG_ASSERT(init_values[0].size(, "Assertion failed: init_values[0].size(") == embedding_size);
         for (size_t i = 0; i < block_size; i++) {
             for (size_t j = 0; j < embedding_size; j++) {
                 mem[i * embedding_size + j] = init_values[i][j];
@@ -54,9 +55,9 @@ std::vector<T> get_block_memory(size_t num_heads,
                                 const Rank3Matrix<T>& init_values) {
     auto mem = std::vector<T>(num_heads * block_size * embedding_size);
     if (!init_values.empty()) {
-        assert(init_values.size() == num_heads);
-        assert(init_values[0].size() == block_size);
-        assert(init_values[0][0].size() == embedding_size);
+        OPENVINO_DEBUG_ASSERT(init_values.size(, "Assertion failed: init_values.size(") == num_heads);
+        OPENVINO_DEBUG_ASSERT(init_values[0].size(, "Assertion failed: init_values[0].size(") == block_size);
+        OPENVINO_DEBUG_ASSERT(init_values[0][0].size(, "Assertion failed: init_values[0][0].size(") == embedding_size);
         for (size_t i = 0; i < num_heads; i++) {
             for (size_t j = 0; j < block_size; j++) {
                 for (size_t k = 0; k < embedding_size; k++) {

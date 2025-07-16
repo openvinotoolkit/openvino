@@ -18,6 +18,7 @@
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
@@ -233,7 +234,7 @@ bool update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op,
 }
 
 std::vector<int32_t> get_rank_equivalent_order(std::vector<int32_t> default_order, size_t rank) {
-    assert(rank > 2 && "Incorrect order rank for Transpose tokenization");
+    OPENVINO_DEBUG_ASSERT(rank > 2, "Incorrect order rank for Transpose tokenization");
     auto order = std::vector<int32_t>(rank);
     std::iota(order.begin(), order.end(), 0);
     const auto diff = static_cast<int32_t>(rank - default_order.size());

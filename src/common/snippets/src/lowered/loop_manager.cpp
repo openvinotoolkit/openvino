@@ -5,7 +5,6 @@
 #include "snippets/lowered/loop_manager.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -63,7 +62,7 @@ const std::map<size_t, LoopInfoPtr>& LoopManager::get_map() const {
 std::vector<size_t> LoopManager::get_outer_expr_loops(const ExpressionPtr& expr, size_t loop_id) {
     const auto& loop_ids = expr->get_loop_ids();
     const auto it = std::find(loop_ids.cbegin(), loop_ids.cend(), loop_id);
-    assert(it != loop_ids.cend() && "Loop ID hasn't been found");
+    OPENVINO_DEBUG_ASSERT(it != loop_ids.cend(), "Loop ID hasn't been found");
     return {loop_ids.cbegin(), it};
 }
 

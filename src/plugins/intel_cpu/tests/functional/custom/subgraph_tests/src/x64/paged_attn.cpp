@@ -29,6 +29,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
+#include "openvino/core/except.hpp"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -188,7 +189,7 @@ public:
         pastv_assign->set_friendly_name("pastv_w");
         auto get_reshape_order = [](const ov::PartialShape& qkv_shape,
                                     const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
-            assert(transposeOrder.size() == 4);
+            OPENVINO_DEBUG_ASSERT(transposeOrder.size(, "Assertion failed: transposeOrder.size(") == 4);
             auto H = qkv_shape[transposeOrder[1]].get_length();
             auto S = qkv_shape[transposeOrder[3]].get_length();
             return std::vector<size_t>{0, static_cast<size_t>(H * S)};

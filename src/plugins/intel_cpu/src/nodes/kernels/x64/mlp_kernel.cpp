@@ -7,7 +7,6 @@
 #include <xbyak/xbyak.h>
 
 #include <algorithm>
-#include <cassert>
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
@@ -329,8 +328,8 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
         return;
     }
 
-    assert(K <= 32);
-    assert(N <= 16);
+    OPENVINO_DEBUG_ASSERT(K <= 32, "Assertion failed: K <= 32");
+    OPENVINO_DEBUG_ASSERT(N <= 16, "Assertion failed: N <= 16");
     int k = 0;
     Tdst zero(0.0F);
     for (; k < 32; k += 2) {
@@ -356,8 +355,8 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         return;
     }
 
-    assert(K <= 64);
-    assert(N <= 16);
+    OPENVINO_DEBUG_ASSERT(K <= 64, "Assertion failed: K <= 64");
+    OPENVINO_DEBUG_ASSERT(N <= 16, "Assertion failed: N <= 16");
     for (int k = 0; k < 64; k += 4) {
         bool is_k0_valid = (k) < K;
         bool is_k1_valid = (k + 1) < K;
@@ -540,7 +539,7 @@ void MKernel::run(int M,  // actual M
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) const {
-    assert(static_cast<int64_t>(BM) <= M);
+    OPENVINO_DEBUG_ASSERT(static_cast<int64_t>(BM, "Assertion failed: static_cast<int64_t>(BM") <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0};
         size_t end{0};
@@ -558,7 +557,7 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) const {
-    assert(static_cast<int64_t>(BM) <= M);
+    OPENVINO_DEBUG_ASSERT(static_cast<int64_t>(BM, "Assertion failed: static_cast<int64_t>(BM") <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0};
         size_t end{0};

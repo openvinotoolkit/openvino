@@ -36,7 +36,7 @@ struct jit_uni_logistic_kernel {
     void (*ker_)(const jit_args_logistic*) = nullptr;
 
     void operator()(const jit_args_logistic* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 
