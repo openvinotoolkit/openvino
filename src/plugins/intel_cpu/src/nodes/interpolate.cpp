@@ -4520,7 +4520,7 @@ size_t Interpolate::getSpatialDimsNum(const VectorDims& srcDims, const VectorDim
             }
             spatialDims--;
         }
-        return spatialDims;
+        return spatialDims > 0 ? spatialDims : 1;
     }
     case 2:
     case 4:
