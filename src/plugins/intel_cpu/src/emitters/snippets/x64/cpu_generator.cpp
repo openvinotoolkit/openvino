@@ -475,7 +475,7 @@ intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cp
     auto is_valid_compiled = [&]() {
         return h_compiled && (h_compiled->jit_ker() != nullptr);
     };
-    OPENVINO_ASSERT(is_valid_compiled(), "Got invalid jit generator or kernel was nopt compiled");
+    OPENVINO_ASSERT(is_valid_compiled(), "Got invalid jit generator or kernel was not compiled");
 }
 
 const uint8_t* intel_cpu::CompiledSnippetCPU::get_code() const {

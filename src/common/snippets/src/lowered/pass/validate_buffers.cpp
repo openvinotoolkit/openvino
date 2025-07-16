@@ -49,7 +49,7 @@ bool ValidateBuffers::run(LinearIR& linear_ir,
                     "Incorrect count of Buffer clusters");
     bool are_cluster_ids_valid =
         cluster_ids.empty() || (*cluster_ids.cbegin() == 0 && *cluster_ids.crbegin() == (cluster_ids.size() - 1));
-    OPENVINO_ASSERT(are_cluster_ids_valid, "Incorrect indetifiers of Buffer clusters");
+    OPENVINO_ASSERT(are_cluster_ids_valid, "Incorrect identifiers of Buffer clusters");
 
     for (const auto& p : static_buffer_clusters) {
         const auto& cluster_id = p.first;
