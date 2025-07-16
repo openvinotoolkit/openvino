@@ -259,10 +259,9 @@ uint64_t MetadataBase::get_blob_size() const {
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
     return std::nullopt;
 }
+
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
-FilteredConfig Metadata<METADATA_VERSION_2_0>::get_config() const {
-    return _config;
 }
 
 }  // namespace intel_npu

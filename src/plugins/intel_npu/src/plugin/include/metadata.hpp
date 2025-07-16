@@ -236,9 +236,6 @@ public:
 
 private:
     std::optional<std::vector<uint64_t>> _initSizes;
-    uint64_t get_blob_size() const override;
-
-    FilteredConfig get_config() const override;
 };
 
 /**
