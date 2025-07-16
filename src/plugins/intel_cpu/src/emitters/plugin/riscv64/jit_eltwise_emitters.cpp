@@ -234,7 +234,7 @@ std::set<std::vector<element::Type>> jit_divide_emitter::get_supported_precision
 }
 
 /// Elu ///
-jit_elu_emitter::jit_elu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_elu_emitter::jit_elu_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  float alpha,
                                  ov::element::Type exec_prc)
@@ -244,7 +244,7 @@ jit_elu_emitter::jit_elu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
     exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
 }
 
-jit_elu_emitter::jit_elu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+jit_elu_emitter::jit_elu_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                                  const std::shared_ptr<ov::Node>& node,
                                  ov::element::Type exec_prc)
