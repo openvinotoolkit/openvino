@@ -4,21 +4,20 @@
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "internal_properties.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/float16.hpp"
-#include "openvino/opsets/opset13_decl.hpp"
-#include "openvino/pass/manager.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
-#include "utils/cpu_test_utils.hpp"
-#include "utils/general_utils.h"
-#include "openvino/opsets/opset13_decl.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/core/except.hpp"
+#include "openvino/opsets/opset13_decl.hpp"
+#include "openvino/pass/manager.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::test;
 using namespace CPUTestUtils;
@@ -173,7 +172,7 @@ public:
         // post SDPA transpose + reshape
         auto get_reshape_order = [](const ov::PartialShape& qkv_shape,
                                     const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
-            OPENVINO_DEBUG_ASSERT(transposeOrder.size() == 4, "Assertion failed: transposeOrder.size() must be 4");
+            OPENVINO_DEBUG_ASSERT(transposeOrder.size() == 4, "transposeOrder must have 4 elements");
             auto H = qkv_shape[transposeOrder[1]].get_length();
             auto S = qkv_shape[transposeOrder[3]].get_length();
             return std::vector<size_t>{0, 0, static_cast<size_t>(H * S)};

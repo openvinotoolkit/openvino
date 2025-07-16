@@ -62,9 +62,8 @@ const PortDescriptorPtr& Expression::get_input_port_descriptor(size_t i) const {
     return m_input_port_descriptors[i];
 }
 const PortDescriptorPtr& Expression::get_output_port_descriptor(size_t i) const {
-    OPENVINO_DEBUG_ASSERT(
-        i < m_output_port_descriptors.size(, "Assertion failed: i < m_output_port_descriptors.size(") &&
-        "Failed to get output port descriptor: target output port must be less than output count!");
+    OPENVINO_DEBUG_ASSERT(i < m_output_port_descriptors.size() &&
+                          "Failed to get output port descriptor: target output port must be less than output count!");
     return m_output_port_descriptors[i];
 }
 

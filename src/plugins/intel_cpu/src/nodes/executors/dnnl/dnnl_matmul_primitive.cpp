@@ -123,7 +123,7 @@ std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArg
     auto runtimeCache = context->getRuntimeCache();
     const auto result = runtimeCache->getOrCreate(dnnlMatMulKey, builder);
     const auto& primitive = result.first;
-    OPENVINO_DEBUG_ASSERT(primitive, "Assertion failed: primitive");
+    OPENVINO_DEBUG_ASSERT(primitive, "primitive is null");
 
     return primitive;
 }

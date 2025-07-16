@@ -1062,7 +1062,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         bool auto_causal = false;
         bool use_attn_mask = false;
         if (fuse_causal_attn) {
-            OPENVINO_DEBUG_ASSERT(attn_mask, "Assertion failed: attn_mask");
+            OPENVINO_DEBUG_ASSERT(attn_mask, "attn_mask is required for fuse causal attention");
             attn_mask.assert_dims({B, 1, L1, L0 + L1});
             auto_causal = true;
             use_attn_mask = true;
@@ -1073,7 +1073,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             } else {
                 // no attn_mask but has scale, there is a 1-d fake attn_mask
                 if (input_num > 3 && attn_mask.m_rank > 1) {
-                    OPENVINO_DEBUG_ASSERT(attn_mask, "Assertion failed: attn_mask");
+                    OPENVINO_DEBUG_ASSERT(attn_mask, "attn_mask is required for fuse causal attention");
                     // spec requires at least 3, but torch sl test does use rank 2
                     if (attn_mask.m_rank == 2) {
                         attn_mask = attn_mask.reshape({1, 1, attn_mask.m_dims[0], attn_mask.m_dims[1]});

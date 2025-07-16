@@ -14,7 +14,7 @@
 namespace ov::intel_cpu {
 
 bool match(const InOutTypeMask& patterns, const InOutTypes& values) {
-    OPENVINO_DEBUG_ASSERT(patterns.size() == values.size(), "Assertion failed: patterns.size() == values.size()");
+    OPENVINO_DEBUG_ASSERT(patterns.size() == values.size(), "Size of patterns must match size of values");
 
     return std::equal(values.begin(),
                       values.end(),

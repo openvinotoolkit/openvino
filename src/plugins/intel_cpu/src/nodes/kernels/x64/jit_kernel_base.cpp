@@ -28,11 +28,11 @@ void JitKernelBase::uni_vfmsub132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v
     if (isValidIsa(x64::avx2)) {
         vfmsub132ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        OPENVINO_DEBUG_ASSERT(v_dst.getIdx(, "Assertion failed: v_dst.getIdx(") != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(), "Indexes must be different");
         vmulps(v_dst, v_dst, op);
         vsubps(v_dst, v_dst, v_src);
     } else {
-        OPENVINO_DEBUG_ASSERT(v_dst.getIdx(, "Assertion failed: v_dst.getIdx(") != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(), "Indexes must be different");
         mulps(v_dst, op);
         subps(v_dst, v_src);
     }
@@ -42,11 +42,11 @@ void JitKernelBase::uni_vfnmadd132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& 
     if (isValidIsa(x64::avx2)) {
         vfnmadd132ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        OPENVINO_DEBUG_ASSERT(v_dst.getIdx(, "Assertion failed: v_dst.getIdx(") != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(), "Indexes must be different");
         vmulps(v_dst, v_dst, op);
         vsubps(v_dst, v_src, v_dst);
     } else {
-        OPENVINO_DEBUG_ASSERT(v_dst.getIdx(, "Assertion failed: v_dst.getIdx(") != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(), "Indexes must be different");
         mulps(v_dst, op);
         subps(v_src, v_dst);
         movups(v_dst, v_src);
@@ -93,7 +93,7 @@ void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
             OPENVINO_THROW("Not supported operand type.");
         }
     } else if (isValidIsa(x64::sse41)) {
-        OPENVINO_DEBUG_ASSERT(v_dst.getIdx(, "Assertion failed: v_dst.getIdx(") != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(), "Indexes must be different");
         paddd(v_dst, op);
     } else {
         OPENVINO_THROW("Not defined behavior for instruction 'vpaddd' in current instructions set.");
@@ -136,7 +136,7 @@ void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
             OPENVINO_THROW("Not supported operand type.");
         }
     } else if (isValidIsa(x64::sse41)) {
-        OPENVINO_DEBUG_ASSERT(v_dst.getIdx(, "Assertion failed: v_dst.getIdx(") != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(), "Indexes must be different");
         psubd(v_dst, op);
     } else {
         OPENVINO_THROW("Not defined behavior for instruction 'vpsubd' in current instructions set.");
