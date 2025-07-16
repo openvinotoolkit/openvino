@@ -1012,7 +1012,10 @@ public:
         }
         if (has_alibi) {
             const size_t tensor_id = PagedAttentionInputIdx::ALIBI;
-            jit.add(make_layout_jit_constants("INPUT5", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+            if (has_scale_input)
+                jit.add(make_layout_jit_constants("INPUT5", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+            else
+                jit.add(make_layout_jit_constants("INPUT4", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
 
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
