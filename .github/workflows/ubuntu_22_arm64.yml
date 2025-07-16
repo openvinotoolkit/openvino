@@ -101,7 +101,7 @@ jobs:
       arch: 'arm64-v8a'
       build-js: true
       build-contrib: true
-      build-debian-packages: true
+      build-debian-packages: false
       build-rpm-packages: false
       build-additional-python-packages: false
       target-branch: ${{ inputs.target-branch }}
