@@ -72,7 +72,8 @@ private:
 
     Xbyak_riscv::Reg src_gpr(const int idx) const {
         // x18-24
-        OPENVINO_ASSERT(static_cast<size_t>(idx) < MAX_ELTWISE_INPUTS, "src reg " + std::to_string(idx) + " is not supported");
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < MAX_ELTWISE_INPUTS,
+                        "src reg " + std::to_string(idx) + " is not supported");
         const auto start = 18;
         return Xbyak_riscv::Reg(start + idx);
     }
@@ -100,8 +101,7 @@ private:
     }
 
     Xbyak_riscv::FReg aux_fp_gpr(const int idx) const {
-        OPENVINO_ASSERT(static_cast<size_t>(idx) < fp_gpr_count,
-                        "Cannot allocate aux fp register for emitter!");
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < fp_gpr_count, "Cannot allocate aux fp register for emitter!");
         return Xbyak_riscv::FReg(idx);
     }
 
