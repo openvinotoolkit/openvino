@@ -883,6 +883,7 @@ public:
                     Algorithm::EltwiseExp,
                     Algorithm::EltwiseFloor,
                     Algorithm::EltwiseGreaterEqual,
+                    Algorithm::EltwiseIsFinite,
                     Algorithm::EltwiseLessEqual,
                     Algorithm::EltwiseLogicalAnd,
                     Algorithm::EltwiseLogicalNot,

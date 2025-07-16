@@ -237,6 +237,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Erf) ||
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Floor) ||
+            (activation_type == utils::ActivationTypes::IsFinite) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
