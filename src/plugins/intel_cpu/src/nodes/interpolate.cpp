@@ -1739,11 +1739,7 @@ bool InterpolateKey::operator==(const InterpolateKey& rhs) const {
     if (dataScales != rhs.dataScales) {
         return false;
     }
-    if (!(*attr.get() == *rhs.attr.get())) {
-        return false;
-    }
-
-    return true;
+    return *attr.get() == *rhs.attr.get();
 }
 
 }  // namespace
