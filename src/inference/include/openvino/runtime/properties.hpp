@@ -605,29 +605,23 @@ static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precis
 /**
  * @brief Enum to define possible cache quant schema hints.
  */
-enum class CacheQuantMode {
-    AUTO = 0,
-    BY_CHANNEL = 1,
-    BY_TOKEN = 2
-};
+enum class CacheQuantMode { AUTO = 0, BY_CHANNEL = 1, BY_TOKEN = 2 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(
-    std::ostream& os, const CacheQuantMode& mode) {
+inline std::ostream& operator<<(std::ostream& os, const CacheQuantMode& mode) {
     switch (mode) {
-        case CacheQuantMode::AUTO:
-            return os << "AUTO";
-        case CacheQuantMode::BY_CHANNEL:
-            return os << "BY_CHANNEL";
-        case CacheQuantMode::BY_TOKEN:
-            return os << "BY_TOKEN";
-        default: OPENVINO_THROW("Unsupported cache quant mode");
+    case CacheQuantMode::AUTO:
+        return os << "AUTO";
+    case CacheQuantMode::BY_CHANNEL:
+        return os << "BY_CHANNEL";
+    case CacheQuantMode::BY_TOKEN:
+        return os << "BY_TOKEN";
+    default:
+        OPENVINO_THROW("Unsupported cache quant mode");
     }
 }
-/** @endcond */
 
-inline std::istream& operator>>(
-    std::istream& is, CacheQuantMode& mode) {
+inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
     std::string str;
     is >> str;
     if (str == "AUTO") {
@@ -641,6 +635,7 @@ inline std::istream& operator>>(
     }
     return is;
 }
+/** @endcond */
 
 /**
  * @brief Define quant mode for key cache.
