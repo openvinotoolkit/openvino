@@ -135,6 +135,8 @@ struct Config {
     std::map<std::string, std::string> _config;
 
     int modelPreferThreads = -1;
+    int modelPreferThreadsLatency = 0;
+    int modelPreferThreadsThroughput = 0;
     ModelType modelType = ModelType::Unknown;
     std::function<std::string(const std::string&)> cacheEncrypt;
     std::function<std::string(const std::string&)> cacheDecrypt;
