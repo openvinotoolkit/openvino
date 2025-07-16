@@ -255,7 +255,7 @@ jit_elu_emitter::jit_elu_emitter(ov::intel_cpu::riscv64::jit_generator* host,
     }
     alpha = static_cast<float>(elu->get_alpha());
     prepare_table();
-    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, node, exec_prc);
+    exp_emitter = std::make_unique<jit_exp_emitter>(h, host_isa, exec_prc);
 }
 
 size_t jit_elu_emitter::get_inputs_num() const {
