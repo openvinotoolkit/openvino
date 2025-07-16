@@ -323,33 +323,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
-    // Special case: ov::intel_auto::devices_utilization_threshold
-    m_intel_auto.def("devices_utilization_threshold", []() {
-        return ov::intel_auto::devices_utilization_threshold.name();
-    });
-
-    m_intel_auto.def("devices_utilization_threshold", [](py::args& args) {
-        std::map<std::string, unsigned> value = {};
-        for (auto v : args) {
-            if (!py::isinstance<py::dict>(v)) {
-                throw py::type_error("Incorrect passed value: " + std::string(py::str(v)) +
-                                     ", expected dictionary instead of " + typeid(v).name());
-            }
-            auto dict = py::cast<py::dict>(v);
-            for (auto item : dict) {
-                if (!py::isinstance<py::str>(item.first)) {
-                    throw py::type_error("Incorrect passed key in value: " + std::string(py::str(item.first)) +
-                                         ", expected string instead of " + typeid(item.first).name());
-                }
-                if (!py::isinstance<py::float_>(item.second) && !py::isinstance<py::int_>(item.second)) {
-                    throw py::type_error("Incorrect passed value in value: " + std::string(py::str(item.second)) +
-                                         ", expected float/int instead of " + typeid(item.second).name());
-                }
-                value[py::cast<std::string>(item.first)] = py::cast<unsigned>(item.second);
-            }
-        }
-        return ov::intel_auto::devices_utilization_threshold(value);
-    });
+    wrap_property_RW(m_intel_auto, ov::intel_auto::devices_utilization_threshold, "devices_utilization_threshold");
 
     // Submodule npu
     py::module m_intel_npu =

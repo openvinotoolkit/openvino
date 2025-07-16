@@ -540,27 +540,15 @@ def test_properties_devices_utilization_threshold():
     # Test cases for different input formats and expected outputs
     check({"GPU": 88}, {"GPU": 88})
     check({"CPU": 75, "GPU": 88}, {"CPU": 75, "GPU": 88})
-
-    # Test invalid inputs
     with pytest.raises(TypeError) as e:
-        value = "invalid_value"
+        value = {"GPU": "75"}
         intel_auto.devices_utilization_threshold(value)
-    assert f"Incorrect passed value: {value}, expected dictionary instead of" in str(e.value)
+    assert f"incompatible function arguments." in str(e.value)
 
     with pytest.raises(TypeError) as e:
-        value = {2: 88}
+        value = {23: "CPU"}
         intel_auto.devices_utilization_threshold(value)
-    assert f"Incorrect passed key in value: 2, expected string instead of" in str(e.value)
-
-    with pytest.raises(TypeError) as e:
-        value = {"CPU": "INVALID_VALUE"}
-        intel_auto.devices_utilization_threshold(value)
-    assert f"Incorrect passed value in value: INVALID_VALUE, expected float/int instead of" in str(e.value)
-
-    with pytest.raises(TypeError) as e:
-        value = {"CPU": 88, "GPU": "INVALID_VALUE"}
-        intel_auto.devices_utilization_threshold(value)
-    assert f"Incorrect passed value in value: INVALID_VALUE, expected float/int instead of" in str(e.value)
+    assert f"incompatible function arguments." in str(e.value)
 
 
 def test_properties_streams():
