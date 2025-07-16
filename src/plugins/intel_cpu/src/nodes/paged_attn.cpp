@@ -93,8 +93,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
     const bool validInputNumber = orgInputNumber == 14 || orgInputNumber == 17;
-    CPU_NODE_ASSERT(validInputNumber,
-                    "The input number of PagedAttention should be 14 or 17.");
+    CPU_NODE_ASSERT(validInputNumber, "The input number of PagedAttention should be 14 or 17.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);

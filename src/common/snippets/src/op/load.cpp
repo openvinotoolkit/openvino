@@ -37,8 +37,7 @@ void Load::validate_memory_access_params() const {
     const auto input_ma_ports = get_memory_access_input_ports();
     const auto output_ma_ports = get_memory_access_output_ports();
     bool has_memory_access_input = input_ma_ports.size() == 1 && is_memory_access_input_port(0);
-    OPENVINO_ASSERT(has_memory_access_input,
-                    "Load node must have memory access input port");
+    OPENVINO_ASSERT(has_memory_access_input, "Load node must have memory access input port");
     OPENVINO_ASSERT(output_ma_ports.empty(), "Load node mustn't have memory access output port");
 }
 
@@ -65,8 +64,7 @@ LoadReorder::LoadReorder(const Output<ov::Node>& x, const size_t count, const si
     OPENVINO_ASSERT(m_order.size() == in_shape_size, "LoadReorder got new_order of invalid size");
     bool order_range_valid = *std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
                              *std::min_element(m_order.begin(), m_order.end()) == 0;
-    OPENVINO_ASSERT(order_range_valid,
-                    "LoadReorder detected invalid values in new_order");
+    OPENVINO_ASSERT(order_range_valid, "LoadReorder detected invalid values in new_order");
     const std::set<size_t> unique_dims(m_order.begin(), m_order.end());
     OPENVINO_ASSERT(unique_dims.size() == m_order.size(), "LoadReorder order must not contain repeated elements");
     constructor_validate_and_infer_types();

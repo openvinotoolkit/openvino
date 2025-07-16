@@ -399,8 +399,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     }
 
     const bool ranksEqual = (in0.getRank() == in1.getRank()) && (in1.getRank() == out.getRank());
-    CPU_NODE_ASSERT(ranksEqual,
-                    "Can't create dummy inputs if argument shapes ranks are not equal");
+    CPU_NODE_ASSERT(ranksEqual, "Can't create dummy inputs if argument shapes ranks are not equal");
 
     auto swapTranspDims = [&](VectorDims& in0, VectorDims& in1) {
         if (transposeIn[0]) {
@@ -611,8 +610,7 @@ void MatMul::prepareParams() {
         !dstMemPtr->getDesc().getShape().hasZeroDims()) {
         // todo: obviously we need a special executor that would process fused ops providing a correct result
         const bool noFusedOps = !withBiases && fusedWith.empty();
-        CPU_NODE_ASSERT(noFusedOps,
-                        "Matmul doesn't support a degenerate case when other ops are fused");
+        CPU_NODE_ASSERT(noFusedOps, "Matmul doesn't support a degenerate case when other ops are fused");
         // reset executor
         execPtr.reset();
         return;

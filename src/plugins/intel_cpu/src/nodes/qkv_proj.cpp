@@ -390,9 +390,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     }
 
     const bool validPrecision = rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16;
-    CPU_NODE_ASSERT(validPrecision,
-                    "Unexpected rtPrecision:",
-                    rtPrecision);
+    CPU_NODE_ASSERT(validPrecision, "Unexpected rtPrecision:", rtPrecision);
 
     if (m_config.quantized) {
         auto weightPrecision = ov::element::i8;

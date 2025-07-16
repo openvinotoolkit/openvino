@@ -141,8 +141,7 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
     }
 
     bool are_loop_bounds_found = loop_begin_pos != linear_ir.cend() && loop_end_pos != linear_ir.cend();
-    OPENVINO_ASSERT(are_loop_bounds_found,
-                    "Loop bounds haven't been found!");
+    OPENVINO_ASSERT(are_loop_bounds_found, "Loop bounds haven't been found!");
     return std::make_pair(loop_begin_pos, loop_end_pos);
 }
 
@@ -259,8 +258,7 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
     const auto is_bound_explicit_loop_end = ov::is_type<op::LoopEnd>(std::prev(loop_end_pos)->get()->get_node());
     bool are_loop_bounds_consistent = (is_bound_explicit_loop_begin && is_bound_explicit_loop_end) ||
                                       (!is_bound_explicit_loop_begin && !is_bound_explicit_loop_end);
-    OPENVINO_ASSERT(are_loop_bounds_consistent,
-                    "Incorrect LoopBounds!");
+    OPENVINO_ASSERT(are_loop_bounds_consistent, "Incorrect LoopBounds!");
     const auto explicit_loop_bounds = is_bound_explicit_loop_begin && is_bound_explicit_loop_end;
     OPENVINO_ASSERT(std::all_of(m_map.cbegin(),
                                 m_map.cend(),

@@ -272,8 +272,10 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
                           outputScale.size(),
                           outputShift.size()});
 
-    auto valid_size = [OC](size_t size) { return size == 1 || size == OC; };
-    
+    auto valid_size = [OC](size_t size) {
+        return size == 1 || size == OC;
+    };
+
     OPENVINO_ASSERT(valid_size(inputScale.size()));
     OPENVINO_ASSERT(valid_size(inputShift.size()));
     OPENVINO_ASSERT(valid_size(cropLow.size()));
@@ -516,7 +518,9 @@ void DnnlPostOpsComposer::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    auto valid_scale_size = [this](size_t size) { return size == 1 || size == OC; };
+    auto valid_scale_size = [this](size_t size) {
+        return size == 1 || size == OC;
+    };
     OPENVINO_ASSERT(valid_scale_size(scale.size()));
 
     bool fuseIntoWeiScale = false;

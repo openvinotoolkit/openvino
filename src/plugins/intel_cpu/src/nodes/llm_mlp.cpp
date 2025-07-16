@@ -561,9 +561,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
     }
 
     const bool validPrecision = rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16;
-    OPENVINO_ASSERT(validPrecision,
-                    "Unexpected rtPrecision:",
-                    rtPrecision);
+    OPENVINO_ASSERT(validPrecision, "Unexpected rtPrecision:", rtPrecision);
 
     if (m_mlp_config.gate_up_quantized) {
         auto weightPrecision = ov::element::i8;

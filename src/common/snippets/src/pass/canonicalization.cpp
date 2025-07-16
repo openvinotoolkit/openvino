@@ -71,8 +71,7 @@ bool pass::Canonicalization::run_on_model(const std::shared_ptr<ov::Model>& m) {
         //   similar ranks.
         if (i_is_blocked) {
             bool shape_blocked_valid = base_is_blocked && i_rank == max_rank;
-            OPENVINO_ASSERT(shape_blocked_valid,
-                            "If this shape is blocked, base must also be blocked");
+            OPENVINO_ASSERT(shape_blocked_valid, "If this shape is blocked, base must also be blocked");
             params[i]->set_partial_shape(snippets::utils::vdims_to_pshape(i_shape));
             is_modified = true;
         } else if (i_rank < max_rank) {

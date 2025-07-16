@@ -566,8 +566,8 @@ EdgePtr Edge::getBaseEdge(int look) {
     const int parentInPlacePort = getParent()->inPlaceOutPort(inputNum);
     const int childInPlacePort = getChild()->inPlaceInputPort(outputNum);
 
-    auto no_conflict = [](int parent_port, int child_port) { 
-        return parent_port < 0 || child_port < 0; 
+    auto no_conflict = [](int parent_port, int child_port) {
+        return parent_port < 0 || child_port < 0;
     };
     OPENVINO_ASSERT(no_conflict(parentInPlacePort, childInPlacePort),
                     "Unresolved in place memory conflict detected on edge: ",

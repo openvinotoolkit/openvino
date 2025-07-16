@@ -124,7 +124,9 @@ void DnnlPostOpsComposerLegacy::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    auto valid_scale_size = [this](size_t size) { return size == 1 || size == OC; };
+    auto valid_scale_size = [this](size_t size) {
+        return size == 1 || size == OC;
+    };
     OPENVINO_ASSERT(valid_scale_size(scale.size()));
 
     bool fuseIntoWeiScale = false;

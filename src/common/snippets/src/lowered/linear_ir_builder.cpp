@@ -122,9 +122,10 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
         const auto& result_expr = *result_it;
         const auto& original_expr = *original_it;
         // Checking that the cloning was successful: the cloned part of LinearIR is identical to the original one
-        bool are_expressions_matched = result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
-                                       result_expr->get_input_count() == original_expr->get_input_count() &&
-                                       result_expr->get_output_count() == original_expr->get_output_count();
+        bool are_expressions_matched =
+            result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
+            result_expr->get_input_count() == original_expr->get_input_count() &&
+            result_expr->get_output_count() == original_expr->get_output_count();
         OPENVINO_ASSERT(are_expressions_matched, "Expressions after copying aren't matched!");
         // Copy tensor shapes as shared pointer if needed
         if (!m_config.deep_copy_of_shapes) {

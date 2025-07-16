@@ -39,8 +39,7 @@ void RepackedWeightsBufferExpression::validate() const {
     const auto& parent_out = get_input_port_connector(0)->get_source();
     OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::BrgemmCopyB>(parent_out.get_expr()->get_node()),
                     "RepackedWeightsBufferExpression expects BrgemmCopyB as parent expression");
-    OPENVINO_ASSERT(parent_out.get_index() == 0,
-                    "RepackedWeightsBufferExpression expects output index 0");
+    OPENVINO_ASSERT(parent_out.get_index() == 0, "RepackedWeightsBufferExpression expects output index 0");
 }
 
 void RepackedWeightsBufferExpression::init_allocation_size(
@@ -83,8 +82,7 @@ void CompensationsBufferExpression::validate() const {
     const auto& parent_out = get_input_port_connector(0)->get_source();
     OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::BrgemmCopyB>(parent_out.get_expr()->get_node()),
                     "CompensationsBufferExpression expects BrgemmCopyB as parent expression");
-    OPENVINO_ASSERT(parent_out.get_index() == 1,
-                    "CompensationsBufferExpression expects output index 1");
+    OPENVINO_ASSERT(parent_out.get_index() == 1, "CompensationsBufferExpression expects output index 1");
 }
 
 void CompensationsBufferExpression::init_allocation_size(

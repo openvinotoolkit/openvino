@@ -25,8 +25,7 @@ SerializationNode::SerializationNode(const ov::OutputVector& args,
       m_expr(expr),
       m_mode(mode) {
     bool expr_valid = m_expr && m_expr->get_node();
-    OPENVINO_ASSERT(expr_valid,
-                    "SerializationNode requires a valid expression with non-null node pointer");
+    OPENVINO_ASSERT(expr_valid, "SerializationNode requires a valid expression with non-null node pointer");
     const auto& node = expr->get_node();
     set_friendly_name(node->get_friendly_name());
     std::string type = node->get_type_name();

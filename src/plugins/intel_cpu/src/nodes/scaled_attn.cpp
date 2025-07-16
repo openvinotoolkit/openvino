@@ -1828,12 +1828,7 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     for (size_t i = 0; i < B; i++) {
         const auto index = beam_idx.ptr<int32_t>()[i];
         const bool indexValid = index >= 0 && index < static_cast<int32_t>(B);
-        CPU_NODE_ASSERT(indexValid,
-                        "beam_idx ",
-                        index,
-                        " is outside of the allowed interval [0,  ",
-                        B,
-                        ")");
+        CPU_NODE_ASSERT(indexValid, "beam_idx ", index, " is outside of the allowed interval [0,  ", B, ")");
         if (index != static_cast<int32_t>(i)) {
             no_reorder = false;
         }

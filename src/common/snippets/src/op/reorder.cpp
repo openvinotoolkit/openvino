@@ -31,8 +31,7 @@ void Reorder::custom_constructor_validate_and_infer_types(const std::vector<size
 
     const auto& input_pshape = get_input_partial_shape(0);
     bool shape_order_compatible = input_pshape.rank().is_static() && input_pshape.size() == order.size();
-    OPENVINO_ASSERT(shape_order_compatible,
-                    "Incompatible shape and order sizes");
+    OPENVINO_ASSERT(shape_order_compatible, "Incompatible shape and order sizes");
 
     // During ctor call, Reorder doesn't know his port descriptors.
     // So we use explicit layouts from parameters
@@ -43,8 +42,7 @@ void Reorder::validate_and_infer_types() {
     const auto& input_pshape = get_input_partial_shape(0);
     const auto& order = lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout();
     bool shape_order_compatible_validate = input_pshape.rank().is_static() && input_pshape.size() == order.size();
-    OPENVINO_ASSERT(shape_order_compatible_validate,
-                    "Incompatible shape and order sizes");
+    OPENVINO_ASSERT(shape_order_compatible_validate, "Incompatible shape and order sizes");
     const auto output_pshape = utils::get_planar_pshape(get_input_partial_shape(0), order);
     set_output_type(0, get_input_element_type(0), output_pshape);
 }

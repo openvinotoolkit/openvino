@@ -211,9 +211,9 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
         auto is_valid_k_loop = [&]() {
-            return in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 &&
-                   in_ports.front().is_processed() && in_ports[1].get_dim_idx() == 1 &&
-                   in_ports[1].is_processed() && out_ports.size() == 1 && !out_ports.front().is_processed();
+            return in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 && in_ports.front().is_processed() &&
+                   in_ports[1].get_dim_idx() == 1 && in_ports[1].is_processed() && out_ports.size() == 1 &&
+                   !out_ports.front().is_processed();
         };
         OPENVINO_ASSERT(is_valid_k_loop(), "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;

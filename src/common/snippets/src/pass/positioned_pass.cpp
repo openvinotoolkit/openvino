@@ -22,9 +22,11 @@ PassPosition::PassPosition(Place pass_place, const DiscreteTypeInfo& pass_type_i
     : m_pass_type_info(pass_type_info),
       m_pass_instance(pass_instance),
       m_place(pass_place) {
-    bool is_before_after_place_valid = (m_place == Place::Before || m_place == Place::After) && m_pass_type_info != DiscreteTypeInfo();
-    OPENVINO_ASSERT(is_before_after_place_valid,
-                    "Invalid args combination: pass_place must be Place::Before/Place::After and pass_type_info must be non-empty");
+    bool is_before_after_place_valid =
+        (m_place == Place::Before || m_place == Place::After) && m_pass_type_info != DiscreteTypeInfo();
+    OPENVINO_ASSERT(
+        is_before_after_place_valid,
+        "Invalid args combination: pass_place must be Place::Before/Place::After and pass_type_info must be non-empty");
 }
 
 }  // namespace ov::snippets::pass
