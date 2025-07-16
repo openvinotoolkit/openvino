@@ -72,10 +72,32 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     std::unordered_set<size_t> exclude = {};
     store_context(exclude);
 
-    h->mov(Xbyak_aarch64::XReg(20), Xbyak_aarch64::XReg(in[0]));
-    h->mov(Xbyak_aarch64::XReg(21), Xbyak_aarch64::XReg(out[0]));
-    h->mov(Xbyak_aarch64::XReg(1), Xbyak_aarch64::XReg(20));
-    h->mov(Xbyak_aarch64::XReg(2), Xbyak_aarch64::XReg(21));
+    auto get_free_scratch_reg = [&](const std::vector<size_t>& in_use) -> size_t {
+        for (size_t reg = 19; reg <= 28; ++reg) {
+            bool is_free = true;
+            for (size_t used_reg : in_use) {
+                if (reg == used_reg) {
+                    is_free = false;
+                    break;
+                }
+            }
+            if (is_free) {
+                return reg;
+            }
+        }
+        OV_CPU_JIT_EMITTER_THROW("No free scratch register available");
+    };
+
+    std::vector<size_t> used_regs = {in[0], out[0]};
+    auto temp_src = get_free_scratch_reg(used_regs);
+    used_regs.push_back(temp_src);
+    auto temp_dst = get_free_scratch_reg(used_regs);
+
+    h->mov(Xbyak_aarch64::XReg(temp_src), Xbyak_aarch64::XReg(in[0]));
+    h->mov(Xbyak_aarch64::XReg(temp_dst), Xbyak_aarch64::XReg(out[0]));
+
+    h->mov(Xbyak_aarch64::XReg(1), Xbyak_aarch64::XReg(temp_src));
+    h->mov(Xbyak_aarch64::XReg(2), Xbyak_aarch64::XReg(temp_dst));
     h->mov(Xbyak_aarch64::XReg(0), get_compiled_kernel_ptr());
     h->mov(Xbyak_aarch64::XReg(19), get_execute_function_ptr());
     h->blr(Xbyak_aarch64::XReg(19));
