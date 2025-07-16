@@ -16,10 +16,12 @@ namespace intel_npu {
 IONodeMetadata::IONodeMetadata(const ArgumentDescriptor& d) : descriptor(d) {}
 
 std::optional<size_t> extract_batch_impl(const ov::Shape& shape,
-                                         std::optional<ov::PartialShape> partial_shape,
+                                         std::optional<ov::PartialShape> partial_shape_ir,
+                                         std::optional<ov::PartialShape> partial_shape_compiler,
                                          size_t index) {
-    if (partial_shape.has_value()) {
-        if (partial_shape.value()[index].is_dynamic()) {
+    if (partial_shape_ir.has_value() && partial_shape_compiler.has_value()) {
+        if (partial_shape_ir.value()[index].is_dynamic() &&
+            partial_shape_ir.value()[index] != partial_shape_compiler.value()[index]) {
             return shape[index];
         }
         return std::nullopt;
@@ -28,20 +30,17 @@ std::optional<size_t> extract_batch_impl(const ov::Shape& shape,
 }
 
 std::optional<size_t> IONodeMetadata::extract_batch(const ov::Shape& shape) const {
-    return extract_batch(shape, std::nullopt);
+    return extract_batch(shape, std::nullopt, std::nullopt);
 }
 
 std::optional<size_t> IONodeMetadata::extract_batch(const ov::Shape& shape,
-                                                    std::optional<ov::PartialShape> partial_shape) const {
+                                                    std::optional<ov::PartialShape> partial_shape_ir,
+                                                    std::optional<ov::PartialShape> partial_shape_compiler) const {
     if (descriptor.has_value()) {
-        auto nLayout = descriptor.value().info.networkLayout;
-        if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NHWC ||
-            nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC ||
-            nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NC) {
-            return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 0);
-        } else if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_CN) {
-            return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 1);
-        }
+        return extract_batch_impl(shape,
+                                  partial_shape_ir.has_value() ? partial_shape_ir : std::nullopt,
+                                  partial_shape_compiler.has_value() ? partial_shape_compiler : std::nullopt,
+                                  0);
     }
     return std::nullopt;  // TODO get layout from shape
 }
@@ -160,8 +159,10 @@ std::optional<size_t> IGraph::determine_batch_size(const NetworkMetadata& metada
     // A first dimensionin shape  may be appeared 'C' as well.
     // We need to get batch Idx and determine a true batch value here.
     // Let's use input_output_info as a helper.
-    const ov::PartialShape& first_partial_shape = *metadata.inputs.at(0).shapeFromIRModel;
-    auto candidateBatchSizeIfExist = input_output_info.extract_batch(first_shape, first_partial_shape);
+    const ov::PartialShape& first_partial_shape_ir = *metadata.inputs.at(0).shapeFromIRModel;
+    const ov::PartialShape& first_partial_shape_compiler = metadata.inputs.at(0).shapeFromCompiler;
+    auto candidateBatchSizeIfExist =
+        input_output_info.extract_batch(first_shape, first_partial_shape_ir, first_partial_shape_compiler);
     if (!candidateBatchSizeIfExist.has_value()) {
         return std::nullopt;  // Return std::nullopt if there is no batch dimension
     }
