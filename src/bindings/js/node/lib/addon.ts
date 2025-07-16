@@ -705,7 +705,7 @@ interface AsyncInferQueue {
    * @returns A Promise that can be used to track the callback completion.
    */
   startAsync(
-    inputData: { [inputName: string]: Tensor } | Tensor[], userData: object
+    inputData: { [inputName: string]: Tensor } | Tensor[], userData?: object
   ): Promise<object>;
   /**
    * Releases resources associated with this AsyncInferQueue instance.
