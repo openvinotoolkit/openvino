@@ -2564,7 +2564,7 @@ size_t jit_select_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32, element::f32}};
+    return {{element::f32, element::f32, element::f32}, {element::i32, element::i32, element::i32}};
 }
 
 size_t jit_select_emitter::aux_vecs_count() const {
