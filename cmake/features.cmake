@@ -100,13 +100,11 @@ endif()
 if(X86_64 AND (WIN32 OR LINUX))
     # we have a precompiled version of Intel OMP only for this platforms
     set(ENABLE_INTEL_OPENMP_DEFAULT ON)
-    # temporart override to OFF for testing purposes
-    set(ENABLE_INTEL_OPENMP_DEFAULT OFF)
 else()
     set(ENABLE_INTEL_OPENMP_DEFAULT OFF)
 endif()
 
-ov_dependent_option (ENABLE_INTEL_OPENMP "Enables usage of Intel OpenMP instead of default compiler one" ${ENABLE_INTEL_OPENMP_DEFAULT} "THREADING STREQUAL SEQ" OFF)
+ov_dependent_option (ENABLE_INTEL_OPENMP "Enables usage of Intel OpenMP instead of default compiler one" ${ENABLE_INTEL_OPENMP_DEFAULT} "THREADING STREQUAL OMP" OFF)
 
 if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
     (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))

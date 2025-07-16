@@ -1556,9 +1556,9 @@ public:
         // Allow nested parallel execution.
         // Some nodes use parallelism inside function updateDynParams, but OMP has one nested level here,
         // so nested routines can only be executed in single thread.
-        auto origin_nested_levels = get_max_nested_levels();
+        auto origin_nested_levels = parallel_get_max_nested_levels();
         if (origin_nested_levels < 2) {
-            set_max_nested_levels(2);
+            parallel_set_max_nested_levels(2);
         }
         // In OpenMP, an exception that is thrown in a parallel region must be caught and handled in the same region by
         // the same thread. Therefore, need to pass the error message and throw a new exception outside the parallel
@@ -1591,7 +1591,7 @@ public:
         }
 
         if (origin_nested_levels != 2) {
-            set_max_nested_levels(origin_nested_levels);
+            parallel_set_max_nested_levels(origin_nested_levels);
         }
 
         OPENVINO_ASSERT(what == nullptr, what);
