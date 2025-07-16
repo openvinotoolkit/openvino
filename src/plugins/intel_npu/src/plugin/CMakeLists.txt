@@ -60,12 +60,10 @@ cross_compiled_file(${TARGET_NAME}
 
 ov_add_api_validator_post_build_step(TARGET ${NPU_PLUGIN_TARGET})
 
-if(ENABLE_AVX2)
-    ov_avx2_optimization_flags(avx2_flags)
-    set_source_files_properties(
-        npuw/util.cpp
-        PROPERTIES
-            COMPILE_OPTIONS "${avx2_flags}"
-            COMPILE_DEFINITIONS HAVE_AVX2
-    )
-endif()
+ov_avx2_optimization_flags(avx2_flags)
+set_source_files_properties(
+    npuw/util.cpp
+    PROPERTIES
+        COMPILE_OPTIONS "${avx2_flags}"
+        COMPILE_DEFINITIONS HAVE_AVX2
+)

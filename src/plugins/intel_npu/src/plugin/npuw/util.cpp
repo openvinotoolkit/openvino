@@ -827,6 +827,7 @@ void ov::npuw::util::permute102_i4_avx2(const ov::Tensor& t,
                                         size_t IN_ROWS,
                                         size_t IN_COLS) {
 #if defined(HAVE_AVX2)
+    std::cout << "####################permute102_i4_avx2" << std::endl;
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
@@ -895,6 +896,7 @@ void ov::npuw::util::permute102_f16_avx2(const ov::Tensor& t,
                                          size_t IN_ROWS,
                                          size_t IN_COLS) {
 #if defined(HAVE_AVX2)
+    std::cout << "####################permute102_f16_avx2" << std::endl;
     const uint16_t* src = static_cast<const uint16_t*>(t.data());
     uint16_t* dst = static_cast<uint16_t*>(tnew.data());
 
