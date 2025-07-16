@@ -543,12 +543,12 @@ def test_properties_devices_utilization_threshold():
     with pytest.raises(TypeError) as e:
         value = {"GPU": "75"}
         intel_auto.devices_utilization_threshold(value)
-    assert f"incompatible function arguments." in str(e.value)
+    assert "incompatible function arguments." in str(e.value)
 
     with pytest.raises(TypeError) as e:
         value = {23: "CPU"}
         intel_auto.devices_utilization_threshold(value)
-    assert f"incompatible function arguments." in str(e.value)
+    assert "incompatible function arguments." in str(e.value)
 
 
 def test_properties_streams():
