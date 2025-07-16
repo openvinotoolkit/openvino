@@ -140,7 +140,7 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
         // load model_prefer_threads from cache
         int cache_model_prefer = 0;
         const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
-        for (auto &one_name : model_prefer_name) {
+        for (auto& one_name : model_prefer_name) {
             auto it_model_prefer = hints_config.find(one_name);
             if (it_model_prefer != hints_config.end()) {
                 try {
@@ -148,7 +148,7 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
                 } catch (const ov::Exception&) {
                     OPENVINO_THROW("Cache file doesn't have valid value for " + one_name);
                 }
-                
+
                 if (one_name == std::string("MODEL_PREFER_THREADS_LATENCY")) {
                     conf.modelPreferThreadsLatency = cache_model_prefer;
                 } else {
