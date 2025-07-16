@@ -85,7 +85,7 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
             selected_type = src_prc[i];
         }
         return selected_type;
-    } ();
+    }();
 
     for (const auto prc : exec_precisions_priority) {
         if (input_precision != prc) {
