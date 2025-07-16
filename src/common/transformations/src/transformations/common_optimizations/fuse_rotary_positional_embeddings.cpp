@@ -78,7 +78,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     return symbolic_optimizations.run_on_model(model);
 }
 
-static std::shared_ptr<ov::Node> gen_abc_const() {
+static std::shared_ptr<ov::Node> gen_chatglm_const() {
     using namespace pattern;
 
     auto pred = value_matches("-1, head_cnt, 1, ndims/2, 1") || value_matches("1, -1, head_cnt, ndims/2, 1") ||
@@ -752,12 +752,12 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto neg_x_odd_sin = pattern::wrap_type<v1::Multiply>({x_odd_sin, -1.000000f}, {{"auto_broadcast", "numpy"}});
     auto add0 = pattern::wrap_type<v1::Add>({x_even_cos, neg_x_odd_sin}, {{"auto_broadcast", "numpy"}});
     auto y_even = pattern::wrap_type<v0::Unsqueeze>({add0, -1}) |
-                  pattern::wrap_type<v1::Reshape>({add0, gen_abc_const()}, {{"special_zero", false}});
+                  pattern::wrap_type<v1::Reshape>({add0, gen_chatglm_const()}, {{"special_zero", false}});
     auto x_odd_cos = pattern::wrap_type<v1::Multiply>({x_odd, cos_tab}, {{"auto_broadcast", "numpy"}});
     auto x_even_sin = pattern::wrap_type<v1::Multiply>({x_even, sin_tab}, {{"auto_broadcast", "numpy"}});
     auto add1 = pattern::wrap_type<v1::Add>({x_odd_cos, x_even_sin}, {{"auto_broadcast", "numpy"}});
     auto y_odd = pattern::wrap_type<v0::Unsqueeze>({add1, -1}) |
-                 pattern::wrap_type<v1::Reshape>({add1, gen_abc_const()}, {{"special_zero", false}});
+                 pattern::wrap_type<v1::Reshape>({add1, gen_chatglm_const()}, {{"special_zero", false}});
 
     auto concat2 = pattern::wrap_type<v0::Concat>({y_even, y_odd}, {{"axis", -1}});
 
