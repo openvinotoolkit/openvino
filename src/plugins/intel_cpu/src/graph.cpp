@@ -154,6 +154,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
 
     this->_name = model->get_friendly_name();
 
+    inputNodesMap.resize(model->get_parameters().size());
+    outputNodesMap.resize(model->get_results().size());
+
     // Map data object onto producer node
     std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
 
@@ -185,9 +188,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
             const auto& config = static_cast<size_t>(input_index) < inputConfigs.size() ? inputConfigs[input_index]
                                                                                         : node::Input::InputConfig{};
             NodePtr node = std::make_shared<node::Input>(op, m_context, config);
-            if (static_cast<size_t>(input_index) >= inputNodesMap.size()) {
-                inputNodesMap.resize(input_index + 1);
-            }
             inputNodesMap[input_index] = node;
 
             if (node->isDynamicNode()) {
@@ -207,9 +207,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
             const auto& config = static_cast<size_t>(output_index) < outputConfigs.size() ? outputConfigs[output_index]
                                                                                           : node::Input::OutputConfig{};
             NodePtr node = std::make_shared<node::Input>(op, m_context, config);
-            if (static_cast<size_t>(output_index) >= outputNodesMap.size()) {
-                outputNodesMap.resize(output_index + 1);
-            }
             outputNodesMap[output_index] = node;
 
             return node;
