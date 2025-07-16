@@ -41,7 +41,7 @@ struct Indexer {
 
     int operator()(const std::vector<int>& idx) const {
         int flat_idx = 0;
-        OPENVINO_DEBUG_ASSERT(idx.size(, "Assertion failed: idx.size(") == dims_.size());
+        OPENVINO_DEBUG_ASSERT(idx.size() == dims_.size(), "Assertion failed: idx.size() == dims_.size()");
         for (size_t i = 0; i < dims_.size(); ++i) {
             OPENVINO_DEBUG_ASSERT(0 <= idx[i] && idx[i] < dims_[i],
                                   "Assertion failed: 0 <= idx[i] && idx[i] < dims_[i]");

@@ -179,7 +179,7 @@ public:
         // post SDPA transpose + reshape
         auto get_reshape_order = [](const ov::PartialShape& qkv_shape,
                                     const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
-            OPENVINO_DEBUG_ASSERT(transposeOrder.size(, "Assertion failed: transposeOrder.size(") == 4);
+            OPENVINO_DEBUG_ASSERT(transposeOrder.size() == 4, "transposeOrder.size() must be 4");
             auto H = qkv_shape[transposeOrder[1]].get_length();
             auto S = qkv_shape[transposeOrder[3]].get_length();
             return std::vector<size_t>{0, 0, static_cast<size_t>(H * S)};
