@@ -213,11 +213,10 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                 return true;
             }
             const auto& consumer = output.get_target_inputs().begin()->get_node();
-            if (ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
-                                                           is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-                return false;
-            }
-            return true;
+            const bool is_scale_shift_pattern =
+                ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                                           is_type<Scalar>(consumer->get_input_node_shared_ptr(1)));
+            return !is_scale_shift_pattern;
         },
         "not_scale_shift_pattern");
     ov::pass::pattern::op::Predicate not_clip_pattern(
@@ -226,12 +225,10 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                 return true;
             }
             const auto& consumer = output.get_target_inputs().begin()->get_node();
-            if (ov::is_type<ov::op::v1::Minimum>(consumer) &&
-                (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
-                 is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-                return false;
-            }
-            return true;
+            const bool is_clip_pattern = ov::is_type<ov::op::v1::Minimum>(consumer) &&
+                                         (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                          is_type<Scalar>(consumer->get_input_node_shared_ptr(1)));
+            return !is_clip_pattern;
         },
         "not_clip_pattern");
 

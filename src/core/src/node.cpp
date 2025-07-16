@@ -550,14 +550,14 @@ bool ov::Node::match_node(ov::pass::pattern::Matcher* matcher, const Output<Node
     // patterns
     // with sub-graph of descent nodes types.
     if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info())) {
-        OPENVINO_LOG_NODE2(matcher);
+        OPENVINO_LOG_NODE2(matcher, get_input_size());
         if (matcher->match_arguments(this, graph_value.get_node_shared_ptr())) {
             auto& pattern_map = matcher->get_pattern_value_map();
             pattern_map[shared_from_this()] = graph_value;
             OPENVINO_LOG_NODE3(matcher);
             return true;
         }
-        OPENVINO_LOG_NODE4(matcher);
+        OPENVINO_LOG_NODE4(matcher, get_input_size());
     } else {
         OPENVINO_LOG_NODE5(matcher, shared_from_this(), graph_value);
     }
