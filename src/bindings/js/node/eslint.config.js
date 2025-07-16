@@ -6,7 +6,7 @@ const { defineConfig } = require("eslint/config");
 
 module.exports = defineConfig([
   eslint.configs.recommended,
-  tseslint.configs.recommended,
+  tseslint.configs.recommendedTypeChecked,
   prettierConfig, // to disable stylistic rules from ESLint
   {
     ignores: ["types/", "dist/"],
