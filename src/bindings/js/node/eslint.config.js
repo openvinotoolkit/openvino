@@ -1,5 +1,5 @@
 const eslint = require("@eslint/js");
-const prettierConfig = require("eslint-config-prettier/flat");
+const prettierConfig = require("eslint-plugin-prettier/recommended");
 const globals = require("globals");
 const tseslint = require("typescript-eslint");
 const { defineConfig } = require("eslint/config");
