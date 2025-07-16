@@ -140,7 +140,9 @@ ov_disable_sdl_flags_for_sources(SOURCES "src/runtime/tensor.cpp")
 ov_build_target_faster(openvino_core_obj
     UNITY
     PCH_HEADER "src/precomp.hpp"
-    PCH_EXCLUDE "src/op/util/attr_types.cpp")
+    PCH_EXCLUDE
+        "src/op/util/attr_types.cpp"
+        "src/runtime/tensor.cpp")
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
