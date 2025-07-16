@@ -142,6 +142,8 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
+    void emit_data() const override;
+
 private:
     std::unique_ptr<jit_exp_emitter> exp_emitter{nullptr};
 
@@ -149,8 +151,6 @@ private:
 
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
-
-    void emit_data() const override;
 
     void register_table_entries() override;
 };
