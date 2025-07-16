@@ -56,7 +56,7 @@ struct jit_uni_normalize_modulo_kernel {
     void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
     void operator()(const jit_normalize_call_args* args) const {
-        OPENVINO_DEBUG_ASSERT(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 
@@ -72,7 +72,7 @@ struct jit_uni_normalize_kernel {
     void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
     void operator()(const jit_normalize_call_args* args) const {
-        OPENVINO_DEBUG_ASSERT(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

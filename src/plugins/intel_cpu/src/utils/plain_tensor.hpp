@@ -123,7 +123,8 @@ struct PlainTensor {
         return m_dims[i];
     }
     [[nodiscard]] size_t stride(int i) const {
-        OPENVINO_DEBUG_ASSERT(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
+        OPENVINO_DEBUG_ASSERT(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank,
+                              "i must be in range [0, rank)");
         return m_strides[i];
     }
 

@@ -81,7 +81,7 @@ public:
             ret = dnnlPostOps == rhs.dnnlPostOps;
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(!"unsupported eltwise post operation type");
+            OPENVINO_DEBUG_ASSERT(false, "unsupported eltwise post operation type");
         }
         return ret;
     }

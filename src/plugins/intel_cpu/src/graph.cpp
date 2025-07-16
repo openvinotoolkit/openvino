@@ -1799,8 +1799,9 @@ void Graph::RemoveEdge(const EdgePtr& edge) {
 }
 
 void Graph::AddNode(const NodePtr& node) {
-    OPENVINO_DEBUG_ASSERT(node);
-    OPENVINO_DEBUG_ASSERT(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end());
+    OPENVINO_DEBUG_ASSERT(node, "Node pointer is null");
+    OPENVINO_DEBUG_ASSERT(std::find(graphNodes.begin(), graphNodes.end(), node) == graphNodes.end(),
+                          "Node already exists in the graph");
 
     graphNodes.push_back(node);
 }

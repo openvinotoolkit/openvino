@@ -54,7 +54,7 @@ struct jit_uni_interpolate_kernel {
     void (*ker_)(const jit_interpolate_call_args*) = nullptr;
 
     void operator()(const jit_interpolate_call_args* args) const {
-        OPENVINO_DEBUG_ASSERT(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

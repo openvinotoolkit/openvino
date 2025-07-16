@@ -57,11 +57,11 @@ void JitKernelBase::uni_vfmsub231ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v
     if (isValidIsa(x64::avx2)) {
         vfmsub231ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        OPENVINO_DEBUG_ASSERT(false, "v_dst.isEqualIfNotInherited(op)");
+        OPENVINO_DEBUG_ASSERT(false, "isValidIsa(x64::avx) is not supported for uni_vfmsub231ps");
         vmulps(v_src, v_src, op);
         vsubps(v_dst, v_src, v_dst);
     } else {
-        OPENVINO_DEBUG_ASSERT(false, "v_dst.isEqualIfNotInherited(op)");
+        OPENVINO_DEBUG_ASSERT(false, "isValidIsa(x64::sse41) is not supported for uni_vfmsub231ps");
         mulps(v_src, op);
         subps(v_src, v_dst);
         movups(v_dst, v_src);
