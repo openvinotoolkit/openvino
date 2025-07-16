@@ -50,19 +50,13 @@ bool MetaInterconnect::operator==(const MetaInterconnect& other) const {
 }
 
 bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
-    return std::make_tuple(input_meta,
-                           input_port,
-                           input_reptrack,
-                           input_g_output_size,
-                           output_port,
-                           output_meta,
-                           output_reptrack,
-                           output_g_output_size) < std::make_tuple(other.input_meta,
-                                                                   other.input_port,
-                                                                   other.input_reptrack,
-                                                                   other.input_g_output_size,
-                                                                   other.output_port,
-                                                                   other.output_meta,
-                                                                   other.output_reptrack,
-                                                                   other.output_g_output_size);
+    // NOTE: input_g_output_size and output_g_output_size are intentionally excluded
+    // to preserve previously established partitions.
+    return std::make_tuple(input_meta, input_port, input_reptrack, output_port, output_meta, output_reptrack) <
+           std::make_tuple(other.input_meta,
+                           other.input_port,
+                           other.input_reptrack,
+                           other.output_port,
+                           other.output_meta,
+                           other.output_reptrack);
 }
