@@ -212,6 +212,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         return NodePtr(Node::factory().create(op, m_context));
     };
 
+    inputNodesMap.resize(model->get_parameters().size());
+    outputNodesMap.resize(model->get_results().size());
+
     for (const auto& op : model->get_ordered_ops()) {
         const NodePtr node = createNode(op);
 
@@ -265,9 +268,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
 
     // enforce must be performed after inputs and outputs info are taken into account
     EnforceInferencePrecision();
-
-    inputNodesMap.resize(model->get_parameters().size());
-    outputNodesMap.resize(model->get_results().size());
 
     // update input precisions of consumers to avoid extra reorders
     for (auto& inputNode : inputNodesMap) {
