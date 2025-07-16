@@ -150,6 +150,7 @@ OP_CONVERTER(scatter);
 OP_CONVERTER(scatter_nd_add);
 OP_CONVERTER(take_along_axis);
 OP_CONVERTER(reduce_any);
+OP_CONVERTER(gap);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
@@ -301,7 +302,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"scatter", op::scatter},
             {"scatter_nd_add", op::scatter_nd_add},
             {"take_along_axis", op::take_along_axis},
-            {"reduce_any", op::reduce_any}};
+            {"reduce_any", op::reduce_any},
+            {"gap", op::gap}};
 };
 
 }  // namespace paddle
