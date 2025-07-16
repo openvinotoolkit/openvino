@@ -84,7 +84,7 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model,
 }
 
 const ExpressionFactoryPtr& LinearIR::get_expr_factory() const {
-    OPENVINO_DEBUG_ASSERT(m_expression_factory, "ExpresstionFactory is missed!");
+    OPENVINO_DEBUG_ASSERT(m_expression_factory, "Expression Factory is missed!");
     return m_expression_factory;
 }
 
