@@ -246,25 +246,12 @@ public:
 
     void visualize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {
         static size_t viz_index = 0;
-        std::string pass_name_short = " ";
-        int  pos = 0,nchars = 0;
-        std::string sub = "::";
         if (m_visualize.is_enabled()) {
             const auto& _visualize = [&]() {
-                while ((nchars = pass_name.find(sub, pos)) != std::string::npos) {      /* find sub */
-                    pos = nchars + sub.length();
-                    pass_name_short = pass_name.substr(nchars + 2);
-                }
-                if (pass_name_short == " ") {
-                    const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
-                    ov::pass::VisualizeTree vt(file_name + ".svg");
-                    vt.run_on_model(model);
-                } else {
-                    const auto& file_name = gen_file_name(model->get_name(), pass_name_short, viz_index++);
-                    ov::pass::VisualizeTree vt(file_name + ".svg");
-                    vt.run_on_model(model);
-                }
-            };
+                const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
+                ov::pass::VisualizeTree vt(file_name + ".svg");
+                vt.run_on_model(model);
+                };
 
             if (m_visualize.is_bool()) {
                 _visualize();
