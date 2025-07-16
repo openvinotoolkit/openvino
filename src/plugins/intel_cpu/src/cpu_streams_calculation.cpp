@@ -715,9 +715,8 @@ int get_model_prefer_threads(const int num_streams,
 #    else
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
             if ((proc_type_table[0][MAIN_CORE_PROC] < config.threads || config.threads == 0) &&
-                (ov::get_number_of_blocked_cores() ||
-                 (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0 &&
-                  proc_type_table[0][EFFICIENT_CORE_PROC] < 2 * proc_type_table[0][MAIN_CORE_PROC]))) {
+                ov::get_number_of_blocked_cores() &&
+                proc_type_table[0][EFFICIENT_CORE_PROC] < 2 * proc_type_table[0][MAIN_CORE_PROC]) {
                 if (ov::op::util::is_large_language_model(*model)) {
                     config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
                 } else {
